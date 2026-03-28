@@ -24,17 +24,17 @@ func (s *Server) handleWorkspaceMe(c *fiber.Ctx) error {
 	workspace, err := s.db.GetWorkspaceByID(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "workspace not found"})
+			return errRes(c, fiber.StatusNotFound, "workspace not found")
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not load workspace"})
+		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
 	user, err := s.db.GetUserByID(c.Context(), claims.UserID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+			return errRes(c, fiber.StatusNotFound, "user not found")
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not load user"})
+		return errRes(c, fiber.StatusInternalServerError, "could not load user")
 	}
 
 	member, err := s.db.GetMember(c.Context(), dbgen.GetMemberParams{
@@ -42,7 +42,7 @@ func (s *Server) handleWorkspaceMe(c *fiber.Ctx) error {
 		UserID:      claims.UserID,
 	})
 	if err != nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "not a member of this workspace"})
+		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
 
 	return c.JSON(workspaceMeResponse{Workspace: workspace, User: userToResponse(user), Role: member.Role})
@@ -65,16 +65,16 @@ func (s *Server) handleCreateInvite(c *fiber.Ctx) error {
 
 	var req createInviteRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if req.Email == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email is required"})
+		return errRes(c, fiber.StatusBadRequest, "email is required")
 	}
 	if req.Role == "" {
 		req.Role = "editor"
 	}
 	if req.Role != "editor" && req.Role != "viewer" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "role must be editor or viewer"})
+		return errRes(c, fiber.StatusBadRequest, "role must be editor or viewer")
 	}
 
 	invite, err := s.db.CreateInvite(c.Context(), dbgen.CreateInviteParams{
@@ -87,7 +87,7 @@ func (s *Server) handleCreateInvite(c *fiber.Ctx) error {
 		ExpiresAt:   time.Now().Add(7 * 24 * time.Hour),
 	})
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create invite"})
+		return errRes(c, fiber.StatusInternalServerError, "could not create invite")
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(inviteResponse{
@@ -107,28 +107,28 @@ type acceptInviteRequest struct {
 func (s *Server) handleAcceptInvite(c *fiber.Ctx) error {
 	var req acceptInviteRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if req.Token == "" || req.Name == "" || req.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "token, name and password are required"})
+		return errRes(c, fiber.StatusBadRequest, "token, name and password are required")
 	}
 	if len(req.Password) < 8 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "password must be at least 8 characters"})
+		return errRes(c, fiber.StatusBadRequest, "password must be at least 8 characters")
 	}
 
 	invite, err := s.db.GetInviteByToken(c.Context(), req.Token)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "invalid or expired invite token"})
+		return errRes(c, fiber.StatusNotFound, "invalid or expired invite token")
 	}
 
 	hash, err := bcryptHash(req.Password)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not hash password"})
+		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
 
 	tx, err := s.sqlDB.BeginTx(c.Context(), nil)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not begin transaction"})
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
 	}
 	defer tx.Rollback() //nolint:errcheck
 
@@ -143,7 +143,7 @@ func (s *Server) handleAcceptInvite(c *fiber.Ctx) error {
 		Name:         req.Name,
 	})
 	if err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "email already in use"})
+		return errRes(c, fiber.StatusConflict, "email already in use")
 	}
 
 	if err := qtx.CreateMember(c.Context(), dbgen.CreateMemberParams{
@@ -152,20 +152,20 @@ func (s *Server) handleAcceptInvite(c *fiber.Ctx) error {
 		Role:        invite.Role,
 		InvitedBy:   sql.NullString{String: invite.InvitedBy, Valid: true},
 	}); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not add workspace member"})
+		return errRes(c, fiber.StatusInternalServerError, "could not add workspace member")
 	}
 
 	if err := qtx.AcceptInvite(c.Context(), invite.ID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not mark invite as accepted"})
+		return errRes(c, fiber.StatusInternalServerError, "could not mark invite as accepted")
 	}
 
 	if err := tx.Commit(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not commit transaction"})
+		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
 
 	token, err := s.tokenMaker.CreateToken(userID, invite.WorkspaceID, 7*24*time.Hour)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create token"})
+		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
 	s.setAuthCookie(c, token)

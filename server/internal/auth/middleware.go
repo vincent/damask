@@ -15,12 +15,12 @@ func RequireAuth(maker *Maker) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tokenStr := extractToken(c)
 		if tokenStr == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing token"})
+			return fiber.NewError(fiber.StatusUnauthorized, "missing token")
 		}
 
 		claims, err := maker.VerifyToken(tokenStr)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token"})
+			return fiber.NewError(fiber.StatusUnauthorized, "invalid token")
 		}
 
 		c.Locals(claimsKey, claims)
@@ -48,16 +48,16 @@ func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, 
 	return func(c *fiber.Ctx) error {
 		claims := GetClaims(c)
 		if claims == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing token"})
+			return fiber.NewError(fiber.StatusUnauthorized, "missing token")
 		}
 
 		role, err := getRoleFn(c.UserContext(), claims.WorkspaceID, claims.UserID)
 		if err != nil {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "access denied"})
+			return fiber.NewError(fiber.StatusForbidden, "access denied")
 		}
 
 		if roleRank[role] < roleRank[minRole] {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "insufficient permissions"})
+			return fiber.NewError(fiber.StatusForbidden, "insufficient permissions")
 		}
 
 		return c.Next()

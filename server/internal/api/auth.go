@@ -63,18 +63,18 @@ func userToResponse(u dbgen.User) userResponse {
 func (s *Server) handleRegister(c *fiber.Ctx) error {
 	var req registerRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if req.Email == "" || req.Password == "" || req.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name, email and password are required"})
+		return errRes(c, fiber.StatusBadRequest, "name, email and password are required")
 	}
 	if len(req.Password) < 8 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "password must be at least 8 characters"})
+		return errRes(c, fiber.StatusBadRequest, "password must be at least 8 characters")
 	}
 
 	hash, err := bcryptHash(req.Password)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not hash password"})
+		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
 
 	workspaceID := uuid.New().String()
@@ -82,7 +82,7 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 
 	tx, err := s.sqlDB.BeginTx(c.Context(), nil)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not begin transaction"})
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
 	}
 	defer tx.Rollback() //nolint:errcheck
 
@@ -93,7 +93,7 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 		Name: req.Name + "'s Workspace",
 	})
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create workspace"})
+		return errRes(c, fiber.StatusInternalServerError, "could not create workspace")
 	}
 
 	user, err := qtx.CreateUser(c.Context(), dbgen.CreateUserParams{
@@ -104,7 +104,7 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 		Name:         req.Name,
 	})
 	if err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "email already in use"})
+		return errRes(c, fiber.StatusConflict, "email already in use")
 	}
 
 	if err := qtx.CreateMember(c.Context(), dbgen.CreateMemberParams{
@@ -113,16 +113,16 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 		Role:        "owner",
 		InvitedBy:   sql.NullString{}, // owner has no inviter
 	}); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not assign workspace owner"})
+		return errRes(c, fiber.StatusInternalServerError, "could not assign workspace owner")
 	}
 
 	if err := tx.Commit(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not commit transaction"})
+		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
 
 	token, err := s.tokenMaker.CreateToken(userID, workspaceID, 7*24*time.Hour)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create token"})
+		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
 	s.setAuthCookie(c, token)
@@ -132,29 +132,29 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 func (s *Server) handleLogin(c *fiber.Ctx) error {
 	var req loginRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if req.Email == "" || req.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email and password are required"})
+		return errRes(c, fiber.StatusBadRequest, "email and password are required")
 	}
 
 	user, err := s.db.GetUserByEmail(c.Context(), req.Email)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
+		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
+		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
 
 	workspace, err := s.db.GetWorkspaceByID(c.Context(), user.WorkspaceID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not load workspace"})
+		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
 	token, err := s.tokenMaker.CreateToken(user.ID, user.WorkspaceID, 7*24*time.Hour)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create token"})
+		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
 	s.setAuthCookie(c, token)
@@ -166,7 +166,7 @@ func (s *Server) handleRefresh(c *fiber.Ctx) error {
 
 	token, err := s.tokenMaker.CreateToken(claims.UserID, claims.WorkspaceID, 7*24*time.Hour)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create token"})
+		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
 	s.setAuthCookie(c, token)
