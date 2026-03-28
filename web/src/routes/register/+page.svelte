@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
-  import { authStore } from '$lib/stores/auth'
   import { authApi, ApiError } from '$lib/api/client'
 
   let name = $state('')
@@ -15,10 +14,7 @@
     loading = true
 
     try {
-      const { user, workspace } = await authApi.register(name, email, password)
-      if (workspace) {
-        authStore.login(user, workspace, 'owner')
-      }
+      await authApi.register(name, email, password)
       goto('/library')
     } catch (err) {
       error = err instanceof ApiError ? err.message : 'Registration failed'

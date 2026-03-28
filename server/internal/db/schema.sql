@@ -89,7 +89,7 @@ CREATE TABLE variants (
 
 CREATE TABLE jobs (
     id           TEXT PRIMARY KEY,
-    workspace_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id),
     type         TEXT NOT NULL,
     payload      TEXT NOT NULL, -- JSON
     status       TEXT NOT NULL CHECK(status IN ('pending', 'processing', 'done', 'failed')) DEFAULT 'pending',

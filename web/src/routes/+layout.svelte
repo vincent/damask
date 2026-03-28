@@ -5,7 +5,7 @@
 
   let { children, data }: { children: any; data: LayoutData } = $props()
 
-  $effect(() => {
+  $effect.pre(() => {
     if (data?.user && data?.workspace && data?.role) {
       authStore.login(data.user, data.workspace, data.role)
     }

@@ -2,10 +2,11 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
-	dbgen "creativo-dam/server/internal/db/gen"
 	"creativo-dam/server/internal/auth"
+	dbgen "creativo-dam/server/internal/db/gen"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -22,15 +23,21 @@ func (s *Server) handleWorkspaceMe(c *fiber.Ctx) error {
 
 	workspace, err := s.db.GetWorkspaceByID(c.Context(), claims.WorkspaceID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "workspace not found"})
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "workspace not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not load workspace"})
 	}
 
 	user, err := s.db.GetUserByID(c.Context(), claims.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not load user"})
 	}
 
-	role, err := s.db.GetMemberRole(c.Context(), dbgen.GetMemberRoleParams{
+	member, err := s.db.GetMember(c.Context(), dbgen.GetMemberParams{
 		WorkspaceID: claims.WorkspaceID,
 		UserID:      claims.UserID,
 	})
@@ -38,7 +45,7 @@ func (s *Server) handleWorkspaceMe(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "not a member of this workspace"})
 	}
 
-	return c.JSON(workspaceMeResponse{Workspace: workspace, User: userToResponse(user), Role: role})
+	return c.JSON(workspaceMeResponse{Workspace: workspace, User: userToResponse(user), Role: member.Role})
 }
 
 type createInviteRequest struct {
@@ -47,10 +54,10 @@ type createInviteRequest struct {
 }
 
 type inviteResponse struct {
-	ID    string `json:"id"`
-	Token string `json:"token"`
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	ID          string `json:"id"`
+	InviteToken string `json:"invite_token"`
+	Email       string `json:"email"`
+	Role        string `json:"role"`
 }
 
 func (s *Server) handleCreateInvite(c *fiber.Ctx) error {
@@ -84,10 +91,10 @@ func (s *Server) handleCreateInvite(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(inviteResponse{
-		ID:    invite.ID,
-		Token: invite.Token,
-		Email: invite.Email,
-		Role:  invite.Role,
+		ID:          invite.ID,
+		InviteToken: invite.Token,
+		Email:       invite.Email,
+		Role:        invite.Role,
 	})
 }
 
@@ -119,8 +126,16 @@ func (s *Server) handleAcceptInvite(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not hash password"})
 	}
 
+	tx, err := s.sqlDB.BeginTx(c.Context(), nil)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not begin transaction"})
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	qtx := s.db.WithTx(tx)
+
 	userID := uuid.New().String()
-	user, err := s.db.CreateUser(c.Context(), dbgen.CreateUserParams{
+	user, err := qtx.CreateUser(c.Context(), dbgen.CreateUserParams{
 		ID:           userID,
 		WorkspaceID:  invite.WorkspaceID,
 		Email:        invite.Email,
@@ -131,7 +146,7 @@ func (s *Server) handleAcceptInvite(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "email already in use"})
 	}
 
-	if err := s.db.CreateMember(c.Context(), dbgen.CreateMemberParams{
+	if err := qtx.CreateMember(c.Context(), dbgen.CreateMemberParams{
 		WorkspaceID: invite.WorkspaceID,
 		UserID:      userID,
 		Role:        invite.Role,
@@ -140,8 +155,12 @@ func (s *Server) handleAcceptInvite(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not add workspace member"})
 	}
 
-	if err := s.db.AcceptInvite(c.Context(), invite.ID); err != nil {
+	if err := qtx.AcceptInvite(c.Context(), invite.ID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not mark invite as accepted"})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not commit transaction"})
 	}
 
 	token, err := s.tokenMaker.CreateToken(userID, invite.WorkspaceID, 7*24*time.Hour)
@@ -149,6 +168,6 @@ func (s *Server) handleAcceptInvite(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create token"})
 	}
 
-	setAuthCookie(c, token)
+	s.setAuthCookie(c, token)
 	return c.Status(fiber.StatusCreated).JSON(authResponse{Token: token, User: userToResponse(user)})
 }

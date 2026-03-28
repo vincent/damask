@@ -3,7 +3,7 @@
 //   sqlc v1.30.0
 // source: workspace_invites.sql
 
-package db
+package dbgen
 
 import (
 	"context"

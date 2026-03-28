@@ -26,7 +26,7 @@ func main() {
 		log.Fatalf("auth: %v", err)
 	}
 
-	app := api.New(queries, tokenMaker)
+	app := api.New(queries, sqlDB, tokenMaker, cfg.AppEnv)
 
 	log.Printf("server starting on :%s (env=%s)", cfg.Port, cfg.AppEnv)
 	if err := app.Listen(":" + cfg.Port); err != nil {

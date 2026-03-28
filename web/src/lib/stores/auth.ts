@@ -27,7 +27,6 @@ function createAuthStore() {
     logout() {
       set(initial)
     },
-    update,
   }
 }
 

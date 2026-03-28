@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -43,14 +44,14 @@ var roleRank = map[string]int{
 
 // RequireRole returns a middleware that enforces a minimum role level.
 // It expects a getRoleFn to look up the current user's role in the workspace.
-func RequireRole(maker *Maker, getRoleFn func(workspaceID, userID string) (string, error), minRole string) fiber.Handler {
+func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, userID string) (string, error), minRole string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		claims := GetClaims(c)
 		if claims == nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing token"})
 		}
 
-		role, err := getRoleFn(claims.WorkspaceID, claims.UserID)
+		role, err := getRoleFn(c.UserContext(), claims.WorkspaceID, claims.UserID)
 		if err != nil {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "access denied"})
 		}

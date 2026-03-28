@@ -7,7 +7,3 @@ SELECT * FROM workspace_members
 WHERE workspace_id = ? AND user_id = ?
 LIMIT 1;
 
--- name: GetMemberRole :one
-SELECT role FROM workspace_members
-WHERE workspace_id = ? AND user_id = ?
-LIMIT 1;

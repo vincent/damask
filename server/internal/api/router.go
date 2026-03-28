@@ -2,24 +2,26 @@ package api
 
 import (
 	"context"
+	"database/sql"
 
-	dbgen "creativo-dam/server/internal/db/gen"
 	"creativo-dam/server/internal/auth"
+	dbgen "creativo-dam/server/internal/db/gen"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
 	db         *dbgen.Queries
+	sqlDB      *sql.DB
 	tokenMaker *auth.Maker
+	appEnv     string
 }
 
 // New creates a configured Fiber app with all routes registered.
-func New(db *dbgen.Queries, tokenMaker *auth.Maker) *fiber.App {
-	s := &Server{db: db, tokenMaker: tokenMaker}
+func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, appEnv string) *fiber.App {
+	s := &Server{db: db, sqlDB: sqlDB, tokenMaker: tokenMaker, appEnv: appEnv}
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: defaultErrorHandler,
@@ -49,14 +51,20 @@ func New(db *dbgen.Queries, tokenMaker *auth.Maker) *fiber.App {
 	api.Get("/workspace/me", s.handleWorkspaceMe)
 
 	// Invites — owner only
-	getRoleFn := func(workspaceID, userID string) (string, error) {
-		return s.db.GetMemberRole(context.Background(), dbgen.GetMemberRoleParams{
+	getRoleFn := func(ctx context.Context, workspaceID, userID string) (string, error) {
+		member, err := s.db.GetMember(ctx, dbgen.GetMemberParams{
 			WorkspaceID: workspaceID,
 			UserID:      userID,
 		})
+		if err != nil {
+			return "", err
+		}
+		return member.Role, nil
 	}
 	api.Post("/workspace/invites", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleCreateInvite)
-	api.Post("/workspace/invites/accept", s.handleAcceptInvite)
+
+	// Invite acceptance is public — the caller has no account yet
+	authGroup.Post("/invite/accept", s.handleAcceptInvite)
 
 	return app
 }
@@ -67,12 +75,4 @@ func defaultErrorHandler(c *fiber.Ctx, err error) error {
 		code = e.Code
 	}
 	return c.Status(code).JSON(fiber.Map{"error": err.Error()})
-}
-
-func bcryptHash(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hash), nil
 }

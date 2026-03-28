@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080'
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
 export class ApiError extends Error {
   constructor(
@@ -85,13 +85,13 @@ export const workspaceApi = {
   me: () => apiFetch<WorkspaceMeResponse>('/api/v1/workspace/me'),
 
   createInvite: (email: string, role: 'editor' | 'viewer' = 'editor') =>
-    apiFetch<{ id: string; token: string; email: string; role: string }>(
+    apiFetch<{ id: string; invite_token: string; email: string; role: string }>(
       '/api/v1/workspace/invites',
       { method: 'POST', body: JSON.stringify({ email, role }) }
     ),
 
   acceptInvite: (token: string, name: string, password: string) =>
-    apiFetch<AuthResponse>('/api/v1/workspace/invites/accept', {
+    apiFetch<AuthResponse>('/auth/invite/accept', {
       method: 'POST',
       body: JSON.stringify({ token, name, password }),
     }),

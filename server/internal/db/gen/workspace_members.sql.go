@@ -3,7 +3,7 @@
 //   sqlc v1.30.0
 // source: workspace_members.sql
 
-package db
+package dbgen
 
 import (
 	"context"
@@ -54,22 +54,4 @@ func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (Workspace
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const getMemberRole = `-- name: GetMemberRole :one
-SELECT role FROM workspace_members
-WHERE workspace_id = ? AND user_id = ?
-LIMIT 1
-`
-
-type GetMemberRoleParams struct {
-	WorkspaceID string `json:"workspace_id"`
-	UserID      string `json:"user_id"`
-}
-
-func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, getMemberRole, arg.WorkspaceID, arg.UserID)
-	var role string
-	err := row.Scan(&role)
-	return role, err
 }

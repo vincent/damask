@@ -2,13 +2,10 @@
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
   import { authStore } from '$lib/stores/auth'
+  import { apiFetch } from '$lib/api/client'
 
   onMount(async () => {
-    // Clear cookie by setting expired date via a server action
-    await fetch('http://localhost:8080/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => {})
+    await apiFetch('/auth/logout', { method: 'POST' }).catch(() => {})
     authStore.logout()
     goto('/login')
   })

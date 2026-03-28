@@ -1,6 +1,5 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
-  import { authStore } from '$lib/stores/auth'
   import { authApi, ApiError } from '$lib/api/client'
 
   let email = $state('')
@@ -14,10 +13,7 @@
     loading = true
 
     try {
-      const { user, workspace, token } = await authApi.login(email, password)
-      if (workspace) {
-        authStore.login(user, workspace, 'owner') // role loaded properly via /workspace/me
-      }
+      await authApi.login(email, password)
       goto('/library')
     } catch (err) {
       error = err instanceof ApiError ? err.message : 'Login failed'

@@ -1,12 +1,18 @@
 import { browser } from '$app/environment'
 import { redirect } from '@sveltejs/kit'
 import type { LayoutLoad } from './$types'
+import { workspaceApi, ApiError } from '$lib/api/client'
+import type { User, Workspace } from '$lib/api/client'
 
 const PUBLIC_PATHS = ['/login', '/register', '/invite']
 
 export const ssr = false
 
-export const load: LayoutLoad = async ({ url, fetch }) => {
+export const load: LayoutLoad = async ({ url }): Promise<{
+  user?: User
+  workspace?: Workspace
+  role?: string
+}> => {
   if (!browser) return {}
 
   if (PUBLIC_PATHS.some((p) => url.pathname.startsWith(p))) {
@@ -14,16 +20,11 @@ export const load: LayoutLoad = async ({ url, fetch }) => {
   }
 
   try {
-    const res = await fetch('http://localhost:8080/api/v1/workspace/me', {
-      credentials: 'include',
-    })
-
-    if (!res.ok) {
+    return await workspaceApi.me()
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
       redirect(303, '/login')
     }
-
-    return await res.json()
-  } catch {
     redirect(303, '/login')
   }
 }
