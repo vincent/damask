@@ -34,7 +34,7 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.
 		AllowOrigins:     "http://localhost:5173",
 		AllowCredentials: true,
 		AllowHeaders:     "Origin, Content-Type, Authorization",
-		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
+		AllowMethods:     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 	}))
 
 	// Health check (public)
@@ -70,13 +70,39 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)
 
-	// Assets
+	// Projects
+	api.Post("/projects", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateProject)
+	api.Get("/projects", s.handleListProjects)
+	api.Get("/projects/:id", s.handleGetProject)
+	api.Put("/projects/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateProject)
+	api.Delete("/projects/:id", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleDeleteProject)
+
+	// Tags
+	api.Get("/tags", s.handleListTags)
+
+	// Folders
+	api.Post("/projects/:id/folders", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateFolder)
+	api.Get("/projects/:id/folders", s.handleGetFolders)
+	api.Put("/folders/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateFolder)
+	api.Delete("/folders/:id", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleDeleteFolder)
+
+	// Assets — bulk routes must be registered before /:id to avoid conflict
+	api.Post("/assets/bulk/tag", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleBulkTag)
+	api.Post("/assets/bulk/project", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleBulkProject)
+	api.Delete("/assets/bulk", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleBulkDelete)
+
 	api.Post("/assets", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUploadAsset)
 	api.Get("/assets", s.handleListAssets)
+	api.Patch("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateAssetFolder)
 	api.Get("/assets/:id", s.handleGetAsset)
 	api.Get("/assets/:id/file", s.handleGetAssetFile)
 	api.Get("/assets/:id/thumb", s.handleGetAssetThumb)
 	api.Delete("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteAsset)
+
+	// Asset tags
+	api.Get("/assets/:id/tags", s.handleGetAssetTags)
+	api.Post("/assets/:id/tags", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleAddTagToAsset)
+	api.Delete("/assets/:id/tags/:name", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleRemoveTagFromAsset)
 
 	return app
 }

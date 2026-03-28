@@ -117,8 +117,120 @@ export interface Asset {
   height: NullableInt64
   thumbnail_key: NullableString
   metadata: NullableString
+  tags: string[]
   created_at: string
   updated_at: string
+}
+
+// ---- Projects ----
+
+export interface Project {
+  id: string
+  workspace_id: string
+  name: string
+  description: NullableString
+  color: NullableString
+  cover_asset_id: NullableString
+  asset_count: number
+  created_at: string
+  updated_at: string
+}
+
+export const projectApi = {
+  list: () => apiFetch<Project[]>('/api/v1/projects'),
+
+  get: (id: string) => apiFetch<Project>(`/api/v1/projects/${id}`),
+
+  create: (data: { name: string; description?: string; color?: string }) =>
+    apiFetch<Project>('/api/v1/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { name?: string; description?: string; color?: string; cover_asset_id?: string }) =>
+    apiFetch<Project>(`/api/v1/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/projects/${id}`, { method: 'DELETE' }),
+}
+
+// ---- Folders ----
+
+export interface Folder {
+  id: string
+  workspace_id: string
+  project_id: string
+  parent_id: NullableString
+  name: string
+  position: number
+  asset_count: number
+  children: Folder[]
+  created_at: string
+}
+
+export const folderApi = {
+  list: (projectId: string) => apiFetch<Folder[]>(`/api/v1/projects/${projectId}/folders`),
+
+  create: (projectId: string, data: { name: string; parent_id?: string; position?: number }) =>
+    apiFetch<Folder>(`/api/v1/projects/${projectId}/folders`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { name?: string; position?: number }) =>
+    apiFetch<Folder>(`/api/v1/folders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/folders/${id}`, { method: 'DELETE' }),
+}
+
+// ---- Tags ----
+
+export interface Tag {
+  id: string
+  name: string
+  asset_count: number
+}
+
+export const tagApi = {
+  list: () => apiFetch<Tag[]>('/api/v1/tags'),
+
+  getForAsset: (assetId: string) => apiFetch<string[]>(`/api/v1/assets/${assetId}/tags`),
+
+  addToAsset: (assetId: string, name: string) =>
+    apiFetch<{ name: string }>(`/api/v1/assets/${assetId}/tags`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  removeFromAsset: (assetId: string, name: string) =>
+    apiFetch<void>(`/api/v1/assets/${assetId}/tags/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+
+  bulkTag: (assetIds: string[], tagName: string) =>
+    apiFetch<void>('/api/v1/assets/bulk/tag', {
+      method: 'POST',
+      body: JSON.stringify({ asset_ids: assetIds, tag_name: tagName }),
+    }),
+
+  bulkProject: (assetIds: string[], projectId: string | null) =>
+    apiFetch<void>('/api/v1/assets/bulk/project', {
+      method: 'POST',
+      body: JSON.stringify({ asset_ids: assetIds, project_id: projectId }),
+    }),
+
+  bulkDelete: (assetIds: string[]) =>
+    apiFetch<void>('/api/v1/assets/bulk', {
+      method: 'DELETE',
+      body: JSON.stringify({ asset_ids: assetIds }),
+    }),
 }
 
 export interface AssetListResponse {
@@ -167,6 +279,8 @@ export const assetApi = {
     q?: string
     project_id?: string
     mime?: string
+    tags?: string[]
+    folder_id?: string
   } = {}): Promise<AssetListResponse> {
     const qs = new URLSearchParams()
     if (params.cursor) qs.set('cursor', params.cursor)
@@ -174,9 +288,17 @@ export const assetApi = {
     if (params.q) qs.set('q', params.q)
     if (params.project_id) qs.set('project_id', params.project_id)
     if (params.mime) qs.set('mime', params.mime)
+    if (params.tags && params.tags.length > 0) qs.set('tags', params.tags.join(','))
+    if (params.folder_id) qs.set('folder_id', params.folder_id)
     const query = qs.toString()
     return apiFetch<AssetListResponse>(`/api/v1/assets${query ? '?' + query : ''}`)
   },
+
+  updateFolder: (assetId: string, folderId: string | null) =>
+    apiFetch<Asset>(`/api/v1/assets/${assetId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ folder_id: folderId }),
+    }),
 
   get(id: string): Promise<Asset> {
     return apiFetch<Asset>(`/api/v1/assets/${id}`)

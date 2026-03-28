@@ -25,5 +25,11 @@ UPDATE assets SET thumbnail_key = ?, updated_at = datetime('now') WHERE id = ?;
 -- name: UpdateAssetDimensions :exec
 UPDATE assets SET width = ?, height = ?, metadata = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdateAssetProject :exec
+UPDATE assets SET project_id = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?;
+
+-- name: UpdateAssetFolder :exec
+UPDATE assets SET folder_id = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?;
+
 -- name: DeleteAsset :exec
 DELETE FROM assets WHERE id = ? AND workspace_id = ?;

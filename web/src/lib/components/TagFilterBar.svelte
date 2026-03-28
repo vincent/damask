@@ -1,0 +1,91 @@
+<script lang="ts">
+  import { tagApi, type Tag } from '$lib/api/client'
+
+  interface Props {
+    activeTags: string[]
+    onchange: (tags: string[]) => void
+  }
+
+  let { activeTags, onchange }: Props = $props()
+
+  let allTags = $state<Tag[]>([])
+
+  async function loadTags() {
+    try {
+      allTags = await tagApi.list()
+    } catch {
+      // silently ignore
+    }
+  }
+
+  $effect(() => {
+    loadTags()
+  })
+
+  function toggle(name: string, event: MouseEvent) {
+    if (event.shiftKey) {
+      // Multi-select AND
+      if (activeTags.includes(name)) {
+        onchange(activeTags.filter((t) => t !== name))
+      } else {
+        onchange([...activeTags, name])
+      }
+    } else {
+      // Single select — toggle off if already the only active
+      if (activeTags.length === 1 && activeTags[0] === name) {
+        onchange([])
+      } else {
+        onchange([name])
+      }
+    }
+  }
+
+  function dismiss(name: string) {
+    onchange(activeTags.filter((t) => t !== name))
+  }
+</script>
+
+{#if allTags.length > 0}
+  <div class="flex flex-wrap items-center gap-1.5 border-t border-gray-100 bg-white px-6 py-2">
+    <!-- Active chips -->
+    {#each activeTags as tag}
+      <span class="flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+        {tag}
+        <button
+          class="ml-0.5 rounded-full p-0.5 hover:bg-blue-200"
+          onclick={() => dismiss(tag)}
+          aria-label="Remove filter {tag}"
+        >
+          <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </span>
+    {/each}
+
+    {#if activeTags.length > 0}
+      <span class="text-xs text-gray-300">|</span>
+    {/if}
+
+    <!-- All available tags -->
+    {#each allTags as tag}
+      {#if !activeTags.includes(tag.name)}
+        <button
+          class="rounded-full border border-gray-200 px-2.5 py-0.5 text-xs text-gray-600 hover:border-blue-400 hover:text-blue-700 transition-colors"
+          onclick={(e) => toggle(tag.name, e)}
+          title="Shift+click to add to filter"
+        >
+          {tag.name}
+          <span class="ml-1 text-gray-400">{tag.asset_count}</span>
+        </button>
+      {/if}
+    {/each}
+
+    {#if activeTags.length > 0}
+      <button
+        class="ml-1 text-xs text-gray-400 hover:text-gray-600"
+        onclick={() => onchange([])}
+      >Clear</button>
+    {/if}
+  </div>
+{/if}

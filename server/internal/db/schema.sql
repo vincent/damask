@@ -47,10 +47,22 @@ CREATE TABLE projects (
     updated_at    DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE folders (
+    id           TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+    project_id   TEXT NOT NULL REFERENCES projects(id),
+    parent_id    TEXT REFERENCES folders(id),
+    name         TEXT NOT NULL,
+    position     INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(project_id, parent_id, name)
+);
+
 CREATE TABLE assets (
     id                TEXT PRIMARY KEY,
     workspace_id      TEXT NOT NULL REFERENCES workspaces(id),
     project_id        TEXT REFERENCES projects(id),
+    folder_id         TEXT REFERENCES folders(id),
     original_filename TEXT NOT NULL,
     storage_key       TEXT NOT NULL,
     mime_type         TEXT NOT NULL,
@@ -103,6 +115,8 @@ CREATE TABLE jobs (
 CREATE INDEX idx_users_workspace ON users(workspace_id);
 CREATE INDEX idx_assets_workspace ON assets(workspace_id);
 CREATE INDEX idx_assets_project ON assets(project_id);
+CREATE INDEX idx_folders_project ON folders(project_id);
+CREATE INDEX idx_assets_folder ON assets(folder_id);
 CREATE INDEX idx_tags_workspace ON tags(workspace_id);
 CREATE INDEX idx_variants_asset ON variants(asset_id);
 CREATE INDEX idx_jobs_status ON jobs(status);

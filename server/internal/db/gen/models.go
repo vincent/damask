@@ -13,6 +13,7 @@ type Asset struct {
 	ID               string         `json:"id"`
 	WorkspaceID      string         `json:"workspace_id"`
 	ProjectID        sql.NullString `json:"project_id"`
+	FolderID         sql.NullString `json:"folder_id"`
 	OriginalFilename string         `json:"original_filename"`
 	StorageKey       string         `json:"storage_key"`
 	MimeType         string         `json:"mime_type"`
@@ -32,6 +33,16 @@ type AssetTag struct {
 
 type AssetsFt struct {
 	OriginalFilename string `json:"original_filename"`
+}
+
+type Folder struct {
+	ID          string         `json:"id"`
+	WorkspaceID string         `json:"workspace_id"`
+	ProjectID   string         `json:"project_id"`
+	ParentID    sql.NullString `json:"parent_id"`
+	Name        string         `json:"name"`
+	Position    int64          `json:"position"`
+	CreatedAt   string         `json:"created_at"`
 }
 
 type Job struct {

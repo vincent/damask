@@ -3,7 +3,7 @@
 
   interface Props {
     asset: Asset
-    onclick: () => void
+    onclick: (e: MouseEvent) => void
   }
 
   let { asset, onclick }: Props = $props()
@@ -28,8 +28,13 @@
 
 <button
   type="button"
+  draggable="true"
   class="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition hover:border-blue-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-  onclick={onclick}
+  onclick={(e) => onclick(e)}
+  ondragstart={(e) => {
+    e.dataTransfer?.setData('text/plain', asset.id)
+    e.dataTransfer?.setData('application/json', JSON.stringify({ assetId: asset.id }))
+  }}
 >
   <!-- Thumbnail area -->
   <div class="relative aspect-square w-full overflow-hidden bg-gray-50">

@@ -21,10 +21,17 @@ func Open(dbPath string) (*db.Queries, *sql.DB, error) {
 	if _, err := sqlDB.Exec(`PRAGMA foreign_keys=ON`); err != nil {
 		return nil, nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
+	if _, err := sqlDB.Exec(`PRAGMA busy_timeout=5000`); err != nil {
+		return nil, nil, fmt.Errorf("set busy timeout: %w", err)
+	}
 
 	if err := RunMigrations(sqlDB); err != nil {
 		return nil, nil, fmt.Errorf("run migrations: %w", err)
 	}
+
+	// SQLite supports one writer at a time; use a single connection to
+	// prevent SQLITE_BUSY races between concurrent goroutines (e.g. thumbnail worker).
+	sqlDB.SetMaxOpenConns(1)
 
 	return db.New(sqlDB), sqlDB, nil
 }
