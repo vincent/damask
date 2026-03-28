@@ -1,0 +1,37 @@
+# Binaries
+server/bin/
+*.exe
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Storage
+storage/
+
+# Node
+web/node_modules/
+web/.svelte-kit/
+web/build/
+
+# Go
+server/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.claude
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TMP
+/ROADMAP.md
