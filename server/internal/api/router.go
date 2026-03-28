@@ -6,6 +6,7 @@ import (
 
 	"creativo-dam/server/internal/auth"
 	dbgen "creativo-dam/server/internal/db/gen"
+	"creativo-dam/server/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -16,15 +17,17 @@ type Server struct {
 	db         *dbgen.Queries
 	sqlDB      *sql.DB
 	tokenMaker *auth.Maker
+	storage    storage.Storage
 	appEnv     string
 }
 
 // New creates a configured Fiber app with all routes registered.
-func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, appEnv string) *fiber.App {
-	s := &Server{db: db, sqlDB: sqlDB, tokenMaker: tokenMaker, appEnv: appEnv}
+func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.Storage, appEnv string) *fiber.App {
+	s := &Server{db: db, sqlDB: sqlDB, tokenMaker: tokenMaker, storage: stor, appEnv: appEnv}
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: defaultErrorHandler,
+		BodyLimit:    100 * 1024 * 1024, // 100 MB
 	})
 
 	app.Use(cors.New(cors.Config{
@@ -50,7 +53,6 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, appEnv string
 	// Workspace
 	api.Get("/workspace/me", s.handleWorkspaceMe)
 
-	// Invites — owner only
 	getRoleFn := func(ctx context.Context, workspaceID, userID string) (string, error) {
 		member, err := s.db.GetMember(ctx, dbgen.GetMemberParams{
 			WorkspaceID: workspaceID,
@@ -61,10 +63,20 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, appEnv string
 		}
 		return member.Role, nil
 	}
+
+	// Invites — owner only
 	api.Post("/workspace/invites", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleCreateInvite)
 
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)
+
+	// Assets
+	api.Post("/assets", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUploadAsset)
+	api.Get("/assets", s.handleListAssets)
+	api.Get("/assets/:id", s.handleGetAsset)
+	api.Get("/assets/:id/file", s.handleGetAssetFile)
+	api.Get("/assets/:id/thumb", s.handleGetAssetThumb)
+	api.Delete("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteAsset)
 
 	return app
 }

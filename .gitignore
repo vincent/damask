@@ -12,7 +12,7 @@ server/bin/
 *.db-wal
 
 # Storage
-storage/
+/storage/
 
 # Node
 web/node_modules/
@@ -27,7 +27,7 @@ server/vendor/
 .vscode/
 *.swp
 *.swo
-.claude
+.claude/
 CLAUDE.md
 
 # OS
@@ -36,3 +36,4 @@ Thumbs.db
 
 # TMP
 /ROADMAP.md
+/ISSUES.md

@@ -106,3 +106,10 @@ CREATE INDEX idx_assets_project ON assets(project_id);
 CREATE INDEX idx_tags_workspace ON tags(workspace_id);
 CREATE INDEX idx_variants_asset ON variants(asset_id);
 CREATE INDEX idx_jobs_status ON jobs(status);
+
+-- FTS5 virtual table for asset search (migration 000002)
+CREATE VIRTUAL TABLE IF NOT EXISTS assets_fts USING fts5(
+    original_filename,
+    content='assets',
+    content_rowid='rowid'
+);

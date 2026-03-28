@@ -16,6 +16,7 @@ import (
 
 	"creativo-dam/server/internal/auth"
 	dbpkg "creativo-dam/server/internal/db"
+	"creativo-dam/server/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -27,16 +28,18 @@ func TestMain(m *testing.M) {
 
 // testEnv holds the shared dependencies for a single test's app instance.
 type testEnv struct {
-	app   *fiber.App
-	maker *auth.Maker
-	sqlDB *sql.DB
+	app     *fiber.App
+	maker   *auth.Maker
+	sqlDB   *sql.DB
+	storage *storage.LocalStorage
 }
 
 // setupTestApp opens a fresh temp-file SQLite DB, runs migrations, and
 // returns a configured Fiber app. The DB is closed via t.Cleanup.
 func setupTestApp(t *testing.T) *testEnv {
 	t.Helper()
-	dbPath := filepath.Join(t.TempDir(), "test.db")
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
 	queries, sqlDB, err := dbpkg.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -48,8 +51,13 @@ func setupTestApp(t *testing.T) *testEnv {
 		t.Fatalf("auth maker: %v", err)
 	}
 
-	app := New(queries, sqlDB, maker, "development")
-	return &testEnv{app: app, maker: maker, sqlDB: sqlDB}
+	stor, err := storage.NewLocalStorage(filepath.Join(dir, "storage"))
+	if err != nil {
+		t.Fatalf("storage: %v", err)
+	}
+
+	app := New(queries, sqlDB, maker, stor, "development")
+	return &testEnv{app: app, maker: maker, sqlDB: sqlDB, storage: stor}
 }
 
 // authResult holds the parsed outcome of a register or login response.

@@ -7,6 +7,7 @@ import (
 	"creativo-dam/server/internal/auth"
 	"creativo-dam/server/internal/config"
 	"creativo-dam/server/internal/db"
+	"creativo-dam/server/internal/storage"
 )
 
 func main() {
@@ -26,7 +27,12 @@ func main() {
 		log.Fatalf("auth: %v", err)
 	}
 
-	app := api.New(queries, sqlDB, tokenMaker, cfg.AppEnv)
+	stor, err := storage.NewLocalStorage(cfg.StoragePath)
+	if err != nil {
+		log.Fatalf("storage: %v", err)
+	}
+
+	app := api.New(queries, sqlDB, tokenMaker, stor, cfg.AppEnv)
 
 	log.Printf("server starting on :%s (env=%s)", cfg.Port, cfg.AppEnv)
 	if err := app.Listen(":" + cfg.Port); err != nil {

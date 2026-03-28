@@ -30,6 +30,10 @@ type AssetTag struct {
 	TagID   string `json:"tag_id"`
 }
 
+type AssetsFt struct {
+	OriginalFilename string `json:"original_filename"`
+}
+
 type Job struct {
 	ID          string         `json:"id"`
 	WorkspaceID string         `json:"workspace_id"`
