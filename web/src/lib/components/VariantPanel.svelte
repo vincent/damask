@@ -5,8 +5,10 @@
     type Variant,
     type Asset,
   } from '$lib/api/client'
-  import { authStore } from '$lib/stores/auth'
-  import { Cross, Download, Inbox, Loader, Trash, TrendingUpDown } from '@lucide/svelte'
+  import { authStore } from '$lib/stores/auth.svelte'
+  import { X, Download, Inbox, Trash } from '@lucide/svelte'
+  import Button from '$lib/components/ui/Button.svelte'
+  import Spinner from '$lib/components/ui/Spinner.svelte'
 
   interface Props {
     asset: Asset | null
@@ -224,35 +226,35 @@
 
   <!-- Panel -->
   <div
-    class="fixed inset-y-0 right-0 z-[60] flex w-full max-w-xl flex-col bg-white shadow-2xl"
+    class="fixed inset-y-0 right-0 z-[60] flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
     aria-modal="true"
     aria-label="Variants"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
       <div>
-        <h2 class="text-base font-semibold text-gray-900">Variants</h2>
-        <p class="text-xs text-gray-500 truncate max-w-xs">{asset.original_filename}</p>
+        <h2 class="text-base font-semibold text-gray-900 dark:text-gray-50">Variants</h2>
+        <p class="text-xs text-gray-500 truncate max-w-xs dark:text-gray-400">{asset.original_filename}</p>
       </div>
       <button
         type="button"
-        class="ml-3 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        class="ml-3 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
         onclick={onclose}
         aria-label="Close"
       >
-        <Cross class="h-5 w-5" />
+        <X class="h-5 w-5" />
       </button>
     </div>
 
     <!-- Tabs -->
-    <div class="flex border-b border-gray-200 overflow-x-auto">
+    <div class="flex border-b border-gray-200 overflow-x-auto dark:border-gray-800">
       {#each tabs.filter(t => t.show) as tab}
         <button
           type="button"
           class="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {activeTab === tab.id
             ? 'border-blue-500 text-blue-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'}"
           onclick={() => { activeTab = tab.id; createError = ''; createSuccess = '' }}
         >
           {tab.label}
@@ -265,17 +267,17 @@
 
       <!-- Feedback -->
       {#if createError}
-        <div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{createError}</div>
+        <div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">{createError}</div>
       {/if}
       {#if createSuccess}
-        <div class="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{createSuccess}</div>
+        <div class="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">{createSuccess}</div>
       {/if}
 
       <!-- List tab -->
       {#if activeTab === 'list'}
         {#if loading}
           <div class="flex justify-center py-8">
-            <Loader class="h-6 w-6 animate-spin text-gray-400" />
+            <Spinner size="md" class="text-gray-400" />
           </div>
         {:else if loadError}
           <p class="text-sm text-red-600">{loadError}</p>
@@ -283,17 +285,17 @@
           <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
             <Inbox class="h-12 w-12" />
             <p class="text-sm">No variants yet.</p>
-            {#if $authStore.role !== 'viewer'}
+            {#if authStore.role !== 'viewer'}
               <p class="text-xs">Use the tabs above to create your first variant.</p>
             {/if}
           </div>
         {:else}
           <ul class="space-y-2">
             {#each variants as v}
-              <li class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <li class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">{variantLabel(v)}</p>
-                  <p class="text-xs text-gray-500">
+                  <p class="text-sm font-medium text-gray-900 truncate dark:text-gray-100">{variantLabel(v)}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
                     {v.size.Valid ? formatBytes(v.size.Int64) : 'unknown size'} ·
                     {new Date(v.created_at).toLocaleDateString()}
                   </p>
@@ -301,15 +303,15 @@
                 <a
                   href={variantApi.fileUrl(asset.id, v.id)}
                   download
-                  class="shrink-0 rounded-lg border border-gray-300 p-1.5 text-gray-500 hover:bg-white hover:text-gray-700"
+                  class="shrink-0 rounded-lg border border-gray-300 p-1.5 text-gray-500 hover:bg-white hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                   aria-label="Download variant"
                 >
                   <Download class="h-4 w-4" />
                 </a>
-                {#if $authStore.role !== 'viewer'}
+                {#if authStore.role !== 'viewer'}
                   <button
                     type="button"
-                    class="shrink-0 rounded-lg p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600"
+                    class="shrink-0 rounded-lg p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
                     onclick={() => handleDelete(v.id)}
                     aria-label="Delete variant"
                   >
@@ -326,38 +328,38 @@
         <div class="space-y-5">
           <!-- Live preview -->
           {#if previewUrl}
-            <div class="flex justify-center rounded-xl bg-gray-50 p-3 border border-gray-200" style="min-height:120px">
+            <div class="flex justify-center rounded-xl bg-gray-50 p-3 border border-gray-200 dark:bg-gray-800 dark:border-gray-700" style="min-height:120px">
               <img src={previewUrl} alt="Preview" class="max-h-48 max-w-full rounded object-contain" />
             </div>
           {:else}
-            <div class="flex items-center justify-center rounded-xl bg-gray-50 border border-dashed border-gray-300 py-8 text-xs text-gray-400">
+            <div class="flex items-center justify-center rounded-xl bg-gray-50 border border-dashed border-gray-300 py-8 text-xs text-gray-400 dark:bg-gray-800 dark:border-gray-600">
               Preview will appear after changing parameters
             </div>
           {/if}
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Width (px)</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Width (px)</label>
               <input type="number" min="1" max="8000" bind:value={resizeWidth}
                 oninput={updatePreview}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Height (px) <span class="text-gray-400">(0=auto)</span></label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Height (px) <span class="text-gray-400">(0=auto)</span></label>
               <input type="number" min="0" max="8000" bind:value={resizeHeight}
                 oninput={updatePreview}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Fit</label>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Fit</label>
             <div class="flex gap-2">
               {#each ['contain', 'cover', 'fill'] as f}
                 <button type="button"
                   class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {resizeFit === f
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400'}"
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500'}"
                   onclick={() => { resizeFit = f as typeof resizeFit; updatePreview() }}
                 >{f}</button>
               {/each}
@@ -365,34 +367,34 @@
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Quality: {resizeQuality}%</label>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {resizeQuality}%</label>
             <input type="range" min="1" max="100" bind:value={resizeQuality}
               oninput={updatePreview}
               class="w-full accent-blue-500" />
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Format</label>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
                   class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {resizeFormat === fmt
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400'}"
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500'}"
                   onclick={() => { resizeFormat = fmt as typeof resizeFormat; updatePreview() }}
                 >{fmt.toUpperCase()}</button>
               {/each}
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
-            disabled={creating || $authStore.role === 'viewer'}
+            disabled={creating || authStore.role === 'viewer'}
             onclick={submitResize}
-            class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            class="w-full"
           >
             {creating ? 'Queuing…' : 'Create Resize Variant'}
-          </button>
+          </Button>
         </div>
 
       <!-- Watermark tab -->
@@ -400,24 +402,24 @@
         <div class="space-y-5">
           <!-- Live preview -->
           {#if previewUrl}
-            <div class="flex justify-center rounded-xl bg-gray-50 p-3 border border-gray-200" style="min-height:120px">
+            <div class="flex justify-center rounded-xl bg-gray-50 p-3 border border-gray-200 dark:bg-gray-800 dark:border-gray-700" style="min-height:120px">
               <img src={previewUrl} alt="Preview" class="max-h-48 max-w-full rounded object-contain" />
             </div>
           {:else}
-            <div class="flex items-center justify-center rounded-xl bg-gray-50 border border-dashed border-gray-300 py-8 text-xs text-gray-400">
+            <div class="flex items-center justify-center rounded-xl bg-gray-50 border border-dashed border-gray-300 py-8 text-xs text-gray-400 dark:bg-gray-800 dark:border-gray-600">
               Preview will appear after changing parameters
             </div>
           {/if}
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Opacity ({watermarkOpacity}%)</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Opacity ({watermarkOpacity}%)</label>
               <input type="range" min="1" max="100" bind:value={watermarkOpacity}
                 oninput={updatePreview}
                 class="w-full accent-blue-500" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Quality: {watermarkQuality}%</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {watermarkQuality}%</label>
               <input type="range" min="1" max="100" bind:value={watermarkQuality}
                 oninput={updatePreview}
                 class="w-full accent-blue-500" />
@@ -425,40 +427,40 @@
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Format</label>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
                   class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {watermarkFormat === fmt
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400'}"
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500'}"
                   onclick={() => { watermarkFormat = fmt as typeof watermarkFormat; updatePreview() }}
                 >{fmt.toUpperCase()}</button>
               {/each}
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
-            disabled={creating || $authStore.role === 'viewer'}
+            disabled={creating || authStore.role === 'viewer'}
             onclick={submitWatermark}
-            class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            class="w-full"
           >
             {creating ? 'Queuing…' : 'Create Watermark Variant'}
-          </button>
+          </Button>
         </div>
 
       <!-- Convert tab -->
       {:else if activeTab === 'convert'}
         <div class="space-y-5">
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Output Format</label>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Output Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
                   class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition-colors {convertFormat === fmt
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400'}"
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500'}"
                   onclick={() => { convertFormat = fmt as typeof convertFormat }}
                 >{fmt.toUpperCase()}</button>
               {/each}
@@ -467,26 +469,26 @@
 
           {#if convertFormat === 'jpeg'}
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Quality: {convertQuality}%</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {convertQuality}%</label>
               <input type="range" min="1" max="100" bind:value={convertQuality}
                 class="w-full accent-blue-500" />
             </div>
           {/if}
 
-          <button
+          <Button
             type="button"
-            disabled={creating || $authStore.role === 'viewer'}
+            disabled={creating || authStore.role === 'viewer'}
             onclick={submitConvert}
-            class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            class="w-full"
           >
             {creating ? 'Queuing…' : `Convert to ${convertFormat.toUpperCase()}`}
-          </button>
+          </Button>
         </div>
 
       <!-- Crop tab -->
       {:else if activeTab === 'crop'}
         <div class="space-y-5">
-          <p class="text-xs text-gray-500">Enter crop coordinates relative to the original image dimensions.</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Enter crop coordinates relative to the original image dimensions.</p>
 
           {#if asset.width.Valid && asset.height.Valid}
             <p class="text-xs text-gray-400">Original: {asset.width.Int64} × {asset.height.Int64} px</p>
@@ -494,79 +496,79 @@
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">X offset</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">X offset</label>
               <input type="number" min="0" bind:value={cropX}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Y offset</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Y offset</label>
               <input type="number" min="0" bind:value={cropY}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Width</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Width</label>
               <input type="number" min="1" bind:value={cropWidth}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Height</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Height</label>
               <input type="number" min="1" bind:value={cropHeight}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Format</label>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png'] as fmt}
                 <button type="button"
                   class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {cropFormat === fmt
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400'}"
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500'}"
                   onclick={() => { cropFormat = fmt as typeof cropFormat }}
                 >{fmt.toUpperCase()}</button>
               {/each}
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
-            disabled={creating || $authStore.role === 'viewer'}
+            disabled={creating || authStore.role === 'viewer'}
             onclick={submitCrop}
-            class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            class="w-full"
           >
             {creating ? 'Queuing…' : 'Create Crop Variant'}
-          </button>
+          </Button>
         </div>
 
       <!-- Video tab -->
       {:else if activeTab === 'video'}
         <div class="space-y-6">
           <!-- Video thumbnail section -->
-          <div class="rounded-xl border border-gray-200 p-4 space-y-4">
-            <h3 class="text-sm font-semibold text-gray-800">Extract Frame</h3>
+          <div class="rounded-xl border border-gray-200 p-4 space-y-4 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Extract Frame</h3>
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Timestamp (seconds)</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Timestamp (seconds)</label>
               <input type="number" min="0" step="0.1" bind:value={videoTimestamp}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
-            <button
+            <Button
               type="button"
-              disabled={creating || $authStore.role === 'viewer'}
+              disabled={creating || authStore.role === 'viewer'}
               onclick={submitVideoThumbnail}
-              class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              class="w-full"
             >
               {creating ? 'Queuing…' : 'Extract Frame'}
-            </button>
+            </Button>
           </div>
 
           <!-- Transcode section -->
-          <div class="rounded-xl border border-gray-200 p-4 space-y-4">
-            <h3 class="text-sm font-semibold text-gray-800">Transcode Video</h3>
-            <p class="text-xs text-gray-500">Heavy operation — max 2 concurrent transcodes. Requires ffmpeg.</p>
+          <div class="rounded-xl border border-gray-200 p-4 space-y-4 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Transcode Video</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Heavy operation — max 2 concurrent transcodes. Requires ffmpeg.</p>
 
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Output Format</label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Output Format</label>
               <div class="flex gap-2">
                 {#each ['mp4', 'webm'] as fmt}
                   <button type="button"
@@ -580,9 +582,9 @@
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Resolution <span class="text-gray-400">(optional)</span></label>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Resolution <span class="text-gray-400">(optional)</span></label>
               <select bind:value={transcodeResolution}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none">
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                 <option value="">Original</option>
                 <option value="1080p">1080p</option>
                 <option value="720p">720p</option>
@@ -590,45 +592,43 @@
               </select>
             </div>
 
-            <label class="flex items-center gap-2 text-sm text-gray-700">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input type="checkbox" bind:checked={transcodeStripAudio} class="rounded" />
               Strip audio track
             </label>
 
-            <button
+            <Button
               type="button"
-              disabled={creating || $authStore.role === 'viewer'}
+              disabled={creating || authStore.role === 'viewer'}
               onclick={submitTranscode}
-              class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              class="w-full"
             >
               {creating ? 'Queuing…' : 'Transcode Video'}
-            </button>
+            </Button>
           </div>
         </div>
 
       <!-- Background remove tab -->
       {:else if activeTab === 'bg_remove'}
         <div class="space-y-5">
-          <div class="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          <div class="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300">
             <p class="font-medium mb-1">Requires Remove.bg API key</p>
-            <p class="text-xs">Set <code class="bg-amber-100 px-1 rounded">REMOVEBG_API_KEY</code> in your server environment. Returns a transparent PNG.</p>
+            <p class="text-xs">Set <code class="bg-amber-100 px-1 rounded dark:bg-amber-800/50">REMOVEBG_API_KEY</code> in your server environment. Returns a transparent PNG.</p>
           </div>
 
-          <button
+          <Button
             type="button"
-            disabled={creating || $authStore.role === 'viewer'}
+            disabled={creating || authStore.role === 'viewer'}
             onclick={submitBgRemove}
-            class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            class="w-full"
           >
             {#if creating}
-              <span class="flex items-center justify-center gap-2">
-                <Loader class="h-4 w-4 animate-spin" />
-                Queuing…
-              </span>
+              <Spinner size="sm" class="text-current" />
+              Queuing…
             {:else}
               Remove Background
             {/if}
-          </button>
+          </Button>
         </div>
       {/if}
 

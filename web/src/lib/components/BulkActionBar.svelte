@@ -1,7 +1,8 @@
 <script lang="ts">
   import { tagApi, type Project } from '$lib/api/client'
-  import { authStore } from '$lib/stores/auth'
+  import { authStore } from '$lib/stores/auth.svelte'
   import { SquareArrowRightExit, Tag, Trash } from '@lucide/svelte'
+  import Button from '$lib/components/ui/Button.svelte'
 
   interface Props {
     selectedIds: Set<string>
@@ -14,8 +15,7 @@
 
   let tagInput = $state('')
   let busy = $state(false)
-  let showProjectPicker = $state(false)
-  let showTagInput = $state(false)
+  let activePanel = $state<'tags' | 'projects' | null>(null)
 
   async function bulkTag() {
     const name = tagInput.trim().toLowerCase()
@@ -24,7 +24,7 @@
     try {
       await tagApi.bulkTag([...selectedIds], name)
       tagInput = ''
-      showTagInput = false
+      activePanel = null
       ondone()
     } finally {
       busy = false
@@ -36,7 +36,7 @@
     busy = true
     try {
       await tagApi.bulkProject([...selectedIds], projectId)
-      showProjectPicker = false
+      activePanel = null
       ondone()
     } finally {
       busy = false
@@ -58,21 +58,22 @@
 
 {#if selectedIds.size > 0}
   <div class="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
-    <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl">
-      <span class="text-sm font-medium text-gray-700">{selectedIds.size} selected</span>
-      <div class="h-5 w-px bg-gray-200"></div>
+    <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+      <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{selectedIds.size} selected</span>
+      <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
       <!-- Tag -->
       <div class="relative">
-        <button
-          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+        <Button
+          variant="ghost"
+          size="sm"
           disabled={busy}
-          onclick={() => { showTagInput = !showTagInput; showProjectPicker = false }}
+          onclick={() => { activePanel = activePanel === 'tags' ? null : 'tags' }}
         >
-          <Tag class="h-4 w-4" />
+          {#snippet icon()}<Tag class="h-4 w-4" />{/snippet}
           Tag
-        </button>
-        {#if showTagInput}
+        </Button>
+        {#if activePanel === 'tags'}
           <form
             class="absolute bottom-full mb-2 flex gap-1"
             onsubmit={(e) => { e.preventDefault(); bulkTag() }}
@@ -81,31 +82,28 @@
               autofocus
               bind:value={tagInput}
               placeholder="Tag name"
-              class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm shadow-lg focus:border-blue-500 focus:outline-none"
+              class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm shadow-lg focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
-            <button
-              type="submit"
-              class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              disabled={busy}
-            >Add</button>
+            <Button type="submit" variant="primary" size="sm" disabled={busy}>Add</Button>
           </form>
         {/if}
       </div>
 
       <!-- Assign project -->
       <div class="relative">
-        <button
-          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+        <Button
+          variant="ghost"
+          size="sm"
           disabled={busy}
-          onclick={() => { showProjectPicker = !showProjectPicker; showTagInput = false }}
+          onclick={() => { activePanel = activePanel === 'projects' ? null : 'projects' }}
         >
-          <SquareArrowRightExit class="h-4 w-4" />
+          {#snippet icon()}<SquareArrowRightExit class="h-4 w-4" />{/snippet}
           Project
-        </button>
-        {#if showProjectPicker}
-          <div class="absolute bottom-full mb-2 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+        </Button>
+        {#if activePanel === 'projects'}
+          <div class="absolute bottom-full mb-2 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
             <button
-              class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50"
+              class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
               onclick={() => bulkProject(null)}
             >
               <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
@@ -113,7 +111,7 @@
             </button>
             {#each projects as p}
               <button
-                class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                 onclick={() => bulkProject(p.id)}
               >
                 <span
@@ -127,10 +125,10 @@
         {/if}
       </div>
 
-      <div class="h-5 w-px bg-gray-200"></div>
+      <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
       <!-- Delete (owner only) -->
-      {#if $authStore.role === 'owner'}
+      {#if authStore.role === 'owner'}
         <button
           class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
           disabled={busy}
@@ -141,12 +139,9 @@
         </button>
       {/if}
 
-      <div class="h-5 w-px bg-gray-200"></div>
+      <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
-      <button
-        class="text-sm text-gray-400 hover:text-gray-600"
-        onclick={onclear}
-      >Cancel</button>
+      <Button variant="ghost" size="sm" onclick={onclear}>Cancel</Button>
     </div>
   </div>
 {/if}

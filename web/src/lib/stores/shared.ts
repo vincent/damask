@@ -1,4 +1,4 @@
-type CategoryKey = 'image' | 'video' | 'audio' | 'document'
+export type CategoryKey = 'image' | 'video' | 'audio' | 'document'
 
 export const CATEGORY_ORDER: CategoryKey[] = ['image', 'video', 'audio', 'document']
 
@@ -9,11 +9,11 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
     document: 'Documents',
 }
 
-export const CATEGORY_ICON_BG: Record<CategoryKey, string> = {
-    image: 'bg-violet-100 text-violet-600',
-    video: 'bg-red-100 text-red-600',
-    audio: 'bg-emerald-100 text-emerald-600',
-    document: 'bg-blue-100 text-blue-600',
+export const CATEGORY_ICON_BG: Record<CategoryKey, { light: string; dark: string }> = {
+    image: { light: 'bg-violet-100 text-violet-600', dark: 'dark:bg-violet-900/50 dark:text-violet-300' },
+    video: { light: 'bg-red-100 text-red-600', dark: 'dark:bg-red-900/50 dark:text-red-300' },
+    audio: { light: 'bg-emerald-100 text-emerald-600', dark: 'dark:bg-emerald-900/50 dark:text-emerald-300' },
+    document: { light: 'bg-blue-100 text-blue-600', dark: 'dark:bg-blue-900/50 dark:text-blue-300' },
 }
 
 export const CATEGORY_BORDER: Record<CategoryKey, string> = {
@@ -23,3 +23,6 @@ export const CATEGORY_BORDER: Record<CategoryKey, string> = {
     document: 'border-blue-200',
 }
 
+export function getProjectColor(project?: { color?: { Valid: boolean; String: string } } | null): string {
+    return project?.color?.Valid ? project.color.String : '#9ca3af'
+}

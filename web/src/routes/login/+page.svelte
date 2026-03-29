@@ -1,6 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import { authApi, ApiError } from '$lib/api/client'
+  import Button from '$lib/components/ui/Button.svelte'
+  import Input from '$lib/components/ui/Input.svelte'
 
   let email = $state('')
   let password = $state('')
@@ -27,51 +29,25 @@
   <title>Sign in — Creativo DAM</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50">
-  <div class="w-full max-w-md space-y-8 p-8 bg-white rounded-xl shadow">
+<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+  <div class="w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Sign in</h1>
-      <p class="mt-1 text-sm text-gray-600">
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Sign in</h1>
+      <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
         Don't have an account? <a href="/register" class="text-blue-600 hover:underline">Register</a>
       </p>
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">
       {#if error}
-        <p class="text-sm text-red-600 bg-red-50 p-3 rounded">{error}</p>
+        <p class="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 p-3 rounded">{error}</p>
       {/if}
 
-      <div>
-        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-        <input
-          id="email"
-          type="email"
-          bind:value={email}
-          required
-          autocomplete="email"
-          class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+      <Input id="email" type="email" label="Email" bind:value={email} required autocomplete="email" />
 
-      <div>
-        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-        <input
-          id="password"
-          type="password"
-          bind:value={password}
-          required
-          autocomplete="current-password"
-          class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+      <Input id="password" type="password" label="Password" bind:value={password} required autocomplete="current-password" />
 
-      <button
-        type="submit"
-        disabled={loading}
-        class="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
-      >
-        {loading ? 'Signing in…' : 'Sign in'}
-      </button>
+      <Button type="submit" loading={loading} class="w-full">{loading ? 'Signing in…' : 'Sign in'}</Button>
     </form>
   </div>
 </div>

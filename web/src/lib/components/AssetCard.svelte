@@ -4,26 +4,27 @@
 
   interface Props {
     asset: Asset
+    class?: string,
+    zoom?: number,
     onclick: (e: MouseEvent) => void
   }
 
-  let { asset, onclick }: Props = $props()
-
+  let { asset, class: extraClass = '', zoom = 5, onclick }: Props = $props()
   const category = $derived(mimeCategory(asset.mime_type))
   const isProcessing = $derived(!asset.thumbnail_key.Valid)
 
   const cardBg: Record<string, string> = {
-    image: '#E8C05A',
-    video: '#E88A8A',
-    audio: '#7CC89A',
-    document: '#B8C8E8',
+    image: 'bg-violet-300 dark:bg-violet-700',
+    video: 'bg-red-300 dark:bg-red-700',
+    audio: 'bg-emerald-300 dark:bg-emerald-700',
+    document: 'bg-blue-200 dark:bg-blue-700',
   }
 
   const dotBg: Record<string, string> = {
-    image: '#F0D080',
-    video: '#F0A8A8',
-    audio: '#A0DCBA',
-    document: '#D0DCEE',
+    image: 'bg-violet-200 dark:bg-violet-600',
+    video: 'bg-red-200 dark:bg-red-600',
+    audio: 'bg-emerald-200 dark:bg-emerald-600',
+    document: 'bg-blue-100 dark:bg-blue-600',
   }
 
   function formatDate(iso: string) {
@@ -34,7 +35,7 @@
 <button
   type="button"
   draggable="true"
-  class="group flex w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+  class="asset-card group flex w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800 dark:shadow-none dark:hover:shadow-none dark:ring-inset dark:focus-visible:ring-indigo-500"
   onclick={(e) => onclick(e)}
   ondragstart={(e) => {
     e.dataTransfer?.setData('text/plain', asset.id)
@@ -43,14 +44,11 @@
 >
   <!-- Thumbnail area -->
   <div
-    class="relative w-full overflow-hidden rounded-t-xl"
-    style="aspect-ratio: 4/3; background-color: {cardBg[category]}"
+    class="relative w-full overflow-hidden rounded-t-xl {cardBg[category]}"
+    style="aspect-ratio: 4/3"
   >
     <!-- Status dot -->
-    <div
-      class="absolute left-2.5 top-2.5 h-3 w-3 rounded-full"
-      style="background-color: {dotBg[category]}"
-    ></div>
+    <div class="absolute left-2.5 top-2.5 h-3 w-3 rounded-full {dotBg[category]}"></div>
 
     {#if category === 'image' && !isProcessing}
       <img
@@ -86,8 +84,8 @@
   </div>
 
   <!-- Info -->
-  <div class="flex flex-col gap-1.5 px-3 py-2.5">
-    <p class="truncate text-sm font-medium text-gray-900" title={asset.original_filename}>
+  <div class="flex flex-col gap-1.5 px-3 py-2.5 {zoom < 6 ? 'hidden' : ''}">
+    <p class="truncate text-sm font-medium text-gray-900 dark:text-gray-100" title={asset.original_filename}>
       {asset.original_filename}
     </p>
     <div class="flex items-center justify-between">
@@ -97,7 +95,7 @@
     {#if asset.tags && asset.tags.length > 0}
       <div class="flex flex-wrap gap-1">
         {#each asset.tags.slice(0, 3) as tag}
-          <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">{tag}</span>
+          <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500 dark:bg-gray-700 dark:text-gray-400">{tag}</span>
         {/each}
       </div>
     {/if}

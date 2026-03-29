@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { authStore } from '$lib/stores/auth'
+  import { authStore } from '$lib/stores/auth.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import FolderTree from './FolderTree.svelte'
   import { EllipsisVertical, Plus } from '@lucide/svelte'
+  import Button from '$lib/components/ui/Button.svelte'
+  import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
+  import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
 
   interface Props {
     selectedAssetIds: Set<string>
@@ -42,8 +45,7 @@
     }
   }
 
-  async function submitEdit(id: string) {
-    const name = editName.trim()
+  async function submitEdit(id: string, name: string) {
     if (!name) return
     try {
       await projectsStore.update(id, { name })
@@ -98,22 +100,19 @@
   {#each projectsStore.projects as project (project.id)}
     <div class="group relative">
       {#if editingId === project.id}
-        <form
-          class="flex items-center gap-1 rounded-lg px-2 py-1"
-          onsubmit={(e) => { e.preventDefault(); submitEdit(project.id) }}
-        >
-          <input
-            autofocus
+        <div class="px-2 py-1">
+          <InlineEditForm
             bind:value={editName}
-            class="min-w-0 flex-1 rounded border border-indigo-400 px-1.5 py-0.5 text-sm outline-none"
-            onblur={() => submitEdit(project.id)}
+            onsubmit={(v) => submitEdit(project.id, v)}
+            oncancel={() => { editingId = null }}
+            size="sm"
           />
-        </form>
+        </div>
       {:else}
         <button
           class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors
-            {navigationStore.activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}
-            {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400' : ''}"
+            {navigationStore.activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}
+            {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400 dark:bg-green-900/30' : ''}"
           onclick={() => onselect(project.id)}
           ondragover={(e) => { e.preventDefault(); dropTargetProjectId = project.id }}
           ondragleave={() => { dropTargetProjectId = null }}
@@ -140,9 +139,9 @@
           <span class="ml-auto shrink-0 text-xs text-gray-400">{project.asset_count || ''}</span>
         </button>
 
-        {#if $authStore.role !== 'viewer'}
+        {#if authStore.role !== 'viewer'}
           <button
-            class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-300 opacity-0 hover:bg-gray-200 hover:text-gray-600 group-hover:opacity-100"
+            class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-300 opacity-0 hover:bg-gray-200 hover:text-gray-600 group-hover:opacity-100 dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-400"
             onclick={(e) => { e.stopPropagation(); menuOpenId = menuOpenId === project.id ? null : project.id }}
             aria-label="Folder menu"
           >
@@ -152,21 +151,14 @@
       {/if}
 
       {#if menuOpenId === project.id}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="absolute right-2 top-full z-20 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-          onmouseleave={() => { menuOpenId = null }}
-        >
-          <button
-            class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-            onclick={() => startEdit(project.id, project.name)}
-          >Rename</button>
-          {#if $authStore.role === 'owner'}
-            <button
-              class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-              onclick={() => deleteProject(project.id)}
-            >Delete</button>
-          {/if}
+        <div class="absolute right-2 top-full z-20 mt-0.5">
+          <ContextMenu
+            items={[
+              { label: 'Rename', onclick: () => startEdit(project.id, project.name) },
+              ...(authStore.role === 'owner' ? [{ label: 'Delete', onclick: () => deleteProject(project.id), danger: true }] : [])
+            ]}
+            onclose={() => { menuOpenId = null }}
+          />
         </div>
       {/if}
 
@@ -180,28 +172,25 @@
             onselect={(folderId) => onfolderselect(project.id, folderId)}
             onassetsDropped={(assetIds, folderId) => onassetsDropped(assetIds, folderId, project.id)}
           />
-          {#if $authStore.role !== 'viewer'}
+          {#if authStore.role !== 'viewer'}
             {#if creatingRootFolderForProject === project.id}
               <form
-                class="mt-1 flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1"
+                class="mt-1 flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-800"
                 onsubmit={(e) => { e.preventDefault(); submitCreateRootFolder(project.id) }}
               >
                 <input
                   bind:value={newRootFolderName}
                   placeholder="Folder name"
-                  class="min-w-0 flex-1 bg-transparent text-xs outline-none"
+                  class="min-w-0 flex-1 bg-transparent text-xs text-gray-900 outline-none dark:text-gray-100"
                   onblur={() => { if (!newRootFolderName.trim()) creatingRootFolderForProject = null }}
                 />
                 <button type="submit" class="shrink-0 text-xs text-indigo-600 hover:text-indigo-800">Add</button>
               </form>
             {:else}
-              <button
-                class="mt-0.5 flex w-full items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                onclick={() => { creatingRootFolderForProject = project.id; newRootFolderName = '' }}
-              >
-                <Plus class="h-3 w-3" />
+              <Button variant="ghost" size="sm" class="mt-0.5 w-full justify-start" onclick={() => { creatingRootFolderForProject = project.id; newRootFolderName = '' }}>
+                {#snippet icon()}<Plus class="h-3 w-3" />{/snippet}
                 New subfolder
-              </button>
+              </Button>
             {/if}
           {/if}
         </div>
@@ -210,17 +199,17 @@
   {/each}
 
   <!-- New folder -->
-  {#if $authStore.role !== 'viewer'}
+  {#if authStore.role !== 'viewer'}
     {#if creating}
       <form
-        class="mt-1 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2"
+        class="mt-1 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800"
         onsubmit={(e) => { e.preventDefault(); submitCreate() }}
       >
         <input
           autofocus
           bind:value={newName}
           placeholder="Folder name"
-          class="rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-400 focus:outline-none"
+          class="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
         />
         <div class="flex flex-wrap gap-1">
           {#each COLORS as c}
@@ -234,18 +223,15 @@
           {/each}
         </div>
         <div class="flex gap-1">
-          <button type="submit" class="flex-1 rounded bg-indigo-600 py-1 text-xs font-medium text-white hover:bg-indigo-700">Create</button>
-          <button type="button" class="flex-1 rounded bg-gray-200 py-1 text-xs font-medium text-gray-600 hover:bg-gray-300" onclick={() => oncreatingchange(false)}>Cancel</button>
+          <Button type="submit" size="sm" class="flex-1">Create</Button>
+          <Button type="button" variant="secondary" size="sm" class="flex-1" onclick={() => oncreatingchange(false)}>Cancel</Button>
         </div>
       </form>
     {:else}
-      <button
-        class="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
-        onclick={() => oncreatingchange(true)}
-      >
-        <Plus class="h-3.5 w-3.5" />
+      <Button variant="ghost" size="sm" class="mt-1 w-full justify-start" onclick={() => oncreatingchange(true)}>
+        {#snippet icon()}<Plus class="h-3.5 w-3.5" />{/snippet}
         New folder
-      </button>
+      </Button>
     {/if}
   {/if}
 

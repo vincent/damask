@@ -1,10 +1,12 @@
 <script lang="ts">
   import { assetApi, tagApi, variantApi, formatBytes, mimeCategory, type Asset, type Variant } from '$lib/api/client'
-  import { authStore } from '$lib/stores/auth'
+  import { authStore } from '$lib/stores/auth.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
-  import { assetsStore } from '$lib/stores/assets.svelte'
   import VariantPanel from './VariantPanel.svelte'
-  import { Cross, Download, Image, Loader, Mail, Play, Share, Trash } from '@lucide/svelte'
+  import { Download, Image, Loader, Mail, Play, Share, Trash, X } from '@lucide/svelte'
+  import Badge from '$lib/components/ui/Badge.svelte'
+  import Chip from '$lib/components/ui/Chip.svelte'
+  import ColorDot from '$lib/components/ui/ColorDot.svelte'
 
   interface Props {
     asset: Asset | null
@@ -29,17 +31,10 @@
   const category = $derived(asset ? mimeCategory(asset.mime_type) : 'document')
 
   const previewBg: Record<string, string> = {
-    image: '#E8C05A',
-    video: '#E88A8A',
-    audio: '#7CC89A',
-    document: '#B8C8E8',
-  }
-
-  const typeBadge: Record<string, string> = {
-    image: 'bg-violet-100 text-violet-700',
-    video: 'bg-red-100 text-red-700',
-    audio: 'bg-emerald-100 text-emerald-700',
-    document: 'bg-gray-100 text-gray-600',
+    image: 'bg-violet-300 dark:bg-violet-700',
+    video: 'bg-red-300 dark:bg-red-700',
+    audio: 'bg-emerald-300 dark:bg-emerald-700',
+    document: 'bg-blue-200 dark:bg-blue-700',
   }
 
   const typeLabel: Record<string, string> = {
@@ -48,15 +43,6 @@
     audio: 'AUDIO',
     document: 'DOCUMENT',
   }
-
-  const TAG_COLORS = [
-    'bg-violet-100 text-violet-700',
-    'bg-blue-100 text-blue-700',
-    'bg-gray-100 text-gray-600',
-    'bg-emerald-100 text-emerald-700',
-    'bg-amber-100 text-amber-700',
-    'bg-rose-100 text-rose-700',
-  ]
 
   $effect(() => {
     if (!asset) { tags = []; variants = []; return }
@@ -157,15 +143,15 @@
 
   <!-- Panel -->
   <div
-    class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-white shadow-2xl"
+    class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
     aria-modal="true"
     aria-label={asset.original_filename}
   >
     <!-- Preview area with colored background -->
     <div
-      class="relative flex min-h-52 items-center justify-center"
-      style="background-color: {previewBg[category]}; background-image: url('{assetApi.thumbUrl(asset.id)}'); background-size: cover; background-position: center"
+      class="relative flex min-h-52 items-center justify-center {previewBg[category]}"
+      style="background-image: url('{assetApi.thumbUrl(asset.id)}'); background-size: cover; background-position: center"
     >
       <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/90 shadow-sm">
         {#if category === 'video' || category === 'audio'}
@@ -176,7 +162,7 @@
       </div>
 
       <div class="absolute right-3 top-3 flex items-center gap-1.5">
-        {#if $authStore.role !== 'viewer'}
+        {#if authStore.role !== 'viewer'}
           <button
             type="button"
             class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-sm hover:bg-white/30"
@@ -198,7 +184,7 @@
           onclick={onclose}
           aria-label="Close"
         >
-          <Cross class="h-4 w-4" />
+          <X class="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -210,12 +196,10 @@
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <div class="mb-1.5 flex items-center gap-2">
-              <span class="rounded-md px-2 py-0.5 text-xs font-semibold {typeBadge[category]}">
-                {typeLabel[category]}
-              </span>
-              <span class="text-sm text-gray-500">{formatBytes(asset.size)}</span>
+              <Badge variant={category as 'image'|'video'|'audio'|'document'|'neutral'} size="md">{typeLabel[category]}</Badge>
+              <span class="text-sm text-gray-500 dark:text-gray-400">{formatBytes(asset.size)}</span>
             </div>
-            <h2 class="text-lg font-bold leading-tight text-gray-900" title={asset.original_filename}>
+            <h2 class="text-lg font-bold leading-tight text-gray-900 dark:text-gray-50" title={asset.original_filename}>
               {asset.original_filename}
             </h2>
           </div>
@@ -231,18 +215,18 @@
       </div>
 
       <!-- Section 2: 3-column metadata -->
-      <div class="grid grid-cols-3 gap-4 border-b border-t border-gray-100 px-5 py-4">
+      <div class="grid grid-cols-3 gap-4 border-b border-t border-gray-100 px-5 py-4 dark:border-gray-800">
         <div>
-          <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Created By</p>
-          <p class="text-sm font-medium text-gray-900">—</p>
+          <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Created By</p>
+          <p class="text-sm font-medium text-gray-900 dark:text-gray-100">—</p>
         </div>
         <div>
-          <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Date Added</p>
-          <p class="text-sm font-medium text-gray-900">{formatDate(asset.created_at)}</p>
+          <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Date Added</p>
+          <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(asset.created_at)}</p>
         </div>
         <div>
-          <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Dimensions</p>
-          <p class="text-sm font-medium text-gray-900">
+          <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Dimensions</p>
+          <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
             {#if asset.width.Valid && asset.height.Valid}
               {asset.width.Int64} × {asset.height.Int64}
             {:else}
@@ -253,25 +237,17 @@
       </div>
 
       <!-- Section 3: Tags -->
-      <div class="border-b border-gray-100 px-5 py-4">
-        <h3 class="mb-2.5 text-sm font-semibold text-gray-900">Tags</h3>
+      <div class="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+        <h3 class="mb-2.5 text-sm font-semibold text-gray-900 dark:text-gray-50">Tags</h3>
         <div class="flex flex-wrap gap-1.5">
-          {#each tags as tag, i}
-            <span class="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {TAG_COLORS[i % TAG_COLORS.length]}">
-              {tag}
-              {#if $authStore.role !== 'viewer'}
-                <button
-                  class="ml-0.5 rounded-full p-0.5 opacity-60 hover:opacity-100"
-                  onclick={() => removeTag(tag)}
-                  aria-label="Remove tag {tag}"
-                >
-                  <Cross class="h-3 w-3" />
-                </button>
-              {/if}
-            </span>
+          {#each tags as tag}
+            <Chip
+              label={tag}
+              onremove={authStore.role !== 'viewer' ? () => removeTag(tag) : undefined}
+            />
           {/each}
 
-          {#if $authStore.role !== 'viewer'}
+          {#if authStore.role !== 'viewer'}
             {#if showTagInput}
               <div class="relative">
                 <form onsubmit={(e) => { e.preventDefault(); addTag(tagInput) }}>
@@ -279,16 +255,16 @@
                     bind:value={tagInput}
                     oninput={updateSuggestions}
                     placeholder="Add tag…"
-                    class="w-28 rounded-full border border-indigo-400 px-2.5 py-0.5 text-xs outline-none"
+                    class="w-28 rounded-full border border-indigo-400 bg-white px-2.5 py-0.5 text-xs text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
                     onblur={() => { setTimeout(() => { showTagInput = false; tagSuggestions = [] }, 150) }}
                   />
                 </form>
                 {#if tagSuggestions.length > 0}
-                  <ul class="absolute left-0 top-full z-20 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-md">
+                  <ul class="absolute left-0 top-full z-20 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-md dark:border-gray-700 dark:bg-gray-900">
                     {#each tagSuggestions as s}
                       <li>
                         <button
-                          class="w-full px-3 py-1 text-left text-xs text-gray-700 hover:bg-gray-50"
+                          class="w-full px-3 py-1 text-left text-xs text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                           onmousedown={() => addTag(s)}
                         >{s}</button>
                       </li>
@@ -298,7 +274,7 @@
               </div>
             {:else}
               <button
-                class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-xs text-gray-400 hover:border-indigo-400 hover:text-indigo-600"
+                class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-xs text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
                 onclick={() => { showTagInput = true }}
               >+ Add Tag</button>
             {/if}
@@ -307,13 +283,13 @@
       </div>
 
       <!-- Section 4: Project -->
-      {#if $authStore.role !== 'viewer' || activeProject}
-        <div class="border-b border-gray-100 px-5 py-4">
+      {#if authStore.role !== 'viewer' || activeProject}
+        <div class="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-900">Folder</h3>
-            {#if $authStore.role !== 'viewer'}
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-50">Folder</h3>
+            {#if authStore.role !== 'viewer'}
               <button
-                class="text-xs text-indigo-600 hover:underline"
+                class="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
                 onclick={() => { showProjectPicker = !showProjectPicker }}
               >
                 {activeProject ? 'Change' : 'Assign'}
@@ -326,17 +302,17 @@
                 class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
                 style="background-color: {activeProject.color.Valid ? activeProject.color.String + '22' : '#f3f4f6'}; color: {activeProject.color.Valid ? activeProject.color.String : '#6b7280'}"
               >
-                <span class="h-2 w-2 rounded-full" style="background-color: {activeProject.color.Valid ? activeProject.color.String : '#9ca3af'}"></span>
+                <ColorDot color={activeProject.color.Valid ? activeProject.color.String : '#9ca3af'} size="sm" />
                 {activeProject.name}
               </span>
             {:else}
-              <span class="text-xs text-gray-400">Not assigned</span>
+              <span class="text-xs text-gray-400 dark:text-gray-500">Not assigned</span>
             {/if}
 
             {#if showProjectPicker}
-              <div class="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
                 <button
-                  class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50"
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
                   onclick={() => assignProject(null)}
                 >
                   <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
@@ -344,13 +320,10 @@
                 </button>
                 {#each projectsStore.projects as p}
                   <button
-                    class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                    class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                     onclick={() => assignProject(p.id)}
                   >
-                    <span
-                      class="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style="background-color: {p.color.Valid ? p.color.String : '#9ca3af'}"
-                    ></span>
+                    <ColorDot color={p.color.Valid ? p.color.String : '#9ca3af'} size="sm" class="shrink-0" />
                     {p.name}
                   </button>
                 {/each}
@@ -361,11 +334,11 @@
       {/if}
 
       <!-- Section 5: Variants -->
-      <div class="border-b border-gray-100 px-5 py-4">
+      <div class="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-gray-900">Variants</h3>
+          <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-50">Variants</h3>
           <button
-            class="text-xs text-indigo-600 hover:underline"
+            class="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
             onclick={() => { showVariantPanel = true }}
           >View All</button>
         </div>
@@ -375,40 +348,40 @@
               <a
                 href={variantApi.fileUrl(asset.id, variant.id)}
                 download
-                class="group flex flex-col overflow-hidden rounded-lg border border-gray-200 hover:border-indigo-300"
+                class="group flex flex-col overflow-hidden rounded-lg border border-gray-200 hover:border-indigo-300 dark:border-gray-700 dark:hover:border-indigo-500"
                 style="width: 100px"
               >
-                <div class="flex h-16 items-center justify-center bg-gray-100 text-xs text-gray-400">
+                <div class="flex h-16 items-center justify-center bg-gray-100 text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">
                   v{i + 1}.0
                 </div>
                 <div class="px-2 py-1">
-                  <p class="truncate text-[10px] text-gray-500">{variant.type}</p>
-                  <p class="text-[10px] text-gray-400">{formatDate(variant.created_at)}</p>
+                  <p class="truncate text-[10px] text-gray-500 dark:text-gray-400">{variant.type}</p>
+                  <p class="text-[10px] text-gray-400 dark:text-gray-500">{formatDate(variant.created_at)}</p>
                 </div>
               </a>
             {/each}
           </div>
         {:else}
-          <p class="text-xs text-gray-400">No variants yet. <button class="text-indigo-600 hover:underline" onclick={() => { showVariantPanel = true }}>Create one</button></p>
+          <p class="text-xs text-gray-400 dark:text-gray-500">No variants yet. <button class="text-indigo-600 hover:underline dark:text-indigo-400" onclick={() => { showVariantPanel = true }}>Create one</button></p>
         {/if}
       </div>
 
       <!-- Section 6: Quick Actions -->
-      <div class="border-b border-gray-100 px-5 py-4">
-        <h3 class="mb-2.5 text-sm font-semibold text-gray-900">Quick Actions</h3>
+      <div class="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+        <h3 class="mb-2.5 text-sm font-semibold text-gray-900 dark:text-gray-50">Quick Actions</h3>
         <div class="space-y-2">
           <button
-            class="flex w-full items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+            class="flex w-full items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
             onclick={copyShareLink}
           >
-            <Share class="h-4 w-4 shrink-0 text-gray-400" />
+            <Share class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
             Copy Share Link
           </button>
           <button
-            class="flex w-full items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+            class="flex w-full items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
             onclick={() => { window.location.href = `mailto:?subject=Shared asset&body=${assetApi.fileUrl(asset!.id)}` }}
           >
-            <Mail class="h-4 w-4 shrink-0 text-gray-400" />
+            <Mail class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
              Send via Email
           </button>
         </div>
@@ -416,9 +389,9 @@
 
       <!-- Section 7: Export Format -->
       <div class="px-5 py-4">
-        <p class="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Export Format</p>
+        <p class="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Export Format</p>
         <div class="flex gap-2">
-          <select class="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none">
+          <select class="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
             <option>Original</option>
             <option>JPEG</option>
             <option>PNG</option>
@@ -428,7 +401,7 @@
           <a
             href={assetApi.fileUrl(asset.id)}
             download={asset.original_filename}
-            class="flex items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-white hover:bg-gray-800"
+            class="flex items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
             aria-label="Download"
           >
             <Download class="h-4 w-4" />

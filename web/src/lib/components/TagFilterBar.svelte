@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tagApi, type Tag } from '$lib/api/client'
-  import { Cross } from '@lucide/svelte'
+  import Chip from '$lib/components/ui/Chip.svelte'
 
   interface Props {
     activeTags: string[]
@@ -47,19 +47,10 @@
 </script>
 
 {#if allTags.length > 0}
-  <div class="flex flex-wrap items-center gap-1.5 border-t border-gray-100 bg-white px-6 py-2">
+  <div class="flex flex-wrap items-center gap-1.5 border-t border-gray-100 bg-white dark:bg-gray-900 dark:border-gray-800 px-6 py-2">
     <!-- Active chips -->
     {#each activeTags as tag}
-      <span class="flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-        {tag}
-        <button
-          class="ml-0.5 rounded-full p-0.5 hover:bg-blue-200"
-          onclick={() => dismiss(tag)}
-          aria-label="Remove filter {tag}"
-        >
-          <Cross class="h-3 w-3" />
-        </button>
-      </span>
+      <Chip label={tag} onremove={() => dismiss(tag)} color="#3b82f6" />
     {/each}
 
     {#if activeTags.length > 0}

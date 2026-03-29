@@ -1,1 +1,23 @@
 @import 'tailwindcss';
+
+/* Class-based dark mode: add .dark to <html> to activate */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic surface tokens */
+:root {
+  --surface: theme(colors.white);
+  --surface-muted: theme(colors.gray.50);
+  --border: theme(colors.gray.100);
+  --text-primary: theme(colors.gray.900);
+  --text-secondary: theme(colors.gray.600);
+  --text-muted: theme(colors.gray.400);
+}
+
+.dark {
+  --surface: theme(colors.gray.900);
+  --surface-muted: theme(colors.gray.800);
+  --border: theme(colors.gray.700);
+  --text-primary: theme(colors.gray.50);
+  --text-secondary: theme(colors.gray.300);
+  --text-muted: theme(colors.gray.500);
+}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { mimeCategory, type Asset } from '$lib/api/client'
-  import { authStore } from '$lib/stores/auth'
+  import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
@@ -15,13 +15,18 @@
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
   import { Book, File, Image, Inbox, Loader, LogOut, Music, Plus, Search, Video } from '@lucide/svelte'
-  import LIbraryStatusBar from '$lib/components/LIbraryStatusBar.svelte'
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte'
+  import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
+  import SearchInput from '$lib/components/ui/SearchInput.svelte'
+  import EmptyState from '$lib/components/ui/EmptyState.svelte'
+  import Toast from '$lib/components/ui/Toast.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
   let showPalette = $state(false)
   let sidebarCreating = $state(false)
-  let zoom = $state(1)
+  let zoom = $state(10)
+  const maxZoom = 20
 
   function handleCardClick(asset: Asset, index: number, event: MouseEvent) {
     const handled = selectionStore.handleCardClick(
@@ -29,7 +34,7 @@
       index,
       assetsStore.assets,
       event,
-      $authStore.role !== 'viewer',
+      authStore.role !== 'viewer',
     )
     if (!handled) selectedAsset = asset
   }
@@ -98,16 +103,16 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
-  <aside class="flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white">
+  <aside class="flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
     <!-- Workspace logo + name -->
     <div class="flex items-center gap-2.5 px-4 py-4">
       <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white">
-        {$authStore.workspace?.name?.[0]?.toUpperCase() ?? 'S'}
+        {authStore.workspace?.name?.[0]?.toUpperCase() ?? 'S'}
       </div>
-      <span class="truncate text-sm font-semibold text-gray-900">
-        {$authStore.workspace?.name ?? 'Workspace'}
+      <span class="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
+        {authStore.workspace?.name ?? 'Workspace'}
       </span>
     </div>
 
@@ -115,7 +120,7 @@
     <div class="px-3 pb-2">
       <button
         class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
-          {navigationStore.activeProjectId === null ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}"
+          {navigationStore.activeProjectId === null ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => handleProjectSelect(null)}
       >
         <Book class="h-4 w-4 shrink-0 text-gray-400" />
@@ -129,8 +134,8 @@
     <!-- Folders section -->
     <div class="flex flex-1 flex-col overflow-hidden px-3">
       <div class="mb-2 flex items-center justify-between px-2">
-        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Folders</span>
-        {#if $authStore.role !== 'viewer'}
+        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Folders</span>
+        {#if authStore.role !== 'viewer'}
           <button
             class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             onclick={() => { sidebarCreating = true }}
@@ -153,9 +158,10 @@
       </nav>
     </div>
 
-    <!-- Bottom sign out -->
-    <div class="border-t border-gray-100 px-4 py-3">
-      <a href="/logout" class="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600">
+    <!-- Bottom sign out + theme toggle -->
+    <div class="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+      <ThemeToggle />
+      <a href="/logout" class="mt-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300">
         <LogOut class="h-3.5 w-3.5" />
         Sign out
       </a>
@@ -165,9 +171,9 @@
   <!-- Main -->
   <div class="relative flex flex-1 flex-col overflow-hidden">
     <!-- Top bar -->
-    <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
+    <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
       <div>
-        <h1 class="text-xl font-bold text-gray-900">
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
           {projectsStore.activeProjectName ?? 'Library'}
         </h1>
         <p class="mt-0.5 text-xs text-gray-400">
@@ -177,28 +183,19 @@
 
       <div class="flex items-center gap-2">
         <!-- Search -->
-        <div class="relative w-64">
-          <svg
-            class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="search"
-            placeholder="Search anything..."
-            value={assetsStore.query}
-            oninput={(e) => { assetsStore.query = e.currentTarget.value; assetsStore.search() }}
-            class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
-          />
-        </div>
+        <SearchInput
+          class="w-64"
+          value={assetsStore.query}
+          placeholder="Search anything..."
+          onchange={(v) => { assetsStore.query = v; assetsStore.search() }}
+        />
 
         <!-- Filter icon -->
-        <button class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50">
+        <button class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-500 dark:hover:bg-gray-800">
           <Search class="h-4 w-4" />
         </button>
 
-        {#if $authStore.role !== 'viewer'}
+        {#if authStore.role !== 'viewer'}
           <label class="cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
             Upload
             <input
@@ -222,32 +219,30 @@
         <!-- Loading skeleton -->
         <div class="mb-10">
           <div class="mb-4 flex items-center gap-3">
-            <div class="h-8 w-8 animate-pulse rounded-lg bg-gray-200"></div>
-            <div class="h-4 w-32 animate-pulse rounded bg-gray-200"></div>
+            <div class="h-8 w-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
           </div>
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-            {#each { length: 10 } as _}
-              <div class="overflow-hidden rounded-xl bg-white shadow-sm">
-                <div class="animate-pulse bg-gray-200" style="aspect-ratio: 4/3"></div>
-                <div class="p-3">
-                  <div class="mb-2 h-3 w-3/4 animate-pulse rounded bg-gray-200"></div>
-                  <div class="h-3 w-1/2 animate-pulse rounded bg-gray-200"></div>
+          {#each { length: 3 } as _}
+            <div class="mb-6 grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
+              {#each { length: 10 } as _}
+                <div class="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+                  <div class="animate-pulse bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 4/3"></div>
+                  <div class="p-3">
+                    <div class="mb-2 h-3 w-3/4 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="h-3 w-1/2 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+                  </div>
                 </div>
-              </div>
-            {/each}
-          </div>
+              {/each}
+            </div>
+          {/each}
         </div>
       {:else if assetsStore.assets.length === 0}
-        <div class="flex flex-col items-center justify-center py-24 text-center">
-          <Inbox class="mb-4 h-16 w-16 text-gray-300" />
-          {#if assetsStore.query}
-            <p class="text-sm font-medium text-gray-600">No results for "{assetsStore.query}"</p>
-            <p class="mt-1 text-xs text-gray-400">Try a different search term</p>
-          {:else}
-            <p class="text-sm font-medium text-gray-600">No assets yet</p>
-            <p class="mt-1 text-xs text-gray-400">Upload files to get started</p>
-          {/if}
-        </div>
+        <EmptyState
+          title={assetsStore.query ? `No results for "${assetsStore.query}"` : 'No assets yet'}
+          description={assetsStore.query ? 'Try a different search term' : 'Upload files to get started'}
+        >
+          {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
+        </EmptyState>
       {:else}
         <!-- Grouped by category -->
         {#each CATEGORY_ORDER as cat}
@@ -256,7 +251,7 @@
             <div class="mb-10">
               <!-- Category header -->
               <div class="mb-4 flex items-center gap-3">
-                <div class="flex h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat]}">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat].light} {CATEGORY_ICON_BG[cat].dark}">
                   {#if cat === 'image'}
                     <Image class="h-4 w-4" />
                   {:else if cat === 'video'}
@@ -267,13 +262,13 @@
                     <File class="h-4 w-4" />
                   {/if}
                 </div>
-                <h2 class="text-sm font-semibold text-gray-900">{CATEGORY_LABELS[cat]}</h2>
-                <span class="text-sm text-gray-400">{group.length}</span>
+                <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{CATEGORY_LABELS[cat]}</h2>
+                <span class="text-sm text-gray-400 dark:text-gray-500">{group.length}</span>
               </div>
 
               <!-- Cards with left accent border -->
               <div class="border-l-2 {CATEGORY_BORDER[cat]} pl-4">
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+                <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
                   {#each group as asset (asset.id)}
                     {@const globalIndex = assetsStore.assets.indexOf(asset)}
                     <div class="relative">
@@ -286,7 +281,7 @@
                           </div>
                         </div>
                       {/if}
-                      <AssetCard {asset} onclick={(e) => handleCardClick(asset, globalIndex, e)} />
+                      <AssetCard {asset} {zoom} onclick={(e) => handleCardClick(asset, globalIndex, e)} />
                     </div>
                   {/each}
                 </div>
@@ -308,16 +303,18 @@
       {/if}
     </main>
 
-    <LIbraryStatusBar zoom={zoom} />
-
+    <LibraryStatusBar bind:zoom={zoom} max={maxZoom - 1} />
   </div>
 </div>
 
-{#if toastStore.current}
-  <div class="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 text-sm font-medium shadow-lg transition-all {toastStore.current.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'}">
-    {toastStore.current.msg}
-  </div>
-{/if}
+<div class="hidden
+  grid-cols-1  grid-cols-2  grid-cols-3  grid-cols-4  grid-cols-5
+  grid-cols-6  grid-cols-7  grid-cols-8  grid-cols-9  grid-cols-10
+  grid-cols-11 grid-cols-12 grid-cols-13 grid-cols-14 grid-cols-15
+  grid-cols-16 grid-cols-17 grid-cols-18 grid-cols-19 grid-cols-20 grid-cols-21
+"></div>
+
+<Toast />
 
 <Lightbox
   asset={selectedAsset}
