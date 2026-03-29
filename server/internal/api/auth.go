@@ -1,11 +1,11 @@
 package api
 
 import (
-	"database/sql"
 	"time"
 
-	"badam-dam/server/internal/auth"
-	dbgen "badam-dam/server/internal/db/gen"
+	"badam/server/internal/auth"
+	dbgen "badam/server/internal/db/gen"
+	"badam/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -37,11 +37,10 @@ type loginRequest struct {
 
 // userResponse omits the password hash from JSON output.
 type userResponse struct {
-	ID          string    `json:"id"`
-	WorkspaceID string    `json:"workspace_id"`
-	Email       string    `json:"email"`
-	Name        string    `json:"name"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type authResponse struct {
@@ -52,11 +51,10 @@ type authResponse struct {
 
 func userToResponse(u dbgen.User) userResponse {
 	return userResponse{
-		ID:          u.ID,
-		WorkspaceID: u.WorkspaceID,
-		Email:       u.Email,
-		Name:        u.Name,
-		CreatedAt:   u.CreatedAt,
+		ID:        u.ID,
+		Email:     u.Email,
+		Name:      u.Name,
+		CreatedAt: u.CreatedAt,
 	}
 }
 
@@ -77,7 +75,6 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
 
-	workspaceID := uuid.New().String()
 	userID := uuid.New().String()
 
 	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
@@ -88,17 +85,8 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 
 	qtx := s.db.WithTx(tx)
 
-	workspace, err := qtx.CreateWorkspace(c.RequestCtx(), dbgen.CreateWorkspaceParams{
-		ID:   workspaceID,
-		Name: req.Name + "'s Workspace",
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create workspace")
-	}
-
 	user, err := qtx.CreateUser(c.RequestCtx(), dbgen.CreateUserParams{
 		ID:           userID,
-		WorkspaceID:  workspaceID,
 		Email:        req.Email,
 		PasswordHash: hash,
 		Name:         req.Name,
@@ -107,26 +95,22 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusConflict, "email already in use")
 	}
 
-	if err := qtx.CreateMember(c.RequestCtx(), dbgen.CreateMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-		Role:        "owner",
-		InvitedBy:   sql.NullString{}, // owner has no inviter
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not assign workspace owner")
+	workspace, err := services.CreateWorkspaceForUser(c.RequestCtx(), qtx, req.Name+"'s Workspace", userID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not create workspace")
 	}
 
 	if err := tx.Commit(); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
 
-	token, err := s.tokenMaker.CreateToken(userID, workspaceID, 7*24*time.Hour)
+	token, err := s.tokenMaker.CreateToken(userID, workspace.ID, 7*24*time.Hour)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
 	s.setAuthCookie(c, token)
-	return c.Status(fiber.StatusCreated).JSON(authResponse{Token: token, User: userToResponse(user), Workspace: &workspace})
+	return c.Status(fiber.StatusCreated).JSON(authResponse{Token: token, User: userToResponse(user), Workspace: workspace})
 }
 
 // Login godoc
@@ -157,12 +141,17 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
 
-	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), user.WorkspaceID)
+	member, err := s.db.GetMemberByUserID(c.RequestCtx(), user.ID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load workspace membership")
+	}
+
+	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), member.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
-	token, err := s.tokenMaker.CreateToken(user.ID, user.WorkspaceID, 7*24*time.Hour)
+	token, err := s.tokenMaker.CreateToken(user.ID, member.WorkspaceID, 7*24*time.Hour)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}

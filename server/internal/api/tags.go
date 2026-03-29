@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"badam-dam/server/internal/auth"
-	dbgen "badam-dam/server/internal/db/gen"
+	"badam/server/internal/auth"
+	dbgen "badam/server/internal/db/gen"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"

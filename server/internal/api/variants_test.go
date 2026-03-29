@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	dbgen "badam-dam/server/internal/db/gen"
+	dbgen "badam/server/internal/db/gen"
 
 	"github.com/gofiber/fiber/v3"
 )

@@ -1,7 +1,7 @@
 package db
 
 import (
-	db "badam-dam/server/internal/db/gen"
+	db "badam/server/internal/db/gen"
 	"database/sql"
 	"fmt"
 

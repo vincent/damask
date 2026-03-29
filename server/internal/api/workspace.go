@@ -5,8 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"badam-dam/server/internal/auth"
-	dbgen "badam-dam/server/internal/db/gen"
+	"badam/server/internal/auth"
+	dbgen "badam/server/internal/db/gen"
+	"badam/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -46,6 +47,49 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 	}
 
 	return c.JSON(workspaceMeResponse{Workspace: workspace, User: userToResponse(user), Role: member.Role})
+}
+
+type createWorkspaceRequest struct {
+	Name string `json:"name"`
+}
+
+func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+
+	user, err := s.db.GetUserByID(c.RequestCtx(), claims.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "user not found")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "could not load user")
+	}
+
+	var req createWorkspaceRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	}
+	if req.Name == "" {
+		return errRes(c, fiber.StatusBadRequest, "name is required")
+	}
+
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	qtx := s.db.WithTx(tx)
+
+	workspace, err := services.CreateWorkspaceForUser(c.RequestCtx(), qtx, req.Name, user.ID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not create workspace")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(authResponse{Workspace: workspace})
 }
 
 type createInviteRequest struct {
@@ -137,7 +181,6 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	userID := uuid.New().String()
 	user, err := qtx.CreateUser(c.RequestCtx(), dbgen.CreateUserParams{
 		ID:           userID,
-		WorkspaceID:  invite.WorkspaceID,
 		Email:        invite.Email,
 		PasswordHash: hash,
 		Name:         req.Name,

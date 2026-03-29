@@ -76,7 +76,6 @@ type Tag struct {
 
 type User struct {
 	ID           string    `json:"id"`
-	WorkspaceID  string    `json:"workspace_id"`
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"password_hash"`
 	Name         string    `json:"name"`

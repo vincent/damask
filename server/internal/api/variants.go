@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"badam-dam/server/internal/auth"
-	dbgen "badam-dam/server/internal/db/gen"
-	"badam-dam/server/internal/queue"
-	"badam-dam/server/internal/transform"
+	"badam/server/internal/auth"
+	dbgen "badam/server/internal/db/gen"
+	"badam/server/internal/queue"
+	"badam/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"

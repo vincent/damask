@@ -14,10 +14,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"badam-dam/server/internal/auth"
-	dbpkg "badam-dam/server/internal/db"
-	"badam-dam/server/internal/queue"
-	"badam-dam/server/internal/storage"
+	"badam/server/internal/auth"
+	dbpkg "badam/server/internal/db"
+	"badam/server/internal/queue"
+	"badam/server/internal/storage"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -58,6 +58,7 @@ func setupTestApp(t *testing.T) *testEnv {
 	}
 
 	q := queue.New(queries, 1)
+
 	app := New(queries, sqlDB, maker, stor, q, "", "development")
 	return &testEnv{app: app, maker: maker, sqlDB: sqlDB, storage: stor}
 }
@@ -94,7 +95,7 @@ func register(t *testing.T, env *testEnv, name, email, password string) authResu
 		Cookie:      findCookie(resp, "auth_token"),
 		Token:       parsed.Token,
 		UserID:      parsed.User.ID,
-		WorkspaceID: parsed.User.WorkspaceID,
+		WorkspaceID: parsed.Workspace.ID,
 	}
 }
 
@@ -141,9 +142,9 @@ func mintEditorToken(t *testing.T, env *testEnv, workspaceID, role string) strin
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
 	_, err := env.sqlDB.Exec(
-		`INSERT INTO users (id, workspace_id, email, password_hash, name, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		userID, workspaceID, role+"@example.com", string(hash), "Test "+role, now,
+		`INSERT INTO users (id, email, password_hash, name, created_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		userID, role+"@example.com", string(hash), "Test "+role, now,
 	)
 	if err != nil {
 		t.Fatalf("insert editor user: %v", err)

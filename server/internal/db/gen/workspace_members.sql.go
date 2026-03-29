@@ -55,3 +55,23 @@ func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (Workspace
 	)
 	return i, err
 }
+
+const getMemberByUserID = `-- name: GetMemberByUserID :one
+SELECT workspace_id, user_id, role, invited_by, created_at FROM workspace_members
+WHERE user_id = ?
+ORDER BY created_at ASC
+LIMIT 1
+`
+
+func (q *Queries) GetMemberByUserID(ctx context.Context, userID string) (WorkspaceMember, error) {
+	row := q.db.QueryRowContext(ctx, getMemberByUserID, userID)
+	var i WorkspaceMember
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.Role,
+		&i.InvitedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}

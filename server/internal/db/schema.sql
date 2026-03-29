@@ -7,7 +7,6 @@ CREATE TABLE workspaces (
 
 CREATE TABLE users (
     id            TEXT PRIMARY KEY,
-    workspace_id  TEXT NOT NULL REFERENCES workspaces(id),
     email         TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     name          TEXT NOT NULL,
@@ -112,7 +111,6 @@ CREATE TABLE jobs (
 );
 
 -- Indexes for common queries
-CREATE INDEX idx_users_workspace ON users(workspace_id);
 CREATE INDEX idx_assets_workspace ON assets(workspace_id);
 CREATE INDEX idx_assets_project ON assets(project_id);
 CREATE INDEX idx_folders_project ON folders(project_id);

@@ -10,14 +10,13 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, workspace_id, email, password_hash, name, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-RETURNING id, workspace_id, email, password_hash, name, created_at, updated_at
+INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
+VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+RETURNING id, email, password_hash, name, created_at, updated_at
 `
 
 type CreateUserParams struct {
 	ID           string `json:"id"`
-	WorkspaceID  string `json:"workspace_id"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
 	Name         string `json:"name"`
@@ -26,7 +25,6 @@ type CreateUserParams struct {
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, createUser,
 		arg.ID,
-		arg.WorkspaceID,
 		arg.Email,
 		arg.PasswordHash,
 		arg.Name,
@@ -34,7 +32,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.WorkspaceID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,
@@ -45,7 +42,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, workspace_id, email, password_hash, name, created_at, updated_at FROM users WHERE email = ? LIMIT 1
+SELECT id, email, password_hash, name, created_at, updated_at FROM users WHERE email = ? LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -53,7 +50,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.WorkspaceID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,
@@ -64,7 +60,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, workspace_id, email, password_hash, name, created_at, updated_at FROM users WHERE id = ? LIMIT 1
+SELECT id, email, password_hash, name, created_at, updated_at FROM users WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -72,7 +68,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.WorkspaceID,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Name,

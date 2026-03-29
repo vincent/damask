@@ -1,4 +1,4 @@
-module badam-dam/server
+module badam/server
 
 go 1.25.6
 

@@ -4,16 +4,16 @@ import (
 	"context"
 	"database/sql"
 
-	"badam-dam/server/internal/auth"
-	dbgen "badam-dam/server/internal/db/gen"
-	"badam-dam/server/internal/queue"
-	"badam-dam/server/internal/storage"
+	"badam/server/internal/auth"
+	dbgen "badam/server/internal/db/gen"
+	"badam/server/internal/queue"
+	"badam/server/internal/storage"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
-	_ "badam-dam/server/docs"
+	_ "badam/server/docs"
 )
 
 // Server holds shared dependencies injected at startup.
@@ -43,7 +43,15 @@ type Server struct {
 
 // @BasePath /
 // @schemes http
-func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.Storage, q *queue.Queue, removeBgAPIKey, appEnv string) *fiber.App {
+func New(
+	db *dbgen.Queries,
+	sqlDB *sql.DB,
+	tokenMaker *auth.Maker,
+	stor storage.Storage,
+	q *queue.Queue,
+	removeBgAPIKey,
+	appEnv string,
+) *fiber.App {
 	s := &Server{
 		db:             db,
 		sqlDB:          sqlDB,
@@ -83,6 +91,7 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.
 
 	// Workspace
 	api.Get("/workspace/me", s.handleWorkspaceMe)
+	api.Post("/workspace", s.handleCreateWorkspace)
 
 	getRoleFn := func(ctx context.Context, workspaceID, userID string) (string, error) {
 		member, err := s.db.GetMember(ctx, dbgen.GetMemberParams{

@@ -26,7 +26,7 @@ Web: http://localhost:5173
 ## Structure
 
 ```
-badam-dam/
+badam/
 ├── server/    # Go API + job runner
 ├── web/       # SvelteKit frontend
 └── Makefile   # dev / build / test / generate
