@@ -7,6 +7,68 @@ import (
 	"testing"
 )
 
+func TestCreateWorkspace_Success(t *testing.T) {
+	env := setupTestApp(t)
+	result := register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := authRequest(http.MethodPost, "/api/v1/workspace",
+		jsonStr(`{"name":"My New Workspace"}`), result.Cookie)
+	resp, err := env.app.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var body authResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Workspace == nil {
+		t.Fatal("expected workspace in response")
+	}
+	if body.Workspace.Name != "My New Workspace" {
+		t.Errorf("workspace name = %q, want %q", body.Workspace.Name, "My New Workspace")
+	}
+	if body.Workspace.ID == result.WorkspaceID {
+		t.Error("new workspace should have a different ID than the original")
+	}
+}
+
+func TestCreateWorkspace_MissingName(t *testing.T) {
+	env := setupTestApp(t)
+	result := register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := authRequest(http.MethodPost, "/api/v1/workspace",
+		jsonStr(`{"name":""}`), result.Cookie)
+	resp, err := env.app.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateWorkspace_Unauthenticated(t *testing.T) {
+	env := setupTestApp(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace",
+		jsonStr(`{"name":"My Workspace"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := env.app.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
 func TestWorkspaceMe_Authenticated(t *testing.T) {
 	env := setupTestApp(t)
 	result := register(t, env, "Alice", "alice@example.com", "password123")
