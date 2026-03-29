@@ -1,8 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { assetApi, projectApi, folderApi, mimeCategory, type Asset, type Project, type Folder } from '$lib/api/client'
+  import { mimeCategory, type Asset } from '$lib/api/client'
   import { authStore } from '$lib/stores/auth'
-  import { uploadsStore } from '$lib/stores/uploads.svelte'
+  import { assetsStore } from '$lib/stores/assets.svelte'
+  import { projectsStore } from '$lib/stores/projects.svelte'
+  import { foldersStore } from '$lib/stores/folders.svelte'
+  import { navigationStore } from '$lib/stores/navigation.svelte'
+  import { selectionStore } from '$lib/stores/selection.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
   import AssetCard from '$lib/components/AssetCard.svelte'
   import Lightbox from '$lib/components/Lightbox.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
@@ -34,194 +39,52 @@
     document: 'border-blue-200',
   }
 
-  let assets = $state<Asset[]>([])
-  let nextCursor = $state<string | null>(null)
-  let loading = $state(false)
-  let initialLoad = $state(true)
-  let query = $state('')
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
-
-  // Projects & filtering
-  let projects = $state<Project[]>([])
-  let activeProjectId = $state<string | null>(null)
-  let activeTags = $state<string[]>([])
-
-  // Folders
-  let activeFolderId = $state<string | null>(null)
-  let foldersByProject = $state<Record<string, Folder[]>>({})
-  let toast = $state<{ msg: string; type: 'success' | 'error' } | null>(null)
-  let toastTimer: ReturnType<typeof setTimeout>
-
-  // Multi-select
-  let selectedIds = $state(new Set<string>())
-  let lastSelectedIndex = $state<number>(-1)
-
-  // Command palette
   let showPalette = $state(false)
-
-  let debounceTimer: ReturnType<typeof setTimeout>
-
-  // Grouped assets derived
-  const assetsByCategory = $derived({
-    image: assets.filter((a) => mimeCategory(a.mime_type) === 'image'),
-    video: assets.filter((a) => mimeCategory(a.mime_type) === 'video'),
-    audio: assets.filter((a) => mimeCategory(a.mime_type) === 'audio'),
-    document: assets.filter((a) => mimeCategory(a.mime_type) === 'document'),
-  })
-
-  const activeProjectName = $derived(
-    activeProjectId ? (projects.find((p) => p.id === activeProjectId)?.name ?? 'Folder') : null
-  )
-
-  const totalAssetCount = $derived(projects.reduce((s, p) => s + p.asset_count, 0))
-
-  async function loadProjects() {
-    try {
-      projects = await projectApi.list()
-    } catch {
-      // silently ignore
-    }
-  }
-
-  async function loadAssets(reset = false) {
-    if (loading) return
-    loading = true
-    try {
-      const result = await assetApi.list({
-        cursor: reset ? undefined : (nextCursor ?? undefined),
-        q: query || undefined,
-        project_id: activeProjectId ?? undefined,
-        tags: activeTags.length > 0 ? activeTags : undefined,
-        folder_id: activeFolderId ?? undefined,
-        limit: 48,
-      })
-      if (reset) {
-        assets = result.assets
-      } else {
-        assets = [...assets, ...result.assets]
-      }
-      nextCursor = result.next_cursor
-    } catch {
-      // 401 redirect handled by api client
-    } finally {
-      loading = false
-      initialLoad = false
-    }
-  }
-
-  function handleSearch() {
-    clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => {
-      nextCursor = null
-      loadAssets(true)
-    }, 300)
-  }
-
-  function handleUploaded(asset: Asset) {
-    assets = [asset, ...assets]
-  }
-
-  function handleDeleted(id: string) {
-    assets = assets.filter((a) => a.id !== id)
-    selectedAsset = null
-    selectedIds.delete(id)
-    selectedIds = new Set(selectedIds)
-  }
-
-  function handleHeaderUpload(e: Event) {
-    const files = Array.from((e.target as HTMLInputElement).files ?? [])
-    for (const file of files) {
-      const id = crypto.randomUUID()
-      uploadsStore.add({ id, file, progress: 0, status: 'uploading' })
-      assetApi
-        .upload(file, (pct) => uploadsStore.update(id, { progress: pct }))
-        .then((asset) => {
-          handleUploaded(asset)
-          uploadsStore.update(id, { status: 'done', asset })
-        })
-        .catch((err: Error) => uploadsStore.update(id, { status: 'error', error: err.message }))
-    }
-    ;(e.target as HTMLInputElement).value = ''
-  }
+  let sidebarCreating = $state(false)
 
   function handleCardClick(asset: Asset, index: number, event: MouseEvent) {
-    if (event.shiftKey && $authStore.role !== 'viewer') {
-      const newSet = new Set(selectedIds)
-      if (lastSelectedIndex >= 0 && lastSelectedIndex !== index) {
-        const lo = Math.min(lastSelectedIndex, index)
-        const hi = Math.max(lastSelectedIndex, index)
-        for (let i = lo; i <= hi; i++) {
-          newSet.add(assets[i].id)
-        }
-      } else {
-        if (newSet.has(asset.id)) {
-          newSet.delete(asset.id)
-        } else {
-          newSet.add(asset.id)
-          lastSelectedIndex = index
-        }
-      }
-      selectedIds = newSet
-    } else if (selectedIds.size > 0 && $authStore.role !== 'viewer') {
-      const newSet = new Set(selectedIds)
-      if (newSet.has(asset.id)) {
-        newSet.delete(asset.id)
-      } else {
-        newSet.add(asset.id)
-        lastSelectedIndex = index
-      }
-      selectedIds = newSet
-    } else {
-      selectedAsset = asset
-    }
+    const handled = selectionStore.handleCardClick(
+      asset,
+      index,
+      assetsStore.assets,
+      event,
+      $authStore.role !== 'viewer',
+    )
+    if (!handled) selectedAsset = asset
   }
 
-  async function loadFolders(projectId: string) {
-    try {
-      const data = await folderApi.list(projectId)
-      foldersByProject = { ...foldersByProject, [projectId]: data }
-    } catch {
-      // silently ignore
-    }
+  async function handleProjectSelect(id: string | null) {
+    navigationStore.selectProject(id)
+    if (id) await foldersStore.loadForProject(id)
+    await assetsStore.load(true)
   }
 
-  function handleProjectSelect(id: string | null) {
-    activeProjectId = id
-    activeFolderId = null
-    nextCursor = null
-    if (id) loadFolders(id)
-    loadAssets(true)
-  }
-
-  function handleFolderSelect(projectId: string, folderId: string | null) {
-    activeFolderId = folderId
-    nextCursor = null
-    loadAssets(true)
-  }
-
-  function showToast(msg: string, type: 'success' | 'error' = 'success') {
-    clearTimeout(toastTimer)
-    toast = { msg, type }
-    toastTimer = setTimeout(() => { toast = null }, 3000)
+  async function handleFolderSelect(_projectId: string, folderId: string | null) {
+    navigationStore.selectFolder(folderId)
+    await assetsStore.load(true)
   }
 
   async function handleAssetsDropped(assetIds: string[], folderId: string | null, projectId: string) {
     try {
-      await Promise.all(assetIds.map((id) => assetApi.updateFolder(id, folderId)))
-      showToast(`Moved ${assetIds.length} asset${assetIds.length > 1 ? 's' : ''}`)
-      loadFolders(projectId)
-      loadAssets(true)
+      await foldersStore.moveAssets(assetIds, folderId, projectId)
+      toastStore.show(`Moved ${assetIds.length} asset${assetIds.length > 1 ? 's' : ''}`)
+      await assetsStore.load(true)
     } catch {
-      showToast('Could not move assets', 'error')
+      toastStore.show('Could not move assets', 'error')
     }
   }
 
-  function handleBulkDone() {
-    selectedIds = new Set()
-    lastSelectedIndex = -1
-    loadProjects()
-    loadAssets(true)
+  async function handleBulkDone() {
+    selectionStore.clear()
+    await Promise.all([projectsStore.load(), assetsStore.load(true)])
+  }
+
+  function handleDeleted(id: string) {
+    assetsStore.remove(id)
+    selectionStore.remove(id)
+    selectedAsset = null
   }
 
   function handleWindowKeydown(e: KeyboardEvent) {
@@ -229,25 +92,20 @@
       e.preventDefault()
       showPalette = !showPalette
     }
-    if (e.key === 'Escape' && !showPalette) {
-      selectedIds = new Set()
-    }
+    if (e.key === 'Escape' && !showPalette) selectionStore.clear()
   }
 
-  // Sidebar new folder creation shortcut
-  let sidebarCreating = $state(false)
-
   onMount(() => {
-    loadProjects()
-    loadAssets(true)
+    projectsStore.load()
+    assetsStore.load(true)
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && nextCursor && !loading) {
-          loadAssets()
+        if (entries[0].isIntersecting && assetsStore.nextCursor && !assetsStore.loading) {
+          assetsStore.load()
         }
       },
-      { rootMargin: '200px' }
+      { rootMargin: '200px' },
     )
 
     if (sentinel) observer.observe(sentinel)
@@ -278,7 +136,7 @@
     <div class="px-3 pb-2">
       <button
         class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
-          {activeProjectId === null ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}"
+          {navigationStore.activeProjectId === null ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}"
         onclick={() => handleProjectSelect(null)}
       >
         <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -286,14 +144,14 @@
             d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
         </svg>
         <span class="flex-1 text-left">All Assets</span>
-        {#if totalAssetCount > 0}
-          <span class="shrink-0 text-xs text-gray-400">{totalAssetCount}</span>
+        {#if projectsStore.totalAssetCount > 0}
+          <span class="shrink-0 text-xs text-gray-400">{projectsStore.totalAssetCount}</span>
         {/if}
       </button>
     </div>
 
     <!-- Folders section -->
-    <div class="flex-1 overflow-hidden flex flex-col px-3">
+    <div class="flex flex-1 flex-col overflow-hidden px-3">
       <div class="mb-2 flex items-center justify-between px-2">
         <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Folders</span>
         {#if $authStore.role !== 'viewer'}
@@ -311,14 +169,10 @@
 
       <nav class="flex-1 overflow-y-auto">
         <ProjectSidebar
-          {projects}
-          {activeProjectId}
-          folders={foldersByProject}
-          {activeFolderId}
-          selectedAssetIds={selectedIds}
+          selectedAssetIds={selectionStore.selectedIds}
+          creating={sidebarCreating}
+          oncreatingchange={(v) => { sidebarCreating = v }}
           onselect={handleProjectSelect}
-          onchange={() => { loadProjects(); loadAssets(true) }}
-          onfolderschange={(projectId) => loadFolders(projectId)}
           onfolderselect={handleFolderSelect}
           onassetsDropped={handleAssetsDropped}
         />
@@ -342,10 +196,10 @@
     <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
       <div>
         <h1 class="text-xl font-bold text-gray-900">
-          {activeProjectName ?? 'Library'}
+          {projectsStore.activeProjectName ?? 'Library'}
         </h1>
         <p class="mt-0.5 text-xs text-gray-400">
-          All Assets{#if activeProjectName} / {activeProjectName}{/if}
+          All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
         </p>
       </div>
 
@@ -361,8 +215,8 @@
           <input
             type="search"
             placeholder="Search anything..."
-            bind:value={query}
-            oninput={handleSearch}
+            value={assetsStore.query}
+            oninput={(e) => { assetsStore.query = e.currentTarget.value; assetsStore.search() }}
             class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
           />
         </div>
@@ -377,7 +231,16 @@
         {#if $authStore.role !== 'viewer'}
           <label class="cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
             Upload
-            <input type="file" multiple class="hidden" onchange={handleHeaderUpload} />
+            <input
+              type="file"
+              multiple
+              class="hidden"
+              onchange={(e) => {
+                const files = Array.from((e.target as HTMLInputElement).files ?? [])
+                assetsStore.upload(files)
+                ;(e.target as HTMLInputElement).value = ''
+              }}
+            />
           </label>
         {/if}
       </div>
@@ -385,7 +248,7 @@
 
     <!-- Content -->
     <main class="flex-1 overflow-y-auto px-6 py-6">
-      {#if initialLoad}
+      {#if assetsStore.initialLoad}
         <!-- Loading skeleton -->
         <div class="mb-10">
           <div class="mb-4 flex items-center gap-3">
@@ -404,13 +267,13 @@
             {/each}
           </div>
         </div>
-      {:else if assets.length === 0}
+      {:else if assetsStore.assets.length === 0}
         <div class="flex flex-col items-center justify-center py-24 text-center">
           <svg class="mb-4 h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          {#if query}
-            <p class="text-sm font-medium text-gray-600">No results for "{query}"</p>
+          {#if assetsStore.query}
+            <p class="text-sm font-medium text-gray-600">No results for "{assetsStore.query}"</p>
             <p class="mt-1 text-xs text-gray-400">Try a different search term</p>
           {:else}
             <p class="text-sm font-medium text-gray-600">No assets yet</p>
@@ -420,7 +283,7 @@
       {:else}
         <!-- Grouped by category -->
         {#each CATEGORY_ORDER as cat}
-          {@const group = assetsByCategory[cat]}
+          {@const group = assetsStore.assetsByCategory[cat]}
           {#if group.length > 0}
             <div class="mb-10">
               <!-- Category header -->
@@ -451,10 +314,10 @@
               <!-- Cards with left accent border -->
               <div class="border-l-2 {CATEGORY_BORDER[cat]} pl-4">
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-                  {#each group as asset, i (asset.id)}
-                    {@const globalIndex = assets.indexOf(asset)}
+                  {#each group as asset (asset.id)}
+                    {@const globalIndex = assetsStore.assets.indexOf(asset)}
                     <div class="relative">
-                      {#if selectedIds.has(asset.id)}
+                      {#if selectionStore.selectedIds.has(asset.id)}
                         <div class="pointer-events-none absolute inset-0 z-10 rounded-xl ring-2 ring-indigo-500">
                           <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
                             <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -473,9 +336,9 @@
         {/each}
 
         <!-- Infinite scroll sentinel -->
-        {#if nextCursor}
+        {#if assetsStore.nextCursor}
           <div bind:this={sentinel} class="flex justify-center py-6">
-            {#if loading}
+            {#if assetsStore.loading}
               <svg class="h-6 w-6 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
@@ -490,31 +353,30 @@
   </div>
 </div>
 
-{#if toast}
-  <div class="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 text-sm font-medium shadow-lg transition-all {toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'}">
-    {toast.msg}
+{#if toastStore.current}
+  <div class="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 text-sm font-medium shadow-lg transition-all {toastStore.current.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'}">
+    {toastStore.current.msg}
   </div>
 {/if}
 
 <Lightbox
   asset={selectedAsset}
-  {projects}
   onclose={() => (selectedAsset = null)}
   ondeleted={handleDeleted}
-  ontagschanged={() => loadAssets(true)}
-  onprojectchanged={() => { loadProjects(); loadAssets(true) }}
+  ontagschanged={() => assetsStore.load(true)}
+  onprojectchanged={() => { projectsStore.load(); assetsStore.load(true) }}
 />
 
 <BulkActionBar
-  {selectedIds}
-  {projects}
+  selectedIds={selectionStore.selectedIds}
+  projects={projectsStore.projects}
   ondone={handleBulkDone}
-  onclear={() => { selectedIds = new Set(); lastSelectedIndex = -1 }}
+  onclear={() => selectionStore.clear()}
 />
 
 {#if showPalette}
   <CommandPalette
-    {projects}
+    projects={projectsStore.projects}
     onselect={(id) => { handleProjectSelect(id); showPalette = false }}
     onclose={() => { showPalette = false }}
   />

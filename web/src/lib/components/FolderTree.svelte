@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { folderApi, type Folder } from '$lib/api/client'
   import { authStore } from '$lib/stores/auth'
+  import { foldersStore } from '$lib/stores/folders.svelte'
+  import type { Folder } from '$lib/api/client'
 
   interface Props {
     folders: Folder[]
@@ -8,11 +9,10 @@
     projectId: string
     selectedAssetIds: Set<string>
     onselect: (folderId: string | null) => void
-    onchange: () => void
     onassetsDropped: (assetIds: string[], folderId: string | null) => void
   }
 
-  let { folders, activeFolderId, projectId, selectedAssetIds, onselect, onchange, onassetsDropped }: Props = $props()
+  let { folders, activeFolderId, projectId, selectedAssetIds, onselect, onassetsDropped }: Props = $props()
 
   const STORAGE_KEY = 'folder-tree-open'
 
@@ -42,11 +42,7 @@
   function toggleOpen(id: string, e: MouseEvent) {
     e.stopPropagation()
     const next = new Set(openFolderIds)
-    if (next.has(id)) {
-      next.delete(id)
-    } else {
-      next.add(id)
-    }
+    if (next.has(id)) { next.delete(id) } else { next.add(id) }
     openFolderIds = next
     saveOpenIds(next)
   }
@@ -55,9 +51,8 @@
     const name = editName.trim()
     if (!name) { editingId = null; return }
     try {
-      await folderApi.update(id, { name })
+      await foldersStore.rename(id, projectId, name)
       editingId = null
-      onchange()
     } catch {
       error = 'Could not rename folder'
     }
@@ -66,8 +61,7 @@
   async function deleteFolder(id: string) {
     contextMenuId = null
     try {
-      await folderApi.delete(id)
-      onchange()
+      await foldersStore.delete(id, projectId)
     } catch {
       error = 'Could not delete folder'
     }
@@ -79,10 +73,9 @@
     try {
       const data: { name: string; parent_id?: string } = { name }
       if (parentId) data.parent_id = parentId
-      await folderApi.create(projectId, data)
+      await foldersStore.create(projectId, data)
       newFolderName = ''
       creatingUnder = null
-      onchange()
     } catch {
       error = 'Could not create folder'
     }
@@ -102,12 +95,9 @@
     dropTargetId = null
     const assetId = e.dataTransfer?.getData('text/plain')
     if (!assetId) return
-    let assetIds: string[]
-    if (selectedAssetIds.has(assetId) && selectedAssetIds.size > 1) {
-      assetIds = [...selectedAssetIds]
-    } else {
-      assetIds = [assetId]
-    }
+    const assetIds = selectedAssetIds.has(assetId) && selectedAssetIds.size > 1
+      ? [...selectedAssetIds]
+      : [assetId]
     onassetsDropped(assetIds, folderId)
   }
 
@@ -124,7 +114,6 @@
 
 {#each folders as folder (folder.id)}
   <div class="mt-0.5">
-    <!-- Root folder row -->
     <div
       class="group relative flex items-center rounded-md transition-colors
         {activeFolderId === folder.id ? 'bg-blue-50' : ''}
@@ -134,7 +123,6 @@
       ondragleave={handleDragLeave}
       ondrop={(e) => handleDrop(e, folder.id)}
     >
-      <!-- Chevron -->
       {#if folder.children && folder.children.length > 0}
         <button
           class="shrink-0 p-1 text-gray-400 hover:text-gray-600"
@@ -173,7 +161,6 @@
         </button>
       {/if}
 
-      <!-- Context menu trigger -->
       {#if $authStore.role !== 'viewer'}
         <button
           class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100"
@@ -212,7 +199,6 @@
       {/if}
     </div>
 
-    <!-- Create subfolder form -->
     {#if creatingUnder === folder.id}
       <div class="ml-5">
         <form
@@ -231,7 +217,6 @@
       </div>
     {/if}
 
-    <!-- Children -->
     {#if openFolderIds.has(folder.id) && folder.children && folder.children.length > 0}
       <div class="ml-4 border-l border-gray-100 pl-1">
         {#each folder.children as child (child.id)}

@@ -1,18 +1,19 @@
 <script lang="ts">
-  import { assetApi, tagApi, variantApi, formatBytes, mimeCategory, type Asset, type Project, type Variant } from '$lib/api/client'
+  import { assetApi, tagApi, variantApi, formatBytes, mimeCategory, type Asset, type Variant } from '$lib/api/client'
   import { authStore } from '$lib/stores/auth'
+  import { projectsStore } from '$lib/stores/projects.svelte'
+  import { assetsStore } from '$lib/stores/assets.svelte'
   import VariantPanel from './VariantPanel.svelte'
 
   interface Props {
     asset: Asset | null
-    projects: Project[]
     onclose: () => void
     ondeleted: (id: string) => void
     ontagschanged: () => void
     onprojectchanged: () => void
   }
 
-  let { asset, projects, onclose, ondeleted, ontagschanged, onprojectchanged }: Props = $props()
+  let { asset, onclose, ondeleted, ontagschanged, onprojectchanged }: Props = $props()
 
   let deleting = $state(false)
   let showVariantPanel = $state(false)
@@ -47,7 +48,6 @@
     document: 'DOCUMENT',
   }
 
-  // Cycling tag colors
   const TAG_COLORS = [
     'bg-violet-100 text-violet-700',
     'bg-blue-100 text-blue-700',
@@ -57,7 +57,6 @@
     'bg-rose-100 text-rose-700',
   ]
 
-  // Load tags and variants whenever the asset changes
   $effect(() => {
     if (!asset) { tags = []; variants = []; return }
     tagApi.getForAsset(asset.id).then((t) => { tags = t }).catch(() => {})
@@ -119,10 +118,7 @@
 
   function updateSuggestions() {
     const q = tagInput.trim().toLowerCase()
-    if (!q) {
-      tagSuggestions = []
-      return
-    }
+    if (!q) { tagSuggestions = []; return }
     tagSuggestions = allTags
       .map((t) => t.name)
       .filter((n) => n.includes(q) && !tags.includes(n))
@@ -135,8 +131,8 @@
 
   const activeProject = $derived(
     asset?.project_id.Valid
-      ? projects.find((p) => p.id === asset.project_id.String) ?? null
-      : null
+      ? projectsStore.projects.find((p) => p.id === asset.project_id.String) ?? null
+      : null,
   )
 
   function copyShareLink() {
@@ -170,7 +166,6 @@
       class="relative flex min-h-52 items-center justify-center"
       style="background-color: {previewBg[category]}"
     >
-      <!-- Icon in white box -->
       <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/90 shadow-sm">
         {#if category === 'video' || category === 'audio'}
           <svg class="h-8 w-8 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -192,7 +187,6 @@
         {/if}
       </div>
 
-      <!-- Top-right controls -->
       <div class="absolute right-3 top-3 flex items-center gap-1.5">
         {#if $authStore.role !== 'viewer'}
           <button
@@ -231,7 +225,7 @@
     <!-- Scrollable content -->
     <div class="flex-1 overflow-y-auto">
       <!-- Section 1: type + size + filename + download -->
-      <div class="px-5 pt-4 pb-3">
+      <div class="px-5 pb-3 pt-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <div class="mb-1.5 flex items-center gap-2">
@@ -364,7 +358,7 @@
             {/if}
 
             {#if showProjectPicker}
-              <div class="absolute left-0 top-full mt-1 z-10 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="absolute left-0 top-full z-10 mt-1 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
                 <button
                   class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50"
                   onclick={() => assignProject(null)}
@@ -372,7 +366,7 @@
                   <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
                   None
                 </button>
-                {#each projects as p}
+                {#each projectsStore.projects as p}
                   <button
                     class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
                     onclick={() => assignProject(p.id)}
@@ -474,8 +468,7 @@
     </div>
   </div>
 
-  <!-- Variant panel (stacks above lightbox) -->
   {#if showVariantPanel}
-    <VariantPanel asset={asset} onclose={() => { showVariantPanel = false }} />
+    <VariantPanel {asset} onclose={() => { showVariantPanel = false }} />
   {/if}
 {/if}

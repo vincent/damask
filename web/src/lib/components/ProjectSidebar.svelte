@@ -1,41 +1,24 @@
 <script lang="ts">
-  import { projectApi, folderApi, type Project, type Folder } from '$lib/api/client'
   import { authStore } from '$lib/stores/auth'
+  import { projectsStore } from '$lib/stores/projects.svelte'
+  import { foldersStore } from '$lib/stores/folders.svelte'
+  import { navigationStore } from '$lib/stores/navigation.svelte'
   import FolderTree from './FolderTree.svelte'
 
   interface Props {
-    projects: Project[]
-    activeProjectId: string | null
-    folders: Record<string, Folder[]>
-    activeFolderId: string | null
     selectedAssetIds: Set<string>
+    creating: boolean
+    oncreatingchange: (v: boolean) => void
     onselect: (id: string | null) => void
-    onchange: () => void
-    onfolderschange: (projectId: string) => void
     onfolderselect: (projectId: string, folderId: string | null) => void
     onassetsDropped: (assetIds: string[], folderId: string | null, projectId: string) => void
   }
 
-  let { projects, activeProjectId, folders, activeFolderId, selectedAssetIds, onselect, onchange, onfolderschange, onfolderselect, onassetsDropped }: Props = $props()
+  let { selectedAssetIds, creating, oncreatingchange, onselect, onfolderselect, onassetsDropped }: Props = $props()
 
   let dropTargetProjectId = $state<string | null>(null)
   let creatingRootFolderForProject = $state<string | null>(null)
   let newRootFolderName = $state('')
-
-  async function submitCreateRootFolder(projectId: string) {
-    const name = newRootFolderName.trim()
-    if (!name) { creatingRootFolderForProject = null; return }
-    try {
-      await folderApi.create(projectId, { name })
-      newRootFolderName = ''
-      creatingRootFolderForProject = null
-      onfolderschange(projectId)
-    } catch {
-      error = 'Could not create folder'
-    }
-  }
-
-  let creating = $state(false)
   let newName = $state('')
   let newColor = $state('#6366f1')
   let editingId = $state<string | null>(null)
@@ -49,11 +32,10 @@
     const name = newName.trim()
     if (!name) return
     try {
-      await projectApi.create({ name, color: newColor })
+      await projectsStore.create({ name, color: newColor })
       newName = ''
       newColor = '#6366f1'
-      creating = false
-      onchange()
+      oncreatingchange(false)
     } catch {
       error = 'Could not create folder'
     }
@@ -63,9 +45,8 @@
     const name = editName.trim()
     if (!name) return
     try {
-      await projectApi.update(id, { name })
+      await projectsStore.update(id, { name })
       editingId = null
-      onchange()
     } catch {
       error = 'Could not rename folder'
     }
@@ -74,36 +55,46 @@
   async function deleteProject(id: string) {
     menuOpenId = null
     try {
-      await projectApi.delete(id)
-      if (activeProjectId === id) onselect(null)
-      onchange()
+      await projectsStore.delete(id)
     } catch {
       error = 'Could not delete folder'
     }
   }
 
-  function startEdit(p: Project) {
-    editingId = p.id
-    editName = p.name
+  async function submitCreateRootFolder(projectId: string) {
+    const name = newRootFolderName.trim()
+    if (!name) { creatingRootFolderForProject = null; return }
+    try {
+      await foldersStore.create(projectId, { name })
+      newRootFolderName = ''
+      creatingRootFolderForProject = null
+    } catch {
+      error = 'Could not create folder'
+    }
+  }
+
+  function startEdit(id: string, name: string) {
+    editingId = id
+    editName = name
     menuOpenId = null
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      creating = false
+      oncreatingchange(false)
       editingId = null
     }
   }
 
-  function projectColor(p: Project): string {
-    return p.color.Valid ? p.color.String : '#9ca3af'
+  function projectColor(color: { Valid: boolean; String: string }): string {
+    return color.Valid ? color.String : '#9ca3af'
   }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="flex flex-col gap-0.5">
-  {#each projects as project (project.id)}
+  {#each projectsStore.projects as project (project.id)}
     <div class="group relative">
       {#if editingId === project.id}
         <form
@@ -120,7 +111,7 @@
       {:else}
         <button
           class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors
-            {activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}
+            {navigationStore.activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}
             {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400' : ''}"
           onclick={() => onselect(project.id)}
           ondragover={(e) => { e.preventDefault(); dropTargetProjectId = project.id }}
@@ -130,21 +121,17 @@
             dropTargetProjectId = null
             const assetId = e.dataTransfer?.getData('text/plain')
             if (!assetId) return
-            let assetIds: string[]
-            if (selectedAssetIds.has(assetId) && selectedAssetIds.size > 1) {
-              assetIds = [...selectedAssetIds]
-            } else {
-              assetIds = [assetId]
-            }
+            const assetIds = selectedAssetIds.has(assetId) && selectedAssetIds.size > 1
+              ? [...selectedAssetIds]
+              : [assetId]
             onassetsDropped(assetIds, null, project.id)
           }}
         >
-          <!-- Folder icon colored by project -->
           <svg
             class="h-4 w-4 shrink-0"
             viewBox="0 0 20 20"
             fill="currentColor"
-            style="color: {projectColor(project)}"
+            style="color: {projectColor(project.color)}"
           >
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
           </svg>
@@ -152,7 +139,6 @@
           <span class="ml-auto shrink-0 text-xs text-gray-400">{project.asset_count || ''}</span>
         </button>
 
-        <!-- Context menu trigger -->
         {#if $authStore.role !== 'viewer'}
           <button
             class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-300 opacity-0 hover:bg-gray-200 hover:text-gray-600 group-hover:opacity-100"
@@ -174,7 +160,7 @@
         >
           <button
             class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-            onclick={() => startEdit(project)}
+            onclick={() => startEdit(project.id, project.name)}
           >Rename</button>
           {#if $authStore.role === 'owner'}
             <button
@@ -185,16 +171,14 @@
         </div>
       {/if}
 
-      <!-- Folder tree for active project -->
-      {#if activeProjectId === project.id && folders[project.id]}
+      {#if navigationStore.activeProjectId === project.id && foldersStore.foldersByProject[project.id]}
         <div class="pl-5 pt-0.5">
           <FolderTree
-            folders={folders[project.id]}
-            {activeFolderId}
+            folders={foldersStore.foldersByProject[project.id]}
+            activeFolderId={navigationStore.activeFolderId}
             projectId={project.id}
             {selectedAssetIds}
             onselect={(folderId) => onfolderselect(project.id, folderId)}
-            onchange={() => onfolderschange(project.id)}
             onassetsDropped={(assetIds, folderId) => onassetsDropped(assetIds, folderId, project.id)}
           />
           {#if $authStore.role !== 'viewer'}
@@ -255,13 +239,13 @@
         </div>
         <div class="flex gap-1">
           <button type="submit" class="flex-1 rounded bg-indigo-600 py-1 text-xs font-medium text-white hover:bg-indigo-700">Create</button>
-          <button type="button" class="flex-1 rounded bg-gray-200 py-1 text-xs font-medium text-gray-600 hover:bg-gray-300" onclick={() => { creating = false }}>Cancel</button>
+          <button type="button" class="flex-1 rounded bg-gray-200 py-1 text-xs font-medium text-gray-600 hover:bg-gray-300" onclick={() => oncreatingchange(false)}>Cancel</button>
         </div>
       </form>
     {:else}
       <button
         class="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
-        onclick={() => { creating = true }}
+        onclick={() => oncreatingchange(true)}
       >
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
