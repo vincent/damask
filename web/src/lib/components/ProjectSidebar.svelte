@@ -55,7 +55,7 @@
       creating = false
       onchange()
     } catch {
-      error = 'Could not create project'
+      error = 'Could not create folder'
     }
   }
 
@@ -67,7 +67,7 @@
       editingId = null
       onchange()
     } catch {
-      error = 'Could not rename project'
+      error = 'Could not rename folder'
     }
   }
 
@@ -78,7 +78,7 @@
       if (activeProjectId === id) onselect(null)
       onchange()
     } catch {
-      error = 'Could not delete project'
+      error = 'Could not delete folder'
     }
   }
 
@@ -94,44 +94,34 @@
       editingId = null
     }
   }
+
+  function projectColor(p: Project): string {
+    return p.color.Valid ? p.color.String : '#9ca3af'
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="flex flex-col">
-  <!-- All assets link -->
-  <button
-    class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors {activeProjectId === null ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}"
-    onclick={() => onselect(null)}
-  >
-    <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-    All assets
-  </button>
-
-  {#if projects.length > 0}
-    <p class="mt-3 mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Projects</p>
-  {/if}
-
+<div class="flex flex-col gap-0.5">
   {#each projects as project (project.id)}
     <div class="group relative">
       {#if editingId === project.id}
         <form
-          class="flex items-center gap-1 rounded-md px-2 py-1"
+          class="flex items-center gap-1 rounded-lg px-2 py-1"
           onsubmit={(e) => { e.preventDefault(); submitEdit(project.id) }}
         >
           <input
             autofocus
             bind:value={editName}
-            class="min-w-0 flex-1 rounded border border-blue-400 px-1.5 py-0.5 text-sm outline-none"
+            class="min-w-0 flex-1 rounded border border-indigo-400 px-1.5 py-0.5 text-sm outline-none"
             onblur={() => submitEdit(project.id)}
           />
         </form>
       {:else}
         <button
-          class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors {activeProjectId === project.id ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'} {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400' : ''}"
+          class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors
+            {activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}
+            {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400' : ''}"
           onclick={() => onselect(project.id)}
           ondragover={(e) => { e.preventDefault(); dropTargetProjectId = project.id }}
           ondragleave={() => { dropTargetProjectId = null }}
@@ -149,22 +139,27 @@
             onassetsDropped(assetIds, null, project.id)
           }}
         >
-          <span
-            class="h-2.5 w-2.5 shrink-0 rounded-full"
-            style="background-color: {project.color.Valid ? project.color.String : '#9ca3af'}"
-          ></span>
+          <!-- Folder icon colored by project -->
+          <svg
+            class="h-4 w-4 shrink-0"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            style="color: {projectColor(project)}"
+          >
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+          </svg>
           <span class="min-w-0 flex-1 truncate text-left">{project.name}</span>
-          <span class="ml-auto shrink-0 text-xs text-gray-400">{project.asset_count}</span>
+          <span class="ml-auto shrink-0 text-xs text-gray-400">{project.asset_count || ''}</span>
         </button>
 
         <!-- Context menu trigger -->
         {#if $authStore.role !== 'viewer'}
           <button
-            class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100"
+            class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-300 opacity-0 hover:bg-gray-200 hover:text-gray-600 group-hover:opacity-100"
             onclick={(e) => { e.stopPropagation(); menuOpenId = menuOpenId === project.id ? null : project.id }}
-            aria-label="Project menu"
+            aria-label="Folder menu"
           >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
             </svg>
           </button>
@@ -192,7 +187,7 @@
 
       <!-- Folder tree for active project -->
       {#if activeProjectId === project.id && folders[project.id]}
-        <div class="pl-2 pt-0.5">
+        <div class="pl-5 pt-0.5">
           <FolderTree
             folders={folders[project.id]}
             {activeFolderId}
@@ -215,17 +210,17 @@
                   class="min-w-0 flex-1 bg-transparent text-xs outline-none"
                   onblur={() => { if (!newRootFolderName.trim()) creatingRootFolderForProject = null }}
                 />
-                <button type="submit" class="shrink-0 text-xs text-blue-600 hover:text-blue-800">Add</button>
+                <button type="submit" class="shrink-0 text-xs text-indigo-600 hover:text-indigo-800">Add</button>
               </form>
             {:else}
               <button
-                class="mt-1 flex w-full items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                class="mt-0.5 flex w-full items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                 onclick={() => { creatingRootFolderForProject = project.id; newRootFolderName = '' }}
               >
                 <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                New folder
+                New subfolder
               </button>
             {/if}
           {/if}
@@ -234,7 +229,7 @@
     </div>
   {/each}
 
-  <!-- New project -->
+  <!-- New folder -->
   {#if $authStore.role !== 'viewer'}
     {#if creating}
       <form
@@ -244,39 +239,39 @@
         <input
           autofocus
           bind:value={newName}
-          placeholder="Project name"
-          class="rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+          placeholder="Folder name"
+          class="rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-400 focus:outline-none"
         />
         <div class="flex flex-wrap gap-1">
           {#each COLORS as c}
             <button
               type="button"
               aria-label="Select color {c}"
-              class="h-5 w-5 rounded-full transition-transform hover:scale-110 {newColor === c ? 'ring-2 ring-offset-1 ring-gray-600' : ''}"
+              class="h-4 w-4 rounded-full transition-transform hover:scale-110 {newColor === c ? 'ring-2 ring-offset-1 ring-gray-500' : ''}"
               style="background-color: {c}"
               onclick={() => { newColor = c }}
             ></button>
           {/each}
         </div>
         <div class="flex gap-1">
-          <button type="submit" class="flex-1 rounded bg-blue-600 py-1 text-xs font-medium text-white hover:bg-blue-700">Create</button>
+          <button type="submit" class="flex-1 rounded bg-indigo-600 py-1 text-xs font-medium text-white hover:bg-indigo-700">Create</button>
           <button type="button" class="flex-1 rounded bg-gray-200 py-1 text-xs font-medium text-gray-600 hover:bg-gray-300" onclick={() => { creating = false }}>Cancel</button>
         </div>
       </form>
     {:else}
       <button
-        class="mt-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        class="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
         onclick={() => { creating = true }}
       >
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        New project
+        New folder
       </button>
     {/if}
   {/if}
 
   {#if error}
-    <p class="mt-1 px-3 text-xs text-red-500">{error}</p>
+    <p class="mt-1 px-2 text-xs text-red-500">{error}</p>
   {/if}
 </div>
