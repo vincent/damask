@@ -1,0 +1,40 @@
+info:
+  contact: {}
+paths:
+  /healthz:
+    get:
+      consumes:
+      - '*/*'
+      description: get the status of server.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Show the status of server.
+      tags:
+      - health
+  /login:
+    post:
+      consumes:
+      - '*/*'
+      description: get auth token.
+      parameters:
+      - description: Email
+        in: query
+        name: email
+        type: string
+      - description: Password
+        in: query
+        name: password
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      summary: Login to the application.
+      tags:
+      - Auth
+swagger: "2.0"

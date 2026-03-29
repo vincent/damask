@@ -107,6 +107,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 
 	validTypes := map[string]bool{
 		queue.JobTypeResize:         true,
+		queue.JobTypeWatermark:      true,
 		queue.JobTypeConvert:        true,
 		queue.JobTypeCrop:           true,
 		queue.JobTypeVideoThumbnail: true,
@@ -121,7 +122,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		!strings.HasPrefix(asset.MimeType, "video/") {
 		return errRes(c, fiber.StatusBadRequest, "video transforms require a video asset")
 	}
-	if (body.Type == queue.JobTypeResize || body.Type == queue.JobTypeConvert || body.Type == queue.JobTypeCrop) &&
+	if (body.Type == queue.JobTypeResize || body.Type == queue.JobTypeConvert || body.Type == queue.JobTypeCrop || body.Type == queue.JobTypeWatermark) &&
 		!strings.HasPrefix(asset.MimeType, "image/") {
 		return errRes(c, fiber.StatusBadRequest, "image transforms require an image asset")
 	}
@@ -300,6 +301,7 @@ func (s *Server) RegisterJobHandlers() {
 	s.queue.Register(queue.JobTypeResize, s.jobImageTransform)
 	s.queue.Register(queue.JobTypeConvert, s.jobImageTransform)
 	s.queue.Register(queue.JobTypeCrop, s.jobImageTransform)
+	s.queue.Register(queue.JobTypeWatermark, s.jobImageTransform)
 	s.queue.Register(queue.JobTypeVideoThumbnail, s.jobVideoThumbnail)
 	s.queue.Register(queue.JobTypeVideoTranscode, s.jobVideoTranscode)
 	s.queue.Register(queue.JobTypeBgRemove, s.jobBgRemove)

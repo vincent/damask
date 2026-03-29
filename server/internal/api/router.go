@@ -9,8 +9,11 @@ import (
 	"creativo-dam/server/internal/queue"
 	"creativo-dam/server/internal/storage"
 
+	swaggo "github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
+
+	_ "creativo-dam/server/docs"
 )
 
 // Server holds shared dependencies injected at startup.
@@ -26,6 +29,20 @@ type Server struct {
 }
 
 // New creates a configured Fiber app with all routes registered.
+// @title Creativo Swagger API
+// @version 1.0
+// @description This is a Creativo server.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@creativo.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @BasePath /
+// @schemes http
 func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.Storage, q *queue.Queue, removeBgAPIKey, appEnv string) *fiber.App {
 	s := &Server{
 		db:             db,
@@ -128,7 +145,7 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
 
 	// Mount the UI with the default configuration under /swagger
-	// app.Get("/swagger/*", swaggo.HandlerDefault)
+	app.Get("/swagger/*", swaggo.HandlerDefault)
 
 	return app
 }

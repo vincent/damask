@@ -408,7 +408,7 @@
           </button>
         </div>
 
-      <!-- Resize tab -->
+      <!-- Watermark tab -->
       {:else if activeTab === 'watermark'}
         <div class="space-y-5">
           <!-- Live preview -->
@@ -424,10 +424,10 @@
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Opacity (%)</label>
-              <input type="number" min="1" max="100" bind:value={watermarkOpacity}
+              <label class="block text-xs font-medium text-gray-600 mb-1">Opacity ({watermarkOpacity}%)</label>
+              <input type="range" min="1" max="100" bind:value={watermarkOpacity}
                 oninput={updatePreview}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                class="w-full accent-blue-500" />
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Quality: {watermarkQuality}%</label>

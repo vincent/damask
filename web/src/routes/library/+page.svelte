@@ -294,7 +294,7 @@
                     {@const globalIndex = assetsStore.assets.indexOf(asset)}
                     <div class="relative">
                       {#if selectionStore.selectedIds.has(asset.id)}
-                        <div class="pointer-events-none absolute inset-0 z-10 rounded-xl ring-2 ring-indigo-500">
+                        <div class="pointer-events-none absolute inset-0 z-5 rounded-xl ring-2 ring-indigo-500">
                           <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
                             <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
@@ -328,7 +328,7 @@
     </main>
 
     <!-- status bar -->
-    <div class="absolute bottom-0 right-0 left-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3">
+    <div class="absolute z-10 bottom-0 right-0 left-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3">
       <p class="text-sm text-gray-500">
         {assetsStore.assets.length} assets
       </p>

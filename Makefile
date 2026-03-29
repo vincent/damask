@@ -4,15 +4,21 @@
 dev:
 	$(MAKE) -j2 dev-server dev-web
 
+# Run the Go backend
 dev-server:
-	cd server && go run ./cmd/server
+	cd server && air --build.cmd "go build -o bin/server" --build.entrypoint "./cmd/server"
 
+# Run the Svelte frontend
 dev-web:
 	cd web && npm run dev
 
 # Build the Go server binary
 build:
 	cd server && go build -o bin/server ./cmd/server
+
+# Update Swagger docs
+swagger:
+	cd server && swag init -g cmd/server/main.go
 
 # Run all tests
 test:

@@ -129,6 +129,16 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(authResponse{Token: token, User: userToResponse(user), Workspace: &workspace})
 }
 
+// Login godoc
+// @Summary Login to the application.
+// @Description get auth token.
+// @Tags Auth
+// @Accept */*
+// @Produce json
+// @Param        email       query     string  false  "Email"
+// @Param        password    query     string  false  "Password"
+// // @Success 200 {object} AuthResponse
+// @Router /login [post]
 func (s *Server) handleLogin(c fiber.Ctx) error {
 	var req loginRequest
 	if err := c.Bind().Body(&req); err != nil {

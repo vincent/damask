@@ -308,7 +308,7 @@
                   />
                 </form>
                 {#if tagSuggestions.length > 0}
-                  <ul class="absolute left-0 top-full z-10 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-md">
+                  <ul class="absolute left-0 top-full z-20 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-md">
                     {#each tagSuggestions as s}
                       <li>
                         <button
@@ -358,7 +358,7 @@
             {/if}
 
             {#if showProjectPicker}
-              <div class="absolute left-0 top-full z-10 mt-1 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+              <div class="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
                 <button
                   class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50"
                   onclick={() => assignProject(null)}

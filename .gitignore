@@ -35,5 +35,6 @@ CLAUDE.md
 Thumbs.db
 
 # TMP
+/server/tmp/
 /ROADMAP.md
 /ISSUES.md
