@@ -13,31 +13,7 @@
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import BulkActionBar from '$lib/components/BulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
-
-  type CategoryKey = 'image' | 'video' | 'audio' | 'document'
-
-  const CATEGORY_ORDER: CategoryKey[] = ['image', 'video', 'audio', 'document']
-
-  const CATEGORY_LABELS: Record<CategoryKey, string> = {
-    image: 'Images & Graphics',
-    video: 'Video Production',
-    audio: 'Audio & Music',
-    document: 'Documents',
-  }
-
-  const CATEGORY_ICON_BG: Record<CategoryKey, string> = {
-    image: 'bg-violet-100 text-violet-600',
-    video: 'bg-red-100 text-red-600',
-    audio: 'bg-emerald-100 text-emerald-600',
-    document: 'bg-blue-100 text-blue-600',
-  }
-
-  const CATEGORY_BORDER: Record<CategoryKey, string> = {
-    image: 'border-violet-200',
-    video: 'border-red-200',
-    audio: 'border-emerald-200',
-    document: 'border-blue-200',
-  }
+  import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
@@ -191,7 +167,7 @@
   </aside>
 
   <!-- Main -->
-  <div class="flex flex-1 flex-col overflow-hidden">
+  <div class="relative flex flex-1 flex-col overflow-hidden">
     <!-- Top bar -->
     <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
       <div>
@@ -350,6 +326,17 @@
         {/if}
       {/if}
     </main>
+
+    <!-- status bar -->
+    <div class="absolute bottom-0 right-0 left-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3">
+      <p class="text-sm text-gray-500">
+        {assetsStore.assets.length} assets
+      </p>
+      <p class="text-sm text-gray-500">
+        Zoom
+      </p>
+    </div>
+
   </div>
 </div>
 

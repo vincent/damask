@@ -164,7 +164,7 @@
     <!-- Preview area with colored background -->
     <div
       class="relative flex min-h-52 items-center justify-center"
-      style="background-color: {previewBg[category]}"
+      style="background-color: {previewBg[category]}; background-image: url('{assetApi.thumbUrl(asset.id)}'); background-size: cover; background-position: center"
     >
       <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/90 shadow-sm">
         {#if category === 'video' || category === 'audio'}

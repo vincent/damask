@@ -15,7 +15,7 @@
   let { asset, onclose }: Props = $props()
 
   // Tabs
-  type Tab = 'list' | 'resize' | 'convert' | 'crop' | 'video' | 'bg_remove'
+  type Tab = 'list' | 'resize' | 'convert' | 'crop' | 'watermark' | 'video' | 'bg_remove'
   let activeTab = $state<Tab>('list')
 
   // Variant list state
@@ -38,6 +38,11 @@
   // Convert params
   let convertFormat = $state<'jpeg' | 'png' | 'tiff'>('png')
   let convertQuality = $state(90)
+
+  // Watermark params
+  let watermarkOpacity = $state(50)
+  let watermarkQuality = $state(80)
+  let watermarkFormat = $state<'jpeg' | 'png' | 'tiff'>('jpeg')
 
   // Crop params
   let cropX = $state(0)
@@ -154,6 +159,14 @@
     })
   }
 
+  function submitWatermark() {
+    handleCreate('watermark', {
+      opacity: watermarkOpacity,
+      quality: watermarkQuality,
+      format: watermarkFormat,
+    })
+  }
+
   function submitVideoThumbnail() {
     handleCreate('video_thumbnail', { timestamp: videoTimestamp })
   }
@@ -178,6 +191,7 @@
       case 'resize': return `Resize ${params.width ?? '?'}×${params.height ?? '?'} (${params.format ?? 'jpeg'})`
       case 'convert': return `Convert to ${params.format ?? '?'}`
       case 'crop': return `Crop ${params.width ?? '?'}×${params.height ?? '?'}`
+      case 'watermark': return `Watermark ${params.opacity ?? 50}%`
       case 'video_thumbnail': return `Frame at ${params.timestamp ?? 1}s`
       case 'video_transcode': return `Transcode ${params.format ?? 'mp4'}${params.resolution ? ' ' + params.resolution : ''}`
       case 'bg_remove': return 'Background removed'
@@ -186,12 +200,13 @@
   }
 
   const tabs: { id: Tab; label: string; show: boolean }[] = [
-    { id: 'list',     label: 'Variants',  show: true },
-    { id: 'resize',   label: 'Resize',    show: isImage },
-    { id: 'convert',  label: 'Convert',   show: isImage },
-    { id: 'crop',     label: 'Crop',      show: isImage },
-    { id: 'video',    label: 'Video',     show: isVideo },
-    { id: 'bg_remove',label: 'Bg Remove', show: isImage },
+    { id: 'list',      label: 'Variants',  show: true },
+    { id: 'resize',    label: 'Resize',    show: isImage },
+    { id: 'watermark', label: 'Watermark', show: isImage },
+    { id: 'convert',   label: 'Convert',   show: isImage },
+    { id: 'crop',      label: 'Crop',      show: isImage },
+    { id: 'video',     label: 'Video',     show: isVideo },
+    { id: 'bg_remove', label: 'Bg Remove', show: isImage },
   ]
 </script>
 
@@ -390,6 +405,59 @@
             class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {creating ? 'Queuing…' : 'Create Resize Variant'}
+          </button>
+        </div>
+
+      <!-- Resize tab -->
+      {:else if activeTab === 'watermark'}
+        <div class="space-y-5">
+          <!-- Live preview -->
+          {#if previewUrl}
+            <div class="flex justify-center rounded-xl bg-gray-50 p-3 border border-gray-200" style="min-height:120px">
+              <img src={previewUrl} alt="Preview" class="max-h-48 max-w-full rounded object-contain" />
+            </div>
+          {:else}
+            <div class="flex items-center justify-center rounded-xl bg-gray-50 border border-dashed border-gray-300 py-8 text-xs text-gray-400">
+              Preview will appear after changing parameters
+            </div>
+          {/if}
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Opacity (%)</label>
+              <input type="number" min="1" max="100" bind:value={watermarkOpacity}
+                oninput={updatePreview}
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Quality: {watermarkQuality}%</label>
+              <input type="range" min="1" max="100" bind:value={watermarkQuality}
+                oninput={updatePreview}
+                class="w-full accent-blue-500" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Format</label>
+            <div class="flex gap-2">
+              {#each ['jpeg', 'png', 'tiff'] as fmt}
+                <button type="button"
+                  class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {watermarkFormat === fmt
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400'}"
+                  onclick={() => { watermarkFormat = fmt as typeof watermarkFormat; updatePreview() }}
+                >{fmt.toUpperCase()}</button>
+              {/each}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={creating || $authStore.role === 'viewer'}
+            onclick={submitWatermark}
+            class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {creating ? 'Queuing…' : 'Create Watermark Variant'}
           </button>
         </div>
 

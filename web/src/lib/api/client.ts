@@ -18,7 +18,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(path: string, init: RequestInit = {}, fetch = window.fetch): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...init.headers },
@@ -79,7 +79,10 @@ export const authApi = {
 }
 
 export const workspaceApi = {
-  me: () => apiFetch<WorkspaceMeResponse>('/api/v1/workspace/me'),
+  fetch: window.fetch,
+  useFetch: (f: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) => workspaceApi.fetch = f,
+
+  me: () => apiFetch<WorkspaceMeResponse>('/api/v1/workspace/me', undefined, workspaceApi.fetch),
 
   createInvite: (email: string, role: 'editor' | 'viewer' = 'editor') =>
     apiFetch<{ id: string; invite_token: string; email: string; role: string }>(

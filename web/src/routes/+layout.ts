@@ -8,7 +8,7 @@ const PUBLIC_PATHS = ['/login', '/register', '/invite']
 
 export const ssr = false
 
-export const load: LayoutLoad = async ({ url }): Promise<{
+export const load: LayoutLoad = async ({ url, fetch }): Promise<{
   user?: User
   workspace?: Workspace
   role?: string
@@ -18,6 +18,8 @@ export const load: LayoutLoad = async ({ url }): Promise<{
   if (PUBLIC_PATHS.some((p) => url.pathname.startsWith(p))) {
     return {}
   }
+
+  workspaceApi.useFetch(fetch)
 
   try {
     return await workspaceApi.me()
