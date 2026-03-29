@@ -2,6 +2,7 @@
   import { authStore } from '$lib/stores/auth'
   import { foldersStore } from '$lib/stores/folders.svelte'
   import type { Folder } from '$lib/api/client'
+  import { EllipsisVertical, Folder as FolderIcon, FolderClosed, FolderOpen } from '@lucide/svelte'
 
   interface Props {
     folders: Folder[]
@@ -114,6 +115,7 @@
 
 {#each folders as folder (folder.id)}
   <div class="mt-0.5">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="group relative flex items-center rounded-md transition-colors
         {activeFolderId === folder.id ? 'bg-blue-50' : ''}
@@ -129,9 +131,7 @@
           onclick={(e) => toggleOpen(folder.id, e)}
           aria-label="Toggle folder"
         >
-          <svg class="h-3 w-3 transition-transform {openFolderIds.has(folder.id) ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
+          <FolderIcon class="h-3 w-3 transition-transform {openFolderIds.has(folder.id) ? 'rotate-90' : ''}" />
         </button>
       {:else}
         <span class="w-5 shrink-0"></span>
@@ -151,9 +151,7 @@
           class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left text-sm {activeFolderId === folder.id ? 'text-blue-700 font-medium' : 'text-gray-600 hover:text-gray-900'}"
           onclick={() => onselect(folder.id)}
         >
-          <svg class="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-          </svg>
+          <FolderClosed class="h-3.5 w-3.5 shrink-0 text-gray-400" />
           <span class="min-w-0 flex-1 truncate text-xs">{folder.name}</span>
           {#if folder.asset_count > 0}
             <span class="shrink-0 text-xs text-gray-400">{folder.asset_count}</span>
@@ -167,9 +165,7 @@
           onclick={(e) => { e.stopPropagation(); contextMenuId = contextMenuId === folder.id ? null : folder.id }}
           aria-label="Folder menu"
         >
-          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-          </svg>
+          <EllipsisVertical class="h-3.5 w-3.5" />
         </button>
       {/if}
 
@@ -220,6 +216,7 @@
     {#if openFolderIds.has(folder.id) && folder.children && folder.children.length > 0}
       <div class="ml-4 border-l border-gray-100 pl-1">
         {#each folder.children as child (child.id)}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="group relative flex items-center rounded-md transition-colors
               {activeFolderId === child.id ? 'bg-blue-50' : ''}
@@ -233,7 +230,6 @@
             {#if editingId === child.id}
               <form class="flex flex-1 items-center gap-1 pr-1" onsubmit={(e) => { e.preventDefault(); submitRename(child.id) }}>
                 <input
-                  autofocus
                   bind:value={editName}
                   class="min-w-0 flex-1 rounded border border-blue-400 px-1.5 py-0.5 text-xs outline-none"
                   onblur={() => submitRename(child.id)}
@@ -244,9 +240,7 @@
                 class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left {activeFolderId === child.id ? 'text-blue-700 font-medium' : 'text-gray-600 hover:text-gray-900'}"
                 onclick={() => onselect(child.id)}
               >
-                <svg class="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                </svg>
+                <FolderOpen class="h-3.5 w-3.5 shrink-0 text-gray-400" />
                 <span class="min-w-0 flex-1 truncate text-xs">{child.name}</span>
                 {#if child.asset_count > 0}
                   <span class="shrink-0 text-xs text-gray-400">{child.asset_count}</span>
@@ -260,9 +254,7 @@
                 onclick={(e) => { e.stopPropagation(); contextMenuId = contextMenuId === child.id ? null : child.id }}
                 aria-label="Folder menu"
               >
-                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
+                <EllipsisVertical class="h-3.5 w-3.5" />
               </button>
             {/if}
 

@@ -6,6 +6,7 @@
     type Asset,
   } from '$lib/api/client'
   import { authStore } from '$lib/stores/auth'
+  import { Cross, Download, Inbox, Loader, Trash, TrendingUpDown } from '@lucide/svelte'
 
   interface Props {
     asset: Asset | null
@@ -240,9 +241,7 @@
         onclick={onclose}
         aria-label="Close"
       >
-        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <Cross class="h-5 w-5" />
       </button>
     </div>
 
@@ -276,19 +275,13 @@
       {#if activeTab === 'list'}
         {#if loading}
           <div class="flex justify-center py-8">
-            <svg class="h-6 w-6 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-            </svg>
+            <Loader class="h-6 w-6 animate-spin text-gray-400" />
           </div>
         {:else if loadError}
           <p class="text-sm text-red-600">{loadError}</p>
         {:else if variants.length === 0}
           <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
-            <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+            <Inbox class="h-12 w-12" />
             <p class="text-sm">No variants yet.</p>
             {#if $authStore.role !== 'viewer'}
               <p class="text-xs">Use the tabs above to create your first variant.</p>
@@ -311,10 +304,7 @@
                   class="shrink-0 rounded-lg border border-gray-300 p-1.5 text-gray-500 hover:bg-white hover:text-gray-700"
                   aria-label="Download variant"
                 >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
+                  <Download class="h-4 w-4" />
                 </a>
                 {#if $authStore.role !== 'viewer'}
                   <button
@@ -323,10 +313,7 @@
                     onclick={() => handleDelete(v.id)}
                     aria-label="Delete variant"
                   >
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    <Trash class="h-4 w-4" />
                   </button>
                 {/if}
               </li>
@@ -635,10 +622,7 @@
           >
             {#if creating}
               <span class="flex items-center justify-center gap-2">
-                <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
+                <Loader class="h-4 w-4 animate-spin" />
                 Queuing…
               </span>
             {:else}

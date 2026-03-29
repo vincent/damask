@@ -4,6 +4,7 @@
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import FolderTree from './FolderTree.svelte'
+  import { EllipsisVertical, Plus } from '@lucide/svelte'
 
   interface Props {
     selectedAssetIds: Set<string>
@@ -145,9 +146,7 @@
             onclick={(e) => { e.stopPropagation(); menuOpenId = menuOpenId === project.id ? null : project.id }}
             aria-label="Folder menu"
           >
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
+            <EllipsisVertical class="h-3.5 w-3.5" />
           </button>
         {/if}
       {/if}
@@ -188,7 +187,6 @@
                 onsubmit={(e) => { e.preventDefault(); submitCreateRootFolder(project.id) }}
               >
                 <input
-                  autofocus
                   bind:value={newRootFolderName}
                   placeholder="Folder name"
                   class="min-w-0 flex-1 bg-transparent text-xs outline-none"
@@ -201,9 +199,7 @@
                 class="mt-0.5 flex w-full items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                 onclick={() => { creatingRootFolderForProject = project.id; newRootFolderName = '' }}
               >
-                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
+                <Plus class="h-3 w-3" />
                 New subfolder
               </button>
             {/if}
@@ -247,9 +243,7 @@
         class="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600"
         onclick={() => oncreatingchange(true)}
       >
-        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
+        <Plus class="h-3.5 w-3.5" />
         New folder
       </button>
     {/if}

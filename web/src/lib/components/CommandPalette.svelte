@@ -1,5 +1,6 @@
 <script lang="ts">
   import { type Project } from '$lib/api/client'
+  import { ChevronUp, Search } from '@lucide/svelte'
 
   interface Props {
     projects: Project[]
@@ -75,9 +76,7 @@
   >
     <!-- Input -->
     <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-3">
-      <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
+      <Search class="h-5 w-5 text-gray-400" />
       <input
         bind:this={inputEl}
         bind:value={query}
@@ -99,9 +98,7 @@
             {#if item.color}
               <span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background-color: {item.color}"></span>
             {:else}
-              <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01" />
-              </svg>
+              <ChevronUp class="h-4 w-4 shrink-0 text-gray-400" />
             {/if}
             <span class="flex-1 text-left">{item.label}</span>
             {#if item.count !== undefined}

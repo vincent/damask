@@ -14,11 +14,14 @@
   import BulkActionBar from '$lib/components/BulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
+  import { Book, File, Image, Inbox, Loader, LogOut, Music, Plus, Search, Video } from '@lucide/svelte'
+  import LIbraryStatusBar from '$lib/components/LIbraryStatusBar.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
   let showPalette = $state(false)
   let sidebarCreating = $state(false)
+  let zoom = $state(1)
 
   function handleCardClick(asset: Asset, index: number, event: MouseEvent) {
     const handled = selectionStore.handleCardClick(
@@ -115,10 +118,7 @@
           {navigationStore.activeProjectId === null ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'}"
         onclick={() => handleProjectSelect(null)}
       >
-        <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-        </svg>
+        <Book class="h-4 w-4 shrink-0 text-gray-400" />
         <span class="flex-1 text-left">All Assets</span>
         {#if projectsStore.totalAssetCount > 0}
           <span class="shrink-0 text-xs text-gray-400">{projectsStore.totalAssetCount}</span>
@@ -136,9 +136,7 @@
             onclick={() => { sidebarCreating = true }}
             aria-label="New folder"
           >
-            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
+            <Plus class="h-3.5 w-3.5" />
           </button>
         {/if}
       </div>
@@ -158,9 +156,7 @@
     <!-- Bottom sign out -->
     <div class="border-t border-gray-100 px-4 py-3">
       <a href="/logout" class="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600">
-        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
+        <LogOut class="h-3.5 w-3.5" />
         Sign out
       </a>
     </div>
@@ -199,9 +195,7 @@
 
         <!-- Filter icon -->
         <button class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
+          <Search class="h-4 w-4" />
         </button>
 
         {#if $authStore.role !== 'viewer'}
@@ -245,9 +239,7 @@
         </div>
       {:else if assetsStore.assets.length === 0}
         <div class="flex flex-col items-center justify-center py-24 text-center">
-          <svg class="mb-4 h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+          <Inbox class="mb-4 h-16 w-16 text-gray-300" />
           {#if assetsStore.query}
             <p class="text-sm font-medium text-gray-600">No results for "{assetsStore.query}"</p>
             <p class="mt-1 text-xs text-gray-400">Try a different search term</p>
@@ -266,21 +258,13 @@
               <div class="mb-4 flex items-center gap-3">
                 <div class="flex h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat]}">
                   {#if cat === 'image'}
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <Image class="h-4 w-4" />
                   {:else if cat === 'video'}
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M4 8h11a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" />
-                    </svg>
+                    <Video class="h-4 w-4" />
                   {:else if cat === 'audio'}
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                    </svg>
+                    <Music class="h-4 w-4" />
                   {:else}
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
+                    <File class="h-4 w-4" />
                   {/if}
                 </div>
                 <h2 class="text-sm font-semibold text-gray-900">{CATEGORY_LABELS[cat]}</h2>
@@ -315,10 +299,7 @@
         {#if assetsStore.nextCursor}
           <div bind:this={sentinel} class="flex justify-center py-6">
             {#if assetsStore.loading}
-              <svg class="h-6 w-6 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
+              <Loader class="h-6 w-6 animate-spin text-gray-400" />
             {/if}
           </div>
         {:else}
@@ -327,15 +308,7 @@
       {/if}
     </main>
 
-    <!-- status bar -->
-    <div class="absolute z-10 bottom-0 right-0 left-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3">
-      <p class="text-sm text-gray-500">
-        {assetsStore.assets.length} assets
-      </p>
-      <p class="text-sm text-gray-500">
-        Zoom
-      </p>
-    </div>
+    <LIbraryStatusBar zoom={zoom} />
 
   </div>
 </div>

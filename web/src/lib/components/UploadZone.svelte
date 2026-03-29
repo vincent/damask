@@ -1,6 +1,7 @@
 <script lang="ts">
   import { assetApi, type Asset } from '$lib/api/client'
   import { uploadsStore } from '$lib/stores/uploads.svelte'
+  import { Upload } from '@lucide/svelte'
 
   interface Props {
     onuploaded: (asset: Asset) => void
@@ -138,9 +139,7 @@
             onclick={() => uploadsStore.remove(item.id)}
             aria-label="Dismiss"
           >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <Upload class="h-4 w-4" />
           </button>
         {/if}
       </div>

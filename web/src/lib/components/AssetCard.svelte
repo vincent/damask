@@ -1,5 +1,6 @@
 <script lang="ts">
   import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api/client'
+  import { File, Loader, Play } from '@lucide/svelte'
 
   interface Props {
     asset: Asset
@@ -66,17 +67,9 @@
       <div class="flex h-full items-center justify-center">
         <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/25">
           {#if category === 'video' || category === 'audio'}
-            <svg class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Play class="h-7 w-7 text-white" />
           {:else}
-            <svg class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
+            <File class="h-7 w-7 text-white" />
           {/if}
         </div>
       </div>
@@ -85,10 +78,7 @@
     {#if isProcessing}
       <div class="absolute inset-0 flex items-center justify-center bg-black/25">
         <div class="flex flex-col items-center gap-1.5 text-white">
-          <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-          </svg>
+          <Loader class="h-5 w-5 animate-spin" />
           <span class="text-xs font-medium">Processing</span>
         </div>
       </div>
