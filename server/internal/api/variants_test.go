@@ -191,6 +191,30 @@ func TestCreateVariant_VideoOnImage(t *testing.T) {
 	}
 }
 
+func TestCreateVariant_WatermarkQueued(t *testing.T) {
+	env := setupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	body := `{"type":"watermark","params":{"opacity":50,"quality":80,"format":"jpeg"}}`
+	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", jsonStr(body), cookie)
+	resp, err := env.app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+	if result["job_id"] == "" {
+		t.Error("expected job_id in response")
+	}
+	if result["status"] != "pending" {
+		t.Errorf("expected status=pending, got %v", result["status"])
+	}
+}
+
 func TestCreateVariant_ResizeQueued(t *testing.T) {
 	env := setupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)

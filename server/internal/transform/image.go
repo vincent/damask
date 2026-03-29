@@ -3,6 +3,7 @@ package transform
 
 import (
 	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
 	"image"
@@ -11,6 +12,16 @@ import (
 
 	"github.com/disintegration/imaging"
 )
+
+//go:embed watermark.png
+var watermarkBytes []byte
+
+// WatermarkParams defines parameters for image resize/fit transforms.
+type WatermarkParams struct {
+	Opacity int    `json:"opacity"` // 0–100, default 50
+	Format  string `json:"format"`  // jpeg | png | tiff
+	Quality int    `json:"quality"` // 1–100 (for jpeg)
+}
 
 // ResizeParams defines parameters for image resize/fit transforms.
 type ResizeParams struct {
@@ -44,6 +55,40 @@ type PreviewParams struct {
 	Fit     string `json:"fit"`
 	Quality int    `json:"quality"`
 	Format  string `json:"format"`
+}
+
+// Watermark reads an image, resizes it according to params, and returns encoded bytes.
+func Watermark(src io.Reader, p WatermarkParams) ([]byte, string, error) {
+	if p.Opacity <= 0 || p.Opacity > 100 {
+		p.Opacity = 50
+	}
+
+	watermarkImg, err := imaging.Decode(bytes.NewReader(watermarkBytes), imaging.AutoOrientation(true))
+	if err != nil {
+		return nil, "", fmt.Errorf("decode watermark: %w", err)
+	}
+
+	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	if err != nil {
+		return nil, "", fmt.Errorf("decode image: %w", err)
+	}
+
+	result := overlayWatermark(img, watermarkImg, float64(p.Opacity)/100.0)
+
+	return encodeImage(result, p.Format, p.Quality)
+}
+
+func overlayWatermark(originalImg, watermarkImg image.Image, opacity float64) image.Image {
+
+	halfImageWidth := int(float64(originalImg.Bounds().Dx()) * 0.50)
+	halfImageHeight := int(float64(originalImg.Bounds().Dy()) * 0.50)
+
+	watermarkResized := imaging.Fit(watermarkImg, halfImageWidth, halfImageHeight, imaging.Lanczos)
+
+	offsetX := int(halfImageWidth / 2)
+	offsetY := int(halfImageHeight / 2)
+
+	return imaging.Overlay(originalImg, watermarkResized, image.Pt(offsetX, offsetY), opacity)
 }
 
 // Resize reads an image, resizes it according to params, and returns encoded bytes.

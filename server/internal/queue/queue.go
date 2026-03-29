@@ -163,6 +163,7 @@ const (
 	JobTypeResize         = "resize"
 	JobTypeConvert        = "convert"
 	JobTypeCrop           = "crop"
+	JobTypeWatermark      = "watermark"
 	JobTypeVideoThumbnail = "video_thumbnail"
 	JobTypeVideoTranscode = "video_transcode"
 	JobTypeBgRemove       = "bg_remove"

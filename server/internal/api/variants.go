@@ -388,6 +388,12 @@ func (s *Server) jobImageTransform(ctx context.Context, job dbgen.Job) error {
 			return fmt.Errorf("parse crop params: %w", err)
 		}
 		data, contentType, err = transform.Crop(rc, params)
+	case queue.JobTypeWatermark:
+		var params transform.WatermarkParams
+		if err := json.Unmarshal(p.Params, &params); err != nil {
+			return fmt.Errorf("parse watermark params: %w", err)
+		}
+		data, contentType, err = transform.Watermark(rc, params)
 	default:
 		return fmt.Errorf("unknown image job type: %s", job.Type)
 	}
