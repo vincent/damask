@@ -38,7 +38,7 @@
     }}
     class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm
       placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400
-      dark:border-gray-600 dark:bg-gray-800 dark:placeholder-gray-500 dark:text-gray-100
+      dark:focus:bg-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:placeholder-gray-500 dark:text-gray-100
       dark:focus:border-indigo-500 dark:focus:bg-gray-750"
   />
 </div>

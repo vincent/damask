@@ -4,16 +4,16 @@ import (
 	"context"
 	"database/sql"
 
-	"creativo-dam/server/internal/auth"
-	dbgen "creativo-dam/server/internal/db/gen"
-	"creativo-dam/server/internal/queue"
-	"creativo-dam/server/internal/storage"
+	"badam-dam/server/internal/auth"
+	dbgen "badam-dam/server/internal/db/gen"
+	"badam-dam/server/internal/queue"
+	"badam-dam/server/internal/storage"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
-	_ "creativo-dam/server/docs"
+	_ "badam-dam/server/docs"
 )
 
 // Server holds shared dependencies injected at startup.
@@ -29,14 +29,14 @@ type Server struct {
 }
 
 // New creates a configured Fiber app with all routes registered.
-// @title Creativo Swagger API
+// @title BaDAM Swagger API
 // @version 1.0
-// @description This is a Creativo server.
+// @description This is a BaDAM server.
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
 // @contact.url http://www.swagger.io/support
-// @contact.email support@creativo.com
+// @contact.email support@getbadam.com
 
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html

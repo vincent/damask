@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"creativo-dam/server/internal/auth"
-	dbgen "creativo-dam/server/internal/db/gen"
+	"badam-dam/server/internal/auth"
+	dbgen "badam-dam/server/internal/db/gen"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"

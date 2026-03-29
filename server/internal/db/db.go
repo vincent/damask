@@ -1,7 +1,7 @@
 package db
 
 import (
-	db "creativo-dam/server/internal/db/gen"
+	db "badam-dam/server/internal/db/gen"
 	"database/sql"
 	"fmt"
 

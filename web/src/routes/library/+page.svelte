@@ -98,7 +98,7 @@
 </script>
 
 <svelte:head>
-  <title>Library — Creativo DAM</title>
+  <title>Library — BaDAM DAM</title>
 </svelte:head>
 
 <svelte:window onkeydown={handleWindowKeydown} />

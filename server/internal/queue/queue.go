@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	dbgen "creativo-dam/server/internal/db/gen"
+	dbgen "badam-dam/server/internal/db/gen"
 
 	"github.com/google/uuid"
 )

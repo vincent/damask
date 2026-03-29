@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"creativo-dam/server/internal/auth"
-	dbgen "creativo-dam/server/internal/db/gen"
-	"creativo-dam/server/internal/queue"
-	"creativo-dam/server/internal/transform"
+	"badam-dam/server/internal/auth"
+	dbgen "badam-dam/server/internal/db/gen"
+	"badam-dam/server/internal/queue"
+	"badam-dam/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -586,7 +586,7 @@ func (s *Server) writeToTempFile(ctx context.Context, storageKey, ext string) (s
 	}
 	defer rc.Close()
 
-	f, err := os.CreateTemp("", "creativo-*"+ext)
+	f, err := os.CreateTemp("", "badam-*"+ext)
 	if err != nil {
 		return "", nil, err
 	}

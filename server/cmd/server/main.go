@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"creativo-dam/server/internal/api"
-	"creativo-dam/server/internal/auth"
-	"creativo-dam/server/internal/config"
-	"creativo-dam/server/internal/db"
-	"creativo-dam/server/internal/queue"
-	"creativo-dam/server/internal/storage"
+	"badam-dam/server/internal/api"
+	"badam-dam/server/internal/auth"
+	"badam-dam/server/internal/config"
+	"badam-dam/server/internal/db"
+	"badam-dam/server/internal/queue"
+	"badam-dam/server/internal/storage"
 )
 
 func main() {

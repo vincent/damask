@@ -1,4 +1,4 @@
-module creativo-dam/server
+module badam-dam/server
 
 go 1.25.6
 

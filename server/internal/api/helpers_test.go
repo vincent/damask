@@ -14,10 +14,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"creativo-dam/server/internal/auth"
-	dbpkg "creativo-dam/server/internal/db"
-	"creativo-dam/server/internal/queue"
-	"creativo-dam/server/internal/storage"
+	"badam-dam/server/internal/auth"
+	dbpkg "badam-dam/server/internal/db"
+	"badam-dam/server/internal/queue"
+	"badam-dam/server/internal/storage"
 
 	"github.com/gofiber/fiber/v3"
 )
