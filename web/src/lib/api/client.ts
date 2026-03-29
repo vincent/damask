@@ -317,6 +317,92 @@ export const assetApi = {
   },
 }
 
+// ---- Variants ----
+
+export interface Variant {
+  id: string
+  asset_id: string
+  type: string
+  transform_params: NullableString
+  size: NullableInt64
+  storage_key: string
+  download_url: string
+  created_at: string
+}
+
+export interface CreateVariantResponse {
+  job_id: string
+  status: string
+  message: string
+}
+
+export interface ResizeParams {
+  width?: number
+  height?: number
+  fit?: 'contain' | 'cover' | 'fill'
+  quality?: number
+  format?: 'jpeg' | 'png' | 'tiff'
+}
+
+export interface ConvertParams {
+  format: 'jpeg' | 'png' | 'tiff'
+  quality?: number
+}
+
+export interface CropParams {
+  x: number
+  y: number
+  width: number
+  height: number
+  quality?: number
+  format?: 'jpeg' | 'png'
+}
+
+export interface VideoThumbnailParams {
+  timestamp?: number
+}
+
+export interface TranscodeParams {
+  format?: 'mp4' | 'webm'
+  resolution?: '1080p' | '720p' | '480p'
+  strip_audio?: boolean
+}
+
+export const variantApi = {
+  list: (assetId: string) =>
+    apiFetch<Variant[]>(`/api/v1/assets/${assetId}/variants`),
+
+  create: (assetId: string, type: string, params: object) =>
+    apiFetch<CreateVariantResponse>(`/api/v1/assets/${assetId}/variants`, {
+      method: 'POST',
+      body: JSON.stringify({ type, params }),
+    }),
+
+  delete: (assetId: string, variantId: string) =>
+    apiFetch<void>(`/api/v1/assets/${assetId}/variants/${variantId}`, {
+      method: 'DELETE',
+    }),
+
+  fileUrl: (assetId: string, variantId: string): string =>
+    `${API_BASE}/api/v1/assets/${assetId}/variants/${variantId}/file`,
+
+  previewUrl: (assetId: string, params: {
+    w?: number
+    h?: number
+    fit?: string
+    format?: string
+    q?: number
+  }): string => {
+    const qs = new URLSearchParams()
+    if (params.w) qs.set('w', String(params.w))
+    if (params.h) qs.set('h', String(params.h))
+    if (params.fit) qs.set('fit', params.fit)
+    if (params.format) qs.set('format', params.format)
+    if (params.q) qs.set('q', String(params.q))
+    return `${API_BASE}/api/v1/assets/${assetId}/preview?${qs.toString()}`
+  },
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

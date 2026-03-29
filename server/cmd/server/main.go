@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"creativo-dam/server/internal/api"
 	"creativo-dam/server/internal/auth"
 	"creativo-dam/server/internal/config"
 	"creativo-dam/server/internal/db"
+	"creativo-dam/server/internal/queue"
 	"creativo-dam/server/internal/storage"
 )
 
@@ -32,9 +37,17 @@ func main() {
 		log.Fatalf("storage: %v", err)
 	}
 
-	app := api.New(queries, sqlDB, tokenMaker, stor, cfg.AppEnv)
+	q := queue.New(queries, cfg.QueueWorkers)
 
-	log.Printf("server starting on :%s (env=%s)", cfg.Port, cfg.AppEnv)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	q.Start(ctx)
+	defer q.Stop()
+
+	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv)
+
+	log.Printf("server starting on :%s (env=%s, workers=%d)", cfg.Port, cfg.AppEnv, cfg.QueueWorkers)
 	if err := app.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("server: %v", err)
 	}

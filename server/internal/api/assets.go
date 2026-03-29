@@ -1,10 +1,10 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -20,8 +20,8 @@ import (
 
 	"creativo-dam/server/internal/auth"
 	dbgen "creativo-dam/server/internal/db/gen"
+	"creativo-dam/server/internal/queue"
 
-	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -133,46 +133,17 @@ func (s *Server) handleUploadAsset(c *fiber.Ctx) error {
 	}
 
 	if strings.HasPrefix(mimeType, "image/") {
-		go s.generateThumbnail(context.Background(), asset.ID, claims.WorkspaceID, storageKey)
+		payload, _ := json.Marshal(thumbnailJobPayload{
+			AssetID:     asset.ID,
+			WorkspaceID: claims.WorkspaceID,
+			StorageKey:  storageKey,
+		})
+		if _, err := s.queue.Enqueue(context.Background(), claims.WorkspaceID, queue.JobTypeThumbnail, string(payload)); err != nil {
+			log.Printf("thumbnail: enqueue %s: %v", asset.ID, err)
+		}
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(assetToResponse(asset, nil))
-}
-
-func (s *Server) generateThumbnail(ctx context.Context, assetID, workspaceID, storageKey string) {
-	rc, err := s.storage.Get(storageKey)
-	if err != nil {
-		log.Printf("thumbnail: get file %s: %v", assetID, err)
-		return
-	}
-	defer rc.Close()
-
-	src, err := imaging.Decode(rc)
-	if err != nil {
-		log.Printf("thumbnail: decode %s: %v", assetID, err)
-		return
-	}
-
-	thumb := imaging.Fit(src, 400, 400, imaging.Lanczos)
-
-	var buf bytes.Buffer
-	if err := imaging.Encode(&buf, thumb, imaging.JPEG, imaging.JPEGQuality(85)); err != nil {
-		log.Printf("thumbnail: encode %s: %v", assetID, err)
-		return
-	}
-
-	thumbKey := fmt.Sprintf("%s/%s/thumb.jpg", workspaceID, assetID)
-	if err := s.storage.Put(thumbKey, &buf); err != nil {
-		log.Printf("thumbnail: store %s: %v", assetID, err)
-		return
-	}
-
-	if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
-		ThumbnailKey: sql.NullString{String: thumbKey, Valid: true},
-		ID:           assetID,
-	}); err != nil {
-		log.Printf("thumbnail: update db %s: %v", assetID, err)
-	}
 }
 
 func (s *Server) handleListAssets(c *fiber.Ctx) error {

@@ -6,6 +6,7 @@ import (
 
 	"creativo-dam/server/internal/auth"
 	dbgen "creativo-dam/server/internal/db/gen"
+	"creativo-dam/server/internal/queue"
 	"creativo-dam/server/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
@@ -14,16 +15,29 @@ import (
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
-	db         *dbgen.Queries
-	sqlDB      *sql.DB
-	tokenMaker *auth.Maker
-	storage    storage.Storage
-	appEnv     string
+	db             *dbgen.Queries
+	sqlDB          *sql.DB
+	tokenMaker     *auth.Maker
+	storage        storage.Storage
+	queue          *queue.Queue
+	previewCache   *lruPreviewCache
+	removeBgAPIKey string
+	appEnv         string
 }
 
 // New creates a configured Fiber app with all routes registered.
-func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.Storage, appEnv string) *fiber.App {
-	s := &Server{db: db, sqlDB: sqlDB, tokenMaker: tokenMaker, storage: stor, appEnv: appEnv}
+func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.Storage, q *queue.Queue, removeBgAPIKey, appEnv string) *fiber.App {
+	s := &Server{
+		db:             db,
+		sqlDB:          sqlDB,
+		tokenMaker:     tokenMaker,
+		storage:        stor,
+		queue:          q,
+		previewCache:   newLRUPreviewCache(100),
+		removeBgAPIKey: removeBgAPIKey,
+		appEnv:         appEnv,
+	}
+	s.RegisterJobHandlers()
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: defaultErrorHandler,
@@ -103,6 +117,15 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.
 	api.Get("/assets/:id/tags", s.handleGetAssetTags)
 	api.Post("/assets/:id/tags", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleAddTagToAsset)
 	api.Delete("/assets/:id/tags/:name", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleRemoveTagFromAsset)
+
+	// Variants
+	api.Get("/assets/:id/variants", s.handleListVariants)
+	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateVariant)
+	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
+	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteVariant)
+
+	// Transform preview (in-memory, no storage write)
+	api.Get("/assets/:id/preview", s.handlePreviewTransform)
 
 	return app
 }

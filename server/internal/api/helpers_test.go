@@ -16,6 +16,7 @@ import (
 
 	"creativo-dam/server/internal/auth"
 	dbpkg "creativo-dam/server/internal/db"
+	"creativo-dam/server/internal/queue"
 	"creativo-dam/server/internal/storage"
 
 	"github.com/gofiber/fiber/v2"
@@ -56,7 +57,8 @@ func setupTestApp(t *testing.T) *testEnv {
 		t.Fatalf("storage: %v", err)
 	}
 
-	app := New(queries, sqlDB, maker, stor, "development")
+	q := queue.New(queries, 1)
+	app := New(queries, sqlDB, maker, stor, q, "", "development")
 	return &testEnv{app: app, maker: maker, sqlDB: sqlDB, storage: stor}
 }
 
