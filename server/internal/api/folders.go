@@ -8,7 +8,7 @@ import (
 	"creativo-dam/server/internal/auth"
 	dbgen "creativo-dam/server/internal/db/gen"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
@@ -38,12 +38,12 @@ func folderToResponse(f dbgen.Folder, assetCount int64) folderResponse {
 	}
 }
 
-func (s *Server) handleCreateFolder(c *fiber.Ctx) error {
+func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	projectID := c.Params("id")
 
 	// Verify project belongs to workspace
-	if _, err := s.db.GetProjectByID(c.Context(), dbgen.GetProjectByIDParams{
+	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 		ID:          projectID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -58,7 +58,7 @@ func (s *Server) handleCreateFolder(c *fiber.Ctx) error {
 		ParentID *string `json:"parent_id"`
 		Position int64   `json:"position"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	body.Name = strings.TrimSpace(body.Name)
@@ -69,7 +69,7 @@ func (s *Server) handleCreateFolder(c *fiber.Ctx) error {
 	var parentID sql.NullString
 	if body.ParentID != nil && *body.ParentID != "" {
 		// Verify parent exists in workspace
-		parent, err := s.db.GetFolderByID(c.Context(), dbgen.GetFolderByIDParams{
+		parent, err := s.db.GetFolderByID(c.RequestCtx(), dbgen.GetFolderByIDParams{
 			ID:          *body.ParentID,
 			WorkspaceID: claims.WorkspaceID,
 		})
@@ -93,7 +93,7 @@ func (s *Server) handleCreateFolder(c *fiber.Ctx) error {
 	// so we check for duplicates at the application level for root folders.
 	if !parentID.Valid {
 		var existingCount int
-		err := s.sqlDB.QueryRowContext(c.Context(),
+		err := s.sqlDB.QueryRowContext(c.RequestCtx(),
 			`SELECT COUNT(*) FROM folders WHERE project_id = ? AND parent_id IS NULL AND name = ? AND workspace_id = ?`,
 			projectID, body.Name, claims.WorkspaceID,
 		).Scan(&existingCount)
@@ -102,7 +102,7 @@ func (s *Server) handleCreateFolder(c *fiber.Ctx) error {
 		}
 	}
 
-	folder, err := s.db.CreateFolder(c.Context(), dbgen.CreateFolderParams{
+	folder, err := s.db.CreateFolder(c.RequestCtx(), dbgen.CreateFolderParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: claims.WorkspaceID,
 		ProjectID:   projectID,
@@ -120,12 +120,12 @@ func (s *Server) handleCreateFolder(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(folderToResponse(folder, 0))
 }
 
-func (s *Server) handleGetFolders(c *fiber.Ctx) error {
+func (s *Server) handleGetFolders(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	projectID := c.Params("id")
 
 	// Verify project belongs to workspace
-	if _, err := s.db.GetProjectByID(c.Context(), dbgen.GetProjectByIDParams{
+	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 		ID:          projectID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -135,7 +135,7 @@ func (s *Server) handleGetFolders(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	rows, err := s.sqlDB.QueryContext(c.Context(), `
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), `
 		WITH RECURSIVE tree AS (
 			SELECT *, 0 AS depth FROM folders
 			WHERE project_id = ? AND parent_id IS NULL AND workspace_id = ?
@@ -209,11 +209,11 @@ func (s *Server) handleGetFolders(c *fiber.Ctx) error {
 	return c.JSON(roots)
 }
 
-func (s *Server) handleUpdateFolder(c *fiber.Ctx) error {
+func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if _, err := s.db.GetFolderByID(c.Context(), dbgen.GetFolderByIDParams{
+	if _, err := s.db.GetFolderByID(c.RequestCtx(), dbgen.GetFolderByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -227,7 +227,7 @@ func (s *Server) handleUpdateFolder(c *fiber.Ctx) error {
 		Name     *string `json:"name"`
 		Position *int64  `json:"position"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
@@ -239,7 +239,7 @@ func (s *Server) handleUpdateFolder(c *fiber.Ctx) error {
 		body.Name = &trimmed
 	}
 
-	folder, err := s.db.UpdateFolder(c.Context(), dbgen.UpdateFolderParams{
+	folder, err := s.db.UpdateFolder(c.RequestCtx(), dbgen.UpdateFolderParams{
 		Name:        sql.NullString{String: ptrStr(body.Name), Valid: body.Name != nil},
 		Position:    sql.NullInt64{Int64: ptrInt64(body.Position), Valid: body.Position != nil},
 		ID:          id,
@@ -255,11 +255,11 @@ func (s *Server) handleUpdateFolder(c *fiber.Ctx) error {
 	return c.JSON(folderToResponse(folder, 0))
 }
 
-func (s *Server) handleDeleteFolder(c *fiber.Ctx) error {
+func (s *Server) handleDeleteFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if _, err := s.db.GetFolderByID(c.Context(), dbgen.GetFolderByIDParams{
+	if _, err := s.db.GetFolderByID(c.RequestCtx(), dbgen.GetFolderByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -269,7 +269,7 @@ func (s *Server) handleDeleteFolder(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load folder")
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.Context(), nil)
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not start transaction")
 	}
@@ -278,7 +278,7 @@ func (s *Server) handleDeleteFolder(c *fiber.Ctx) error {
 	qtx := s.db.WithTx(tx)
 
 	// Find and delete children first (using the transaction connection)
-	children, err := qtx.GetFolderChildren(c.Context(), dbgen.GetFolderChildrenParams{
+	children, err := qtx.GetFolderChildren(c.RequestCtx(), dbgen.GetFolderChildrenParams{
 		ParentID:    sql.NullString{String: id, Valid: true},
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -286,13 +286,13 @@ func (s *Server) handleDeleteFolder(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load children")
 	}
 	for _, child := range children {
-		if err := qtx.NullifyFolderAssets(c.Context(), dbgen.NullifyFolderAssetsParams{
+		if err := qtx.NullifyFolderAssets(c.RequestCtx(), dbgen.NullifyFolderAssetsParams{
 			FolderID:    sql.NullString{String: child.ID, Valid: true},
 			WorkspaceID: claims.WorkspaceID,
 		}); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not nullify child assets")
 		}
-		if err := qtx.DeleteFolder(c.Context(), dbgen.DeleteFolderParams{
+		if err := qtx.DeleteFolder(c.RequestCtx(), dbgen.DeleteFolderParams{
 			ID:          child.ID,
 			WorkspaceID: claims.WorkspaceID,
 		}); err != nil {
@@ -301,14 +301,14 @@ func (s *Server) handleDeleteFolder(c *fiber.Ctx) error {
 	}
 
 	// Nullify assets in this folder
-	if err := qtx.NullifyFolderAssets(c.Context(), dbgen.NullifyFolderAssetsParams{
+	if err := qtx.NullifyFolderAssets(c.RequestCtx(), dbgen.NullifyFolderAssetsParams{
 		FolderID:    sql.NullString{String: id, Valid: true},
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not nullify assets")
 	}
 
-	if err := qtx.DeleteFolder(c.Context(), dbgen.DeleteFolderParams{
+	if err := qtx.DeleteFolder(c.RequestCtx(), dbgen.DeleteFolderParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -329,3 +329,5 @@ func ptrInt64(v *int64) int64 {
 	}
 	return *v
 }
+
+// fiber:context-methods migrated

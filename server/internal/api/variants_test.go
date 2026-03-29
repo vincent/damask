@@ -14,6 +14,8 @@ import (
 	"time"
 
 	dbgen "creativo-dam/server/internal/db/gen"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 // createTestAsset uploads a small PNG and returns its ID + auth cookie.
@@ -39,7 +41,7 @@ func createTestAsset(t *testing.T, env *testEnv) (assetID string, cookie *http.C
 	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
 	req.AddCookie(res.Cookie)
 
-	resp, err := env.app.Test(req, 10000)
+	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
 	if err != nil {
 		t.Fatalf("upload asset: %v", err)
 	}
@@ -323,7 +325,7 @@ func TestPreviewTransform(t *testing.T) {
 	req := authRequest(http.MethodGet,
 		fmt.Sprintf("/api/v1/assets/%s/preview?w=50&h=50&fit=contain&format=jpeg&q=80", assetID),
 		nil, cookie)
-	resp, err := env.app.Test(req, 10000)
+	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -342,7 +344,7 @@ func TestPreviewTransform_Cached(t *testing.T) {
 	url := fmt.Sprintf("/api/v1/assets/%s/preview?w=50&h=50", assetID)
 	for i := 0; i < 3; i++ {
 		req := authRequest(http.MethodGet, url, nil, cookie)
-		resp, err := env.app.Test(req, 10000)
+		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -366,14 +368,14 @@ func TestPreviewTransform_NonImage(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
 	req.AddCookie(res.Cookie)
-	resp, _ := env.app.Test(req, 10000)
+	resp, _ := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
 
 	var a assetResponse
 	json.NewDecoder(resp.Body).Decode(&a)
 
 	previewReq := authRequest(http.MethodGet,
 		fmt.Sprintf("/api/v1/assets/%s/preview?w=100", a.ID), nil, res.Cookie)
-	previewResp, _ := env.app.Test(previewReq, 5000)
+	previewResp, _ := env.app.Test(previewReq, fiber.TestConfig{Timeout: 5000})
 	if previewResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 for non-image preview, got %d", previewResp.StatusCode)
 	}

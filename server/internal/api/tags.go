@@ -8,20 +8,20 @@ import (
 	"creativo-dam/server/internal/auth"
 	dbgen "creativo-dam/server/internal/db/gen"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
 type tagResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	AssetCount  int64  `json:"asset_count"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	AssetCount int64  `json:"asset_count"`
 }
 
-func (s *Server) handleListTags(c *fiber.Ctx) error {
+func (s *Server) handleListTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rows, err := s.db.ListTagsWithCount(c.Context(), claims.WorkspaceID)
+	rows, err := s.db.ListTagsWithCount(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list tags")
 	}
@@ -33,12 +33,12 @@ func (s *Server) handleListTags(c *fiber.Ctx) error {
 	return c.JSON(items)
 }
 
-func (s *Server) handleGetAssetTags(c *fiber.Ctx) error {
+func (s *Server) handleGetAssetTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
 	// Verify asset belongs to workspace
-	if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -48,7 +48,7 @@ func (s *Server) handleGetAssetTags(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	tags, err := s.db.GetTagsForAsset(c.Context(), assetID)
+	tags, err := s.db.GetTagsForAsset(c.RequestCtx(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load tags")
 	}
@@ -60,14 +60,14 @@ func (s *Server) handleGetAssetTags(c *fiber.Ctx) error {
 	return c.JSON(names)
 }
 
-func (s *Server) handleAddTagToAsset(c *fiber.Ctx) error {
+func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
 	var body struct {
 		Name string `json:"name"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	body.Name = strings.TrimSpace(strings.ToLower(body.Name))
@@ -76,7 +76,7 @@ func (s *Server) handleAddTagToAsset(c *fiber.Ctx) error {
 	}
 
 	// Verify asset belongs to workspace
-	if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -87,7 +87,7 @@ func (s *Server) handleAddTagToAsset(c *fiber.Ctx) error {
 	}
 
 	// Get or create tag
-	tag, err := s.db.GetOrCreateTag(c.Context(), dbgen.GetOrCreateTagParams{
+	tag, err := s.db.GetOrCreateTag(c.RequestCtx(), dbgen.GetOrCreateTagParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: claims.WorkspaceID,
 		Name:        body.Name,
@@ -97,7 +97,7 @@ func (s *Server) handleAddTagToAsset(c *fiber.Ctx) error {
 	}
 
 	// Add to asset (idempotent)
-	if err := s.db.AddTagToAsset(c.Context(), dbgen.AddTagToAssetParams{
+	if err := s.db.AddTagToAsset(c.RequestCtx(), dbgen.AddTagToAssetParams{
 		AssetID: assetID,
 		TagID:   tag.ID,
 	}); err != nil {
@@ -107,13 +107,13 @@ func (s *Server) handleAddTagToAsset(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"name": tag.Name})
 }
 
-func (s *Server) handleRemoveTagFromAsset(c *fiber.Ctx) error {
+func (s *Server) handleRemoveTagFromAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	tagName := strings.ToLower(c.Params("name"))
 
 	// Verify asset belongs to workspace
-	if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -123,7 +123,7 @@ func (s *Server) handleRemoveTagFromAsset(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	if err := s.db.RemoveTagFromAsset(c.Context(), dbgen.RemoveTagFromAssetParams{
+	if err := s.db.RemoveTagFromAsset(c.RequestCtx(), dbgen.RemoveTagFromAssetParams{
 		AssetID:     assetID,
 		WorkspaceID: claims.WorkspaceID,
 		Name:        tagName,
@@ -133,3 +133,5 @@ func (s *Server) handleRemoveTagFromAsset(c *fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
+
+// fiber:context-methods migrated

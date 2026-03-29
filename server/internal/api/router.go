@@ -9,8 +9,8 @@ import (
 	"creativo-dam/server/internal/queue"
 	"creativo-dam/server/internal/storage"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 )
 
 // Server holds shared dependencies injected at startup.
@@ -41,14 +41,14 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: defaultErrorHandler,
-		BodyLimit:    100 * 1024 * 1024, // 100 MB
+		BodyLimit:    100 * 1024 * 1024, // 100 MB,
 	})
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:5173",
+		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowCredentials: true,
-		AllowHeaders:     "Origin, Content-Type, Authorization",
-		AllowMethods:     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	}))
 
 	// Health check (public)
@@ -127,10 +127,13 @@ func New(db *dbgen.Queries, sqlDB *sql.DB, tokenMaker *auth.Maker, stor storage.
 	// Transform preview (in-memory, no storage write)
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
 
+	// Mount the UI with the default configuration under /swagger
+	// app.Get("/swagger/*", swaggo.HandlerDefault)
+
 	return app
 }
 
-func defaultErrorHandler(c *fiber.Ctx, err error) error {
+func defaultErrorHandler(c fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code

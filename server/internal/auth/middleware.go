@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 const claimsKey = "claims"
@@ -12,7 +12,7 @@ const claimsKey = "claims"
 // RequireAuth validates the token from Authorization header or auth_token cookie.
 // On success it stores the Claims in c.Locals for downstream handlers.
 func RequireAuth(maker *Maker) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		tokenStr := extractToken(c)
 		if tokenStr == "" {
 			return fiber.NewError(fiber.StatusUnauthorized, "missing token")
@@ -30,7 +30,7 @@ func RequireAuth(maker *Maker) fiber.Handler {
 
 // GetClaims retrieves the validated Claims from the request context.
 // Must be called after RequireAuth middleware.
-func GetClaims(c *fiber.Ctx) *Claims {
+func GetClaims(c fiber.Ctx) *Claims {
 	claims, _ := c.Locals(claimsKey).(*Claims)
 	return claims
 }
@@ -45,13 +45,13 @@ var roleRank = map[string]int{
 // RequireRole returns a middleware that enforces a minimum role level.
 // It expects a getRoleFn to look up the current user's role in the workspace.
 func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, userID string) (string, error), minRole string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		claims := GetClaims(c)
 		if claims == nil {
 			return fiber.NewError(fiber.StatusUnauthorized, "missing token")
 		}
 
-		role, err := getRoleFn(c.UserContext(), claims.WorkspaceID, claims.UserID)
+		role, err := getRoleFn(c.Context(), claims.WorkspaceID, claims.UserID)
 		if err != nil {
 			return fiber.NewError(fiber.StatusForbidden, "access denied")
 		}
@@ -64,7 +64,7 @@ func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, 
 	}
 }
 
-func extractToken(c *fiber.Ctx) string {
+func extractToken(c fiber.Ctx) string {
 	// Try Authorization: Bearer <token>
 	if h := c.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
 		return strings.TrimPrefix(h, "Bearer ")
@@ -72,3 +72,5 @@ func extractToken(c *fiber.Ctx) string {
 	// Fall back to httpOnly cookie
 	return c.Cookies("auth_token")
 }
+
+// fiber:context-methods migrated

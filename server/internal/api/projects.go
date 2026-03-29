@@ -9,7 +9,7 @@ import (
 	"creativo-dam/server/internal/auth"
 	dbgen "creativo-dam/server/internal/db/gen"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
@@ -39,7 +39,7 @@ func projectToResponse(p dbgen.Project, assetCount int64) projectResponse {
 	}
 }
 
-func (s *Server) handleCreateProject(c *fiber.Ctx) error {
+func (s *Server) handleCreateProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	var body struct {
@@ -47,7 +47,7 @@ func (s *Server) handleCreateProject(c *fiber.Ctx) error {
 		Description *string `json:"description"`
 		Color       *string `json:"color"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	body.Name = strings.TrimSpace(body.Name)
@@ -55,7 +55,7 @@ func (s *Server) handleCreateProject(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "name is required")
 	}
 
-	p, err := s.db.CreateProject(c.Context(), dbgen.CreateProjectParams{
+	p, err := s.db.CreateProject(c.RequestCtx(), dbgen.CreateProjectParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: claims.WorkspaceID,
 		Name:        body.Name,
@@ -69,10 +69,10 @@ func (s *Server) handleCreateProject(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(projectToResponse(p, 0))
 }
 
-func (s *Server) handleListProjects(c *fiber.Ctx) error {
+func (s *Server) handleListProjects(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rows, err := s.db.ListProjectsWithCount(c.Context(), claims.WorkspaceID)
+	rows, err := s.db.ListProjectsWithCount(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list projects")
 	}
@@ -95,11 +95,11 @@ func (s *Server) handleListProjects(c *fiber.Ctx) error {
 	return c.JSON(items)
 }
 
-func (s *Server) handleGetProject(c *fiber.Ctx) error {
+func (s *Server) handleGetProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	p, err := s.db.GetProjectByID(c.Context(), dbgen.GetProjectByIDParams{
+	p, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -111,7 +111,7 @@ func (s *Server) handleGetProject(c *fiber.Ctx) error {
 	}
 
 	// Get asset count separately
-	rows, err := s.db.ListProjectsWithCount(c.Context(), claims.WorkspaceID)
+	rows, err := s.db.ListProjectsWithCount(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
@@ -126,12 +126,12 @@ func (s *Server) handleGetProject(c *fiber.Ctx) error {
 	return c.JSON(projectToResponse(p, count))
 }
 
-func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
+func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
 	// Verify project exists and belongs to workspace
-	if _, err := s.db.GetProjectByID(c.Context(), dbgen.GetProjectByIDParams{
+	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -142,12 +142,12 @@ func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
 	}
 
 	var body struct {
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-		Color       *string `json:"color"`
+		Name         *string `json:"name"`
+		Description  *string `json:"description"`
+		Color        *string `json:"color"`
 		CoverAssetID *string `json:"cover_asset_id"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
@@ -159,7 +159,7 @@ func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
 		body.Name = &trimmed
 	}
 
-	p, err := s.db.UpdateProject(c.Context(), dbgen.UpdateProjectParams{
+	p, err := s.db.UpdateProject(c.RequestCtx(), dbgen.UpdateProjectParams{
 		Name:         sql.NullString{String: ptrStr(body.Name), Valid: body.Name != nil},
 		Description:  sql.NullString{String: ptrStr(body.Description), Valid: body.Description != nil},
 		Color:        sql.NullString{String: ptrStr(body.Color), Valid: body.Color != nil},
@@ -174,12 +174,12 @@ func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
 	return c.JSON(projectToResponse(p, 0))
 }
 
-func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
+func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
 	// Verify exists
-	if _, err := s.db.GetProjectByID(c.Context(), dbgen.GetProjectByIDParams{
+	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -189,7 +189,7 @@ func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.Context(), nil)
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not start transaction")
 	}
@@ -197,14 +197,14 @@ func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
 
 	qtx := s.db.WithTx(tx)
 
-	if err := qtx.NullifyProjectAssets(c.Context(), dbgen.NullifyProjectAssetsParams{
+	if err := qtx.NullifyProjectAssets(c.RequestCtx(), dbgen.NullifyProjectAssetsParams{
 		ProjectID:   sql.NullString{String: id, Valid: true},
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not unlink assets")
 	}
 
-	if err := qtx.DeleteProject(c.Context(), dbgen.DeleteProjectParams{
+	if err := qtx.DeleteProject(c.RequestCtx(), dbgen.DeleteProjectParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -225,3 +225,5 @@ func ptrStr(s *string) string {
 	}
 	return *s
 }
+
+// fiber:context-methods migrated

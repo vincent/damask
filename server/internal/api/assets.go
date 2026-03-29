@@ -22,7 +22,7 @@ import (
 	dbgen "creativo-dam/server/internal/db/gen"
 	"creativo-dam/server/internal/queue"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
@@ -68,7 +68,7 @@ func assetToResponse(a dbgen.Asset, tags []string) assetResponse {
 	}
 }
 
-func (s *Server) handleUploadAsset(c *fiber.Ctx) error {
+func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	fh, err := c.FormFile("file")
@@ -118,7 +118,7 @@ func (s *Server) handleUploadAsset(c *fiber.Ctx) error {
 		}
 	}
 
-	asset, err := s.db.CreateAsset(c.Context(), dbgen.CreateAssetParams{
+	asset, err := s.db.CreateAsset(c.RequestCtx(), dbgen.CreateAssetParams{
 		ID:               assetID,
 		WorkspaceID:      claims.WorkspaceID,
 		OriginalFilename: originalFilename,
@@ -146,7 +146,7 @@ func (s *Server) handleUploadAsset(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(assetToResponse(asset, nil))
 }
 
-func (s *Server) handleListAssets(c *fiber.Ctx) error {
+func (s *Server) handleListAssets(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	limit := int64(50)
@@ -197,7 +197,7 @@ func (s *Server) handleListAssets(c *fiber.Ctx) error {
 		}
 	}
 
-	assets, err := s.db.ListAssets(c.Context(), params)
+	assets, err := s.db.ListAssets(c.RequestCtx(), params)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
@@ -205,7 +205,7 @@ func (s *Server) handleListAssets(c *fiber.Ctx) error {
 	return c.JSON(buildAssetListResponse(assets, limit))
 }
 
-func (s *Server) handleListAssetsByTags(c *fiber.Ctx, workspaceID string, tagNames []string, limit int64) error {
+func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagNames []string, limit int64) error {
 	// Build placeholders for IN clause — tag names must come BEFORE the HAVING count arg
 	placeholders := make([]string, len(tagNames))
 	args := []interface{}{workspaceID, workspaceID}
@@ -244,7 +244,7 @@ func (s *Server) handleListAssetsByTags(c *fiber.Ctx, workspaceID string, tagNam
 		LIMIT ?
 	`, strings.Join(placeholders, ","), cursorClause)
 
-	rows, err := s.sqlDB.QueryContext(c.Context(), query, args...)
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
@@ -269,8 +269,8 @@ func (s *Server) handleListAssetsByTags(c *fiber.Ctx, workspaceID string, tagNam
 	return c.JSON(buildAssetListResponse(assets, limit))
 }
 
-func (s *Server) handleSearchAssets(c *fiber.Ctx, workspaceID, q string, limit int64) error {
-	rows, err := s.sqlDB.QueryContext(c.Context(), `
+func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit int64) error {
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), `
 		SELECT a.id, a.workspace_id, a.project_id, a.original_filename, a.storage_key,
 		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		       a.created_at, a.updated_at
@@ -339,11 +339,11 @@ func decodeCursor(cursor string) (time.Time, string, error) {
 	return t, parts[1], nil
 }
 
-func (s *Server) handleGetAsset(c *fiber.Ctx) error {
+func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -354,7 +354,7 @@ func (s *Server) handleGetAsset(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	tagRows, err := s.db.GetTagsForAsset(c.Context(), id)
+	tagRows, err := s.db.GetTagsForAsset(c.RequestCtx(), id)
 	if err != nil {
 		tagRows = nil
 	}
@@ -366,11 +366,11 @@ func (s *Server) handleGetAsset(c *fiber.Ctx) error {
 	return c.JSON(assetToResponse(asset, tagNames))
 }
 
-func (s *Server) handleGetAssetFile(c *fiber.Ctx) error {
+func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -391,11 +391,11 @@ func (s *Server) handleGetAssetFile(c *fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
-func (s *Server) handleGetAssetThumb(c *fiber.Ctx) error {
+func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -419,11 +419,11 @@ func (s *Server) handleGetAssetThumb(c *fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
-func (s *Server) handleDeleteAsset(c *fiber.Ctx) error {
+func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -439,7 +439,7 @@ func (s *Server) handleDeleteAsset(c *fiber.Ctx) error {
 		_ = s.storage.Delete(asset.ThumbnailKey.String)
 	}
 
-	if err := s.db.DeleteAsset(c.Context(), dbgen.DeleteAssetParams{
+	if err := s.db.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
 		ID:          asset.ID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -450,14 +450,14 @@ func (s *Server) handleDeleteAsset(c *fiber.Ctx) error {
 }
 
 // handleBulkTag adds a tag to multiple assets at once.
-func (s *Server) handleBulkTag(c *fiber.Ctx) error {
+func (s *Server) handleBulkTag(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	var body struct {
 		AssetIDs []string `json:"asset_ids"`
 		TagName  string   `json:"tag_name"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	body.TagName = strings.TrimSpace(strings.ToLower(body.TagName))
@@ -465,7 +465,7 @@ func (s *Server) handleBulkTag(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "asset_ids and tag_name are required")
 	}
 
-	tag, err := s.db.GetOrCreateTag(c.Context(), dbgen.GetOrCreateTagParams{
+	tag, err := s.db.GetOrCreateTag(c.RequestCtx(), dbgen.GetOrCreateTagParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: claims.WorkspaceID,
 		Name:        body.TagName,
@@ -476,12 +476,12 @@ func (s *Server) handleBulkTag(c *fiber.Ctx) error {
 
 	for _, assetID := range body.AssetIDs {
 		// Verify ownership
-		if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+		if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 			ID: assetID, WorkspaceID: claims.WorkspaceID,
 		}); err != nil {
 			continue // skip assets not in this workspace
 		}
-		_ = s.db.AddTagToAsset(c.Context(), dbgen.AddTagToAssetParams{
+		_ = s.db.AddTagToAsset(c.RequestCtx(), dbgen.AddTagToAssetParams{
 			AssetID: assetID,
 			TagID:   tag.ID,
 		})
@@ -491,14 +491,14 @@ func (s *Server) handleBulkTag(c *fiber.Ctx) error {
 }
 
 // handleBulkProject assigns (or unassigns) a project to multiple assets.
-func (s *Server) handleBulkProject(c *fiber.Ctx) error {
+func (s *Server) handleBulkProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	var body struct {
 		AssetIDs  []string `json:"asset_ids"`
 		ProjectID *string  `json:"project_id"` // null = unassign
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if len(body.AssetIDs) == 0 {
@@ -507,7 +507,7 @@ func (s *Server) handleBulkProject(c *fiber.Ctx) error {
 
 	// If project_id provided, verify it belongs to workspace
 	if body.ProjectID != nil {
-		if _, err := s.db.GetProjectByID(c.Context(), dbgen.GetProjectByIDParams{
+		if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 			ID:          *body.ProjectID,
 			WorkspaceID: claims.WorkspaceID,
 		}); err != nil {
@@ -521,12 +521,12 @@ func (s *Server) handleBulkProject(c *fiber.Ctx) error {
 	}
 
 	for _, assetID := range body.AssetIDs {
-		if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+		if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 			ID: assetID, WorkspaceID: claims.WorkspaceID,
 		}); err != nil {
 			continue
 		}
-		_ = s.db.UpdateAssetProject(c.Context(), dbgen.UpdateAssetProjectParams{
+		_ = s.db.UpdateAssetProject(c.RequestCtx(), dbgen.UpdateAssetProjectParams{
 			ProjectID:   projectID,
 			ID:          assetID,
 			WorkspaceID: claims.WorkspaceID,
@@ -536,7 +536,7 @@ func (s *Server) handleBulkProject(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (s *Server) handleListAssetsInFolder(c *fiber.Ctx, workspaceID, folderID string, isRoot bool, projectID string, limit int64) error {
+func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID string, isRoot bool, projectID string, limit int64) error {
 	var args []interface{}
 	var whereClause string
 
@@ -572,7 +572,7 @@ func (s *Server) handleListAssetsInFolder(c *fiber.Ctx, workspaceID, folderID st
 		LIMIT ?
 	`, whereClause, cursorClause)
 
-	rows, err := s.sqlDB.QueryContext(c.Context(), query, args...)
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
@@ -597,12 +597,12 @@ func (s *Server) handleListAssetsInFolder(c *fiber.Ctx, workspaceID, folderID st
 	return c.JSON(buildAssetListResponse(assets, limit))
 }
 
-func (s *Server) handleUpdateAssetFolder(c *fiber.Ctx) error {
+func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
 	// Verify asset exists in workspace
-	if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -615,14 +615,14 @@ func (s *Server) handleUpdateAssetFolder(c *fiber.Ctx) error {
 	var body struct {
 		FolderID *string `json:"folder_id"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
 	var folderID sql.NullString
 	if body.FolderID != nil && *body.FolderID != "" {
 		// Verify folder belongs to workspace
-		if _, err := s.db.GetFolderByID(c.Context(), dbgen.GetFolderByIDParams{
+		if _, err := s.db.GetFolderByID(c.RequestCtx(), dbgen.GetFolderByIDParams{
 			ID:          *body.FolderID,
 			WorkspaceID: claims.WorkspaceID,
 		}); err != nil {
@@ -634,7 +634,7 @@ func (s *Server) handleUpdateAssetFolder(c *fiber.Ctx) error {
 		folderID = sql.NullString{String: *body.FolderID, Valid: true}
 	}
 
-	if err := s.db.UpdateAssetFolder(c.Context(), dbgen.UpdateAssetFolderParams{
+	if err := s.db.UpdateAssetFolder(c.RequestCtx(), dbgen.UpdateAssetFolderParams{
 		FolderID:    folderID,
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
@@ -643,7 +643,7 @@ func (s *Server) handleUpdateAssetFolder(c *fiber.Ctx) error {
 	}
 
 	// Reload asset to return updated version
-	updated, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	updated, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -655,13 +655,13 @@ func (s *Server) handleUpdateAssetFolder(c *fiber.Ctx) error {
 }
 
 // handleBulkDelete deletes multiple assets and their storage files.
-func (s *Server) handleBulkDelete(c *fiber.Ctx) error {
+func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	var body struct {
 		AssetIDs []string `json:"asset_ids"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if len(body.AssetIDs) == 0 {
@@ -669,7 +669,7 @@ func (s *Server) handleBulkDelete(c *fiber.Ctx) error {
 	}
 
 	for _, assetID := range body.AssetIDs {
-		asset, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+		asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 			ID: assetID, WorkspaceID: claims.WorkspaceID,
 		})
 		if err != nil {
@@ -679,7 +679,7 @@ func (s *Server) handleBulkDelete(c *fiber.Ctx) error {
 		if asset.ThumbnailKey.Valid {
 			_ = s.storage.Delete(asset.ThumbnailKey.String)
 		}
-		_ = s.db.DeleteAsset(c.Context(), dbgen.DeleteAssetParams{
+		_ = s.db.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
 			ID:          asset.ID,
 			WorkspaceID: claims.WorkspaceID,
 		})
@@ -687,3 +687,5 @@ func (s *Server) handleBulkDelete(c *fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
+
+// fiber:context-methods migrated

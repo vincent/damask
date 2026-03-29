@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 // makeJPEG creates a minimal valid JPEG in memory.
@@ -57,7 +59,7 @@ func TestUploadAsset_Success(t *testing.T) {
 	jpegData := makeJPEG(200, 150)
 	req := buildUploadRequest(t, "photo.jpg", jpegData, owner.Cookie)
 
-	resp, err := env.app.Test(req, 5000)
+	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("upload: %v", err)
 	}
@@ -160,7 +162,7 @@ func TestListAssets_Pagination(t *testing.T) {
 	for i := range 3 {
 		jpegData := makeJPEG(10, 10)
 		req := buildUploadRequest(t, "img"+string(rune('a'+i))+".jpg", jpegData, owner.Cookie)
-		resp, err := env.app.Test(req, 5000)
+		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("upload %d: status %d err %v", i, resp.StatusCode, err)
 		}
@@ -209,7 +211,7 @@ func TestGetAsset(t *testing.T) {
 	owner := register(t, env, "Owner", "owner@example.com", "password123")
 
 	uploadReq := buildUploadRequest(t, "test.jpg", makeJPEG(50, 50), owner.Cookie)
-	uploadResp, _ := env.app.Test(uploadReq, 5000)
+	uploadResp, _ := env.app.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
 	var uploaded assetResponse
 	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
 
@@ -246,7 +248,7 @@ func TestGetAssetFile(t *testing.T) {
 
 	jpegData := makeJPEG(20, 20)
 	uploadReq := buildUploadRequest(t, "file.jpg", jpegData, owner.Cookie)
-	uploadResp, _ := env.app.Test(uploadReq, 5000)
+	uploadResp, _ := env.app.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
 	var uploaded assetResponse
 	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
 
@@ -274,7 +276,7 @@ func TestDeleteAsset(t *testing.T) {
 	owner := register(t, env, "Owner", "owner@example.com", "password123")
 
 	uploadReq := buildUploadRequest(t, "del.jpg", makeJPEG(10, 10), owner.Cookie)
-	uploadResp, _ := env.app.Test(uploadReq, 5000)
+	uploadResp, _ := env.app.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
 	var uploaded assetResponse
 	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
 
@@ -302,7 +304,7 @@ func TestSearchAssets(t *testing.T) {
 	// Upload two assets with distinct names
 	for _, name := range []string{"sunset_beach.jpg", "mountain_peak.jpg"} {
 		req := buildUploadRequest(t, name, makeJPEG(10, 10), owner.Cookie)
-		resp, err := env.app.Test(req, 5000)
+		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("upload %s: %v %d", name, err, resp.StatusCode)
 		}

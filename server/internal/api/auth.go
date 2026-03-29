@@ -7,7 +7,7 @@ import (
 	"creativo-dam/server/internal/auth"
 	dbgen "creativo-dam/server/internal/db/gen"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -60,9 +60,9 @@ func userToResponse(u dbgen.User) userResponse {
 	}
 }
 
-func (s *Server) handleRegister(c *fiber.Ctx) error {
+func (s *Server) handleRegister(c fiber.Ctx) error {
 	var req registerRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if req.Email == "" || req.Password == "" || req.Name == "" {
@@ -80,7 +80,7 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 	workspaceID := uuid.New().String()
 	userID := uuid.New().String()
 
-	tx, err := s.sqlDB.BeginTx(c.Context(), nil)
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
 	}
@@ -88,7 +88,7 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 
 	qtx := s.db.WithTx(tx)
 
-	workspace, err := qtx.CreateWorkspace(c.Context(), dbgen.CreateWorkspaceParams{
+	workspace, err := qtx.CreateWorkspace(c.RequestCtx(), dbgen.CreateWorkspaceParams{
 		ID:   workspaceID,
 		Name: req.Name + "'s Workspace",
 	})
@@ -96,7 +96,7 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create workspace")
 	}
 
-	user, err := qtx.CreateUser(c.Context(), dbgen.CreateUserParams{
+	user, err := qtx.CreateUser(c.RequestCtx(), dbgen.CreateUserParams{
 		ID:           userID,
 		WorkspaceID:  workspaceID,
 		Email:        req.Email,
@@ -107,7 +107,7 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusConflict, "email already in use")
 	}
 
-	if err := qtx.CreateMember(c.Context(), dbgen.CreateMemberParams{
+	if err := qtx.CreateMember(c.RequestCtx(), dbgen.CreateMemberParams{
 		WorkspaceID: workspaceID,
 		UserID:      userID,
 		Role:        "owner",
@@ -129,16 +129,16 @@ func (s *Server) handleRegister(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(authResponse{Token: token, User: userToResponse(user), Workspace: &workspace})
 }
 
-func (s *Server) handleLogin(c *fiber.Ctx) error {
+func (s *Server) handleLogin(c fiber.Ctx) error {
 	var req loginRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	if req.Email == "" || req.Password == "" {
 		return errRes(c, fiber.StatusBadRequest, "email and password are required")
 	}
 
-	user, err := s.db.GetUserByEmail(c.Context(), req.Email)
+	user, err := s.db.GetUserByEmail(c.RequestCtx(), req.Email)
 	if err != nil {
 		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
@@ -147,7 +147,7 @@ func (s *Server) handleLogin(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
 
-	workspace, err := s.db.GetWorkspaceByID(c.Context(), user.WorkspaceID)
+	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), user.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
@@ -161,7 +161,7 @@ func (s *Server) handleLogin(c *fiber.Ctx) error {
 	return c.JSON(authResponse{Token: token, User: userToResponse(user), Workspace: &workspace})
 }
 
-func (s *Server) handleRefresh(c *fiber.Ctx) error {
+func (s *Server) handleRefresh(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	token, err := s.tokenMaker.CreateToken(claims.UserID, claims.WorkspaceID, 7*24*time.Hour)
@@ -173,7 +173,7 @@ func (s *Server) handleRefresh(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"token": token})
 }
 
-func (s *Server) handleLogout(c *fiber.Ctx) error {
+func (s *Server) handleLogout(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    "",
@@ -186,7 +186,7 @@ func (s *Server) handleLogout(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"ok": true})
 }
 
-func (s *Server) setAuthCookie(c *fiber.Ctx, token string) {
+func (s *Server) setAuthCookie(c fiber.Ctx, token string) {
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    token,
@@ -197,3 +197,5 @@ func (s *Server) setAuthCookie(c *fiber.Ctx, token string) {
 		Path:     "/",
 	})
 }
+
+// fiber:context-methods migrated

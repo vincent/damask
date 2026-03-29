@@ -19,7 +19,7 @@ import (
 	"creativo-dam/server/internal/queue"
 	"creativo-dam/server/internal/storage"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestMain(m *testing.M) {

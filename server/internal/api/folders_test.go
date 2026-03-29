@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 // createFolderHelper creates a folder in the given project and returns its parsed response.
@@ -239,7 +241,7 @@ func TestDeleteFolder_NullifiesAssets(t *testing.T) {
 
 	// Delete folder
 	delReq := authRequest(http.MethodDelete, "/api/v1/folders/"+folderID, nil, owner.Cookie)
-	delRes, err3 := env.app.Test(delReq, 5000)
+	delRes, err3 := env.app.Test(delReq, fiber.TestConfig{Timeout: 5000})
 	if err3 != nil {
 		t.Fatalf("delete request error: %v", err3)
 	}

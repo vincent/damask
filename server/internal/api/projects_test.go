@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 // createProject is a test helper that POSTs to /api/v1/projects.
@@ -229,7 +231,7 @@ func uploadTestAsset(t *testing.T, env *testEnv, owner authResult) string {
 	t.Helper()
 	jpegData := makeJPEG(10, 10)
 	req := buildUploadRequest(t, "test.jpg", jpegData, owner.Cookie)
-	resp, err := env.app.Test(req, 5000)
+	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("upload: %v", err)
 	}

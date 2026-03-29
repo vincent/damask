@@ -21,7 +21,7 @@ import (
 	"creativo-dam/server/internal/queue"
 	"creativo-dam/server/internal/transform"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
@@ -53,11 +53,11 @@ func (s *Server) variantToResponse(v dbgen.Variant) variantResponse {
 
 // ---- Handlers ----
 
-func (s *Server) handleListVariants(c *fiber.Ctx) error {
+func (s *Server) handleListVariants(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -67,7 +67,7 @@ func (s *Server) handleListVariants(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	variants, err := s.db.ListVariants(c.Context(), dbgen.ListVariantsParams{
+	variants, err := s.db.ListVariants(c.RequestCtx(), dbgen.ListVariantsParams{
 		AssetID:     assetID,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -82,11 +82,11 @@ func (s *Server) handleListVariants(c *fiber.Ctx) error {
 	return c.JSON(out)
 }
 
-func (s *Server) handleCreateVariant(c *fiber.Ctx) error {
+func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -101,7 +101,7 @@ func (s *Server) handleCreateVariant(c *fiber.Ctx) error {
 		Type   string          `json:"type"`
 		Params json.RawMessage `json:"params"`
 	}
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
@@ -148,7 +148,7 @@ func (s *Server) handleCreateVariant(c *fiber.Ctx) error {
 		Params:      params,
 	})
 
-	job, err := s.queue.Enqueue(c.Context(), claims.WorkspaceID, body.Type, string(payload))
+	job, err := s.queue.Enqueue(c.RequestCtx(), claims.WorkspaceID, body.Type, string(payload))
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not enqueue job")
 	}
@@ -160,12 +160,12 @@ func (s *Server) handleCreateVariant(c *fiber.Ctx) error {
 	})
 }
 
-func (s *Server) handleGetVariantFile(c *fiber.Ctx) error {
+func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	variantID := c.Params("vid")
 
-	if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -175,7 +175,7 @@ func (s *Server) handleGetVariantFile(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	variant, err := s.db.GetVariantByID(c.Context(), dbgen.GetVariantByIDParams{
+	variant, err := s.db.GetVariantByID(c.RequestCtx(), dbgen.GetVariantByIDParams{
 		ID:          variantID,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -197,12 +197,12 @@ func (s *Server) handleGetVariantFile(c *fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
-func (s *Server) handleDeleteVariant(c *fiber.Ctx) error {
+func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	variantID := c.Params("vid")
 
-	if _, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -212,7 +212,7 @@ func (s *Server) handleDeleteVariant(c *fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	variant, err := s.db.GetVariantByID(c.Context(), dbgen.GetVariantByIDParams{
+	variant, err := s.db.GetVariantByID(c.RequestCtx(), dbgen.GetVariantByIDParams{
 		ID:          variantID,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -225,7 +225,7 @@ func (s *Server) handleDeleteVariant(c *fiber.Ctx) error {
 
 	_ = s.storage.Delete(variant.StorageKey)
 
-	if err := s.db.DeleteVariant(c.Context(), dbgen.DeleteVariantParams{
+	if err := s.db.DeleteVariant(c.RequestCtx(), dbgen.DeleteVariantParams{
 		ID:          variantID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
@@ -237,11 +237,11 @@ func (s *Server) handleDeleteVariant(c *fiber.Ctx) error {
 
 // handlePreviewTransform runs a transform in-memory and returns a small image.
 // GET /api/v1/assets/:id/preview?w=&h=&fit=&format=&q=
-func (s *Server) handlePreviewTransform(c *fiber.Ctx) error {
+func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -693,3 +693,5 @@ func (c *lruPreviewCache) Set(key string, data []byte, contentType string) {
 		delete(c.items, back.Value.(*previewCacheEntry).key)
 	}
 }
+
+// fiber:context-methods migrated
