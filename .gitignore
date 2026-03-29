@@ -12,7 +12,7 @@ server/bin/
 *.db-wal
 
 # Storage
-/storage/
+/server/storage/
 
 # Node
 web/node_modules/
