@@ -9,10 +9,22 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims is the payload stored in every token.
+// Claims is the payload stored in every workspace auth token.
 type Claims struct {
 	UserID      string `json:"user_id"`
 	WorkspaceID string `json:"workspace_id"`
+	jwt.RegisteredClaims
+}
+
+// ShareClaims is the payload stored in a short-lived share session token.
+// It is issued by POST /s/:id/access and used only on /s/ public routes.
+// It must never grant workspace-level access.
+type ShareClaims struct {
+	ShareID       string `json:"share_id"`
+	TargetType    string `json:"target_type"`
+	TargetID      string `json:"target_id"`
+	AllowComments bool   `json:"allow_comments"`
+	AllowDownload bool   `json:"allow_download"`
 	jwt.RegisteredClaims
 }
 
@@ -41,6 +53,42 @@ func (m *Maker) CreateToken(userID, workspaceID string, duration time.Duration) 
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(m.secret)
+}
+
+// CreateShareToken issues a signed share session token valid for the given duration.
+func (m *Maker) CreateShareToken(shareID, targetType, targetID string, allowComments, allowDownload bool, duration time.Duration) (string, error) {
+	claims := &ShareClaims{
+		ShareID:       shareID,
+		TargetType:    targetType,
+		TargetID:      targetID,
+		AllowComments: allowComments,
+		AllowDownload: allowDownload,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(m.secret)
+}
+
+// VerifyShareToken parses and validates a share session token, returning its claims.
+func (m *Maker) VerifyShareToken(tokenStr string) (*ShareClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &ShareClaims{}, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return m.secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(*ShareClaims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid share token")
+	}
+	return claims, nil
 }
 
 // VerifyToken parses and validates a token string, returning its claims.

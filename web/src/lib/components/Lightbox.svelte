@@ -2,7 +2,9 @@
   import { assetApi, tagApi, variantApi, formatBytes, mimeCategory, type Asset, type Variant } from '$lib/api/client'
   import { authStore } from '$lib/stores/auth.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
+  import { sharesStore } from '$lib/stores/shares.svelte'
   import VariantPanel from './VariantPanel.svelte'
+  import ShareModal from './ShareModal.svelte'
   import { Download, Image, Loader, Mail, Play, Share, Trash, X } from '@lucide/svelte'
   import Badge from '$lib/components/ui/Badge.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
@@ -20,6 +22,7 @@
 
   let deleting = $state(false)
   let showVariantPanel = $state(false)
+  let showShareModal = $state(false)
   let tags = $state<string[]>([])
   let tagInput = $state('')
   let tagSuggestions = $state<string[]>([])
@@ -122,10 +125,16 @@
       : null,
   )
 
-  function copyShareLink() {
+  function openShareModal() {
     if (!asset) return
-    navigator.clipboard.writeText(assetApi.fileUrl(asset.id)).catch(() => {})
+    showShareModal = true
   }
+
+  const shareTargets = $derived(
+    asset
+      ? [{ type: 'asset' as const, id: asset.id, label: 'Selected Asset' }]
+      : [],
+  )
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -379,10 +388,10 @@
           <div class="space-y-2">
             <button
               class="flex w-full items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-              onclick={copyShareLink}
+              onclick={openShareModal}
             >
               <Share class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
-              Copy Share Link
+              Share…
             </button>
             <button
               class="flex w-full items-center gap-2.5 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
@@ -418,4 +427,12 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if showShareModal && asset}
+  <ShareModal
+    bind:open={showShareModal}
+    targets={shareTargets}
+    onclose={() => { showShareModal = false }}
+  />
 {/if}

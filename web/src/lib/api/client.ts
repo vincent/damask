@@ -430,6 +430,67 @@ export const variantApi = {
   },
 }
 
+// ---- Shares ----
+
+export interface Share {
+  id: string
+  workspace_id: string
+  created_by: string
+  label: string
+  target_type: 'collection' | 'asset' | 'project'
+  target_id: string
+  has_password: boolean
+  expires_at: string | null
+  allow_comments: boolean
+  allow_download: boolean
+  view_count: number
+  created_at: string
+  revoked_at: string | null
+  is_expired: boolean
+  public_url: string
+}
+
+export interface CreateShareParams {
+  label?: string
+  target_type: 'collection' | 'asset' | 'project'
+  target_id: string
+  password?: string
+  expires_in_days?: number | null
+  allow_comments?: boolean
+  allow_download?: boolean
+}
+
+export interface UpdateShareParams {
+  label?: string
+  password?: string
+  clear_password?: boolean
+  expires_at?: string
+  clear_expiry?: boolean
+  allow_comments?: boolean
+  allow_download?: boolean
+}
+
+export const shareApi = {
+  list: () => apiFetch<Share[]>('/api/v1/shares'),
+
+  get: (id: string) => apiFetch<Share>(`/api/v1/shares/${id}`),
+
+  create: (params: CreateShareParams) =>
+    apiFetch<Share>('/api/v1/shares', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  update: (id: string, params: UpdateShareParams) =>
+    apiFetch<Share>(`/api/v1/shares/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(params),
+    }),
+
+  revoke: (id: string) =>
+    apiFetch<void>(`/api/v1/shares/${id}`, { method: 'DELETE' }),
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

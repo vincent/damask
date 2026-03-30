@@ -73,4 +73,45 @@ func extractToken(c fiber.Ctx) string {
 	return c.Cookies("auth_token")
 }
 
+const shareClaimsKey = "share_claims"
+
+// RequireShareSession validates the share session token from the Authorization
+// header or share_token cookie. On success it stores ShareClaims in c.Locals.
+// It also re-validates that the share_id in the token matches the :id path param.
+func RequireShareSession(maker *Maker) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		tokenStr := extractShareToken(c)
+		if tokenStr == "" {
+			return fiber.NewError(fiber.StatusUnauthorized, "missing share token")
+		}
+
+		claims, err := maker.VerifyShareToken(tokenStr)
+		if err != nil {
+			return fiber.NewError(fiber.StatusUnauthorized, "invalid share token")
+		}
+
+		// Path param :id must match the token's share_id
+		if pathID := c.Params("id"); pathID != "" && pathID != claims.ShareID {
+			return fiber.NewError(fiber.StatusForbidden, "share token does not match this share")
+		}
+
+		c.Locals(shareClaimsKey, claims)
+		return c.Next()
+	}
+}
+
+// GetShareClaims retrieves the validated ShareClaims from the request context.
+// Must be called after RequireShareSession middleware.
+func GetShareClaims(c fiber.Ctx) *ShareClaims {
+	claims, _ := c.Locals(shareClaimsKey).(*ShareClaims)
+	return claims
+}
+
+func extractShareToken(c fiber.Ctx) string {
+	if h := c.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+		return strings.TrimPrefix(h, "Bearer ")
+	}
+	return c.Cookies("share_token")
+}
+
 // fiber:context-methods migrated

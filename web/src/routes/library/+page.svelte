@@ -8,13 +8,15 @@
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import { selectionStore } from '$lib/stores/selection.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { sharesStore } from '$lib/stores/shares.svelte'
   import AssetCard from '$lib/components/AssetCard.svelte'
   import Lightbox from '$lib/components/Lightbox.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import BulkActionBar from '$lib/components/BulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
+  import ShareModal from '$lib/components/ShareModal.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
-  import { Book, File, Image, Inbox, Loader, LogOut, Music, Plus, Search, Video } from '@lucide/svelte'
+  import { Book, File, Image, Inbox, Loader, LogOut, Music, Plus, Search, Share2, Video } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
@@ -26,8 +28,21 @@
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
   let showPalette = $state(false)
   let sidebarCreating = $state(false)
+  let showProjectShareModal = $state(false)
   let zoom = $state(10)
   const maxZoom = 20
+
+  const activeProject = $derived(
+    navigationStore.activeProjectId
+      ? projectsStore.projects.find((p) => p.id === navigationStore.activeProjectId) ?? null
+      : null,
+  )
+
+  const projectShareTargets = $derived(
+    activeProject
+      ? [{ type: 'project' as const, id: activeProject.id, label: activeProject.name, assetCount: activeProject.asset_count }]
+      : [],
+  )
 
   function handleCardClick(asset: Asset, index: number, event: MouseEvent) {
     const handled = selectionStore.handleCardClick(
@@ -83,6 +98,7 @@
   onMount(() => {
     projectsStore.load()
     assetsStore.load(true)
+    sharesStore.load()
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -167,13 +183,26 @@
   <div class="relative flex flex-1 flex-col overflow-hidden">
     <!-- Top bar -->
     <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
-      <div>
-        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
-          {projectsStore.activeProjectName ?? 'Library'}
-        </h1>
-        <p class="mt-0.5 text-xs text-gray-400">
-          All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
-        </p>
+      <div class="flex items-center gap-3">
+        <div>
+          <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
+            {projectsStore.activeProjectName ?? 'Library'}
+          </h1>
+          <p class="mt-0.5 text-xs text-gray-400">
+            All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
+          </p>
+        </div>
+        {#if activeProject}
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400"
+            onclick={() => { showProjectShareModal = true }}
+            title="Share this project"
+          >
+            <Share2 class="h-3.5 w-3.5" />
+            Share
+          </button>
+        {/if}
       </div>
 
       <div class="flex items-center gap-2">
@@ -331,5 +360,13 @@
     projects={projectsStore.projects}
     onselect={(id) => { handleProjectSelect(id); showPalette = false }}
     onclose={() => { showPalette = false }}
+  />
+{/if}
+
+{#if showProjectShareModal && projectShareTargets.length > 0}
+  <ShareModal
+    bind:open={showProjectShareModal}
+    targets={projectShareTargets}
+    onclose={() => { showProjectShareModal = false }}
   />
 {/if}

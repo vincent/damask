@@ -68,6 +68,32 @@ type Project struct {
 	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
+type Share struct {
+	ID            string         `json:"id"`
+	WorkspaceID   string         `json:"workspace_id"`
+	CreatedBy     string         `json:"created_by"`
+	Label         string         `json:"label"`
+	TargetType    string         `json:"target_type"`
+	TargetID      string         `json:"target_id"`
+	PasswordHash  sql.NullString `json:"password_hash"`
+	ExpiresAt     sql.NullString `json:"expires_at"`
+	AllowComments int64          `json:"allow_comments"`
+	AllowDownload int64          `json:"allow_download"`
+	ViewCount     int64          `json:"view_count"`
+	CreatedAt     string         `json:"created_at"`
+	RevokedAt     sql.NullString `json:"revoked_at"`
+}
+
+type ShareComment struct {
+	ID          string         `json:"id"`
+	ShareID     string         `json:"share_id"`
+	AssetID     string         `json:"asset_id"`
+	AuthorName  string         `json:"author_name"`
+	AuthorEmail sql.NullString `json:"author_email"`
+	Body        string         `json:"body"`
+	CreatedAt   string         `json:"created_at"`
+}
+
 type Tag struct {
 	ID          string `json:"id"`
 	WorkspaceID string `json:"workspace_id"`

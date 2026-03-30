@@ -155,6 +155,31 @@ func New(
 	// Transform preview (in-memory, no storage write)
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
 
+	// Shares — authenticated, workspace-scoped
+	api.Post("/shares", s.handleCreateShare)
+	api.Get("/shares", s.handleListShares)
+	api.Get("/shares/:id", s.handleGetShare)
+	api.Put("/shares/:id", s.handleUpdateShare)
+	api.Delete("/shares/:id", s.handleRevokeShare)
+
+	// Share comments — owner moderation (S-7)
+	api.Get("/shares/:id/comments", s.handleOwnerListComments)
+	api.Delete("/shares/:id/comments/:cid", s.handleOwnerDeleteComment)
+
+	// Public share routes — unauthenticated or share-session-authenticated
+	// S-4: access endpoint (no auth required)
+	app.Post("/s/:id/access", s.handleShareAccess)
+
+	// S-5 + S-6: content and comment endpoints require a valid share session token
+	shareGroup := app.Group("/s/:id", auth.RequireShareSession(tokenMaker))
+	shareGroup.Get("/assets", s.handleShareListAssets)
+	shareGroup.Get("/assets/:aid", s.handleShareGetAsset)
+	shareGroup.Get("/assets/:aid/file", s.handleShareGetAssetFile)
+	shareGroup.Get("/assets/:aid/thumb", s.handleShareGetAssetThumb)
+	shareGroup.Post("/comments", s.handleShareCreateComment)
+	shareGroup.Get("/comments", s.handleShareListComments)
+	shareGroup.Get("/assets/:aid/comments", s.handleShareListAssetComments)
+
 	// Mount the UI with the default configuration under /swagger
 	app.Get("/swagger/*", swaggo.HandlerDefault)
 
