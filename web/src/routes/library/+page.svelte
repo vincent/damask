@@ -20,6 +20,7 @@
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
+  import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
@@ -106,15 +107,9 @@
 <div class="flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
   <aside class="flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
-    <!-- Workspace logo + name -->
-    <div class="flex items-center gap-2.5 px-4 py-4">
-      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white">
-        {authStore.workspace?.name?.[0]?.toUpperCase() ?? 'S'}
-      </div>
-      <span class="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
-        {authStore.workspace?.name ?? 'Workspace'}
-      </span>
-    </div>
+
+    <!-- Workspace switcher -->
+    <WorkspaceSwitcher class="px-3 py-3" />
 
     <!-- All Assets button -->
     <div class="px-3 pb-2">

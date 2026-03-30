@@ -8,6 +8,7 @@ package dbgen
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createMember = `-- name: CreateMember :exec
@@ -74,4 +75,49 @@ func (q *Queries) GetMemberByUserID(ctx context.Context, userID string) (Workspa
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listWorkspacesByUserID = `-- name: ListWorkspacesByUserID :many
+SELECT w.id, w.name, w.created_at, w.updated_at, wm.role
+FROM workspaces w
+JOIN workspace_members wm ON wm.workspace_id = w.id
+WHERE wm.user_id = ?
+ORDER BY wm.created_at ASC
+`
+
+type ListWorkspacesByUserIDRow struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Role      string    `json:"role"`
+}
+
+func (q *Queries) ListWorkspacesByUserID(ctx context.Context, userID string) ([]ListWorkspacesByUserIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, listWorkspacesByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkspacesByUserIDRow{}
+	for rows.Next() {
+		var i ListWorkspacesByUserIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

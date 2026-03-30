@@ -27,6 +27,11 @@ export const authStore = {
     state.isAuthenticated = true
   },
 
+  switchWorkspace(workspace: Workspace, role: string) {
+    state.workspace = workspace
+    state.role = role
+  },
+
   logout() {
     state.user = null
     state.workspace = null

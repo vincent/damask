@@ -92,6 +92,8 @@ func New(
 	// Workspace
 	api.Get("/workspace/me", s.handleWorkspaceMe)
 	api.Post("/workspace", s.handleCreateWorkspace)
+	api.Get("/workspaces", s.handleListWorkspaces)
+	api.Post("/workspace/switch", s.handleSwitchWorkspace)
 
 	getRoleFn := func(ctx context.Context, workspaceID, userID string) (string, error) {
 		member, err := s.db.GetMember(ctx, dbgen.GetMemberParams{

@@ -141,17 +141,18 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
 
-	member, err := s.db.GetMemberByUserID(c.RequestCtx(), user.ID)
-	if err != nil {
+	memberships, err := s.db.ListWorkspacesByUserID(c.RequestCtx(), user.ID)
+	if err != nil || len(memberships) == 0 {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace membership")
 	}
 
-	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), member.WorkspaceID)
+	first := memberships[0]
+	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), first.ID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
-	token, err := s.tokenMaker.CreateToken(user.ID, member.WorkspaceID, 7*24*time.Hour)
+	token, err := s.tokenMaker.CreateToken(user.ID, first.ID, 7*24*time.Hour)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}

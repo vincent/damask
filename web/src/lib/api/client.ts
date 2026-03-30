@@ -78,11 +78,35 @@ export const authApi = {
   refresh: () => apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' }),
 }
 
+export interface WorkspaceWithRole extends Workspace {
+  role: string
+}
+
+export interface SwitchWorkspaceResponse {
+  token: string
+  workspace: Workspace
+  role: string
+}
+
 export const workspaceApi = {
   fetch: window.fetch,
   useFetch: (f: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) => workspaceApi.fetch = f,
 
   me: () => apiFetch<WorkspaceMeResponse>('/api/v1/workspace/me', undefined, workspaceApi.fetch),
+
+  list: () => apiFetch<WorkspaceWithRole[]>('/api/v1/workspaces'),
+
+  switch: (workspaceId: string) =>
+    apiFetch<SwitchWorkspaceResponse>('/api/v1/workspace/switch', {
+      method: 'POST',
+      body: JSON.stringify({ workspace_id: workspaceId }),
+    }),
+
+  createWorkspace: (name: string) =>
+    apiFetch<AuthResponse>('/api/v1/workspace', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
 
   createInvite: (email: string, role: 'editor' | 'viewer' = 'editor') =>
     apiFetch<{ id: string; invite_token: string; email: string; role: string }>(

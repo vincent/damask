@@ -13,3 +13,10 @@ WHERE user_id = ?
 ORDER BY created_at ASC
 LIMIT 1;
 
+-- name: ListWorkspacesByUserID :many
+SELECT w.id, w.name, w.created_at, w.updated_at, wm.role
+FROM workspaces w
+JOIN workspace_members wm ON wm.workspace_id = w.id
+WHERE wm.user_id = ?
+ORDER BY wm.created_at ASC;
+
