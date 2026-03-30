@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"badam/server/internal/auth"
-	dbgen "badam/server/internal/db/gen"
-	"badam/server/internal/queue"
+	"damask/server/internal/auth"
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"

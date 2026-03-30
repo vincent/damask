@@ -98,7 +98,7 @@
 </script>
 
 <svelte:head>
-  <title>Library — BaDAM DAM</title>
+  <title>Library — Damask DAM</title>
 </svelte:head>
 
 <svelte:window onkeydown={handleWindowKeydown} />

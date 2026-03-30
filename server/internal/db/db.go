@@ -1,7 +1,7 @@
 package db
 
 import (
-	db "badam/server/internal/db/gen"
+	db "damask/server/internal/db/gen"
 	"database/sql"
 	"fmt"
 

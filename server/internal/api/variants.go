@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"badam/server/internal/auth"
-	dbgen "badam/server/internal/db/gen"
-	"badam/server/internal/queue"
-	"badam/server/internal/transform"
+	"damask/server/internal/auth"
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
+	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -586,7 +586,7 @@ func (s *Server) writeToTempFile(ctx context.Context, storageKey, ext string) (s
 	}
 	defer rc.Close()
 
-	f, err := os.CreateTemp("", "badam-*"+ext)
+	f, err := os.CreateTemp("", "damask-*"+ext)
 	if err != nil {
 		return "", nil, err
 	}

@@ -14,10 +14,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"badam/server/internal/auth"
-	dbpkg "badam/server/internal/db"
-	"badam/server/internal/queue"
-	"badam/server/internal/storage"
+	"damask/server/internal/auth"
+	dbpkg "damask/server/internal/db"
+	"damask/server/internal/queue"
+	"damask/server/internal/storage"
 
 	"github.com/gofiber/fiber/v3"
 )

@@ -27,7 +27,7 @@
 </script>
 
 <svelte:head>
-  <title>Create account — BaDAM DAM</title>
+  <title>Create account — Damask DAM</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">

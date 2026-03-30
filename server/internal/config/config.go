@@ -31,7 +31,7 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Port:           getEnv("PORT", "8080"),
-		DBPath:         getEnv("DB_PATH", "./badam.db"),
+		DBPath:         getEnv("DB_PATH", "./damask.db"),
 		StoragePath:    getEnv("STORAGE_PATH", "./storage"),
 		JWTSecret:      os.Getenv("JWT_SECRET"),
 		AppEnv:         getEnv("APP_ENV", "development"),

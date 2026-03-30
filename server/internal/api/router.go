@@ -4,16 +4,16 @@ import (
 	"context"
 	"database/sql"
 
-	"badam/server/internal/auth"
-	dbgen "badam/server/internal/db/gen"
-	"badam/server/internal/queue"
-	"badam/server/internal/storage"
+	"damask/server/internal/auth"
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
+	"damask/server/internal/storage"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
-	_ "badam/server/docs"
+	_ "damask/server/docs"
 )
 
 // Server holds shared dependencies injected at startup.
@@ -29,14 +29,14 @@ type Server struct {
 }
 
 // New creates a configured Fiber app with all routes registered.
-// @title BaDAM Swagger API
+// @title Damask Swagger API
 // @version 1.0
-// @description This is a BaDAM server.
+// @description This is a Damask server.
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
 // @contact.url http://www.swagger.io/support
-// @contact.email support@getbadam.com
+// @contact.email support@getdamask.com
 
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html

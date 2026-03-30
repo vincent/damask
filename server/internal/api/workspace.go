@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"badam/server/internal/auth"
-	dbgen "badam/server/internal/db/gen"
-	"badam/server/internal/services"
+	"damask/server/internal/auth"
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"

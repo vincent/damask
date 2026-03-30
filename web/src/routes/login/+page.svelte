@@ -26,7 +26,7 @@
 </script>
 
 <svelte:head>
-  <title>Sign in — BaDAM DAM</title>
+  <title>Sign in — Damask DAM</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">

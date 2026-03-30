@@ -1,7 +1,7 @@
 package services
 
 import (
-	dbgen "badam/server/internal/db/gen"
+	dbgen "damask/server/internal/db/gen"
 	"context"
 	"database/sql"
 

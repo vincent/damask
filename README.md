@@ -1,4 +1,4 @@
-# BaDAM
+# Damask
 
 A self-hosted Digital Asset Management (DAM) system. Single binary, local-first, multi-tenant.
 
@@ -26,7 +26,7 @@ Web: http://localhost:5173
 ## Structure
 
 ```
-badam/
+damask/
 ├── server/    # Go API + job runner
 ├── web/       # SvelteKit frontend
 └── Makefile   # dev / build / test / generate

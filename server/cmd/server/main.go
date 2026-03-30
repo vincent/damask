@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"badam/server/internal/api"
-	"badam/server/internal/auth"
-	"badam/server/internal/config"
-	"badam/server/internal/db"
-	"badam/server/internal/queue"
-	"badam/server/internal/storage"
+	"damask/server/internal/api"
+	"damask/server/internal/auth"
+	"damask/server/internal/config"
+	"damask/server/internal/db"
+	"damask/server/internal/queue"
+	"damask/server/internal/storage"
 )
 
 func main() {
