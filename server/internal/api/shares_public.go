@@ -15,7 +15,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// shareAccessResponse is returned by POST /s/:id/access on success.
+// shareInfoResponse is returned by GET /shared/:id/access.
+type shareInfoResponse struct {
+	Label       string `json:"label"`
+	HasPassword bool   `json:"has_password"`
+}
+
+// shareAccessResponse is returned by POST /shared/:id/access on success.
 type shareAccessResponse struct {
 	Token string `json:"token"`
 }
@@ -85,7 +91,21 @@ func (s *Server) loadActiveShare(c fiber.Ctx, id string) (dbgen.Share, error) {
 
 // ── S-4 ──────────────────────────────────────────────────────────────────────
 
-// POST /s/:id/access — unauthenticated.
+// GET /shared/:id/access — unauthenticated.
+// Returns share metadata so the gate page can decide whether to show a password form.
+func (s *Server) handleShareInfo(c fiber.Ctx) error {
+	id := c.Params("id")
+	share, err := s.loadActiveShare(c, id)
+	if err != nil {
+		return err
+	}
+	return c.JSON(shareInfoResponse{
+		Label:       share.Label,
+		HasPassword: share.PasswordHash.Valid,
+	})
+}
+
+// POST /shared/:id/access — unauthenticated.
 // Validates the share, checks password if required, issues a share session token.
 func (s *Server) handleShareAccess(c fiber.Ctx) error {
 	id := c.Params("id")
@@ -132,7 +152,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 
 // ── S-5 ──────────────────────────────────────────────────────────────────────
 
-// GET /s/:id/assets
+// GET /shared/:id/assets
 // Lists assets belonging to the share's target. Requires valid share session token.
 func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
@@ -199,10 +219,38 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 	for i, a := range assets {
 		items[i] = assetToResponse(a, []string{})
 	}
-	return c.JSON(items)
+
+	share, err := s.db.GetShareByID(c.RequestCtx(), shareID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load share")
+	}
+
+	type shareView struct {
+		ID             string  `json:"id"`
+		Label          string  `json:"label"`
+		AllowComments  bool    `json:"allow_comments"`
+		AllowDownload  bool    `json:"allow_download"`
+		ExpiresAt      *string `json:"expires_at"`
+		HasPassword    bool    `json:"has_password"`
+	}
+	sv := shareView{
+		ID:            share.ID,
+		Label:         share.Label,
+		AllowComments: share.AllowComments == 1,
+		AllowDownload: share.AllowDownload == 1,
+		HasPassword:   share.PasswordHash.Valid,
+	}
+	if share.ExpiresAt.Valid {
+		sv.ExpiresAt = &share.ExpiresAt.String
+	}
+
+	return c.JSON(fiber.Map{
+		"share":  sv,
+		"assets": items,
+	})
 }
 
-// GET /s/:id/assets/:aid
+// GET /shared/:id/assets/:aid
 // Returns a single asset detail. Requires valid share session token.
 func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
@@ -238,7 +286,7 @@ func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 	return c.JSON(assetToResponse(a, []string{}))
 }
 
-// GET /s/:id/assets/:aid/file
+// GET /shared/:id/assets/:aid/file
 // Streams the original file. Requires allow_download in share session token.
 func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
@@ -276,7 +324,7 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
-// GET /s/:id/assets/:aid/thumb
+// GET /shared/:id/assets/:aid/thumb
 // Streams the thumbnail. Always allowed (thumbnails are required for review).
 func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
@@ -315,7 +363,7 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 
 // ── S-6 ──────────────────────────────────────────────────────────────────────
 
-// POST /s/:id/comments
+// POST /shared/:id/comments
 func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -372,7 +420,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(commentToResponse(comment))
 }
 
-// GET /s/:id/comments — all comments for this share, grouped by asset_id
+// GET /shared/:id/comments — all comments for this share, grouped by asset_id
 func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	shareID := c.Params("id")
 
@@ -408,7 +456,7 @@ func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
-// GET /s/:id/assets/:aid/comments — comments for a specific asset
+// GET /shared/:id/assets/:aid/comments — comments for a specific asset
 func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")

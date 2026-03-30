@@ -17,7 +17,7 @@ type Claims struct {
 }
 
 // ShareClaims is the payload stored in a short-lived share session token.
-// It is issued by POST /s/:id/access and used only on /s/ public routes.
+// It is issued by POST /shared/:id/access and used only on /shared/ public routes.
 // It must never grant workspace-level access.
 type ShareClaims struct {
 	ShareID       string `json:"share_id"`

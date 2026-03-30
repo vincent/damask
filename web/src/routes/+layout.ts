@@ -4,7 +4,7 @@ import type { LayoutLoad } from './$types'
 import { workspaceApi, ApiError } from '$lib/api/client'
 import type { User, Workspace } from '$lib/api/client'
 
-const PUBLIC_PATHS = ['/login', '/register', '/invite']
+const PUBLIC_PATHS = ['/login', '/register', '/invite', '/s/']
 
 export const ssr = false
 

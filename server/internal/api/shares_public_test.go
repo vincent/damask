@@ -11,7 +11,7 @@ import (
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-// accessShare calls POST /s/:id/access with an optional password and returns
+// accessShare calls POST /shared/:id/access with an optional password and returns
 // the share session token on success.
 func accessShare(t *testing.T, env *testEnv, shareID, password string) string {
 	t.Helper()
@@ -21,7 +21,7 @@ func accessShare(t *testing.T, env *testEnv, shareID, password string) string {
 	} else {
 		body = `{}`
 	}
-	req := httptest.NewRequest(http.MethodPost, "/s/"+shareID+"/access", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+shareID+"/access", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.app.Test(req)
 	if err != nil {
@@ -52,7 +52,7 @@ func shareRequest(method, path string, body string, token string) *http.Request 
 	return req
 }
 
-// ── S-4: POST /s/:id/access ───────────────────────────────────────────────────
+// ── S-4: POST /shared/:id/access ───────────────────────────────────────────────────
 
 func TestShareAccess_NoPassword(t *testing.T) {
 	env := setupTestApp(t)
@@ -84,7 +84,7 @@ func TestShareAccess_WrongPassword(t *testing.T) {
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"s3cr3t"}`, p.ID))
 
-	req := httptest.NewRequest(http.MethodPost, "/s/"+sh.ID+"/access", jsonStr(`{"password":"wrong"}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", jsonStr(`{"password":"wrong"}`))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -98,7 +98,7 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"s3cr3t"}`, p.ID))
 
-	req := httptest.NewRequest(http.MethodPost, "/s/"+sh.ID+"/access", jsonStr(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", jsonStr(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -108,7 +108,7 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 
 func TestShareAccess_NotFound(t *testing.T) {
 	env := setupTestApp(t)
-	req := httptest.NewRequest(http.MethodPost, "/s/nonexistent/access", jsonStr(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/nonexistent/access", jsonStr(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
@@ -126,11 +126,68 @@ func TestShareAccess_Revoked(t *testing.T) {
 	req := authRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
 	env.app.Test(req) //nolint:errcheck
 
-	req2 := httptest.NewRequest(http.MethodPost, "/s/"+sh.ID+"/access", jsonStr(`{}`))
+	req2 := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", jsonStr(`{}`))
 	req2.Header.Set("Content-Type", "application/json")
 	resp, _ := env.app.Test(req2)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404 for revoked share, got %d", resp.StatusCode)
+	}
+}
+
+// ── S-4b: GET /shared/:id/access ─────────────────────────────────────────────
+
+func TestShareInfo_NoPassword(t *testing.T) {
+	env := setupTestApp(t)
+	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	p := createProject(t, env, owner.Cookie, "Project", "#f00")
+	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"label":"My Gallery"}`, p.ID))
+
+	req := httptest.NewRequest(http.MethodGet, "/shared/"+sh.ID+"/access", nil)
+	resp, err := env.app.Test(req)
+	if err != nil {
+		t.Fatalf("GET /shared/:id/access: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	var info shareInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if info.HasPassword {
+		t.Error("expected has_password = false")
+	}
+	if info.Label != "My Gallery" {
+		t.Errorf("expected label = 'My Gallery', got %q", info.Label)
+	}
+}
+
+func TestShareInfo_WithPassword(t *testing.T) {
+	env := setupTestApp(t)
+	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	p := createProject(t, env, owner.Cookie, "Project", "#f00")
+	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"s3cr3t"}`, p.ID))
+
+	req := httptest.NewRequest(http.MethodGet, "/shared/"+sh.ID+"/access", nil)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	var info shareInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !info.HasPassword {
+		t.Error("expected has_password = true")
+	}
+}
+
+func TestShareInfo_NotFound(t *testing.T) {
+	env := setupTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/shared/nonexistent/access", nil)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
@@ -143,7 +200,7 @@ func TestShareAccess_Expired(t *testing.T) {
 	// Force expiry
 	env.sqlDB.Exec(`UPDATE shares SET expires_at = datetime('now', '-1 day') WHERE id = ?`, sh.ID) //nolint:errcheck
 
-	req := httptest.NewRequest(http.MethodPost, "/s/"+sh.ID+"/access", jsonStr(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", jsonStr(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusGone {
@@ -188,7 +245,7 @@ func TestShareListAssets_Project(t *testing.T) {
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
 	token := accessShare(t, env, sh.ID, "")
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets", "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets", "", token)
 	resp, err := env.app.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -206,7 +263,7 @@ func TestShareListAssets_SingleAsset(t *testing.T) {
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID))
 	token := accessShare(t, env, sh.ID, "")
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets", "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets", "", token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -224,7 +281,7 @@ func TestShareListAssets_NoToken(t *testing.T) {
 	p := createProject(t, env, owner.Cookie, "P", "#000")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
 
-	req := httptest.NewRequest(http.MethodGet, "/s/"+sh.ID+"/assets", nil)
+	req := httptest.NewRequest(http.MethodGet, "/shared/"+sh.ID+"/assets", nil)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", resp.StatusCode)
@@ -241,7 +298,7 @@ func TestShareListAssets_WrongShareToken(t *testing.T) {
 	token1 := accessShare(t, env, sh1.ID, "")
 
 	// Use sh1 token on sh2 path
-	req := shareRequest(http.MethodGet, "/s/"+sh2.ID+"/assets", "", token1)
+	req := shareRequest(http.MethodGet, "/shared/"+sh2.ID+"/assets", "", token1)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("expected 403 for mismatched share token, got %d", resp.StatusCode)
@@ -256,7 +313,7 @@ func TestShareGetAsset_Success(t *testing.T) {
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID))
 	token := accessShare(t, env, sh.ID, "")
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets/"+assetID, "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID, "", token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -278,7 +335,7 @@ func TestShareGetAsset_NotInShare(t *testing.T) {
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID1))
 	token := accessShare(t, env, sh.ID, "")
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets/"+assetID2, "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID2, "", token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404 for asset not in share, got %d", resp.StatusCode)
@@ -293,7 +350,7 @@ func TestShareGetAssetFile_AllowDownloadFalse(t *testing.T) {
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q,"allow_download":false}`, assetID))
 	token := accessShare(t, env, sh.ID, "")
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets/"+assetID+"/file", "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID+"/file", "", token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("expected 403 when allow_download=false, got %d", resp.StatusCode)
@@ -308,7 +365,7 @@ func TestShareGetAssetFile_AllowDownloadTrue(t *testing.T) {
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q,"allow_download":true}`, assetID))
 	token := accessShare(t, env, sh.ID, "")
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets/"+assetID+"/file", "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID+"/file", "", token)
 	resp, _ := env.app.Test(req)
 	// 200 = file streamed successfully
 	if resp.StatusCode != http.StatusOK {
@@ -330,7 +387,7 @@ func TestShareContentRecheck_RevokedMidSession(t *testing.T) {
 	env.app.Test(revokeReq) //nolint:errcheck
 
 	// Subsequent content request should be rejected
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets", "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets", "", token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusGone {
 		t.Errorf("expected 410 after share revoked mid-session, got %d", resp.StatusCode)
@@ -349,7 +406,7 @@ func TestShareCreateComment_Success(t *testing.T) {
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Sarah","body":"Looks great!"}`, assetID)
-	req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201, got %d", resp.StatusCode)
@@ -377,7 +434,7 @@ func TestShareCreateComment_CommentsNotAllowed(t *testing.T) {
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Sarah","body":"Hi"}`, assetID)
-	req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("expected 403 when comments disabled, got %d", resp.StatusCode)
@@ -394,7 +451,7 @@ func TestShareCreateComment_MissingAuthorName(t *testing.T) {
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"body":"Hi"}`, assetID)
-	req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", resp.StatusCode)
@@ -412,7 +469,7 @@ func TestShareCreateComment_AssetNotInShare(t *testing.T) {
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Sarah","body":"Hi"}`, assetID2)
-	req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404 for asset not in share, got %d", resp.StatusCode)
@@ -439,13 +496,13 @@ func TestShareListComments_Grouped(t *testing.T) {
 	postComment := func(assetID, author, body string) {
 		t.Helper()
 		b := fmt.Sprintf(`{"asset_id":%q,"author_name":%q,"body":%q}`, assetID, author, body)
-		req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", b, token)
+		req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", b, token)
 		env.app.Test(req) //nolint:errcheck
 	}
 	postComment(a1, "Alice", "Nice!")
 	postComment(a2, "Bob", "Cool")
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/comments", "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/comments", "", token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -474,11 +531,11 @@ func TestShareListAssetComments(t *testing.T) {
 	// Post two comments
 	for i := 0; i < 2; i++ {
 		body := fmt.Sprintf(`{"asset_id":%q,"author_name":"User%d","body":"Comment %d"}`, assetID, i, i)
-		req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+		req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 		env.app.Test(req) //nolint:errcheck
 	}
 
-	req := shareRequest(http.MethodGet, "/s/"+sh.ID+"/assets/"+assetID+"/comments", "", token)
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID+"/comments", "", token)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -502,7 +559,7 @@ func TestOwnerListComments_Success(t *testing.T) {
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Client","body":"Feedback"}`, assetID)
-	req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	env.app.Test(req) //nolint:errcheck
 
 	req2 := authRequest(http.MethodGet, "/api/v1/shares/"+sh.ID+"/comments", nil, owner.Cookie)
@@ -542,7 +599,7 @@ func TestOwnerDeleteComment_Success(t *testing.T) {
 
 	// Post a comment
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Client","body":"Delete me"}`, assetID)
-	req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.app.Test(req)
 	var comment commentResponse
 	json.NewDecoder(resp.Body).Decode(&comment) //nolint:errcheck
@@ -575,7 +632,7 @@ func TestOwnerDeleteComment_WrongWorkspace(t *testing.T) {
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Client","body":"Feedback"}`, assetID)
-	req := shareRequest(http.MethodPost, "/s/"+sh.ID+"/comments", body, token)
+	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.app.Test(req)
 	var comment commentResponse
 	json.NewDecoder(resp.Body).Decode(&comment) //nolint:errcheck

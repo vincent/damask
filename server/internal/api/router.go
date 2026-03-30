@@ -167,11 +167,12 @@ func New(
 	api.Delete("/shares/:id/comments/:cid", s.handleOwnerDeleteComment)
 
 	// Public share routes — unauthenticated or share-session-authenticated
-	// S-4: access endpoint (no auth required)
-	app.Post("/s/:id/access", s.handleShareAccess)
+	// S-4: access endpoints (no auth required)
+	app.Get("/shared/:id/access", s.handleShareInfo)
+	app.Post("/shared/:id/access", s.handleShareAccess)
 
 	// S-5 + S-6: content and comment endpoints require a valid share session token
-	shareGroup := app.Group("/s/:id", auth.RequireShareSession(tokenMaker))
+	shareGroup := app.Group("/shared/:id", auth.RequireShareSession(tokenMaker))
 	shareGroup.Get("/assets", s.handleShareListAssets)
 	shareGroup.Get("/assets/:aid", s.handleShareGetAsset)
 	shareGroup.Get("/assets/:aid/file", s.handleShareGetAssetFile)

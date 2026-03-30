@@ -108,8 +108,8 @@ func GetShareClaims(c fiber.Ctx) *ShareClaims {
 }
 
 func extractShareToken(c fiber.Ctx) string {
-	if h := c.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
-		return strings.TrimPrefix(h, "Bearer ")
+	if token := c.Get("X-Share-Token"); token != "" {
+		return token
 	}
 	return c.Cookies("share_token")
 }
