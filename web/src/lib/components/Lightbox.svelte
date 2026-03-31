@@ -1,4 +1,10 @@
 <script lang="ts">
+  import AssetTags from './AssetTags.svelte';
+
+  import AssetMetadata from './AssetMetadata.svelte';
+
+  import VariantCreateResize from './VariantCreateResize.svelte';
+
   import {
     assetApi,
     tagApi,
@@ -19,14 +25,22 @@
     Loader,
     Share,
     Trash,
-    X,
   } from '@lucide/svelte'
   import Badge from '$lib/components/ui/Badge.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
   import ColorDot from '$lib/components/ui/ColorDot.svelte'
-  import Button from '$lib/components/ui/Button.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SharedAsset from './SharedAsset.svelte'
+  import Close from './ui/Close.svelte'
+  import VariantCreateWatermark from './VariantCreateWatermark.svelte'
+  import VariantCreateConvert from './VariantCreateConvert.svelte'
+  import VariantCreateCrop from './VariantCreateCrop.svelte'
+  import VariantCreateRemoveBackground from './VariantCreateRemoveBackground.svelte'
+  import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
+  import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
+  import AssetFolder from './AssetFolder.svelte'
+  import Pills from './ui/Pills.svelte'
+  import Feedback from './ui/Feedback.svelte'
 
   interface Props {
     asset: Asset | null
@@ -43,17 +57,13 @@
   let activeTab = $state<PanelTab>('details')
 
   // --- Variant sub-tabs ---
-  type VariantTab = 'all' | 'resize' | 'watermark' | 'convert' | 'crop' | 'bg_remove' | 'video'
+  type VariantTab = 'all' | 'resize' | 'watermark' | 'convert' | 'crop' | 'bg_remove' | 'video_transcode' | 'video_thumbnail'
   let activeVariantTab = $state<VariantTab>('all')
 
   // --- Asset state ---
   let deleting = $state(false)
   let showShareModal = $state(false)
   let tags = $state<string[]>([])
-  let tagInput = $state('')
-  let tagSuggestions = $state<string[]>([])
-  let showTagInput = $state(false)
-  let showProjectPicker = $state(false)
   let allTags = $state<{ id: string; name: string; asset_count: number }[]>([])
   let linkCopied = $state(false)
 
@@ -63,39 +73,6 @@
   let creating = $state(false)
   let createError = $state('')
   let createSuccess = $state('')
-
-  // Resize params
-  let resizeWidth = $state(800)
-  let resizeHeight = $state(0)
-  let resizeFit = $state<'contain' | 'cover' | 'fill'>('contain')
-  let resizeQuality = $state(85)
-  let resizeFormat = $state<'jpeg' | 'png' | 'tiff'>('jpeg')
-
-  // Convert params
-  let convertFormat = $state<'jpeg' | 'png' | 'tiff'>('png')
-  let convertQuality = $state(90)
-
-  // Watermark params
-  let watermarkOpacity = $state(50)
-  let watermarkQuality = $state(80)
-  let watermarkFormat = $state<'jpeg' | 'png' | 'tiff'>('jpeg')
-
-  // Crop params
-  let cropX = $state(0)
-  let cropY = $state(0)
-  let cropWidth = $state(400)
-  let cropHeight = $state(400)
-  let cropFormat = $state<'jpeg' | 'png'>('jpeg')
-
-  // Video params
-  let videoTimestamp = $state(1)
-  let transcodeFormat = $state<'mp4' | 'webm'>('mp4')
-  let transcodeResolution = $state<'' | '1080p' | '720p' | '480p'>('')
-  let transcodeStripAudio = $state(false)
-
-  // Live preview
-  let previewUrl = $state('')
-  let previewTimeout: ReturnType<typeof setTimeout>
 
   // Export
   let exportFormat = $state('original')
@@ -123,7 +100,6 @@
     if (!asset) {
       tags = []
       variants = []
-      previewUrl = ''
       return
     }
     tagApi.getForAsset(asset.id).then((t) => { tags = t }).catch(() => {})
@@ -156,46 +132,6 @@
     } finally {
       deleting = false
     }
-  }
-
-  async function addTag(name: string) {
-    if (!asset || !name.trim()) return
-    const n = name.trim().toLowerCase()
-    if (tags.includes(n)) return
-    try {
-      await tagApi.addToAsset(asset.id, n)
-      tags = [...tags, n]
-      tagInput = ''
-      showTagInput = false
-      ontagschanged()
-    } catch { /* silently ignore */ }
-  }
-
-  async function removeTag(name: string) {
-    if (!asset) return
-    try {
-      await tagApi.removeFromAsset(asset.id, name)
-      tags = tags.filter((t) => t !== name)
-      ontagschanged()
-    } catch { /* silently ignore */ }
-  }
-
-  async function assignProject(projectId: string | null) {
-    if (!asset) return
-    try {
-      await tagApi.bulkProject([asset.id], projectId)
-      showProjectPicker = false
-      onprojectchanged()
-    } catch { /* silently ignore */ }
-  }
-
-  function updateSuggestions() {
-    const q = tagInput.trim().toLowerCase()
-    if (!q) { tagSuggestions = []; return }
-    tagSuggestions = allTags
-      .map((t) => t.name)
-      .filter((n) => n.includes(q) && !tags.includes(n))
-      .slice(0, 5)
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -250,21 +186,6 @@
     } catch { /* silently ignore */ }
   }
 
-  function updatePreview() {
-    clearTimeout(previewTimeout)
-    if (!asset || !isImage) return
-    previewTimeout = setTimeout(() => {
-      if (!asset) return
-      previewUrl = variantApi.previewUrl(asset.id, {
-        w: resizeWidth || undefined,
-        h: resizeHeight || undefined,
-        fit: resizeFit,
-        format: resizeFormat,
-        q: resizeQuality,
-      })
-    }, 400)
-  }
-
   function variantLabel(v: Variant): string {
     const params = v.transform_params.Valid
       ? (() => { try { return JSON.parse(v.transform_params.String) } catch { return {} } })()
@@ -296,7 +217,8 @@
       { id: 'bg_remove' as VariantTab, label: 'Bg Remove' },
     ] : []),
     ...(isVideo ? [
-      { id: 'video' as VariantTab, label: 'Video' },
+      { id: 'video_transcode' as VariantTab, label: 'Transcode' },
+      { id: 'video_thumbnail' as VariantTab, label: 'Thumbnail' },
     ] : []),
   ])
 </script>
@@ -328,33 +250,13 @@
     aria-label={asset.original_filename}
   >
     <!-- Preview (h-20) -->
-    <div class="relative h-20 flex-shrink-0 flex items-center justify-center {previewBg[category]}">
+    <div class="damask-texture damask-texture-strong relative h-20 flex-shrink-0 flex items-center justify-center {previewBg[category]}">
+      <h2 class="truncate text-lg font-bold leading-tight text-black dark:text-gray-50" title={asset.original_filename}>
+        {asset.original_filename}
+      </h2>
       <!-- Top-right controls -->
       <div class="absolute right-3 top-3 flex items-center gap-1.5">
-        {#if authStore.role !== 'viewer'}
-          <button
-            type="button"
-            class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
-            onclick={handleDelete}
-            disabled={deleting}
-            aria-label="Delete asset"
-            title="Delete"
-          >
-            {#if deleting}
-              <Loader class="h-4 w-4 animate-spin" />
-            {:else}
-              <Trash class="h-4 w-4" />
-            {/if}
-          </button>
-        {/if}
-        <button
-          type="button"
-          class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
-          onclick={onclose}
-          aria-label="Close"
-        >
-          <X class="h-4 w-4" />
-        </button>
+        <Close close={onclose} />
       </div>
     </div>
 
@@ -365,23 +267,19 @@
           <!-- Pills row -->
           <div class="mb-1.5 flex flex-wrap items-center gap-1.5">
             <Badge variant={category as 'image'|'video'|'audio'|'document'|'neutral'} size="md">
-              {typeLabel[category]}
+              {typeLabel[category]} ({asset.mime_type})
             </Badge>
-            <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+            <span class="rounded bg-gray-100 px-1.5 py-0.5 text-sm font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
               {formatBytes(asset.size)}
             </span>
             {#if asset.width.Valid && asset.height.Valid}
-              <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              <span class="rounded bg-gray-100 px-1.5 py-0.5 text-sm font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                 {asset.width.Int64} × {asset.height.Int64}
               </span>
             {/if}
           </div>
-          <!-- Filename -->
-          <h2 class="truncate text-base font-bold leading-tight text-gray-900 dark:text-gray-50" title={asset.original_filename}>
-            {asset.original_filename}
-          </h2>
           <!-- Author + date -->
-          <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+          <p class="mt-0.5 text-sm text-gray-400 dark:text-gray-500">
             {formatDate(asset.created_at)}
           </p>
         </div>
@@ -389,7 +287,7 @@
         <a
           href={assetApi.fileUrl(asset.id)}
           download={asset.original_filename}
-          class="flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 p-2.5 text-white hover:bg-indigo-700 transition-colors"
+          class="flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 p-2.5 text-white hover:bg-indigo-700 transition-colors {previewBg[category]}"
           aria-label="Download original"
         >
           <Download class="h-4 w-4" />
@@ -423,163 +321,19 @@
       <!-- ═══ DETAILS TAB ═══ -->
       {#if activeTab === 'details'}
         <div class="px-5 py-5 space-y-6">
+          <AssetMetadata {asset} />
+          <AssetTags {asset} {ontagschanged} />
 
-          <!-- Metadata grid -->
-          <div>
-            <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Metadata</p>
-            <div class="grid grid-cols-3 gap-3">
-              <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
-                <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Created By</p>
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">—</p>
-              </div>
-              <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
-                <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Date Added</p>
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {new Date(asset.created_at).toLocaleDateString('en-CA')}
-                </p>
-              </div>
-              <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
-                <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Modified</p>
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {new Date(asset.updated_at ?? asset.created_at).toLocaleDateString('en-CA')}
-                </p>
-              </div>
-              {#if asset.width.Valid && asset.height.Valid}
-                <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
-                  <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Dimensions</p>
-                  <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{asset.width.Int64} × {asset.height.Int64}</p>
-                </div>
-              {/if}
-            </div>
-          </div>
-
-          <!-- Tags -->
-          <div>
-            <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Tags</p>
-            <div class="flex flex-wrap gap-1.5">
-              {#each tags as tag}
-                <Chip
-                  label={tag}
-                  onremove={authStore.role !== 'viewer' ? () => removeTag(tag) : undefined}
-                />
-              {/each}
-
-              {#if authStore.role !== 'viewer'}
-                {#if showTagInput}
-                  <div class="relative">
-                    <form onsubmit={(e) => { e.preventDefault(); addTag(tagInput) }}>
-                      <input
-                        bind:value={tagInput}
-                        oninput={updateSuggestions}
-                        placeholder="Add tag…"
-                        class="w-28 rounded-full border border-indigo-400 bg-white px-2.5 py-0.5 text-xs text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
-                        onblur={() => { setTimeout(() => { showTagInput = false; tagSuggestions = [] }, 150) }}
-                      />
-                    </form>
-                    {#if tagSuggestions.length > 0}
-                      <ul class="absolute left-0 top-full z-20 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-md dark:border-gray-700 dark:bg-gray-900">
-                        {#each tagSuggestions as s}
-                          <li>
-                            <button
-                              class="w-full px-3 py-1 text-left text-xs text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
-                              onmousedown={() => addTag(s)}
-                            >{s}</button>
-                          </li>
-                        {/each}
-                      </ul>
-                    {/if}
-                  </div>
-                {:else}
-                  <button
-                    class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-xs text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
-                    onclick={() => { showTagInput = true }}
-                  >+ Add Tag</button>
-                {/if}
-              {/if}
-            </div>
-          </div>
-
-          <!-- Folder -->
           {#if authStore.role !== 'viewer' || activeProject}
-            <div>
-              <div class="mb-3 flex items-center justify-between">
-                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Folder</p>
-                {#if authStore.role !== 'viewer'}
-                  <button
-                    class="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
-                    onclick={() => { showProjectPicker = !showProjectPicker }}
-                  >
-                    {activeProject ? 'Change' : 'Assign'}
-                  </button>
-                {/if}
-              </div>
-              <div class="relative">
-                {#if activeProject}
-                  <span
-                    class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-                    style="background-color: {activeProject.color.Valid ? activeProject.color.String + '22' : '#f3f4f6'}; color: {activeProject.color.Valid ? activeProject.color.String : '#6b7280'}"
-                  >
-                    <ColorDot color={activeProject.color.Valid ? activeProject.color.String : '#9ca3af'} size="sm" />
-                    {activeProject.name}
-                  </span>
-                {:else}
-                  <span class="text-xs text-gray-400 dark:text-gray-500">Not assigned</span>
-                {/if}
-
-                {#if showProjectPicker}
-                  <div class="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                    <button
-                      class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
-                      onclick={() => assignProject(null)}
-                    >
-                      <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
-                      None
-                    </button>
-                    {#each projectsStore.projects as p}
-                      <button
-                        class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
-                        onclick={() => assignProject(p.id)}
-                      >
-                        <ColorDot color={p.color.Valid ? p.color.String : '#9ca3af'} size="sm" />
-                        {p.name}
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            </div>
+            <AssetFolder {asset} {activeProject} {onprojectchanged} />
           {/if}
         </div>
 
       <!-- ═══ VARIANTS TAB ═══ -->
       {:else if activeTab === 'variants'}
         <div class="flex flex-col">
-          <!-- Pill sub-tabs -->
-          <div class="flex flex-wrap gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-            {#each variantSubTabs as tab}
-              <button
-                type="button"
-                class="rounded-full px-3 py-1 text-xs font-medium transition-colors {activeVariantTab === tab.id
-                  ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
-                onclick={() => { activeVariantTab = tab.id; createError = ''; createSuccess = '' }}
-              >
-                {tab.label}
-              </button>
-            {/each}
-          </div>
-
-          <!-- Feedback -->
-          {#if createError}
-            <div class="mx-5 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
-              {createError}
-            </div>
-          {/if}
-          {#if createSuccess}
-            <div class="mx-5 mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">
-              {createSuccess}
-            </div>
-          {/if}
+          <Pills pills={variantSubTabs} active={activeVariantTab} set={(p) => { activeVariantTab = p.id as VariantTab; createError = ''; createSuccess = '' }} />
+          <Feedback error={createError} success={createSuccess} />
 
           <div class="px-5 py-4">
 
@@ -635,262 +389,24 @@
                       </div>
                     </div>
                   {/each}
-
-                  <!-- Create variant card -->
-                  {#if authStore.role !== 'viewer' && (isImage || isVideo)}
-                    <button
-                      type="button"
-                      class="flex h-full min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 text-gray-400 transition-colors hover:border-indigo-400 hover:text-indigo-500 dark:border-gray-600 dark:text-gray-600 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
-                      onclick={() => { activeVariantTab = isImage ? 'resize' : 'video' }}
-                    >
-                      <span class="text-2xl leading-none">+</span>
-                      <span class="text-xs">Create Variant</span>
-                    </button>
-                  {/if}
                 </div>
               {/if}
 
-            <!-- Resize -->
             {:else if activeVariantTab === 'resize'}
-              <div class="space-y-5">
-                {#if previewUrl}
-                  <div class="flex justify-center rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800" style="min-height:120px">
-                    <img src={previewUrl} alt="Preview" class="max-h-48 max-w-full rounded object-contain" />
-                  </div>
-                {:else}
-                  <div class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 py-8 text-xs text-gray-400 dark:border-gray-600 dark:bg-gray-800">
-                    Preview will appear after changing parameters
-                  </div>
-                {/if}
-
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Width (px)</label>
-                    <input type="number" min="1" max="8000" bind:value={resizeWidth} oninput={updatePreview}
-                      class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
-                  </div>
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Height <span class="text-gray-400">(0=auto)</span></label>
-                    <input type="number" min="0" max="8000" bind:value={resizeHeight} oninput={updatePreview}
-                      class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
-                  </div>
-                </div>
-
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Fit</label>
-                  <div class="flex gap-2">
-                    {#each ['contain', 'cover', 'fill'] as f}
-                      <button type="button"
-                        class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {resizeFit === f
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                          : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
-                        onclick={() => { resizeFit = f as typeof resizeFit; updatePreview() }}
-                      >{f}</button>
-                    {/each}
-                  </div>
-                </div>
-
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Quality: {resizeQuality}%</label>
-                  <input type="range" min="1" max="100" bind:value={resizeQuality} oninput={updatePreview}
-                    class="w-full accent-indigo-500" />
-                </div>
-
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Format</label>
-                  <div class="flex gap-2">
-                    {#each ['jpeg', 'png', 'tiff'] as fmt}
-                      <button type="button"
-                        class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {resizeFormat === fmt
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                          : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
-                        onclick={() => { resizeFormat = fmt as typeof resizeFormat; updatePreview() }}
-                      >{fmt.toUpperCase()}</button>
-                    {/each}
-                  </div>
-                </div>
-
-                <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('resize', { width: resizeWidth || undefined, height: resizeHeight || undefined, fit: resizeFit, quality: resizeQuality, format: resizeFormat })} class="w-full">
-                  {creating ? 'Queuing…' : 'Create Resize Variant'}
-                </Button>
-              </div>
-
-            <!-- Watermark -->
+              <VariantCreateResize {asset} {creating} {handleCreate} />
             {:else if activeVariantTab === 'watermark'}
-              <div class="space-y-5">
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Opacity ({watermarkOpacity}%)</label>
-                    <input type="range" min="1" max="100" bind:value={watermarkOpacity} class="w-full accent-indigo-500" />
-                  </div>
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Quality: {watermarkQuality}%</label>
-                    <input type="range" min="1" max="100" bind:value={watermarkQuality} class="w-full accent-indigo-500" />
-                  </div>
-                </div>
-
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Format</label>
-                  <div class="flex gap-2">
-                    {#each ['jpeg', 'png', 'tiff'] as fmt}
-                      <button type="button"
-                        class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {watermarkFormat === fmt
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                          : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
-                        onclick={() => { watermarkFormat = fmt as typeof watermarkFormat }}
-                      >{fmt.toUpperCase()}</button>
-                    {/each}
-                  </div>
-                </div>
-
-                <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('watermark', { opacity: watermarkOpacity, quality: watermarkQuality, format: watermarkFormat })} class="w-full">
-                  {creating ? 'Queuing…' : 'Create Watermark Variant'}
-                </Button>
-              </div>
-
-            <!-- Convert -->
+              <VariantCreateWatermark {asset} {creating} {handleCreate} />
             {:else if activeVariantTab === 'convert'}
-              <div class="space-y-5">
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Output Format</label>
-                  <div class="flex gap-2">
-                    {#each ['jpeg', 'png', 'tiff'] as fmt}
-                      <button type="button"
-                        class="flex-1 rounded-lg border py-2.5 text-sm font-medium transition-colors {convertFormat === fmt
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                          : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
-                        onclick={() => { convertFormat = fmt as typeof convertFormat }}
-                      >{fmt.toUpperCase()}</button>
-                    {/each}
-                  </div>
-                </div>
-
-                {#if convertFormat === 'jpeg'}
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Quality: {convertQuality}%</label>
-                    <input type="range" min="1" max="100" bind:value={convertQuality} class="w-full accent-indigo-500" />
-                  </div>
-                {/if}
-
-                <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('convert', { format: convertFormat, quality: convertQuality })} class="w-full">
-                  {creating ? 'Queuing…' : `Convert to ${convertFormat.toUpperCase()}`}
-                </Button>
-              </div>
-
-            <!-- Crop -->
+              <VariantCreateConvert {asset} {creating} {handleCreate} />
             {:else if activeVariantTab === 'crop'}
-              <div class="space-y-5">
-                {#if asset.width.Valid && asset.height.Valid}
-                  <p class="text-xs text-gray-400 dark:text-gray-500">Original: {asset.width.Int64} × {asset.height.Int64} px</p>
-                {/if}
-
-                <div class="grid grid-cols-2 gap-4">
-                  {#each [['X offset', 'cropX'], ['Y offset', 'cropY'], ['Width', 'cropWidth'], ['Height', 'cropHeight']] as [label, key]}
-                    <div>
-                      <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{label}</label>
-                      <input type="number" min="0"
-                        value={key === 'cropX' ? cropX : key === 'cropY' ? cropY : key === 'cropWidth' ? cropWidth : cropHeight}
-                        oninput={(e) => {
-                          const v = parseInt((e.currentTarget as HTMLInputElement).value) || 0
-                          if (key === 'cropX') cropX = v
-                          else if (key === 'cropY') cropY = v
-                          else if (key === 'cropWidth') cropWidth = v
-                          else cropHeight = v
-                        }}
-                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
-                    </div>
-                  {/each}
-                </div>
-
-                <div>
-                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Format</label>
-                  <div class="flex gap-2">
-                    {#each ['jpeg', 'png'] as fmt}
-                      <button type="button"
-                        class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {cropFormat === fmt
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                          : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
-                        onclick={() => { cropFormat = fmt as typeof cropFormat }}
-                      >{fmt.toUpperCase()}</button>
-                    {/each}
-                  </div>
-                </div>
-
-                <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('crop', { x: cropX, y: cropY, width: cropWidth, height: cropHeight, format: cropFormat, quality: 85 })} class="w-full">
-                  {creating ? 'Queuing…' : 'Create Crop Variant'}
-                </Button>
-              </div>
-
-            <!-- Bg Remove -->
+              <VariantCreateCrop {asset} {creating} {handleCreate} />
             {:else if activeVariantTab === 'bg_remove'}
-              <div class="space-y-5">
-                <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                  <p class="mb-1 font-medium">Requires Remove.bg API key</p>
-                  <p class="text-xs">Set <code class="rounded bg-amber-100 px-1 dark:bg-amber-800/50">REMOVEBG_API_KEY</code> in your server environment. Returns a transparent PNG.</p>
-                </div>
-
-                <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('bg_remove', {})} class="w-full">
-                  {#if creating}<Spinner size="sm" />{/if}
-                  {creating ? 'Queuing…' : 'Remove Background'}
-                </Button>
-              </div>
-
-            <!-- Video -->
-            {:else if activeVariantTab === 'video'}
-              <div class="space-y-6">
-                <div class="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Extract Frame</h3>
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Timestamp (seconds)</label>
-                    <input type="number" min="0" step="0.1" bind:value={videoTimestamp}
-                      class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
-                  </div>
-                  <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('video_thumbnail', { timestamp: videoTimestamp })} class="w-full">
-                    {creating ? 'Queuing…' : 'Extract Frame'}
-                  </Button>
-                </div>
-
-                <div class="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Transcode Video</h3>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">Heavy operation — max 2 concurrent transcodes. Requires ffmpeg.</p>
-
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Output Format</label>
-                    <div class="flex gap-2">
-                      {#each ['mp4', 'webm'] as fmt}
-                        <button type="button"
-                          class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {transcodeFormat === fmt
-                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
-                          onclick={() => { transcodeFormat = fmt as typeof transcodeFormat }}
-                        >{fmt.toUpperCase()}</button>
-                      {/each}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Resolution <span class="text-gray-400">(optional)</span></label>
-                    <select bind:value={transcodeResolution}
-                      class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                      <option value="">Original</option>
-                      <option value="1080p">1080p</option>
-                      <option value="720p">720p</option>
-                      <option value="480p">480p</option>
-                    </select>
-                  </div>
-
-                  <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <input type="checkbox" bind:checked={transcodeStripAudio} class="rounded" />
-                    Strip audio track
-                  </label>
-
-                  <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('video_transcode', { format: transcodeFormat, resolution: transcodeResolution || undefined, strip_audio: transcodeStripAudio })} class="w-full">
-                    {creating ? 'Queuing…' : 'Transcode Video'}
-                  </Button>
-                </div>
-              </div>
+              <VariantCreateRemoveBackground {asset} {creating} {handleCreate} />
+            {:else if activeVariantTab === 'video_transcode'}
+            <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
+            {:else if activeVariantTab === 'video_thumbnail'}
+              <VariantCreateVideoThumbnail {asset} {creating} {handleCreate} />
             {/if}
-
           </div>
         </div>
 
@@ -949,6 +465,26 @@
               </a>
             </div>
           </div>
+
+          {#if authStore.role !== 'viewer'}
+            <div>
+              <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Delete</p>
+              <button
+                class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-black transition-colors bg-red-500 hover:bg-red-600 dark:border-red-700"
+                onclick={handleDelete}
+                disabled={deleting}
+                aria-label="Delete asset"
+                title="Delete"
+              >
+                {#if deleting}
+                  <Loader class="h-4 w-4 animate-spin" />
+                {:else}
+                  <Trash class="h-4 w-4" />
+                {/if}
+                Delete permanently
+              </button>
+            </div>
+          {/if}
 
         </div>
       {/if}

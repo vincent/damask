@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { mimeCategory, type Asset } from '$lib/api/client'
+  import { type Asset } from '$lib/api/client'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
@@ -16,13 +16,15 @@
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
-  import { Book, File, Image, Inbox, Loader, LogOut, Music, Plus, Search, Share2, Video } from '@lucide/svelte'
+  import { Book, Inbox, Loader, LogOut, Plus, Search, Share2 } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
+  import GridSkeleton from './GridSkeleton.svelte';
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
+  import AssetIcon from '../../lib/components/AssetIcon.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
@@ -122,7 +124,7 @@
 
 <div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
-  <aside class="damask-sidebar-texture relative flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+  <aside class="damask-texture relative flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
 
     <!-- Workspace switcher -->
     <WorkspaceSwitcher class="px-3 py-3" />
@@ -170,9 +172,9 @@
     </div>
 
     <!-- Bottom sign out + theme toggle -->
-    <div class="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+    <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
       <ThemeToggle />
-      <a href="/logout" class="mt-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300">
+      <a href="/logout" class="flex items-center gap-2 rounded-lg px-2 text-sm text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
         <LogOut class="h-3.5 w-3.5" />
         Sign out
       </a>
@@ -240,26 +242,7 @@
     <!-- Content -->
     <main class="flex-1 overflow-y-auto px-6 py-6">
       {#if assetsStore.initialLoad}
-        <!-- Loading skeleton -->
-        <div class="mb-10">
-          <div class="mb-4 flex items-center gap-3">
-            <div class="h-8 w-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"></div>
-            <div class="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-          </div>
-          {#each { length: 3 } as _}
-            <div class="mb-6 grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
-              {#each { length: 10 } as _}
-                <div class="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
-                  <div class="animate-pulse bg-gray-200 dark:bg-gray-700" style="aspect-ratio: 4/3"></div>
-                  <div class="p-3">
-                    <div class="mb-2 h-3 w-3/4 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-                    <div class="h-3 w-1/2 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {/each}
-        </div>
+        <GridSkeleton x={7} y={3} {zoom} {maxZoom} />
       {:else if assetsStore.assets.length === 0}
         <EmptyState
           title={assetsStore.query ? `No results for "${assetsStore.query}"` : 'No assets yet'}
@@ -275,17 +258,7 @@
             <div class="mb-10">
               <!-- Category header -->
               <div class="mb-4 flex items-center gap-3">
-                <div class="flex h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat].light} {CATEGORY_ICON_BG[cat].dark}">
-                  {#if cat === 'image'}
-                    <Image class="h-4 w-4" />
-                  {:else if cat === 'video'}
-                    <Video class="h-4 w-4" />
-                  {:else if cat === 'audio'}
-                    <Music class="h-4 w-4" />
-                  {:else}
-                    <File class="h-4 w-4" />
-                  {/if}
-                </div>
+                <AssetIcon category={cat} class="h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat].light} {CATEGORY_ICON_BG[cat].dark}"/>
                 <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{CATEGORY_LABELS[cat]}</h2>
                 <span class="text-sm text-gray-400 dark:text-gray-500">{group.length}</span>
               </div>

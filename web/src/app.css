@@ -65,7 +65,8 @@
   --panel-backdrop: rgba(28, 36, 51, .7)
 }
 
-.damask-sidebar-texture::before {
+.damask-texture::before,
+.damask-texture-strong::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -75,4 +76,7 @@
   opacity: .11;
   pointer-events: none;
   z-index: 0;
+}
+.damask-texture-strong::before {
+  opacity: .3;
 }

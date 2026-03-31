@@ -1,0 +1,106 @@
+<script lang="ts">
+  import { tagApi, type Asset } from '$lib/api/client'
+  import { authStore } from '$lib/stores/auth.svelte'
+  import Chip from '$lib/components/ui/Chip.svelte'
+  
+  interface Props {
+    asset: Asset | null
+    ontagschanged: () => void
+  }
+
+  let { asset, ontagschanged }: Props = $props()
+
+  // --- Asset state ---
+  let tags = $state<string[]>([])
+  let tagInput = $state('')
+  let tagSuggestions = $state<string[]>([])
+  let showTagInput = $state(false)
+  let allTags = $state<{ id: string; name: string; asset_count: number }[]>([])
+
+  function updateSuggestions() {
+    const q = tagInput.trim().toLowerCase()
+    if (!q) { tagSuggestions = []; return }
+    tagSuggestions = allTags
+      .map((t) => t.name)
+      .filter((n) => n.includes(q) && !tags.includes(n))
+      .slice(0, 5)
+  }
+
+
+  async function addTag(name: string) {
+    if (!asset || !name.trim()) return
+    const n = name.trim().toLowerCase()
+    if (tags.includes(n)) return
+    try {
+      await tagApi.addToAsset(asset.id, n)
+      tags = [...tags, n]
+      tagInput = ''
+      showTagInput = false
+      ontagschanged()
+    } catch { /* silently ignore */ }
+  }
+
+  async function removeTag(name: string) {
+    if (!asset) return
+    try {
+      await tagApi.removeFromAsset(asset.id, name)
+      tags = tags.filter((t) => t !== name)
+      ontagschanged()
+    } catch { /* silently ignore */ }
+  }
+
+  $effect(() => {
+    if (!asset) {
+      tags = []
+      return
+    }
+    tagApi.getForAsset(asset.id).then((t) => { tags = t }).catch(() => {})
+    tagApi.list().then((t) => { allTags = t }).catch(() => {})
+  })
+</script>
+
+<div>
+    <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Tags</p>
+    <div class="flex flex-wrap gap-1.5">
+        {#each tags as tag}
+        <Chip
+            label={tag}
+            onremove={authStore.role !== 'viewer' ? () => removeTag(tag) : undefined}
+        />
+        {/each}
+
+        {#if authStore.role !== 'viewer'}
+            {#if showTagInput}
+                <div class="relative">
+                    <form onsubmit={(e) => { e.preventDefault(); addTag(tagInput) }}>
+                        <input
+                            bind:value={tagInput}
+                            oninput={updateSuggestions}
+                            placeholder="Add tag…"
+                            class="w-28 rounded-full border border-indigo-400 bg-white px-2.5 py-0.5 text-xs text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
+                            onblur={() => { setTimeout(() => { showTagInput = false; tagSuggestions = [] }, 150) }}
+                        />
+                    </form>
+                    {#if tagSuggestions.length > 0}
+                        <ul class="absolute left-0 top-full z-20 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-md dark:border-gray-700 dark:bg-gray-900">
+                            {#each tagSuggestions as s}
+                                <li>
+                                    <button
+                                        class="w-full px-3 py-1 text-left text-xs text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                                        onmousedown={() => addTag(s)}
+                                    >{s}</button>
+                                </li>
+                            {/each}
+                        </ul>
+                    {/if}
+                </div>
+            {:else}
+                <button
+                    class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-xs text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
+                    onclick={() => { showTagInput = true }}
+                >+ Add Tag</button>
+            {/if}
+        {/if}
+    </div>
+</div>
+
