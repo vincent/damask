@@ -268,10 +268,12 @@ func TestShareListAssets_SingleAsset(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	var items []assetResponse
-	json.NewDecoder(resp.Body).Decode(&items) //nolint:errcheck
-	if len(items) != 1 || items[0].ID != assetID {
-		t.Errorf("expected 1 asset with id %s, got %v", assetID, items)
+	var body struct {
+		Assets []assetResponse `json:"assets"`
+	}
+	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	if len(body.Assets) != 1 || body.Assets[0].ID != assetID {
+		t.Errorf("expected 1 asset with id %s, got %v", assetID, body.Assets)
 	}
 }
 

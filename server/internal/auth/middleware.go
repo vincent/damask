@@ -91,7 +91,7 @@ func RequireShareSession(maker *Maker) fiber.Handler {
 		}
 
 		// Path param :id must match the token's share_id
-		if pathID := c.Params("id"); pathID != "" && pathID != claims.ShareID {
+		if shareID := c.Params("id"); shareID != "" && shareID != claims.ShareID {
 			return fiber.NewError(fiber.StatusForbidden, "share token does not match this share")
 		}
 
@@ -111,7 +111,12 @@ func extractShareToken(c fiber.Ctx) string {
 	if token := c.Get("X-Share-Token"); token != "" {
 		return token
 	}
-	return c.Cookies("share_token")
+	ckt := c.Cookies("share_token")
+	if ckt != "" {
+		return ckt
+	}
+	shareID := c.Params("id")
+	return c.Cookies("share_token_" + shareID)
 }
 
 // fiber:context-methods migrated

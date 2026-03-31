@@ -8,6 +8,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import SharedAsset from '$lib/components/SharedAsset.svelte'
 
   const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -167,7 +168,7 @@
         headers: authHeaders(),
       })
       if (res.ok) {
-        comments = await res.json()
+        comments = await res.json().then((data) => data.find((d: any) => d.asset_id === assetId)?.comments ?? [])
       } else {
         comments = []
       }
@@ -242,8 +243,8 @@
     }
   }
 
-  onMount(() => {
-    sessionToken = sessionStorage.getItem(`share_token_${shareId}`)
+  onMount(async () => {
+    sessionToken = (await cookieStore.get(`share_token_${shareId}`))?.value || null
     loadGallery()
   })
 </script>
@@ -380,17 +381,19 @@
   {@const category = mimeCategory(selectedAsset.mime_type)}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+    class="fixed w-[75%] inset-0 z-40 bg-black/40 backdrop-blur-sm grid place-items-center p-40"
     role="button"
     tabindex="-1"
     onclick={closePanel}
     onkeydown={(e) => e.key === 'Escape' && closePanel()}
-  ></div>
+  >
+    <SharedAsset {category} asset={selectedAsset} thumbUrl={thumbUrl(selectedAsset.id)} />
+  </div>
 
   <!-- Panel -->
   <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
   <aside
-    class="fixed inset-y-0 right-0 z-50 flex w-full max-w-[460px] flex-col bg-white shadow-2xl dark:bg-gray-900"
+    class="fixed w-[25%] inset-y-0 right-0 z-50 flex max-w-2xl flex-col bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
     aria-label="Asset review"
   >
@@ -437,29 +440,13 @@
       </div>
     </div>
 
-    <!-- Preview area -->
+    <!-- Preview area -- >
     <div class="flex-shrink-0 {cardBg[category]}" style="height: 220px">
       <div class="flex h-full items-center justify-center">
-        {#if category === 'image'}
-          <img
-            src={thumbUrl(selectedAsset.id)}
-            alt={selectedAsset.original_filename}
-            class="h-full w-full object-contain"
-            onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-          />
-        {:else}
-          <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/25">
-            {#if category === 'video'}
-              <Play class="h-9 w-9 text-white" />
-            {:else if category === 'audio'}
-              <Music class="h-9 w-9 text-white" />
-            {:else}
-              <File class="h-9 w-9 text-white" />
-            {/if}
-          </div>
-        {/if}
+        <SharedAsset {category} asset={selectedAsset} thumbUrl={thumbUrl(selectedAsset.id)} />
       </div>
     </div>
+    -->
 
     <!-- Comments section -->
     {#if share?.allow_comments}
@@ -534,12 +521,13 @@
                 />
               </div>
               <div class="mb-3">
-                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label for="comment-body" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Message *
                 </label>
                 <textarea
                   bind:value={commentBody}
                   placeholder="Add your feedback…"
+                  id="comment-body"
                   rows="3"
                   class="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {commentBodyError ? 'border-red-400 focus:ring-red-200 dark:border-red-500' : ''}"
                 ></textarea>

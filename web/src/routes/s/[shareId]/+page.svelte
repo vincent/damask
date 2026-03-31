@@ -17,7 +17,7 @@
 
   onMount(async () => {
     // Check if we already have a session token
-    const existing = sessionStorage.getItem(`share_token_${shareId}`)
+    const existing = (await cookieStore.get(`share_token_${shareId}`))?.value || null
     if (existing) {
       goto(`/s/${shareId}/view`, { replaceState: true })
       return
@@ -54,7 +54,7 @@
     })
     if (!res.ok) return false
     const data = await res.json()
-    sessionStorage.setItem(`share_token_${shareId}`, data.token)
+    await cookieStore.set(`share_token_${shareId}`, data.token)
     goto(`/s/${shareId}/view`, { replaceState: true })
     return true
   }
