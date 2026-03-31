@@ -114,7 +114,7 @@ All authenticated, workspace-scoped.
 
 ### S-4 — public share access endpoint
 
-`POST /s/:id/access` — unauthenticated route. Validates the share and issues a short-lived share session.
+`POST /shared/:id/access` — unauthenticated route. Validates the share and issues a short-lived share session.
 
 Request body:
 ```json
@@ -128,7 +128,7 @@ Logic:
 - If `password_hash` is set: bcrypt compare — return 401 if mismatch
 - On success: increment `view_count`, return a **share session token** (signed Paseto token, 24h expiry, payload: `{ share_id, target_type, target_id, allow_comments, allow_download }`)
 
-The share session token is stored client-side (cookie or memory) and sent on all subsequent `/s/` requests.
+The share session token is stored client-side (cookie or memory) and sent on all subsequent `/shared/` requests.
 
 ---
 
@@ -137,10 +137,10 @@ The share session token is stored client-side (cookie or memory) and sent on all
 All require a valid share session token (separate middleware from the workspace auth middleware).
 
 ```
-GET /s/:id/assets          — list assets in the share target
-GET /s/:id/assets/:aid     — single asset detail
-GET /s/:id/assets/:aid/file     — stream file (check allow_download)
-GET /s/:id/assets/:aid/thumb    — stream thumbnail (always allowed)
+GET /shared/:id/assets          — list assets in the share target
+GET /shared/:id/assets/:aid     — single asset detail
+GET /shared/:id/assets/:aid/file     — stream file (check allow_download)
+GET /shared/:id/assets/:aid/thumb    — stream thumbnail (always allowed)
 ```
 
 Middleware for these routes:
@@ -154,7 +154,7 @@ Middleware for these routes:
 
 Require valid share session token with `allow_comments: true`.
 
-`POST /s/:id/comments`
+`POST /shared/:id/comments`
 ```json
 {
   "asset_id": "ast_xyz",
@@ -164,8 +164,8 @@ Require valid share session token with `allow_comments: true`.
 }
 ```
 
-`GET /s/:id/comments` — all comments on this share, grouped by `asset_id`
-`GET /s/:id/assets/:aid/comments` — comments on a specific asset
+`GET /shared/:id/comments` — all comments on this share, grouped by `asset_id`
+`GET /shared/:id/assets/:aid/comments` — comments on a specific asset
 
 ---
 
@@ -214,11 +214,11 @@ This is a separate SvelteKit layout with no sidebar, no auth, no workspace conte
 
 Route: `/s/[shareId]`
 
-On load: call `GET /s/:id` (lightweight endpoint returning `{ requires_password, expires_at, label, allow_download, allow_comments }` — no assets, no token).
+On load: call `GET /shared/:id` (lightweight endpoint returning `{ requires_password, expires_at, label, allow_download, allow_comments }` — no assets, no token).
 
-If `requires_password`: show a minimal password form. On submit call `POST /s/:id/access`, store the returned share session token in a `httpOnly` session cookie via a `+server.ts` proxy. Redirect to `/s/[shareId]/view`.
+If `requires_password`: show a minimal password form. On submit call `POST /shared/:id/access`, store the returned share session token in a `httpOnly` session cookie via a `+server.ts` proxy. Redirect to `/s/[shareId]/view`.
 
-If no password: call `POST /s/:id/access` automatically on page load, redirect immediately.
+If no password: call `POST /shared/:id/access` automatically on page load, redirect immediately.
 
 Show a clear expiry notice if `expires_at` is within 3 days.
 
@@ -246,7 +246,7 @@ Slide-in panel on asset click. Shows:
 Comment thread:
 - List of existing comments (author name + timestamp + body)
 - "Leave a comment" form: name (required), email (optional), message (required)
-- On submit: `POST /s/:id/comments`, optimistically append to thread
+- On submit: `POST /shared/:id/comments`, optimistically append to thread
 - No account, no login — name field is the identity
 
 If `allow_comments` is false, comment section is hidden entirely.
@@ -263,9 +263,9 @@ If `allow_comments` is false, comment section is hidden entirely.
 - [x] S-1: sqlc queries for shares and comments
 - [x] S-2: `POST /shares` — create share
 - [x] S-3: `GET|PUT|DELETE /shares/:id` — manage shares
-- [x] S-4: `POST /s/:id/access` — public access + share session token
-- [x] S-5: `GET /s/:id/assets` + file/thumb streaming — public content
-- [x] S-6: `POST|GET /s/:id/comments` — public comments
+- [x] S-4: `POST /shared/:id/access` — public access + share session token
+- [x] S-5: `GET /shared/:id/assets` + file/thumb streaming — public content
+- [x] S-6: `POST|GET /shared/:id/comments` — public comments
 - [x] S-7: `GET|DELETE /shares/:id/comments` — owner moderation
 
 ### Frontend (authenticated)
@@ -273,9 +273,9 @@ If `allow_comments` is false, comment section is hidden entirely.
 - [x] S-9: Share button in asset lightbox + project header
 
 ### Frontend (public)
-- [ ] S-10: `/s/[shareId]` — password gate + auto-redirect
-- [ ] S-11: `/s/[shareId]/view` — public gallery
-- [ ] S-12: Asset review panel with comment thread
+- [x] S-10: `/s/[shareId]` — password gate + auto-redirect
+- [x] S-11: `/s/[shareId]/view` — public gallery
+- [x] S-12: Asset review panel with comment thread
 
 ---
 
@@ -284,7 +284,7 @@ If `allow_comments` is false, comment section is hidden entirely.
 - The share `id` (UUID) doubles as the public token — no separate signing needed for the URL itself. The Paseto share session token is what protects content endpoints after access is granted.
 - All `/s/` public routes use a **separate middleware** from the workspace Paseto middleware. Never mix the two — a share session token must never grant workspace access.
 - `revoked_at` is a soft delete. Never hard-delete shares — the URL may have been sent to a client and you want `410 Gone` rather than `404 Not Found` on revoked links.
-- Re-check expiry/revocation **on every request** to `/s/` endpoints, not just at session creation. A share can be revoked while a client is actively browsing.
+- Re-check expiry/revocation **on every request** to `/shared/` endpoints, not just at session creation. A share can be revoked while a client is actively browsing.
 - The public share view (`/s/`) should be a completely separate SvelteKit layout with `+layout.svelte` that has no sidebar, no auth store dependency, no workspace context. Treat it as a separate mini-app within the same codebase.
 - Password hashing: bcrypt cost 10 is fine. Do not store plain passwords anywhere, including logs.
 - `allow_download: false` means the file streaming endpoint returns 403 — but thumbnails always stream (you can't review assets you can't see).

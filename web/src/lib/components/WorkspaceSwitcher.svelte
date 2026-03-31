@@ -83,7 +83,7 @@
 
   {#if open}
     <div
-      class="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+      class="absolute left-0 top-full z-50 w-64 rounded-xl border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-900"
       role="menu"
     >
       <p class="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">

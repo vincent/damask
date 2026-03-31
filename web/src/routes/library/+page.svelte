@@ -120,9 +120,9 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<div class="flex h-screen bg-gray-50 dark:bg-gray-950">
+<div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
-  <aside class="flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+  <aside class="damask-sidebar-texture relative flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
 
     <!-- Workspace switcher -->
     <WorkspaceSwitcher class="px-3 py-3" />
@@ -170,7 +170,7 @@
     </div>
 
     <!-- Bottom sign out + theme toggle -->
-    <div class="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+    <div class="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-gray-800">
       <ThemeToggle />
       <a href="/logout" class="mt-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300">
         <LogOut class="h-3.5 w-3.5" />

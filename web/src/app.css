@@ -7,17 +7,72 @@
 :root {
   --surface: theme(colors.white);
   --surface-muted: theme(colors.gray.50);
-  --border: theme(colors.gray.100);
+  /* --border: theme(colors.gray.100);
   --text-primary: theme(colors.gray.900);
   --text-secondary: theme(colors.gray.600);
-  --text-muted: theme(colors.gray.400);
+  --text-muted: theme(colors.gray.400); */
+
+  --surface: #F8FAFF;
+  --surface-muted: #E3E9F2;
+
+  --bg-app: #F8FAFF;
+  --bg-surface: #ffffff;
+  --bg-sidebar: #E8EDF5;
+  --bg-elevated: #EBF0F7;
+  --bg-hover: #F0F4FA;
+  --border: #D0DAEA;
+  --border-subtle: #E3E9F2;
+  --text-primary: #1A2744;
+  --text-secondary: #4A6B8A;
+  --text-muted: #8BA4C4;
+  --accent: #4A6B8A;
+  --accent-hover: #3A5A7A;
+  --accent-soft: rgba(74, 107, 138, .12);
+  --accent-text: #3A5A7A;
+  --tag-bg: #EBF0F7;
+  --tag-text: #4A6B8A;
+  --selection-bar-bg: #1A2744;
+  --selection-bar-text: #ffffff;
+  --panel-backdrop: rgba(26, 39, 68, .25)
 }
 
 .dark {
   --surface: theme(colors.gray.900);
   --surface-muted: theme(colors.gray.800);
   --border: theme(colors.gray.700);
-  --text-primary: theme(colors.gray.50);
+  /* --text-primary: theme(colors.gray.50);
   --text-secondary: theme(colors.gray.300);
-  --text-muted: theme(colors.gray.500);
+  --text-muted: theme(colors.gray.500); */
+
+  --bg-app: #1C2433;
+  --bg-surface: #252D3E;
+  --bg-sidebar: #1A2130;
+  --bg-elevated: #2F3A4F;
+  --bg-hover: #343F56;
+  --border: #2F3A4F;
+  --border-subtle: #252D3E;
+  --text-primary: #E3E9F2;
+  --text-secondary: #8BA4C4;
+  --text-muted: #5F7590;
+  --accent: #6B8FB0;
+  --accent-hover: #8BA4C4;
+  --accent-soft: rgba(107, 143, 176, .15);
+  --accent-text: #A8C0D8;
+  --tag-bg: #2F3A4F;
+  --tag-text: #8BA4C4;
+  --selection-bar-bg: #2F3A4F;
+  --selection-bar-text: #E3E9F2;
+  --panel-backdrop: rgba(28, 36, 51, .7)
+}
+
+.damask-sidebar-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url(/sidebar-texture.webp);
+  background-size: 400px 400px;
+  background-repeat: repeat;
+  opacity: .11;
+  pointer-events: none;
+  z-index: 0;
 }

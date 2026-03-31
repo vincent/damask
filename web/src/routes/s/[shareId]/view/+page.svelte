@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import { Download, X, MessageSquare, Send, File, Play, Music, Image } from '@lucide/svelte'
-  import { formatBytes, mimeCategory } from '$lib/api/client'
+  import { formatBytes, mimeCategory, type PublicAsset, type PublicShare, type ShareComment } from '$lib/api/client'
   import Badge from '$lib/components/ui/Badge.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
@@ -11,34 +11,6 @@
   import SharedAsset from '$lib/components/SharedAsset.svelte'
 
   const API_BASE = import.meta.env.VITE_API_URL ?? ''
-
-  // ---- Types ----
-
-  interface PublicShare {
-    id: string
-    label: string
-    allow_comments: boolean
-    allow_download: boolean
-    expires_at: string | null
-    has_password: boolean
-  }
-
-  interface PublicAsset {
-    id: string
-    original_filename: string
-    mime_type: string
-    size: number
-    created_at: string
-  }
-
-  interface ShareComment {
-    id: string
-    asset_id: string | null
-    author_name: string
-    author_email: string | null
-    body: string
-    created_at: string
-  }
 
   // ---- State ----
 
@@ -381,19 +353,23 @@
   {@const category = mimeCategory(selectedAsset.mime_type)}
   <!-- Backdrop -->
   <div
-    class="fixed w-[75%] inset-0 z-40 bg-black/40 backdrop-blur-sm grid place-items-center p-40"
+    class="fixed hidden md:grid md:w-[75%] inset-0 z-40 bg-black/40 backdrop-blur-sm grid place-items-center p-40"
     role="button"
     tabindex="-1"
     onclick={closePanel}
     onkeydown={(e) => e.key === 'Escape' && closePanel()}
   >
-    <SharedAsset {category} asset={selectedAsset} thumbUrl={thumbUrl(selectedAsset.id)} />
+    <SharedAsset
+      {category} asset={selectedAsset}
+      thumbUrl={thumbUrl(selectedAsset.id)}
+      assetUrl="{fileUrl(selectedAsset.id)}{sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : ''}"
+    />
   </div>
 
   <!-- Panel -->
   <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
   <aside
-    class="fixed w-[25%] inset-y-0 right-0 z-50 flex max-w-2xl flex-col bg-white shadow-2xl dark:bg-gray-900"
+    class="fixed w-full md:w-[25%] max-w-full md:max-w-2xl inset-y-0 right-0 z-50 flex flex-col bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
     aria-label="Asset review"
   >
@@ -440,13 +416,16 @@
       </div>
     </div>
 
-    <!-- Preview area -- >
-    <div class="flex-shrink-0 {cardBg[category]}" style="height: 220px">
+    <!-- Mobile Preview area -->
+    <div class="block md:hidden flex-shrink-0 {cardBg[category]}" style="height: 220px">
       <div class="flex h-full items-center justify-center">
-        <SharedAsset {category} asset={selectedAsset} thumbUrl={thumbUrl(selectedAsset.id)} />
+        <SharedAsset
+          {category} asset={selectedAsset}
+          thumbUrl={thumbUrl(selectedAsset.id)}
+          assetUrl="{fileUrl(selectedAsset.id)}{sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : ''}"
+        />
       </div>
     </div>
-    -->
 
     <!-- Comments section -->
     {#if share?.allow_comments}

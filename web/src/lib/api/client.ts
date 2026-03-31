@@ -149,6 +149,32 @@ export interface Asset {
   updated_at: string
 }
 
+export interface PublicShare {
+  id: string
+  label: string
+  allow_comments: boolean
+  allow_download: boolean
+  expires_at: string | null
+  has_password: boolean
+}
+
+export interface PublicAsset {
+  id: string
+  original_filename: string
+  mime_type: string
+  size: number
+  created_at: string
+}
+
+export interface ShareComment {
+  id: string
+  asset_id: string | null
+  author_name: string
+  author_email: string | null
+  body: string
+  created_at: string
+}
+
 // ---- Projects ----
 
 export interface Project {
