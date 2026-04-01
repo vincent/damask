@@ -13,6 +13,7 @@
   import PublicFooter from '$lib/components/PublicFooter.svelte'
   import AssetIcon from '$lib/components/AssetIcon.svelte'
   import Close from '$lib/components/ui/Close.svelte'
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte'
 
   let shareId = $derived(page.params.shareId || '')
 
@@ -50,13 +51,22 @@
     await store.init(shareId)
     store.loadGallery(shareId, () => goto(`/s/${shareId}`, { replaceState: true }))
   })
+
+  function handleWindowKeydown(e: KeyboardEvent) {
+    if (store.panelOpen && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault()
+      store.navigateAsset(shareId, e.key === 'ArrowLeft' ? 'prev' : 'next')
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>{store.share?.label ?? 'Shared Gallery'} — Damask</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-950">
+<div class="damask-texture flex min-h-screen flex-col">
 
   <!-- Header -->
   <header class="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
@@ -82,14 +92,18 @@
         {/if}
       </div>
 
-      {#if store.share?.allow_download && store.assets.length > 0}
-        <Button variant="secondary" onclick={() => store.downloadAll(shareId)} size="md">
-          {#snippet icon()}
-            <Download class="h-4 w-4" />
-          {/snippet}
-          Download All
-        </Button>
-      {/if}
+      <div class="flex items-center gap-2">
+        {#if store.share?.allow_download && store.assets.length > 0}
+          <Button variant="secondary" onclick={() => store.downloadAll(shareId)} size="md">
+            {#snippet icon()}
+              <Download class="h-4 w-4" />
+            {/snippet}
+            Download All
+          </Button>
+        {/if}
+
+        <ThemeToggle />
+      </div>
     </div>
   </header>
 

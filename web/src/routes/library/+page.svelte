@@ -34,6 +34,8 @@
   let zoom = $state(10)
   const maxZoom = 20
   let isDraggingFiles = $state(false)
+  let mainEl = $state<HTMLElement | undefined>(undefined)
+  let rubberBand = $state<{ startX: number; startY: number; x: number; y: number; w: number; h: number } | null>(null)
 
   const activeProject = $derived(
     navigationStore.activeProjectId
@@ -112,6 +114,36 @@
     assetsStore.upload(Array.from(e.dataTransfer.files))
   }
 
+  function handleMainMouseDown(e: MouseEvent) {
+    if (!e.shiftKey || e.button !== 0) return
+    if ((e.target as Element).closest('[data-asset-id]')) return
+    e.preventDefault()
+    rubberBand = { startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, w: 0, h: 0 }
+  }
+
+  function handleWindowMouseMove(e: MouseEvent) {
+    if (!rubberBand) return
+    const x = Math.min(e.clientX, rubberBand.startX)
+    const y = Math.min(e.clientY, rubberBand.startY)
+    const w = Math.abs(e.clientX - rubberBand.startX)
+    const h = Math.abs(e.clientY - rubberBand.startY)
+    rubberBand = { ...rubberBand, x, y, w, h }
+  }
+
+  function handleWindowMouseUp() {
+    if (!rubberBand || !mainEl) { rubberBand = null; return }
+    const ids: string[] = []
+    mainEl.querySelectorAll('[data-asset-id]').forEach((el) => {
+      const r = el.getBoundingClientRect()
+      if (r.right > rubberBand!.x && r.left < rubberBand!.x + rubberBand!.w &&
+          r.bottom > rubberBand!.y && r.top < rubberBand!.y + rubberBand!.h) {
+        ids.push((el as HTMLElement).dataset.assetId!)
+      }
+    })
+    if (ids.length > 0) selectionStore.selectByIds(ids)
+    rubberBand = null
+  }
+
   function handleWindowKeydown(e: KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault()
@@ -150,7 +182,7 @@
   <title>Library — Damask DAM</title>
 </svelte:head>
 
-<svelte:window onkeydown={handleWindowKeydown} />
+<svelte:window onkeydown={handleWindowKeydown} onmousemove={handleWindowMouseMove} onmouseup={handleWindowMouseUp} />
 
 <div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
@@ -270,11 +302,14 @@
     </header>
 
     <!-- Content -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <main
+      bind:this={mainEl}
       class="relative flex-1 overflow-y-auto px-6 py-6"
       ondragover={handleMainDragOver}
       ondragleave={handleMainDragLeave}
       ondrop={handleMainDrop}
+      onmousedown={handleMainMouseDown}
     >
       {#if isDraggingFiles}
         <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
@@ -315,7 +350,7 @@
                 <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
                   {#each group as asset (asset.id)}
                     {@const globalIndex = assetsStore.assets.indexOf(asset)}
-                    <div class="relative">
+                    <div class="relative" data-asset-id={asset.id}>
                       {#if selectionStore.selectedIds.has(asset.id)}
                         <div class="pointer-events-none absolute inset-0 z-5 rounded-xl ring-2 ring-indigo-500">
                           <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
@@ -346,6 +381,13 @@
         {/if}
       {/if}
     </main>
+
+    {#if rubberBand && rubberBand.w > 2 && rubberBand.h > 2}
+      <div
+        class="pointer-events-none fixed z-30 rounded border border-indigo-500 bg-indigo-500/15"
+        style="left:{rubberBand.x}px; top:{rubberBand.y}px; width:{rubberBand.w}px; height:{rubberBand.h}px"
+      ></div>
+    {/if}
 
     <LibraryStatusBar bind:zoom={zoom} max={maxZoom - 1} />
   </div>

@@ -123,6 +123,13 @@ function createPublicViewStore() {
     selectedAsset = null
   }
 
+  function navigateAsset(shareId: string, direction: 'prev' | 'next') {
+    if (!selectedAsset) return
+    const idx = assets.findIndex((a) => a.id === selectedAsset!.id)
+    if (direction === 'prev' && idx > 0) openAsset(shareId, assets[idx - 1])
+    if (direction === 'next' && idx < assets.length - 1) openAsset(shareId, assets[idx + 1])
+  }
+
   async function postComment(shareId: string) {
     commentNameError = ''
     commentBodyError = ''
@@ -202,6 +209,7 @@ function createPublicViewStore() {
     loadGallery,
     openAsset,
     closePanel,
+    navigateAsset,
     postComment,
     downloadAll,
   }

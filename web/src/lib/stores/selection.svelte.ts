@@ -40,6 +40,12 @@ export const selectionStore = {
     return false
   },
 
+  selectByIds(ids: string[]) {
+    const next = new Set(selectedIds)
+    for (const id of ids) next.add(id)
+    selectedIds = next
+  },
+
   remove(id: string) {
     const next = new Set(selectedIds)
     next.delete(id)

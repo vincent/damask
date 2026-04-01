@@ -24,9 +24,9 @@
     try {
       await tagApi.bulkTag([...selectedIds], name)
       tagInput = ''
-      activePanel = null
       ondone()
     } finally {
+      activePanel = null
       busy = false
     }
   }
@@ -36,9 +36,9 @@
     busy = true
     try {
       await tagApi.bulkProject([...selectedIds], projectId)
-      activePanel = null
       ondone()
     } finally {
+      activePanel = null
       busy = false
     }
   }
