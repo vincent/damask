@@ -52,7 +52,8 @@ export const sharesStore = {
         s.id === id ? { ...s, revoked_at: new Date().toISOString() } : s,
       )
       toastStore.show('Share revoked')
-    } catch {
+    } catch (e: unknown) {
+      console.log(e)
       toastStore.show('Could not revoke share', 'error')
     }
   },

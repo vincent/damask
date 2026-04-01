@@ -17,6 +17,10 @@ async function handleResponse<T>(res: Response): Promise<T> {
     const body = await res.json().catch(() => ({ error: res.statusText }))
     throw new ApiError(res.status, body.error ?? res.statusText)
   }
+  if (res.status === 204) {
+    // No content
+    return {} as T
+  }
   return res.json() as Promise<T>
 }
 
