@@ -258,6 +258,9 @@ export const assetApi = {
 }
 
 
+export function openThumbnailEvents(): EventSource {
+  return new EventSource(`${API_BASE}/api/v1/events`, { withCredentials: true })
+}
 
 export const variantApi = {
   list: (assetId: string) =>

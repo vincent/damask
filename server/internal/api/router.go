@@ -23,6 +23,7 @@ type Server struct {
 	tokenMaker     *auth.Maker
 	storage        storage.Storage
 	queue          *queue.Queue
+	hub            *EventHub
 	previewCache   *lruPreviewCache
 	removeBgAPIKey string
 	appEnv         string
@@ -60,6 +61,7 @@ func New(
 		tokenMaker:     tokenMaker,
 		storage:        stor,
 		queue:          q,
+		hub:            NewEventHub(),
 		previewCache:   newLRUPreviewCache(100),
 		removeBgAPIKey: removeBgAPIKey,
 		appEnv:         appEnv,
@@ -157,6 +159,9 @@ func New(
 
 	// Transform preview (in-memory, no storage write)
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
+
+	// Server-Sent Events (workspace-scoped)
+	api.Get("/events", s.handleEvents)
 
 	// Shares — authenticated, workspace-scoped
 	api.Post("/shares", s.handleCreateShare)

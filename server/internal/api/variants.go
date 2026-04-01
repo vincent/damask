@@ -350,10 +350,18 @@ func (s *Server) jobThumbnail(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("store thumb: %w", err)
 	}
 
-	return s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+	if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 		ThumbnailKey: &thumbKey,
 		ID:           p.AssetID,
+	}); err != nil {
+		return err
+	}
+	s.hub.Publish(p.WorkspaceID, Event{
+		Type:         "thumbnail_ready",
+		AssetID:      p.AssetID,
+		ThumbnailKey: thumbKey,
 	})
+	return nil
 }
 
 func (s *Server) jobImageTransform(ctx context.Context, job dbgen.Job) error {
@@ -461,10 +469,16 @@ func (s *Server) jobVideoThumbnail(ctx context.Context, job dbgen.Job) error {
 	// Set as asset thumbnail if none yet.
 	asset, _ := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
 	if asset.ThumbnailKey == nil {
-		_ = s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+		if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 			ThumbnailKey: &storageKey,
 			ID:           p.AssetID,
-		})
+		}); err == nil {
+			s.hub.Publish(p.WorkspaceID, Event{
+				Type:         "thumbnail_ready",
+				AssetID:      p.AssetID,
+				ThumbnailKey: storageKey,
+			})
+		}
 	}
 
 	paramsJSON, _ := json.Marshal(params)

@@ -21,6 +21,7 @@
   import AssetIcon from '../../lib/components/AssetIcon.svelte'
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import { goto } from '$app/navigation'
+  import { uploadsStore } from '$lib/stores/uploads.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
