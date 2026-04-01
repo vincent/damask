@@ -65,6 +65,8 @@ function createPublicViewStore() {
   // ---- Actions ----
   async function init(shareId: string) {
     sessionToken = (await cookieStore.get(`share_token_${shareId}`))?.value ?? null
+    commentName = sessionStorage.getItem('damask_comment_name') ?? ''
+    commentEmail = sessionStorage.getItem('damask_comment_email') ?? ''
   }
 
   async function loadGallery(shareId: string, onNeedsPassword: () => void) {
@@ -151,8 +153,8 @@ function createPublicViewStore() {
       if (res.ok) {
         const newComment = await res.json()
         comments = [...comments, newComment]
-        commentName = ''
-        commentEmail = ''
+        sessionStorage.setItem('damask_comment_name', commentName.trim())
+        sessionStorage.setItem('damask_comment_email', commentEmail.trim())
         commentBody = ''
         commentPosted = true
         setTimeout(() => (commentPosted = false), 3000)
