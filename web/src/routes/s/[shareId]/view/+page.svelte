@@ -66,7 +66,7 @@
   <title>{store.share?.label ?? 'Shared Gallery'} — Damask</title>
 </svelte:head>
 
-<div class="damask-texture flex min-h-screen flex-col">
+<div class="damask-texture relative flex min-h-screen flex-col">
 
   <!-- Header -->
   <header class="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
