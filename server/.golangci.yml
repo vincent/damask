@@ -1,15 +1,12 @@
-run:
-  timeout: 3m
+version: "2"
 
 linters:
-  enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
+  default: standard
 
-linters-settings:
-  errcheck:
-    check-type-assertions: false
+formatters:
+  enable:
+    - gci
+    - gofmt
+
+run:
+  timeout: 5m
