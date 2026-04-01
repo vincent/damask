@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tagApi, type Asset } from '$lib/api/client'
+  import { tagApi, type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
   

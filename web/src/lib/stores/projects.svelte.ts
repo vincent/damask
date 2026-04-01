@@ -1,4 +1,4 @@
-import { projectApi, type Project } from '$lib/api/client'
+import { projectApi, type Project } from '$lib/api'
 import { navigationStore } from './navigation.svelte'
 
 let projects = $state<Project[]>([])
@@ -6,7 +6,7 @@ let projects = $state<Project[]>([])
 const totalAssetCount = $derived(projects.reduce((sum, p) => sum + p.asset_count, 0))
 const activeProjectName = $derived(
   navigationStore.activeProjectId
-    ? (projects.find((p) => p.id === navigationStore.activeProjectId)?.name ?? 'Folder')
+    ? (projects.find((p) => p.id === navigationStore.activeProjectId)?.name ?? 'Project')
     : null,
 )
 

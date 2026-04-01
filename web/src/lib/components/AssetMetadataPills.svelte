@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { assetApi, formatBytes, type Asset } from "$lib/api/client"
+    import { assetApi, formatBytes, type Asset } from "$lib/api"
     import { Download } from "@lucide/svelte"
     import Badge from "./ui/Badge.svelte"
 

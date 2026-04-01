@@ -1,3 +1,5 @@
+import type { Asset, AuthResponse, CreateShareParams, CreateVariantResponse, Folder, Project, Share, Tag, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
+
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 export class ApiError extends Error {
@@ -31,35 +33,6 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, fetch = 
   }
 
   return handleResponse<T>(res)
-}
-
-// ---- Auth ----
-
-export interface User {
-  id: string
-  workspace_id: string
-  email: string
-  name: string
-  created_at: string
-}
-
-export interface Workspace {
-  id: string
-  name: string
-  created_at: string
-  updated_at: string
-}
-
-export interface AuthResponse {
-  token: string
-  user: User
-  workspace?: Workspace
-}
-
-export interface WorkspaceMeResponse {
-  workspace: Workspace
-  user: User
-  role: string
 }
 
 export const authApi = {
@@ -121,73 +94,6 @@ export const workspaceApi = {
     }),
 }
 
-// ---- Assets ----
-
-export interface NullableString {
-  String: string
-  Valid: boolean
-}
-
-export interface NullableInt64 {
-  Int64: number
-  Valid: boolean
-}
-
-export interface Asset {
-  id: string
-  workspace_id: string
-  project_id: NullableString
-  original_filename: string
-  mime_type: string
-  size: number
-  width: NullableInt64
-  height: NullableInt64
-  thumbnail_key: NullableString
-  metadata: NullableString
-  tags: string[]
-  created_at: string
-  updated_at: string
-}
-
-export interface PublicShare {
-  id: string
-  label: string
-  allow_comments: boolean
-  allow_download: boolean
-  expires_at: string | null
-  has_password: boolean
-}
-
-export interface PublicAsset {
-  id: string
-  original_filename: string
-  mime_type: string
-  size: number
-  created_at: string
-}
-
-export interface ShareComment {
-  id: string
-  asset_id: string | null
-  author_name: string
-  author_email: string | null
-  body: string
-  created_at: string
-}
-
-// ---- Projects ----
-
-export interface Project {
-  id: string
-  workspace_id: string
-  name: string
-  description: NullableString
-  color: NullableString
-  cover_asset_id: NullableString
-  asset_count: number
-  created_at: string
-  updated_at: string
-}
 
 export const projectApi = {
   list: () => apiFetch<Project[]>('/api/v1/projects'),
@@ -210,19 +116,6 @@ export const projectApi = {
     apiFetch<void>(`/api/v1/projects/${id}`, { method: 'DELETE' }),
 }
 
-// ---- Folders ----
-
-export interface Folder {
-  id: string
-  workspace_id: string
-  project_id: string
-  parent_id: NullableString
-  name: string
-  position: number
-  asset_count: number
-  children: Folder[]
-  created_at: string
-}
 
 export const folderApi = {
   list: (projectId: string) => apiFetch<Folder[]>(`/api/v1/projects/${projectId}/folders`),
@@ -243,13 +136,7 @@ export const folderApi = {
     apiFetch<void>(`/api/v1/folders/${id}`, { method: 'DELETE' }),
 }
 
-// ---- Tags ----
 
-export interface Tag {
-  id: string
-  name: string
-  asset_count: number
-}
 
 export const tagApi = {
   list: () => apiFetch<Tag[]>('/api/v1/tags'),
@@ -370,56 +257,7 @@ export const assetApi = {
   },
 }
 
-// ---- Variants ----
 
-export interface Variant {
-  id: string
-  asset_id: string
-  type: string
-  transform_params: NullableString
-  size: NullableInt64
-  storage_key: string
-  download_url: string
-  created_at: string
-}
-
-export interface CreateVariantResponse {
-  job_id: string
-  status: string
-  message: string
-}
-
-export interface ResizeParams {
-  width?: number
-  height?: number
-  fit?: 'contain' | 'cover' | 'fill'
-  quality?: number
-  format?: 'jpeg' | 'png' | 'tiff'
-}
-
-export interface ConvertParams {
-  format: 'jpeg' | 'png' | 'tiff'
-  quality?: number
-}
-
-export interface CropParams {
-  x: number
-  y: number
-  width: number
-  height: number
-  quality?: number
-  format?: 'jpeg' | 'png'
-}
-
-export interface VideoThumbnailParams {
-  timestamp?: number
-}
-
-export interface TranscodeParams {
-  format?: 'mp4' | 'webm'
-  resolution?: '1080p' | '720p' | '480p'
-  strip_audio?: boolean
-}
 
 export const variantApi = {
   list: (assetId: string) =>
@@ -456,45 +294,7 @@ export const variantApi = {
   },
 }
 
-// ---- Shares ----
 
-export interface Share {
-  id: string
-  workspace_id: string
-  created_by: string
-  label: string
-  target_type: 'collection' | 'asset' | 'project'
-  target_id: string
-  has_password: boolean
-  expires_at: string | null
-  allow_comments: boolean
-  allow_download: boolean
-  view_count: number
-  created_at: string
-  revoked_at: string | null
-  is_expired: boolean
-  public_url: string
-}
-
-export interface CreateShareParams {
-  label?: string
-  target_type: 'collection' | 'asset' | 'project'
-  target_id: string
-  password?: string
-  expires_in_days?: number | null
-  allow_comments?: boolean
-  allow_download?: boolean
-}
-
-export interface UpdateShareParams {
-  label?: string
-  password?: string
-  clear_password?: boolean
-  expires_at?: string
-  clear_expiry?: boolean
-  allow_comments?: boolean
-  allow_download?: boolean
-}
 
 export const shareApi = {
   list: () => apiFetch<Share[]>('/api/v1/shares'),

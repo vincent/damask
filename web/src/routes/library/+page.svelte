@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { type Asset } from '$lib/api/client'
+  import { type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
@@ -174,15 +174,15 @@
       </button>
     </div>
 
-    <!-- Folders section -->
+    <!-- Projects section -->
     <div class="flex flex-1 flex-col overflow-hidden px-3">
       <div class="mb-2 flex items-center justify-between px-2">
-        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Folders</span>
+        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Projects</span>
         {#if authStore.role !== 'viewer'}
           <button
             class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             onclick={() => { sidebarCreating = true }}
-            aria-label="New folder"
+            aria-label="New project"
           >
             <Plus class="h-3.5 w-3.5" />
           </button>
@@ -304,7 +304,7 @@
           {#if group.length > 0}
             <div class="mb-10">
               <!-- Category header -->
-              <div class="mb-4 flex items-center gap-3">
+              <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-3">
                 <AssetIcon category={cat} class="h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat].light} {CATEGORY_ICON_BG[cat].dark}"/>
                 <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{CATEGORY_LABELS[cat]}</h2>
                 <span class="text-sm text-gray-400 dark:text-gray-500">{group.length}</span>

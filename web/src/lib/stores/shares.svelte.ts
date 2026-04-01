@@ -1,4 +1,4 @@
-import { shareApi, type Share, type CreateShareParams } from '$lib/api/client'
+import { shareApi, type Share, type CreateShareParams } from '$lib/api'
 import { toastStore } from './toast.svelte'
 
 let shares = $state<Share[]>([])

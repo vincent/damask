@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tagApi, type Project } from '$lib/api/client'
+  import { tagApi, type Project } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { SquareArrowRightExit, Tag, Trash } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -79,7 +79,6 @@
             onsubmit={(e) => { e.preventDefault(); bulkTag() }}
           >
             <input
-              autofocus
               bind:value={tagInput}
               placeholder="Tag name"
               class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm shadow-lg focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"

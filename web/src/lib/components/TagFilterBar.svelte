@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tagApi, type Tag } from '$lib/api/client'
+  import { tagApi, type Tag } from '$lib/api'
   import Chip from '$lib/components/ui/Chip.svelte'
 
   interface Props {

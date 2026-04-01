@@ -1,4 +1,4 @@
-import { folderApi, assetApi, type Folder } from '$lib/api/client'
+import { folderApi, assetApi, type Folder } from '$lib/api'
 import { navigationStore } from './navigation.svelte'
 
 let foldersByProject = $state<Record<string, Folder[]>>({})

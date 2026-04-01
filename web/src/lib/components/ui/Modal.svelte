@@ -29,6 +29,7 @@
 
 {#if open}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="fixed inset-0 z-50 flex
       {side === 'right' ? 'justify-end' : 'items-center justify-center'}

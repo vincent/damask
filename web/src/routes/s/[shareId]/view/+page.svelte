@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import { Download, MessageSquare, Send } from '@lucide/svelte'
-  import { formatBytes, mimeCategory } from '$lib/api/client'
+  import { formatBytes, mimeCategory } from '$lib/api'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'

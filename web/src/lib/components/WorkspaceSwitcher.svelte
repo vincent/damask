@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Check, ChevronDown, Plus } from '@lucide/svelte'
-  import { workspaceApi, type WorkspaceWithRole } from '$lib/api/client'
+  import { workspaceApi, type WorkspaceWithRole } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
 
   let open = $state(false)

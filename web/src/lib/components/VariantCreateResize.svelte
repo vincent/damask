@@ -1,7 +1,7 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import { variantApi, type Asset } from '$lib/api/client'
+  import { variantApi, type Asset } from '$lib/api'
   
   interface Props {
     asset: Asset

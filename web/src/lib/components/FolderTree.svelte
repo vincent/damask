@@ -1,8 +1,8 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
-  import type { Folder } from '$lib/api/client'
-  import { EllipsisVertical, FolderClosed, FolderOpen } from '@lucide/svelte'
+  import type { Folder } from '$lib/api'
+  import { ChevronRight, EllipsisVertical, FolderClosed, FolderOpen } from '@lucide/svelte'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -133,7 +133,7 @@
           onclick={(e) => toggleOpen(folder.id, e)}
           aria-label="Toggle folder"
         >
-          <FolderClosed class="h-3 w-3 transition-transform {openFolderIds.has(folder.id) ? 'rotate-90' : ''}" />
+          <ChevronRight class="h-3 w-3 transition-transform {openFolderIds.has(folder.id) ? 'rotate-90' : ''}" />
         </button>
       {:else}
         <span class="w-5 shrink-0"></span>
@@ -153,7 +153,6 @@
           class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left text-sm {activeFolderId === folder.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
           onclick={() => onselect(folder.id)}
         >
-          <FolderClosed class="h-3.5 w-3.5 shrink-0 text-gray-400" />
           <span class="min-w-0 flex-1 truncate text-xs">{folder.name}</span>
           {#if folder.asset_count > 0}
             <span class="shrink-0 text-xs text-gray-400">{folder.asset_count}</span>
@@ -192,7 +191,6 @@
           onsubmit={(e) => { e.preventDefault(); submitCreate(folder.id) }}
         >
           <input
-            autofocus
             bind:value={newFolderName}
             placeholder="Folder name"
             class="min-w-0 flex-1 bg-transparent text-xs text-gray-900 outline-none dark:text-gray-100"
@@ -231,7 +229,6 @@
                 class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left {activeFolderId === child.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
                 onclick={() => onselect(child.id)}
               >
-                <FolderOpen class="h-3.5 w-3.5 shrink-0 text-gray-400" />
                 <span class="min-w-0 flex-1 truncate text-xs">{child.name}</span>
                 {#if child.asset_count > 0}
                   <span class="shrink-0 text-xs text-gray-400">{child.asset_count}</span>

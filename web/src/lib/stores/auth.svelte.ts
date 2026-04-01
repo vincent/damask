@@ -1,4 +1,4 @@
-import type { User, Workspace } from '$lib/api/client'
+import type { User, Workspace } from '$lib/api'
 
 export interface AuthState {
   user: User | null

@@ -1,4 +1,4 @@
-import type { Asset } from '$lib/api/client'
+import type { Asset } from '$lib/api'
 
 let selectedIds = $state(new Set<string>())
 let lastSelectedIndex = $state(-1)

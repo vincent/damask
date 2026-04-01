@@ -1,6 +1,6 @@
 <script lang="ts">
     import { File, Play, Music } from '@lucide/svelte'
-    import { formatBytes, mimeCategory } from '$lib/api/client'
+    import { formatBytes, mimeCategory } from '$lib/api'
     import Badge from '$lib/components/ui/Badge.svelte'
     import { TYPES_BACKGROUNDS } from '$lib/stores/publicView.svelte'
 

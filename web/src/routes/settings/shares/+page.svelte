@@ -3,7 +3,7 @@
   import { sharesStore } from '$lib/stores/shares.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
-  import type { Share } from '$lib/api/client'
+  import type { Share } from '$lib/api'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Badge from '$lib/components/ui/Badge.svelte'

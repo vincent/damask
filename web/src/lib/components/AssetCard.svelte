@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api/client'
+  import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api'
   import { File, Loader, Play } from '@lucide/svelte'
 
   interface Props {

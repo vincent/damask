@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Loader, Trash } from "@lucide/svelte"
-    import { assetApi, type Asset } from "$lib/api/client"
+    import { assetApi, type Asset } from "$lib/api"
 
     type Props = {
         asset: Asset

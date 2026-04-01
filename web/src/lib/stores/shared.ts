@@ -17,10 +17,10 @@ export const CATEGORY_ICON_BG: Record<CategoryKey, { light: string; dark: string
 }
 
 export const CATEGORY_BORDER: Record<CategoryKey, string> = {
-    image: 'border-violet-200',
-    video: 'border-red-200',
-    audio: 'border-emerald-200',
-    document: 'border-blue-200',
+    image: 'border-violet-200 border-violet-700',
+    video: 'border-red-200 dark:border-red-700',
+    audio: 'border-emerald-200 border-emerald-700',
+    document: 'border-blue-200 border-blue-700',
 }
 
 export function getProjectColor(project?: { color?: { Valid: boolean; String: string } } | null): string {

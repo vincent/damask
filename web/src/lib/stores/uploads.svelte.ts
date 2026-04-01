@@ -1,4 +1,4 @@
-import type { Asset } from '$lib/api/client'
+import type { Asset } from '$lib/api'
 
 export interface UploadItem {
   id: string

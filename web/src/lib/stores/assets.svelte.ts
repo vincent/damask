@@ -1,4 +1,4 @@
-import { assetApi, mimeCategory, type Asset } from '$lib/api/client'
+import { assetApi, mimeCategory, type Asset } from '$lib/api'
 import { navigationStore } from './navigation.svelte'
 import { uploadsStore } from './uploads.svelte'
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Asset, PublicAsset } from "$lib/api/client"
+    import type { Asset, PublicAsset } from "$lib/api"
     import AssetIcon from "./AssetIcon.svelte"
 
     type Props = {

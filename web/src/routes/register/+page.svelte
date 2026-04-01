@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
-  import { authApi, ApiError } from '$lib/api/client'
+  import { authApi, ApiError } from '$lib/api'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type Project } from '$lib/api/client'
+  import { type Project } from '$lib/api'
   import { ChevronUp, Search } from '@lucide/svelte'
 
   interface Props {

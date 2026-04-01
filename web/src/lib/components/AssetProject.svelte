@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { tagApi, type Asset, type Project } from '$lib/api/client'
-  import { authStore } from '$lib/stores/auth.svelte'
-  import Chip from '$lib/components/ui/Chip.svelte'
-  import ColorDot from './ui/ColorDot.svelte'
+  import { tagApi, type Asset, type Project } from '$lib/api'
   import { projectsStore } from '$lib/stores/projects.svelte'
+  import { authStore } from '$lib/stores/auth.svelte'
+  import ColorDot from './ui/ColorDot.svelte'
   
   interface Props {
     asset: Asset
@@ -28,7 +27,7 @@
 
 <div>
     <div class="mb-3 flex items-center justify-between">
-    <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Folder</p>
+    <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Project</p>
     {#if authStore.role !== 'viewer'}
         <button
         class="text-xs text-indigo-600 hover:underline dark:text-indigo-400"

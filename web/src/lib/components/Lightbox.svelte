@@ -5,7 +5,7 @@
     mimeCategory,
     type Asset,
     type Variant,
-  } from '$lib/api/client'
+  } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
@@ -22,7 +22,7 @@
   import VariantCreateRemoveBackground from './VariantCreateRemoveBackground.svelte'
   import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
   import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
-  import AssetFolder from './AssetFolder.svelte'
+  import AssetProject from './AssetProject.svelte'
   import Pills from './ui/Pills.svelte'
   import Feedback from './ui/Feedback.svelte'
   import AssetVariantsGrid from './AssetVariantsGrid.svelte'
@@ -233,7 +233,7 @@
           <AssetTags {asset} {ontagschanged} />
 
           {#if authStore.role !== 'viewer' || activeProject}
-            <AssetFolder {asset} {activeProject} {onprojectchanged} />
+            <AssetProject {asset} {activeProject} {onprojectchanged} />
           {/if}
         </div>
 

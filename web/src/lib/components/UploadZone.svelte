@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { assetApi, type Asset } from '$lib/api/client'
+  import { assetApi, type Asset } from '$lib/api'
   import { uploadsStore } from '$lib/stores/uploads.svelte'
   import { Upload } from '@lucide/svelte'
 

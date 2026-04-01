@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type Asset } from '$lib/api/client'
+  import { type Asset } from '$lib/api'
   
   interface Props {
     asset: Asset

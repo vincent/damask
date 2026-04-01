@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { formatBytes, variantApi, type Asset, type Variant } from '$lib/api/client'
+    import { formatBytes, variantApi, type Asset, type Variant } from '$lib/api'
     import { authStore } from '$lib/stores/auth.svelte'
     import { Download, Trash } from '@lucide/svelte'
 

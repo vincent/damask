@@ -4,7 +4,7 @@
     formatBytes,
     type Variant,
     type Asset,
-  } from '$lib/api/client'
+  } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { X, Download, Inbox, Trash } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'

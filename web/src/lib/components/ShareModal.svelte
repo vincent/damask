@@ -1,7 +1,7 @@
 <script lang="ts">
   import { EXPIRY_OPTIONS, sharesStore } from '$lib/stores/shares.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
-  import type { Share } from '$lib/api/client'
+  import type { Share } from '$lib/api'
   import Modal from '$lib/components/ui/Modal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
