@@ -47,7 +47,7 @@ func shareRequest(method, path string, body string, token string) *http.Request 
 		req = httptest.NewRequest(method, path, nil)
 	}
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-Share-Token", token)
 	}
 	return req
 }

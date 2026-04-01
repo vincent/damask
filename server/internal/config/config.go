@@ -14,6 +14,7 @@ type Config struct {
 	StoragePath    string
 	JWTSecret      string
 	AppEnv         string
+	BaseURL        string
 	RemoveBgAPIKey string
 	QueueWorkers   int
 }

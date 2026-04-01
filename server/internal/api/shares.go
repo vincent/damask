@@ -70,13 +70,13 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	var body struct {
-		Label          string  `json:"label"`
-		TargetType     string  `json:"target_type"`
-		TargetID       string  `json:"target_id"`
-		Password       *string `json:"password"`
-		ExpiresInDays  *int    `json:"expires_in_days"`
-		AllowComments  bool    `json:"allow_comments"`
-		AllowDownload  *bool   `json:"allow_download"`
+		Label         string  `json:"label"`
+		TargetType    string  `json:"target_type"`
+		TargetID      string  `json:"target_id"`
+		Password      *string `json:"password"`
+		ExpiresInDays *int    `json:"expires_in_days"`
+		AllowComments bool    `json:"allow_comments"`
+		AllowDownload *bool   `json:"allow_download"`
 	}
 	if err := c.Bind().Body(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
@@ -148,8 +148,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create share")
 	}
 
-	baseURL := c.BaseURL()
-	return c.Status(fiber.StatusCreated).JSON(shareToResponse(share, baseURL))
+	return c.Status(fiber.StatusCreated).JSON(shareToResponse(share, s.baseUrl))
 }
 
 // shareTargetErr is a sentinel for target validation failures.
@@ -205,10 +204,9 @@ func (s *Server) handleListShares(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list shares")
 	}
 
-	baseURL := c.BaseURL()
 	items := make([]shareResponse, len(shares))
 	for i, sh := range shares {
-		items[i] = shareToResponse(sh, baseURL)
+		items[i] = shareToResponse(sh, s.baseUrl)
 	}
 	return c.JSON(items)
 }
@@ -229,7 +227,7 @@ func (s *Server) handleGetShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load share")
 	}
 
-	return c.JSON(shareToResponse(share, c.BaseURL()))
+	return c.JSON(shareToResponse(share, s.baseUrl))
 }
 
 // PUT /api/v1/shares/:id
@@ -251,9 +249,9 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 
 	var body struct {
 		Label         *string `json:"label"`
-		Password      *string `json:"password"`      // empty string = remove password
+		Password      *string `json:"password"`       // empty string = remove password
 		ClearPassword *bool   `json:"clear_password"` // explicit flag to remove password
-		ExpiresAt     *string `json:"expires_at"`    // ISO string or null to clear
+		ExpiresAt     *string `json:"expires_at"`     // ISO string or null to clear
 		ClearExpiry   *bool   `json:"clear_expiry"`
 		AllowComments *bool   `json:"allow_comments"`
 		AllowDownload *bool   `json:"allow_download"`
@@ -324,7 +322,7 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not update share")
 	}
 
-	return c.JSON(shareToResponse(updated, c.BaseURL()))
+	return c.JSON(shareToResponse(updated, s.baseUrl))
 }
 
 // DELETE /api/v1/shares/:id  — soft delete via revoked_at

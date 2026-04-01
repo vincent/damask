@@ -26,6 +26,7 @@ type Server struct {
 	previewCache   *lruPreviewCache
 	removeBgAPIKey string
 	appEnv         string
+	baseUrl        string
 }
 
 // New creates a configured Fiber app with all routes registered.
@@ -51,6 +52,7 @@ func New(
 	q *queue.Queue,
 	removeBgAPIKey,
 	appEnv string,
+	baseUrl string,
 ) *fiber.App {
 	s := &Server{
 		db:             db,
@@ -61,6 +63,7 @@ func New(
 		previewCache:   newLRUPreviewCache(100),
 		removeBgAPIKey: removeBgAPIKey,
 		appEnv:         appEnv,
+		baseUrl:        baseUrl,
 	}
 	s.RegisterJobHandlers()
 

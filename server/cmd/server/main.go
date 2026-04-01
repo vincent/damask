@@ -45,7 +45,7 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv)
+	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL)
 
 	log.Printf("server starting on :%s (env=%s, workers=%d)", cfg.Port, cfg.AppEnv, cfg.QueueWorkers)
 	if err := app.Listen(":" + cfg.Port); err != nil {
