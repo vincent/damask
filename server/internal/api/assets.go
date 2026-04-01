@@ -13,6 +13,7 @@ import (
 	_ "image/png"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
+	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -123,6 +125,22 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 			}
 		}
 	}
+	if strings.HasPrefix(mimeType, "video/") {
+		tmpFile := filepath.Join(os.TempDir(), assetID)
+		err = c.SaveFile(fh, tmpFile)
+		if err != nil {
+			log.Printf("could not save uploaded file: %v", err)
+		} else {
+			res, err := transform.ExtractVideoResolution(c.RequestCtx(), tmpFile)
+			if err != nil {
+				log.Printf("could not extract video resolution of %s: %v", fh.Filename, err)
+			} else {
+				width = &res.Width
+				height = &res.Height
+			}
+			_ = os.Remove(tmpFile)
+		}
+	}
 
 	asset, err := s.db.CreateAsset(c.RequestCtx(), dbgen.CreateAssetParams{
 		ID:               assetID,
@@ -146,6 +164,18 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		})
 		if _, err := s.queue.Enqueue(context.Background(), claims.WorkspaceID, queue.JobTypeThumbnail, string(payload)); err != nil {
 			log.Printf("thumbnail: enqueue %s: %v", asset.ID, err)
+		}
+	}
+	if strings.HasPrefix(mimeType, "video/") {
+		params, _ := json.Marshal(transform.VideoThumbnailParams{Timestamp: 1.0})
+		payload, _ := json.Marshal(variantJobPayload{
+			AssetID:     asset.ID,
+			WorkspaceID: claims.WorkspaceID,
+			StorageKey:  storageKey,
+			Params:      params,
+		})
+		if _, err := s.queue.Enqueue(context.Background(), claims.WorkspaceID, queue.JobTypeVideoThumbnail, string(payload)); err != nil {
+			log.Printf("video thumbnail: enqueue %s: %v", asset.ID, err)
 		}
 	}
 

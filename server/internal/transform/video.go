@@ -4,10 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
+
+type VideoResolution struct {
+	Width  int64 `json:"width"`
+	Height int64 `json:"height"`
+}
 
 // VideoThumbnailParams defines parameters for extracting a video frame.
 type VideoThumbnailParams struct {
@@ -17,15 +24,66 @@ type VideoThumbnailParams struct {
 
 // TranscodeParams defines parameters for video transcoding.
 type TranscodeParams struct {
-	Format     string `json:"format"`      // mp4 | webm
-	Resolution string `json:"resolution"`  // 1080p | 720p | 480p | "" (unchanged)
+	Format     string `json:"format"`     // mp4 | webm
+	Resolution string `json:"resolution"` // 1080p | 720p | 480p | "" (unchanged)
 	StripAudio bool   `json:"strip_audio"`
+}
+
+// ExtractVideoResolution runs ffprobe to extract a single frame from a video file.
+// srcPath must be a filesystem path to the source video.
+// Returns VideoResolution.
+func ExtractVideoResolution(ctx context.Context, srcPath string) (*VideoResolution, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var buf bytes.Buffer
+	var stderr bytes.Buffer
+
+	// 	ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 srcPath
+	cmd := exec.CommandContext(ctx,
+		"ffprobe",
+		"-v", "error",
+		"-select_streams", "v:0",
+		"-show_entries", "stream=width,height",
+		"-of", "csv=s=x:p=0",
+		srcPath,
+	)
+	cmd.Stdout = &buf
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ffprobe resolution: %w — stderr: %s", err, stderr.String())
+	}
+
+	parts := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("x"))
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("ffprobe resolution: unexpected output: %s", buf.String())
+	}
+	width, err := strconv.ParseInt(string(parts[0]), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("ffprobe resolution: invalid width: %w", err)
+	}
+	height, err := strconv.ParseInt(string(parts[1]), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("ffprobe resolution: invalid height: %w", err)
+	}
+
+	return &VideoResolution{Width: width, Height: height}, nil
 }
 
 // ExtractVideoThumbnail runs ffmpeg to extract a single frame from a video file.
 // srcPath must be a filesystem path to the source video.
 // Returns JPEG bytes.
 func ExtractVideoThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error) {
+	if len(strings.TrimSpace(srcPath)) == 0 {
+		return nil, fmt.Errorf("source path is empty")
+	}
+
+	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("source path does not exist: %s", srcPath)
+	}
+
 	ts := p.Timestamp
 	if ts <= 0 {
 		ts = 1.0

@@ -443,6 +443,10 @@ func (s *Server) jobVideoThumbnail(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
+	if len(p.StorageKey) == 0 {
+		return fmt.Errorf("storage key is empty: %s", job.ID)
+	}
+
 	var params transform.VideoThumbnailParams
 	if len(p.Params) > 0 {
 		_ = json.Unmarshal(p.Params, &params)
@@ -608,22 +612,18 @@ func (s *Server) writeToTempFile(ctx context.Context, storageKey, ext string) (s
 
 	f, err := os.CreateTemp("", "damask-*"+ext)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("create temp: %w", err)
 	}
-	if _, err := io.Copy(f, rc); err != nil {
-		err = f.Close()
-		if err != nil {
-			return "", nil, err
-		}
-		err = os.Remove(f.Name())
-		if err != nil {
-			return "", nil, err
-		}
-		return "", nil, err
+	fmt.Println("copying", storageKey)
+	fmt.Println("into", f.Name())
+	if _, copyErr := io.Copy(f, rc); copyErr != nil {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+		return "", nil, fmt.Errorf("copy to temp: %w", copyErr)
 	}
 	err = f.Close()
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("close temp: %w", err)
 	}
 	return f.Name(), func() { _ = os.Remove(f.Name()) }, nil
 }

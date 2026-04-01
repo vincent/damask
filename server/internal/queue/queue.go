@@ -4,6 +4,7 @@ package queue
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -126,6 +127,17 @@ func (q *Queue) processNext(ctx context.Context) {
 		q.transcodeSem <- struct{}{}
 		defer func() { <-q.transcodeSem }()
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("queue: job %s (%s) panicked: %v", job.ID, job.Type, r)
+			errMsg := fmt.Sprintf("panic: %v", r)
+			_ = q.db.FailJob(ctx, dbgen.FailJobParams{
+				Error: &errMsg,
+				ID:    job.ID,
+			})
+		}
+	}()
 
 	h, ok := q.handlers[job.Type]
 	if !ok {

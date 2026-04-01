@@ -50,7 +50,7 @@
     <!-- Status dot -->
     <div class="absolute left-2.5 top-2.5 h-3 w-3 rounded-full {dotBg[category]}"></div>
 
-    {#if category === 'image' && !isProcessing}
+    {#if (category === 'image' || category === 'video') && !isProcessing}
       <img
         src={assetApi.thumbUrl(asset.id)}
         alt={asset.original_filename}
