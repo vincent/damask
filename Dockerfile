@@ -1,5 +1,5 @@
 # ── Go build ──────────────────────────────────────────────────────────────────
-FROM golang:1.24-bookworm AS go-build
+FROM golang:1.25-bookworm AS go-build
 WORKDIR /build/server
 COPY server/ .
 RUN CGO_ENABLED=0 go build -mod=mod -trimpath \
