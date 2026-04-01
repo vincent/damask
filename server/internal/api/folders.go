@@ -175,9 +175,9 @@ func (s *Server) handleGetFolders(c fiber.Ctx) error {
 		f.id = id
 		f.parentID = parentID
 		f.depth = depth
-		f.folderResponse.ID = id
-		f.folderResponse.ParentID = parentID
-		f.folderResponse.Children = []folderResponse{}
+		f.ID = id
+		f.ParentID = parentID
+		f.Children = []folderResponse{}
 		flat = append(flat, f)
 	}
 	if err := rows.Err(); err != nil {

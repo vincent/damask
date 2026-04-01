@@ -33,9 +33,9 @@ func createTestAsset(t *testing.T, env *testEnv) (assetID string, cookie *http.C
 
 	var body bytes.Buffer
 	boundary := "TestBoundary"
-	body.WriteString(fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\nContent-Type: image/png\r\n\r\n", boundary))
-	body.Write(buf.Bytes())
-	body.WriteString(fmt.Sprintf("\r\n--%s--\r\n", boundary))
+	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\nContent-Type: image/png\r\n\r\n", boundary)
+	_, _ = body.Write(buf.Bytes())
+	_, _ = fmt.Fprintf(&body, "\r\n--%s--\r\n", boundary)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
@@ -143,7 +143,7 @@ func TestListVariants_WithVariant(t *testing.T) {
 	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
 	resp, _ := env.app.Test(req)
 	var a assetResponse
-	json.NewDecoder(resp.Body).Decode(&a)
+	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
@@ -157,7 +157,7 @@ func TestListVariants_WithVariant(t *testing.T) {
 	}
 
 	var variants []variantResponse
-	json.NewDecoder(resp2.Body).Decode(&variants)
+	_ = json.NewDecoder(resp2.Body).Decode(&variants)
 	if len(variants) != 1 {
 		t.Fatalf("expected 1 variant, got %d", len(variants))
 	}
@@ -208,7 +208,7 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	}
 
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	if result["job_id"] == "" {
 		t.Error("expected job_id in response")
 	}
@@ -232,7 +232,7 @@ func TestCreateVariant_ResizeQueued(t *testing.T) {
 	}
 
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	if result["job_id"] == "" {
 		t.Error("expected job_id in response")
 	}
@@ -260,7 +260,7 @@ func TestDeleteVariant(t *testing.T) {
 	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
 	resp, _ := env.app.Test(req)
 	var a assetResponse
-	json.NewDecoder(resp.Body).Decode(&a)
+	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
@@ -278,7 +278,7 @@ func TestDeleteVariant(t *testing.T) {
 	listReq := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
 	listResp, _ := env.app.Test(listReq)
 	var variants []variantResponse
-	json.NewDecoder(listResp.Body).Decode(&variants)
+	_ = json.NewDecoder(listResp.Body).Decode(&variants)
 	if len(variants) != 0 {
 		t.Fatalf("expected 0 variants after delete, got %d", len(variants))
 	}
@@ -303,7 +303,7 @@ func TestGetVariantFile(t *testing.T) {
 	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
 	resp, _ := env.app.Test(req)
 	var a assetResponse
-	json.NewDecoder(resp.Body).Decode(&a)
+	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
@@ -361,9 +361,9 @@ func TestPreviewTransform_NonImage(t *testing.T) {
 	// Upload a non-image file.
 	var body bytes.Buffer
 	boundary := "TestBoundaryPDF"
-	body.WriteString(fmt.Sprintf("--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"doc.pdf\"\r\nContent-Type: application/pdf\r\n\r\n", boundary))
-	body.WriteString("%PDF-1.4 fake content")
-	body.WriteString(fmt.Sprintf("\r\n--%s--\r\n", boundary))
+	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"doc.pdf\"\r\nContent-Type: application/pdf\r\n\r\n", boundary)
+	_, _ = body.WriteString("%PDF-1.4 fake content")
+	_, _ = fmt.Fprintf(&body, "\r\n--%s--\r\n", boundary)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
@@ -371,7 +371,7 @@ func TestPreviewTransform_NonImage(t *testing.T) {
 	resp, _ := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
 
 	var a assetResponse
-	json.NewDecoder(resp.Body).Decode(&a)
+	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	previewReq := authRequest(http.MethodGet,
 		fmt.Sprintf("/api/v1/assets/%s/preview?w=100", a.ID), nil, res.Cookie)
@@ -388,7 +388,7 @@ func TestVariant_ViewerCannotDelete(t *testing.T) {
 	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ownerCookie)
 	resp, _ := env.app.Test(req)
 	var a assetResponse
-	json.NewDecoder(resp.Body).Decode(&a)
+	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 

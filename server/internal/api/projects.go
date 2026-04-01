@@ -218,12 +218,4 @@ func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// ptrStr dereferences a *string safely, returning "" for nil.
-func ptrStr(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
 // fiber:context-methods migrated

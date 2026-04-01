@@ -42,7 +42,10 @@ func buildUploadRequest(t *testing.T, filename string, content []byte, cookie *h
 	if _, err := fw.Write(content); err != nil {
 		t.Fatalf("write form file: %v", err)
 	}
-	w.Close()
+	err = w.Close()
+	if err != nil {
+		t.Fatalf("close form: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
@@ -114,7 +117,10 @@ func TestUploadAsset_ViewerForbidden(t *testing.T) {
 	w := multipart.NewWriter(&body)
 	fw, _ := w.CreateFormFile("file", "file.jpg")
 	fw.Write(makeJPEG(10, 10)) //nolint:errcheck
-	w.Close()
+	err := w.Close()
+	if err != nil {
+		t.Fatalf("close form: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", w.FormDataContentType())

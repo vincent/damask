@@ -611,12 +611,21 @@ func (s *Server) writeToTempFile(ctx context.Context, storageKey, ext string) (s
 		return "", nil, err
 	}
 	if _, err := io.Copy(f, rc); err != nil {
-		f.Close()
-		os.Remove(f.Name())
+		err = f.Close()
+		if err != nil {
+			return "", nil, err
+		}
+		err = os.Remove(f.Name())
+		if err != nil {
+			return "", nil, err
+		}
 		return "", nil, err
 	}
-	f.Close()
-	return f.Name(), func() { os.Remove(f.Name()) }, nil
+	err = f.Close()
+	if err != nil {
+		return "", nil, err
+	}
+	return f.Name(), func() { _ = os.Remove(f.Name()) }, nil
 }
 
 func readFile(path string) ([]byte, error) {

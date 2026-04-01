@@ -27,7 +27,7 @@ test:
 # Run linters
 lint:
 	cd server && golangci-lint run
-	cd web && npm run lint
+	cd web && npm run check
 
 # Run sqlc code generation
 generate:

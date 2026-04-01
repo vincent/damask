@@ -84,7 +84,7 @@ func (s *Server) handleEvents(c fiber.Ctx) error {
 	return c.SendStreamWriter(func(w *bufio.Writer) {
 		defer cancel()
 
-		fmt.Fprintf(w, ": connected\n\n")
+		_, _ = fmt.Fprintf(w, ": connected\n\n")
 		if err := w.Flush(); err != nil {
 			return
 		}
@@ -99,12 +99,12 @@ func (s *Server) handleEvents(c fiber.Ctx) error {
 					return
 				}
 				data, _ := json.Marshal(ev)
-				fmt.Fprintf(w, "data: %s\n\n", data)
+				_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
 				if err := w.Flush(); err != nil {
 					return
 				}
 			case <-ticker.C:
-				fmt.Fprintf(w, ": heartbeat\n\n")
+				_, _ = fmt.Fprintf(w, ": heartbeat\n\n")
 				if err := w.Flush(); err != nil {
 					return
 				}

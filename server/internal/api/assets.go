@@ -83,7 +83,10 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	}
 	sniff := make([]byte, 512)
 	n, _ := f.Read(sniff)
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not close uploaded file")
+	}
 	mimeType := http.DetectContentType(sniff[:n])
 	if idx := strings.Index(mimeType, ";"); idx != -1 {
 		mimeType = strings.TrimSpace(mimeType[:idx])
@@ -110,7 +113,10 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		f3, err := fh.Open()
 		if err == nil {
 			cfg, _, decErr := image.DecodeConfig(f3)
-			f3.Close()
+			err = f3.Close()
+			if err != nil {
+				return errRes(c, fiber.StatusInternalServerError, "could not close uploaded file")
+			}
 			if decErr == nil {
 				w, h := int64(cfg.Width), int64(cfg.Height)
 				width, height = &w, &h

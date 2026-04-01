@@ -45,7 +45,12 @@ func setupTestApp(t *testing.T) *testEnv {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { sqlDB.Close() })
+	t.Cleanup(func() {
+		err := sqlDB.Close()
+		if err != nil {
+			t.Fatalf("close db: %v", err)
+		}
+	})
 
 	maker, err := auth.NewMaker("test-secret-key-must-be-32chars!!")
 	if err != nil {

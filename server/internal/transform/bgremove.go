@@ -40,7 +40,10 @@ func RemoveBackground(ctx context.Context, imageData []byte, apiKey string) ([]b
 	}
 	_ = w.WriteField("size", "auto")
 	_ = w.WriteField("format", "png")
-	w.Close()
+	err = w.Close()
+	if err != nil {
+		return nil, fmt.Errorf("close file: %w", err)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, RemoveBgAPIURL, &body)
 	if err != nil {
