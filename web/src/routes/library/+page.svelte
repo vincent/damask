@@ -16,15 +16,16 @@
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
-  import { Book, Inbox, Loader, LogOut, Plus, Search, Share2 } from '@lucide/svelte'
+  import { Book, Inbox, Loader, LogOut, Plus, Share2 } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
-  import GridSkeleton from './GridSkeleton.svelte';
+  import GridSkeleton from '../../lib/components/ui/GridSkeleton.svelte';
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import AssetIcon from '../../lib/components/AssetIcon.svelte'
+  import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
@@ -165,7 +166,7 @@
     assetsStore.load(true)
     sharesStore.load()
 
-    seenSplashScreen = localStorage.getItem('seen_splash_screen') !== null
+    seenSplashScreen = localStorage.getItem(`onboard_${authStore.workspace?.id}`) !== null
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -281,11 +282,6 @@
           onchange={(v) => { assetsStore.query = v; assetsStore.search() }}
         />
 
-        <!-- Filter icon -->
-        <button class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-500 dark:hover:bg-gray-800">
-          <Search class="h-4 w-4" />
-        </button>
-
         {#if authStore.role !== 'viewer'}
           <label class="cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
             Upload
@@ -329,7 +325,10 @@
       {#if assetsStore.initialLoad}
         <GridSkeleton x={7} y={3} {zoom} {maxZoom} />
       {:else if !seenSplashScreen}
-        Hey ! Welcome to Damask, the digital asset management tool for creatives. This is your library, where all your assets will be stored and organized. You can create projects to group related assets, and use folders to structure them further. To get started, try uploading some files or creating a new project. If you need any help, check out the documentation or contact support. Happy organizing!
+        <OnboardingScreen onDismiss={() => {
+          seenSplashScreen = true
+          localStorage.setItem(`onboard_${authStore.workspace?.id}`, 'true')
+        }} />
       {:else if assetsStore.assets.length === 0}
         <EmptyState
           title={assetsStore.query ? `No results for "${assetsStore.query}"` : 'No assets yet'}
