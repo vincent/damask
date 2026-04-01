@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { type Project } from '$lib/api'
+  import { type MenuItem, type Project } from '$lib/api'
   import { ChevronUp, Search } from '@lucide/svelte'
 
   interface Props {
     projects: Project[]
-    onselect: (id: string | null) => void
+    onselect: (item: MenuItem | null) => void
     onclose: () => void
   }
 
@@ -14,15 +14,9 @@
   let activeIndex = $state(0)
   let inputEl = $state<HTMLInputElement | undefined>(undefined)
 
-  interface Item {
-    id: string | null
-    label: string
-    color?: string
-    count?: number
-  }
-
-  let items = $derived<Item[]>([
-    { id: null, label: 'All assets' },
+  let items = $derived<MenuItem[]>([
+    { id: null, label: 'All assets', url: '/library' },
+    { id: null, label: 'All shares', url: '/library/shares' },
     ...projects
       .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
       .map((p) => ({
@@ -47,7 +41,7 @@
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (items[activeIndex]) {
-        onselect(items[activeIndex].id)
+        onselect(items[activeIndex])
         onclose()
       }
     } else if (e.key === 'Escape') {
@@ -92,7 +86,7 @@
         <li>
           <button
             class="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors {i === activeIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}"
-            onclick={() => { onselect(item.id); onclose() }}
+            onclick={() => { onselect(item); onclose() }}
             onmouseenter={() => { activeIndex = i }}
           >
             {#if item.color}

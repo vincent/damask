@@ -6,7 +6,6 @@
   import type { Share } from '$lib/api'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import Badge from '$lib/components/ui/Badge.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
   import {
     Copy,
@@ -20,7 +19,6 @@
     Download,
     AlertCircle,
     CheckCircle,
-    Clock,
   } from '@lucide/svelte'
 
   let showCreateModal = $state(false)
@@ -83,7 +81,7 @@
   <!-- Simple settings layout: full-width content -->
   <div class="flex flex-1 flex-col overflow-hidden">
     <!-- Header -->
-    <header class="border-b border-gray-100 bg-white px-8 py-5 dark:border-gray-800 dark:bg-gray-900">
+    <header class="border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">Share Links</h1>
@@ -101,7 +99,7 @@
     </header>
 
     <!-- Content -->
-    <main class="flex-1 overflow-y-auto px-8 py-6">
+    <main class="flex-1 overflow-y-auto px-6 py-6">
       {#if sharesStore.loading}
         <div class="space-y-3">
           {#each { length: 4 } as _}

@@ -1,4 +1,12 @@
 
+export interface MenuItem {
+  id: string | null
+  label: string
+  url?: string
+  color?: string
+  count?: number
+}
+
 // ---- Auth ----
 
 export interface User {

@@ -1,36 +1,30 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { type Asset } from '$lib/api'
+  import { type Asset, type MenuItem } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import { selectionStore } from '$lib/stores/selection.svelte'
-  import { toastStore } from '$lib/stores/toast.svelte'
-  import { sharesStore } from '$lib/stores/shares.svelte'
   import AssetCard from '$lib/components/AssetCard.svelte'
   import Lightbox from '$lib/components/Lightbox.svelte'
-  import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import BulkActionBar from '$lib/components/BulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
-  import { Book, Inbox, Loader, LogOut, Plus, Share2 } from '@lucide/svelte'
-  import ThemeToggle from '$lib/components/ThemeToggle.svelte'
-  import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
+  import { Inbox, Loader, Share2 } from '@lucide/svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
   import GridSkeleton from '../../lib/components/ui/GridSkeleton.svelte';
-  import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import AssetIcon from '../../lib/components/AssetIcon.svelte'
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
+  import { goto } from '$app/navigation'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
   let showPalette = $state(false)
-  let sidebarCreating = $state(false)
   let showProjectShareModal = $state(false)
   let seenSplashScreen = $state(false)
   let zoom = $state(10)
@@ -62,25 +56,11 @@
     if (!handled) selectedAsset = asset
   }
 
-  async function handleProjectSelect(id: string | null) {
-    navigationStore.selectProject(id)
-    if (id) await foldersStore.loadForProject(id)
+  async function handleProjectSelect(item: MenuItem | null) {
+    navigationStore.selectProject(item?.id ?? null)
+    if (item?.id) await foldersStore.loadForProject(item.id)
+    if (item?.url) return goto(item.url)
     await assetsStore.load(true)
-  }
-
-  async function handleFolderSelect(_projectId: string, folderId: string | null) {
-    navigationStore.selectFolder(folderId)
-    await assetsStore.load(true)
-  }
-
-  async function handleAssetsDropped(assetIds: string[], folderId: string | null, projectId: string) {
-    try {
-      await foldersStore.moveAssets(assetIds, folderId, projectId)
-      toastStore.show(`Moved ${assetIds.length} asset${assetIds.length > 1 ? 's' : ''}`)
-      await assetsStore.load(true)
-    } catch {
-      toastStore.show('Could not move assets', 'error')
-    }
   }
 
   async function handleBulkDone() {
@@ -162,10 +142,6 @@
   }
 
   onMount(() => {
-    projectsStore.load()
-    assetsStore.load(true)
-    sharesStore.load()
-
     seenSplashScreen = localStorage.getItem(`onboard_${authStore.workspace?.id}`) !== null
 
     const observer = new IntersectionObserver(
@@ -188,214 +164,149 @@
 
 <svelte:window onkeydown={handleWindowKeydown} onmousemove={handleWindowMouseMove} onmouseup={handleWindowMouseUp} />
 
-<div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
-  <!-- Sidebar -->
-  <aside class="damask-texture relative flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
-
-    <!-- Workspace switcher -->
-    <WorkspaceSwitcher class="px-3 py-3" />
-
-    <!-- All Assets button -->
-    <div class="px-3 pb-2">
+<!-- Top bar -->
+<header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+  <div class="flex items-center gap-3">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
+        {projectsStore.activeProjectName ?? 'Library'}
+      </h1>
+      <p class="mt-0.5 text-sm text-gray-400">
+        All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
+      </p>
+    </div>
+    {#if activeProject}
       <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
-          {navigationStore.activeProjectId === null ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-        onclick={() => handleProjectSelect(null)}
+        type="button"
+        class="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400"
+        onclick={() => { showProjectShareModal = true }}
+        title="Share this project"
       >
-        <Book class="h-4 w-4 shrink-0 text-gray-400" />
-        <span class="flex-1 text-left">All Assets</span>
-        {#if projectsStore.totalAssetCount > 0}
-          <span class="shrink-0 text-xs text-gray-400">{projectsStore.totalAssetCount}</span>
-        {/if}
+        <Share2 class="h-3.5 w-3.5" />
+        Share
       </button>
-    </div>
-
-    <!-- Projects section -->
-    <div class="flex flex-1 flex-col overflow-hidden px-3">
-      <div class="mb-2 flex items-center justify-between px-2">
-        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Projects</span>
-        {#if authStore.role !== 'viewer'}
-          <button
-            class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            onclick={() => { sidebarCreating = true }}
-            aria-label="New project"
-          >
-            <Plus class="h-3.5 w-3.5" />
-          </button>
-        {/if}
-      </div>
-
-      <nav class="flex-1 overflow-y-auto">
-        <ProjectSidebar
-          selectedAssetIds={selectionStore.selectedIds}
-          creating={sidebarCreating}
-          oncreatingchange={(v) => { sidebarCreating = v }}
-          onselect={handleProjectSelect}
-          onfolderselect={handleFolderSelect}
-          onassetsDropped={handleAssetsDropped}
-        />
-      </nav>
-    </div>
-
-    <!-- Bottom sign out + theme toggle -->
-    <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
-      <ThemeToggle />
-      <a href="/logout" class="flex items-center gap-2 rounded-lg px-2 text-sm text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-        <LogOut class="h-3.5 w-3.5" />
-        Sign out
-      </a>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <div class="relative flex flex-1 flex-col overflow-hidden">
-    <!-- Top bar -->
-    <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
-      <div class="flex items-center gap-3">
-        <div>
-          <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
-            {projectsStore.activeProjectName ?? 'Library'}
-          </h1>
-          <p class="mt-0.5 text-xs text-gray-400">
-            All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
-          </p>
-        </div>
-        {#if activeProject}
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400"
-            onclick={() => { showProjectShareModal = true }}
-            title="Share this project"
-          >
-            <Share2 class="h-3.5 w-3.5" />
-            Share
-          </button>
-        {/if}
-      </div>
-
-      <div class="flex items-center gap-2">
-        <!-- Search -->
-        <SearchInput
-          class="w-64"
-          value={assetsStore.query}
-          placeholder="Search anything..."
-          onchange={(v) => { assetsStore.query = v; assetsStore.search() }}
-        />
-
-        {#if authStore.role !== 'viewer'}
-          <label class="cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-            Upload
-            <input
-              type="file"
-              multiple
-              class="hidden"
-              onchange={(e) => {
-                const files = Array.from((e.target as HTMLInputElement).files ?? [])
-                assetsStore.upload(files)
-                ;(e.target as HTMLInputElement).value = ''
-              }}
-            />
-          </label>
-        {/if}
-      </div>
-    </header>
-
-    <!-- Content -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <main
-      bind:this={mainEl}
-      class="relative flex-1 overflow-y-auto px-6 py-6"
-      ondragover={handleMainDragOver}
-      ondragleave={handleMainDragLeave}
-      ondrop={handleMainDrop}
-      onmousedown={handleMainMouseDown}
-    >
-      {#if isDraggingFiles}
-        <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
-          <div class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400">
-            <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <p class="text-sm font-medium">Drop to upload</p>
-          </div>
-        </div>
-      {/if}
-
-      {#if assetsStore.initialLoad}
-        <GridSkeleton x={7} y={3} {zoom} {maxZoom} />
-      {:else if !seenSplashScreen}
-        <OnboardingScreen onDismiss={() => {
-          seenSplashScreen = true
-          localStorage.setItem(`onboard_${authStore.workspace?.id}`, 'true')
-        }} />
-      {:else if assetsStore.assets.length === 0}
-        <EmptyState
-          title={assetsStore.query ? `No results for "${assetsStore.query}"` : 'No assets yet'}
-          description={assetsStore.query ? 'Try a different search term' : 'Upload files to get started'}
-        >
-          {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
-        </EmptyState>
-      {:else}
-        <!-- Grouped by category -->
-        {#each CATEGORY_ORDER as cat}
-          {@const group = assetsStore.assetsByCategory[cat]}
-          {#if group.length > 0}
-            <div class="mb-10">
-              <!-- Category header -->
-              <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-3">
-                <AssetIcon category={cat} class="h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat].light} {CATEGORY_ICON_BG[cat].dark}"/>
-                <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{CATEGORY_LABELS[cat]}</h2>
-                <span class="text-sm text-gray-400 dark:text-gray-500">{group.length}</span>
-              </div>
-
-              <!-- Cards with left accent border -->
-              <div class="border-l-2 {CATEGORY_BORDER[cat]} pl-4">
-                <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
-                  {#each group as asset (asset.id)}
-                    {@const globalIndex = assetsStore.assets.indexOf(asset)}
-                    <div class="relative" data-asset-id={asset.id}>
-                      {#if selectionStore.selectedIds.has(asset.id)}
-                        <div class="pointer-events-none absolute inset-0 z-5 rounded-xl ring-2 ring-indigo-500">
-                          <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
-                            <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      {/if}
-                      <AssetCard {asset} {zoom} onclick={(e) => handleCardClick(asset, globalIndex, e)} />
-                    </div>
-                  {/each}
-                </div>
-              </div>
-            </div>
-          {/if}
-        {/each}
-
-        <!-- Infinite scroll sentinel -->
-        {#if assetsStore.nextCursor}
-          <div bind:this={sentinel} class="flex justify-center py-6">
-            {#if assetsStore.loading}
-              <Loader class="h-6 w-6 animate-spin text-gray-400" />
-            {/if}
-          </div>
-        {:else}
-          <div bind:this={sentinel}></div>
-        {/if}
-      {/if}
-    </main>
-
-    {#if rubberBand && rubberBand.w > 2 && rubberBand.h > 2}
-      <div
-        class="pointer-events-none fixed z-30 rounded border border-indigo-500 bg-indigo-500/15"
-        style="left:{rubberBand.x}px; top:{rubberBand.y}px; width:{rubberBand.w}px; height:{rubberBand.h}px"
-      ></div>
     {/if}
-
-    <LibraryStatusBar bind:zoom={zoom} max={maxZoom - 1} />
   </div>
-</div>
+
+  <div class="flex items-center gap-2">
+    <!-- Search -->
+    <SearchInput
+      class="w-64"
+      value={assetsStore.query}
+      placeholder="Search anything..."
+      onchange={(v) => { assetsStore.query = v; assetsStore.search() }}
+    />
+
+    {#if authStore.role !== 'viewer'}
+      <label class="cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        Upload
+        <input
+          type="file"
+          multiple
+          class="hidden"
+          onchange={(e) => {
+            const files = Array.from((e.target as HTMLInputElement).files ?? [])
+            assetsStore.upload(files)
+            ;(e.target as HTMLInputElement).value = ''
+          }}
+        />
+      </label>
+    {/if}
+  </div>
+</header>
+
+<!-- Content -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<main
+  bind:this={mainEl}
+  class="relative flex-1 overflow-y-auto px-6 py-6"
+  ondragover={handleMainDragOver}
+  ondragleave={handleMainDragLeave}
+  ondrop={handleMainDrop}
+  onmousedown={handleMainMouseDown}
+>
+  {#if isDraggingFiles}
+    <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
+      <div class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400">
+        <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        <p class="text-sm font-medium">Drop to upload</p>
+      </div>
+    </div>
+  {/if}
+
+  {#if assetsStore.initialLoad}
+    <GridSkeleton x={7} y={3} {zoom} {maxZoom} />
+  {:else if !seenSplashScreen}
+    <OnboardingScreen onDismiss={() => {
+      seenSplashScreen = true
+      localStorage.setItem(`onboard_${authStore.workspace?.id}`, 'true')
+    }} />
+  {:else if assetsStore.assets.length === 0}
+    <EmptyState
+      title={assetsStore.query ? `No results for "${assetsStore.query}"` : 'No assets yet'}
+      description={assetsStore.query ? 'Try a different search term' : 'Upload files to get started'}
+    >
+      {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
+    </EmptyState>
+  {:else}
+    <!-- Grouped by category -->
+    {#each CATEGORY_ORDER as cat}
+      {@const group = assetsStore.assetsByCategory[cat]}
+      {#if group.length > 0}
+        <div class="mb-10">
+          <!-- Category header -->
+          <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-3">
+            <AssetIcon category={cat} class="h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat].light} {CATEGORY_ICON_BG[cat].dark}"/>
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{CATEGORY_LABELS[cat]}</h2>
+            <span class="text-sm text-gray-400 dark:text-gray-500">{group.length}</span>
+          </div>
+
+          <!-- Cards with left accent border -->
+          <div class="border-l-2 {CATEGORY_BORDER[cat]} pl-4">
+            <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
+              {#each group as asset (asset.id)}
+                {@const globalIndex = assetsStore.assets.indexOf(asset)}
+                <div class="relative" data-asset-id={asset.id}>
+                  {#if selectionStore.selectedIds.has(asset.id)}
+                    <div class="pointer-events-none absolute inset-0 z-5 rounded-xl ring-2 ring-indigo-500">
+                      <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
+                        <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  {/if}
+                  <AssetCard {asset} {zoom} onclick={(e) => handleCardClick(asset, globalIndex, e)} />
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
+      {/if}
+    {/each}
+
+    <!-- Infinite scroll sentinel -->
+    {#if assetsStore.nextCursor}
+      <div bind:this={sentinel} class="flex justify-center py-6">
+        {#if assetsStore.loading}
+          <Loader class="h-6 w-6 animate-spin text-gray-400" />
+        {/if}
+      </div>
+    {:else}
+      <div bind:this={sentinel}></div>
+    {/if}
+  {/if}
+</main>
+
+{#if rubberBand && rubberBand.w > 2 && rubberBand.h > 2}
+  <div
+    class="pointer-events-none fixed z-30 rounded border border-indigo-500 bg-indigo-500/15"
+    style="left:{rubberBand.x}px; top:{rubberBand.y}px; width:{rubberBand.w}px; height:{rubberBand.h}px"
+  ></div>
+{/if}
 
 <div class="hidden
   grid-cols-1  grid-cols-2  grid-cols-3  grid-cols-4  grid-cols-5
@@ -424,7 +335,7 @@
 {#if showPalette}
   <CommandPalette
     projects={projectsStore.projects}
-    onselect={(id) => { handleProjectSelect(id); showPalette = false }}
+    onselect={(item) => { handleProjectSelect(item); showPalette = false }}
     onclose={() => { showPalette = false }}
   />
 {/if}
