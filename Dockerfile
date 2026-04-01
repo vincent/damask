@@ -2,7 +2,7 @@
 FROM golang:1.24-bookworm AS go-build
 WORKDIR /build/server
 COPY server/ .
-RUN CGO_ENABLED=0 go build -mod=vendor -trimpath \
+RUN CGO_ENABLED=0 go build -mod=mod -trimpath \
     -ldflags="-s -w" \
     -o /out/server ./cmd/server
 
