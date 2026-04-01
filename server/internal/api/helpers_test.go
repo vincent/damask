@@ -32,7 +32,7 @@ type testEnv struct {
 	app     *fiber.App
 	maker   *auth.Maker
 	sqlDB   *sql.DB
-	storage *storage.LocalStorage
+	storage storage.Storage
 }
 
 // setupTestApp opens a fresh temp-file SQLite DB, runs migrations, and
@@ -59,7 +59,7 @@ func setupTestApp(t *testing.T) *testEnv {
 
 	q := queue.New(queries, 1)
 
-	app := New(queries, sqlDB, maker, stor, q, "", "development", "http://localhost")
+	app := New(queries, sqlDB, maker, stor, q, "", "development", "http://localhost", "")
 	return &testEnv{app: app, maker: maker, sqlDB: sqlDB, storage: stor}
 }
 

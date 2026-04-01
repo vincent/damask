@@ -11,7 +11,7 @@ type LocalStorage struct {
 	base string
 }
 
-func NewLocalStorage(base string) (*LocalStorage, error) {
+func NewLocalStorage(base string) (Storage, error) {
 	if err := os.MkdirAll(base, 0755); err != nil {
 		return nil, err
 	}
