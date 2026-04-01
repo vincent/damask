@@ -31,6 +31,7 @@
   let showPalette = $state(false)
   let sidebarCreating = $state(false)
   let showProjectShareModal = $state(false)
+  let seenSplashScreen = $state(false)
   let zoom = $state(10)
   const maxZoom = 20
   let isDraggingFiles = $state(false)
@@ -163,6 +164,8 @@
     projectsStore.load()
     assetsStore.load(true)
     sharesStore.load()
+
+    seenSplashScreen = localStorage.getItem('seen_splash_screen') !== null
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -325,6 +328,8 @@
 
       {#if assetsStore.initialLoad}
         <GridSkeleton x={7} y={3} {zoom} {maxZoom} />
+      {:else if !seenSplashScreen}
+        Hey ! Welcome to Damask, the digital asset management tool for creatives. This is your library, where all your assets will be stored and organized. You can create projects to group related assets, and use folders to structure them further. To get started, try uploading some files or creating a new project. If you need any help, check out the documentation or contact support. Happy organizing!
       {:else if assetsStore.assets.length === 0}
         <EmptyState
           title={assetsStore.query ? `No results for "${assetsStore.query}"` : 'No assets yet'}

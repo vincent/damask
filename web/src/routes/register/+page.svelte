@@ -30,8 +30,8 @@
   <title>Create account — Damask DAM</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-  <div class="w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
+<div class="damask-texture-strong relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+  <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
     <div>
       <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Create your account</h1>
       <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
