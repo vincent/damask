@@ -193,7 +193,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		WorkspaceID: invite.WorkspaceID,
 		UserID:      userID,
 		Role:        invite.Role,
-		InvitedBy:   sql.NullString{String: invite.InvitedBy, Valid: true},
+		InvitedBy:   &invite.InvitedBy,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not add workspace member")
 	}

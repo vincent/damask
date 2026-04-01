@@ -28,7 +28,7 @@
       .map((p) => ({
         id: p.id,
         label: p.name,
-        color: p.color.Valid ? p.color.String : '#9ca3af',
+        color: p.color ?? '#9ca3af',
         count: p.asset_count,
       })),
   ].filter((item) => item.id === null || query === '' || item.label.toLowerCase().includes(query.toLowerCase())))

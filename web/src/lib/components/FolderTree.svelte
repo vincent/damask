@@ -175,7 +175,7 @@
           <ContextMenu
             items={[
               { label: 'Rename', onclick: () => { editingId = folder.id; editName = folder.name; contextMenuId = null } },
-              ...(!folder.parent_id.Valid ? [{ label: 'Add subfolder', onclick: () => { creatingUnder = folder.id; contextMenuId = null; newFolderName = '' } }] : []),
+              ...(folder.parent_id == null ? [{ label: 'Add subfolder', onclick: () => { creatingUnder = folder.id; contextMenuId = null; newFolderName = '' } }] : []),
               ...(authStore.role === 'owner' ? [{ label: 'Delete', onclick: () => deleteFolder(folder.id), danger: true }] : [])
             ]}
             onclose={() => { contextMenuId = null }}

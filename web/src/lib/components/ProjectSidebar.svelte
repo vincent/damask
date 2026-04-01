@@ -89,8 +89,8 @@
     }
   }
 
-  function projectColor(color: { Valid: boolean; String: string }): string {
-    return color.Valid ? color.String : '#9ca3af'
+  function projectColor(color: string | null): string {
+    return color ?? '#9ca3af'
   }
 </script>
 

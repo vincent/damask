@@ -187,8 +187,8 @@
   }
 
   function variantLabel(v: Variant): string {
-    const params = v.transform_params.Valid
-      ? (() => { try { return JSON.parse(v.transform_params.String) } catch { return {} } })()
+    const params = v.transform_params
+      ? (() => { try { return JSON.parse(v.transform_params) } catch { return {} } })()
       : {}
     switch (v.type) {
       case 'resize': return `Resize ${params.width ?? '?'}×${params.height ?? '?'} (${params.format ?? 'jpeg'})`
@@ -282,7 +282,7 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 truncate dark:text-gray-100">{variantLabel(v)}</p>
                   <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {v.size.Valid ? formatBytes(v.size.Int64) : 'unknown size'} ·
+                    {v.size != null ? formatBytes(v.size) : 'unknown size'} ·
                     {new Date(v.created_at).toLocaleDateString()}
                   </p>
                 </div>
@@ -476,8 +476,8 @@
         <div class="space-y-5">
           <p class="text-xs text-gray-500 dark:text-gray-400">Enter crop coordinates relative to the original image dimensions.</p>
 
-          {#if asset.width.Valid && asset.height.Valid}
-            <p class="text-xs text-gray-400">Original: {asset.width.Int64} × {asset.height.Int64} px</p>
+          {#if asset.width != null && asset.height != null}
+            <p class="text-xs text-gray-400">Original: {asset.width} × {asset.height} px</p>
           {/if}
 
           <div class="grid grid-cols-2 gap-4">

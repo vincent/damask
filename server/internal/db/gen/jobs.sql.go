@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 )
 
 const claimNextJob = `-- name: ClaimNextJob :one
@@ -96,8 +95,8 @@ UPDATE jobs SET status = 'failed', error = ?, updated_at = datetime('now') WHERE
 `
 
 type FailJobParams struct {
-	Error sql.NullString `json:"error"`
-	ID    string         `json:"id"`
+	Error *string `json:"error"`
+	ID    string  `json:"id"`
 }
 
 func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) error {

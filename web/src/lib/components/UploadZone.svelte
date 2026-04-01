@@ -61,7 +61,7 @@
     const interval = setInterval(async () => {
       try {
         const asset = await assetApi.get(assetId)
-        if (asset.thumbnail_key.Valid) {
+        if (asset.thumbnail_key) {
           uploadsStore.update(uploadId, { status: 'done', asset })
           clearInterval(interval)
         }

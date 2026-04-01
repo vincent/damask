@@ -248,8 +248,8 @@ func TestBulkProject(t *testing.T) {
 		resp2, _ := env.app.Test(req2)
 		var a assetResponse
 		json.NewDecoder(resp2.Body).Decode(&a) //nolint:errcheck
-		if !a.ProjectID.Valid || a.ProjectID.String != p.ID {
-			t.Errorf("asset %s: expected project_id=%s, got %+v", id, p.ID, a.ProjectID)
+		if a.ProjectID == nil || *a.ProjectID != p.ID {
+			t.Errorf("asset %s: expected project_id=%s, got %v", id, p.ID, a.ProjectID)
 		}
 	}
 }

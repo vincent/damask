@@ -35,9 +35,9 @@
         <span class="rounded bg-gray-100 px-1.5 py-0.5 text-sm font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
             {formatBytes(asset.size)}
         </span>
-        {#if asset.width.Valid && asset.height.Valid}
+        {#if asset.width != null && asset.height != null}
             <span class="rounded bg-gray-100 px-1.5 py-0.5 text-sm font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-             {asset.width.Int64} × {asset.height.Int64}
+             {asset.width} × {asset.height}
             </span>
         {/if}
         </div>

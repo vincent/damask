@@ -38,16 +38,12 @@ type commentResponse struct {
 }
 
 func commentToResponse(c dbgen.ShareComment) commentResponse {
-	var email *string
-	if c.AuthorEmail.Valid {
-		email = &c.AuthorEmail.String
-	}
 	return commentResponse{
 		ID:          c.ID,
 		ShareID:     c.ShareID,
 		AssetID:     c.AssetID,
 		AuthorName:  c.AuthorName,
-		AuthorEmail: email,
+		AuthorEmail: c.AuthorEmail,
 		Body:        c.Body,
 		CreatedAt:   c.CreatedAt,
 	}
@@ -55,12 +51,12 @@ func commentToResponse(c dbgen.ShareComment) commentResponse {
 
 // isShareExpired returns true if the share's expires_at is in the past.
 func isShareExpired(share dbgen.Share) bool {
-	if !share.ExpiresAt.Valid {
+	if share.ExpiresAt == nil {
 		return false
 	}
-	t, err := time.Parse("2006-01-02T15:04:05Z", share.ExpiresAt.String)
+	t, err := time.Parse("2006-01-02T15:04:05Z", *share.ExpiresAt)
 	if err != nil {
-		t, err = time.Parse("2006-01-02 15:04:05", share.ExpiresAt.String)
+		t, err = time.Parse("2006-01-02 15:04:05", *share.ExpiresAt)
 	}
 	return err == nil && time.Now().After(t)
 }
@@ -78,7 +74,7 @@ func (s *Server) loadActiveShare(c fiber.Ctx, id string) (dbgen.Share, error) {
 		return dbgen.Share{}, fiber.NewError(fiber.StatusInternalServerError, "could not load share")
 	}
 
-	if share.RevokedAt.Valid {
+	if share.RevokedAt != nil {
 		return dbgen.Share{}, fiber.NewError(fiber.StatusNotFound, "share not found")
 	}
 
@@ -101,7 +97,7 @@ func (s *Server) handleShareInfo(c fiber.Ctx) error {
 	}
 	return c.JSON(shareInfoResponse{
 		Label:       share.Label,
-		HasPassword: share.PasswordHash.Valid,
+		HasPassword: share.PasswordHash != nil,
 	})
 }
 
@@ -122,11 +118,11 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 	_ = c.Bind().Body(&body) // body is optional
 
 	// Check password
-	if share.PasswordHash.Valid {
+	if share.PasswordHash != nil {
 		if body.Password == "" {
 			return errRes(c, fiber.StatusUnauthorized, "password required")
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(share.PasswordHash.String), []byte(body.Password)); err != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(*share.PasswordHash), []byte(body.Password)); err != nil {
 			return errRes(c, fiber.StatusUnauthorized, "incorrect password")
 		}
 	}
@@ -238,10 +234,8 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 		Label:         share.Label,
 		AllowComments: share.AllowComments == 1,
 		AllowDownload: share.AllowDownload == 1,
-		HasPassword:   share.PasswordHash.Valid,
-	}
-	if share.ExpiresAt.Valid {
-		sv.ExpiresAt = &share.ExpiresAt.String
+		HasPassword:   share.PasswordHash != nil,
+		ExpiresAt:     share.ExpiresAt,
 	}
 
 	return c.JSON(fiber.Map{
@@ -340,7 +334,7 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 
 	row := s.sqlDB.QueryRowContext(c.RequestCtx(), `
 		SELECT thumbnail_key FROM assets WHERE id = ?`, assetID)
-	var thumbKey sql.NullString
+	var thumbKey *string
 	if err := row.Scan(&thumbKey); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
@@ -348,11 +342,11 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	if !thumbKey.Valid {
+	if thumbKey == nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not ready")
 	}
 
-	rc, err := s.storage.Get(thumbKey.String)
+	rc, err := s.storage.Get(*thumbKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
@@ -400,9 +394,9 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 		return err
 	}
 
-	var authorEmail sql.NullString
+	var authorEmail *string
 	if body.AuthorEmail != nil && *body.AuthorEmail != "" {
-		authorEmail = sql.NullString{String: *body.AuthorEmail, Valid: true}
+		authorEmail = body.AuthorEmail
 	}
 
 	comment, err := s.db.CreateComment(c.RequestCtx(), dbgen.CreateCommentParams{
@@ -553,7 +547,7 @@ func (s *Server) reCheckShare(c fiber.Ctx, shareID string) error {
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, "could not load share")
 	}
-	if share.RevokedAt.Valid {
+	if share.RevokedAt != nil {
 		return fiber.NewError(fiber.StatusGone, "share has been revoked")
 	}
 	if isShareExpired(share) {

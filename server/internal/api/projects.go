@@ -14,15 +14,15 @@ import (
 )
 
 type projectResponse struct {
-	ID           string         `json:"id"`
-	WorkspaceID  string         `json:"workspace_id"`
-	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description"`
-	Color        sql.NullString `json:"color"`
-	CoverAssetID sql.NullString `json:"cover_asset_id"`
-	AssetCount   int64          `json:"asset_count"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	ID           string    `json:"id"`
+	WorkspaceID  string    `json:"workspace_id"`
+	Name         string    `json:"name"`
+	Description  *string   `json:"description"`
+	Color        *string   `json:"color"`
+	CoverAssetID *string   `json:"cover_asset_id"`
+	AssetCount   int64     `json:"asset_count"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 func projectToResponse(p dbgen.Project, assetCount int64) projectResponse {
@@ -59,8 +59,8 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 		ID:          uuid.NewString(),
 		WorkspaceID: claims.WorkspaceID,
 		Name:        body.Name,
-		Description: sql.NullString{String: ptrStr(body.Description), Valid: body.Description != nil},
-		Color:       sql.NullString{String: ptrStr(body.Color), Valid: body.Color != nil},
+		Description: body.Description,
+		Color:       body.Color,
 	})
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create project")
@@ -160,10 +160,10 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	}
 
 	p, err := s.db.UpdateProject(c.RequestCtx(), dbgen.UpdateProjectParams{
-		Name:         sql.NullString{String: ptrStr(body.Name), Valid: body.Name != nil},
-		Description:  sql.NullString{String: ptrStr(body.Description), Valid: body.Description != nil},
-		Color:        sql.NullString{String: ptrStr(body.Color), Valid: body.Color != nil},
-		CoverAssetID: sql.NullString{String: ptrStr(body.CoverAssetID), Valid: body.CoverAssetID != nil},
+		Name:         body.Name,
+		Description:  body.Description,
+		Color:        body.Color,
+		CoverAssetID: body.CoverAssetID,
 		ID:           id,
 		WorkspaceID:  claims.WorkspaceID,
 	})
@@ -198,7 +198,7 @@ func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	qtx := s.db.WithTx(tx)
 
 	if err := qtx.NullifyProjectAssets(c.RequestCtx(), dbgen.NullifyProjectAssetsParams{
-		ProjectID:   sql.NullString{String: id, Valid: true},
+		ProjectID:   &id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not unlink assets")

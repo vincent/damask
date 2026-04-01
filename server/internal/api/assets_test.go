@@ -84,10 +84,10 @@ func TestUploadAsset_Success(t *testing.T) {
 	if asset.Size <= 0 {
 		t.Error("expected positive size")
 	}
-	if !asset.Width.Valid || asset.Width.Int64 != 200 {
+	if asset.Width == nil || *asset.Width != 200 {
 		t.Errorf("width: got %v, want 200", asset.Width)
 	}
-	if !asset.Height.Valid || asset.Height.Int64 != 150 {
+	if asset.Height == nil || *asset.Height != 150 {
 		t.Errorf("height: got %v, want 150", asset.Height)
 	}
 }

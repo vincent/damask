@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 	"time"
 )
 
@@ -17,10 +16,10 @@ VALUES (?, ?, ?, ?, datetime('now'))
 `
 
 type CreateMemberParams struct {
-	WorkspaceID string         `json:"workspace_id"`
-	UserID      string         `json:"user_id"`
-	Role        string         `json:"role"`
-	InvitedBy   sql.NullString `json:"invited_by"`
+	WorkspaceID string  `json:"workspace_id"`
+	UserID      string  `json:"user_id"`
+	Role        string  `json:"role"`
+	InvitedBy   *string `json:"invited_by"`
 }
 
 func (q *Queries) CreateMember(ctx context.Context, arg CreateMemberParams) error {

@@ -28,14 +28,14 @@ import (
 // ---- Response types ----
 
 type variantResponse struct {
-	ID              string         `json:"id"`
-	AssetID         string         `json:"asset_id"`
-	Type            string         `json:"type"`
-	TransformParams sql.NullString `json:"transform_params"`
-	Size            sql.NullInt64  `json:"size"`
-	StorageKey      string         `json:"storage_key"`
-	DownloadURL     string         `json:"download_url"`
-	CreatedAt       time.Time      `json:"created_at"`
+	ID              string    `json:"id"`
+	AssetID         string    `json:"asset_id"`
+	Type            string    `json:"type"`
+	TransformParams *string   `json:"transform_params"`
+	Size            *int64    `json:"size"`
+	StorageKey      string    `json:"storage_key"`
+	DownloadURL     string    `json:"download_url"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 func (s *Server) variantToResponse(v dbgen.Variant) variantResponse {
@@ -351,7 +351,7 @@ func (s *Server) jobThumbnail(ctx context.Context, job dbgen.Job) error {
 	}
 
 	return s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
-		ThumbnailKey: sql.NullString{String: thumbKey, Valid: true},
+		ThumbnailKey: &thumbKey,
 		ID:           p.AssetID,
 	})
 }
@@ -412,14 +412,15 @@ func (s *Server) jobImageTransform(ctx context.Context, job dbgen.Job) error {
 	}
 
 	paramsJSON := string(p.Params)
+	sz := int64(len(data))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
 		AssetID:         p.AssetID,
 		WorkspaceID:     p.WorkspaceID,
 		Type:            job.Type,
 		StorageKey:      storageKey,
-		TransformParams: sql.NullString{String: paramsJSON, Valid: true},
-		Size:            sql.NullInt64{Int64: int64(len(data)), Valid: true},
+		TransformParams: &paramsJSON,
+		Size:            &sz,
 	})
 	return err
 }
@@ -459,22 +460,24 @@ func (s *Server) jobVideoThumbnail(ctx context.Context, job dbgen.Job) error {
 
 	// Set as asset thumbnail if none yet.
 	asset, _ := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
-	if !asset.ThumbnailKey.Valid {
+	if asset.ThumbnailKey == nil {
 		_ = s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
-			ThumbnailKey: sql.NullString{String: storageKey, Valid: true},
+			ThumbnailKey: &storageKey,
 			ID:           p.AssetID,
 		})
 	}
 
 	paramsJSON, _ := json.Marshal(params)
+	pj := string(paramsJSON)
+	sz := int64(len(data))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
 		AssetID:         p.AssetID,
 		WorkspaceID:     p.WorkspaceID,
 		Type:            queue.JobTypeVideoThumbnail,
 		StorageKey:      storageKey,
-		TransformParams: sql.NullString{String: string(paramsJSON), Valid: true},
-		Size:            sql.NullInt64{Int64: int64(len(data)), Valid: true},
+		TransformParams: &pj,
+		Size:            &sz,
 	})
 	return err
 }
@@ -526,14 +529,16 @@ func (s *Server) jobVideoTranscode(ctx context.Context, job dbgen.Job) error {
 	}
 
 	paramsJSON, _ := json.Marshal(params)
+	pj := string(paramsJSON)
+	sz := int64(len(dstData))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
 		AssetID:         p.AssetID,
 		WorkspaceID:     p.WorkspaceID,
 		Type:            queue.JobTypeVideoTranscode,
 		StorageKey:      storageKey,
-		TransformParams: sql.NullString{String: string(paramsJSON), Valid: true},
-		Size:            sql.NullInt64{Int64: int64(len(dstData)), Valid: true},
+		TransformParams: &pj,
+		Size:            &sz,
 	})
 	return err
 }
@@ -566,13 +571,14 @@ func (s *Server) jobBgRemove(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
+	sz := int64(len(result))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:          variantID,
 		AssetID:     p.AssetID,
 		WorkspaceID: p.WorkspaceID,
 		Type:        queue.JobTypeBgRemove,
 		StorageKey:  storageKey,
-		Size:        sql.NullInt64{Int64: int64(len(result)), Valid: true},
+		Size:        &sz,
 	})
 	return err
 }

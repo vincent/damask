@@ -3,7 +3,6 @@ package services
 import (
 	dbgen "damask/server/internal/db/gen"
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -24,7 +23,7 @@ func CreateWorkspaceForUser(ctx context.Context, qtx *dbgen.Queries, name, owner
 		WorkspaceID: workspaceID,
 		UserID:      ownerID,
 		Role:        "owner",
-		InvitedBy:   sql.NullString{},
+		InvitedBy:   nil,
 	}); err != nil {
 		return nil, err
 	}

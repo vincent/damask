@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 )
 
 const createComment = `-- name: CreateComment :one
@@ -17,12 +16,12 @@ RETURNING id, share_id, asset_id, author_name, author_email, body, created_at
 `
 
 type CreateCommentParams struct {
-	ID          string         `json:"id"`
-	ShareID     string         `json:"share_id"`
-	AssetID     string         `json:"asset_id"`
-	AuthorName  string         `json:"author_name"`
-	AuthorEmail sql.NullString `json:"author_email"`
-	Body        string         `json:"body"`
+	ID          string  `json:"id"`
+	ShareID     string  `json:"share_id"`
+	AssetID     string  `json:"asset_id"`
+	AuthorName  string  `json:"author_name"`
+	AuthorEmail *string `json:"author_email"`
+	Body        string  `json:"body"`
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (ShareComment, error) {
@@ -54,16 +53,16 @@ RETURNING id, workspace_id, created_by, label, target_type, target_id, password_
 `
 
 type CreateShareParams struct {
-	ID            string         `json:"id"`
-	WorkspaceID   string         `json:"workspace_id"`
-	CreatedBy     string         `json:"created_by"`
-	Label         string         `json:"label"`
-	TargetType    string         `json:"target_type"`
-	TargetID      string         `json:"target_id"`
-	PasswordHash  sql.NullString `json:"password_hash"`
-	ExpiresAt     sql.NullString `json:"expires_at"`
-	AllowComments int64          `json:"allow_comments"`
-	AllowDownload int64          `json:"allow_download"`
+	ID            string  `json:"id"`
+	WorkspaceID   string  `json:"workspace_id"`
+	CreatedBy     string  `json:"created_by"`
+	Label         string  `json:"label"`
+	TargetType    string  `json:"target_type"`
+	TargetID      string  `json:"target_id"`
+	PasswordHash  *string `json:"password_hash"`
+	ExpiresAt     *string `json:"expires_at"`
+	AllowComments int64   `json:"allow_comments"`
+	AllowDownload int64   `json:"allow_download"`
 }
 
 func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share, error) {
@@ -319,13 +318,13 @@ RETURNING id, workspace_id, created_by, label, target_type, target_id, password_
 `
 
 type UpdateShareParams struct {
-	Label         string         `json:"label"`
-	PasswordHash  sql.NullString `json:"password_hash"`
-	ExpiresAt     sql.NullString `json:"expires_at"`
-	AllowComments int64          `json:"allow_comments"`
-	AllowDownload int64          `json:"allow_download"`
-	ID            string         `json:"id"`
-	WorkspaceID   string         `json:"workspace_id"`
+	Label         string  `json:"label"`
+	PasswordHash  *string `json:"password_hash"`
+	ExpiresAt     *string `json:"expires_at"`
+	AllowComments int64   `json:"allow_comments"`
+	AllowDownload int64   `json:"allow_download"`
+	ID            string  `json:"id"`
+	WorkspaceID   string  `json:"workspace_id"`
 }
 
 func (q *Queries) UpdateShare(ctx context.Context, arg UpdateShareParams) (Share, error) {

@@ -30,27 +30,17 @@ export interface WorkspaceMeResponse {
 
 // ---- Assets ----
 
-export interface NullableString {
-  String: string
-  Valid: boolean
-}
-
-export interface NullableInt64 {
-  Int64: number
-  Valid: boolean
-}
-
 export interface Asset {
   id: string
   workspace_id: string
-  project_id: NullableString
+  project_id: string | null
   original_filename: string
   mime_type: string
   size: number
-  width: NullableInt64
-  height: NullableInt64
-  thumbnail_key: NullableString
-  metadata: NullableString
+  width: number | null
+  height: number | null
+  thumbnail_key: string | null
+  metadata: string | null
   tags: string[]
   created_at: string
   updated_at: string
@@ -88,9 +78,9 @@ export interface Project {
   id: string
   workspace_id: string
   name: string
-  description: NullableString
-  color: NullableString
-  cover_asset_id: NullableString
+  description: string | null
+  color: string | null
+  cover_asset_id: string | null
   asset_count: number
   created_at: string
   updated_at: string
@@ -102,7 +92,7 @@ export interface Folder {
   id: string
   workspace_id: string
   project_id: string
-  parent_id: NullableString
+  parent_id: string | null
   name: string
   position: number
   asset_count: number
@@ -123,8 +113,8 @@ export interface Variant {
   id: string
   asset_id: string
   type: string
-  transform_params: NullableString
-  size: NullableInt64
+  transform_params: string | null
+  size: number | null
   storage_key: string
   download_url: string
   created_at: string

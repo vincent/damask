@@ -12,8 +12,8 @@
     let { asset, variants, deleteVariant }: Props = $props()
 
     function variantLabel(v: Variant): string {
-        const params = v.transform_params.Valid
-            ? (() => { try { return JSON.parse(v.transform_params.String) } catch { return {} } })()
+        const params = v.transform_params
+            ? (() => { try { return JSON.parse(v.transform_params) } catch { return {} } })()
             : {}
             switch (v.type) {
             case 'resize': return `Resize ${params.width ?? '?'}×${params.height ?? '?'}`
@@ -70,7 +70,7 @@
             <div class="px-3 py-2.5">
                 <p class="truncate text-xs font-semibold text-gray-800 dark:text-gray-200">{variantLabel(v)}</p>
                 <p class="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">
-                    {v.size.Valid ? formatBytes(v.size.Int64) + ' · ' : ''}{new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {v.size != null ? formatBytes(v.size) + ' · ' : ''}{new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
             </div>
         </div>

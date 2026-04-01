@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 )
 
 const createAsset = `-- name: CreateAsset :one
@@ -17,16 +16,16 @@ RETURNING id, workspace_id, project_id, folder_id, original_filename, storage_ke
 `
 
 type CreateAssetParams struct {
-	ID               string         `json:"id"`
-	WorkspaceID      string         `json:"workspace_id"`
-	ProjectID        sql.NullString `json:"project_id"`
-	OriginalFilename string         `json:"original_filename"`
-	StorageKey       string         `json:"storage_key"`
-	MimeType         string         `json:"mime_type"`
-	Size             int64          `json:"size"`
-	Width            sql.NullInt64  `json:"width"`
-	Height           sql.NullInt64  `json:"height"`
-	Metadata         sql.NullString `json:"metadata"`
+	ID               string  `json:"id"`
+	WorkspaceID      string  `json:"workspace_id"`
+	ProjectID        *string `json:"project_id"`
+	OriginalFilename string  `json:"original_filename"`
+	StorageKey       string  `json:"storage_key"`
+	MimeType         string  `json:"mime_type"`
+	Size             int64   `json:"size"`
+	Width            *int64  `json:"width"`
+	Height           *int64  `json:"height"`
+	Metadata         *string `json:"metadata"`
 }
 
 func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error) {
@@ -122,12 +121,12 @@ LIMIT ?6
 `
 
 type ListAssetsParams struct {
-	WorkspaceID string         `json:"workspace_id"`
-	ProjectID   interface{}    `json:"project_id"`
-	MimePrefix  interface{}    `json:"mime_prefix"`
-	CursorAt    interface{}    `json:"cursor_at"`
-	CursorID    sql.NullString `json:"cursor_id"`
-	Limit       int64          `json:"limit"`
+	WorkspaceID string      `json:"workspace_id"`
+	ProjectID   interface{} `json:"project_id"`
+	MimePrefix  interface{} `json:"mime_prefix"`
+	CursorAt    interface{} `json:"cursor_at"`
+	CursorID    *string     `json:"cursor_id"`
+	Limit       int64       `json:"limit"`
 }
 
 func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error) {
@@ -180,10 +179,10 @@ UPDATE assets SET width = ?, height = ?, metadata = ?, updated_at = datetime('no
 `
 
 type UpdateAssetDimensionsParams struct {
-	Width    sql.NullInt64  `json:"width"`
-	Height   sql.NullInt64  `json:"height"`
-	Metadata sql.NullString `json:"metadata"`
-	ID       string         `json:"id"`
+	Width    *int64  `json:"width"`
+	Height   *int64  `json:"height"`
+	Metadata *string `json:"metadata"`
+	ID       string  `json:"id"`
 }
 
 func (q *Queries) UpdateAssetDimensions(ctx context.Context, arg UpdateAssetDimensionsParams) error {
@@ -201,9 +200,9 @@ UPDATE assets SET folder_id = ?, updated_at = datetime('now') WHERE id = ? AND w
 `
 
 type UpdateAssetFolderParams struct {
-	FolderID    sql.NullString `json:"folder_id"`
-	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
+	FolderID    *string `json:"folder_id"`
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
 }
 
 func (q *Queries) UpdateAssetFolder(ctx context.Context, arg UpdateAssetFolderParams) error {
@@ -216,9 +215,9 @@ UPDATE assets SET project_id = ?, updated_at = datetime('now') WHERE id = ? AND 
 `
 
 type UpdateAssetProjectParams struct {
-	ProjectID   sql.NullString `json:"project_id"`
-	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
+	ProjectID   *string `json:"project_id"`
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
 }
 
 func (q *Queries) UpdateAssetProject(ctx context.Context, arg UpdateAssetProjectParams) error {
@@ -231,8 +230,8 @@ UPDATE assets SET thumbnail_key = ?, updated_at = datetime('now') WHERE id = ?
 `
 
 type UpdateAssetThumbnailParams struct {
-	ThumbnailKey sql.NullString `json:"thumbnail_key"`
-	ID           string         `json:"id"`
+	ThumbnailKey *string `json:"thumbnail_key"`
+	ID           string  `json:"id"`
 }
 
 func (q *Queries) UpdateAssetThumbnail(ctx context.Context, arg UpdateAssetThumbnailParams) error {

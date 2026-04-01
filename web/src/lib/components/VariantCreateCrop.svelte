@@ -23,8 +23,8 @@
 </script>
 
 <div class="space-y-5">
-    {#if asset.width.Valid && asset.height.Valid}
-        <p class="text-xs text-gray-400 dark:text-gray-500">Original: {asset.width.Int64} × {asset.height.Int64} px</p>
+    {#if asset.width != null && asset.height != null}
+        <p class="text-xs text-gray-400 dark:text-gray-500">Original: {asset.width} × {asset.height} px</p>
     {/if}
 
     <div class="grid grid-cols-2 gap-4">

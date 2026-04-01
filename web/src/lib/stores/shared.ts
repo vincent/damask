@@ -23,6 +23,6 @@ export const CATEGORY_BORDER: Record<CategoryKey, string> = {
     document: 'border-blue-200 border-blue-700',
 }
 
-export function getProjectColor(project?: { color?: { Valid: boolean; String: string } } | null): string {
-    return project?.color?.Valid ? project.color.String : '#9ca3af'
+export function getProjectColor(project?: { color?: string | null } | null): string {
+    return project?.color ?? '#9ca3af'
 }

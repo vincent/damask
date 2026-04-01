@@ -115,7 +115,7 @@
               >
                 <span
                   class="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style="background-color: {p.color.Valid ? p.color.String : '#9ca3af'}"
+                  style="background-color: {p.color ?? '#9ca3af'}"
                 ></span>
                 <span class="truncate">{p.name}</span>
               </button>

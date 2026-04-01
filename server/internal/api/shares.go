@@ -34,21 +34,12 @@ type shareResponse struct {
 }
 
 func shareToResponse(s dbgen.Share, baseURL string) shareResponse {
-	var expiresAt *string
-	if s.ExpiresAt.Valid {
-		expiresAt = &s.ExpiresAt.String
-	}
-	var revokedAt *string
-	if s.RevokedAt.Valid {
-		revokedAt = &s.RevokedAt.String
-	}
-
 	isExpired := false
-	if s.ExpiresAt.Valid {
-		t, err := time.Parse("2006-01-02T15:04:05Z", s.ExpiresAt.String)
+	if s.ExpiresAt != nil {
+		t, err := time.Parse("2006-01-02T15:04:05Z", *s.ExpiresAt)
 		if err != nil {
 			// try alternate format stored by SQLite datetime()
-			t, err = time.Parse("2006-01-02 15:04:05", s.ExpiresAt.String)
+			t, err = time.Parse("2006-01-02 15:04:05", *s.ExpiresAt)
 		}
 		if err == nil && time.Now().After(t) {
 			isExpired = true
@@ -62,13 +53,13 @@ func shareToResponse(s dbgen.Share, baseURL string) shareResponse {
 		Label:         s.Label,
 		TargetType:    s.TargetType,
 		TargetID:      s.TargetID,
-		HasPassword:   s.PasswordHash.Valid,
-		ExpiresAt:     expiresAt,
+		HasPassword:   s.PasswordHash != nil,
+		ExpiresAt:     s.ExpiresAt,
 		AllowComments: s.AllowComments == 1,
 		AllowDownload: s.AllowDownload == 1,
 		ViewCount:     s.ViewCount,
 		CreatedAt:     s.CreatedAt,
-		RevokedAt:     revokedAt,
+		RevokedAt:     s.RevokedAt,
 		IsExpired:     isExpired,
 		PublicURL:     baseURL + "/s/" + s.ID,
 	}
@@ -109,20 +100,22 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	}
 
 	// Hash password if provided
-	var passwordHash sql.NullString
+	var passwordHash *string
 	if body.Password != nil && *body.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcryptCost)
 		if err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 		}
-		passwordHash = sql.NullString{String: string(hash), Valid: true}
+		h := string(hash)
+		passwordHash = &h
 	}
 
 	// Compute expires_at
-	var expiresAt sql.NullString
+	var expiresAt *string
 	if body.ExpiresInDays != nil && *body.ExpiresInDays > 0 {
 		t := time.Now().UTC().Add(time.Duration(*body.ExpiresInDays) * 24 * time.Hour)
-		expiresAt = sql.NullString{String: t.Format("2006-01-02 15:04:05"), Valid: true}
+		s := t.Format("2006-01-02 15:04:05")
+		expiresAt = &s
 	}
 
 	allowDownload := true
@@ -278,25 +271,26 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 	// Resolve password_hash
 	passwordHash := existing.PasswordHash
 	if body.ClearPassword != nil && *body.ClearPassword {
-		passwordHash = sql.NullString{}
+		passwordHash = nil
 	} else if body.Password != nil {
 		if *body.Password == "" {
-			passwordHash = sql.NullString{}
+			passwordHash = nil
 		} else {
 			hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcryptCost)
 			if err != nil {
 				return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 			}
-			passwordHash = sql.NullString{String: string(hash), Valid: true}
+			h := string(hash)
+			passwordHash = &h
 		}
 	}
 
 	// Resolve expires_at
 	expiresAt := existing.ExpiresAt
 	if body.ClearExpiry != nil && *body.ClearExpiry {
-		expiresAt = sql.NullString{}
+		expiresAt = nil
 	} else if body.ExpiresAt != nil {
-		expiresAt = sql.NullString{String: *body.ExpiresAt, Valid: true}
+		expiresAt = body.ExpiresAt
 	}
 
 	// Resolve allow_comments / allow_download

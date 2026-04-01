@@ -11,7 +11,7 @@
 
   let { asset, class: extraClass = '', zoom = 5, onclick }: Props = $props()
   const category = $derived(mimeCategory(asset.mime_type))
-  const isProcessing = $derived(!asset.thumbnail_key.Valid)
+  const isProcessing = $derived(!asset.thumbnail_key)
 
   const cardBg: Record<string, string> = {
     image: 'bg-violet-300 dark:bg-violet-700',

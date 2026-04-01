@@ -130,8 +130,9 @@ func (q *Queue) processNext(ctx context.Context) {
 	h, ok := q.handlers[job.Type]
 	if !ok {
 		log.Printf("queue: no handler for job type %q (id=%s)", job.Type, job.ID)
+		errMsg := "no handler registered"
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
-			Error: sql.NullString{String: "no handler registered", Valid: true},
+			Error: &errMsg,
 			ID:    job.ID,
 		})
 		return
@@ -139,8 +140,9 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	if err := h(ctx, job); err != nil {
 		log.Printf("queue: job %s (%s) failed: %v", job.ID, job.Type, err)
+		errMsg := err.Error()
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
-			Error: sql.NullString{String: err.Error(), Valid: true},
+			Error: &errMsg,
 			ID:    job.ID,
 		})
 		return

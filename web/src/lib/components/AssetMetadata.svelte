@@ -27,10 +27,10 @@
                 {new Date(asset.updated_at ?? asset.created_at).toLocaleDateString('en-CA')}
             </p>
         </div>
-        {#if asset.width.Valid && asset.height.Valid}
+        {#if asset.width != null && asset.height != null}
             <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
                 <p class="mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Dimensions</p>
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{asset.width.Int64} × {asset.height.Int64}</p>
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{asset.width} × {asset.height}</p>
             </div>
         {/if}
     </div>

@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 	"time"
 )
 
@@ -18,12 +17,12 @@ RETURNING id, workspace_id, name, description, color, cover_asset_id, created_at
 `
 
 type CreateProjectParams struct {
-	ID           string         `json:"id"`
-	WorkspaceID  string         `json:"workspace_id"`
-	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description"`
-	Color        sql.NullString `json:"color"`
-	CoverAssetID sql.NullString `json:"cover_asset_id"`
+	ID           string  `json:"id"`
+	WorkspaceID  string  `json:"workspace_id"`
+	Name         string  `json:"name"`
+	Description  *string `json:"description"`
+	Color        *string `json:"color"`
+	CoverAssetID *string `json:"cover_asset_id"`
 }
 
 func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
@@ -98,15 +97,15 @@ ORDER BY p.name ASC
 `
 
 type ListProjectsWithCountRow struct {
-	ID           string         `json:"id"`
-	WorkspaceID  string         `json:"workspace_id"`
-	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description"`
-	Color        sql.NullString `json:"color"`
-	CoverAssetID sql.NullString `json:"cover_asset_id"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	AssetCount   int64          `json:"asset_count"`
+	ID           string    `json:"id"`
+	WorkspaceID  string    `json:"workspace_id"`
+	Name         string    `json:"name"`
+	Description  *string   `json:"description"`
+	Color        *string   `json:"color"`
+	CoverAssetID *string   `json:"cover_asset_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	AssetCount   int64     `json:"asset_count"`
 }
 
 func (q *Queries) ListProjectsWithCount(ctx context.Context, workspaceID string) ([]ListProjectsWithCountRow, error) {
@@ -148,8 +147,8 @@ WHERE project_id = ? AND workspace_id = ?
 `
 
 type NullifyProjectAssetsParams struct {
-	ProjectID   sql.NullString `json:"project_id"`
-	WorkspaceID string         `json:"workspace_id"`
+	ProjectID   *string `json:"project_id"`
+	WorkspaceID string  `json:"workspace_id"`
 }
 
 func (q *Queries) NullifyProjectAssets(ctx context.Context, arg NullifyProjectAssetsParams) error {
@@ -169,12 +168,12 @@ RETURNING id, workspace_id, name, description, color, cover_asset_id, created_at
 `
 
 type UpdateProjectParams struct {
-	Name         sql.NullString `json:"name"`
-	Description  sql.NullString `json:"description"`
-	Color        sql.NullString `json:"color"`
-	CoverAssetID sql.NullString `json:"cover_asset_id"`
-	ID           string         `json:"id"`
-	WorkspaceID  string         `json:"workspace_id"`
+	Name         *string `json:"name"`
+	Description  *string `json:"description"`
+	Color        *string `json:"color"`
+	CoverAssetID *string `json:"cover_asset_id"`
+	ID           string  `json:"id"`
+	WorkspaceID  string  `json:"workspace_id"`
 }
 
 func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {

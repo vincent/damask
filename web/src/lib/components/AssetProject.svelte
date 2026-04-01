@@ -41,9 +41,9 @@
         {#if activeProject}
             <span
                 class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-                style="background-color: {activeProject.color.Valid ? activeProject.color.String + '22' : '#f3f4f6'}; color: {activeProject.color.Valid ? activeProject.color.String : '#6b7280'}"
+                style="background-color: {activeProject.color ? activeProject.color + '22' : '#f3f4f6'}; color: {activeProject.color ?? '#6b7280'}"
             >
-                <ColorDot color={activeProject.color.Valid ? activeProject.color.String : '#9ca3af'} size="sm" />
+                <ColorDot color={activeProject.color ?? '#9ca3af'} size="sm" />
                 {activeProject.name}
             </span>
         {:else}
@@ -64,7 +64,7 @@
                         class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                         onclick={() => assignProject(p.id)}
                     >
-                        <ColorDot color={p.color.Valid ? p.color.String : '#9ca3af'} size="sm" />
+                        <ColorDot color={p.color ?? '#9ca3af'} size="sm" />
                         {p.name}
                     </button>
                 {/each}

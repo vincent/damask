@@ -5,25 +5,24 @@
 package dbgen
 
 import (
-	"database/sql"
 	"time"
 )
 
 type Asset struct {
-	ID               string         `json:"id"`
-	WorkspaceID      string         `json:"workspace_id"`
-	ProjectID        sql.NullString `json:"project_id"`
-	FolderID         sql.NullString `json:"folder_id"`
-	OriginalFilename string         `json:"original_filename"`
-	StorageKey       string         `json:"storage_key"`
-	MimeType         string         `json:"mime_type"`
-	Size             int64          `json:"size"`
-	Width            sql.NullInt64  `json:"width"`
-	Height           sql.NullInt64  `json:"height"`
-	ThumbnailKey     sql.NullString `json:"thumbnail_key"`
-	Metadata         sql.NullString `json:"metadata"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
+	ID               string    `json:"id"`
+	WorkspaceID      string    `json:"workspace_id"`
+	ProjectID        *string   `json:"project_id"`
+	FolderID         *string   `json:"folder_id"`
+	OriginalFilename string    `json:"original_filename"`
+	StorageKey       string    `json:"storage_key"`
+	MimeType         string    `json:"mime_type"`
+	Size             int64     `json:"size"`
+	Width            *int64    `json:"width"`
+	Height           *int64    `json:"height"`
+	ThumbnailKey     *string   `json:"thumbnail_key"`
+	Metadata         *string   `json:"metadata"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type AssetTag struct {
@@ -36,62 +35,62 @@ type AssetsFt struct {
 }
 
 type Folder struct {
-	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
-	ProjectID   string         `json:"project_id"`
-	ParentID    sql.NullString `json:"parent_id"`
-	Name        string         `json:"name"`
-	Position    int64          `json:"position"`
-	CreatedAt   string         `json:"created_at"`
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+	ProjectID   string  `json:"project_id"`
+	ParentID    *string `json:"parent_id"`
+	Name        string  `json:"name"`
+	Position    int64   `json:"position"`
+	CreatedAt   string  `json:"created_at"`
 }
 
 type Job struct {
-	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
-	Type        string         `json:"type"`
-	Payload     string         `json:"payload"`
-	Status      string         `json:"status"`
-	Attempts    int64          `json:"attempts"`
-	Error       sql.NullString `json:"error"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspace_id"`
+	Type        string    `json:"type"`
+	Payload     string    `json:"payload"`
+	Status      string    `json:"status"`
+	Attempts    int64     `json:"attempts"`
+	Error       *string   `json:"error"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type Project struct {
-	ID           string         `json:"id"`
-	WorkspaceID  string         `json:"workspace_id"`
-	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description"`
-	Color        sql.NullString `json:"color"`
-	CoverAssetID sql.NullString `json:"cover_asset_id"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	ID           string    `json:"id"`
+	WorkspaceID  string    `json:"workspace_id"`
+	Name         string    `json:"name"`
+	Description  *string   `json:"description"`
+	Color        *string   `json:"color"`
+	CoverAssetID *string   `json:"cover_asset_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Share struct {
-	ID            string         `json:"id"`
-	WorkspaceID   string         `json:"workspace_id"`
-	CreatedBy     string         `json:"created_by"`
-	Label         string         `json:"label"`
-	TargetType    string         `json:"target_type"`
-	TargetID      string         `json:"target_id"`
-	PasswordHash  sql.NullString `json:"password_hash"`
-	ExpiresAt     sql.NullString `json:"expires_at"`
-	AllowComments int64          `json:"allow_comments"`
-	AllowDownload int64          `json:"allow_download"`
-	ViewCount     int64          `json:"view_count"`
-	CreatedAt     string         `json:"created_at"`
-	RevokedAt     sql.NullString `json:"revoked_at"`
+	ID            string  `json:"id"`
+	WorkspaceID   string  `json:"workspace_id"`
+	CreatedBy     string  `json:"created_by"`
+	Label         string  `json:"label"`
+	TargetType    string  `json:"target_type"`
+	TargetID      string  `json:"target_id"`
+	PasswordHash  *string `json:"password_hash"`
+	ExpiresAt     *string `json:"expires_at"`
+	AllowComments int64   `json:"allow_comments"`
+	AllowDownload int64   `json:"allow_download"`
+	ViewCount     int64   `json:"view_count"`
+	CreatedAt     string  `json:"created_at"`
+	RevokedAt     *string `json:"revoked_at"`
 }
 
 type ShareComment struct {
-	ID          string         `json:"id"`
-	ShareID     string         `json:"share_id"`
-	AssetID     string         `json:"asset_id"`
-	AuthorName  string         `json:"author_name"`
-	AuthorEmail sql.NullString `json:"author_email"`
-	Body        string         `json:"body"`
-	CreatedAt   string         `json:"created_at"`
+	ID          string  `json:"id"`
+	ShareID     string  `json:"share_id"`
+	AssetID     string  `json:"asset_id"`
+	AuthorName  string  `json:"author_name"`
+	AuthorEmail *string `json:"author_email"`
+	Body        string  `json:"body"`
+	CreatedAt   string  `json:"created_at"`
 }
 
 type Tag struct {
@@ -110,14 +109,14 @@ type User struct {
 }
 
 type Variant struct {
-	ID              string         `json:"id"`
-	AssetID         string         `json:"asset_id"`
-	WorkspaceID     string         `json:"workspace_id"`
-	Type            string         `json:"type"`
-	StorageKey      string         `json:"storage_key"`
-	TransformParams sql.NullString `json:"transform_params"`
-	Size            sql.NullInt64  `json:"size"`
-	CreatedAt       time.Time      `json:"created_at"`
+	ID              string    `json:"id"`
+	AssetID         string    `json:"asset_id"`
+	WorkspaceID     string    `json:"workspace_id"`
+	Type            string    `json:"type"`
+	StorageKey      string    `json:"storage_key"`
+	TransformParams *string   `json:"transform_params"`
+	Size            *int64    `json:"size"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type Workspace struct {
@@ -128,21 +127,21 @@ type Workspace struct {
 }
 
 type WorkspaceInvite struct {
-	ID          string       `json:"id"`
-	WorkspaceID string       `json:"workspace_id"`
-	Email       string       `json:"email"`
-	Token       string       `json:"token"`
-	Role        string       `json:"role"`
-	InvitedBy   string       `json:"invited_by"`
-	ExpiresAt   time.Time    `json:"expires_at"`
-	AcceptedAt  sql.NullTime `json:"accepted_at"`
-	CreatedAt   time.Time    `json:"created_at"`
+	ID          string     `json:"id"`
+	WorkspaceID string     `json:"workspace_id"`
+	Email       string     `json:"email"`
+	Token       string     `json:"token"`
+	Role        string     `json:"role"`
+	InvitedBy   string     `json:"invited_by"`
+	ExpiresAt   time.Time  `json:"expires_at"`
+	AcceptedAt  *time.Time `json:"accepted_at"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 type WorkspaceMember struct {
-	WorkspaceID string         `json:"workspace_id"`
-	UserID      string         `json:"user_id"`
-	Role        string         `json:"role"`
-	InvitedBy   sql.NullString `json:"invited_by"`
-	CreatedAt   time.Time      `json:"created_at"`
+	WorkspaceID string    `json:"workspace_id"`
+	UserID      string    `json:"user_id"`
+	Role        string    `json:"role"`
+	InvitedBy   *string   `json:"invited_by"`
+	CreatedAt   time.Time `json:"created_at"`
 }

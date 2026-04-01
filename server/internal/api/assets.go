@@ -27,19 +27,19 @@ import (
 )
 
 type assetResponse struct {
-	ID               string         `json:"id"`
-	WorkspaceID      string         `json:"workspace_id"`
-	ProjectID        sql.NullString `json:"project_id"`
-	OriginalFilename string         `json:"original_filename"`
-	MimeType         string         `json:"mime_type"`
-	Size             int64          `json:"size"`
-	Width            sql.NullInt64  `json:"width"`
-	Height           sql.NullInt64  `json:"height"`
-	ThumbnailKey     sql.NullString `json:"thumbnail_key"`
-	Metadata         sql.NullString `json:"metadata"`
-	Tags             []string       `json:"tags"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
+	ID               string    `json:"id"`
+	WorkspaceID      string    `json:"workspace_id"`
+	ProjectID        *string   `json:"project_id"`
+	OriginalFilename string    `json:"original_filename"`
+	MimeType         string    `json:"mime_type"`
+	Size             int64     `json:"size"`
+	Width            *int64    `json:"width"`
+	Height           *int64    `json:"height"`
+	ThumbnailKey     *string   `json:"thumbnail_key"`
+	Metadata         *string   `json:"metadata"`
+	Tags             []string  `json:"tags"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type assetListResponse struct {
@@ -105,15 +105,15 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	}
 
 	// Extract image dimensions
-	var width, height sql.NullInt64
+	var width, height *int64
 	if strings.HasPrefix(mimeType, "image/") {
 		f3, err := fh.Open()
 		if err == nil {
 			cfg, _, decErr := image.DecodeConfig(f3)
 			f3.Close()
 			if decErr == nil {
-				width = sql.NullInt64{Int64: int64(cfg.Width), Valid: true}
-				height = sql.NullInt64{Int64: int64(cfg.Height), Valid: true}
+				w, h := int64(cfg.Width), int64(cfg.Height)
+				width, height = &w, &h
 			}
 		}
 	}
@@ -193,7 +193,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		at, id, err := decodeCursor(cursor)
 		if err == nil {
 			params.CursorAt = at.UTC().Format("2006-01-02 15:04:05")
-			params.CursorID = sql.NullString{String: id, Valid: true}
+			params.CursorID = &id
 		}
 	}
 
@@ -406,11 +406,11 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	if !asset.ThumbnailKey.Valid {
+	if asset.ThumbnailKey == nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not ready")
 	}
 
-	rc, err := s.storage.Get(asset.ThumbnailKey.String)
+	rc, err := s.storage.Get(*asset.ThumbnailKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
@@ -435,8 +435,8 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 	}
 
 	_ = s.storage.Delete(asset.StorageKey)
-	if asset.ThumbnailKey.Valid {
-		_ = s.storage.Delete(asset.ThumbnailKey.String)
+	if asset.ThumbnailKey != nil {
+		_ = s.storage.Delete(*asset.ThumbnailKey)
 	}
 
 	if err := s.db.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
@@ -515,9 +515,9 @@ func (s *Server) handleBulkProject(c fiber.Ctx) error {
 		}
 	}
 
-	projectID := sql.NullString{}
+	var projectID *string
 	if body.ProjectID != nil {
-		projectID = sql.NullString{String: *body.ProjectID, Valid: true}
+		projectID = body.ProjectID
 	}
 
 	for _, assetID := range body.AssetIDs {
@@ -619,7 +619,7 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
-	var folderID sql.NullString
+	var folderID *string
 	if body.FolderID != nil && *body.FolderID != "" {
 		// Verify folder belongs to workspace
 		if _, err := s.db.GetFolderByID(c.RequestCtx(), dbgen.GetFolderByIDParams{
@@ -631,7 +631,7 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 			}
 			return errRes(c, fiber.StatusInternalServerError, "could not load folder")
 		}
-		folderID = sql.NullString{String: *body.FolderID, Valid: true}
+		folderID = body.FolderID
 	}
 
 	if err := s.db.UpdateAssetFolder(c.RequestCtx(), dbgen.UpdateAssetFolderParams{
@@ -676,8 +676,8 @@ func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 			continue
 		}
 		_ = s.storage.Delete(asset.StorageKey)
-		if asset.ThumbnailKey.Valid {
-			_ = s.storage.Delete(asset.ThumbnailKey.String)
+		if asset.ThumbnailKey != nil {
+			_ = s.storage.Delete(*asset.ThumbnailKey)
 		}
 		_ = s.db.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
 			ID:          asset.ID,

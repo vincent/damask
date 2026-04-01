@@ -16,7 +16,7 @@ type folderResponse struct {
 	ID          string           `json:"id"`
 	WorkspaceID string           `json:"workspace_id"`
 	ProjectID   string           `json:"project_id"`
-	ParentID    sql.NullString   `json:"parent_id"`
+	ParentID    *string          `json:"parent_id"`
 	Name        string           `json:"name"`
 	Position    int64            `json:"position"`
 	AssetCount  int64            `json:"asset_count"`
@@ -66,7 +66,7 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "name is required")
 	}
 
-	var parentID sql.NullString
+	var parentID *string
 	if body.ParentID != nil && *body.ParentID != "" {
 		// Verify parent exists in workspace
 		parent, err := s.db.GetFolderByID(c.RequestCtx(), dbgen.GetFolderByIDParams{
@@ -80,18 +80,18 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 			return errRes(c, fiber.StatusInternalServerError, "could not load parent folder")
 		}
 		// Max depth is 2 levels — parent must be a root folder (no parent of its own)
-		if parent.ParentID.Valid {
+		if parent.ParentID != nil {
 			return errRes(c, fiber.StatusUnprocessableEntity, "max folder depth is 2")
 		}
 		if parent.ProjectID != projectID {
 			return errRes(c, fiber.StatusBadRequest, "parent folder belongs to a different project")
 		}
-		parentID = sql.NullString{String: *body.ParentID, Valid: true}
+		parentID = body.ParentID
 	}
 
 	// SQLite does not enforce UNIQUE constraints when parent_id IS NULL,
 	// so we check for duplicates at the application level for root folders.
-	if !parentID.Valid {
+	if parentID == nil {
 		var existingCount int
 		err := s.sqlDB.QueryRowContext(c.RequestCtx(),
 			`SELECT COUNT(*) FROM folders WHERE project_id = ? AND parent_id IS NULL AND name = ? AND workspace_id = ?`,
@@ -158,13 +158,13 @@ func (s *Server) handleGetFolders(c fiber.Ctx) error {
 		folderResponse
 		depth    int64
 		id       string
-		parentID sql.NullString
+		parentID *string
 	}
 	var flat []flatRow
 	for rows.Next() {
 		var f flatRow
 		var depth int64
-		var parentID sql.NullString
+		var parentID *string
 		var id string
 		if err := rows.Scan(
 			&id, &f.WorkspaceID, &f.ProjectID, &parentID,
@@ -189,15 +189,15 @@ func (s *Server) handleGetFolders(c fiber.Ctx) error {
 	rootMap := make(map[string]int) // folder id -> index in roots slice
 	var roots []folderResponse
 	for _, row := range flat {
-		if !row.parentID.Valid {
+		if row.parentID == nil {
 			rootMap[row.id] = len(roots)
 			roots = append(roots, row.folderResponse)
 		}
 	}
 	// Pass 2: attach children to parent root entries
 	for _, row := range flat {
-		if row.parentID.Valid {
-			if idx, ok := rootMap[row.parentID.String]; ok {
+		if row.parentID != nil {
+			if idx, ok := rootMap[*row.parentID]; ok {
 				roots[idx].Children = append(roots[idx].Children, row.folderResponse)
 			}
 		}
@@ -240,8 +240,8 @@ func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 	}
 
 	folder, err := s.db.UpdateFolder(c.RequestCtx(), dbgen.UpdateFolderParams{
-		Name:        sql.NullString{String: ptrStr(body.Name), Valid: body.Name != nil},
-		Position:    sql.NullInt64{Int64: ptrInt64(body.Position), Valid: body.Position != nil},
+		Name:        body.Name,
+		Position:    body.Position,
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -279,7 +279,7 @@ func (s *Server) handleDeleteFolder(c fiber.Ctx) error {
 
 	// Find and delete children first (using the transaction connection)
 	children, err := qtx.GetFolderChildren(c.RequestCtx(), dbgen.GetFolderChildrenParams{
-		ParentID:    sql.NullString{String: id, Valid: true},
+		ParentID:    &id,
 		WorkspaceID: claims.WorkspaceID,
 	})
 	if err != nil {
@@ -287,7 +287,7 @@ func (s *Server) handleDeleteFolder(c fiber.Ctx) error {
 	}
 	for _, child := range children {
 		if err := qtx.NullifyFolderAssets(c.RequestCtx(), dbgen.NullifyFolderAssetsParams{
-			FolderID:    sql.NullString{String: child.ID, Valid: true},
+			FolderID:    &child.ID,
 			WorkspaceID: claims.WorkspaceID,
 		}); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not nullify child assets")
@@ -302,7 +302,7 @@ func (s *Server) handleDeleteFolder(c fiber.Ctx) error {
 
 	// Nullify assets in this folder
 	if err := qtx.NullifyFolderAssets(c.RequestCtx(), dbgen.NullifyFolderAssetsParams{
-		FolderID:    sql.NullString{String: id, Valid: true},
+		FolderID:    &id,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not nullify assets")
@@ -320,14 +320,6 @@ func (s *Server) handleDeleteFolder(c fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
-}
-
-// ptrInt64 safely dereferences a *int64.
-func ptrInt64(v *int64) int64 {
-	if v == nil {
-		return 0
-	}
-	return *v
 }
 
 // fiber:context-methods migrated

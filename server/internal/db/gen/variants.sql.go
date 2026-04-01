@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 )
 
 const createVariant = `-- name: CreateVariant :one
@@ -17,13 +16,13 @@ RETURNING id, asset_id, workspace_id, type, storage_key, transform_params, size,
 `
 
 type CreateVariantParams struct {
-	ID              string         `json:"id"`
-	AssetID         string         `json:"asset_id"`
-	WorkspaceID     string         `json:"workspace_id"`
-	Type            string         `json:"type"`
-	StorageKey      string         `json:"storage_key"`
-	TransformParams sql.NullString `json:"transform_params"`
-	Size            sql.NullInt64  `json:"size"`
+	ID              string  `json:"id"`
+	AssetID         string  `json:"asset_id"`
+	WorkspaceID     string  `json:"workspace_id"`
+	Type            string  `json:"type"`
+	StorageKey      string  `json:"storage_key"`
+	TransformParams *string `json:"transform_params"`
+	Size            *int64  `json:"size"`
 }
 
 func (q *Queries) CreateVariant(ctx context.Context, arg CreateVariantParams) (Variant, error) {

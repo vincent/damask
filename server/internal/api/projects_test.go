@@ -51,11 +51,11 @@ func TestCreateProject_Success(t *testing.T) {
 	if p.Name != "Campaign 2024" {
 		t.Errorf("name = %q, want Campaign 2024", p.Name)
 	}
-	if p.Color.String != "#3b82f6" {
-		t.Errorf("color = %q, want #3b82f6", p.Color.String)
+	if p.Color == nil || *p.Color != "#3b82f6" {
+		t.Errorf("color = %v, want #3b82f6", p.Color)
 	}
-	if p.Description.String != "Summer campaign" {
-		t.Errorf("description = %q, want Summer campaign", p.Description.String)
+	if p.Description == nil || *p.Description != "Summer campaign" {
+		t.Errorf("description = %v, want Summer campaign", p.Description)
 	}
 	if p.WorkspaceID != owner.WorkspaceID {
 		t.Errorf("workspace_id mismatch")
@@ -192,8 +192,8 @@ func TestUpdateProject(t *testing.T) {
 	if got.Name != "New Name" {
 		t.Errorf("name = %q, want New Name", got.Name)
 	}
-	if got.Color.String != "#112233" {
-		t.Errorf("color = %q, want #112233", got.Color.String)
+	if got.Color == nil || *got.Color != "#112233" {
+		t.Errorf("color = %v, want #112233", got.Color)
 	}
 }
 

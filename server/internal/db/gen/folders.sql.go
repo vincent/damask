@@ -7,7 +7,6 @@ package dbgen
 
 import (
 	"context"
-	"database/sql"
 )
 
 const createFolder = `-- name: CreateFolder :one
@@ -17,12 +16,12 @@ RETURNING id, workspace_id, project_id, parent_id, name, position, created_at
 `
 
 type CreateFolderParams struct {
-	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
-	ProjectID   string         `json:"project_id"`
-	ParentID    sql.NullString `json:"parent_id"`
-	Name        string         `json:"name"`
-	Position    int64          `json:"position"`
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+	ProjectID   string  `json:"project_id"`
+	ParentID    *string `json:"parent_id"`
+	Name        string  `json:"name"`
+	Position    int64   `json:"position"`
 }
 
 func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Folder, error) {
@@ -90,8 +89,8 @@ SELECT id, workspace_id, project_id, parent_id, name, position, created_at FROM 
 `
 
 type GetFolderChildrenParams struct {
-	ParentID    sql.NullString `json:"parent_id"`
-	WorkspaceID string         `json:"workspace_id"`
+	ParentID    *string `json:"parent_id"`
+	WorkspaceID string  `json:"workspace_id"`
 }
 
 func (q *Queries) GetFolderChildren(ctx context.Context, arg GetFolderChildrenParams) ([]Folder, error) {
@@ -131,8 +130,8 @@ WHERE folder_id = ? AND workspace_id = ?
 `
 
 type NullifyFolderAssetsParams struct {
-	FolderID    sql.NullString `json:"folder_id"`
-	WorkspaceID string         `json:"workspace_id"`
+	FolderID    *string `json:"folder_id"`
+	WorkspaceID string  `json:"workspace_id"`
 }
 
 func (q *Queries) NullifyFolderAssets(ctx context.Context, arg NullifyFolderAssetsParams) error {
@@ -150,10 +149,10 @@ RETURNING id, workspace_id, project_id, parent_id, name, position, created_at
 `
 
 type UpdateFolderParams struct {
-	Name        sql.NullString `json:"name"`
-	Position    sql.NullInt64  `json:"position"`
-	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
+	Name        *string `json:"name"`
+	Position    *int64  `json:"position"`
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
 }
 
 func (q *Queries) UpdateFolder(ctx context.Context, arg UpdateFolderParams) (Folder, error) {

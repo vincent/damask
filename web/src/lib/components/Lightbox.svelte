@@ -98,8 +98,8 @@
   }
 
   const activeProject = $derived(
-    asset?.project_id.Valid
-      ? projectsStore.projects.find((p) => p.id === asset.project_id.String) ?? null
+    asset?.project_id
+      ? projectsStore.projects.find((p) => p.id === asset.project_id) ?? null
       : null,
   )
 
