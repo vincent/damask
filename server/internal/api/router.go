@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
@@ -54,6 +56,7 @@ func New(
 	removeBgAPIKey,
 	appEnv string,
 	baseUrl string,
+	frontendPath string,
 ) *fiber.App {
 	s := &Server{
 		db:             db,
@@ -191,6 +194,18 @@ func New(
 
 	// Mount the UI with the default configuration under /swagger
 	app.Get("/swagger/*", swaggo.HandlerDefault)
+
+	// Serve the SvelteKit SPA when a frontend build path is configured.
+	// Unknown paths fall back to index.html for client-side routing.
+	if frontendPath != "" {
+		app.Use("/", func(c fiber.Ctx) error {
+			clean := filepath.Join(frontendPath, filepath.Clean("/"+c.Path()))
+			if info, err := os.Stat(clean); err == nil && !info.IsDir() {
+				return c.SendFile(clean)
+			}
+			return c.SendFile(filepath.Join(frontendPath, "index.html"))
+		})
+	}
 
 	return app
 }

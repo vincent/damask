@@ -17,6 +17,7 @@ type Config struct {
 	BaseURL        string
 	RemoveBgAPIKey string
 	QueueWorkers   int
+	FrontendPath   string
 }
 
 func Load() (*Config, error) {
@@ -36,8 +37,10 @@ func Load() (*Config, error) {
 		StoragePath:    getEnv("STORAGE_PATH", "./storage"),
 		JWTSecret:      os.Getenv("JWT_SECRET"),
 		AppEnv:         getEnv("APP_ENV", "development"),
+		BaseURL:        getEnv("BASE_URL", "http://localhost:5173"),
 		RemoveBgAPIKey: os.Getenv("REMOVEBG_API_KEY"),
 		QueueWorkers:   workers,
+		FrontendPath:   os.Getenv("FRONTEND_PATH"),
 	}
 
 	if cfg.JWTSecret == "" {
