@@ -206,7 +206,6 @@
         onsubmit={(e) => { e.preventDefault(); submitCreate() }}
       >
         <input
-          autofocus
           bind:value={newName}
           placeholder="Folder name"
           class="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"

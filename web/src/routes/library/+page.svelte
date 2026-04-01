@@ -33,6 +33,7 @@
   let showProjectShareModal = $state(false)
   let zoom = $state(10)
   const maxZoom = 20
+  let isDraggingFiles = $state(false)
 
   const activeProject = $derived(
     navigationStore.activeProjectId
@@ -89,12 +90,41 @@
     selectedAsset = null
   }
 
+  function handleMainDragOver(e: DragEvent) {
+    if (!e.dataTransfer?.types.includes('Files')) return
+    if (authStore.role === 'viewer') return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    isDraggingFiles = true
+  }
+
+  function handleMainDragLeave(e: DragEvent) {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      isDraggingFiles = false
+    }
+  }
+
+  function handleMainDrop(e: DragEvent) {
+    isDraggingFiles = false
+    if (!e.dataTransfer?.files.length) return
+    if (authStore.role === 'viewer') return
+    e.preventDefault()
+    assetsStore.upload(Array.from(e.dataTransfer.files))
+  }
+
   function handleWindowKeydown(e: KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault()
       showPalette = !showPalette
     }
     if (e.key === 'Escape' && !showPalette) selectionStore.clear()
+    if (selectedAsset && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault()
+      const assets = assetsStore.assets
+      const idx = assets.findIndex((a) => a.id === selectedAsset!.id)
+      if (e.key === 'ArrowLeft' && idx > 0) selectedAsset = assets[idx - 1]
+      if (e.key === 'ArrowRight' && idx < assets.length - 1) selectedAsset = assets[idx + 1]
+    }
   }
 
   onMount(() => {
@@ -240,7 +270,24 @@
     </header>
 
     <!-- Content -->
-    <main class="flex-1 overflow-y-auto px-6 py-6">
+    <main
+      class="relative flex-1 overflow-y-auto px-6 py-6"
+      ondragover={handleMainDragOver}
+      ondragleave={handleMainDragLeave}
+      ondrop={handleMainDrop}
+    >
+      {#if isDraggingFiles}
+        <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
+          <div class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400">
+            <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p class="text-sm font-medium">Drop to upload</p>
+          </div>
+        </div>
+      {/if}
+
       {#if assetsStore.initialLoad}
         <GridSkeleton x={7} y={3} {zoom} {maxZoom} />
       {:else if assetsStore.assets.length === 0}

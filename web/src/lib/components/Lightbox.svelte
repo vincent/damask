@@ -190,7 +190,7 @@
   >
     <!-- Preview (h-20) -->
     <div class="damask-texture damask-texture-strong relative h-20 flex-shrink-0 flex items-center justify-center {previewBg[category]}">
-      <h2 class="truncate text-lg font-bold leading-tight text-black dark:text-gray-50" title={asset.original_filename}>
+      <h2 class="max-w-[500px] break-all text-lg font-bold leading-tight text-black dark:text-gray-50" title={asset.original_filename}>
         {asset.original_filename}
       </h2>
       <!-- Top-right controls -->

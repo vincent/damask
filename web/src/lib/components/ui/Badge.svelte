@@ -11,7 +11,7 @@
 
   const variants: Record<string, string> = {
     image:
-      'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
+      'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
     video:
       'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
     audio:
