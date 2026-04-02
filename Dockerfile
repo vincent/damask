@@ -17,7 +17,7 @@ RUN VITE_API_URL="" npm run build
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates && rm -rf /var/lib/apt/lists/*
+    ca-certificates ffmpeg imagemagick && rm -rf /var/lib/apt/lists/*
 
 # /data holds the database, uploaded files, and optionally a .env file.
 # Mount this directory as a persistent volume.
