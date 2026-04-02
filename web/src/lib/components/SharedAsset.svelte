@@ -16,7 +16,7 @@
     <img
         src={thumbUrl}
         alt={asset.original_filename}
-        class="object-cover min-w-xl max-w-3xl max-h-[80vh]"
+        class="object-cover min-w-xl max-w-3xl max-h-[80vh] { category === 'audio' ? 'invert' : '' }"
         loading="lazy"
         onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
     />
