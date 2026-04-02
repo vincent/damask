@@ -29,6 +29,7 @@
   import AssetMetadataPills from './AssetMetadataPills.svelte'
   import AssetExportImage from './AssetExportImage.svelte'
   import AssetDeleteButton from './AssetDeleteButton.svelte'
+  import { fly } from 'svelte/transition'
 
   interface Props {
     asset: Asset | null
@@ -166,24 +167,27 @@
 
 {#if asset}
   <!-- Backdrop -->
-  <div
-    class="fixed w-[75%] grid place-items-center p-40 inset-0 z-40 bg-black/40 backdrop-blur-sm"
-    role="button"
-    tabindex="-1"
-    onclick={onclose}
-    onkeydown={(e) => e.key === 'Enter' && onclose()}
-    aria-label="Close lightbox"
-  >
-    <SharedAsset
-      {asset} {category}
-      thumbUrl={assetApi.thumbUrl(asset.id)}
-      assetUrl={assetApi.fileUrl(asset.id)}
-    />
+  <div class="asset-lightbox-bg fixed w-screen inset-0 z-40 bg-black/80 backdrop-blur-sm">
+    <div
+      class="fixed w-[75%] grid place-items-center p-40 inset-0"
+      role="button"
+      tabindex="-1"
+      onclick={onclose}
+      onkeydown={(e) => e.key === 'Enter' && onclose()}
+      aria-label="Close lightbox"
+    >
+      <SharedAsset
+        {asset} {category}
+        thumbUrl={category === 'image' ? assetApi.fileUrl(asset.id) : assetApi.thumbUrl(asset.id)}
+        assetUrl={assetApi.fileUrl(asset.id)}
+      />
+    </div>
   </div>
 
   <!-- Panel: fixed 25% -->
   <div
-    class="fixed w-[25%] inset-y-0 right-0 z-50 flex w-3xl flex-col bg-white shadow-2xl dark:bg-gray-900"
+    transition:fly={{ x: '50%', duration: 100 }}
+    class="asset-lightbox fixed w-[25%] inset-y-0 right-0 z-50 flex w-3xl flex-col bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
     aria-modal="true"
     aria-label={asset.original_filename}

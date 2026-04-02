@@ -21,6 +21,7 @@
   import AssetIcon from '../../lib/components/AssetIcon.svelte'
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import { goto } from '$app/navigation'
+  import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
@@ -32,6 +33,7 @@
   let isDraggingFiles = $state(false)
   let mainEl = $state<HTMLElement | undefined>(undefined)
   let rubberBand = $state<{ startX: number; startY: number; x: number; y: number; w: number; h: number } | null>(null)
+  let zoomOverlay = $state<{ src: string; vars: string, asset: Asset } | null>(null)
 
   const activeProject = $derived(
     navigationStore.activeProjectId
@@ -53,7 +55,41 @@
       event,
       authStore.role !== 'viewer',
     )
-    if (!handled) selectedAsset = asset
+    if (!handled) {
+      const cardEl = (event.currentTarget as HTMLElement).closest('button.asset-card') as HTMLElement | null
+      const imgEl = cardEl?.querySelector('img') as HTMLImageElement | null
+      const rect = cardEl?.getBoundingClientRect()
+
+      if (rect && imgEl?.src) {
+        // The overlay is centered on screen at 70vw × 70vh.
+        // We start it visually at the card's position/size and animate it to center.
+        // Compute the overlay's final rect so we can derive the correct transform origin.
+        const ow = window.innerWidth * 0.70
+        const oh = window.innerHeight * 0.70
+
+        // Scale: make the overlay appear as small as the card
+        const sx = rect.width / ow
+        const sy = rect.height / oh
+
+        // Translate: move overlay center to card center
+        // (transform-origin is center center, so we offset from screen center)
+        const cardCx = rect.left + rect.width / 2
+        const cardCy = rect.top + rect.height / 2
+        const tx = cardCx - window.innerWidth / 2
+        const ty = cardCy - window.innerHeight / 2
+        zoomOverlay = {
+          src: imgEl.src,
+          vars: `--tx:${tx}px; --ty:${ty}px; --sx:${sx}; --sy:${sy}`,
+          asset,
+        }
+        setTimeout(() => {
+          selectedAsset = asset
+          zoomOverlay = null
+        }, 380)
+      } else {
+        selectedAsset = asset
+      }
+    }
   }
 
   async function handleProjectSelect(item: MenuItem | null) {
@@ -164,6 +200,34 @@
 
 <svelte:window onkeydown={handleWindowKeydown} onmousemove={handleWindowMouseMove} onmouseup={handleWindowMouseUp} />
 
+<style lang="scss">
+  .library-content {
+    opacity: 1;
+  }
+  .zoom-overlay + .library-content {
+    opacity: 0.1;
+  }
+  .zoom-overlay {
+    transform-origin: center center;
+    will-change: transform, border-radius, opacity;
+    animation: card-zoom-in 380ms cubic-bezier(0.32, 0.72, 0.3, 1) forwards;
+  }
+
+  @keyframes card-zoom-in {
+    from {
+      transform: translate(var(--tx), var(--ty)) scale(var(--sx), var(--sy));
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    to {
+      transform: translate(0px, 0px) scale(1, 1);
+      opacity: 0;
+    }
+  }
+</style>
+
 <!-- Top bar -->
 <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
   <div class="flex items-center gap-3">
@@ -215,11 +279,18 @@
   </div>
 </header>
 
+{#if zoomOverlay}
+  <div class="zoom-overlay-bg fixed w-screen grid place-items-center p-40 inset-0 z-40 bg-black/70 backdrop-blur-lg"></div>
+  <div class="zoom-overlay fixed w-[75%] grid place-items-center p-40 inset-0 z-42" style={zoomOverlay.vars}>
+    <img src={zoomOverlay.src} width={zoomOverlay.asset.width || 640} alt="" class="object-cover min-w-xl max-w-3xl max-h-[80vh]" />
+  </div>
+{/if}
+
 <!-- Content -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main
   bind:this={mainEl}
-  class="relative flex-1 overflow-y-auto px-6 py-6"
+  class="library-content relative flex-1 overflow-y-auto px-6 py-6"
   ondragover={handleMainDragOver}
   ondragleave={handleMainDragLeave}
   ondrop={handleMainDrop}
@@ -300,6 +371,8 @@
     {/if}
   {/if}
 </main>
+
+<LibraryStatusBar bind:zoom={zoom} max={maxZoom - 1} />
 
 {#if rubberBand && rubberBand.w > 2 && rubberBand.h > 2}
   <div

@@ -16,12 +16,12 @@
     <img
         src={thumbUrl}
         alt={asset.original_filename}
-        class="object-cover max-w-3xl max-h-[80vh]"
+        class="object-cover min-w-xl max-w-3xl max-h-[80vh]"
         loading="lazy"
         onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
     />
 {:else if category === 'video'}
-    <video class="object-cover max-w-3xl max-h-[80vh]" controls>
+    <video class="object-cover min-w-xl max-w-3xl max-h-[80vh]" controls>
         <source src={assetUrl} type={asset.mime_type} />
         Your browser does not support the video tag.
     </video>
