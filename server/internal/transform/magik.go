@@ -19,12 +19,15 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) ([
 	}
 	defer cleanup()
 
+	output := tmpPath + "_thumb" + ".jpg"
 	var buf bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx,
 		"convert",
+		"-units", "pixelsperinch",
+		"-density", "72",
 		tmpPath+"[0]",
-		tmpPath+"_thumb"+".jpg",
+		output,
 	)
 
 	cmd.Stdout = &buf
@@ -34,7 +37,12 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) ([
 		return nil, "", fmt.Errorf("convert failed: %w — stderr: %s", err, stderr.String())
 	}
 
-	thumbData, err := io.ReadAll(bytes.NewReader(buf.Bytes()))
+	f, err := os.Open(output)
+	if err != nil {
+		return nil, "", fmt.Errorf("open thumb: %w", err)
+	}
+	defer f.Close()
+	thumbData, err := io.ReadAll(f)
 	if err != nil {
 		return nil, "", fmt.Errorf("read thumb: %w", err)
 	}

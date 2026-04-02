@@ -41,3 +41,17 @@ damask/
 | `make test` | Run Go tests |
 | `make lint` | Run golangci-lint + ESLint |
 | `make generate` | Run sqlc code generation |
+
+## Troubeshooting
+
+Remove these policies from ImageMagick config `/etc/ImageMagick-6/policy.xml`
+
+```xml
+<!-- disable ghostscript format types -->
+<policy domain="coder" rights="none" pattern="PS" />
+<policy domain="coder" rights="none" pattern="PS2" />
+<policy domain="coder" rights="none" pattern="PS3" />
+<policy domain="coder" rights="none" pattern="EPS" />
+<policy domain="coder" rights="none" pattern="PDF" />
+<policy domain="coder" rights="none" pattern="XPS" />
+```
