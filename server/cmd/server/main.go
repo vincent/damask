@@ -12,6 +12,7 @@ import (
 	"damask/server/internal/config"
 	"damask/server/internal/db"
 	"damask/server/internal/queue"
+	"damask/server/internal/services"
 	"damask/server/internal/storage"
 )
 
@@ -45,9 +46,13 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL, cfg.FrontendPath)
+	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL.String(), cfg.FrontendPath)
 
-	log.Printf("server starting on :%s (env=%s, workers=%d)", cfg.Port, cfg.AppEnv, cfg.QueueWorkers)
+	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host)
+	log.Printf("mail server starting on :%s", "2525")
+	go mail.Start()
+
+	log.Printf("api server starting on :%s (env=%s, workers=%d)", cfg.Port, cfg.AppEnv, cfg.QueueWorkers)
 	if err := app.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("server: %v", err)
 	}

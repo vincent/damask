@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -14,7 +15,7 @@ type Config struct {
 	StoragePath    string
 	JWTSecret      string
 	AppEnv         string
-	BaseURL        string
+	BaseURL        *url.URL
 	RemoveBgAPIKey string
 	QueueWorkers   int
 	FrontendPath   string
@@ -37,7 +38,6 @@ func Load() (*Config, error) {
 		StoragePath:    getEnv("STORAGE_PATH", "./storage"),
 		JWTSecret:      os.Getenv("JWT_SECRET"),
 		AppEnv:         getEnv("APP_ENV", "development"),
-		BaseURL:        getEnv("BASE_URL", "http://localhost:5173"),
 		RemoveBgAPIKey: os.Getenv("REMOVEBG_API_KEY"),
 		QueueWorkers:   workers,
 		FrontendPath:   os.Getenv("FRONTEND_PATH"),
@@ -46,6 +46,12 @@ func Load() (*Config, error) {
 	if cfg.JWTSecret == "" {
 		return nil, errors.New("JWT_SECRET env var is required")
 	}
+
+	baseURL, err := url.Parse(getEnv("BASE_URL", "http://localhost:5173"))
+	if err != nil {
+		return nil, errors.New("BASE_URL env var is required")
+	}
+	cfg.BaseURL = baseURL
 
 	return cfg, nil
 }
