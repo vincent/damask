@@ -614,8 +614,6 @@ func (s *Server) writeToTempFile(ctx context.Context, storageKey, ext string) (s
 	if err != nil {
 		return "", nil, fmt.Errorf("create temp: %w", err)
 	}
-	fmt.Println("copying", storageKey)
-	fmt.Println("into", f.Name())
 	if _, copyErr := io.Copy(f, rc); copyErr != nil {
 		_ = f.Close()
 		_ = os.Remove(f.Name())

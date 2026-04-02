@@ -1,18 +1,13 @@
 package api
 
 import (
-	"context"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -21,8 +16,7 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/queue"
-	"damask/server/internal/transform"
+	"damask/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -78,108 +72,18 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "file field is required")
 	}
 
-	// Detect MIME type from magic bytes
-	f, err := fh.Open()
+	tmpFile := filepath.Join(os.TempDir(), fh.Filename)
+	err = c.SaveFile(fh, tmpFile)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not open uploaded file")
-	}
-	sniff := make([]byte, 512)
-	n, _ := f.Read(sniff)
-	err = f.Close()
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not close uploaded file")
-	}
-	mimeType := http.DetectContentType(sniff[:n])
-	if idx := strings.Index(mimeType, ";"); idx != -1 {
-		mimeType = strings.TrimSpace(mimeType[:idx])
+		return errRes(c, fiber.StatusInternalServerError, "cannot create temp file")
 	}
 
-	assetID := uuid.New().String()
-	originalFilename := filepath.Base(fh.Filename)
-	storageKey := fmt.Sprintf("%s/%s/%s", claims.WorkspaceID, assetID, originalFilename)
-
-	// Write file to storage
-	f2, err := fh.Open()
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not read uploaded file")
-	}
-	defer f2.Close()
-
-	if err := s.storage.Put(storageKey, f2); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not store file")
+	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.storage, s.queue, claims.WorkspaceID, tmpFile)
+	if fErr != nil {
+		return errRes(c, fErr.Code, fErr.Message)
 	}
 
-	// Extract image dimensions
-	var width, height *int64
-	if strings.HasPrefix(mimeType, "image/") {
-		f3, err := fh.Open()
-		if err == nil {
-			cfg, _, decErr := image.DecodeConfig(f3)
-			err = f3.Close()
-			if err != nil {
-				return errRes(c, fiber.StatusInternalServerError, "could not close uploaded file")
-			}
-			if decErr == nil {
-				w, h := int64(cfg.Width), int64(cfg.Height)
-				width, height = &w, &h
-			}
-		}
-	}
-	if strings.HasPrefix(mimeType, "video/") {
-		tmpFile := filepath.Join(os.TempDir(), assetID)
-		err = c.SaveFile(fh, tmpFile)
-		if err != nil {
-			log.Printf("could not save uploaded file: %v", err)
-		} else {
-			res, err := transform.ExtractVideoResolution(c.RequestCtx(), tmpFile)
-			if err != nil {
-				log.Printf("could not extract video resolution of %s: %v", fh.Filename, err)
-			} else {
-				width = &res.Width
-				height = &res.Height
-			}
-			_ = os.Remove(tmpFile)
-		}
-	}
-
-	asset, err := s.db.CreateAsset(c.RequestCtx(), dbgen.CreateAssetParams{
-		ID:               assetID,
-		WorkspaceID:      claims.WorkspaceID,
-		OriginalFilename: originalFilename,
-		StorageKey:       storageKey,
-		MimeType:         mimeType,
-		Size:             fh.Size,
-		Width:            width,
-		Height:           height,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not save asset")
-	}
-
-	if strings.HasPrefix(mimeType, "image/") {
-		payload, _ := json.Marshal(thumbnailJobPayload{
-			AssetID:     asset.ID,
-			WorkspaceID: claims.WorkspaceID,
-			StorageKey:  storageKey,
-		})
-		if _, err := s.queue.Enqueue(context.Background(), claims.WorkspaceID, queue.JobTypeThumbnail, string(payload)); err != nil {
-			log.Printf("thumbnail: enqueue %s: %v", asset.ID, err)
-		}
-	}
-	if strings.HasPrefix(mimeType, "video/") {
-		params, _ := json.Marshal(transform.VideoThumbnailParams{Timestamp: 1.0})
-		payload, _ := json.Marshal(variantJobPayload{
-			AssetID:     asset.ID,
-			WorkspaceID: claims.WorkspaceID,
-			StorageKey:  storageKey,
-			Params:      params,
-		})
-		if _, err := s.queue.Enqueue(context.Background(), claims.WorkspaceID, queue.JobTypeVideoThumbnail, string(payload)); err != nil {
-			log.Printf("video thumbnail: enqueue %s: %v", asset.ID, err)
-		}
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(assetToResponse(asset, nil))
+	return c.Status(fiber.StatusCreated).JSON(assetToResponse(*asset, nil))
 }
 
 func (s *Server) handleListAssets(c fiber.Ctx) error {
