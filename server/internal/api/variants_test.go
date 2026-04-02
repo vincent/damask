@@ -197,7 +197,7 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	env := setupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	body := `{"type":"watermark","params":{"opacity":50,"quality":80,"format":"jpeg"}}`
+	body := `{"type":"image_watermark","params":{"opacity":50,"quality":80,"format":"jpeg"}}`
 	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", jsonStr(body), cookie)
 	resp, err := env.app.Test(req)
 	if err != nil {
@@ -221,7 +221,7 @@ func TestCreateVariant_ResizeQueued(t *testing.T) {
 	env := setupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	body := `{"type":"resize","params":{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}}`
+	body := `{"type":"image_resize","params":{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}}`
 	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", jsonStr(body), cookie)
 	resp, err := env.app.Test(req)
 	if err != nil {
@@ -246,7 +246,7 @@ func TestCreateVariant_BgRemoveNoKey(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		jsonStr(`{"type":"bg_remove","params":{}}`), cookie)
+		jsonStr(`{"type":"image_bg_remove","params":{}}`), cookie)
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 (no API key), got %d", resp.StatusCode)

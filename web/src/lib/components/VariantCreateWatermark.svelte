@@ -11,7 +11,7 @@
 
     let { asset, creating, handleCreate }: Props = $props()
 
-    const kind = 'watermark'
+    const kind = 'image_watermark'
 
     // Watermark params
     let watermarkOpacity = $state(50)

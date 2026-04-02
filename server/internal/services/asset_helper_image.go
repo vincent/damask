@@ -48,6 +48,6 @@ func (h ImageHandler) EnqueueJobs(ctx context.Context, qu *queue.Queue, asset db
 		StorageKey:  asset.StorageKey,
 	})
 
-	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeThumbnail, string(payload))
+	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeImageThumbnail, string(payload))
 	return err
 }

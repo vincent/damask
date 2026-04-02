@@ -55,6 +55,7 @@ type MediaHandler interface {
 var handlers = []MediaHandler{
 	ImageHandler{},
 	VideoHandler{},
+	AudioHandler{},
 }
 
 func getHandler(mime string) MediaHandler {
@@ -135,6 +136,8 @@ func CreateAsset(
 		if err == nil {
 			meta = m
 		}
+	} else {
+		log.Printf("no handler for MIME type %s, skipping metadata extraction and job enqueueing", mimeType)
 	}
 
 	// Save asset

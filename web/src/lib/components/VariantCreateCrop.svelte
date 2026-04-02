@@ -11,7 +11,7 @@
 
     let { asset, creating, handleCreate }: Props = $props()
 
-    const kind = 'crop'
+    const kind = 'image_crop'
 
     // Crop params
     let cropX = $state(0)

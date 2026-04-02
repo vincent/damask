@@ -3,7 +3,9 @@ module damask/server
 go 1.25.6
 
 require (
+	github.com/DusanKasan/parsemail v1.2.0
 	github.com/disintegration/imaging v1.6.2
+	github.com/emersion/go-smtp v0.24.0
 	github.com/gofiber/contrib/v3/swaggo v1.0.1
 	github.com/gofiber/fiber/v3 v3.1.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -16,12 +18,10 @@ require (
 )
 
 require (
-	github.com/DusanKasan/parsemail v1.2.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6 // indirect
-	github.com/emersion/go-smtp v0.24.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/jsonreference v0.21.5 // indirect
 	github.com/go-openapi/spec v0.22.4 // indirect

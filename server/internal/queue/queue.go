@@ -173,12 +173,14 @@ func (q *Queue) processNext(ctx context.Context) {
 
 // Job type constants used throughout the application.
 const (
-	JobTypeThumbnail      = "thumbnail"
-	JobTypeResize         = "resize"
-	JobTypeConvert        = "convert"
-	JobTypeCrop           = "crop"
-	JobTypeWatermark      = "watermark"
+	JobTypeImageThumbnail = "image_thumbnail"
+	JobTypeImageResize    = "image_resize"
+	JobTypeImageConvert   = "image_convert"
+	JobTypeImageCrop      = "image_crop"
+	JobTypeImageWatermark = "image_watermark"
+	JobTypeImageBgRemove  = "image_bg_remove"
 	JobTypeVideoThumbnail = "video_thumbnail"
 	JobTypeVideoTranscode = "video_transcode"
-	JobTypeBgRemove       = "bg_remove"
+	JobTypeAudioWaveform  = "audio_waveform"
+	JobTypePdfThumbnail   = "pdf_thumbnail"
 )

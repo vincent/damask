@@ -11,7 +11,7 @@
 
   let { asset, creating, handleCreate }: Props = $props()
 
-  const kind = 'resize'
+  const kind = 'image_resize'
 
   // Resize params
   let resizeWidth = $state(800)

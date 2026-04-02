@@ -12,7 +12,7 @@
 
     let { asset, creating, handleCreate }: Props = $props()
 
-    const kind = 'bg_remove'
+    const kind = 'image_bg_remove'
 </script>
 
 <div class="space-y-5">

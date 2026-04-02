@@ -12,7 +12,7 @@
     let { category, asset, thumbUrl, assetUrl }: Props = $props();
 </script>
 
-{#if (category === 'image' || category === 'video') && thumbUrl}
+{#if (category === 'image' || category === 'video' || category === 'audio') && thumbUrl}
     <img
         src={thumbUrl}
         alt={asset.original_filename}

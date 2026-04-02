@@ -11,7 +11,7 @@
 
     let { asset, creating, handleCreate }: Props = $props()
 
-    const kind = 'convert'
+    const kind = 'image_convert'
 
     // Convert params
     let convertFormat = $state<'jpeg' | 'png' | 'tiff'>('png')
