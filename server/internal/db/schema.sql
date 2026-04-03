@@ -1,8 +1,9 @@
 CREATE TABLE workspaces (
-    id          TEXT PRIMARY KEY,
-    name        TEXT NOT NULL,
-    created_at  DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at  DATETIME NOT NULL DEFAULT (datetime('now'))
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL,
+    ingest_token TEXT UNIQUE,
+    created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at   DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE users (
@@ -158,3 +159,52 @@ CREATE TABLE share_comments (
 
 CREATE INDEX idx_comments_share ON share_comments(share_id);
 CREATE INDEX idx_comments_asset ON share_comments(asset_id);
+
+-- Ingress (migration 000006)
+CREATE TABLE ingress_sources (
+    id                TEXT PRIMARY KEY,
+    workspace_id      TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    created_by        TEXT NOT NULL REFERENCES users(id),
+    type              TEXT NOT NULL,
+    label             TEXT NOT NULL DEFAULT '',
+    config            TEXT NOT NULL DEFAULT '',
+    dest_folder_id    TEXT REFERENCES folders(id),
+    dest_project_id   TEXT REFERENCES projects(id),
+    enabled           INTEGER NOT NULL DEFAULT 1,
+    poll_interval_min INTEGER NOT NULL DEFAULT 15,
+    last_polled_at    DATETIME,
+    last_error        TEXT,
+    created_at        DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at        DATETIME NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_ingress_sources_workspace ON ingress_sources(workspace_id);
+CREATE INDEX idx_ingress_sources_due       ON ingress_sources(enabled, last_polled_at);
+
+CREATE TABLE ingress_log (
+    id          TEXT PRIMARY KEY,
+    source_id   TEXT NOT NULL REFERENCES ingress_sources(id) ON DELETE CASCADE,
+    remote_id   TEXT NOT NULL,
+    filename    TEXT NOT NULL,
+    asset_id    TEXT REFERENCES assets(id) ON DELETE SET NULL,
+    status      TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending', 'imported', 'skipped', 'error')),
+    error       TEXT,
+    imported_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(source_id, remote_id)
+);
+
+CREATE INDEX idx_ingress_log_source ON ingress_log(source_id, imported_at);
+CREATE INDEX idx_ingress_log_status ON ingress_log(status);
+
+CREATE TABLE ingress_rules (
+    id        TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL REFERENCES ingress_sources(id) ON DELETE CASCADE,
+    position  INTEGER NOT NULL DEFAULT 0,
+    field     TEXT NOT NULL,
+    operator  TEXT NOT NULL,
+    value     TEXT NOT NULL,
+    action    TEXT NOT NULL
+);
+
+CREATE INDEX idx_ingress_rules_source ON ingress_rules(source_id, position);

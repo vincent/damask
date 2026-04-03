@@ -44,6 +44,44 @@ type Folder struct {
 	CreatedAt   string  `json:"created_at"`
 }
 
+type IngressLog struct {
+	ID         string    `json:"id"`
+	SourceID   string    `json:"source_id"`
+	RemoteID   string    `json:"remote_id"`
+	Filename   string    `json:"filename"`
+	AssetID    *string   `json:"asset_id"`
+	Status     string    `json:"status"`
+	Error      *string   `json:"error"`
+	ImportedAt time.Time `json:"imported_at"`
+}
+
+type IngressRule struct {
+	ID       string `json:"id"`
+	SourceID string `json:"source_id"`
+	Position int64  `json:"position"`
+	Field    string `json:"field"`
+	Operator string `json:"operator"`
+	Value    string `json:"value"`
+	Action   string `json:"action"`
+}
+
+type IngressSource struct {
+	ID              string     `json:"id"`
+	WorkspaceID     string     `json:"workspace_id"`
+	CreatedBy       string     `json:"created_by"`
+	Type            string     `json:"type"`
+	Label           string     `json:"label"`
+	Config          string     `json:"config"`
+	DestFolderID    *string    `json:"dest_folder_id"`
+	DestProjectID   *string    `json:"dest_project_id"`
+	Enabled         int64      `json:"enabled"`
+	PollIntervalMin int64      `json:"poll_interval_min"`
+	LastPolledAt    *time.Time `json:"last_polled_at"`
+	LastError       *string    `json:"last_error"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
 type Job struct {
 	ID          string    `json:"id"`
 	WorkspaceID string    `json:"workspace_id"`
@@ -120,10 +158,11 @@ type Variant struct {
 }
 
 type Workspace struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	IngestToken *string   `json:"ingest_token"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type WorkspaceInvite struct {

@@ -100,6 +100,12 @@ func storeFile(storage storage.Storage, key string, filePath string) error {
 
 // -- Main Service
 
+// AssetOptions holds optional destination fields for CreateAsset.
+type AssetOptions struct {
+	ProjectID *string
+	FolderID  *string
+}
+
 func CreateAsset(
 	ctx context.Context,
 	db *dbgen.Queries,
@@ -107,6 +113,7 @@ func CreateAsset(
 	qu *queue.Queue,
 	workspaceID string,
 	filePath string,
+	opts AssetOptions,
 ) (*dbgen.Asset, *fiber.Error) {
 
 	stat, err := os.Stat(filePath)
@@ -145,6 +152,7 @@ func CreateAsset(
 	asset, err := db.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
+		ProjectID:        opts.ProjectID,
 		OriginalFilename: originalFilename,
 		StorageKey:       storageKey,
 		MimeType:         mimeType,
@@ -157,6 +165,19 @@ func CreateAsset(
 	}
 
 	log.Printf("created asset %s with MIME type %s", asset.ID, asset.MimeType)
+
+	// Assign folder if specified
+	if opts.FolderID != nil {
+		if err := db.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
+			FolderID:    opts.FolderID,
+			ID:          asset.ID,
+			WorkspaceID: workspaceID,
+		}); err != nil {
+			log.Printf("set folder for asset %s: %v", asset.ID, err)
+		} else {
+			asset.FolderID = opts.FolderID
+		}
+	}
 
 	// Enqueue jobs
 	if handler != nil {

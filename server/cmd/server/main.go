@@ -11,9 +11,17 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	"damask/server/internal/db"
+	"damask/server/internal/ingress"
 	"damask/server/internal/queue"
 	"damask/server/internal/services"
 	"damask/server/internal/storage"
+
+	// Side-effect imports to register ingress source types
+	_ "damask/server/internal/ingress/sources/dav"
+	_ "damask/server/internal/ingress/sources/email_api"
+	_ "damask/server/internal/ingress/sources/imap"
+	_ "damask/server/internal/ingress/sources/s3"
+	_ "damask/server/internal/ingress/sources/sftp"
 )
 
 func main() {
@@ -46,7 +54,19 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL.String(), cfg.FrontendPath)
+	// Register ingress job handlers
+	ingressWorker := ingress.NewWorker(queries, stor, q, cfg.AppSecret)
+	q.Register(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
+	q.Register(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
+
+	// Start ingress scheduler (disabled in tests via ENABLE_SCHEDULER=false)
+	if cfg.EnableScheduler {
+		scheduler := ingress.NewScheduler(queries, q)
+		scheduler.Start(ctx)
+		log.Printf("ingress scheduler started")
+	}
+
+	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL.String(), cfg.FrontendPath, cfg.AppSecret)
 
 	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host)
 	log.Printf("mail server starting on :%s", "2525")

@@ -79,7 +79,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "cannot create temp file")
 	}
 
-	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.storage, s.queue, claims.WorkspaceID, tmpFile)
+	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.storage, s.queue, claims.WorkspaceID, tmpFile, services.AssetOptions{})
 	if fErr != nil {
 		return errRes(c, fErr.Code, fErr.Message)
 	}

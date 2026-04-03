@@ -30,6 +30,7 @@ type Server struct {
 	removeBgAPIKey string
 	appEnv         string
 	baseUrl        string
+	appSecret      string
 }
 
 // New creates a configured Fiber app with all routes registered.
@@ -57,6 +58,7 @@ func New(
 	appEnv string,
 	baseUrl string,
 	frontendPath string,
+	appSecret string,
 ) *fiber.App {
 	s := &Server{
 		db:             db,
@@ -69,6 +71,7 @@ func New(
 		removeBgAPIKey: removeBgAPIKey,
 		appEnv:         appEnv,
 		baseUrl:        baseUrl,
+		appSecret:      appSecret,
 	}
 	s.RegisterJobHandlers()
 
@@ -165,6 +168,20 @@ func New(
 
 	// Server-Sent Events (workspace-scoped)
 	api.Get("/events", s.handleEvents)
+
+	// Ingress sources
+	ingressGroup := api.Group("/ingress")
+	ingressGroup.Post("/sources", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateIngressSource)
+	ingressGroup.Get("/sources", s.handleListIngressSources)
+	ingressGroup.Get("/sources/:id", s.handleGetIngressSource)
+	ingressGroup.Put("/sources/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateIngressSource)
+	ingressGroup.Delete("/sources/:id", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleDeleteIngressSource)
+	ingressGroup.Post("/sources/:id/test", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleTestIngressSource)
+	ingressGroup.Post("/sources/:id/poll", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handlePollIngressSource)
+	ingressGroup.Get("/sources/:id/log", s.handleListIngressSourceLog)
+	ingressGroup.Get("/log", s.handleListIngressLog)
+	ingressGroup.Delete("/log/:entry_id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteIngressLogEntry)
+	ingressGroup.Post("/log/:entry_id/retry", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleRetryIngressLogEntry)
 
 	// Shares — authenticated, workspace-scoped
 	api.Post("/shares", s.handleCreateShare)

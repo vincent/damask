@@ -64,7 +64,7 @@ func setupTestApp(t *testing.T) *testEnv {
 
 	q := queue.New(queries, 1)
 
-	app := New(queries, sqlDB, maker, stor, q, "", "development", "http://localhost", "")
+	app := New(queries, sqlDB, maker, stor, q, "", "development", "http://localhost", "", "test-app-secret-for-tests!!")
 	return &testEnv{app: app, maker: maker, sqlDB: sqlDB, storage: stor}
 }
 

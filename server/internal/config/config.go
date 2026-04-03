@@ -10,15 +10,17 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DBPath         string
-	StoragePath    string
-	JWTSecret      string
-	AppEnv         string
-	BaseURL        *url.URL
-	RemoveBgAPIKey string
-	QueueWorkers   int
-	FrontendPath   string
+	Port            string
+	DBPath          string
+	StoragePath     string
+	JWTSecret       string
+	AppSecret       string
+	AppEnv          string
+	BaseURL         *url.URL
+	RemoveBgAPIKey  string
+	QueueWorkers    int
+	FrontendPath    string
+	EnableScheduler bool
 }
 
 func Load() (*Config, error) {
@@ -33,18 +35,24 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:           getEnv("PORT", "8080"),
-		DBPath:         getEnv("DB_PATH", "./damask.db"),
-		StoragePath:    getEnv("STORAGE_PATH", "./storage"),
-		JWTSecret:      os.Getenv("JWT_SECRET"),
-		AppEnv:         getEnv("APP_ENV", "development"),
-		RemoveBgAPIKey: os.Getenv("REMOVEBG_API_KEY"),
-		QueueWorkers:   workers,
-		FrontendPath:   os.Getenv("FRONTEND_PATH"),
+		Port:            getEnv("PORT", "8080"),
+		DBPath:          getEnv("DB_PATH", "./damask.db"),
+		StoragePath:     getEnv("STORAGE_PATH", "./storage"),
+		JWTSecret:       os.Getenv("JWT_SECRET"),
+		AppSecret:       os.Getenv("APP_SECRET"),
+		AppEnv:          getEnv("APP_ENV", "development"),
+		RemoveBgAPIKey:  os.Getenv("REMOVEBG_API_KEY"),
+		QueueWorkers:    workers,
+		FrontendPath:    os.Getenv("FRONTEND_PATH"),
+		EnableScheduler: getEnv("ENABLE_SCHEDULER", "true") != "false",
 	}
 
 	if cfg.JWTSecret == "" {
 		return nil, errors.New("JWT_SECRET env var is required")
+	}
+
+	if cfg.AppSecret == "" {
+		return nil, errors.New("APP_SECRET env var is required")
 	}
 
 	baseURL, err := url.Parse(getEnv("BASE_URL", "http://localhost:5173"))
