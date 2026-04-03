@@ -72,6 +72,7 @@ type IngressSource struct {
 	Type            string     `json:"type"`
 	Label           string     `json:"label"`
 	Config          string     `json:"config"`
+	PublicToken     string     `json:"public_token"`
 	DestFolderID    *string    `json:"dest_folder_id"`
 	DestProjectID   *string    `json:"dest_project_id"`
 	Enabled         int64      `json:"enabled"`

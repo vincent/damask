@@ -4,9 +4,9 @@
 
 -- name: CreateIngressSource :one
 INSERT INTO ingress_sources (
-    id, workspace_id, created_by, type, label, config,
+    id, workspace_id, created_by, type, label, config, public_token,
     dest_folder_id, dest_project_id, enabled, poll_interval_min
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetIngressSource :one
@@ -50,6 +50,9 @@ WHERE enabled = 1
 ORDER BY last_polled_at ASC
 LIMIT 20;
 
+-- name: GetIngressSourceByPublicToken :one
+SELECT * FROM ingress_sources WHERE public_token = ?;
+
 -- name: SetWorkspaceIngestToken :exec
 UPDATE workspaces SET ingest_token = ? WHERE id = ?;
 
@@ -75,7 +78,7 @@ WHERE id = ?;
 
 -- name: ListIngressSourceLog :many
 SELECT * FROM ingress_log
-WHERE source_id = sqlc.arg('source_id')
+WHERE source_id = ?
 ORDER BY imported_at DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
@@ -109,9 +112,6 @@ UPDATE ingress_rules
 SET position = ?, field = ?, operator = ?, value = ?, action = ?
 WHERE id = ?
 RETURNING *;
-
--- name: GetIngressRule :one
-SELECT * FROM ingress_rules WHERE id = ?;
 
 -- name: DeleteIngressRule :exec
 DELETE FROM ingress_rules WHERE id = ?;

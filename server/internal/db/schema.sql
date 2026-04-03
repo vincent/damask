@@ -168,6 +168,7 @@ CREATE TABLE ingress_sources (
     type              TEXT NOT NULL,
     label             TEXT NOT NULL DEFAULT '',
     config            TEXT NOT NULL DEFAULT '',
+    public_token      TEXT NOT NULL DEFAULT '',
     dest_folder_id    TEXT REFERENCES folders(id),
     dest_project_id   TEXT REFERENCES projects(id),
     enabled           INTEGER NOT NULL DEFAULT 1,
@@ -180,6 +181,8 @@ CREATE TABLE ingress_sources (
 
 CREATE INDEX idx_ingress_sources_workspace ON ingress_sources(workspace_id);
 CREATE INDEX idx_ingress_sources_due       ON ingress_sources(enabled, last_polled_at);
+CREATE UNIQUE INDEX idx_ingress_sources_public_token
+    ON ingress_sources(public_token) WHERE public_token != '';
 
 CREATE TABLE ingress_log (
     id          TEXT PRIMARY KEY,

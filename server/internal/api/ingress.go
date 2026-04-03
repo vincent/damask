@@ -71,6 +71,7 @@ type ingressSourceResponse struct {
 	CreatedBy       string         `json:"created_by"`
 	Type            string         `json:"type"`
 	Label           string         `json:"label"`
+	PublicToken     string         `json:"public_token"`
 	Config          map[string]any `json:"config"`
 	DestFolderID    *string        `json:"dest_folder_id"`
 	DestProjectID   *string        `json:"dest_project_id"`
@@ -132,6 +133,7 @@ func (s *Server) sourceToResponse(src dbgen.IngressSource) (ingressSourceRespons
 		CreatedBy:       src.CreatedBy,
 		Type:            src.Type,
 		Label:           src.Label,
+		PublicToken:     src.PublicToken,
 		Config:          redactConfig(configMap),
 		DestFolderID:    src.DestFolderID,
 		DestProjectID:   src.DestProjectID,
@@ -408,6 +410,11 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		enabled = 0
 	}
 
+	publicToken, err := ingress.GenerateToken(32)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not generate public token")
+	}
+
 	src, err := s.db.CreateIngressSource(c.Context(), dbgen.CreateIngressSourceParams{
 		ID:              uuid.NewString(),
 		WorkspaceID:     claims.WorkspaceID,
@@ -415,6 +422,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		Type:            req.Type,
 		Label:           req.Label,
 		Config:          encryptedConfig,
+		PublicToken:     publicToken,
 		DestFolderID:    req.DestFolderID,
 		DestProjectID:   req.DestProjectID,
 		Enabled:         enabled,
