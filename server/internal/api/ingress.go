@@ -28,23 +28,23 @@ type ingressRuleReq struct {
 }
 
 type createIngressSourceReq struct {
-	Type            string            `json:"type"`
-	Label           string            `json:"label"`
-	Config          map[string]any    `json:"config"`
-	DestFolderID    *string           `json:"dest_folder_id"`
-	DestProjectID   *string           `json:"dest_project_id"`
-	Enabled         *bool             `json:"enabled"`
-	PollIntervalMin int64             `json:"poll_interval_min"`
-	Rules           []ingressRuleReq  `json:"rules"`
+	Type            string           `json:"type"`
+	Label           string           `json:"label"`
+	Config          map[string]any   `json:"config"`
+	DestFolderID    *string          `json:"dest_folder_id"`
+	DestProjectID   *string          `json:"dest_project_id"`
+	Enabled         *bool            `json:"enabled"`
+	PollIntervalMin int64            `json:"poll_interval_min"`
+	Rules           []ingressRuleReq `json:"rules"`
 }
 
 type updateIngressSourceReq struct {
-	Label           string              `json:"label"`
-	Config          map[string]any      `json:"config"`
-	DestFolderID    *json.RawMessage    `json:"dest_folder_id"`
-	DestProjectID   *json.RawMessage    `json:"dest_project_id"`
-	Enabled         *bool               `json:"enabled"`
-	PollIntervalMin int64               `json:"poll_interval_min"`
+	Label           string           `json:"label"`
+	Config          map[string]any   `json:"config"`
+	DestFolderID    *json.RawMessage `json:"dest_folder_id"`
+	DestProjectID   *json.RawMessage `json:"dest_project_id"`
+	Enabled         *bool            `json:"enabled"`
+	PollIntervalMin int64            `json:"poll_interval_min"`
 }
 
 // rawToNullableString converts a *json.RawMessage field to *string.
@@ -66,20 +66,20 @@ func rawToNullableString(r *json.RawMessage) (value *string, present bool) {
 }
 
 type ingressSourceResponse struct {
-	ID              string            `json:"id"`
-	WorkspaceID     string            `json:"workspace_id"`
-	CreatedBy       string            `json:"created_by"`
-	Type            string            `json:"type"`
-	Label           string            `json:"label"`
-	Config          map[string]any    `json:"config"`
-	DestFolderID    *string           `json:"dest_folder_id"`
-	DestProjectID   *string           `json:"dest_project_id"`
-	Enabled         bool              `json:"enabled"`
-	PollIntervalMin int64             `json:"poll_interval_min"`
-	LastPolledAt    *time.Time        `json:"last_polled_at"`
-	LastError       *string           `json:"last_error"`
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
+	ID              string         `json:"id"`
+	WorkspaceID     string         `json:"workspace_id"`
+	CreatedBy       string         `json:"created_by"`
+	Type            string         `json:"type"`
+	Label           string         `json:"label"`
+	Config          map[string]any `json:"config"`
+	DestFolderID    *string        `json:"dest_folder_id"`
+	DestProjectID   *string        `json:"dest_project_id"`
+	Enabled         bool           `json:"enabled"`
+	PollIntervalMin int64          `json:"poll_interval_min"`
+	LastPolledAt    *time.Time     `json:"last_polled_at"`
+	LastError       *string        `json:"last_error"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
 type ingressLogResponse struct {
@@ -452,7 +452,7 @@ func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list sources")
 	}
 
-	var result []ingressSourceResponse
+	result := make([]ingressSourceResponse, 0, len(sources))
 	for _, src := range sources {
 		resp, err := s.sourceToResponse(src)
 		if err != nil {
