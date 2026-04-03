@@ -98,9 +98,10 @@ export const assetsStore = {
   async load(reset = false) {
     if (loading) return
     loading = true
+    if (reset) nextCursor = null
     try {
       const result = await assetApi.list({
-        cursor: reset ? undefined : (nextCursor ?? undefined),
+        cursor: nextCursor ?? undefined,
         sortKey: sortKey || undefined,
         sortAsc: !!sortAsc,
         q: query || undefined,

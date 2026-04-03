@@ -4,7 +4,7 @@
   import { projectsStore } from '$lib/stores/projects.svelte'
   import SortButtons from '$lib/components/SortButtons.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
-  import { Share2 } from '@lucide/svelte'
+  import { Share2, Upload } from '@lucide/svelte'
 
   type Props = {
     sort: 'mimetype' | 'created_at' | 'size'
@@ -42,7 +42,7 @@
   <div class="flex items-center gap-2">
     <SortButtons
       bind:value={sort} bind:asc
-      keys={{ created_at: 'by date', mimetype: 'by type', size: 'by size' }}
+      keys={{ created_at: 'date', mimetype: 'type', size: 'size' }}
       sort={(key, a) => assetsStore.sort(key, a)}
     />
   </div>
@@ -56,8 +56,9 @@
     />
 
     {#if authStore.role !== 'viewer'}
-      <label class="cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+      <label class="flex gap-2 cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
         Upload
+        <Upload class="h-4 w-4" />
         <input
           type="file"
           multiple

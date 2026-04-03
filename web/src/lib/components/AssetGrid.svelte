@@ -8,7 +8,7 @@
   import AssetIcon from '$lib/components/AssetIcon.svelte'
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
-  import { Inbox, Loader } from '@lucide/svelte'
+  import { CloudUpload, Inbox, Loader } from '@lucide/svelte'
 
   type Props = {
     zoom: number
@@ -46,9 +46,9 @@
     if (!sentinel) return
     const el = sentinel
     const observer = new IntersectionObserver(
-      (entries) => {
+      async (entries) => {
         if (entries[0].isIntersecting && assetsStore.nextCursor && !assetsStore.loading) {
-          assetsStore.load()
+          tryLoadMore()
         }
       },
       { rootMargin: '200px' },
@@ -56,13 +56,14 @@
     observer.observe(el)
 
     const tryLoadMore = async () => {
-      while (assetsStore.nextCursor && !assetsStore.loading) {
+      if (assetsStore.nextCursor && !assetsStore.loading) {
         const rect = el.getBoundingClientRect()
-        if (rect.top >= window.innerHeight + 200) break
+        if (rect.top >= window.innerHeight + 200) return
         await assetsStore.load()
       }
     }
-    tryLoadMore()
+
+    setTimeout(tryLoadMore, 50)
 
     return () => observer.disconnect()
   })
@@ -80,10 +81,7 @@
   {#if isDraggingFiles}
     <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
       <div class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400">
-        <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-        </svg>
+        <CloudUpload class="h-10 w-10" />
         <p class="text-sm font-medium">Drop to upload</p>
       </div>
     </div>
