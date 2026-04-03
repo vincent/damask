@@ -43,28 +43,18 @@
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
 
   $effect(() => {
+    void assetsStore.resetDone  // re-create observer after each reset so it fires immediately if sentinel is already visible
     if (!sentinel) return
     const el = sentinel
     const observer = new IntersectionObserver(
       async (entries) => {
         if (entries[0].isIntersecting && assetsStore.nextCursor && !assetsStore.loading) {
-          tryLoadMore()
+          await assetsStore.load()
         }
       },
       { rootMargin: '200px' },
     )
     observer.observe(el)
-
-    const tryLoadMore = async () => {
-      if (assetsStore.nextCursor && !assetsStore.loading) {
-        const rect = el.getBoundingClientRect()
-        if (rect.top >= window.innerHeight + 200) return
-        await assetsStore.load()
-      }
-    }
-
-    setTimeout(tryLoadMore, 50)
-
     return () => observer.disconnect()
   })
 </script>

@@ -220,16 +220,30 @@ func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagName
 }
 
 func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit int64) error {
-	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), `
+	args := []interface{}{workspaceID, q + "*"}
+
+	var cursorClause string
+	if cursor := c.Query("cursor"); cursor != "" {
+		at, id, err := decodeCursor(cursor)
+		if err == nil {
+			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
+			args = append(args, at.UTC().Format("2006-01-02 15:04:05"), at.UTC().Format("2006-01-02 15:04:05"), id)
+		}
+	}
+
+	args = append(args, limit)
+
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), fmt.Sprintf(`
 		SELECT a.id, a.workspace_id, a.project_id, a.original_filename, a.storage_key,
 		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		       a.created_at, a.updated_at
 		FROM assets a
 		WHERE a.workspace_id = ?
 		  AND a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?)
-		ORDER BY a.created_at DESC
+		  %s
+		ORDER BY a.created_at DESC, a.id DESC
 		LIMIT ?
-	`, workspaceID, q+"*", limit)
+	`, cursorClause), args...)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "search failed")
 	}

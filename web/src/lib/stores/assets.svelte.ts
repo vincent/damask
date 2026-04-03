@@ -11,6 +11,8 @@ let activeTags = $state<string[]>([])
 
 let sortKey = $state('date_created')
 let sortAsc = $state(false)
+let generation = 0
+let resetDone = $state(0)
 
 const assetsByCategory = $derived({
   image: assets.filter((a) => mimeCategory(a.mime_type) === 'image'),
@@ -94,11 +96,16 @@ export const assetsStore = {
   set query(v: string) { query = v },
   get activeTags() { return activeTags },
   get assetsByCategory() { return assetsByCategory },
+  get resetDone() { return resetDone },
 
   async load(reset = false) {
-    if (loading) return
+    if (!reset && loading) return
+    if (reset) {
+      generation++
+      nextCursor = null
+    }
+    const myGen = generation
     loading = true
-    if (reset) nextCursor = null
     try {
       const result = await assetApi.list({
         cursor: nextCursor ?? undefined,
@@ -110,12 +117,14 @@ export const assetsStore = {
         folder_id: navigationStore.activeFolderId ?? undefined,
         limit: 20,
       })
+      if (myGen !== generation) return
       assets = reset ? result.assets : [...assets, ...result.assets]
       nextCursor = result.next_cursor
+      if (reset) resetDone++
     } catch {
       // 401 redirect handled by api client
     } finally {
-      loading = false
+      if (myGen === generation) loading = false
       initialLoad = false
     }
   },
@@ -128,8 +137,8 @@ export const assetsStore = {
 
   search() {
     clearTimeout(searchTimer)
+    nextCursor = null
     searchTimer = setTimeout(() => {
-      nextCursor = null
       assetsStore.load(true)
     }, 300)
   },
