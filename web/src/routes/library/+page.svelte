@@ -197,6 +197,19 @@
       { rootMargin: '200px' },
     )
     observer.observe(el)
+
+    // If the sentinel is already visible (first batch didn't fill the viewport),
+    // keep loading until it scrolls out or there's no more data.
+    const tryLoadMore = async () => {
+      while (assetsStore.nextCursor && !assetsStore.loading) {
+        const rect = el.getBoundingClientRect()
+        const inView = rect.top < window.innerHeight + 200
+        if (!inView) break
+        await assetsStore.load()
+      }
+    }
+    tryLoadMore()
+
     return () => observer.disconnect()
   })
 </script>
