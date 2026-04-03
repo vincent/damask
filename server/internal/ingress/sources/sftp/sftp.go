@@ -108,8 +108,8 @@ func (s *SFTPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Rea
 
 	f, err := client.Open(item.RemoteID)
 	if err != nil {
-		client.Close()
-		sshConn.Close()
+		_ = client.Close()
+		_ = sshConn.Close()
 		return nil, fmt.Errorf("sftp: open %s: %w", item.RemoteID, err)
 	}
 
@@ -142,7 +142,7 @@ func (s *SFTPSource) connect() (*gsftp.Client, *ssh.Client, error) {
 
 	client, err := gsftp.NewClient(sshConn)
 	if err != nil {
-		sshConn.Close()
+		_ = sshConn.Close()
 		return nil, nil, fmt.Errorf("sftp: new client: %w", err)
 	}
 	return client, sshConn, nil
@@ -156,7 +156,7 @@ type sftpReadCloser struct {
 
 func (rc *sftpReadCloser) Read(p []byte) (int, error) { return rc.f.Read(p) }
 func (rc *sftpReadCloser) Close() error {
-	rc.f.Close()
-	rc.client.Close()
+	_ = rc.f.Close()
+	_ = rc.client.Close()
 	return rc.ssh.Close()
 }

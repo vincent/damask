@@ -90,11 +90,11 @@ func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource,
 	}
 	tmpPath := tmp.Name()
 	if _, err := io.Copy(tmp, att.Data); err != nil {
-		tmp.Close()
-		os.Remove(tmpPath)
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write temp: %w", err)
 	}
-	tmp.Close()
+	_ = tmp.Close()
 
 	filename := att.Filename
 	if filename == "" {
@@ -109,11 +109,11 @@ func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource,
 		Filename: filename,
 	})
 	if errors.Is(err, sql.ErrNoRows) { // INSERT OR IGNORE: duplicate
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return nil
 	}
 	if err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("insert log entry: %w", err)
 	}
 
@@ -134,7 +134,7 @@ func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource,
 	})
 
 	if _, err := s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("enqueue: %w", err)
 	}
 	return nil

@@ -673,7 +673,7 @@ func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 
 	limit := int64(50)
 	offset := int64(0)
-	if v, err := c.Queries()["limit"]; err == false && v != "" {
+	if v, ok := c.Queries()["limit"]; ok && v != "" {
 		// ignoring parse error, keeping default
 		_ = v
 	}

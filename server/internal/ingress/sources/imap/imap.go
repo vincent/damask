@@ -152,7 +152,7 @@ func (s *IMAPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Rea
 	}
 
 	if _, err := c.Select(s.cfg.Mailbox, nil).Wait(); err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("imap: select %s: %w", s.cfg.Mailbox, err)
 	}
 
@@ -163,8 +163,8 @@ func (s *IMAPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Rea
 	fetchCmd := c.Fetch(numSet, fetchOpts)
 	msg := fetchCmd.Next()
 	if msg == nil {
-		fetchCmd.Close()
-		c.Close()
+		_ = fetchCmd.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("imap: message uid %d not found", uid)
 	}
 
@@ -179,8 +179,8 @@ func (s *IMAPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Rea
 		}
 	}
 
-	fetchCmd.Close()
-	c.Close()
+	_ = fetchCmd.Close()
+	_ = c.Close()
 	return nil, fmt.Errorf("imap: no body section in fetch response for uid %d", uid)
 }
 
@@ -202,7 +202,7 @@ func (s *IMAPSource) connect() (*imapclient.Client, error) {
 		return nil, fmt.Errorf("imap: connect %s: %w", addr, err)
 	}
 	if err := c.Login(s.cfg.Username, s.cfg.Password).Wait(); err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("imap: login: %w", err)
 	}
 	return c, nil
@@ -218,6 +218,6 @@ type imapReadCloser struct {
 
 func (rc *imapReadCloser) Read(p []byte) (int, error) { return rc.r.Read(p) }
 func (rc *imapReadCloser) Close() error {
-	rc.cmd.Close()
+	_ = rc.cmd.Close()
 	return rc.conn.Close()
 }

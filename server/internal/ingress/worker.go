@@ -206,10 +206,10 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	defer os.Remove(tmpPath)
 
 	if _, err := io.Copy(tmp, io.MultiReader(bytes.NewReader(sniff), rc)); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: write temp file: %w", err))
 	}
-	tmp.Close()
+	_ = tmp.Close()
 
 	// Rename temp file to use original filename for CreateAsset
 	namedTmp := filepath.Join(os.TempDir(), filepath.Base(entry.Filename))

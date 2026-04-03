@@ -118,7 +118,9 @@ func TestListIngressSources_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var list []any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 0 {
 		t.Fatalf("expected empty list, got %d items", len(list))
 	}
@@ -139,7 +141,9 @@ func TestListIngressSources_ReturnsOwnerSources(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var list []any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 2 {
 		t.Fatalf("expected 2 sources, got %d", len(list))
 	}
@@ -155,7 +159,9 @@ func TestListIngressSources_WorkspaceIsolation(t *testing.T) {
 	req := authRequest(http.MethodGet, "/api/v1/ingress/sources", nil, bob.Cookie)
 	resp, _ := env.app.Test(req)
 	var list []any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 0 {
 		t.Fatalf("Bob should not see Alice's sources, got %d", len(list))
 	}
@@ -175,7 +181,9 @@ func TestGetIngressSource_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var src map[string]any
-	json.NewDecoder(resp.Body).Decode(&src)
+	if err := json.NewDecoder(resp.Body).Decode(&src); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if src["id"] != id {
 		t.Fatalf("id mismatch: got %v, want %v", src["id"], id)
 	}
@@ -223,7 +231,9 @@ func TestUpdateIngressSource_Label(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var src map[string]any
-	json.NewDecoder(resp.Body).Decode(&src)
+	if err := json.NewDecoder(resp.Body).Decode(&src); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if src["label"] != "New Label" {
 		t.Fatalf("expected 'New Label', got %v", src["label"])
 	}
@@ -245,7 +255,9 @@ func TestUpdateIngressSource_EnabledFlag(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var src map[string]any
-	json.NewDecoder(resp.Body).Decode(&src)
+	if err := json.NewDecoder(resp.Body).Decode(&src); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if src["enabled"] != false {
 		t.Fatalf("expected enabled=false, got %v", src["enabled"])
 	}
@@ -266,7 +278,9 @@ func TestUpdateIngressSource_ConfigUpdated(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var src map[string]any
-	json.NewDecoder(resp.Body).Decode(&src)
+	if err := json.NewDecoder(resp.Body).Decode(&src); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	config := src["config"].(map[string]any)
 	if config["host"] != "new.example.com" {
 		t.Fatalf("expected host updated, got %v", config["host"])
@@ -342,7 +356,9 @@ func TestPollIngressSource_EnqueuesJob(t *testing.T) {
 		t.Fatalf("expected 202, got %d", resp.StatusCode)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if body["job_id"] == nil || body["job_id"] == "" {
 		t.Fatal("expected job_id in response")
 	}
@@ -375,7 +391,9 @@ func TestListIngressSourceLog_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var list []any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 0 {
 		t.Fatalf("expected empty log, got %d entries", len(list))
 	}
@@ -402,7 +420,9 @@ func TestListWorkspaceIngressLog_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var list []any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 0 {
 		t.Fatalf("expected empty log, got %d", len(list))
 	}
@@ -508,7 +528,9 @@ func TestRetryIngressLogEntry_ErrorEntryRequeued(t *testing.T) {
 		t.Fatalf("expected 202, got %d", resp.StatusCode)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body)
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if body["job_id"] == nil || body["job_id"] == "" {
 		t.Fatal("expected job_id in retry response")
 	}
@@ -705,7 +727,9 @@ func TestListIngressRules_EmptyInitially(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var list []any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 0 {
 		t.Fatalf("expected empty rules list, got %d", len(list))
 	}
@@ -828,7 +852,9 @@ func TestListIngressRules_OrderedByPosition(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var list []map[string]any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 3 {
 		t.Fatalf("expected 3 rules, got %d", len(list))
 	}
@@ -857,7 +883,9 @@ func TestUpdateIngressRule_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var updated map[string]any
-	json.NewDecoder(resp.Body).Decode(&updated)
+	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if updated["action"] != "deny" {
 		t.Fatalf("action: got %v, want deny", updated["action"])
 	}
@@ -926,7 +954,9 @@ func TestDeleteIngressRule_Success(t *testing.T) {
 	req2 := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
 	resp2, _ := env.app.Test(req2)
 	var list []any
-	json.NewDecoder(resp2.Body).Decode(&list)
+	if err := json.NewDecoder(resp2.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 0 {
 		t.Fatalf("expected empty list after delete, got %d", len(list))
 	}
@@ -1056,7 +1086,9 @@ func TestReorderIngressRules_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var list []map[string]any
-	json.NewDecoder(resp.Body).Decode(&list)
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(list) != 2 {
 		t.Fatalf("expected 2 rules in response, got %d", len(list))
 	}
