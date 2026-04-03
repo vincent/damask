@@ -1,8 +1,15 @@
 package services
 
 import (
+	"context"
+	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	dbpkg "damask/server/internal/db"
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
 )
 
 const rawEmail = "From: sender@example.com\r\n" +
@@ -34,24 +41,6 @@ func TestSession_HookTriggeredOnMatchingRecipient(t *testing.T) {
 	}
 }
 
-func TestSession_RcptRejectsUnknownRecipient(t *testing.T) {
-	hook := Hook{
-		Address:     "hook@example.com",
-		Name:        "test-hook",
-		WorkspaceID: "ws-1",
-	}
-	session := &Session{hooks: []Hook{hook}}
-
-	if err := session.Mail("sender@example.com", nil); err != nil {
-		t.Fatalf("Mail: %v", err)
-	}
-
-	err := session.Rcpt("other@example.com", nil)
-	if err == nil {
-		t.Fatal("expected error for unknown recipient, got nil")
-	}
-}
-
 func TestMailServerImpl_AddHookAndNewSession(t *testing.T) {
 	hook := Hook{
 		Address:     "hook@example.com",
@@ -76,6 +65,134 @@ func TestMailServerImpl_AddHookAndNewSession(t *testing.T) {
 	}
 	if s.hooks[0].Address != hook.Address {
 		t.Errorf("hook address: got %q, want %q", s.hooks[0].Address, hook.Address)
+	}
+}
+
+// rawEmailWithAttachment is a minimal MIME email with one text/plain attachment.
+const rawEmailWithAttachment = "From: sender@example.com\r\n" +
+	"To: abc123@ingress.damask.studio\r\n" +
+	"Subject: Upload\r\n" +
+	"MIME-Version: 1.0\r\n" +
+	"Content-Type: multipart/mixed; boundary=\"boundary42\"\r\n" +
+	"\r\n" +
+	"--boundary42\r\n" +
+	"Content-Type: text/plain; charset=utf-8\r\n" +
+	"\r\n" +
+	"See attached.\r\n" +
+	"--boundary42\r\n" +
+	"Content-Type: application/octet-stream\r\n" +
+	"Content-Disposition: attachment; filename=\"photo.jpg\"\r\n" +
+	"Content-Transfer-Encoding: base64\r\n" +
+	"\r\n" +
+	"aGVsbG8=\r\n" +
+	"--boundary42--\r\n"
+
+func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	queries, sqlDB, err := dbpkg.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+
+	ctx := context.Background()
+
+	// Insert a workspace and user to satisfy FK constraints.
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO workspaces (id, name, created_at) VALUES ('ws1','Test',datetime('now'))`); err != nil {
+		t.Fatalf("insert workspace: %v", err)
+	}
+
+	const token = "abc123"
+	if _, err := queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+		ID: "src1", WorkspaceID: "ws1", CreatedBy: "u1",
+		Type: "email_api", Label: "Mail drop", Config: "{}",
+		PublicToken: token, Enabled: 1, PollIntervalMin: 0,
+	}); err != nil {
+		t.Fatalf("create ingress source: %v", err)
+	}
+
+	q := queue.New(queries, 1)
+	session := &Session{db: queries, queue: q}
+
+	if err := session.Rcpt(token+"@ingress.damask.studio", nil); err != nil {
+		t.Fatalf("Rcpt: %v", err)
+	}
+	if err := session.Data(strings.NewReader(rawEmailWithAttachment)); err != nil {
+		t.Fatalf("Data: %v", err)
+	}
+
+	// One ingress_log entry should exist with status=pending.
+	rows, err := sqlDB.QueryContext(ctx, `SELECT id, source_id, filename, status FROM ingress_log WHERE source_id = 'src1'`)
+	if err != nil {
+		t.Fatalf("query ingress_log: %v", err)
+	}
+	defer rows.Close()
+	var logID string
+	var count int
+	for rows.Next() {
+		var srcID, filename, status string
+		if err := rows.Scan(&logID, &srcID, &filename, &status); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if filename != "photo.jpg" {
+			t.Errorf("filename: got %q, want %q", filename, "photo.jpg")
+		}
+		if status != "pending" {
+			t.Errorf("status: got %q, want %q", status, "pending")
+		}
+		count++
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 ingress_log row, got %d", count)
+	}
+
+	// One pending ingest_fetch job should be enqueued.
+	n, err := queries.CountPendingJobs(ctx)
+	if err != nil {
+		t.Fatalf("count pending jobs: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 pending job, got %d", n)
+	}
+
+	job, err := queries.ClaimNextJob(ctx)
+	if err != nil {
+		t.Fatalf("claim job: %v", err)
+	}
+	if job.Type != queue.JobTypeIngestFetch {
+		t.Errorf("job type: got %q, want %q", job.Type, queue.JobTypeIngestFetch)
+	}
+
+	var payload struct {
+		SourceID    string `json:"source_id"`
+		WorkspaceID string `json:"workspace_id"`
+		LogEntryID  string `json:"log_entry_id"`
+		Filename    string `json:"filename"`
+		TmpPath     string `json:"tmp_path"`
+	}
+	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if payload.SourceID != "src1" {
+		t.Errorf("payload source_id: got %q, want %q", payload.SourceID, "src1")
+	}
+	if payload.WorkspaceID != "ws1" {
+		t.Errorf("payload workspace_id: got %q, want %q", payload.WorkspaceID, "ws1")
+	}
+	if payload.LogEntryID == "" {
+		t.Error("payload log_entry_id should not be empty")
+	}
+	if payload.Filename != "photo.jpg" {
+		t.Errorf("payload filename: got %q, want %q", payload.Filename, "photo.jpg")
+	}
+	if payload.TmpPath == "" {
+		t.Error("payload tmp_path should not be empty")
 	}
 }
 

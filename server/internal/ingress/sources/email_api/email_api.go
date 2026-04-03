@@ -27,7 +27,7 @@ func onCreateConfig(config map[string]any) (map[string]any, error) {
 		out[k] = v
 	}
 	out["ingest_token"] = token // always overwrite — must never be user-controlled
-	out["address"] = fmt.Sprintf("%s@damask.studio", token)
+	out["address"] = fmt.Sprintf("%s@ingress.damask.studio", token)
 	return out, nil
 }
 

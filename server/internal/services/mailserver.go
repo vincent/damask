@@ -1,6 +1,9 @@
 package services
 
 import (
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
+
 	"github.com/emersion/go-smtp"
 )
 
@@ -14,10 +17,12 @@ type MailServer interface {
 type MailServerImpl struct {
 	srv   *smtp.Server
 	hooks []Hook
+	db    *dbgen.Queries
+	queue *queue.Queue
 }
 
-func NewMailServer(addr, domain string) MailServer {
-	be := &MailServerImpl{}
+func NewMailServer(addr, domain string, db *dbgen.Queries, q *queue.Queue) MailServer {
+	be := &MailServerImpl{db: db, queue: q}
 	be.srv = smtp.NewServer(be)
 
 	be.srv.Addr = addr
@@ -36,6 +41,8 @@ func (s *MailServerImpl) Start() error {
 func (bkd *MailServerImpl) NewSession(c *smtp.Conn) (smtp.Session, error) {
 	return &Session{
 		hooks: bkd.hooks,
+		db:    bkd.db,
+		queue: bkd.queue,
 	}, nil
 }
 

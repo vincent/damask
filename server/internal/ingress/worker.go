@@ -47,6 +47,7 @@ type FetchJobPayload struct {
 	LogEntryID  string `json:"log_entry_id"`
 	RemoteID    string `json:"remote_id"`
 	Filename    string `json:"filename"`
+	TmpPath     string `json:"tmp_path,omitempty"`
 }
 
 // HandlePoll is the queue.HandlerFunc for JobTypeIngestPoll.
@@ -172,10 +173,21 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		folderID = ruleResult.FolderID
 	}
 
-	// Fetch the item
-	rc, err := source.Fetch(ctx, IngestItem{RemoteID: entry.RemoteID, Filename: entry.Filename})
-	if err != nil {
-		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: fetch item: %w", err))
+	// Fetch the item — either from a pre-written temp file (email_api push path)
+	// or by calling source.Fetch() (pull sources).
+	var rc io.ReadCloser
+	if p.TmpPath != "" {
+		f, err := os.Open(p.TmpPath)
+		if err != nil {
+			return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: open tmp file: %w", err))
+		}
+		defer os.Remove(p.TmpPath)
+		rc = f
+	} else {
+		rc, err = source.Fetch(ctx, IngestItem{RemoteID: entry.RemoteID, Filename: entry.Filename})
+		if err != nil {
+			return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: fetch item: %w", err))
+		}
 	}
 	defer rc.Close()
 

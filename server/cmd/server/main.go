@@ -68,7 +68,7 @@ func main() {
 
 	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL.String(), cfg.FrontendPath, cfg.AppSecret)
 
-	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host)
+	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host, queries, q)
 	log.Printf("mail server starting on :%s", "2525")
 	go func() {
 		if err := mail.Start(); err != nil {

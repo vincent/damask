@@ -165,6 +165,25 @@ func (q *Queries) GetIngressLogEntry(ctx context.Context, id string) (IngressLog
 	return i, err
 }
 
+const getIngressRule = `-- name: GetIngressRule :one
+SELECT id, source_id, position, field, operator, value, "action" FROM ingress_rules WHERE id = ?
+`
+
+func (q *Queries) GetIngressRule(ctx context.Context, id string) (IngressRule, error) {
+	row := q.db.QueryRowContext(ctx, getIngressRule, id)
+	var i IngressRule
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.Position,
+		&i.Field,
+		&i.Operator,
+		&i.Value,
+		&i.Action,
+	)
+	return i, err
+}
+
 const getIngressSource = `-- name: GetIngressSource :one
 SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, created_at, updated_at FROM ingress_sources
 WHERE id = ? AND workspace_id = ?

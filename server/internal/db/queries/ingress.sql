@@ -113,5 +113,8 @@ SET position = ?, field = ?, operator = ?, value = ?, action = ?
 WHERE id = ?
 RETURNING *;
 
+-- name: GetIngressRule :one
+SELECT * FROM ingress_rules WHERE id = ?;
+
 -- name: DeleteIngressRule :exec
 DELETE FROM ingress_rules WHERE id = ?;
