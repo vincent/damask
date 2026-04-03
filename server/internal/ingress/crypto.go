@@ -67,3 +67,13 @@ func DecryptConfig(appSecret string, ciphertext string) ([]byte, error) {
 	}
 	return plaintext, nil
 }
+
+// GenerateToken returns a cryptographically random URL-safe base64 string
+// derived from n random bytes.
+func GenerateToken(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", fmt.Errorf("ingress/crypto: generate token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}

@@ -390,7 +390,11 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		interval = 15
 	}
 
-	configBytes, err := json.Marshal(req.Config)
+	mutatedConfig, err := ingress.RunOnCreateHook(req.Type, req.Config)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not prepare config")
+	}
+	configBytes, err := json.Marshal(mutatedConfig)
 	if err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid config")
 	}

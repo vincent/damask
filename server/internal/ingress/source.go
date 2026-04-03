@@ -5,6 +5,7 @@ package ingress
 
 import (
 	"context"
+	dbgen "damask/server/internal/db/gen"
 	"fmt"
 	"io"
 	"time"
@@ -12,7 +13,7 @@ import (
 
 // IngestItem represents a single remote item to be fetched.
 type IngestItem struct {
-	RemoteID string            // source-specific unique key used for dedup
+	RemoteID string // source-specific unique key used for dedup
 	Filename string
 	ModTime  time.Time
 	Size     int64
@@ -55,4 +56,37 @@ func Build(sourceType string, configJSON []byte) (Source, error) {
 		return nil, fmt.Errorf("unknown ingress source type: %q", sourceType)
 	}
 	return fn(configJSON)
+}
+
+// OnCreateHookFn may mutate the user-provided config map before it is
+// encrypted and stored. Return an error to abort source creation.
+type OnCreateHookFn func(config map[string]any) (map[string]any, error)
+
+var onCreateRegistry = map[string]OnCreateHookFn{}
+
+// RegisterOnCreate registers a creation hook for a source type.
+// Call from init() in each source sub-package that needs it.
+func RegisterOnCreate(sourceType string, fn OnCreateHookFn) {
+	onCreateRegistry[sourceType] = fn
+}
+
+// OnCreateHookFn is run after the source creation.
+type OnAfterCreateHookFn func(source dbgen.IngressSource) error
+
+var onAfterCreateRegistry = map[string]OnAfterCreateHookFn{}
+
+// RegisterOnAfterCreate registers a creation hook for a source type.
+// Call from init() in each source sub-package that needs it.
+func RegisterOnAfterCreate(sourceType string, fn OnAfterCreateHookFn) {
+	onAfterCreateRegistry[sourceType] = fn
+}
+
+// RunOnCreateHook invokes the OnCreate hook for sourceType if one is registered.
+// Returns config unchanged when no hook is found.
+func RunOnCreateHook(sourceType string, config map[string]any) (map[string]any, error) {
+	fn, ok := onCreateRegistry[sourceType]
+	if !ok {
+		return config, nil
+	}
+	return fn(config)
 }

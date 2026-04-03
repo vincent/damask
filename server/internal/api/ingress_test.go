@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+
+	"damask/server/internal/ingress"
+	_ "damask/server/internal/ingress/sources/email_api"
 )
 
 // createIngressSource is a test helper that POSTs to /api/v1/ingress/sources
@@ -939,6 +942,72 @@ func TestDeleteIngressRule_NotFound(t *testing.T) {
 	resp, _ := env.app.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+// --- OnCreate hook
+
+func TestCreateIngressSource_EmailAPI_GeneratesIngestToken(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+
+	src := createIngressSource(t, env, user.Cookie, `{"type":"email_api","label":"Email Inbox","config":{}}`)
+
+	// Response must redact the token ("token" matches the sensitive-key check)
+	cfg, ok := src["config"].(map[string]any)
+	if !ok {
+		t.Fatal("expected config object in response")
+	}
+	if cfg["ingest_token"] != "***" {
+		t.Fatalf("ingest_token should be redacted in response, got %v", cfg["ingest_token"])
+	}
+
+	// Verify the token was actually stored (non-empty) by reading from the DB.
+	srcID := src["id"].(string)
+	var encryptedConfig string
+	if err := env.sqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
+		t.Fatalf("query ingress_sources: %v", err)
+	}
+	configJSON, err := ingress.DecryptConfig("test-app-secret-for-tests!!", encryptedConfig)
+	if err != nil {
+		t.Fatalf("decrypt config: %v", err)
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(configJSON, &stored); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	token, _ := stored["ingest_token"].(string)
+	if token == "" {
+		t.Fatal("expected non-empty ingest_token in stored config")
+	}
+}
+
+func TestCreateIngressSource_EmailAPI_TokenIsServerGenerated(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+
+	// User attempts to supply their own ingest_token — it must be overwritten.
+	src := createIngressSource(t, env, user.Cookie, `{"type":"email_api","label":"Email Inbox","config":{"ingest_token":"user-supplied"}}`)
+
+	srcID := src["id"].(string)
+	var encryptedConfig string
+	if err := env.sqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
+		t.Fatalf("query ingress_sources: %v", err)
+	}
+	configJSON, err := ingress.DecryptConfig("test-app-secret-for-tests!!", encryptedConfig)
+	if err != nil {
+		t.Fatalf("decrypt config: %v", err)
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(configJSON, &stored); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	token, _ := stored["ingest_token"].(string)
+	if token == "" {
+		t.Fatal("expected non-empty ingest_token in stored config")
+	}
+	if token == "user-supplied" {
+		t.Fatal("ingest_token must not be user-controlled")
 	}
 }
 

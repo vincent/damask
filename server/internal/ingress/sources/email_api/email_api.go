@@ -14,6 +14,21 @@ import (
 
 func init() {
 	ingress.Register("email_api", New)
+	ingress.RegisterOnCreate("email_api", onCreateConfig)
+}
+
+func onCreateConfig(config map[string]any) (map[string]any, error) {
+	token, err := ingress.GenerateToken(32)
+	if err != nil {
+		return nil, fmt.Errorf("email_api: generate ingest_token: %w", err)
+	}
+	out := make(map[string]any, len(config)+1)
+	for k, v := range config {
+		out[k] = v
+	}
+	out["ingest_token"] = token // always overwrite — must never be user-controlled
+	out["address"] = fmt.Sprintf("%s@damask.studio", token)
+	return out, nil
 }
 
 // Config is the JSON configuration for an email_api source.
