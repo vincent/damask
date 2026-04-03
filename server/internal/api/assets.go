@@ -8,6 +8,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -120,6 +121,14 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	params := dbgen.ListAssetsParams{
 		WorkspaceID: claims.WorkspaceID,
 		Limit:       limit,
+		OrderBy:     "created_at_desc",
+	}
+
+	if sort := c.Query("sort"); sort != "" {
+		switch sort {
+		case "id_asc", "id_desc", "size_asc", "size_desc", "created_at_asc", "created_at_desc":
+			params.OrderBy = sort
+		}
 	}
 
 	if pid := c.Query("project_id"); pid != "" {
@@ -139,6 +148,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 
 	assets, err := s.db.ListAssets(c.RequestCtx(), params)
 	if err != nil {
+		log.Println("could not list assets", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 

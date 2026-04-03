@@ -116,7 +116,13 @@ WHERE workspace_id = ?1
     OR created_at < ?4
     OR (created_at = ?4 AND id < ?5)
   )
-ORDER BY created_at DESC, id DESC
+ORDER BY
+    CASE WHEN ?7 = 'size_asc' THEN size END ASC,
+    CASE WHEN ?7 = 'size_desc' THEN size END DESC,
+    CASE WHEN ?7 = 'created_at_asc' THEN created_at END ASC,
+    CASE WHEN ?7 = 'created_at_desc' THEN created_at END DESC,
+    CASE WHEN ?7 = 'id_asc' THEN id END ASC,
+    id DESC
 LIMIT ?6
 `
 
@@ -127,6 +133,7 @@ type ListAssetsParams struct {
 	CursorAt    interface{} `json:"cursor_at"`
 	CursorID    *string     `json:"cursor_id"`
 	Limit       int64       `json:"limit"`
+	OrderBy     string      `json:"order_by"`
 }
 
 func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset, error) {
@@ -137,6 +144,7 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 		arg.CursorAt,
 		arg.CursorID,
 		arg.Limit,
+		arg.OrderBy,
 	)
 	if err != nil {
 		return nil, err

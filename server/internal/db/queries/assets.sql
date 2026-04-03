@@ -16,7 +16,13 @@ WHERE workspace_id = sqlc.arg('workspace_id')
     OR created_at < sqlc.narg('cursor_at')
     OR (created_at = sqlc.narg('cursor_at') AND id < sqlc.narg('cursor_id'))
   )
-ORDER BY created_at DESC, id DESC
+ORDER BY
+    CASE WHEN @order_by = 'size_asc' THEN size END ASC,
+    CASE WHEN @order_by = 'size_desc' THEN size END DESC,
+    CASE WHEN @order_by = 'created_at_asc' THEN created_at END ASC,
+    CASE WHEN @order_by = 'created_at_desc' THEN created_at END DESC,
+    CASE WHEN @order_by = 'id_asc' THEN id END ASC,
+    id DESC
 LIMIT sqlc.arg('limit');
 
 -- name: UpdateAssetThumbnail :exec

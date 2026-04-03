@@ -303,6 +303,83 @@ func TestDeleteAsset(t *testing.T) {
 	}
 }
 
+func TestListAssets_Sort(t *testing.T) {
+	env := setupTestApp(t)
+	owner := register(t, env, "Owner", "owner@example.com", "password123")
+
+	// Upload assets with distinct sizes: 10x10, 50x50, 100x100
+	sizes := []int{10, 50, 100}
+	var ids []string
+	for _, s := range sizes {
+		req := buildUploadRequest(t, "img.jpg", makeJPEG(s, s), owner.Cookie)
+		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+		if err != nil || resp.StatusCode != http.StatusCreated {
+			t.Fatalf("upload %dx%d: status %d err %v", s, s, resp.StatusCode, err)
+		}
+		var a assetResponse
+		json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
+		ids = append(ids, a.ID)
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cases := []struct {
+		sort  string
+		check func(t *testing.T, assets []assetResponse)
+	}{
+		{
+			sort: "id_desc",
+			check: func(t *testing.T, assets []assetResponse) {
+				if assets[0].ID < assets[1].ID || assets[1].ID < assets[2].ID {
+					t.Errorf("id_desc: IDs not descending: %v", []string{assets[0].ID, assets[1].ID, assets[2].ID})
+				}
+			},
+		},
+		{
+			sort: "id_asc",
+			check: func(t *testing.T, assets []assetResponse) {
+				if assets[0].ID > assets[1].ID || assets[1].ID > assets[2].ID {
+					t.Errorf("id_asc: IDs not ascending: %v", []string{assets[0].ID, assets[1].ID, assets[2].ID})
+				}
+			},
+		},
+		{
+			sort: "size_asc",
+			check: func(t *testing.T, assets []assetResponse) {
+				if assets[0].Size > assets[1].Size || assets[1].Size > assets[2].Size {
+					t.Errorf("size_asc: sizes not ascending: %v", []int64{assets[0].Size, assets[1].Size, assets[2].Size})
+				}
+			},
+		},
+		{
+			sort: "size_desc",
+			check: func(t *testing.T, assets []assetResponse) {
+				if assets[0].Size < assets[1].Size || assets[1].Size < assets[2].Size {
+					t.Errorf("size_desc: sizes not descending: %v", []int64{assets[0].Size, assets[1].Size, assets[2].Size})
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.sort, func(t *testing.T) {
+			req := authRequest(http.MethodGet, "/api/v1/assets?sort="+tc.sort, nil, owner.Cookie)
+			resp, err := env.app.Test(req)
+			if err != nil {
+				t.Fatalf("list: %v", err)
+			}
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("expected 200, got %d", resp.StatusCode)
+			}
+			var result assetListResponse
+			json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
+			if len(result.Assets) != 3 {
+				t.Fatalf("expected 3 assets, got %d", len(result.Assets))
+			}
+			tc.check(t, result.Assets)
+		})
+	}
+}
+
 func TestSearchAssets(t *testing.T) {
 	env := setupTestApp(t)
 	owner := register(t, env, "Owner", "owner@example.com", "password123")

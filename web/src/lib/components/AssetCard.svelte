@@ -44,7 +44,7 @@
 >
   <!-- Thumbnail area -->
   <div
-    class="relative w-full overflow-hidden rounded-t-xl {cardBg[category]}"
+    class="damask-texture relative w-full overflow-hidden rounded-t-xl {cardBg[category]}"
     style="aspect-ratio: 4/3"
   >
     <!-- Status dot -->

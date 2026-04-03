@@ -220,6 +220,8 @@ export const assetApi = {
   list(params: {
     cursor?: string
     limit?: number
+    sortKey?: string
+    sortAsc?: boolean
     q?: string
     project_id?: string
     mime?: string
@@ -227,6 +229,7 @@ export const assetApi = {
     folder_id?: string
   } = {}): Promise<AssetListResponse> {
     const qs = new URLSearchParams()
+    if (params.sortKey) qs.set('sort', `${params.sortKey}_${params.sortAsc ? 'asc' : 'desc'}`)
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     if (params.q) qs.set('q', params.q)

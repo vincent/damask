@@ -22,6 +22,7 @@
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import { goto } from '$app/navigation'
   import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
+  import SortButtons from '$lib/components/SortButtons.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
@@ -34,6 +35,9 @@
   let mainEl = $state<HTMLElement | undefined>(undefined)
   let rubberBand = $state<{ startX: number; startY: number; x: number; y: number; w: number; h: number } | null>(null)
   let zoomOverlay = $state<{ src: string; vars: string, asset: Asset } | null>(null)
+
+  let sort = $state<'mimetype' | 'created_at' | 'size'>('created_at')
+  let asc = $state(false)
 
   const activeProject = $derived(
     navigationStore.activeProjectId
@@ -179,7 +183,11 @@
 
   onMount(() => {
     seenSplashScreen = localStorage.getItem(`onboard_${authStore.workspace?.id}`) !== null
+  })
 
+  $effect(() => {
+    if (!sentinel) return
+    const el = sentinel
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && assetsStore.nextCursor && !assetsStore.loading) {
@@ -188,8 +196,7 @@
       },
       { rootMargin: '200px' },
     )
-
-    if (sentinel) observer.observe(sentinel)
+    observer.observe(el)
     return () => observer.disconnect()
   })
 </script>
@@ -250,6 +257,14 @@
         Share
       </button>
     {/if}
+  </div>
+
+  <div class="flex items-center gap-2">
+    <SortButtons
+      bind:value={sort} bind:asc
+      keys={ { created_at: 'by date', mimetype: 'by type', size: 'by size' } }
+      sort={(key, asc)  => assetsStore.sort(key, asc)}
+    />
   </div>
 
   <div class="flex items-center gap-2">
@@ -322,7 +337,7 @@
     >
       {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
     </EmptyState>
-  {:else}
+  {:else if sort === 'mimetype'}
     <!-- Grouped by category -->
     {#each CATEGORY_ORDER as cat}
       {@const group = assetsStore.assetsByCategory[cat]}
@@ -358,17 +373,26 @@
         </div>
       {/if}
     {/each}
-
     <!-- Infinite scroll sentinel -->
-    {#if assetsStore.nextCursor}
-      <div bind:this={sentinel} class="flex justify-center py-6">
-        {#if assetsStore.loading}
-          <Loader class="h-6 w-6 animate-spin text-gray-400" />
-        {/if}
+    <div bind:this={sentinel} class="flex justify-center py-6">
+      {#if assetsStore.loading && assetsStore.nextCursor}
+        <Loader class="h-6 w-6 animate-spin text-gray-400" />
+      {/if}
+    </div>
+  {:else}
+    <div class="mb-10">
+      <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
+        {#each assetsStore.assets as asset, globalIndex (asset.id)}
+          <AssetCard {asset} {zoom} onclick={(e) => handleCardClick(asset, globalIndex, e)} />
+        {/each}
       </div>
-    {:else}
-      <div bind:this={sentinel}></div>
-    {/if}
+    </div>
+    <!-- Infinite scroll sentinel -->
+    <div bind:this={sentinel} class="flex justify-center py-6">
+      {#if assetsStore.loading && assetsStore.nextCursor}
+        <Loader class="h-6 w-6 animate-spin text-gray-400" />
+      {/if}
+    </div>
   {/if}
 </main>
 

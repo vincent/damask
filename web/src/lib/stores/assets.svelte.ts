@@ -9,6 +9,9 @@ let initialLoad = $state(true)
 let query = $state('')
 let activeTags = $state<string[]>([])
 
+let sortKey = $state('date_created')
+let sortAsc = $state(false)
+
 const assetsByCategory = $derived({
   image: assets.filter((a) => mimeCategory(a.mime_type) === 'image'),
   video: assets.filter((a) => mimeCategory(a.mime_type) === 'video'),
@@ -98,11 +101,13 @@ export const assetsStore = {
     try {
       const result = await assetApi.list({
         cursor: reset ? undefined : (nextCursor ?? undefined),
+        sortKey: sortKey || undefined,
+        sortAsc: !!sortAsc,
         q: query || undefined,
         project_id: navigationStore.activeProjectId ?? undefined,
         tags: activeTags.length > 0 ? activeTags : undefined,
         folder_id: navigationStore.activeFolderId ?? undefined,
-        limit: 48,
+        limit: 20,
       })
       assets = reset ? result.assets : [...assets, ...result.assets]
       nextCursor = result.next_cursor
@@ -112,6 +117,12 @@ export const assetsStore = {
       loading = false
       initialLoad = false
     }
+  },
+
+  sort(key: string, asc: boolean) {
+    sortKey = key
+    sortAsc = asc
+    this.load(true)
   },
 
   search() {
