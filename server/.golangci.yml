@@ -3,7 +3,8 @@ version: "2"
 linters:
   settings:
     errcheck:
-      disable-default-exclusions: true
+      exclude-functions:
+        - strings.Builder.WriteString
   exclusions:
     rules:
       - linters:

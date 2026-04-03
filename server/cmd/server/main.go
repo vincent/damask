@@ -50,10 +50,14 @@ func main() {
 
 	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host)
 	log.Printf("mail server starting on :%s", "2525")
-	go mail.Start()
+	go func() {
+		if err := mail.Start(); err != nil {
+			log.Fatalf("mail server: %v", err)
+		}
+	}()
 
 	log.Printf("api server starting on :%s (env=%s, workers=%d)", cfg.Port, cfg.AppEnv, cfg.QueueWorkers)
 	if err := app.Listen(":" + cfg.Port); err != nil {
-		log.Fatalf("server: %v", err)
+		log.Fatalf("api server: %v", err)
 	}
 }

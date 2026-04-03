@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strings"
 
 	"github.com/DusanKasan/parsemail"
 	"github.com/emersion/go-smtp"
-
-	nm "net/mail"
 )
 
 // A Session is returned after successful login.
@@ -71,22 +68,4 @@ func (s *Session) Reset() {}
 
 func (s *Session) Logout() error {
 	return nil
-}
-
-func format(email parsemail.Email, text string) string {
-	return fmt.Sprintf("mailserver: %s => %s : %s", formatFrom(email.From), email.Subject, text)
-}
-
-func formatFrom(addresses []*nm.Address) string {
-	if len(addresses) == 0 {
-		return "NO FROM ADDRESS"
-	}
-	var sb strings.Builder
-	for _, a := range addresses {
-		if sb.Len() > 0 {
-			sb.WriteString(", ")
-		}
-		sb.WriteString(fmt.Sprintf("%s <%s>", a.Name, a.Address))
-	}
-	return sb.String()
 }

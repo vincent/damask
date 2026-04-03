@@ -309,7 +309,6 @@ func TestListAssets_Sort(t *testing.T) {
 
 	// Upload assets with distinct sizes: 10x10, 50x50, 100x100
 	sizes := []int{10, 50, 100}
-	var ids []string
 	for _, s := range sizes {
 		req := buildUploadRequest(t, "img.jpg", makeJPEG(s, s), owner.Cookie)
 		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
@@ -318,7 +317,6 @@ func TestListAssets_Sort(t *testing.T) {
 		}
 		var a assetResponse
 		json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
-		ids = append(ids, a.ID)
 		time.Sleep(10 * time.Millisecond)
 	}
 
