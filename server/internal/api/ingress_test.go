@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -666,6 +667,353 @@ func TestRedactConfig(t *testing.T) {
 		if got[k] != "***" {
 			t.Errorf("key %q should be redacted to ***, got %v", k, got[k])
 		}
+	}
+}
+
+// --- Rules CRUD
+
+// createRule is a test helper: POST /api/v1/ingress/sources/:id/rules
+func createRule(t *testing.T, env *testEnv, cookie *http.Cookie, sourceID, body string) map[string]any {
+	t.Helper()
+	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/"+sourceID+"/rules", jsonStr(body), cookie)
+	resp, err := env.app.Test(req)
+	if err != nil {
+		t.Fatalf("createRule request: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("createRule: expected 201, got %d", resp.StatusCode)
+	}
+	var out map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode createRule response: %v", err)
+	}
+	return out
+}
+
+func TestListIngressRules_EmptyInitially(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var list []any
+	json.NewDecoder(resp.Body).Decode(&list)
+	if len(list) != 0 {
+		t.Fatalf("expected empty rules list, got %d", len(list))
+	}
+}
+
+func TestListIngressRules_SourceNotFound(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/nonexistent/rules", nil, user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestListIngressRules_WrongWorkspace(t *testing.T) {
+	env := setupTestApp(t)
+	alice := register(t, env, "Alice", "alice@example.com", "password123")
+	bob := register(t, env, "Bob", "bob@example.com", "password456")
+
+	src := createIngressSource(t, env, alice.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, bob.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 for wrong workspace, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateIngressRule_Success(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	rule := createRule(t, env, user.Cookie, id,
+		`{"position":0,"field":"filename","operator":"ends_with","value":".pdf","action":"allow"}`)
+
+	if rule["id"] == nil || rule["id"] == "" {
+		t.Fatal("expected non-empty rule id")
+	}
+	if rule["field"] != "filename" {
+		t.Fatalf("field: got %v, want filename", rule["field"])
+	}
+	if rule["operator"] != "ends_with" {
+		t.Fatalf("operator: got %v, want ends_with", rule["operator"])
+	}
+	if rule["value"] != ".pdf" {
+		t.Fatalf("value: got %v, want .pdf", rule["value"])
+	}
+	if rule["action"] != "allow" {
+		t.Fatalf("action: got %v, want allow", rule["action"])
+	}
+	if rule["source_id"] != id {
+		t.Fatalf("source_id: got %v, want %v", rule["source_id"], id)
+	}
+}
+
+func TestCreateIngressRule_MissingFields(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
+		jsonStr(`{"position":0,"field":"filename"}`), user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing fields, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateIngressRule_RequiresEditor(t *testing.T) {
+	env := setupTestApp(t)
+	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	src := createIngressSource(t, env, owner.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	viewerToken := mintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	req := bearerRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
+		jsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
+		viewerToken)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for viewer creating rule, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateIngressRule_SourceNotFound(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/rules",
+		jsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
+		user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestListIngressRules_OrderedByPosition(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	createRule(t, env, user.Cookie, id,
+		`{"position":2,"field":"filename","operator":"contains","value":"b","action":"deny"}`)
+	createRule(t, env, user.Cookie, id,
+		`{"position":0,"field":"filename","operator":"contains","value":"a","action":"allow"}`)
+	createRule(t, env, user.Cookie, id,
+		`{"position":1,"field":"mime_type","operator":"equals","value":"image/jpeg","action":"allow"}`)
+
+	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var list []map[string]any
+	json.NewDecoder(resp.Body).Decode(&list)
+	if len(list) != 3 {
+		t.Fatalf("expected 3 rules, got %d", len(list))
+	}
+	// Should be sorted by position ascending
+	for i, want := range []float64{0, 1, 2} {
+		if list[i]["position"] != want {
+			t.Fatalf("rule[%d] position: got %v, want %v", i, list[i]["position"], want)
+		}
+	}
+}
+
+func TestUpdateIngressRule_Success(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	srcID := src["id"].(string)
+
+	rule := createRule(t, env, user.Cookie, srcID,
+		`{"position":0,"field":"filename","operator":"ends_with","value":".pdf","action":"allow"}`)
+	rid := rule["id"].(string)
+
+	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+srcID+"/rules/"+rid,
+		jsonStr(`{"position":5,"action":"deny"}`), user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var updated map[string]any
+	json.NewDecoder(resp.Body).Decode(&updated)
+	if updated["action"] != "deny" {
+		t.Fatalf("action: got %v, want deny", updated["action"])
+	}
+	if updated["position"] != float64(5) {
+		t.Fatalf("position: got %v, want 5", updated["position"])
+	}
+	// Untouched fields should keep old values
+	if updated["field"] != "filename" {
+		t.Fatalf("field should be preserved, got %v", updated["field"])
+	}
+}
+
+func TestUpdateIngressRule_NotFound(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/nonexistent",
+		jsonStr(`{"action":"deny"}`), user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateIngressRule_WrongSource(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+
+	src1 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"A","config":{}}`)
+	src2 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"B","config":{}}`)
+	id1 := src1["id"].(string)
+	id2 := src2["id"].(string)
+
+	rule := createRule(t, env, user.Cookie, id1,
+		`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`)
+	rid := rule["id"].(string)
+
+	// Try to update rule belonging to src1 via src2's URL
+	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id2+"/rules/"+rid,
+		jsonStr(`{"action":"allow"}`), user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 when rule doesn't belong to source, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteIngressRule_Success(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	rule := createRule(t, env, user.Cookie, id,
+		`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`)
+	rid := rule["id"].(string)
+
+	req := authRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id+"/rules/"+rid, nil, user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+
+	// Verify it's gone
+	req2 := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
+	resp2, _ := env.app.Test(req2)
+	var list []any
+	json.NewDecoder(resp2.Body).Decode(&list)
+	if len(list) != 0 {
+		t.Fatalf("expected empty list after delete, got %d", len(list))
+	}
+}
+
+func TestDeleteIngressRule_NotFound(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	req := authRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id+"/rules/nonexistent", nil, user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteIngressRule_WrongSource(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+
+	src1 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"A","config":{}}`)
+	src2 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"B","config":{}}`)
+	id1 := src1["id"].(string)
+	id2 := src2["id"].(string)
+
+	rule := createRule(t, env, user.Cookie, id1,
+		`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`)
+	rid := rule["id"].(string)
+
+	req := authRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id2+"/rules/"+rid, nil, user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 when rule doesn't belong to source, got %d", resp.StatusCode)
+	}
+}
+
+func TestReorderIngressRules_Success(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	r0 := createRule(t, env, user.Cookie, id,
+		`{"position":0,"field":"filename","operator":"contains","value":"a","action":"allow"}`)
+	r1 := createRule(t, env, user.Cookie, id,
+		`{"position":1,"field":"filename","operator":"contains","value":"b","action":"deny"}`)
+	rid0 := r0["id"].(string)
+	rid1 := r1["id"].(string)
+
+	// Swap positions
+	bodyBytes, _ := json.Marshal([]map[string]any{
+		{"id": rid0, "position": 10},
+		{"id": rid1, "position": 0},
+	})
+	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/reorder",
+		bytes.NewReader(bodyBytes), user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var list []map[string]any
+	json.NewDecoder(resp.Body).Decode(&list)
+	if len(list) != 2 {
+		t.Fatalf("expected 2 rules in response, got %d", len(list))
+	}
+	// After reorder, rid1 should be first (position 0)
+	if list[0]["id"] != rid1 {
+		t.Fatalf("expected rid1 first after reorder, got %v", list[0]["id"])
+	}
+	if list[1]["id"] != rid0 {
+		t.Fatalf("expected rid0 second after reorder, got %v", list[1]["id"])
+	}
+}
+
+func TestReorderIngressRules_UnknownRule(t *testing.T) {
+	env := setupTestApp(t)
+	user := register(t, env, "Alice", "alice@example.com", "password123")
+	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
+	id := src["id"].(string)
+
+	bodyBytes, _ := json.Marshal([]map[string]any{
+		{"id": "nonexistent", "position": 0},
+	})
+	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/reorder",
+		bytes.NewReader(bodyBytes), user.Cookie)
+	resp, _ := env.app.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 for unknown rule in reorder, got %d", resp.StatusCode)
 	}
 }
 

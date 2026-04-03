@@ -204,3 +204,72 @@ export interface UpdateShareParams {
   allow_comments?: boolean
   allow_download?: boolean
 }
+
+// ---- Ingress ----
+
+export type IngressSourceType = 'email_api' | 'imap' | 'sftp' | 'dav' | 's3'
+
+export interface IngressSource {
+  id: string
+  workspace_id: string
+  created_by: string
+  type: IngressSourceType
+  label: string
+  config: Record<string, unknown>
+  dest_folder_id: string | null
+  dest_project_id: string | null
+  enabled: boolean
+  poll_interval_min: number
+  last_polled_at: string | null
+  last_error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface IngressRule {
+  id: string
+  source_id: string
+  position: number
+  field: string
+  operator: string
+  value: string
+  action: string
+}
+
+export interface IngressLogEntry {
+  id: string
+  source_id: string
+  remote_id: string
+  filename: string
+  asset_id: string | null
+  status: 'pending' | 'imported' | 'skipped' | 'failed'
+  error: string | null
+  imported_at: string
+}
+
+export interface CreateIngressSourceParams {
+  type: IngressSourceType
+  label: string
+  config: Record<string, unknown>
+  dest_project_id?: string | null
+  dest_folder_id?: string | null
+  poll_interval_min?: number
+  enabled?: boolean
+}
+
+export interface UpdateIngressSourceParams {
+  label?: string
+  config?: Record<string, unknown>
+  dest_project_id?: string | null
+  dest_folder_id?: string | null
+  poll_interval_min?: number
+  enabled?: boolean
+}
+
+export interface CreateIngressRuleParams {
+  position: number
+  field: string
+  operator: string
+  value: string
+  action: string
+}

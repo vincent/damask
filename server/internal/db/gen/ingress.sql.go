@@ -119,6 +119,25 @@ func (q *Queries) DeleteIngressLogEntry(ctx context.Context, id string) error {
 	return err
 }
 
+const getIngressRule = `-- name: GetIngressRule :one
+SELECT id, source_id, position, field, operator, value, "action" FROM ingress_rules WHERE id = ?
+`
+
+func (q *Queries) GetIngressRule(ctx context.Context, id string) (IngressRule, error) {
+	row := q.db.QueryRowContext(ctx, getIngressRule, id)
+	var i IngressRule
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.Position,
+		&i.Field,
+		&i.Operator,
+		&i.Value,
+		&i.Action,
+	)
+	return i, err
+}
+
 const deleteIngressRule = `-- name: DeleteIngressRule :exec
 DELETE FROM ingress_rules WHERE id = ?
 `

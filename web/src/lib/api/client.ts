@@ -1,4 +1,4 @@
-import type { Asset, AuthResponse, CreateShareParams, CreateVariantResponse, Folder, Project, Share, Tag, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, Folder, IngressLogEntry, IngressRule, IngressSource, Project, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -325,6 +325,76 @@ export const shareApi = {
 
   revoke: (id: string) =>
     apiFetch<void>(`/api/v1/shares/${id}`, { method: 'DELETE' }),
+}
+
+export const ingressApi = {
+  // Sources
+  list: () => apiFetch<IngressSource[]>('/api/v1/ingress/sources'),
+
+  get: (id: string) => apiFetch<IngressSource>(`/api/v1/ingress/sources/${id}`),
+
+  create: (params: CreateIngressSourceParams) =>
+    apiFetch<IngressSource>('/api/v1/ingress/sources', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  update: (id: string, params: UpdateIngressSourceParams) =>
+    apiFetch<IngressSource>(`/api/v1/ingress/sources/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(params),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/ingress/sources/${id}`, { method: 'DELETE' }),
+
+  test: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/v1/ingress/sources/${id}/test`, { method: 'POST' }),
+
+  poll: (id: string) =>
+    apiFetch<{ job_id: string }>(`/api/v1/ingress/sources/${id}/poll`, { method: 'POST' }),
+
+  // Rules
+  listRules: (sourceId: string) =>
+    apiFetch<IngressRule[]>(`/api/v1/ingress/sources/${sourceId}/rules`),
+
+  createRule: (sourceId: string, params: CreateIngressRuleParams) =>
+    apiFetch<IngressRule>(`/api/v1/ingress/sources/${sourceId}/rules`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  updateRule: (sourceId: string, ruleId: string, params: Partial<CreateIngressRuleParams>) =>
+    apiFetch<IngressRule>(`/api/v1/ingress/sources/${sourceId}/rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(params),
+    }),
+
+  deleteRule: (sourceId: string, ruleId: string) =>
+    apiFetch<void>(`/api/v1/ingress/sources/${sourceId}/rules/${ruleId}`, { method: 'DELETE' }),
+
+  reorderRules: (sourceId: string, entries: { id: string; position: number }[]) =>
+    apiFetch<IngressRule[]>(`/api/v1/ingress/sources/${sourceId}/rules/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify(entries),
+    }),
+
+  // Log
+  getSourceLog: (sourceId: string, status?: string) => {
+    const qs = status ? `?status=${status}` : ''
+    return apiFetch<IngressLogEntry[]>(`/api/v1/ingress/sources/${sourceId}/log${qs}`)
+  },
+
+  getWorkspaceLog: (status?: string) => {
+    const qs = status ? `?status=${status}` : ''
+    return apiFetch<IngressLogEntry[]>(`/api/v1/ingress/log${qs}`)
+  },
+
+  deleteLogEntry: (entryId: string) =>
+    apiFetch<void>(`/api/v1/ingress/log/${entryId}`, { method: 'DELETE' }),
+
+  retryLogEntry: (entryId: string) =>
+    apiFetch<{ job_id: string }>(`/api/v1/ingress/log/${entryId}/retry`, { method: 'POST' }),
 }
 
 export function formatBytes(bytes: number): string {

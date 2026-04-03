@@ -157,6 +157,217 @@ func logEntryToResponse(e dbgen.IngressLog) ingressLogResponse {
 	}
 }
 
+type ingressRuleResponse struct {
+	ID       string `json:"id"`
+	SourceID string `json:"source_id"`
+	Position int64  `json:"position"`
+	Field    string `json:"field"`
+	Operator string `json:"operator"`
+	Value    string `json:"value"`
+	Action   string `json:"action"`
+}
+
+type reorderRuleEntry struct {
+	ID       string `json:"id"`
+	Position int64  `json:"position"`
+}
+
+func ruleToResponse(r dbgen.IngressRule) ingressRuleResponse {
+	return ingressRuleResponse{
+		ID:       r.ID,
+		SourceID: r.SourceID,
+		Position: r.Position,
+		Field:    r.Field,
+		Operator: r.Operator,
+		Value:    r.Value,
+		Action:   r.Action,
+	}
+}
+
+// requireSourceOwnership loads a source by id scoped to the caller's workspace.
+// Returns the source or writes an error response and returns false.
+func (s *Server) requireSourceOwnership(c fiber.Ctx, sourceID string) (dbgen.IngressSource, bool) {
+	claims := auth.GetClaims(c)
+	src, err := s.db.GetIngressSource(c.Context(), dbgen.GetIngressSourceParams{
+		ID: sourceID, WorkspaceID: claims.WorkspaceID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		_ = errRes(c, fiber.StatusNotFound, "source not found")
+		return dbgen.IngressSource{}, false
+	}
+	if err != nil {
+		_ = errRes(c, fiber.StatusInternalServerError, "could not get source")
+		return dbgen.IngressSource{}, false
+	}
+	return src, true
+}
+
+// -- Rules CRUD
+
+// GET /api/v1/ingress/sources/:id/rules
+func (s *Server) handleListIngressRules(c fiber.Ctx) error {
+	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
+		return nil
+	}
+	rules, err := s.db.ListIngressRules(c.Context(), c.Params("id"))
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list rules")
+	}
+	result := make([]ingressRuleResponse, len(rules))
+	for i, r := range rules {
+		result[i] = ruleToResponse(r)
+	}
+	return c.JSON(result)
+}
+
+// POST /api/v1/ingress/sources/:id/rules
+func (s *Server) handleCreateIngressRule(c fiber.Ctx) error {
+	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
+		return nil
+	}
+	var req ingressRuleReq
+	if err := c.Bind().JSON(&req); err != nil {
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	}
+	if req.Field == "" || req.Operator == "" || req.Value == "" || req.Action == "" {
+		return errRes(c, fiber.StatusBadRequest, "field, operator, value and action are required")
+	}
+	r, err := s.db.CreateIngressRule(c.Context(), dbgen.CreateIngressRuleParams{
+		ID:       uuid.NewString(),
+		SourceID: c.Params("id"),
+		Position: req.Position,
+		Field:    req.Field,
+		Operator: req.Operator,
+		Value:    req.Value,
+		Action:   req.Action,
+	})
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not create rule")
+	}
+	return c.Status(fiber.StatusCreated).JSON(ruleToResponse(r))
+}
+
+// PUT /api/v1/ingress/sources/:id/rules/:rid
+func (s *Server) handleUpdateIngressRule(c fiber.Ctx) error {
+	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
+		return nil
+	}
+	rid := c.Params("rid")
+	existing, err := s.db.GetIngressRule(c.Context(), rid)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errRes(c, fiber.StatusNotFound, "rule not found")
+	}
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not get rule")
+	}
+	// Ensure the rule belongs to this source
+	if existing.SourceID != c.Params("id") {
+		return errRes(c, fiber.StatusNotFound, "rule not found")
+	}
+
+	var req ingressRuleReq
+	if err := c.Bind().JSON(&req); err != nil {
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	}
+	// Merge: keep existing values for empty fields
+	field := req.Field
+	if field == "" {
+		field = existing.Field
+	}
+	operator := req.Operator
+	if operator == "" {
+		operator = existing.Operator
+	}
+	value := req.Value
+	if value == "" {
+		value = existing.Value
+	}
+	action := req.Action
+	if action == "" {
+		action = existing.Action
+	}
+
+	r, err := s.db.UpdateIngressRule(c.Context(), dbgen.UpdateIngressRuleParams{
+		Position: req.Position,
+		Field:    field,
+		Operator: operator,
+		Value:    value,
+		Action:   action,
+		ID:       rid,
+	})
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not update rule")
+	}
+	return c.JSON(ruleToResponse(r))
+}
+
+// DELETE /api/v1/ingress/sources/:id/rules/:rid
+func (s *Server) handleDeleteIngressRule(c fiber.Ctx) error {
+	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
+		return nil
+	}
+	rid := c.Params("rid")
+	existing, err := s.db.GetIngressRule(c.Context(), rid)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errRes(c, fiber.StatusNotFound, "rule not found")
+	}
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not get rule")
+	}
+	if existing.SourceID != c.Params("id") {
+		return errRes(c, fiber.StatusNotFound, "rule not found")
+	}
+	if err := s.db.DeleteIngressRule(c.Context(), rid); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not delete rule")
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// PUT /api/v1/ingress/sources/:id/rules/reorder
+func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
+	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
+		return nil
+	}
+	var entries []reorderRuleEntry
+	if err := c.Bind().JSON(&entries); err != nil {
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	}
+	sourceID := c.Params("id")
+	for _, e := range entries {
+		existing, err := s.db.GetIngressRule(c.Context(), e.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "rule not found: "+e.ID)
+		}
+		if err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not get rule")
+		}
+		if existing.SourceID != sourceID {
+			return errRes(c, fiber.StatusNotFound, "rule not found: "+e.ID)
+		}
+		_, err = s.db.UpdateIngressRule(c.Context(), dbgen.UpdateIngressRuleParams{
+			Position: e.Position,
+			Field:    existing.Field,
+			Operator: existing.Operator,
+			Value:    existing.Value,
+			Action:   existing.Action,
+			ID:       e.ID,
+		})
+		if err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not reorder rules")
+		}
+	}
+	// Return the updated list in position order
+	rules, err := s.db.ListIngressRules(c.Context(), sourceID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list rules")
+	}
+	result := make([]ingressRuleResponse, len(rules))
+	for i, r := range rules {
+		result[i] = ruleToResponse(r)
+	}
+	return c.JSON(result)
+}
+
 // -- Source CRUD
 
 // POST /api/v1/ingress/sources

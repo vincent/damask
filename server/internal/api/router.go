@@ -183,6 +183,13 @@ func New(
 	ingressGroup.Delete("/log/:entry_id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteIngressLogEntry)
 	ingressGroup.Post("/log/:entry_id/retry", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleRetryIngressLogEntry)
 
+	// Ingress rules — reorder must be registered before /:rid to avoid conflict
+	ingressGroup.Get("/sources/:id/rules", s.handleListIngressRules)
+	ingressGroup.Post("/sources/:id/rules", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateIngressRule)
+	ingressGroup.Put("/sources/:id/rules/reorder", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleReorderIngressRules)
+	ingressGroup.Put("/sources/:id/rules/:rid", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateIngressRule)
+	ingressGroup.Delete("/sources/:id/rules/:rid", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteIngressRule)
+
 	// Shares — authenticated, workspace-scoped
 	api.Post("/shares", s.handleCreateShare)
 	api.Get("/shares", s.handleListShares)
