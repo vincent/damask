@@ -20,6 +20,7 @@
   import VariantCreateConvert from './VariantCreateConvert.svelte'
   import VariantCreateCrop from './VariantCreateCrop.svelte'
   import VariantCreateRemoveBackground from './VariantCreateRemoveBackground.svelte'
+  import VariantCreateSmartCrop from './VariantCreateSmartCrop.svelte'
   import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
   import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
   import AssetProject from './AssetProject.svelte'
@@ -46,7 +47,7 @@
   let activeTab = $state<PanelTab>('details')
 
   // --- Variant sub-tabs ---
-  type VariantTab = 'all' | 'resize' | 'watermark' | 'convert' | 'crop' | 'bg_remove' | 'video_transcode' | 'video_thumbnail'
+  type VariantTab = 'all' | 'resize' | 'watermark' | 'convert' | 'smart_crop' | 'crop' | 'bg_remove' | 'video_transcode' | 'video_thumbnail'
   let activeVariantTab = $state<VariantTab>('all')
 
   // --- Asset state ---
@@ -153,6 +154,7 @@
       { id: 'resize' as VariantTab, label: 'Resize' },
       { id: 'watermark' as VariantTab, label: 'Watermark' },
       { id: 'convert' as VariantTab, label: 'Convert' },
+      { id: 'smart_crop' as VariantTab, label: 'Smart Crop' },
       { id: 'crop' as VariantTab, label: 'Crop' },
       { id: 'bg_remove' as VariantTab, label: 'Bg Remove' },
     ] : []),
@@ -277,6 +279,8 @@
               <VariantCreateCrop {asset} {creating} {handleCreate} />
             {:else if activeVariantTab === 'bg_remove'}
               <VariantCreateRemoveBackground {asset} {creating} {handleCreate} />
+            {:else if activeVariantTab === 'smart_crop'}
+              <VariantCreateSmartCrop {asset} {creating} {handleCreate} />
             {:else if activeVariantTab === 'video_transcode'}
             <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
             {:else if activeVariantTab === 'video_thumbnail'}

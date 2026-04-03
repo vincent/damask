@@ -25,6 +25,7 @@ func (s *Server) RegisterJobHandlers() {
 	s.queue.Register(queue.JobTypeImageConvert, s.jobImageTransform)
 	s.queue.Register(queue.JobTypeImageCrop, s.jobImageTransform)
 	s.queue.Register(queue.JobTypeImageWatermark, s.jobImageTransform)
+	s.queue.Register(queue.JobTypeImageSmartCrop, s.jobImageTransform)
 	s.queue.Register(queue.JobTypeVideoThumbnail, s.jobVideoThumbnail)
 	s.queue.Register(queue.JobTypeVideoTranscode, s.jobVideoTranscode)
 	s.queue.Register(queue.JobTypeImageBgRemove, s.jobImageBgRemove)
@@ -208,6 +209,12 @@ func (s *Server) jobImageTransform(ctx context.Context, job dbgen.Job) error {
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
 		data, contentType, err = transform.Watermark(rc, params)
+	case queue.JobTypeImageSmartCrop:
+		var params transform.SmartCropParams
+		if err := json.Unmarshal(p.Params, &params); err != nil {
+			return fmt.Errorf("parse smartcrop params: %w", err)
+		}
+		data, contentType, err = transform.SmartCrop(rc, params)
 	default:
 		return fmt.Errorf("unknown image job type: %s", job.Type)
 	}

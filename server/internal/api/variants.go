@@ -107,6 +107,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		queue.JobTypeVideoThumbnail: true,
 		queue.JobTypeVideoTranscode: true,
 		queue.JobTypeImageBgRemove:  true,
+		queue.JobTypeImageSmartCrop: true,
 	}
 	if !validTypes[body.Type] {
 		return errRes(c, fiber.StatusBadRequest, "invalid variant type")
@@ -116,7 +117,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		!strings.HasPrefix(asset.MimeType, "video/") {
 		return errRes(c, fiber.StatusBadRequest, "video transforms require a video asset")
 	}
-	if (body.Type == queue.JobTypeImageResize || body.Type == queue.JobTypeImageConvert || body.Type == queue.JobTypeImageCrop || body.Type == queue.JobTypeImageWatermark) &&
+	if (body.Type == queue.JobTypeImageResize || body.Type == queue.JobTypeImageConvert || body.Type == queue.JobTypeImageCrop || body.Type == queue.JobTypeImageWatermark || body.Type == queue.JobTypeImageSmartCrop) &&
 		!strings.HasPrefix(asset.MimeType, "image/") {
 		return errRes(c, fiber.StatusBadRequest, "image transforms require an image asset")
 	}

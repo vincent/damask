@@ -179,6 +179,7 @@ const (
 	JobTypeImageCrop      = "image_crop"
 	JobTypeImageWatermark = "image_watermark"
 	JobTypeImageBgRemove  = "image_bg_remove"
+	JobTypeImageSmartCrop = "image_smartcrop"
 	JobTypeVideoThumbnail = "video_thumbnail"
 	JobTypeVideoTranscode = "video_transcode"
 	JobTypeAudioWaveform  = "audio_waveform"

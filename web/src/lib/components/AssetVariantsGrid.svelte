@@ -23,6 +23,7 @@
             case 'video_thumbnail': return `Frame at ${params.timestamp ?? 1}s`
             case 'video_transcode': return `Transcode ${params.format ?? 'mp4'}${params.resolution ? ' ' + params.resolution : ''}`
             case 'bg_remove': return 'Background removed'
+            case 'image_smartcrop': return `Smart Crop ${params.width ?? '?'}×${params.height ?? '?'}`
             default: return v.type
         }
     }

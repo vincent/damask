@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
+	"github.com/muesli/smartcrop"
+	"github.com/muesli/smartcrop/nfnt"
 )
 
 //go:embed watermark.png
@@ -46,6 +48,14 @@ type CropParams struct {
 	Height  int    `json:"height"`
 	Quality int    `json:"quality"`
 	Format  string `json:"format"`
+}
+
+// SmartCropParams defines parameters for smart-crop transforms.
+type SmartCropParams struct {
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
+	Quality int    `json:"quality"` // 1–100, default 85
+	Format  string `json:"format"`  // jpeg | png | tiff
 }
 
 // PreviewParams defines parameters for the low-res in-memory preview.
@@ -146,6 +156,35 @@ func Crop(src io.Reader, p CropParams) ([]byte, string, error) {
 	}
 	cropped := imaging.Crop(img, image.Rect(p.X, p.Y, p.X+p.Width, p.Y+p.Height))
 	return encodeImage(cropped, p.Format, p.Quality)
+}
+
+// SmartCrop finds the most visually interesting region of src at the given size.
+func SmartCrop(src io.Reader, p SmartCropParams) ([]byte, string, error) {
+	if p.Width <= 0 || p.Height <= 0 {
+		return nil, "", errors.New("width and height must be > 0")
+	}
+	if p.Quality <= 0 || p.Quality > 100 {
+		p.Quality = 85
+	}
+
+	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	if err != nil {
+		return nil, "", fmt.Errorf("decode image: %w", err)
+	}
+
+	analyzer := smartcrop.NewAnalyzer(nfnt.NewDefaultResizer())
+	topCrop, err := analyzer.FindBestCrop(img, p.Width, p.Height)
+	if err != nil {
+		return nil, "", fmt.Errorf("find best crop: %w", err)
+	}
+
+	type subImager interface {
+		SubImage(r image.Rectangle) image.Image
+	}
+	cropped := img.(subImager).SubImage(topCrop)
+	result := imaging.Resize(cropped, p.Width, p.Height, imaging.Lanczos)
+
+	return encodeImage(result, p.Format, p.Quality)
 }
 
 // Preview generates a small in-memory preview (max 800px) for the UI.
