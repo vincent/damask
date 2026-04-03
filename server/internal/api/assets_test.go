@@ -411,3 +411,64 @@ func TestSearchAssets(t *testing.T) {
 		t.Errorf("expected sunset_beach.jpg, got %q", result.Assets[0].OriginalFilename)
 	}
 }
+
+func TestSearchAssets_Pagination(t *testing.T) {
+	env := setupTestApp(t)
+	owner := register(t, env, "Owner", "owner@example.com", "password123")
+
+	// Upload 3 assets whose names all match "photo"
+	for i := range 3 {
+		name := "photo_" + string(rune('a'+i)) + ".jpg"
+		req := buildUploadRequest(t, name, makeJPEG(10, 10), owner.Cookie)
+		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+		if err != nil || resp.StatusCode != http.StatusCreated {
+			t.Fatalf("upload %s: %v %d", name, err, resp.StatusCode)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Page 1: limit=2, expect next_cursor
+	req := authRequest(http.MethodGet, "/api/v1/assets?q=photo&limit=2", nil, owner.Cookie)
+	resp, err := env.app.Test(req)
+	if err != nil {
+		t.Fatalf("search page1: %v", err)
+	}
+	var page1 assetListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&page1); err != nil {
+		t.Fatalf("decode page1: %v", err)
+	}
+	if len(page1.Assets) != 2 {
+		t.Fatalf("expected 2 assets on page1, got %d", len(page1.Assets))
+	}
+	if page1.NextCursor == nil {
+		t.Fatal("expected next_cursor on page1")
+	}
+
+	// Page 2: use cursor, expect 1 remaining asset and no next_cursor
+	req2 := authRequest(http.MethodGet, "/api/v1/assets?q=photo&limit=2&cursor="+*page1.NextCursor, nil, owner.Cookie)
+	resp2, err := env.app.Test(req2)
+	if err != nil {
+		t.Fatalf("search page2: %v", err)
+	}
+	var page2 assetListResponse
+	if err := json.NewDecoder(resp2.Body).Decode(&page2); err != nil {
+		t.Fatalf("decode page2: %v", err)
+	}
+	if len(page2.Assets) != 1 {
+		t.Fatalf("expected 1 asset on page2, got %d", len(page2.Assets))
+	}
+	if page2.NextCursor != nil {
+		t.Error("expected nil next_cursor on last page")
+	}
+
+	// Ensure no asset ID appears in both pages
+	seen := make(map[string]bool)
+	for _, a := range page1.Assets {
+		seen[a.ID] = true
+	}
+	for _, a := range page2.Assets {
+		if seen[a.ID] {
+			t.Errorf("duplicate asset %s returned on both pages", a.ID)
+		}
+	}
+}
