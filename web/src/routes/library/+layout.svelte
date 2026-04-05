@@ -85,6 +85,9 @@
       >
         <Share2 class="h-4 w-4 shrink-0 text-gray-400" />
         <span class="flex-1 text-left">All Shares</span>
+        {#if sharesStore.shares?.length > 0}
+          <span class="shrink-0 text-xs text-gray-400">{sharesStore.shares?.length}</span>
+        {/if}
       </button>
     </div>
 

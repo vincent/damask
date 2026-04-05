@@ -129,7 +129,7 @@
           <Chip label={chipLabel(f)} onremove={() => removeChip(f)} color="#6366f1" />
         {/each}
         <button
-          class="ml-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          class="ml-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           onclick={() => {
             for (const def of definitions) clearField(def.key)
           }}
@@ -153,7 +153,7 @@
               placeholder="contains…"
               value={local[def.key] as string}
               oninput={(e) => { local[def.key] = (e.target as HTMLInputElement).value; debouncedEmit() }}
-              class="w-36 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900
+              class="w-36 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
                 focus:border-indigo-400 focus:outline-none
                 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
             />
@@ -167,18 +167,18 @@
                 placeholder="min"
                 value={nums.min}
                 oninput={(e) => { (local[def.key] as { min: string; max: string }).min = (e.target as HTMLInputElement).value; debouncedEmit() }}
-                class="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900
+                class="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
                   focus:border-indigo-400 focus:outline-none
                   dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
-              <span class="text-xs text-gray-400">–</span>
+              <span class="text-sm text-gray-400">–</span>
               <input
                 type="number"
                 step="any"
                 placeholder="max"
                 value={nums.max}
                 oninput={(e) => { (local[def.key] as { min: string; max: string }).max = (e.target as HTMLInputElement).value; debouncedEmit() }}
-                class="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900
+                class="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
                   focus:border-indigo-400 focus:outline-none
                   dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
@@ -189,18 +189,18 @@
             <div class="flex items-center gap-1">
               <input
                 type="date"
-                value={dates.from}
+                value={dates?.from || new Date}
                 onchange={(e) => { (local[def.key] as { from: string; to: string }).from = (e.target as HTMLInputElement).value; emit() }}
-                class="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900
+                class="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
                   focus:border-indigo-400 focus:outline-none
                   dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
-              <span class="text-xs text-gray-400">–</span>
+              <span class="text-sm text-gray-400">–</span>
               <input
                 type="date"
-                value={dates.to}
+                value={dates?.to || new Date}
                 onchange={(e) => { (local[def.key] as { from: string; to: string }).to = (e.target as HTMLInputElement).value; emit() }}
-                class="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900
+                class="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
                   focus:border-indigo-400 focus:outline-none
                   dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               />
@@ -212,7 +212,7 @@
               {#each [['', 'Any'], ['true', 'Yes'], ['false', 'No']] as [val, label]}
                 <button
                   type="button"
-                  class="rounded-full border px-2.5 py-1 text-xs transition-colors
+                  class="rounded-full border px-2.5 py-1 text-sm transition-colors
                     {bv === val
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/40 dark:text-indigo-300'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'}"
@@ -230,7 +230,7 @@
               {#each opts as opt}
                 <button
                   type="button"
-                  class="rounded-full border px-2.5 py-1 text-xs transition-colors
+                  class="rounded-full border px-2.5 py-1 text-sm transition-colors
                     {sv === opt
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/40 dark:text-indigo-300'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'}"
