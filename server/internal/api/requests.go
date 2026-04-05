@@ -8,13 +8,13 @@ import (
 
 // -- auth.go ------------------------------------------------------------------
 
-type registerRequest struct {
+type RegisterRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func (r *registerRequest) Valid(_ context.Context) map[string]string {
+func (r *RegisterRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	r.Email = strings.TrimSpace(r.Email)

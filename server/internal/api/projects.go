@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type projectResponse struct {
+type ProjectResponse struct {
 	ID           string    `json:"id"`
 	WorkspaceID  string    `json:"workspace_id"`
 	Name         string    `json:"name"`
@@ -24,8 +24,8 @@ type projectResponse struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-func projectToResponse(p dbgen.Project, assetCount int64) projectResponse {
-	return projectResponse{
+func projectToResponse(p dbgen.Project, assetCount int64) ProjectResponse {
+	return ProjectResponse{
 		ID:           p.ID,
 		WorkspaceID:  p.WorkspaceID,
 		Name:         p.Name,
@@ -68,9 +68,9 @@ func (s *Server) handleListProjects(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list projects")
 	}
 
-	items := make([]projectResponse, len(rows))
+	items := make([]ProjectResponse, len(rows))
 	for i, row := range rows {
-		items[i] = projectResponse{
+		items[i] = ProjectResponse{
 			ID:           row.ID,
 			WorkspaceID:  row.WorkspaceID,
 			Name:         row.Name,

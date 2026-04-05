@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/services"
@@ -23,15 +24,15 @@ import (
 
 // Worker handles ingest_poll and ingest_fetch jobs.
 type Worker struct {
-	db        *dbgen.Queries
-	storage   storage.Storage
-	queue     *queue.Queue
-	appSecret string
+	db      *dbgen.Queries
+	storage storage.Storage
+	queue   *queue.Queue
+	cfg     *config.Config
 }
 
 // NewWorker creates a Worker.
-func NewWorker(db *dbgen.Queries, stor storage.Storage, qu *queue.Queue, appSecret string) *Worker {
-	return &Worker{db: db, storage: stor, queue: qu, appSecret: appSecret}
+func NewWorker(db *dbgen.Queries, stor storage.Storage, qu *queue.Queue, cfg *config.Config) *Worker {
+	return &Worker{db: db, storage: stor, queue: qu, cfg: cfg}
 }
 
 // PollJobPayload is the JSON payload for a JobTypeIngestPoll job.
@@ -68,7 +69,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 		return nil
 	}
 
-	configJSON, err := DecryptConfig(w.appSecret, src.Config)
+	configJSON, err := DecryptConfig(w.cfg.AppSecret, src.Config)
 	if err != nil {
 		return w.failSource(ctx, src.ID, fmt.Errorf("ingest_poll: decrypt config: %w", err))
 	}
@@ -139,7 +140,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: get source: %w", err))
 	}
 
-	configJSON, err := DecryptConfig(w.appSecret, src.Config)
+	configJSON, err := DecryptConfig(w.cfg.AppSecret, src.Config)
 	if err != nil {
 		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: decrypt config: %w", err))
 	}

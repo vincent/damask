@@ -18,7 +18,7 @@ type lruPreviewCache struct {
 	maxSize int
 }
 
-func newLRUPreviewCache(maxSize int) *lruPreviewCache {
+func NewLRUPreviewCache(maxSize int) *lruPreviewCache {
 	return &lruPreviewCache{
 		items:   make(map[string]*list.Element),
 		order:   list.New(),

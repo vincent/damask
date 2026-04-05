@@ -1,6 +1,7 @@
-package api
+package api_test
 
 import (
+	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,12 +10,12 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// setupTwoWorkspaces registers two independent owners, each in their own workspace.
-func setupTwoWorkspaces(t *testing.T) (env *testEnv, ws1 authResult, ws2 authResult) {
+// setupTwoWorkspaces th.Registers two independent owners, each in their own workspace.
+func setupTwoWorkspaces(t *testing.T) (env *th.TestEnv, ws1 th.AuthResult, ws2 th.AuthResult) {
 	t.Helper()
-	env = setupTestApp(t)
-	ws1 = register(t, env, "Alice", "alice@example.com", "password123")
-	ws2 = register(t, env, "Bob", "bob@example.com", "password456")
+	env = th.SetupTestApp(t)
+	ws1 = th.Register(t, env, "Alice", "alice@example.com", "password123")
+	ws2 = th.Register(t, env, "Bob", "bob@example.com", "password456")
 	return
 }
 
@@ -25,8 +26,8 @@ func TestIsolation_ListProjects(t *testing.T) {
 
 	createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
 
-	req := authRequest(http.MethodGet, "/api/v1/projects", nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/projects", nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -47,8 +48,8 @@ func TestIsolation_GetProject(t *testing.T) {
 
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
 
-	req := authRequest(http.MethodGet, "/api/v1/projects/"+p.ID, nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/projects/"+p.ID, nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -62,9 +63,9 @@ func TestIsolation_UpdateProject(t *testing.T) {
 
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
 
-	req := authRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		jsonStr(`{"name":"Hacked"}`), ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
+		th.JsonStr(`{"name":"Hacked"}`), ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -78,8 +79,8 @@ func TestIsolation_DeleteProject(t *testing.T) {
 
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
 
-	req := authRequest(http.MethodDelete, "/api/v1/projects/"+p.ID, nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/projects/"+p.ID, nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -95,9 +96,9 @@ func TestIsolation_CreateFolderInOtherProject(t *testing.T) {
 
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
 
-	req := authRequest(http.MethodPost, fmt.Sprintf("/api/v1/projects/%s/folders", p.ID),
-		jsonStr(`{"name":"Intruder"}`), ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, fmt.Sprintf("/api/v1/projects/%s/folders", p.ID),
+		th.JsonStr(`{"name":"Intruder"}`), ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -112,8 +113,8 @@ func TestIsolation_GetFolders(t *testing.T) {
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
 	createFolderHelper(t, env, ws1.Cookie, p.ID, "Folder A", nil)
 
-	req := authRequest(http.MethodGet, fmt.Sprintf("/api/v1/projects/%s/folders", p.ID), nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/projects/%s/folders", p.ID), nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -129,9 +130,9 @@ func TestIsolation_UpdateFolder(t *testing.T) {
 	folder := createFolderHelper(t, env, ws1.Cookie, p.ID, "Folder A", nil)
 	folderID, _ := folder["id"].(string)
 
-	req := authRequest(http.MethodPut, "/api/v1/folders/"+folderID,
-		jsonStr(`{"name":"Hacked"}`), ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/folders/"+folderID,
+		th.JsonStr(`{"name":"Hacked"}`), ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -147,8 +148,8 @@ func TestIsolation_DeleteFolder(t *testing.T) {
 	folder := createFolderHelper(t, env, ws1.Cookie, p.ID, "Folder A", nil)
 	folderID, _ := folder["id"].(string)
 
-	req := authRequest(http.MethodDelete, "/api/v1/folders/"+folderID, nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/folders/"+folderID, nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -164,8 +165,8 @@ func TestIsolation_ListAssets(t *testing.T) {
 
 	uploadTestAsset(t, env, ws1)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets", nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets", nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -188,8 +189,8 @@ func TestIsolation_GetAsset(t *testing.T) {
 
 	assetID := uploadTestAsset(t, env, ws1)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ws2.Cookie)
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ws2.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -203,8 +204,8 @@ func TestIsolation_GetAssetFile(t *testing.T) {
 
 	assetID := uploadTestAsset(t, env, ws1)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/file", nil, ws2.Cookie)
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/file", nil, ws2.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -218,9 +219,9 @@ func TestIsolation_UpdateAssetFolder(t *testing.T) {
 
 	assetID := uploadTestAsset(t, env, ws1)
 
-	req := authRequest(http.MethodPatch, "/api/v1/assets/"+assetID,
-		jsonStr(`{"folder_id":null}`), ws2.Cookie)
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+	req := th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID,
+		th.JsonStr(`{"folder_id":null}`), ws2.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -234,8 +235,8 @@ func TestIsolation_DeleteAsset(t *testing.T) {
 
 	assetID := uploadTestAsset(t, env, ws1)
 
-	req := authRequest(http.MethodDelete, "/api/v1/assets/"+assetID, nil, ws2.Cookie)
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+assetID, nil, ws2.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -251,12 +252,12 @@ func TestIsolation_ListTags(t *testing.T) {
 
 	// Add a tag to ws1's asset so there is something to be isolated
 	assetID := uploadTestAsset(t, env, ws1)
-	tagReq := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
-		jsonStr(`{"name":"secret-tag"}`), ws1.Cookie)
-	env.app.Test(tagReq, fiber.TestConfig{Timeout: 5000}) //nolint:errcheck
+	tagReq := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
+		th.JsonStr(`{"name":"secret-tag"}`), ws1.Cookie)
+	env.App.Test(tagReq, fiber.TestConfig{Timeout: 5000}) //nolint:errcheck
 
-	req := authRequest(http.MethodGet, "/api/v1/tags", nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -277,8 +278,8 @@ func TestIsolation_GetAssetTags(t *testing.T) {
 
 	assetID := uploadTestAsset(t, env, ws1)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, ws2.Cookie)
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, ws2.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -292,9 +293,9 @@ func TestIsolation_AddTagToAsset(t *testing.T) {
 
 	assetID := uploadTestAsset(t, env, ws1)
 
-	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
-		jsonStr(`{"name":"intruder"}`), ws2.Cookie)
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
+		th.JsonStr(`{"name":"intruder"}`), ws2.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -308,8 +309,8 @@ func TestIsolation_AddTagToAsset(t *testing.T) {
 func TestIsolation_WorkspaceMe(t *testing.T) {
 	env, ws1, ws2 := setupTwoWorkspaces(t)
 
-	req := authRequest(http.MethodGet, "/api/v1/workspace/me", nil, ws2.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/workspace/me", nil, ws2.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}

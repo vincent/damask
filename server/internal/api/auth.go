@@ -12,34 +12,34 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// bcryptCost is the work factor used for password hashing.
+// BcryptCost is the work factor used for password hashing.
 // Tests override this to bcrypt.MinCost for speed.
-var bcryptCost = bcrypt.DefaultCost
+var BcryptCost = bcrypt.DefaultCost
 
 func bcryptHash(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), BcryptCost)
 	if err != nil {
 		return "", err
 	}
 	return string(hash), nil
 }
 
-// userResponse omits the password hash from JSON output.
-type userResponse struct {
+// UserResponse omits the password hash from JSON output.
+type UserResponse struct {
 	ID        string    `json:"id"`
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type authResponse struct {
+type AuthResponse struct {
 	Token     string           `json:"token"`
-	User      userResponse     `json:"user"`
+	User      UserResponse     `json:"user"`
 	Workspace *dbgen.Workspace `json:"workspace,omitempty"`
 }
 
-func userToResponse(u dbgen.User) userResponse {
-	return userResponse{
+func userToResponse(u dbgen.User) UserResponse {
+	return UserResponse{
 		ID:        u.ID,
 		Email:     u.Email,
 		Name:      u.Name,
@@ -48,7 +48,7 @@ func userToResponse(u dbgen.User) userResponse {
 }
 
 func (s *Server) handleRegister(c fiber.Ctx) error {
-	req, ok := decodeAndValidate(c, &registerRequest{})
+	req, ok := decodeAndValidate(c, &RegisterRequest{})
 	if !ok {
 		return nil
 	}
@@ -93,7 +93,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.Status(fiber.StatusCreated).JSON(authResponse{Token: token, User: userToResponse(user), Workspace: workspace})
+	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: workspace})
 }
 
 // Login godoc
@@ -138,7 +138,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.JSON(authResponse{Token: token, User: userToResponse(user), Workspace: &workspace})
+	return c.JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: &workspace})
 }
 
 func (s *Server) handleRefresh(c fiber.Ctx) error {
@@ -158,7 +158,7 @@ func (s *Server) handleLogout(c fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    "",
 		HTTPOnly: true,
-		Secure:   s.appEnv != "development",
+		Secure:   s.cfg.AppEnv != "development",
 		SameSite: "Lax",
 		MaxAge:   -1,
 		Path:     "/",
@@ -171,7 +171,7 @@ func (s *Server) setAuthCookie(c fiber.Ctx, token string) {
 		Name:     "auth_token",
 		Value:    token,
 		HTTPOnly: true,
-		Secure:   s.appEnv != "development",
+		Secure:   s.cfg.AppEnv != "development",
 		SameSite: "Lax",
 		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
 		Path:     "/",

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
@@ -26,8 +27,8 @@ type pollSource struct {
 	items []IngestItem
 }
 
-func (p *pollSource) Type() string                        { return p.typ }
-func (p *pollSource) Validate(_ context.Context) error   { return nil }
+func (p *pollSource) Type() string                     { return p.typ }
+func (p *pollSource) Validate(_ context.Context) error { return nil }
 func (p *pollSource) Poll(_ context.Context) ([]IngestItem, error) {
 	return p.items, nil
 }
@@ -49,8 +50,9 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 		t.Fatalf("storage: %v", err)
 	}
 
+	cfg := &config.Config{AppSecret: testAppSecret}
 	q := queue.New(queries, 1)
-	w := NewWorker(queries, stor, q, testAppSecret)
+	w := NewWorker(queries, stor, q, cfg)
 	return w, queries
 }
 

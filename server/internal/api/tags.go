@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type tagResponse struct {
+type TagResponse struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	AssetCount int64  `json:"asset_count"`
@@ -26,9 +26,9 @@ func (s *Server) handleListTags(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list tags")
 	}
 
-	items := make([]tagResponse, len(rows))
+	items := make([]TagResponse, len(rows))
 	for i, row := range rows {
-		items[i] = tagResponse{ID: row.ID, Name: row.Name, AssetCount: row.AssetCount}
+		items[i] = TagResponse{ID: row.ID, Name: row.Name, AssetCount: row.AssetCount}
 	}
 	return c.JSON(items)
 }

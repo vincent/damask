@@ -11,7 +11,8 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	"damask/server/internal/db"
-	"damask/server/internal/ingress"
+	"damask/server/internal/events"
+	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
 	"damask/server/internal/services"
 	"damask/server/internal/storage"
@@ -41,6 +42,8 @@ func main() {
 		log.Fatalf("auth: %v", err)
 	}
 
+	eventsHub := events.NewEventHub()
+
 	stor, err := storage.NewLocalStorage(cfg.StoragePath)
 	if err != nil {
 		log.Fatalf("storage: %v", err)
@@ -54,27 +57,10 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(queries, stor, q, cfg.AppSecret)
-	q.Register(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
-	q.Register(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
+	js := jobs.NewJobServer(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg)
+	js.RegisterJobHandlers()
 
-	// Start ingress scheduler (disabled in tests via ENABLE_SCHEDULER=false)
-	if cfg.EnableScheduler {
-		scheduler := ingress.NewScheduler(queries, q)
-		scheduler.Start(ctx)
-		log.Printf("ingress scheduler started")
-
-		fieldCleanup := api.NewFieldCleanupScheduler(queries, q)
-		fieldCleanup.Start(ctx)
-		log.Printf("field cleanup scheduler started")
-
-		retentionSched := api.NewRetentionScheduler(q)
-		retentionSched.Start(ctx)
-		log.Printf("retention scheduler started")
-	}
-
-	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL.String(), cfg.FrontendPath, cfg.AppSecret)
+	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg)
 
 	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host, queries, q)
 	log.Printf("mail server starting on :%s", "2525")

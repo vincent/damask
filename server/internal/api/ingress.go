@@ -19,11 +19,11 @@ import (
 
 // -- Request / response types
 
-// rawToNullableString converts a *json.RawMessage field to *string.
+// RawToNullableString converts a *json.RawMessage field to *string.
 // Returns (nil, false) when the field was absent (pointer is nil).
 // Returns (nil, true) when the field was explicitly JSON null → clear the value.
 // Returns (&s, true) when the field was a JSON string → set to s.
-func rawToNullableString(r *json.RawMessage) (value *string, present bool) {
+func RawToNullableString(r *json.RawMessage) (value *string, present bool) {
 	if r == nil {
 		return nil, false
 	}
@@ -70,7 +70,7 @@ type ingressLogResponse struct {
 
 var sensitiveKeys = []string{"password", "secret", "key", "token"}
 
-func redactConfig(raw map[string]any) map[string]any {
+func RedactConfig(raw map[string]any) map[string]any {
 	out := make(map[string]any, len(raw))
 	for k, v := range raw {
 		kl := strings.ToLower(k)
@@ -91,7 +91,7 @@ func redactConfig(raw map[string]any) map[string]any {
 }
 
 func (s *Server) sourceToResponse(src dbgen.IngressSource) (ingressSourceResponse, error) {
-	configJSON, err := ingress.DecryptConfig(s.appSecret, src.Config)
+	configJSON, err := ingress.DecryptConfig(s.cfg.AppSecret, src.Config)
 	if err != nil {
 		return ingressSourceResponse{}, err
 	}
@@ -106,7 +106,7 @@ func (s *Server) sourceToResponse(src dbgen.IngressSource) (ingressSourceRespons
 		Type:            src.Type,
 		Label:           src.Label,
 		PublicToken:     src.PublicToken,
-		Config:          redactConfig(configMap),
+		Config:          RedactConfig(configMap),
 		DestFolderID:    src.DestFolderID,
 		DestProjectID:   src.DestProjectID,
 		Enabled:         src.Enabled != 0,
@@ -358,7 +358,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid config")
 	}
-	encryptedConfig, err := ingress.EncryptConfig(s.appSecret, configBytes)
+	encryptedConfig, err := ingress.EncryptConfig(s.cfg.AppSecret, configBytes)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not encrypt config")
 	}
@@ -488,7 +488,7 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 		if err != nil {
 			return errRes(c, fiber.StatusBadRequest, "invalid config")
 		}
-		encryptedConfig, err = ingress.EncryptConfig(s.appSecret, configBytes)
+		encryptedConfig, err = ingress.EncryptConfig(s.cfg.AppSecret, configBytes)
 		if err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not encrypt config")
 		}
@@ -509,11 +509,11 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 	}
 
 	destFolder := existing.DestFolderID
-	if val, present := rawToNullableString(req.DestFolderID); present {
+	if val, present := RawToNullableString(req.DestFolderID); present {
 		destFolder = val
 	}
 	destProject := existing.DestProjectID
-	if val, present := rawToNullableString(req.DestProjectID); present {
+	if val, present := RawToNullableString(req.DestProjectID); present {
 		destProject = val
 	}
 
@@ -566,7 +566,7 @@ func (s *Server) handleTestIngressSource(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not get source")
 	}
 
-	configJSON, err := ingress.DecryptConfig(s.appSecret, src.Config)
+	configJSON, err := ingress.DecryptConfig(s.cfg.AppSecret, src.Config)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not decrypt config")
 	}

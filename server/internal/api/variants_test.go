@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -13,15 +13,17 @@ import (
 	"testing"
 	"time"
 
+	"damask/server/internal/api"
 	dbgen "damask/server/internal/db/gen"
+	th "damask/server/internal/tests_helpers"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 // createTestAsset uploads a small PNG and returns its ID + auth cookie.
-func createTestAsset(t *testing.T, env *testEnv) (assetID string, cookie *http.Cookie) {
+func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *http.Cookie) {
 	t.Helper()
-	res := register(t, env, "User", "user@test.com", "password123")
+	res := th.Register(t, env, "User", "user@test.com", "password123")
 
 	// Build a minimal PNG in memory.
 	img := image.NewRGBA(image.Rect(0, 0, 10, 10))
@@ -41,7 +43,7 @@ func createTestAsset(t *testing.T, env *testEnv) (assetID string, cookie *http.C
 	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
 	req.AddCookie(res.Cookie)
 
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
 	if err != nil {
 		t.Fatalf("upload asset: %v", err)
 	}
@@ -49,7 +51,7 @@ func createTestAsset(t *testing.T, env *testEnv) (assetID string, cookie *http.C
 		t.Fatalf("upload asset: expected 201, got %d", resp.StatusCode)
 	}
 
-	var a assetResponse
+	var a api.AssetResponse
 	if err := json.NewDecoder(resp.Body).Decode(&a); err != nil {
 		t.Fatalf("decode asset: %v", err)
 	}
@@ -57,12 +59,12 @@ func createTestAsset(t *testing.T, env *testEnv) (assetID string, cookie *http.C
 }
 
 // insertVariantDirectly inserts a variant row into the DB bypassing the queue.
-func insertVariantDirectly(t *testing.T, env *testEnv, assetID, workspaceID string) dbgen.Variant {
+func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID string) dbgen.Variant {
 	t.Helper()
 	variantID := "test-variant-id"
 
 	// Store a dummy file so file download works.
-	_ = env.storage.Put(
+	_ = env.Storage.Put(
 		fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID),
 		bytes.NewReader([]byte("dummy variant content")),
 	)
@@ -74,9 +76,9 @@ func insertVariantDirectly(t *testing.T, env *testEnv, assetID, workspaceID stri
 	if err != nil {
 		t.Fatalf("open queries: %v", err)
 	}
-	_ = queries // avoid unused; we use env.sqlDB directly
+	_ = queries // avoid unused; we use env.SqlDB directly
 
-	_, err = env.sqlDB.ExecContext(ctx, `
+	_, err = env.SqlDB.ExecContext(ctx, `
 		INSERT INTO variants (id, asset_id, workspace_id, type, storage_key, transform_params, size)
 		VALUES (?, ?, ?, 'resize', ?, '{"width":100}', 1024)
 	`, variantID, assetID, workspaceID,
@@ -86,7 +88,7 @@ func insertVariantDirectly(t *testing.T, env *testEnv, assetID, workspaceID stri
 		t.Fatalf("insert variant: %v", err)
 	}
 
-	row := env.sqlDB.QueryRowContext(ctx, `SELECT id, asset_id, workspace_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ?`, variantID)
+	row := env.SqlDB.QueryRowContext(ctx, `SELECT id, asset_id, workspace_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ?`, variantID)
 	var v dbgen.Variant
 	if err := row.Scan(&v.ID, &v.AssetID, &v.WorkspaceID, &v.Type, &v.StorageKey, &v.TransformParams, &v.Size, &v.CreatedAt); err != nil {
 		t.Fatalf("scan variant: %v", err)
@@ -103,11 +105,11 @@ func openTestDB(t *testing.T) (interface{}, interface{}, error) {
 // ---- Tests ----
 
 func TestListVariants_Empty(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +117,7 @@ func TestListVariants_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var variants []variantResponse
+	var variants []api.VariantResponse
 	if err := json.NewDecoder(resp.Body).Decode(&variants); err != nil {
 		t.Fatal(err)
 	}
@@ -125,30 +127,30 @@ func TestListVariants_Empty(t *testing.T) {
 }
 
 func TestListVariants_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	res := register(t, env, "U", "u@test.com", "pass1234")
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "U", "u@test.com", "pass1234")
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/nonexistent/variants", nil, res.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/nonexistent/variants", nil, res.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestListVariants_WithVariant(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
 	// Get the workspace ID from the asset.
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
-	resp, _ := env.app.Test(req)
-	var a assetResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
-	req2 := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
-	resp2, err := env.app.Test(req2)
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
+	resp2, err := env.App.Test(req2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +158,7 @@ func TestListVariants_WithVariant(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp2.StatusCode)
 	}
 
-	var variants []variantResponse
+	var variants []api.VariantResponse
 	_ = json.NewDecoder(resp2.Body).Decode(&variants)
 	if len(variants) != 1 {
 		t.Fatalf("expected 1 variant, got %d", len(variants))
@@ -170,36 +172,36 @@ func TestListVariants_WithVariant(t *testing.T) {
 }
 
 func TestCreateVariant_InvalidType(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		jsonStr(`{"type":"invalid_type","params":{}}`), cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonStr(`{"type":"invalid_type","params":{}}`), cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 }
 
 func TestCreateVariant_VideoOnImage(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		jsonStr(`{"type":"video_thumbnail","params":{}}`), cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonStr(`{"type":"video_thumbnail","params":{}}`), cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 }
 
 func TestCreateVariant_WatermarkQueued(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
 	body := `{"type":"image_watermark","params":{"opacity":50,"quality":80,"format":"jpeg"}}`
-	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", jsonStr(body), cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", th.JsonStr(body), cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,12 +220,12 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 }
 
 func TestCreateVariant_ResizeQueued(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
 	body := `{"type":"image_resize","params":{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}}`
-	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", jsonStr(body), cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", th.JsonStr(body), cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,31 +244,31 @@ func TestCreateVariant_ResizeQueued(t *testing.T) {
 }
 
 func TestCreateVariant_BgRemoveNoKey(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		jsonStr(`{"type":"image_bg_remove","params":{}}`), cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonStr(`{"type":"image_bg_remove","params":{}}`), cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 (no API key), got %d", resp.StatusCode)
 	}
 }
 
 func TestDeleteVariant(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
-	resp, _ := env.app.Test(req)
-	var a assetResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
-	delReq := authRequest(http.MethodDelete,
+	delReq := th.AuthRequest(http.MethodDelete,
 		fmt.Sprintf("/api/v1/assets/%s/variants/%s", assetID, v.ID), nil, cookie)
-	delResp, err := env.app.Test(delReq)
+	delResp, err := env.App.Test(delReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,9 +277,9 @@ func TestDeleteVariant(t *testing.T) {
 	}
 
 	// Verify deleted
-	listReq := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
-	listResp, _ := env.app.Test(listReq)
-	var variants []variantResponse
+	listReq := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
+	listResp, _ := env.App.Test(listReq)
+	var variants []api.VariantResponse
 	_ = json.NewDecoder(listResp.Body).Decode(&variants)
 	if len(variants) != 0 {
 		t.Fatalf("expected 0 variants after delete, got %d", len(variants))
@@ -285,31 +287,31 @@ func TestDeleteVariant(t *testing.T) {
 }
 
 func TestDeleteVariant_NotFound(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodDelete,
+	req := th.AuthRequest(http.MethodDelete,
 		fmt.Sprintf("/api/v1/assets/%s/variants/nonexistent", assetID), nil, cookie)
-	resp, _ := env.app.Test(req)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestGetVariantFile(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
-	resp, _ := env.app.Test(req)
-	var a assetResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
-	fileReq := authRequest(http.MethodGet,
+	fileReq := th.AuthRequest(http.MethodGet,
 		fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", assetID, v.ID), nil, cookie)
-	fileResp, err := env.app.Test(fileReq)
+	fileResp, err := env.App.Test(fileReq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,13 +321,13 @@ func TestGetVariantFile(t *testing.T) {
 }
 
 func TestPreviewTransform(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodGet,
+	req := th.AuthRequest(http.MethodGet,
 		fmt.Sprintf("/api/v1/assets/%s/preview?w=50&h=50&fit=contain&format=jpeg&q=80", assetID),
 		nil, cookie)
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,13 +340,13 @@ func TestPreviewTransform(t *testing.T) {
 }
 
 func TestPreviewTransform_Cached(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
 	url := fmt.Sprintf("/api/v1/assets/%s/preview?w=50&h=50", assetID)
 	for i := 0; i < 3; i++ {
-		req := authRequest(http.MethodGet, url, nil, cookie)
-		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
+		req := th.AuthRequest(http.MethodGet, url, nil, cookie)
+		resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -355,8 +357,8 @@ func TestPreviewTransform_Cached(t *testing.T) {
 }
 
 func TestPreviewTransform_NonImage(t *testing.T) {
-	env := setupTestApp(t)
-	res := register(t, env, "U", "u2@test.com", "pass1234")
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "U", "u2@test.com", "pass1234")
 
 	// Upload a non-image file.
 	var body bytes.Buffer
@@ -368,34 +370,34 @@ func TestPreviewTransform_NonImage(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
 	req.AddCookie(res.Cookie)
-	resp, _ := env.app.Test(req, fiber.TestConfig{Timeout: 10000})
+	resp, _ := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
 
-	var a assetResponse
+	var a api.AssetResponse
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
-	previewReq := authRequest(http.MethodGet,
+	previewReq := th.AuthRequest(http.MethodGet,
 		fmt.Sprintf("/api/v1/assets/%s/preview?w=100", a.ID), nil, res.Cookie)
-	previewResp, _ := env.app.Test(previewReq, fiber.TestConfig{Timeout: 5000})
+	previewResp, _ := env.App.Test(previewReq, fiber.TestConfig{Timeout: 5000})
 	if previewResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 for non-image preview, got %d", previewResp.StatusCode)
 	}
 }
 
 func TestVariant_ViewerCannotDelete(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 	assetID, ownerCookie := createTestAsset(t, env)
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ownerCookie)
-	resp, _ := env.app.Test(req)
-	var a assetResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ownerCookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
-	viewerToken := mintEditorToken(t, env, a.WorkspaceID, "viewer")
-	delReq := bearerRequest(http.MethodDelete,
+	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, "viewer")
+	delReq := th.BearerRequest(http.MethodDelete,
 		fmt.Sprintf("/api/v1/assets/%s/variants/%s", assetID, v.ID), nil, viewerToken)
-	delResp, _ := env.app.Test(delReq)
+	delResp, _ := env.App.Test(delReq)
 	if delResp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for viewer delete, got %d", delResp.StatusCode)
 	}

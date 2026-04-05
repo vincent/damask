@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 
 	"damask/server/internal/auth"
+	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/events"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 
@@ -20,43 +22,38 @@ import (
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
-	db             *dbgen.Queries
-	sqlDB          *sql.DB
-	tokenMaker     *auth.Maker
-	storage        storage.Storage
-	queue          *queue.Queue
-	hub            *EventHub
-	previewCache   *lruPreviewCache
-	removeBgAPIKey string
-	appEnv         string
-	baseUrl        string
-	appSecret      string
+	db           *dbgen.Queries
+	sqlDB        *sql.DB
+	tokenMaker   *auth.Maker
+	storage      storage.Storage
+	queue        *queue.Queue
+	hub          events.EventHub
+	previewCache *lruPreviewCache
+	cfg          *config.Config
 }
 
-func newServer(
+func NewHttpServer(
 	db *dbgen.Queries,
 	sqlDB *sql.DB,
 	tokenMaker *auth.Maker,
 	stor storage.Storage,
+	hub events.EventHub,
 	q *queue.Queue,
-	removeBgAPIKey, appEnv, baseUrl, appSecret string,
+	cfg *config.Config,
 ) *Server {
 	return &Server{
-		db:             db,
-		sqlDB:          sqlDB,
-		tokenMaker:     tokenMaker,
-		storage:        stor,
-		queue:          q,
-		hub:            NewEventHub(),
-		previewCache:   newLRUPreviewCache(100),
-		removeBgAPIKey: removeBgAPIKey,
-		appEnv:         appEnv,
-		baseUrl:        baseUrl,
-		appSecret:      appSecret,
+		db:           db,
+		sqlDB:        sqlDB,
+		tokenMaker:   tokenMaker,
+		storage:      stor,
+		queue:        q,
+		hub:          hub,
+		previewCache: NewLRUPreviewCache(100),
+		cfg:          cfg,
 	}
 }
 
-// New creates a configured Fiber app with all routes registered.
+// NewRouter creates a configured Fiber app with all routes registered.
 // @title Damask Swagger API
 // @version 1.0
 // @description This is a Damask server.
@@ -71,20 +68,16 @@ func newServer(
 
 // @BasePath /
 // @schemes http
-func New(
+func NewRouter(
 	db *dbgen.Queries,
 	sqlDB *sql.DB,
 	tokenMaker *auth.Maker,
 	stor storage.Storage,
+	hub events.EventHub,
 	q *queue.Queue,
-	removeBgAPIKey,
-	appEnv string,
-	baseUrl string,
-	frontendPath string,
-	appSecret string,
+	cfg *config.Config,
 ) *fiber.App {
-	s := newServer(db, sqlDB, tokenMaker, stor, q, removeBgAPIKey, appEnv, baseUrl, appSecret)
-	s.RegisterJobHandlers()
+	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, cfg)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: defaultErrorHandler,
@@ -204,7 +197,7 @@ func New(
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
 
 	// Server-Sent Events (workspace-scoped)
-	api.Get("/events", s.handleEvents)
+	api.Get("/events", hub.EventHandler)
 
 	// Ingress sources
 	ingressGroup := api.Group("/ingress")
@@ -258,13 +251,13 @@ func New(
 
 	// Serve the SvelteKit SPA when a frontend build path is configured.
 	// Unknown paths fall back to index.html for client-side routing.
-	if frontendPath != "" {
+	if cfg.FrontendPath != "" {
 		app.Use("/", func(c fiber.Ctx) error {
-			clean := filepath.Join(frontendPath, filepath.Clean("/"+c.Path()))
+			clean := filepath.Join(cfg.FrontendPath, filepath.Clean("/"+c.Path()))
 			if info, err := os.Stat(clean); err == nil && !info.IsDir() {
 				return c.SendFile(clean)
 			}
-			return c.SendFile(filepath.Join(frontendPath, "index.html"))
+			return c.SendFile(filepath.Join(cfg.FrontendPath, "index.html"))
 		})
 	}
 

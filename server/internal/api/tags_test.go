@@ -1,6 +1,8 @@
-package api
+package api_test
 
 import (
+	"damask/server/internal/api"
+	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,11 +11,11 @@ import (
 )
 
 // addTag is a test helper that adds a tag to an asset.
-func addTag(t *testing.T, env *testEnv, cookie *http.Cookie, assetID, name string) int {
+func addTag(t *testing.T, env *th.TestEnv, cookie *http.Cookie, assetID, name string) int {
 	t.Helper()
 	body := fmt.Sprintf(`{"name":%q}`, name)
-	req := authRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags", strings.NewReader(body), cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags", strings.NewReader(body), cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("add tag: %v", err)
 	}
@@ -21,8 +23,8 @@ func addTag(t *testing.T, env *testEnv, cookie *http.Cookie, assetID, name strin
 }
 
 func TestAddTag_AutoCreates(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
 	code := addTag(t, env, owner.Cookie, assetID, "summer")
@@ -31,9 +33,9 @@ func TestAddTag_AutoCreates(t *testing.T) {
 	}
 
 	// Tag should appear in /api/v1/tags
-	req := authRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
-	var tags []tagResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	var tags []api.TagResponse
 	json.NewDecoder(resp.Body).Decode(&tags) //nolint:errcheck
 	if len(tags) != 1 || tags[0].Name != "summer" {
 		t.Errorf("expected tag 'summer', got %+v", tags)
@@ -41,15 +43,15 @@ func TestAddTag_AutoCreates(t *testing.T) {
 }
 
 func TestAddTag_Idempotent(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "beach")
 	addTag(t, env, owner.Cookie, assetID, "beach") // duplicate — should not error
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
 	var names []string
 	json.NewDecoder(resp.Body).Decode(&names) //nolint:errcheck
 	if len(names) != 1 {
@@ -58,14 +60,14 @@ func TestAddTag_Idempotent(t *testing.T) {
 }
 
 func TestRemoveTag_Success(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "travel")
 
-	req := authRequest(http.MethodDelete, "/api/v1/assets/"+assetID+"/tags/travel", nil, owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+assetID+"/tags/travel", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -74,8 +76,8 @@ func TestRemoveTag_Success(t *testing.T) {
 	}
 
 	// Confirm removed
-	req2 := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
-	resp2, _ := env.app.Test(req2)
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
+	resp2, _ := env.App.Test(req2)
 	var names []string
 	json.NewDecoder(resp2.Body).Decode(&names) //nolint:errcheck
 	if len(names) != 0 {
@@ -84,8 +86,8 @@ func TestRemoveTag_Success(t *testing.T) {
 }
 
 func TestListTags_WithCounts(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
@@ -94,9 +96,9 @@ func TestListTags_WithCounts(t *testing.T) {
 	addTag(t, env, owner.Cookie, a2, "nature")
 	addTag(t, env, owner.Cookie, a1, "sunset")
 
-	req := authRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
-	var tags []tagResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	var tags []api.TagResponse
 	json.NewDecoder(resp.Body).Decode(&tags) //nolint:errcheck
 
 	counts := map[string]int64{}
@@ -112,15 +114,15 @@ func TestListTags_WithCounts(t *testing.T) {
 }
 
 func TestGetAssetTags(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "alpha")
 	addTag(t, env, owner.Cookie, assetID, "beta")
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
 	var names []string
 	json.NewDecoder(resp.Body).Decode(&names) //nolint:errcheck
 
@@ -130,15 +132,15 @@ func TestGetAssetTags(t *testing.T) {
 }
 
 func TestGetAsset_IncludesTags(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "coast")
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
-	var a assetResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
 	json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
 
 	if len(a.Tags) != 1 || a.Tags[0] != "coast" {
@@ -147,8 +149,8 @@ func TestGetAsset_IncludesTags(t *testing.T) {
 }
 
 func TestListAssets_FilterBySingleTag(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
@@ -156,9 +158,9 @@ func TestListAssets_FilterBySingleTag(t *testing.T) {
 	addTag(t, env, owner.Cookie, a1, "forest")
 	addTag(t, env, owner.Cookie, a2, "city")
 
-	req := authRequest(http.MethodGet, "/api/v1/assets?tags=forest", nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
-	var result assetListResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?tags=forest", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	var result api.AssetListResponse
 	json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
 
 	if len(result.Assets) != 1 {
@@ -170,8 +172,8 @@ func TestListAssets_FilterBySingleTag(t *testing.T) {
 }
 
 func TestListAssets_FilterByMultiTagAND(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
@@ -182,9 +184,9 @@ func TestListAssets_FilterByMultiTagAND(t *testing.T) {
 	// a2 only has red
 	addTag(t, env, owner.Cookie, a2, "red")
 
-	req := authRequest(http.MethodGet, "/api/v1/assets?tags=red,blue", nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
-	var result assetListResponse
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?tags=red,blue", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	var result api.AssetListResponse
 	json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
 
 	if len(result.Assets) != 1 {
@@ -196,15 +198,15 @@ func TestListAssets_FilterByMultiTagAND(t *testing.T) {
 }
 
 func TestBulkTag(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
 
 	body := fmt.Sprintf(`{"asset_ids":[%q,%q],"tag_name":"promo"}`, a1, a2)
-	req := authRequest(http.MethodPost, "/api/v1/assets/bulk/tag", strings.NewReader(body), owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/tag", strings.NewReader(body), owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -214,8 +216,8 @@ func TestBulkTag(t *testing.T) {
 
 	// Verify both have the tag
 	for _, id := range []string{a1, a2} {
-		req2 := authRequest(http.MethodGet, "/api/v1/assets/"+id+"/tags", nil, owner.Cookie)
-		resp2, _ := env.app.Test(req2)
+		req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+id+"/tags", nil, owner.Cookie)
+		resp2, _ := env.App.Test(req2)
 		var names []string
 		json.NewDecoder(resp2.Body).Decode(&names) //nolint:errcheck
 		if len(names) != 1 || names[0] != "promo" {
@@ -225,16 +227,16 @@ func TestBulkTag(t *testing.T) {
 }
 
 func TestBulkProject(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Batch", "#abcdef")
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
 
 	body := fmt.Sprintf(`{"asset_ids":[%q,%q],"project_id":%q}`, a1, a2, p.ID)
-	req := authRequest(http.MethodPost, "/api/v1/assets/bulk/project", strings.NewReader(body), owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/project", strings.NewReader(body), owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -244,9 +246,9 @@ func TestBulkProject(t *testing.T) {
 
 	// Verify assets are assigned
 	for _, id := range []string{a1, a2} {
-		req2 := authRequest(http.MethodGet, "/api/v1/assets/"+id, nil, owner.Cookie)
-		resp2, _ := env.app.Test(req2)
-		var a assetResponse
+		req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+id, nil, owner.Cookie)
+		resp2, _ := env.App.Test(req2)
+		var a api.AssetResponse
 		json.NewDecoder(resp2.Body).Decode(&a) //nolint:errcheck
 		if a.ProjectID == nil || *a.ProjectID != p.ID {
 			t.Errorf("asset %s: expected project_id=%s, got %v", id, p.ID, a.ProjectID)
@@ -255,15 +257,15 @@ func TestBulkProject(t *testing.T) {
 }
 
 func TestBulkDelete(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
 
 	body := fmt.Sprintf(`{"asset_ids":[%q,%q]}`, a1, a2)
-	req := authRequest(http.MethodDelete, "/api/v1/assets/bulk", strings.NewReader(body), owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/assets/bulk", strings.NewReader(body), owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -273,8 +275,8 @@ func TestBulkDelete(t *testing.T) {
 
 	// Both should be gone
 	for _, id := range []string{a1, a2} {
-		req2 := authRequest(http.MethodGet, "/api/v1/assets/"+id, nil, owner.Cookie)
-		resp2, _ := env.app.Test(req2)
+		req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+id, nil, owner.Cookie)
+		resp2, _ := env.App.Test(req2)
 		if resp2.StatusCode != http.StatusNotFound {
 			t.Errorf("asset %s: expected 404 after bulk delete, got %d", id, resp2.StatusCode)
 		}

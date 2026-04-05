@@ -14,8 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// shareResponse is the JSON shape for a share object returned to clients.
-type shareResponse struct {
+// ShareResponse is the JSON shape for a share object returned to clients.
+type ShareResponse struct {
 	ID            string  `json:"id"`
 	WorkspaceID   string  `json:"workspace_id"`
 	CreatedBy     string  `json:"created_by"`
@@ -33,7 +33,7 @@ type shareResponse struct {
 	PublicURL     string  `json:"public_url"`
 }
 
-func shareToResponse(s dbgen.Share, baseURL string) shareResponse {
+func shareToResponse(s dbgen.Share, baseURL string) ShareResponse {
 	isExpired := false
 	if s.ExpiresAt != nil {
 		t, err := time.Parse("2006-01-02T15:04:05Z", *s.ExpiresAt)
@@ -46,7 +46,7 @@ func shareToResponse(s dbgen.Share, baseURL string) shareResponse {
 		}
 	}
 
-	return shareResponse{
+	return ShareResponse{
 		ID:            s.ID,
 		WorkspaceID:   s.WorkspaceID,
 		CreatedBy:     s.CreatedBy,
@@ -86,7 +86,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	// Hash password if provided
 	var passwordHash *string
 	if body.Password != nil && *body.Password != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcryptCost)
+		hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), BcryptCost)
 		if err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 		}
@@ -132,7 +132,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create share")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(shareToResponse(share, s.baseUrl))
+	return c.Status(fiber.StatusCreated).JSON(shareToResponse(share, s.cfg.BaseURL.String()))
 }
 
 // shareTargetErr is a sentinel for target validation failures.
@@ -188,9 +188,9 @@ func (s *Server) handleListShares(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list shares")
 	}
 
-	items := make([]shareResponse, len(shares))
+	items := make([]ShareResponse, len(shares))
 	for i, sh := range shares {
-		items[i] = shareToResponse(sh, s.baseUrl)
+		items[i] = shareToResponse(sh, s.cfg.BaseURL.String())
 	}
 	return c.JSON(items)
 }
@@ -211,7 +211,7 @@ func (s *Server) handleGetShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load share")
 	}
 
-	return c.JSON(shareToResponse(share, s.baseUrl))
+	return c.JSON(shareToResponse(share, s.cfg.BaseURL.String()))
 }
 
 // PUT /api/v1/shares/:id
@@ -250,7 +250,7 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 		if *body.Password == "" {
 			passwordHash = nil
 		} else {
-			hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcryptCost)
+			hash, err := bcrypt.GenerateFromPassword([]byte(*body.Password), BcryptCost)
 			if err != nil {
 				return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 			}
@@ -298,7 +298,7 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not update share")
 	}
 
-	return c.JSON(shareToResponse(updated, s.baseUrl))
+	return c.JSON(shareToResponse(updated, s.cfg.BaseURL.String()))
 }
 
 // DELETE /api/v1/shares/:id  — soft delete via revoked_at

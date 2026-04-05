@@ -1,6 +1,8 @@
-package api
+package api_test
 
 import (
+	"damask/server/internal/api"
+	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,12 +11,12 @@ import (
 )
 
 func TestRegister_Success(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register",
-		jsonStr(`{"name":"Alice","email":"alice@example.com","password":"password123"}`))
+		th.JsonStr(`{"name":"Alice","email":"alice@example.com","password":"password123"}`))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := env.app.Test(req)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -23,7 +25,7 @@ func TestRegister_Success(t *testing.T) {
 		t.Fatalf("expected 201, got %d", resp.StatusCode)
 	}
 
-	var body authResponse
+	var body api.AuthResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -34,7 +36,7 @@ func TestRegister_Success(t *testing.T) {
 		t.Error("expected non-empty token in response body")
 	}
 
-	cookie := findCookie(resp, "auth_token")
+	cookie := th.FindCookie(resp, "auth_token")
 	if cookie == nil {
 		t.Fatal("auth_token cookie not set")
 	}
@@ -44,13 +46,13 @@ func TestRegister_Success(t *testing.T) {
 }
 
 func TestRegister_DuplicateEmail(t *testing.T) {
-	env := setupTestApp(t)
-	register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register",
-		jsonStr(`{"name":"Alice2","email":"alice@example.com","password":"password456"}`))
+		th.JsonStr(`{"name":"Alice2","email":"alice@example.com","password":"password456"}`))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := env.app.Test(req)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -61,7 +63,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 }
 
 func TestRegister_InvalidBody(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 
 	cases := []struct {
 		name string
@@ -77,7 +79,7 @@ func TestRegister_InvalidBody(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(tc.body))
 			req.Header.Set("Content-Type", "application/json")
-			resp, err := env.app.Test(req)
+			resp, err := env.App.Test(req)
 			if err != nil {
 				t.Fatalf("request: %v", err)
 			}
@@ -89,13 +91,13 @@ func TestRegister_InvalidBody(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
-	env := setupTestApp(t)
-	register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		jsonStr(`{"email":"alice@example.com","password":"password123"}`))
+		th.JsonStr(`{"email":"alice@example.com","password":"password123"}`))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := env.app.Test(req)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -104,20 +106,20 @@ func TestLogin_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	cookie := findCookie(resp, "auth_token")
+	cookie := th.FindCookie(resp, "auth_token")
 	if cookie == nil {
 		t.Fatal("auth_token cookie not set on login")
 	}
 }
 
 func TestLogin_WrongPassword(t *testing.T) {
-	env := setupTestApp(t)
-	register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		jsonStr(`{"email":"alice@example.com","password":"wrongpassword"}`))
+		th.JsonStr(`{"email":"alice@example.com","password":"wrongpassword"}`))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := env.app.Test(req)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -128,12 +130,12 @@ func TestLogin_WrongPassword(t *testing.T) {
 }
 
 func TestLogin_UnknownEmail(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		jsonStr(`{"email":"nobody@example.com","password":"password123"}`))
+		th.JsonStr(`{"email":"nobody@example.com","password":"password123"}`))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := env.app.Test(req)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -144,11 +146,11 @@ func TestLogin_UnknownEmail(t *testing.T) {
 }
 
 func TestLogout(t *testing.T) {
-	env := setupTestApp(t)
-	result := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/auth/logout", nil, result.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/auth/logout", nil, result.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -157,7 +159,7 @@ func TestLogout(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	cookie := findCookie(resp, "auth_token")
+	cookie := th.FindCookie(resp, "auth_token")
 	if cookie == nil {
 		t.Fatal("expected auth_token cookie in response")
 	}
@@ -167,11 +169,11 @@ func TestLogout(t *testing.T) {
 }
 
 func TestRefresh_Success(t *testing.T) {
-	env := setupTestApp(t)
-	result := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/auth/refresh", nil, result.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/auth/refresh", nil, result.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -180,17 +182,17 @@ func TestRefresh_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	newCookie := findCookie(resp, "auth_token")
+	newCookie := th.FindCookie(resp, "auth_token")
 	if newCookie == nil {
 		t.Fatal("expected new auth_token cookie after refresh")
 	}
 }
 
 func TestRefresh_Unauthenticated(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	resp, err := env.app.Test(req)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}

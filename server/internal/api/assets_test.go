@@ -1,12 +1,11 @@
-package api
+package api_test
 
 import (
 	"bytes"
+	"damask/server/internal/api"
+	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"fmt"
-	"image"
-	"image/color"
-	"image/jpeg"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -18,52 +17,14 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// makeJPEG creates a minimal valid JPEG in memory.
-func makeJPEG(width, height int) []byte {
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	for y := range height {
-		for x := range width {
-			img.Set(x, y, color.RGBA{R: 100, G: 150, B: 200, A: 255})
-		}
-	}
-	var buf bytes.Buffer
-	_ = jpeg.Encode(&buf, img, nil)
-	return buf.Bytes()
-}
-
-// buildUploadRequest creates a multipart/form-data request with a file field.
-func buildUploadRequest(t *testing.T, filename string, content []byte, cookie *http.Cookie) *http.Request {
-	t.Helper()
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	fw, err := w.CreateFormFile("file", filename)
-	if err != nil {
-		t.Fatalf("create form file: %v", err)
-	}
-	if _, err := fw.Write(content); err != nil {
-		t.Fatalf("write form file: %v", err)
-	}
-	err = w.Close()
-	if err != nil {
-		t.Fatalf("close form: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	if cookie != nil {
-		req.AddCookie(cookie)
-	}
-	return req
-}
-
 func TestUploadAsset_Success(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
-	jpegData := makeJPEG(200, 150)
-	req := buildUploadRequest(t, "photo.jpg", jpegData, owner.Cookie)
+	jpegData := th.MakeJPEG(200, 150)
+	req := th.BuildUploadRequest(t, "photo.jpg", jpegData, owner.Cookie)
 
-	resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("upload: %v", err)
 	}
@@ -72,7 +33,7 @@ func TestUploadAsset_Success(t *testing.T) {
 		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, body)
 	}
 
-	var asset assetResponse
+	var asset api.AssetResponse
 	if err := json.NewDecoder(resp.Body).Decode(&asset); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -97,10 +58,10 @@ func TestUploadAsset_Success(t *testing.T) {
 }
 
 func TestUploadAsset_Unauthenticated(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 
-	req := buildUploadRequest(t, "file.jpg", makeJPEG(10, 10), nil)
-	resp, err := env.app.Test(req)
+	req := th.BuildUploadRequest(t, "file.jpg", th.MakeJPEG(10, 10), nil)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("upload: %v", err)
 	}
@@ -110,14 +71,14 @@ func TestUploadAsset_Unauthenticated(t *testing.T) {
 }
 
 func TestUploadAsset_ViewerForbidden(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
-	viewerToken := mintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
 
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
 	fw, _ := w.CreateFormFile("file", "file.jpg")
-	fw.Write(makeJPEG(10, 10)) //nolint:errcheck
+	fw.Write(th.MakeJPEG(10, 10)) //nolint:errcheck
 	err := w.Close()
 	if err != nil {
 		t.Fatalf("close form: %v", err)
@@ -127,7 +88,7 @@ func TestUploadAsset_ViewerForbidden(t *testing.T) {
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.Header.Set("Authorization", "Bearer "+viewerToken)
 
-	resp, err := env.app.Test(req)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("upload: %v", err)
 	}
@@ -137,11 +98,11 @@ func TestUploadAsset_ViewerForbidden(t *testing.T) {
 }
 
 func TestListAssets_Empty(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
-	req := authRequest(http.MethodGet, "/api/v1/assets", nil, owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -149,7 +110,7 @@ func TestListAssets_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var result assetListResponse
+	var result api.AssetListResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -162,14 +123,14 @@ func TestListAssets_Empty(t *testing.T) {
 }
 
 func TestListAssets_Pagination(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	// Upload 3 assets with small delays to ensure distinct created_at
 	for i := range 3 {
-		jpegData := makeJPEG(10, 10)
-		req := buildUploadRequest(t, "img"+string(rune('a'+i))+".jpg", jpegData, owner.Cookie)
-		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+		jpegData := th.MakeJPEG(10, 10)
+		req := th.BuildUploadRequest(t, "img"+string(rune('a'+i))+".jpg", jpegData, owner.Cookie)
+		resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("upload %d: status %d err %v", i, resp.StatusCode, err)
 		}
@@ -177,13 +138,13 @@ func TestListAssets_Pagination(t *testing.T) {
 	}
 
 	// Fetch with limit=2
-	req := authRequest(http.MethodGet, "/api/v1/assets?limit=2", nil, owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?limit=2", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("list page1: %v", err)
 	}
 
-	var page1 assetListResponse
+	var page1 api.AssetListResponse
 	if err := json.NewDecoder(resp.Body).Decode(&page1); err != nil {
 		t.Fatalf("decode page1: %v", err)
 	}
@@ -195,13 +156,13 @@ func TestListAssets_Pagination(t *testing.T) {
 	}
 
 	// Fetch page 2
-	req2 := authRequest(http.MethodGet, "/api/v1/assets?limit=2&cursor="+*page1.NextCursor, nil, owner.Cookie)
-	resp2, err := env.app.Test(req2)
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets?limit=2&cursor="+*page1.NextCursor, nil, owner.Cookie)
+	resp2, err := env.App.Test(req2)
 	if err != nil {
 		t.Fatalf("list page2: %v", err)
 	}
 
-	var page2 assetListResponse
+	var page2 api.AssetListResponse
 	if err := json.NewDecoder(resp2.Body).Decode(&page2); err != nil {
 		t.Fatalf("decode page2: %v", err)
 	}
@@ -214,16 +175,16 @@ func TestListAssets_Pagination(t *testing.T) {
 }
 
 func TestGetAsset(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
-	uploadReq := buildUploadRequest(t, "test.jpg", makeJPEG(50, 50), owner.Cookie)
-	uploadResp, _ := env.app.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
-	var uploaded assetResponse
+	uploadReq := th.BuildUploadRequest(t, "test.jpg", th.MakeJPEG(50, 50), owner.Cookie)
+	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
+	var uploaded api.AssetResponse
 	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("get asset: %v", err)
 	}
@@ -231,7 +192,7 @@ func TestGetAsset(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var got assetResponse
+	var got api.AssetResponse
 	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
 	if got.ID != uploaded.ID {
 		t.Errorf("id mismatch: got %q want %q", got.ID, uploaded.ID)
@@ -239,28 +200,28 @@ func TestGetAsset(t *testing.T) {
 }
 
 func TestGetAsset_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/nonexistent", nil, owner.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/nonexistent", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestGetAssetFile(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
-	jpegData := makeJPEG(20, 20)
-	uploadReq := buildUploadRequest(t, "file.jpg", jpegData, owner.Cookie)
-	uploadResp, _ := env.app.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
-	var uploaded assetResponse
+	jpegData := th.MakeJPEG(20, 20)
+	uploadReq := th.BuildUploadRequest(t, "file.jpg", jpegData, owner.Cookie)
+	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
+	var uploaded api.AssetResponse
 	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
 
-	req := authRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID+"/file", nil, owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID+"/file", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("get file: %v", err)
 	}
@@ -279,16 +240,16 @@ func TestGetAssetFile(t *testing.T) {
 }
 
 func TestDeleteAsset(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
-	uploadReq := buildUploadRequest(t, "del.jpg", makeJPEG(10, 10), owner.Cookie)
-	uploadResp, _ := env.app.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
-	var uploaded assetResponse
+	uploadReq := th.BuildUploadRequest(t, "del.jpg", th.MakeJPEG(10, 10), owner.Cookie)
+	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
+	var uploaded api.AssetResponse
 	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
 
-	delReq := authRequest(http.MethodDelete, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
-	resp, err := env.app.Test(delReq)
+	delReq := th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
+	resp, err := env.App.Test(delReq)
 	if err != nil {
 		t.Fatalf("delete: %v", err)
 	}
@@ -297,37 +258,37 @@ func TestDeleteAsset(t *testing.T) {
 	}
 
 	// Verify gone from DB
-	getReq := authRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
-	getResp, _ := env.app.Test(getReq)
+	getReq := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
+	getResp, _ := env.App.Test(getReq)
 	if getResp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404 after delete, got %d", getResp.StatusCode)
 	}
 }
 
 func TestListAssets_Sort(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	// Upload assets with distinct sizes: 10x10, 50x50, 100x100
 	sizes := []int{10, 50, 100}
 	for _, s := range sizes {
-		req := buildUploadRequest(t, "img.jpg", makeJPEG(s, s), owner.Cookie)
-		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+		req := th.BuildUploadRequest(t, "img.jpg", th.MakeJPEG(s, s), owner.Cookie)
+		resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("upload %dx%d: status %d err %v", s, s, resp.StatusCode, err)
 		}
-		var a assetResponse
+		var a api.AssetResponse
 		json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
 		time.Sleep(10 * time.Millisecond)
 	}
 
 	cases := []struct {
 		sort  string
-		check func(t *testing.T, assets []assetResponse)
+		check func(t *testing.T, assets []api.AssetResponse)
 	}{
 		{
 			sort: "id_desc",
-			check: func(t *testing.T, assets []assetResponse) {
+			check: func(t *testing.T, assets []api.AssetResponse) {
 				if assets[0].ID < assets[1].ID || assets[1].ID < assets[2].ID {
 					t.Errorf("id_desc: IDs not descending: %v", []string{assets[0].ID, assets[1].ID, assets[2].ID})
 				}
@@ -335,7 +296,7 @@ func TestListAssets_Sort(t *testing.T) {
 		},
 		{
 			sort: "id_asc",
-			check: func(t *testing.T, assets []assetResponse) {
+			check: func(t *testing.T, assets []api.AssetResponse) {
 				if assets[0].ID > assets[1].ID || assets[1].ID > assets[2].ID {
 					t.Errorf("id_asc: IDs not ascending: %v", []string{assets[0].ID, assets[1].ID, assets[2].ID})
 				}
@@ -343,7 +304,7 @@ func TestListAssets_Sort(t *testing.T) {
 		},
 		{
 			sort: "size_asc",
-			check: func(t *testing.T, assets []assetResponse) {
+			check: func(t *testing.T, assets []api.AssetResponse) {
 				if assets[0].Size > assets[1].Size || assets[1].Size > assets[2].Size {
 					t.Errorf("size_asc: sizes not ascending: %v", []int64{assets[0].Size, assets[1].Size, assets[2].Size})
 				}
@@ -351,7 +312,7 @@ func TestListAssets_Sort(t *testing.T) {
 		},
 		{
 			sort: "size_desc",
-			check: func(t *testing.T, assets []assetResponse) {
+			check: func(t *testing.T, assets []api.AssetResponse) {
 				if assets[0].Size < assets[1].Size || assets[1].Size < assets[2].Size {
 					t.Errorf("size_desc: sizes not descending: %v", []int64{assets[0].Size, assets[1].Size, assets[2].Size})
 				}
@@ -361,15 +322,15 @@ func TestListAssets_Sort(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.sort, func(t *testing.T) {
-			req := authRequest(http.MethodGet, "/api/v1/assets?sort="+tc.sort, nil, owner.Cookie)
-			resp, err := env.app.Test(req)
+			req := th.AuthRequest(http.MethodGet, "/api/v1/assets?sort="+tc.sort, nil, owner.Cookie)
+			resp, err := env.App.Test(req)
 			if err != nil {
 				t.Fatalf("list: %v", err)
 			}
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("expected 200, got %d", resp.StatusCode)
 			}
-			var result assetListResponse
+			var result api.AssetListResponse
 			json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
 			if len(result.Assets) != 3 {
 				t.Fatalf("expected 3 assets, got %d", len(result.Assets))
@@ -380,21 +341,21 @@ func TestListAssets_Sort(t *testing.T) {
 }
 
 func TestSearchAssets(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	// Upload two assets with distinct names
 	for _, name := range []string{"sunset_beach.jpg", "mountain_peak.jpg"} {
-		req := buildUploadRequest(t, name, makeJPEG(10, 10), owner.Cookie)
-		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+		req := th.BuildUploadRequest(t, name, th.MakeJPEG(10, 10), owner.Cookie)
+		resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("upload %s: %v %d", name, err, resp.StatusCode)
 		}
 	}
 
 	// Search for "sunset"
-	req := authRequest(http.MethodGet, "/api/v1/assets?q=sunset", nil, owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?q=sunset", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("search: %v", err)
 	}
@@ -403,7 +364,7 @@ func TestSearchAssets(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
 	}
 
-	var result assetListResponse
+	var result api.AssetListResponse
 	json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
 	if len(result.Assets) != 1 {
 		t.Fatalf("expected 1 search result, got %d", len(result.Assets))
@@ -414,14 +375,14 @@ func TestSearchAssets(t *testing.T) {
 }
 
 func TestSearchAssets_Pagination(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	// Upload 3 assets whose names all match "photo"
 	for i := range 3 {
 		name := "photo_" + string(rune('a'+i)) + ".jpg"
-		req := buildUploadRequest(t, name, makeJPEG(10, 10), owner.Cookie)
-		resp, err := env.app.Test(req, fiber.TestConfig{Timeout: 5000})
+		req := th.BuildUploadRequest(t, name, th.MakeJPEG(10, 10), owner.Cookie)
+		resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 		if err != nil || resp.StatusCode != http.StatusCreated {
 			t.Fatalf("upload %s: %v %d", name, err, resp.StatusCode)
 		}
@@ -429,12 +390,12 @@ func TestSearchAssets_Pagination(t *testing.T) {
 	}
 
 	// Page 1: limit=2, expect next_cursor
-	req := authRequest(http.MethodGet, "/api/v1/assets?q=photo&limit=2", nil, owner.Cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?q=photo&limit=2", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("search page1: %v", err)
 	}
-	var page1 assetListResponse
+	var page1 api.AssetListResponse
 	if err := json.NewDecoder(resp.Body).Decode(&page1); err != nil {
 		t.Fatalf("decode page1: %v", err)
 	}
@@ -446,12 +407,12 @@ func TestSearchAssets_Pagination(t *testing.T) {
 	}
 
 	// Page 2: use cursor, expect 1 remaining asset and no next_cursor
-	req2 := authRequest(http.MethodGet, "/api/v1/assets?q=photo&limit=2&cursor="+*page1.NextCursor, nil, owner.Cookie)
-	resp2, err := env.app.Test(req2)
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets?q=photo&limit=2&cursor="+*page1.NextCursor, nil, owner.Cookie)
+	resp2, err := env.App.Test(req2)
 	if err != nil {
 		t.Fatalf("search page2: %v", err)
 	}
-	var page2 assetListResponse
+	var page2 api.AssetListResponse
 	if err := json.NewDecoder(resp2.Body).Decode(&page2); err != nil {
 		t.Fatalf("decode page2: %v", err)
 	}
@@ -475,10 +436,10 @@ func TestSearchAssets_Pagination(t *testing.T) {
 }
 
 // insertAssetWithSize inserts a minimal asset row directly via SQL with a known size value.
-func insertAssetWithSize(t *testing.T, env *testEnv, workspaceID string, size int64) string {
+func insertAssetWithSize(t *testing.T, env *th.TestEnv, workspaceID string, size int64) string {
 	t.Helper()
 	id := fmt.Sprintf("asset-%d", size)
-	_, err := env.sqlDB.Exec(`
+	_, err := env.SqlDB.Exec(`
 		INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
 	`, id, workspaceID, fmt.Sprintf("file-%d.bin", size), fmt.Sprintf("key-%d", size), "application/octet-stream", size)
@@ -489,8 +450,8 @@ func insertAssetWithSize(t *testing.T, env *testEnv, workspaceID string, size in
 }
 
 func TestListAssets_PaginationSortBySizeDesc(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	// Insert 25 assets with distinct sizes 1..25 bytes
 	var inserted []string
@@ -498,12 +459,12 @@ func TestListAssets_PaginationSortBySizeDesc(t *testing.T) {
 		inserted = append(inserted, insertAssetWithSize(t, env, owner.WorkspaceID, i))
 	}
 
-	getPage := func(cursor string) assetListResponse {
+	getPage := func(cursor string) api.AssetListResponse {
 		url := "/api/v1/assets?sort=size_desc&limit=10"
 		if cursor != "" {
 			url += "&cursor=" + cursor
 		}
-		resp, err := env.app.Test(authRequest(http.MethodGet, url, nil, owner.Cookie), fiber.TestConfig{Timeout: 5000})
+		resp, err := env.App.Test(th.AuthRequest(http.MethodGet, url, nil, owner.Cookie), fiber.TestConfig{Timeout: 5000})
 		if err != nil {
 			t.Fatalf("list assets: %v", err)
 		}
@@ -511,7 +472,7 @@ func TestListAssets_PaginationSortBySizeDesc(t *testing.T) {
 			body, _ := io.ReadAll(resp.Body)
 			t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
 		}
-		var result assetListResponse
+		var result api.AssetListResponse
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -571,20 +532,20 @@ func TestListAssets_PaginationSortBySizeDesc(t *testing.T) {
 }
 
 func TestListAssets_PaginationSortBySizeAsc(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	var inserted []string
 	for i := int64(1); i <= 25; i++ {
 		inserted = append(inserted, insertAssetWithSize(t, env, owner.WorkspaceID, i))
 	}
 
-	getPage := func(cursor string) assetListResponse {
+	getPage := func(cursor string) api.AssetListResponse {
 		url := "/api/v1/assets?sort=size_asc&limit=10"
 		if cursor != "" {
 			url += "&cursor=" + cursor
 		}
-		resp, err := env.app.Test(authRequest(http.MethodGet, url, nil, owner.Cookie), fiber.TestConfig{Timeout: 5000})
+		resp, err := env.App.Test(th.AuthRequest(http.MethodGet, url, nil, owner.Cookie), fiber.TestConfig{Timeout: 5000})
 		if err != nil {
 			t.Fatalf("list assets: %v", err)
 		}
@@ -592,7 +553,7 @@ func TestListAssets_PaginationSortBySizeAsc(t *testing.T) {
 			body, _ := io.ReadAll(resp.Body)
 			t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
 		}
-		var result assetListResponse
+		var result api.AssetListResponse
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 			t.Fatalf("decode: %v", err)
 		}

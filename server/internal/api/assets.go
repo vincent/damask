@@ -20,7 +20,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type assetResponse struct {
+type AssetResponse struct {
 	ID               string    `json:"id"`
 	WorkspaceID      string    `json:"workspace_id"`
 	ProjectID        *string   `json:"project_id"`
@@ -36,16 +36,16 @@ type assetResponse struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
-type assetListResponse struct {
-	Assets     []assetResponse `json:"assets"`
+type AssetListResponse struct {
+	Assets     []AssetResponse `json:"assets"`
 	NextCursor *string         `json:"next_cursor"`
 }
 
-func assetToResponse(a dbgen.Asset, tags []string) assetResponse {
+func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
 	if tags == nil {
 		tags = []string{}
 	}
-	return assetResponse{
+	return AssetResponse{
 		ID:               a.ID,
 		WorkspaceID:      a.WorkspaceID,
 		ProjectID:        a.ProjectID,
@@ -344,8 +344,8 @@ func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit in
 	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
 }
 
-func buildAssetListResponse(assets []dbgen.Asset, limit int64, sortField string) assetListResponse {
-	items := make([]assetResponse, len(assets))
+func buildAssetListResponse(assets []dbgen.Asset, limit int64, sortField string) AssetListResponse {
+	items := make([]AssetResponse, len(assets))
 	for i, a := range assets {
 		items[i] = assetToResponse(a, nil)
 	}
@@ -368,7 +368,7 @@ func buildAssetListResponse(assets []dbgen.Asset, limit int64, sortField string)
 		encoded := encodeCursor(cv)
 		nextCursor = &encoded
 	}
-	return assetListResponse{Assets: items, NextCursor: nextCursor}
+	return AssetListResponse{Assets: items, NextCursor: nextCursor}
 }
 
 type cursorVal struct {

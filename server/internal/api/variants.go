@@ -13,6 +13,7 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
 	"damask/server/internal/transform"
 
@@ -21,7 +22,7 @@ import (
 
 // ---- Response types ----
 
-type variantResponse struct {
+type VariantResponse struct {
 	ID              string    `json:"id"`
 	AssetID         string    `json:"asset_id"`
 	Type            string    `json:"type"`
@@ -32,8 +33,8 @@ type variantResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
-func (s *Server) variantToResponse(v dbgen.Variant) variantResponse {
-	return variantResponse{
+func (s *Server) variantToResponse(v dbgen.Variant) VariantResponse {
+	return VariantResponse{
 		ID:              v.ID,
 		AssetID:         v.AssetID,
 		Type:            v.Type,
@@ -69,7 +70,7 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list variants")
 	}
 
-	out := make([]variantResponse, len(variants))
+	out := make([]VariantResponse, len(variants))
 	for i, v := range variants {
 		out[i] = s.variantToResponse(v)
 	}
@@ -97,14 +98,14 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	}
 
 	validTypes := map[string]bool{
-		queue.JobTypeImageResize:      true,
-		queue.JobTypeImageWatermark:   true,
-		queue.JobTypeImageConvert:     true,
-		queue.JobTypeImageCrop:        true,
+		queue.JobTypeImageResize:       true,
+		queue.JobTypeImageWatermark:    true,
+		queue.JobTypeImageConvert:      true,
+		queue.JobTypeImageCrop:         true,
 		queue.JobTypeVideoCaptureImage: true,
-		queue.JobTypeVideoTranscode:   true,
-		queue.JobTypeImageBgRemove:    true,
-		queue.JobTypeImageSmartCrop:   true,
+		queue.JobTypeVideoTranscode:    true,
+		queue.JobTypeImageBgRemove:     true,
+		queue.JobTypeImageSmartCrop:    true,
 	}
 	if !validTypes[body.Type] {
 		return errRes(c, fiber.StatusBadRequest, "invalid variant type")
@@ -119,7 +120,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "image transforms require an image asset")
 	}
 	if body.Type == queue.JobTypeImageBgRemove {
-		if s.removeBgAPIKey == "" {
+		if s.cfg.RemoveBgAPIKey == "" {
 			return errRes(c, fiber.StatusBadRequest, "background removal requires REMOVEBG_API_KEY to be configured")
 		}
 		if !strings.HasPrefix(asset.MimeType, "image/") {
@@ -132,7 +133,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		params = body.Params
 	}
 
-	payload, _ := json.Marshal(variantJobPayload{
+	payload, _ := json.Marshal(jobs.VariantJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,
 		StorageKey:  asset.StorageKey,

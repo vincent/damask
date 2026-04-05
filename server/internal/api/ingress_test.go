@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -6,16 +6,18 @@ import (
 	"net/http"
 	"testing"
 
+	"damask/server/internal/api"
 	"damask/server/internal/ingress"
 	_ "damask/server/internal/ingress/sources/email_api"
+	th "damask/server/internal/tests_helpers"
 )
 
 // createIngressSource is a test helper that POSTs to /api/v1/ingress/sources
 // and returns the parsed response. Fails the test if status != 201.
-func createIngressSource(t *testing.T, env *testEnv, cookie *http.Cookie, body string) map[string]any {
+func createIngressSource(t *testing.T, env *th.TestEnv, cookie *http.Cookie, body string) map[string]any {
 	t.Helper()
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources", jsonStr(body), cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources", th.JsonStr(body), cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("createIngressSource request: %v", err)
 	}
@@ -32,8 +34,8 @@ func createIngressSource(t *testing.T, env *testEnv, cookie *http.Cookie, body s
 // --- Source CRUD
 
 func TestCreateIngressSource_Success(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	body := `{"type":"imap","label":"Test Inbox","config":{"host":"imap.example.com","password":"s3cr3t"},"poll_interval_min":30}`
 	src := createIngressSource(t, env, user.Cookie, body)
@@ -61,8 +63,8 @@ func TestCreateIngressSource_Success(t *testing.T) {
 }
 
 func TestCreateIngressSource_DefaultInterval(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	// omit poll_interval_min — should default to 15
 	body := `{"type":"sftp","label":"My SFTP","config":{}}`
@@ -74,46 +76,46 @@ func TestCreateIngressSource_DefaultInterval(t *testing.T) {
 }
 
 func TestCreateIngressSource_MissingType(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources",
-		jsonStr(`{"label":"No type","config":{}}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources",
+		th.JsonStr(`{"label":"No type","config":{}}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for missing type, got %d", resp.StatusCode)
 	}
 }
 
 func TestCreateIngressSource_MissingLabel(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources",
-		jsonStr(`{"type":"imap","config":{}}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources",
+		th.JsonStr(`{"type":"imap","config":{}}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for missing label, got %d", resp.StatusCode)
 	}
 }
 
 func TestCreateIngressSource_Unauthenticated(t *testing.T) {
-	env := setupTestApp(t)
+	env := th.SetupTestApp(t)
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources",
-		jsonStr(`{"type":"imap","label":"x","config":{}}`), nil)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources",
+		th.JsonStr(`{"type":"imap","label":"x","config":{}}`), nil)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.StatusCode)
 	}
 }
 
 func TestListIngressSources_Empty(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -127,16 +129,16 @@ func TestListIngressSources_Empty(t *testing.T) {
 }
 
 func TestListIngressSources_ReturnsOwnerSources(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Source A","config":{}}`)
 	createIngressSource(t, env, user.Cookie,
 		`{"type":"sftp","label":"Source B","config":{}}`)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -150,14 +152,14 @@ func TestListIngressSources_ReturnsOwnerSources(t *testing.T) {
 }
 
 func TestListIngressSources_WorkspaceIsolation(t *testing.T) {
-	env := setupTestApp(t)
-	alice := register(t, env, "Alice", "alice@example.com", "password123")
-	bob := register(t, env, "Bob", "bob@example.com", "password456")
+	env := th.SetupTestApp(t)
+	alice := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	bob := th.Register(t, env, "Bob", "bob@example.com", "password456")
 
 	createIngressSource(t, env, alice.Cookie, `{"type":"imap","label":"Alice source","config":{}}`)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources", nil, bob.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources", nil, bob.Cookie)
+	resp, _ := env.App.Test(req)
 	var list []any
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatalf("decode response: %v", err)
@@ -168,15 +170,15 @@ func TestListIngressSources_WorkspaceIsolation(t *testing.T) {
 }
 
 func TestGetIngressSource_Success(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"My Inbox","config":{"host":"imap.example.com"}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -190,43 +192,43 @@ func TestGetIngressSource_Success(t *testing.T) {
 }
 
 func TestGetIngressSource_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/does-not-exist", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/does-not-exist", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestGetIngressSource_WrongWorkspace(t *testing.T) {
-	env := setupTestApp(t)
-	alice := register(t, env, "Alice", "alice@example.com", "password123")
-	bob := register(t, env, "Bob", "bob@example.com", "password456")
+	env := th.SetupTestApp(t)
+	alice := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	bob := th.Register(t, env, "Bob", "bob@example.com", "password456")
 
 	created := createIngressSource(t, env, alice.Cookie,
 		`{"type":"imap","label":"Alice","config":{}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, bob.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, bob.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 when accessing another workspace's source, got %d", resp.StatusCode)
 	}
 }
 
 func TestUpdateIngressSource_Label(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Old Label","config":{}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
-		jsonStr(`{"label":"New Label"}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
+		th.JsonStr(`{"label":"New Label"}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -240,17 +242,17 @@ func TestUpdateIngressSource_Label(t *testing.T) {
 }
 
 func TestUpdateIngressSource_EnabledFlag(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Inbox","config":{}}`)
 	id := created["id"].(string)
 
 	// Disable it
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
-		jsonStr(`{"enabled":false}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
+		th.JsonStr(`{"enabled":false}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -264,16 +266,16 @@ func TestUpdateIngressSource_EnabledFlag(t *testing.T) {
 }
 
 func TestUpdateIngressSource_ConfigUpdated(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Inbox","config":{"host":"old.example.com","password":"old"}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
-		jsonStr(`{"config":{"host":"new.example.com","password":"newpass"}}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
+		th.JsonStr(`{"config":{"host":"new.example.com","password":"newpass"}}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -291,50 +293,50 @@ func TestUpdateIngressSource_ConfigUpdated(t *testing.T) {
 }
 
 func TestUpdateIngressSource_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/nonexistent",
-		jsonStr(`{"label":"x"}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/nonexistent",
+		th.JsonStr(`{"label":"x"}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestDeleteIngressSource_Success(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"To Delete","config":{}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
 
 	// Verify it's gone
-	req2 := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
-	resp2, _ := env.app.Test(req2)
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
+	resp2, _ := env.App.Test(req2)
 	if resp2.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 after delete, got %d", resp2.StatusCode)
 	}
 }
 
 func TestDeleteIngressSource_RequiresOwner(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	created := createIngressSource(t, env, owner.Cookie,
 		`{"type":"imap","label":"Src","config":{}}`)
 	id := created["id"].(string)
 
-	editorToken := mintEditorToken(t, env, owner.WorkspaceID, "editor")
-	req := bearerRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id, nil, editorToken)
-	resp, _ := env.app.Test(req)
+	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, "editor")
+	req := th.BearerRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id, nil, editorToken)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for editor deleting source, got %d", resp.StatusCode)
 	}
@@ -343,15 +345,15 @@ func TestDeleteIngressSource_RequiresOwner(t *testing.T) {
 // --- Poll endpoint
 
 func TestPollIngressSource_EnqueuesJob(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Inbox","config":{}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/poll", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/poll", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("expected 202, got %d", resp.StatusCode)
 	}
@@ -365,11 +367,11 @@ func TestPollIngressSource_EnqueuesJob(t *testing.T) {
 }
 
 func TestPollIngressSource_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/poll", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/poll", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
@@ -378,15 +380,15 @@ func TestPollIngressSource_NotFound(t *testing.T) {
 // --- Log API
 
 func TestListIngressSourceLog_Empty(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Inbox","config":{}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/log", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/log", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -400,22 +402,22 @@ func TestListIngressSourceLog_Empty(t *testing.T) {
 }
 
 func TestListIngressSourceLog_SourceNotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/nonexistent/log", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/nonexistent/log", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestListWorkspaceIngressLog_Empty(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/log", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/log", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -429,20 +431,20 @@ func TestListWorkspaceIngressLog_Empty(t *testing.T) {
 }
 
 func TestDeleteIngressLogEntry_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodDelete, "/api/v1/ingress/log/nonexistent", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/ingress/log/nonexistent", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestDeleteIngressLogEntry_WrongWorkspace(t *testing.T) {
-	env := setupTestApp(t)
-	alice := register(t, env, "Alice", "alice@example.com", "password123")
-	bob := register(t, env, "Bob", "bob@example.com", "password456")
+	env := th.SetupTestApp(t)
+	alice := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	bob := th.Register(t, env, "Bob", "bob@example.com", "password456")
 
 	created := createIngressSource(t, env, alice.Cookie,
 		`{"type":"imap","label":"Inbox","config":{}}`)
@@ -450,7 +452,7 @@ func TestDeleteIngressLogEntry_WrongWorkspace(t *testing.T) {
 
 	// Insert a log entry directly for Alice's source
 	entryID := "test-entry-id"
-	_, err := env.sqlDB.Exec(
+	_, err := env.SqlDB.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status)
 		 VALUES (?, ?, ?, ?, 'imported')`,
 		entryID, sourceID, "msg-001", "photo.jpg",
@@ -460,34 +462,34 @@ func TestDeleteIngressLogEntry_WrongWorkspace(t *testing.T) {
 	}
 
 	// Bob tries to delete Alice's log entry — should get 403
-	req := authRequest(http.MethodDelete, "/api/v1/ingress/log/"+entryID, nil, bob.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/ingress/log/"+entryID, nil, bob.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
 }
 
 func TestRetryIngressLogEntry_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/log/nonexistent/retry", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/log/nonexistent/retry", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestRetryIngressLogEntry_ImportedEntryNotRetryable(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Inbox","config":{}}`)
 	sourceID := created["id"].(string)
 
 	entryID := "test-entry-imported"
-	_, err := env.sqlDB.Exec(
+	_, err := env.SqlDB.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status)
 		 VALUES (?, ?, ?, ?, 'imported')`,
 		entryID, sourceID, "msg-002", "photo.jpg",
@@ -496,16 +498,16 @@ func TestRetryIngressLogEntry_ImportedEntryNotRetryable(t *testing.T) {
 		t.Fatalf("insert log entry: %v", err)
 	}
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/log/"+entryID+"/retry", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/log/"+entryID+"/retry", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 for retrying 'imported' entry, got %d", resp.StatusCode)
 	}
 }
 
 func TestRetryIngressLogEntry_ErrorEntryRequeued(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Inbox","config":{}}`)
@@ -513,7 +515,7 @@ func TestRetryIngressLogEntry_ErrorEntryRequeued(t *testing.T) {
 
 	entryID := "test-entry-error"
 	errMsg := "connection refused"
-	_, err := env.sqlDB.Exec(
+	_, err := env.SqlDB.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status, error)
 		 VALUES (?, ?, ?, ?, 'error', ?)`,
 		entryID, sourceID, "msg-003", "photo.jpg", errMsg,
@@ -522,8 +524,8 @@ func TestRetryIngressLogEntry_ErrorEntryRequeued(t *testing.T) {
 		t.Fatalf("insert log entry: %v", err)
 	}
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/log/"+entryID+"/retry", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/log/"+entryID+"/retry", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("expected 202, got %d", resp.StatusCode)
 	}
@@ -537,15 +539,15 @@ func TestRetryIngressLogEntry_ErrorEntryRequeued(t *testing.T) {
 }
 
 func TestRetryIngressLogEntry_SkippedEntryRequeued(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"imap","label":"Inbox","config":{}}`)
 	sourceID := created["id"].(string)
 
 	entryID := "test-entry-skipped"
-	_, err := env.sqlDB.Exec(
+	_, err := env.SqlDB.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status)
 		 VALUES (?, ?, ?, ?, 'skipped')`,
 		entryID, sourceID, "msg-004", "invoice.pdf",
@@ -554,8 +556,8 @@ func TestRetryIngressLogEntry_SkippedEntryRequeued(t *testing.T) {
 		t.Fatalf("insert log entry: %v", err)
 	}
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/log/"+entryID+"/retry", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/log/"+entryID+"/retry", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("expected 202 for skipped retry, got %d", resp.StatusCode)
 	}
@@ -564,27 +566,27 @@ func TestRetryIngressLogEntry_SkippedEntryRequeued(t *testing.T) {
 // --- Test endpoint (no side-effects, only validates credentials)
 
 func TestTestIngressSource_UnknownSourceType(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	// Create a source with a type that has no registered constructor.
+	// Create a source with a type that has no th.Registered constructor.
 	created := createIngressSource(t, env, user.Cookie,
 		`{"type":"unregistered_type","label":"Mystery","config":{}}`)
 	id := created["id"].(string)
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/test", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/test", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for unknown source type in /test, got %d", resp.StatusCode)
 	}
 }
 
 func TestTestIngressSource_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/test", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/test", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
@@ -593,8 +595,8 @@ func TestTestIngressSource_NotFound(t *testing.T) {
 // --- Source with initial rules
 
 func TestCreateIngressSource_WithRules(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	body := `{
 		"type":"imap",
@@ -609,8 +611,8 @@ func TestCreateIngressSource_WithRules(t *testing.T) {
 	id := src["id"].(string)
 
 	// Verify source was created
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id, nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -647,7 +649,7 @@ func TestRawToNullableString(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotValue, gotPresent := rawToNullableString(tc.input)
+			gotValue, gotPresent := api.RawToNullableString(tc.input)
 			if gotPresent != tc.wantPresent {
 				t.Fatalf("present: got %v, want %v", gotPresent, tc.wantPresent)
 			}
@@ -678,7 +680,7 @@ func TestRedactConfig(t *testing.T) {
 		"username":         "alice",
 		"private_key_data": "-----BEGIN",
 	}
-	got := redactConfig(input)
+	got := api.RedactConfig(input)
 
 	notRedacted := []string{"host", "username"}
 	for _, k := range notRedacted {
@@ -698,10 +700,10 @@ func TestRedactConfig(t *testing.T) {
 // --- Rules CRUD
 
 // createRule is a test helper: POST /api/v1/ingress/sources/:id/rules
-func createRule(t *testing.T, env *testEnv, cookie *http.Cookie, sourceID, body string) map[string]any {
+func createRule(t *testing.T, env *th.TestEnv, cookie *http.Cookie, sourceID, body string) map[string]any {
 	t.Helper()
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/"+sourceID+"/rules", jsonStr(body), cookie)
-	resp, err := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/"+sourceID+"/rules", th.JsonStr(body), cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("createRule request: %v", err)
 	}
@@ -716,13 +718,13 @@ func createRule(t *testing.T, env *testEnv, cookie *http.Cookie, sourceID, body 
 }
 
 func TestListIngressRules_EmptyInitially(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -736,34 +738,34 @@ func TestListIngressRules_EmptyInitially(t *testing.T) {
 }
 
 func TestListIngressRules_SourceNotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/nonexistent/rules", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/nonexistent/rules", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestListIngressRules_WrongWorkspace(t *testing.T) {
-	env := setupTestApp(t)
-	alice := register(t, env, "Alice", "alice@example.com", "password123")
-	bob := register(t, env, "Bob", "bob@example.com", "password456")
+	env := th.SetupTestApp(t)
+	alice := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	bob := th.Register(t, env, "Bob", "bob@example.com", "password456")
 
 	src := createIngressSource(t, env, alice.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, bob.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, bob.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 for wrong workspace, got %d", resp.StatusCode)
 	}
 }
 
 func TestCreateIngressRule_Success(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
@@ -791,51 +793,51 @@ func TestCreateIngressRule_Success(t *testing.T) {
 }
 
 func TestCreateIngressRule_MissingFields(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
-		jsonStr(`{"position":0,"field":"filename"}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
+		th.JsonStr(`{"position":0,"field":"filename"}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for missing fields, got %d", resp.StatusCode)
 	}
 }
 
 func TestCreateIngressRule_RequiresEditor(t *testing.T) {
-	env := setupTestApp(t)
-	owner := register(t, env, "Owner", "owner@example.com", "password123")
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	src := createIngressSource(t, env, owner.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
-	viewerToken := mintEditorToken(t, env, owner.WorkspaceID, "viewer")
-	req := bearerRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
-		jsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	req := th.BearerRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
+		th.JsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
 		viewerToken)
-	resp, _ := env.app.Test(req)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for viewer creating rule, got %d", resp.StatusCode)
 	}
 }
 
 func TestCreateIngressRule_SourceNotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/rules",
-		jsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/rules",
+		th.JsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
 		user.Cookie)
-	resp, _ := env.app.Test(req)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestListIngressRules_OrderedByPosition(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
@@ -846,8 +848,8 @@ func TestListIngressRules_OrderedByPosition(t *testing.T) {
 	createRule(t, env, user.Cookie, id,
 		`{"position":1,"field":"mime_type","operator":"equals","value":"image/jpeg","action":"allow"}`)
 
-	req := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -867,8 +869,8 @@ func TestListIngressRules_OrderedByPosition(t *testing.T) {
 }
 
 func TestUpdateIngressRule_Success(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	srcID := src["id"].(string)
 
@@ -876,9 +878,9 @@ func TestUpdateIngressRule_Success(t *testing.T) {
 		`{"position":0,"field":"filename","operator":"ends_with","value":".pdf","action":"allow"}`)
 	rid := rule["id"].(string)
 
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+srcID+"/rules/"+rid,
-		jsonStr(`{"position":5,"action":"deny"}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+srcID+"/rules/"+rid,
+		th.JsonStr(`{"position":5,"action":"deny"}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -899,22 +901,22 @@ func TestUpdateIngressRule_Success(t *testing.T) {
 }
 
 func TestUpdateIngressRule_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/nonexistent",
-		jsonStr(`{"action":"deny"}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/nonexistent",
+		th.JsonStr(`{"action":"deny"}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
 func TestUpdateIngressRule_WrongSource(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	src1 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"A","config":{}}`)
 	src2 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"B","config":{}}`)
@@ -926,17 +928,17 @@ func TestUpdateIngressRule_WrongSource(t *testing.T) {
 	rid := rule["id"].(string)
 
 	// Try to update rule belonging to src1 via src2's URL
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id2+"/rules/"+rid,
-		jsonStr(`{"action":"allow"}`), user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id2+"/rules/"+rid,
+		th.JsonStr(`{"action":"allow"}`), user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 when rule doesn't belong to source, got %d", resp.StatusCode)
 	}
 }
 
 func TestDeleteIngressRule_Success(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
@@ -944,15 +946,15 @@ func TestDeleteIngressRule_Success(t *testing.T) {
 		`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`)
 	rid := rule["id"].(string)
 
-	req := authRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id+"/rules/"+rid, nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id+"/rules/"+rid, nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
 
 	// Verify it's gone
-	req2 := authRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
-	resp2, _ := env.app.Test(req2)
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/ingress/sources/"+id+"/rules", nil, user.Cookie)
+	resp2, _ := env.App.Test(req2)
 	var list []any
 	if err := json.NewDecoder(resp2.Body).Decode(&list); err != nil {
 		t.Fatalf("decode response: %v", err)
@@ -963,13 +965,13 @@ func TestDeleteIngressRule_Success(t *testing.T) {
 }
 
 func TestDeleteIngressRule_NotFound(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
-	req := authRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id+"/rules/nonexistent", nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id+"/rules/nonexistent", nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
@@ -978,8 +980,8 @@ func TestDeleteIngressRule_NotFound(t *testing.T) {
 // --- OnCreate hook
 
 func TestCreateIngressSource_EmailAPI_GeneratesIngestToken(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	src := createIngressSource(t, env, user.Cookie, `{"type":"email_api","label":"Email Inbox","config":{}}`)
 
@@ -995,7 +997,7 @@ func TestCreateIngressSource_EmailAPI_GeneratesIngestToken(t *testing.T) {
 	// Verify the token was actually stored (non-empty) by reading from the DB.
 	srcID := src["id"].(string)
 	var encryptedConfig string
-	if err := env.sqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
+	if err := env.SqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
 		t.Fatalf("query ingress_sources: %v", err)
 	}
 	configJSON, err := ingress.DecryptConfig("test-app-secret-for-tests!!", encryptedConfig)
@@ -1013,15 +1015,15 @@ func TestCreateIngressSource_EmailAPI_GeneratesIngestToken(t *testing.T) {
 }
 
 func TestCreateIngressSource_EmailAPI_TokenIsServerGenerated(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	// User attempts to supply their own ingest_token — it must be overwritten.
 	src := createIngressSource(t, env, user.Cookie, `{"type":"email_api","label":"Email Inbox","config":{"ingest_token":"user-supplied"}}`)
 
 	srcID := src["id"].(string)
 	var encryptedConfig string
-	if err := env.sqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
+	if err := env.SqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
 		t.Fatalf("query ingress_sources: %v", err)
 	}
 	configJSON, err := ingress.DecryptConfig("test-app-secret-for-tests!!", encryptedConfig)
@@ -1042,8 +1044,8 @@ func TestCreateIngressSource_EmailAPI_TokenIsServerGenerated(t *testing.T) {
 }
 
 func TestDeleteIngressRule_WrongSource(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	src1 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"A","config":{}}`)
 	src2 := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"B","config":{}}`)
@@ -1054,16 +1056,16 @@ func TestDeleteIngressRule_WrongSource(t *testing.T) {
 		`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`)
 	rid := rule["id"].(string)
 
-	req := authRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id2+"/rules/"+rid, nil, user.Cookie)
-	resp, _ := env.app.Test(req)
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id2+"/rules/"+rid, nil, user.Cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 when rule doesn't belong to source, got %d", resp.StatusCode)
 	}
 }
 
 func TestReorderIngressRules_Success(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
@@ -1079,9 +1081,9 @@ func TestReorderIngressRules_Success(t *testing.T) {
 		{"id": rid0, "position": 10},
 		{"id": rid1, "position": 0},
 	})
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/reorder",
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/reorder",
 		bytes.NewReader(bodyBytes), user.Cookie)
-	resp, _ := env.app.Test(req)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -1102,17 +1104,17 @@ func TestReorderIngressRules_Success(t *testing.T) {
 }
 
 func TestReorderIngressRules_UnknownRule(t *testing.T) {
-	env := setupTestApp(t)
-	user := register(t, env, "Alice", "alice@example.com", "password123")
+	env := th.SetupTestApp(t)
+	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 	src := createIngressSource(t, env, user.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
 	bodyBytes, _ := json.Marshal([]map[string]any{
 		{"id": "nonexistent", "position": 0},
 	})
-	req := authRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/reorder",
+	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/reorder",
 		bytes.NewReader(bodyBytes), user.Cookie)
-	resp, _ := env.app.Test(req)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 for unknown rule in reorder, got %d", resp.StatusCode)
 	}
@@ -1126,4 +1128,3 @@ func rawMsg(s string) *json.RawMessage {
 }
 
 func strPtr(s string) *string { return &s }
-

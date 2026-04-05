@@ -13,6 +13,7 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobs"
 	"damask/server/internal/services"
 	"damask/server/internal/versioning"
 
@@ -22,12 +23,12 @@ import (
 
 // --- Response types ---
 
-type versionCreatedByResponse struct {
+type VersionCreatedByResponse struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
-type versionResponse struct {
+type VersionResponse struct {
 	ID           string                   `json:"id"`
 	VersionNum   int64                    `json:"version_num"`
 	MimeType     string                   `json:"mime_type"`
@@ -37,14 +38,14 @@ type versionResponse struct {
 	DurationSec  *float64                 `json:"duration_sec"`
 	ThumbnailURL *string                  `json:"thumbnail_url"`
 	Comment      *string                  `json:"comment"`
-	CreatedBy    versionCreatedByResponse `json:"created_by"`
+	CreatedBy    VersionCreatedByResponse `json:"created_by"`
 	CreatedAt    string                   `json:"created_at"`
 	IsCurrent    bool                     `json:"is_current"`
 }
 
-func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion) versionResponse {
+func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion) VersionResponse {
 	user, err := s.db.GetUserByID(ctx, v.CreatedBy)
-	createdBy := versionCreatedByResponse{ID: v.CreatedBy}
+	createdBy := VersionCreatedByResponse{ID: v.CreatedBy}
 	if err == nil {
 		createdBy.Name = user.Name
 	}
@@ -53,14 +54,14 @@ func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion)
 
 // buildVersionResponseWithCreator builds a versionResponse using a pre-resolved creator.
 // Use this in list paths to avoid issuing a GetUserByID query per row.
-func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy versionCreatedByResponse) versionResponse {
+func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy VersionCreatedByResponse) VersionResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
 		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
 		thumbURL = &u
 	}
 
-	return versionResponse{
+	return VersionResponse{
 		ID:           v.ID,
 		VersionNum:   v.VersionNum,
 		MimeType:     v.MimeType,
@@ -291,9 +292,9 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 		}
 	}
 
-	resp := make([]versionResponse, len(versions))
+	resp := make([]VersionResponse, len(versions))
 	for i, v := range versions {
-		resp[i] = buildVersionResponseWithCreator(v, versionCreatedByResponse{
+		resp[i] = buildVersionResponseWithCreator(v, VersionCreatedByResponse{
 			ID:   v.CreatedBy,
 			Name: userNames[v.CreatedBy],
 		})
@@ -503,15 +504,14 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 // The job handler updates asset_versions.thumbnail_key (not assets.thumbnail_key)
 // via a dedicated version thumbnail job type.
 func (s *Server) enqueueVersionThumbnail(ctx context.Context, asset dbgen.Asset, version dbgen.AssetVersion) {
-	payload := versionThumbnailJobPayload{
+	payload := jobs.VersionThumbnailJobPayload{
 		AssetID:     asset.ID,
 		VersionID:   version.ID,
 		WorkspaceID: asset.WorkspaceID,
 		StorageKey:  version.StorageKey,
 		MimeType:    version.MimeType,
 	}
-	if err := enqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
+	if err := jobs.EnqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
 		log.Printf("enqueue version thumbnail for %s/%s: %v", asset.ID, version.ID, err)
 	}
 }
-

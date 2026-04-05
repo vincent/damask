@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 )
 
-type workspaceMeResponse struct {
+type WorkspaceMeResponse struct {
 	Workspace dbgen.Workspace `json:"workspace"`
-	User      userResponse    `json:"user"`
+	User      UserResponse    `json:"user"`
 	Role      string          `json:"role"`
 }
 
@@ -46,7 +46,7 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
 
-	return c.JSON(workspaceMeResponse{Workspace: workspace, User: userToResponse(user), Role: member.Role})
+	return c.JSON(WorkspaceMeResponse{Workspace: workspace, User: userToResponse(user), Role: member.Role})
 }
 
 func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
@@ -82,10 +82,10 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(authResponse{Workspace: workspace})
+	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Workspace: workspace})
 }
 
-type inviteResponse struct {
+type InviteResponse struct {
 	ID          string `json:"id"`
 	InviteToken string `json:"invite_token"`
 	Email       string `json:"email"`
@@ -113,7 +113,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create invite")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(inviteResponse{
+	return c.Status(fiber.StatusCreated).JSON(InviteResponse{
 		ID:          invite.ID,
 		InviteToken: invite.Token,
 		Email:       invite.Email,
@@ -179,10 +179,10 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.Status(fiber.StatusCreated).JSON(authResponse{Token: token, User: userToResponse(user)})
+	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user)})
 }
 
-type workspaceWithRoleResponse struct {
+type WorkspaceWithRoleResponse struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Role      string `json:"role"`
@@ -198,9 +198,9 @@ func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list workspaces")
 	}
 
-	result := make([]workspaceWithRoleResponse, len(rows))
+	result := make([]WorkspaceWithRoleResponse, len(rows))
 	for i, r := range rows {
-		result[i] = workspaceWithRoleResponse{
+		result[i] = WorkspaceWithRoleResponse{
 			ID:        r.ID,
 			Name:      r.Name,
 			Role:      r.Role,
@@ -211,7 +211,7 @@ func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
-type switchWorkspaceResponse struct {
+type SwitchWorkspaceResponse struct {
 	Token     string          `json:"token"`
 	Workspace dbgen.Workspace `json:"workspace"`
 	Role      string          `json:"role"`
@@ -244,7 +244,7 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.JSON(switchWorkspaceResponse{Token: token, Workspace: workspace, Role: member.Role})
+	return c.JSON(SwitchWorkspaceResponse{Token: token, Workspace: workspace, Role: member.Role})
 }
 
 // fiber:context-methods migrated

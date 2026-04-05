@@ -14,19 +14,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// shareInfoResponse is returned by GET /shared/:id/access.
-type shareInfoResponse struct {
+// ShareInfoResponse is returned by GET /shared/:id/access.
+type ShareInfoResponse struct {
 	Label       string `json:"label"`
 	HasPassword bool   `json:"has_password"`
 }
 
-// shareAccessResponse is returned by POST /shared/:id/access on success.
-type shareAccessResponse struct {
+// ShareAccessResponse is returned by POST /shared/:id/access on success.
+type ShareAccessResponse struct {
 	Token string `json:"token"`
 }
 
-// commentResponse is the JSON shape for a share comment.
-type commentResponse struct {
+// CommentResponse is the JSON shape for a share comment.
+type CommentResponse struct {
 	ID          string  `json:"id"`
 	ShareID     string  `json:"share_id"`
 	AssetID     string  `json:"asset_id"`
@@ -36,8 +36,8 @@ type commentResponse struct {
 	CreatedAt   string  `json:"created_at"`
 }
 
-func commentToResponse(c dbgen.ShareComment) commentResponse {
-	return commentResponse{
+func commentToResponse(c dbgen.ShareComment) CommentResponse {
+	return CommentResponse{
 		ID:          c.ID,
 		ShareID:     c.ShareID,
 		AssetID:     c.AssetID,
@@ -94,7 +94,7 @@ func (s *Server) handleShareInfo(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(shareInfoResponse{
+	return c.JSON(ShareInfoResponse{
 		Label:       share.Label,
 		HasPassword: share.PasswordHash != nil,
 	})
@@ -140,7 +140,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not issue share token")
 	}
 
-	return c.JSON(shareAccessResponse{Token: token})
+	return c.JSON(ShareAccessResponse{Token: token})
 }
 
 // ── S-5 ──────────────────────────────────────────────────────────────────────
@@ -208,7 +208,7 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 		assets = []dbgen.Asset{}
 	}
 
-	items := make([]assetResponse, len(assets))
+	items := make([]AssetResponse, len(assets))
 	for i, a := range assets {
 		items[i] = assetToResponse(a, []string{})
 	}
@@ -219,12 +219,12 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 	}
 
 	type shareView struct {
-		ID             string  `json:"id"`
-		Label          string  `json:"label"`
-		AllowComments  bool    `json:"allow_comments"`
-		AllowDownload  bool    `json:"allow_download"`
-		ExpiresAt      *string `json:"expires_at"`
-		HasPassword    bool    `json:"has_password"`
+		ID            string  `json:"id"`
+		Label         string  `json:"label"`
+		AllowComments bool    `json:"allow_comments"`
+		AllowDownload bool    `json:"allow_download"`
+		ExpiresAt     *string `json:"expires_at"`
+		HasPassword   bool    `json:"has_password"`
 	}
 	sv := shareView{
 		ID:            share.ID,
@@ -411,19 +411,19 @@ func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	}
 
 	// Group by asset_id
-	grouped := make(map[string][]commentResponse)
+	grouped := make(map[string][]CommentResponse)
 	order := []string{}
 	for _, cm := range comments {
 		if _, exists := grouped[cm.AssetID]; !exists {
 			order = append(order, cm.AssetID)
-			grouped[cm.AssetID] = []commentResponse{}
+			grouped[cm.AssetID] = []CommentResponse{}
 		}
 		grouped[cm.AssetID] = append(grouped[cm.AssetID], commentToResponse(cm))
 	}
 
 	type group struct {
 		AssetID  string            `json:"asset_id"`
-		Comments []commentResponse `json:"comments"`
+		Comments []CommentResponse `json:"comments"`
 	}
 	result := make([]group, len(order))
 	for i, aid := range order {
@@ -454,7 +454,7 @@ func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list comments")
 	}
 
-	items := make([]commentResponse, len(comments))
+	items := make([]CommentResponse, len(comments))
 	for i, cm := range comments {
 		items[i] = commentToResponse(cm)
 	}
@@ -484,7 +484,7 @@ func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list comments")
 	}
 
-	items := make([]commentResponse, len(comments))
+	items := make([]CommentResponse, len(comments))
 	for i, cm := range comments {
 		items[i] = commentToResponse(cm)
 	}
