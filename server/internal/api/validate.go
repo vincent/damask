@@ -14,11 +14,11 @@ type Validator interface {
 // Returns true if the handler should continue, false if it already responded.
 func decodeAndValidate[T Validator](c fiber.Ctx, body T) (T, bool) {
 	if err := c.Bind().Body(&body); err != nil {
-		errRes(c, fiber.StatusBadRequest, "invalid request body")
+		_ = errRes(c, fiber.StatusBadRequest, "invalid request body")
 		return body, false
 	}
 	if problems := body.Valid(c.RequestCtx()); len(problems) > 0 {
-		c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+		_ = c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"error":  "validation failed",
 			"fields": problems,
 		})

@@ -42,7 +42,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { sqlDB.Close() })
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	stor, err := storage.NewLocalStorage(filepath.Join(dir, "storage"))
 	if err != nil {
@@ -191,7 +191,7 @@ func TestHandleFetch_TagsAssetWithSourceLabel(t *testing.T) {
 	if _, err := tmp.WriteString("hello world"); err != nil {
 		t.Fatalf("write temp file: %v", err)
 	}
-	tmp.Close()
+	_ = tmp.Close()
 
 	payload, _ := json.Marshal(FetchJobPayload{
 		SourceID:    sourceID,
@@ -315,8 +315,8 @@ func TestHandleFetch_DenyRule_MarksSkipped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	tmp.WriteString("MZ")
-	tmp.Close()
+	_, _ = tmp.WriteString("MZ")
+	_ = tmp.Close()
 
 	payload, _ := json.Marshal(FetchJobPayload{
 		SourceID:    sourceID,
@@ -356,10 +356,10 @@ func TestHandleFetch_PullSource_FetchesViaSource(t *testing.T) {
 	workspaceID := uuid.NewString()
 	sourceID := uuid.NewString()
 
-	queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: workspaceID, Name: "WS"})
-	queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "pull@example.com", PasswordHash: "x", Name: "Pull"})
+	_, _ = queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: workspaceID, Name: "WS"})
+	_, _ = queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "pull@example.com", PasswordHash: "x", Name: "Pull"})
 	configJSON, _ := EncryptConfig(testAppSecret, []byte(`{}`))
-	queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+	_, _ = queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
 		ID:              sourceID,
 		WorkspaceID:     workspaceID,
 		CreatedBy:       userID,
@@ -504,7 +504,7 @@ func TestHandlePoll_DisabledSource_DoesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get source: %v", err)
 	}
-	queries.UpdateIngressSource(ctx, dbgen.UpdateIngressSourceParams{
+	_, _ = queries.UpdateIngressSource(ctx, dbgen.UpdateIngressSourceParams{
 		Label:           src.Label,
 		Config:          src.Config,
 		DestFolderID:    src.DestFolderID,

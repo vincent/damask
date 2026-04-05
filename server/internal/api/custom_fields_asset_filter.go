@@ -178,9 +178,9 @@ func fieldFilterSQL(f fieldFilter) (expr string) {
 	case "gte":
 		return fmt.Sprintf("%s >= ?", valueCol)
 	case "contains":
-		return fmt.Sprintf("value_text LIKE ?")
+		return "value_text LIKE ?"
 	case "starts_with":
-		return fmt.Sprintf("value_text LIKE ?")
+		return "value_text LIKE ?"
 	}
 	return fmt.Sprintf("%s = ?", valueCol)
 }
@@ -224,7 +224,6 @@ func (s *Server) refreshAssetFTS(ctx context.Context, assetID string) {
 	}
 
 	// Gather text field values
-	type textVal struct{ text string }
 	rows, err := s.sqlDB.QueryContext(ctx, `
 		SELECT v.value_text
 		FROM asset_field_values v

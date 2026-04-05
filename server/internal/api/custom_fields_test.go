@@ -57,7 +57,7 @@ func TestFieldDefinitions_CRUD(t *testing.T) {
 		t.Fatalf("list: expected 200, got %d", resp.StatusCode)
 	}
 	var list []map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&list)
+	_ = json.NewDecoder(resp.Body).Decode(&list)
 	if len(list) != 1 {
 		t.Fatalf("expected 1 definition, got %d", len(list))
 	}
@@ -75,7 +75,7 @@ func TestFieldDefinitions_CRUD(t *testing.T) {
 		t.Fatalf("update: expected 200, got %d", resp.StatusCode)
 	}
 	var updated map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&updated)
+	_ = json.NewDecoder(resp.Body).Decode(&updated)
 	if updated["name"] != "Client" {
 		t.Fatalf("expected name=Client, got %v", updated["name"])
 	}
@@ -102,7 +102,7 @@ func TestFieldDefinitions_CRUD(t *testing.T) {
 
 	// List after delete — should be empty
 	resp, _ = env.app.Test(authRequest(http.MethodGet, "/api/v1/field-definitions?scope=asset", nil, u.Cookie))
-	json.NewDecoder(resp.Body).Decode(&list)
+	_ = json.NewDecoder(resp.Body).Decode(&list)
 	if len(list) != 0 {
 		t.Fatalf("expected 0 active definitions after delete, got %d", len(list))
 	}
@@ -161,13 +161,13 @@ func TestFieldDefinitions_ScopeIsolation(t *testing.T) {
 
 	resp, _ := env.app.Test(authRequest(http.MethodGet, "/api/v1/field-definitions?scope=asset", nil, u.Cookie))
 	var list []map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&list)
+	_ = json.NewDecoder(resp.Body).Decode(&list)
 	if len(list) != 1 {
 		t.Fatalf("asset scope: expected 1, got %d", len(list))
 	}
 
 	resp, _ = env.app.Test(authRequest(http.MethodGet, "/api/v1/field-definitions?scope=project", nil, u.Cookie))
-	json.NewDecoder(resp.Body).Decode(&list)
+	_ = json.NewDecoder(resp.Body).Decode(&list)
 	if len(list) != 1 {
 		t.Fatalf("project scope: expected 1, got %d", len(list))
 	}
@@ -190,7 +190,7 @@ func TestFieldDefinitions_Reorder(t *testing.T) {
 	// After reorder, beta (pos=5) should come before alpha (pos=10)
 	resp, _ = env.app.Test(authRequest(http.MethodGet, "/api/v1/field-definitions?scope=asset", nil, u.Cookie))
 	var list []map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&list)
+	_ = json.NewDecoder(resp.Body).Decode(&list)
 	if len(list) != 2 {
 		t.Fatalf("expected 2 definitions, got %d", len(list))
 	}
@@ -211,7 +211,7 @@ func TestFieldDefinitions_Stats(t *testing.T) {
 		t.Fatalf("stats: expected 200, got %d", resp.StatusCode)
 	}
 	var stats map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&stats)
+	_ = json.NewDecoder(resp.Body).Decode(&stats)
 	if stats["asset_count"] == nil {
 		t.Fatal("expected asset_count in stats")
 	}
@@ -259,7 +259,7 @@ func TestAssetFieldValues_GetPatch(t *testing.T) {
 		t.Fatalf("get fields: expected 200, got %d", resp.StatusCode)
 	}
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	fields := result["fields"].([]interface{})
 	if len(fields) != 0 {
 		t.Fatalf("expected 0 fields, got %d", len(fields))
@@ -272,7 +272,7 @@ func TestAssetFieldValues_GetPatch(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("patch fields: expected 200, got %d", resp.StatusCode)
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	fields = result["fields"].([]interface{})
 	if len(fields) != 1 {
 		t.Fatalf("expected 1 field after patch, got %d", len(fields))
@@ -289,7 +289,7 @@ func TestAssetFieldValues_GetPatch(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("clear field: expected 200, got %d", resp.StatusCode)
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	fields = result["fields"].([]interface{})
 	if len(fields) != 0 {
 		t.Fatalf("expected 0 fields after clear, got %d", len(fields))
@@ -307,7 +307,7 @@ func TestAssetFieldValues_TypeValidation(t *testing.T) {
 	selDef := createFieldDef(t, env, u.Cookie, "asset", "Status", "status", "select", &opts)
 
 	assetID := "test-asset-validation"
-	env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
+	_, _ = env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
 		VALUES (?, ?, ?, ?, ?, ?)`, assetID, u.WorkspaceID, "t.jpg", "s/t.jpg", "image/jpeg", 100)
 
 	cases := []struct {
@@ -346,16 +346,16 @@ func TestAssetFieldValues_SoftDeletedField(t *testing.T) {
 	fieldID := def["id"].(string)
 
 	assetID := "test-asset-deleted-field"
-	env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
+	_, _ = env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
 		VALUES (?, ?, ?, ?, ?, ?)`, assetID, u.WorkspaceID, "t.jpg", "s/t.jpg", "image/jpeg", 100)
 
 	// Set a value
 	body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":"some value"}]}`, fieldID)
-	env.app.Test(authRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
+	_, _ = env.app.Test(authRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
 		strings.NewReader(body), u.Cookie))
 
 	// Soft delete the definition
-	env.app.Test(authRequest(http.MethodDelete, "/api/v1/field-definitions/"+fieldID, nil, u.Cookie))
+	_, _ = env.app.Test(authRequest(http.MethodDelete, "/api/v1/field-definitions/"+fieldID, nil, u.Cookie))
 
 	// Cannot write to soft-deleted field
 	resp, _ := env.app.Test(authRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
@@ -367,7 +367,7 @@ func TestAssetFieldValues_SoftDeletedField(t *testing.T) {
 	// But GET still shows the orphaned value with definition_deleted=true
 	resp, _ = env.app.Test(authRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/fields", nil, u.Cookie))
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	fields := result["fields"].([]interface{})
 	if len(fields) != 1 {
 		t.Fatalf("expected orphaned value to still appear, got %d fields", len(fields))
@@ -387,7 +387,7 @@ func TestAssetFieldValues_BulkPatch(t *testing.T) {
 
 	// Create two assets
 	for _, id := range []string{"bulk-asset-1", "bulk-asset-2"} {
-		env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
+		_, _ = env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
 			VALUES (?, ?, ?, ?, ?, ?)`, id, u.WorkspaceID, id+".jpg", "s/"+id, "image/jpeg", 100)
 	}
 
@@ -412,7 +412,7 @@ func TestAssetFieldValues_BulkPatch(t *testing.T) {
 	for _, id := range []string{"bulk-asset-1", "bulk-asset-2"} {
 		resp, _ := env.app.Test(authRequest(http.MethodGet, "/api/v1/assets/"+id+"/fields", nil, u.Cookie))
 		var r map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&r)
+		_ = json.NewDecoder(resp.Body).Decode(&r)
 		fields := r["fields"].([]interface{})
 		if len(fields) != 1 || fields[0].(map[string]interface{})["value"] != "Nike" {
 			t.Fatalf("asset %s: expected value=Nike", id)
@@ -431,17 +431,17 @@ func TestAssetFieldFilter(t *testing.T) {
 
 	// Create assets
 	for _, id := range []string{"filter-asset-nike", "filter-asset-puma"} {
-		env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
+		_, _ = env.sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
 			VALUES (?, ?, ?, ?, ?, ?)`, id, u.WorkspaceID, id+".jpg", "s/"+id, "image/jpeg", 100)
 	}
 
 	// Set client=Nike on first asset
 	body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":"Nike"}]}`, fieldID)
-	env.app.Test(authRequest(http.MethodPatch, "/api/v1/assets/filter-asset-nike/fields",
+	_, _ = env.app.Test(authRequest(http.MethodPatch, "/api/v1/assets/filter-asset-nike/fields",
 		strings.NewReader(body), u.Cookie))
 
 	body = fmt.Sprintf(`{"values":[{"field_id":%q,"value":"Puma"}]}`, fieldID)
-	env.app.Test(authRequest(http.MethodPatch, "/api/v1/assets/filter-asset-puma/fields",
+	_, _ = env.app.Test(authRequest(http.MethodPatch, "/api/v1/assets/filter-asset-puma/fields",
 		strings.NewReader(body), u.Cookie))
 
 	// Filter by exact match
@@ -450,7 +450,7 @@ func TestAssetFieldFilter(t *testing.T) {
 		t.Fatalf("field filter: expected 200, got %d", resp.StatusCode)
 	}
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	assets := result["assets"].([]interface{})
 	if len(assets) != 1 {
 		t.Fatalf("filter by client=Nike: expected 1, got %d", len(assets))
@@ -458,7 +458,7 @@ func TestAssetFieldFilter(t *testing.T) {
 
 	// Filter contains
 	resp, _ = env.app.Test(authRequest(http.MethodGet, "/api/v1/assets?field[client][contains]=ik", nil, u.Cookie))
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	assets = result["assets"].([]interface{})
 	if len(assets) != 1 {
 		t.Fatalf("filter contains ik: expected 1, got %d", len(assets))
@@ -491,7 +491,7 @@ func TestProjectFieldValues(t *testing.T) {
 	resp, _ := env.app.Test(authRequest(http.MethodPost, "/api/v1/projects",
 		jsonStr(`{"name":"Test Project"}`), u.Cookie))
 	var proj map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&proj)
+	_ = json.NewDecoder(resp.Body).Decode(&proj)
 	projectID := proj["id"].(string)
 
 	// GET — empty
@@ -500,7 +500,7 @@ func TestProjectFieldValues(t *testing.T) {
 		t.Fatalf("get project fields: expected 200, got %d", resp.StatusCode)
 	}
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	fields := result["fields"].([]interface{})
 	if len(fields) != 0 {
 		t.Fatalf("expected 0 fields, got %d", len(fields))
@@ -513,7 +513,7 @@ func TestProjectFieldValues(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("patch project fields: expected 200, got %d", resp.StatusCode)
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	fields = result["fields"].([]interface{})
 	if len(fields) != 1 {
 		t.Fatalf("expected 1 field, got %d", len(fields))
@@ -535,7 +535,7 @@ func TestProjectFieldValues_WrongScope(t *testing.T) {
 	resp, _ := env.app.Test(authRequest(http.MethodPost, "/api/v1/projects",
 		jsonStr(`{"name":"Test"}`), u.Cookie))
 	var proj map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&proj)
+	_ = json.NewDecoder(resp.Body).Decode(&proj)
 	projectID := proj["id"].(string)
 
 	// Try to set an asset-scoped field on a project → 422
@@ -561,7 +561,7 @@ func TestFieldDefinitions_WorkspaceIsolation(t *testing.T) {
 	// u2 cannot see it
 	resp, _ := env.app.Test(authRequest(http.MethodGet, "/api/v1/field-definitions?scope=asset", nil, u2.Cookie))
 	var list []map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&list)
+	_ = json.NewDecoder(resp.Body).Decode(&list)
 	if len(list) != 0 {
 		t.Fatalf("isolation: u2 should not see u1's field definitions, got %d", len(list))
 	}
