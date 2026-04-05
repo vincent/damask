@@ -69,25 +69,9 @@ func shareToResponse(s dbgen.Share, baseURL string) shareResponse {
 func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var body struct {
-		Label         string  `json:"label"`
-		TargetType    string  `json:"target_type"`
-		TargetID      string  `json:"target_id"`
-		Password      *string `json:"password"`
-		ExpiresInDays *int    `json:"expires_in_days"`
-		AllowComments bool    `json:"allow_comments"`
-		AllowDownload *bool   `json:"allow_download"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-
-	validTargetTypes := map[string]bool{"collection": true, "asset": true, "project": true}
-	if !validTargetTypes[body.TargetType] {
-		return errRes(c, fiber.StatusBadRequest, "target_type must be one of: collection, asset, project")
-	}
-	if body.TargetID == "" {
-		return errRes(c, fiber.StatusBadRequest, "target_id is required")
+	body, ok := decodeAndValidate(c, &createShareRequest{})
+	if !ok {
+		return nil
 	}
 
 	// Validate target belongs to workspace
@@ -247,17 +231,9 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load share")
 	}
 
-	var body struct {
-		Label         *string `json:"label"`
-		Password      *string `json:"password"`       // empty string = remove password
-		ClearPassword *bool   `json:"clear_password"` // explicit flag to remove password
-		ExpiresAt     *string `json:"expires_at"`     // ISO string or null to clear
-		ClearExpiry   *bool   `json:"clear_expiry"`
-		AllowComments *bool   `json:"allow_comments"`
-		AllowDownload *bool   `json:"allow_download"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	body, ok := decodeAndValidate(c, &updateShareRequest{})
+	if !ok {
+		return nil
 	}
 
 	// Resolve label

@@ -455,8 +455,8 @@ func TestShareCreateComment_MissingAuthorName(t *testing.T) {
 	body := fmt.Sprintf(`{"asset_id":%q,"body":"Hi"}`, assetID)
 	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.app.Test(req)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

@@ -80,8 +80,8 @@ func TestCreateIngressSource_MissingType(t *testing.T) {
 	req := authRequest(http.MethodPost, "/api/v1/ingress/sources",
 		jsonStr(`{"label":"No type","config":{}}`), user.Cookie)
 	resp, _ := env.app.Test(req)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400 for missing type, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for missing type, got %d", resp.StatusCode)
 	}
 }
 
@@ -92,8 +92,8 @@ func TestCreateIngressSource_MissingLabel(t *testing.T) {
 	req := authRequest(http.MethodPost, "/api/v1/ingress/sources",
 		jsonStr(`{"type":"imap","config":{}}`), user.Cookie)
 	resp, _ := env.app.Test(req)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400 for missing label, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for missing label, got %d", resp.StatusCode)
 	}
 }
 
@@ -799,8 +799,8 @@ func TestCreateIngressRule_MissingFields(t *testing.T) {
 	req := authRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
 		jsonStr(`{"position":0,"field":"filename"}`), user.Cookie)
 	resp, _ := env.app.Test(req)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400 for missing fields, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for missing fields, got %d", resp.StatusCode)
 	}
 }
 

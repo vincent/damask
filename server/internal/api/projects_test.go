@@ -71,8 +71,8 @@ func TestCreateProject_MissingName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

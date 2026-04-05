@@ -89,14 +89,9 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	var body struct {
-		Values []fieldValueInput `json:"values"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if len(body.Values) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "values is required")
+	body, ok := decodeAndValidate(c, &patchProjectFieldsRequest{})
+	if !ok {
+		return nil
 	}
 
 	// Validate all fields must be scope=project

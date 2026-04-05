@@ -469,20 +469,11 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 
 // handleBulkTag adds a tag to multiple assets at once.
 func (s *Server) handleBulkTag(c fiber.Ctx) error {
+	body, ok := decodeAndValidate(c, &BulkTagRequest{})
+	if !ok {
+		return nil
+	}
 	claims := auth.GetClaims(c)
-
-	var body struct {
-		AssetIDs []string `json:"asset_ids"`
-		TagName  string   `json:"tag_name"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	body.TagName = strings.TrimSpace(strings.ToLower(body.TagName))
-	if body.TagName == "" || len(body.AssetIDs) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "asset_ids and tag_name are required")
-	}
-
 	tag, err := s.db.GetOrCreateTag(c.RequestCtx(), dbgen.GetOrCreateTagParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: claims.WorkspaceID,
@@ -512,15 +503,9 @@ func (s *Server) handleBulkTag(c fiber.Ctx) error {
 func (s *Server) handleBulkProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var body struct {
-		AssetIDs  []string `json:"asset_ids"`
-		ProjectID *string  `json:"project_id"` // null = unassign
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if len(body.AssetIDs) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "asset_ids is required")
+	body, ok := decodeAndValidate(c, &bulkProjectRequest{})
+	if !ok {
+		return nil
 	}
 
 	// If project_id provided, verify it belongs to workspace
@@ -619,6 +604,11 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
+	body, ok := decodeAndValidate(c, &updateAssetFolderRequest{})
+	if !ok {
+		return nil
+	}
+
 	// Verify asset exists in workspace
 	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
@@ -628,13 +618,6 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
-	}
-
-	var body struct {
-		FolderID *string `json:"folder_id"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
 	var folderID *string
@@ -676,14 +659,9 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var body struct {
-		AssetIDs []string `json:"asset_ids"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if len(body.AssetIDs) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "asset_ids is required")
+	body, ok := decodeAndValidate(c, &bulkDeleteRequest{})
+	if !ok {
+		return nil
 	}
 
 	for _, assetID := range body.AssetIDs {

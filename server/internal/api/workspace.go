@@ -49,10 +49,6 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 	return c.JSON(workspaceMeResponse{Workspace: workspace, User: userToResponse(user), Role: member.Role})
 }
 
-type createWorkspaceRequest struct {
-	Name string `json:"name"`
-}
-
 func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -64,12 +60,9 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load user")
 	}
 
-	var req createWorkspaceRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.Name == "" {
-		return errRes(c, fiber.StatusBadRequest, "name is required")
+	req, ok := decodeAndValidate(c, &createWorkspaceRequest{})
+	if !ok {
+		return nil
 	}
 
 	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
@@ -92,11 +85,6 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(authResponse{Workspace: workspace})
 }
 
-type createInviteRequest struct {
-	Email string `json:"email"`
-	Role  string `json:"role"` // "editor" or "viewer"
-}
-
 type inviteResponse struct {
 	ID          string `json:"id"`
 	InviteToken string `json:"invite_token"`
@@ -107,18 +95,9 @@ type inviteResponse struct {
 func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var req createInviteRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.Email == "" {
-		return errRes(c, fiber.StatusBadRequest, "email is required")
-	}
-	if req.Role == "" {
-		req.Role = "editor"
-	}
-	if req.Role != "editor" && req.Role != "viewer" {
-		return errRes(c, fiber.StatusBadRequest, "role must be editor or viewer")
+	req, ok := decodeAndValidate(c, &createInviteRequest{})
+	if !ok {
+		return nil
 	}
 
 	invite, err := s.db.CreateInvite(c.RequestCtx(), dbgen.CreateInviteParams{
@@ -142,22 +121,10 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 	})
 }
 
-type acceptInviteRequest struct {
-	Token    string `json:"token"`
-	Name     string `json:"name"`
-	Password string `json:"password"`
-}
-
 func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
-	var req acceptInviteRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.Token == "" || req.Name == "" || req.Password == "" {
-		return errRes(c, fiber.StatusBadRequest, "token, name and password are required")
-	}
-	if len(req.Password) < 8 {
-		return errRes(c, fiber.StatusBadRequest, "password must be at least 8 characters")
+	req, ok := decodeAndValidate(c, &acceptInviteRequest{})
+	if !ok {
+		return nil
 	}
 
 	invite, err := s.db.GetInviteByToken(c.RequestCtx(), req.Token)
@@ -244,10 +211,6 @@ func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
-type switchWorkspaceRequest struct {
-	WorkspaceID string `json:"workspace_id"`
-}
-
 type switchWorkspaceResponse struct {
 	Token     string          `json:"token"`
 	Workspace dbgen.Workspace `json:"workspace"`
@@ -257,12 +220,9 @@ type switchWorkspaceResponse struct {
 func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var req switchWorkspaceRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.WorkspaceID == "" {
-		return errRes(c, fiber.StatusBadRequest, "workspace_id is required")
+	req, ok := decodeAndValidate(c, &switchWorkspaceRequest{})
+	if !ok {
+		return nil
 	}
 
 	member, err := s.db.GetMember(c.RequestCtx(), dbgen.GetMemberParams{

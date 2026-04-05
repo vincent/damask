@@ -19,34 +19,6 @@ import (
 
 // -- Request / response types
 
-type ingressRuleReq struct {
-	Position int64  `json:"position"`
-	Field    string `json:"field"`
-	Operator string `json:"operator"`
-	Value    string `json:"value"`
-	Action   string `json:"action"`
-}
-
-type createIngressSourceReq struct {
-	Type            string           `json:"type"`
-	Label           string           `json:"label"`
-	Config          map[string]any   `json:"config"`
-	DestFolderID    *string          `json:"dest_folder_id"`
-	DestProjectID   *string          `json:"dest_project_id"`
-	Enabled         *bool            `json:"enabled"`
-	PollIntervalMin int64            `json:"poll_interval_min"`
-	Rules           []ingressRuleReq `json:"rules"`
-}
-
-type updateIngressSourceReq struct {
-	Label           string           `json:"label"`
-	Config          map[string]any   `json:"config"`
-	DestFolderID    *json.RawMessage `json:"dest_folder_id"`
-	DestProjectID   *json.RawMessage `json:"dest_project_id"`
-	Enabled         *bool            `json:"enabled"`
-	PollIntervalMin int64            `json:"poll_interval_min"`
-}
-
 // rawToNullableString converts a *json.RawMessage field to *string.
 // Returns (nil, false) when the field was absent (pointer is nil).
 // Returns (nil, true) when the field was explicitly JSON null → clear the value.
@@ -169,11 +141,6 @@ type ingressRuleResponse struct {
 	Action   string `json:"action"`
 }
 
-type reorderRuleEntry struct {
-	ID       string `json:"id"`
-	Position int64  `json:"position"`
-}
-
 func ruleToResponse(r dbgen.IngressRule) ingressRuleResponse {
 	return ingressRuleResponse{
 		ID:       r.ID,
@@ -227,12 +194,9 @@ func (s *Server) handleCreateIngressRule(c fiber.Ctx) error {
 	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
 		return nil
 	}
-	var req ingressRuleReq
-	if err := c.Bind().JSON(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.Field == "" || req.Operator == "" || req.Value == "" || req.Action == "" {
-		return errRes(c, fiber.StatusBadRequest, "field, operator, value and action are required")
+	req, ok := decodeAndValidate(c, &ingressRuleReq{})
+	if !ok {
+		return nil
 	}
 	r, err := s.db.CreateIngressRule(c.Context(), dbgen.CreateIngressRuleParams{
 		ID:       uuid.NewString(),
@@ -376,15 +340,9 @@ func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var req createIngressSourceReq
-	if err := c.Bind().JSON(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.Type == "" {
-		return errRes(c, fiber.StatusBadRequest, "type is required")
-	}
-	if req.Label == "" {
-		return errRes(c, fiber.StatusBadRequest, "label is required")
+	req, ok := decodeAndValidate(c, &createIngressSourceReq{})
+	if !ok {
+		return nil
 	}
 
 	interval := req.PollIntervalMin
@@ -513,9 +471,9 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not get source")
 	}
 
-	var req updateIngressSourceReq
-	if err := c.Bind().JSON(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	req, ok := decodeAndValidate(c, &updateIngressSourceReq{})
+	if !ok {
+		return nil
 	}
 
 	interval := req.PollIntervalMin

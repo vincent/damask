@@ -77,47 +77,13 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var body struct {
-		Scope              string  `json:"scope"`
-		Name               string  `json:"name"`
-		Key                string  `json:"key"`
-		FieldType          string  `json:"field_type"`
-		Options            *string `json:"options"`
-		Required           bool    `json:"required"`
-		Position           int64   `json:"position"`
-		InheritFromProject bool    `json:"inherit_from_project"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	body, ok := decodeAndValidate(c, &createFieldDefinitionRequest{})
+	if !ok {
+		return nil
 	}
 
-	body.Name = strings.TrimSpace(body.Name)
-	if body.Name == "" {
-		return errRes(c, fiber.StatusBadRequest, "name is required")
-	}
-	if body.Scope != "asset" && body.Scope != "project" {
-		return errRes(c, fiber.StatusBadRequest, "scope must be 'asset' or 'project'")
-	}
-
-	validTypes := map[string]bool{"text": true, "number": true, "date": true, "boolean": true, "select": true, "url": true}
-	if !validTypes[body.FieldType] {
-		return errRes(c, fiber.StatusBadRequest, "field_type must be one of: text, number, date, boolean, select, url")
-	}
-
-	if !keyRegexp.MatchString(body.Key) {
-		return errRes(c, fiber.StatusBadRequest, "key must match /^[a-z0-9_]+$/")
-	}
-
-	// Validate options
-	if body.FieldType == "select" {
-		if body.Options == nil || *body.Options == "" {
-			return errRes(c, fiber.StatusBadRequest, "options is required for select fields")
-		}
-		var opts []string
-		if err := json.Unmarshal([]byte(*body.Options), &opts); err != nil || len(opts) == 0 {
-			return errRes(c, fiber.StatusBadRequest, "options must be a non-empty JSON array of strings")
-		}
-	} else {
+	// Clear options for non-select types
+	if body.FieldType != "select" {
 		body.Options = nil
 	}
 
@@ -217,6 +183,11 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
+	body, ok := decodeAndValidate(c, &updateFieldDefinitionRequest{})
+	if !ok {
+		return nil
+	}
+
 	existing, err := s.db.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
@@ -229,19 +200,6 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	}
 	if existing.DeletedAt != nil {
 		return errRes(c, fiber.StatusNotFound, "field definition not found")
-	}
-
-	var body struct {
-		Name               *string `json:"name"`
-		Key                *string `json:"key"`
-		FieldType          *string `json:"field_type"`
-		Options            *string `json:"options"`
-		Required           *bool   `json:"required"`
-		Position           *int64  `json:"position"`
-		InheritFromProject *bool   `json:"inherit_from_project"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
 	// key and field_type are immutable
@@ -333,18 +291,12 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var body []struct {
-		ID       string `json:"id"`
-		Position int64  `json:"position"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if len(body) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "at least one item required")
+	body, ok := decodeAndValidate(c, &reorderFieldDefinitionsRequest{})
+	if !ok {
+		return nil
 	}
 
-	for _, item := range body {
+	for _, item := range body.Items {
 		// Best-effort — skip items not in this workspace
 		_ = s.db.UpdateFieldDefinitionPosition(c.RequestCtx(), dbgen.UpdateFieldDefinitionPositionParams{
 			Position:    item.Position,

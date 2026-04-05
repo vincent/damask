@@ -91,12 +91,9 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	var body struct {
-		Type   string          `json:"type"`
-		Params json.RawMessage `json:"params"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	body, ok := decodeAndValidate(c, &createVariantRequest{})
+	if !ok {
+		return nil
 	}
 
 	validTypes := map[string]bool{

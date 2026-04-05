@@ -81,8 +81,8 @@ func TestRegister_InvalidBody(t *testing.T) {
 			if err != nil {
 				t.Fatalf("request: %v", err)
 			}
-			if resp.StatusCode != http.StatusBadRequest {
-				t.Fatalf("expected 400, got %d", resp.StatusCode)
+			if resp.StatusCode != http.StatusUnprocessableEntity {
+				t.Fatalf("expected 422, got %d", resp.StatusCode)
 			}
 		})
 	}

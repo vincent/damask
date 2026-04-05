@@ -115,8 +115,8 @@ func TestFieldDefinitions_SelectValidation(t *testing.T) {
 	// select without options → 400
 	resp, _ := env.app.Test(authRequest(http.MethodPost, "/api/v1/field-definitions",
 		jsonStr(`{"scope":"asset","name":"Status","key":"status","field_type":"select"}`), u.Cookie))
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("select no options: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("select no options: expected 422, got %d", resp.StatusCode)
 	}
 
 	// select with valid options → 201
@@ -133,8 +133,8 @@ func TestFieldDefinitions_InvalidKey(t *testing.T) {
 
 	resp, _ := env.app.Test(authRequest(http.MethodPost, "/api/v1/field-definitions",
 		jsonStr(`{"scope":"asset","name":"Bad Key","key":"Bad Key!","field_type":"text"}`), u.Cookie))
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("bad key: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("bad key: expected 422, got %d", resp.StatusCode)
 	}
 }
 

@@ -53,17 +53,9 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	var body struct {
-		Name     string  `json:"name"`
-		ParentID *string `json:"parent_id"`
-		Position int64   `json:"position"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	body.Name = strings.TrimSpace(body.Name)
-	if body.Name == "" {
-		return errRes(c, fiber.StatusBadRequest, "name is required")
+	body, ok := decodeAndValidate(c, &createFolderRequest{})
+	if !ok {
+		return nil
 	}
 
 	var parentID *string
@@ -223,20 +215,9 @@ func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load folder")
 	}
 
-	var body struct {
-		Name     *string `json:"name"`
-		Position *int64  `json:"position"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-
-	if body.Name != nil {
-		trimmed := strings.TrimSpace(*body.Name)
-		if trimmed == "" {
-			return errRes(c, fiber.StatusBadRequest, "name cannot be empty")
-		}
-		body.Name = &trimmed
+	body, ok := decodeAndValidate(c, &updateFolderRequest{})
+	if !ok {
+		return nil
 	}
 
 	folder, err := s.db.UpdateFolder(c.RequestCtx(), dbgen.UpdateFolderParams{

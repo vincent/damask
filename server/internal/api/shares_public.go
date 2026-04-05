@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"damask/server/internal/auth"
@@ -111,11 +110,9 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 		return err
 	}
 
-	// Parse optional password
-	var body struct {
-		Password string `json:"password"`
-	}
-	_ = c.Bind().Body(&body) // body is optional
+	// Parse optional password (errors ignored — body is optional)
+	body := &shareAccessRequest{}
+	_ = c.Bind().Body(body)
 
 	// Check password
 	if share.PasswordHash != nil {
@@ -370,23 +367,9 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 		return err
 	}
 
-	var body struct {
-		AssetID     string  `json:"asset_id"`
-		AuthorName  string  `json:"author_name"`
-		AuthorEmail *string `json:"author_email"`
-		Body        string  `json:"body"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if strings.TrimSpace(body.AuthorName) == "" {
-		return errRes(c, fiber.StatusBadRequest, "author_name is required")
-	}
-	if strings.TrimSpace(body.Body) == "" {
-		return errRes(c, fiber.StatusBadRequest, "body is required")
-	}
-	if body.AssetID == "" {
-		return errRes(c, fiber.StatusBadRequest, "asset_id is required")
+	body, ok := decodeAndValidate(c, &createCommentRequest{})
+	if !ok {
+		return nil
 	}
 
 	// Confirm asset belongs to the share

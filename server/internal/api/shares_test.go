@@ -111,8 +111,8 @@ func TestCreateShare_InvalidTargetType(t *testing.T) {
 	req := authRequest(http.MethodPost, "/api/v1/shares",
 		jsonStr(`{"target_type":"unknown","target_id":"abc"}`), owner.Cookie)
 	resp, _ := env.app.Test(req)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

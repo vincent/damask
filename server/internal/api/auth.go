@@ -24,17 +24,6 @@ func bcryptHash(password string) (string, error) {
 	return string(hash), nil
 }
 
-type registerRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 // userResponse omits the password hash from JSON output.
 type userResponse struct {
 	ID        string    `json:"id"`
@@ -59,15 +48,9 @@ func userToResponse(u dbgen.User) userResponse {
 }
 
 func (s *Server) handleRegister(c fiber.Ctx) error {
-	var req registerRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.Email == "" || req.Password == "" || req.Name == "" {
-		return errRes(c, fiber.StatusBadRequest, "name, email and password are required")
-	}
-	if len(req.Password) < 8 {
-		return errRes(c, fiber.StatusBadRequest, "password must be at least 8 characters")
+	req, ok := decodeAndValidate(c, &registerRequest{})
+	if !ok {
+		return nil
 	}
 
 	hash, err := bcryptHash(req.Password)
@@ -124,12 +107,9 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 // // @Success 200 {object} AuthResponse
 // @Router /login [post]
 func (s *Server) handleLogin(c fiber.Ctx) error {
-	var req loginRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if req.Email == "" || req.Password == "" {
-		return errRes(c, fiber.StatusBadRequest, "email and password are required")
+	req, ok := decodeAndValidate(c, &loginRequest{})
+	if !ok {
+		return nil
 	}
 
 	user, err := s.db.GetUserByEmail(c.RequestCtx(), req.Email)

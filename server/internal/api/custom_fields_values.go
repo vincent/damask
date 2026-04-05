@@ -209,14 +209,9 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	var body struct {
-		Values []fieldValueInput `json:"values"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if len(body.Values) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "values is required")
+	body, ok := decodeAndValidate(c, &patchAssetFieldsRequest{})
+	if !ok {
+		return nil
 	}
 
 	// Validate all first, then write
@@ -274,18 +269,9 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var body struct {
-		AssetIDs []string         `json:"asset_ids"`
-		Values   []fieldValueInput `json:"values"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	if len(body.AssetIDs) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "asset_ids is required")
-	}
-	if len(body.Values) == 0 {
-		return errRes(c, fiber.StatusBadRequest, "values is required")
+	body, ok := decodeAndValidate(c, &bulkPatchAssetFieldsRequest{})
+	if !ok {
+		return nil
 	}
 
 	// Validate values once (same fields for all assets)

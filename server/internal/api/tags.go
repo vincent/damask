@@ -64,15 +64,9 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	var body struct {
-		Name string `json:"name"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	body.Name = strings.TrimSpace(strings.ToLower(body.Name))
-	if body.Name == "" {
-		return errRes(c, fiber.StatusBadRequest, "name is required")
+	body, ok := decodeAndValidate(c, &addTagRequest{})
+	if !ok {
+		return nil
 	}
 
 	// Verify asset belongs to workspace

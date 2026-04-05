@@ -3,7 +3,6 @@ package api
 import (
 	"database/sql"
 	"errors"
-	"strings"
 	"time"
 
 	"damask/server/internal/auth"
@@ -42,17 +41,9 @@ func projectToResponse(p dbgen.Project, assetCount int64) projectResponse {
 func (s *Server) handleCreateProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	var body struct {
-		Name        string  `json:"name"`
-		Description *string `json:"description"`
-		Color       *string `json:"color"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-	body.Name = strings.TrimSpace(body.Name)
-	if body.Name == "" {
-		return errRes(c, fiber.StatusBadRequest, "name is required")
+	body, ok := decodeAndValidate(c, &createProjectRequest{})
+	if !ok {
+		return nil
 	}
 
 	p, err := s.db.CreateProject(c.RequestCtx(), dbgen.CreateProjectParams{
@@ -141,22 +132,9 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	var body struct {
-		Name         *string `json:"name"`
-		Description  *string `json:"description"`
-		Color        *string `json:"color"`
-		CoverAssetID *string `json:"cover_asset_id"`
-	}
-	if err := c.Bind().Body(&body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
-	}
-
-	if body.Name != nil {
-		trimmed := strings.TrimSpace(*body.Name)
-		if trimmed == "" {
-			return errRes(c, fiber.StatusBadRequest, "name cannot be empty")
-		}
-		body.Name = &trimmed
+	body, ok := decodeAndValidate(c, &updateProjectRequest{})
+	if !ok {
+		return nil
 	}
 
 	p, err := s.db.UpdateProject(c.RequestCtx(), dbgen.UpdateProjectParams{
