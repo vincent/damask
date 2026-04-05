@@ -16,6 +16,9 @@
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
+  import ProjectInfoPanel from '$lib/components/ProjectInfoPanel.svelte'
+  import TagFilterBar from '$lib/components/TagFilterBar.svelte'
+  import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
   import { goto } from '$app/navigation'
 
@@ -167,6 +170,20 @@
   bind:asc
   showShareButton={!!activeProject}
   onShareProject={() => { showProjectShareModal = true }}
+/>
+
+{#if activeProject}
+  <ProjectInfoPanel project={activeProject} />
+{/if}
+
+<TagFilterBar
+  activeTags={assetsStore.activeTags}
+  onchange={(tags) => assetsStore.setActiveTags(tags)}
+/>
+
+<CustomFieldFilters
+  activeFilters={assetsStore.fieldFilters}
+  onchange={(filters) => assetsStore.setFieldFilters(filters)}
 />
 
 {#if zoomOverlay}

@@ -186,6 +186,8 @@ func fieldFilterSQL(f fieldFilter) (expr string) {
 }
 
 // fieldFilterValue transforms the user-supplied value for the SQL operator.
+// Boolean fields are stored as INTEGER (1/0) in SQLite, so "true"/"false" must
+// be normalised to "1"/"0" so that the COALESCE comparison works correctly.
 func fieldFilterValue(f fieldFilter) interface{} {
 	switch f.operator {
 	case "contains":
@@ -193,7 +195,14 @@ func fieldFilterValue(f fieldFilter) interface{} {
 	case "starts_with":
 		return f.value + "%"
 	default:
-		return f.value
+		v := f.value
+		switch strings.ToLower(v) {
+		case "true":
+			v = "1"
+		case "false":
+			v = "0"
+		}
+		return v
 	}
 }
 

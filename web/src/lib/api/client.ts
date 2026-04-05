@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldValue, AssetFieldsResponse, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, Project, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AssetFieldsResponse, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, Project, ProjectFieldsResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -227,6 +227,7 @@ export const assetApi = {
     mime?: string
     tags?: string[]
     folder_id?: string
+    fieldFilters?: FieldFilter[]
   } = {}): Promise<AssetListResponse> {
     const qs = new URLSearchParams()
     if (params.sortKey) qs.set('sort', `${params.sortKey}_${params.sortAsc ? 'asc' : 'desc'}`)
@@ -237,6 +238,12 @@ export const assetApi = {
     if (params.mime) qs.set('mime', params.mime)
     if (params.tags && params.tags.length > 0) qs.set('tags', params.tags.join(','))
     if (params.folder_id) qs.set('folder_id', params.folder_id)
+    if (params.fieldFilters) {
+      for (const f of params.fieldFilters) {
+        const paramKey = f.op === 'eq' ? `field[${f.key}]` : `field[${f.key}][${f.op}]`
+        qs.set(paramKey, f.value)
+      }
+    }
     const query = qs.toString()
     return apiFetch<AssetListResponse>(`/api/v1/assets${query ? '?' + query : ''}`)
   },
@@ -318,6 +325,17 @@ export const assetFieldApi = {
 
   patch: (assetId: string, values: { field_id: string; value: string | number | boolean | null }[]) =>
     apiFetch<AssetFieldsResponse>(`/api/v1/assets/${assetId}/fields`, {
+      method: 'PATCH',
+      body: JSON.stringify({ values }),
+    }),
+}
+
+export const projectFieldApi = {
+  get: (projectId: string) =>
+    apiFetch<ProjectFieldsResponse>(`/api/v1/projects/${projectId}/fields`),
+
+  patch: (projectId: string, values: { field_id: string; value: string | number | boolean | null }[]) =>
+    apiFetch<ProjectFieldsResponse>(`/api/v1/projects/${projectId}/fields`, {
       method: 'PATCH',
       body: JSON.stringify({ values }),
     }),

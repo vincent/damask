@@ -313,3 +313,24 @@ export interface AssetFieldValue {
 export interface AssetFieldsResponse {
   fields: AssetFieldValue[]
 }
+
+export type FieldFilterOp = 'eq' | 'lt' | 'lte' | 'gt' | 'gte' | 'contains' | 'starts_with'
+
+export interface FieldFilter {
+  key: string
+  op: FieldFilterOp
+  value: string
+}
+
+export interface ProjectFieldValue {
+  field_id: string
+  key: string
+  name: string
+  field_type: FieldType
+  value: string | number | boolean | null
+  definition_deleted: boolean
+}
+
+export interface ProjectFieldsResponse {
+  fields: ProjectFieldValue[]
+}

@@ -1,4 +1,5 @@
 import { assetApi, mimeCategory, openThumbnailEvents, type Asset } from '$lib/api'
+import type { FieldFilter } from '$lib/api/models'
 import { navigationStore } from './navigation.svelte'
 import { uploadsStore } from './uploads.svelte'
 
@@ -11,6 +12,7 @@ let activeTags = $state<string[]>([])
 
 let sortKey = $state('date_created')
 let sortAsc = $state(false)
+let fieldFilters = $state<FieldFilter[]>([])
 let generation = 0
 let resetDone = $state(0)
 
@@ -95,6 +97,7 @@ export const assetsStore = {
   get query() { return query },
   set query(v: string) { query = v },
   get activeTags() { return activeTags },
+  get fieldFilters() { return fieldFilters },
   get assetsByCategory() { return assetsByCategory },
   get resetDone() { return resetDone },
 
@@ -115,6 +118,7 @@ export const assetsStore = {
         project_id: navigationStore.activeProjectId ?? undefined,
         tags: activeTags.length > 0 ? activeTags : undefined,
         folder_id: navigationStore.activeFolderId ?? undefined,
+        fieldFilters: fieldFilters.length > 0 ? fieldFilters : undefined,
         limit: 20,
       })
       if (myGen !== generation) return
@@ -145,6 +149,12 @@ export const assetsStore = {
 
   setActiveTags(tags: string[]) {
     activeTags = tags
+    nextCursor = null
+    assetsStore.load(true)
+  },
+
+  setFieldFilters(filters: FieldFilter[]) {
+    fieldFilters = filters
     nextCursor = null
     assetsStore.load(true)
   },

@@ -34,7 +34,7 @@
   }
 
   function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('en-CA')
+    return new Date(iso).toLocaleDateString()
   }
 </script>
 

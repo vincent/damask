@@ -61,7 +61,7 @@
     {#each allTags as tag}
       {#if !activeTags.includes(tag.name)}
         <button
-          class="rounded-full border border-gray-200 px-2.5 py-0.5 text-xs text-gray-600 hover:border-blue-400 hover:text-blue-700 transition-colors"
+          class="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-600 hover:border-blue-400 hover:text-blue-700 transition-colors"
           onclick={(e) => toggle(tag.name, e)}
           title="Shift+click to add to filter"
         >

@@ -64,7 +64,7 @@
   }
 
   function formatDate(iso: string) {
-    return new Date(iso).toLocaleString('en-CA', { dateStyle: 'short', timeStyle: 'short' })
+    return new Date(iso).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })
   }
 
   // --- Rules tab ---
