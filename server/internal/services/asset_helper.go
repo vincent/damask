@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,19 +27,11 @@ type FileMeta struct {
 	DurationSec *float64
 }
 
-type variantJobPayload struct {
-	AssetID     string          `json:"asset_id"`
-	WorkspaceID string          `json:"workspace_id"`
-	StorageKey  string          `json:"storage_key"`
-	MimeType    string          `json:"mime_type"`
-	Type        string          `json:"type"`
-	Params      json.RawMessage `json:"params"`
-}
-
 type thumbnailJobPayload struct {
 	AssetID     string `json:"asset_id"`
 	WorkspaceID string `json:"workspace_id"`
 	StorageKey  string `json:"storage_key"`
+	MimeType    string `json:"mime_type"`
 }
 
 // -- Media Handler Interface

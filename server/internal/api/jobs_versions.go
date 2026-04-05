@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
-	"damask/server/internal/transform"
 )
 
 // versionThumbnailJobPayload is the payload for version-specific thumbnail generation.
@@ -37,35 +35,12 @@ func (s *Server) jobVersionThumbnail(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
-	rc, err := s.storage.Get(p.StorageKey)
+	thumbData, thumbExt, err := s.generateThumbnailData(ctx, p.MimeType, p.StorageKey)
 	if err != nil {
-		return fmt.Errorf("get file: %w", err)
+		return fmt.Errorf("generate thumbnail: %w", err)
 	}
-	defer rc.Close()
-
-	var thumbData []byte
-	var thumbExt string
-
-	switch {
-	case isImageMime(p.MimeType):
-		data, _, tErr := transform.Resize(rc, transform.ResizeParams{
-			Width:   400,
-			Height:  400,
-			Fit:     "contain",
-			Quality: 85,
-			Format:  "jpeg",
-		})
-		if tErr != nil {
-			return fmt.Errorf("resize: %w", tErr)
-		}
-		thumbData = data
-		thumbExt = ".jpg"
-
-	default:
-		// For non-image types (video, PDF, audio) we skip version-specific
-		// thumbnail generation here — the existing variant jobs handle those.
-		log.Printf("version thumbnail: unsupported MIME %s for version %s", p.MimeType, p.VersionID)
-		return nil
+	if thumbData == nil {
+		return nil // unsupported or skipped (e.g. no ffmpeg)
 	}
 
 	thumbKey := fmt.Sprintf("%s/%s/versions/%s/thumb%s", p.WorkspaceID, p.AssetID, p.VersionID, thumbExt)
@@ -73,7 +48,6 @@ func (s *Server) jobVersionThumbnail(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("store thumb: %w", err)
 	}
 
-	// Update the version row's thumbnail_key.
 	if err := s.db.SetVersionThumbnail(ctx, dbgen.SetVersionThumbnailParams{
 		ThumbnailKey: &thumbKey,
 		ID:           p.VersionID,
@@ -98,4 +72,3 @@ func (s *Server) jobVersionThumbnail(ctx context.Context, job dbgen.Job) error {
 
 	return nil
 }
-

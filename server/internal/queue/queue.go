@@ -173,21 +173,26 @@ func (q *Queue) processNext(ctx context.Context) {
 
 // Job type constants used throughout the application.
 const (
-	JobTypeImageThumbnail = "image_thumbnail"
-	JobTypeImageResize    = "image_resize"
-	JobTypeImageConvert   = "image_convert"
-	JobTypeImageCrop      = "image_crop"
-	JobTypeImageWatermark = "image_watermark"
-	JobTypeImageBgRemove  = "image_bg_remove"
-	JobTypeImageSmartCrop = "image_smartcrop"
-	JobTypeVideoThumbnail = "video_thumbnail"
-	JobTypeVideoTranscode = "video_transcode"
-	JobTypeAudioWaveform  = "audio_waveform"
-	JobTypePdfThumbnail   = "pdf_thumbnail"
-	JobTypeIngestPoll               = "ingest_poll"
-	JobTypeIngestFetch              = "ingest_fetch"
-	JobTypePurgeDeletedFields       = "purge_deleted_fields"
-	JobTypeVersionThumbnail         = "version_thumbnail"
-	JobTypeEnforceVersionRetention  = "enforce_version_retention"
-	JobTypePurgeVersionStorage      = "purge_version_storage"
+	// Thumbnail jobs — one unified handler per context (asset upload, version upload).
+	JobTypeAssetThumbnail   = "asset_thumbnail"
+	JobTypeVersionThumbnail = "version_thumbnail"
+
+	// Variant jobs — user-triggered, each creates a variants row.
+	JobTypeVideoCaptureImage = "video_capture_image"
+	JobTypeVideoTranscode    = "video_transcode"
+	JobTypeImageResize       = "image_resize"
+	JobTypeImageConvert      = "image_convert"
+	JobTypeImageCrop         = "image_crop"
+	JobTypeImageWatermark    = "image_watermark"
+	JobTypeImageBgRemove     = "image_bg_remove"
+	JobTypeImageSmartCrop    = "image_smartcrop"
+
+	// Ingress jobs.
+	JobTypeIngestPoll  = "ingest_poll"
+	JobTypeIngestFetch = "ingest_fetch"
+
+	// Maintenance jobs.
+	JobTypePurgeDeletedFields      = "purge_deleted_fields"
+	JobTypeEnforceVersionRetention = "enforce_version_retention"
+	JobTypePurgeVersionStorage     = "purge_version_storage"
 )

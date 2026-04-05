@@ -97,20 +97,20 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	}
 
 	validTypes := map[string]bool{
-		queue.JobTypeImageResize:    true,
-		queue.JobTypeImageWatermark: true,
-		queue.JobTypeImageConvert:   true,
-		queue.JobTypeImageCrop:      true,
-		queue.JobTypeVideoThumbnail: true,
-		queue.JobTypeVideoTranscode: true,
-		queue.JobTypeImageBgRemove:  true,
-		queue.JobTypeImageSmartCrop: true,
+		queue.JobTypeImageResize:      true,
+		queue.JobTypeImageWatermark:   true,
+		queue.JobTypeImageConvert:     true,
+		queue.JobTypeImageCrop:        true,
+		queue.JobTypeVideoCaptureImage: true,
+		queue.JobTypeVideoTranscode:   true,
+		queue.JobTypeImageBgRemove:    true,
+		queue.JobTypeImageSmartCrop:   true,
 	}
 	if !validTypes[body.Type] {
 		return errRes(c, fiber.StatusBadRequest, "invalid variant type")
 	}
 
-	if (body.Type == queue.JobTypeVideoThumbnail || body.Type == queue.JobTypeVideoTranscode) &&
+	if (body.Type == queue.JobTypeVideoCaptureImage || body.Type == queue.JobTypeVideoTranscode) &&
 		!strings.HasPrefix(asset.MimeType, "video/") {
 		return errRes(c, fiber.StatusBadRequest, "video transforms require a video asset")
 	}

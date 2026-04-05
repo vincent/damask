@@ -37,16 +37,6 @@ func (s *FieldCleanupScheduler) Start(ctx context.Context) {
 	}()
 }
 
-// nextDaily returns the next occurrence of hour:min UTC on or after now.
-func nextDaily(hour, min int) time.Time {
-	now := time.Now().UTC()
-	next := time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, time.UTC)
-	if !next.After(now) {
-		next = next.Add(24 * time.Hour)
-	}
-	return next
-}
-
 // jobPurgeDeletedFields hard-deletes field_definitions (and their values) that
 // have been soft-deleted for more than 30 days.
 func (s *Server) jobPurgeDeletedFields(ctx context.Context, job dbgen.Job) error {

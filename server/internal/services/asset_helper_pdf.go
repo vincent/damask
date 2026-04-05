@@ -21,13 +21,12 @@ func (h PdfHandler) ExtractMeta(ctx context.Context, filePath string) (FileMeta,
 }
 
 func (h PdfHandler) EnqueueJobs(ctx context.Context, qu *queue.Queue, asset dbgen.Asset) error {
-	payload, _ := json.Marshal(variantJobPayload{
+	payload, _ := json.Marshal(thumbnailJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,
 		StorageKey:  asset.StorageKey,
 		MimeType:    asset.MimeType,
-		Type:        "audio_waveform",
 	})
-	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypePdfThumbnail, string(payload))
+	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeAssetThumbnail, string(payload))
 	return err
 }

@@ -35,15 +35,13 @@ func (h VideoHandler) ExtractMeta(ctx context.Context, filePath string) (FileMet
 }
 
 func (h VideoHandler) EnqueueJobs(ctx context.Context, qu *queue.Queue, asset dbgen.Asset) error {
-	params, _ := json.Marshal(transform.VideoThumbnailParams{Timestamp: 1.0})
-
-	payload, _ := json.Marshal(variantJobPayload{
+	payload, _ := json.Marshal(thumbnailJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,
 		StorageKey:  asset.StorageKey,
-		Params:      params,
+		MimeType:    asset.MimeType,
 	})
 
-	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVideoThumbnail, string(payload))
+	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeAssetThumbnail, string(payload))
 	return err
 }
