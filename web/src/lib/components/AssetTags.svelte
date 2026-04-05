@@ -71,14 +71,16 @@
 
         {#if authStore.role !== 'viewer'}
             {#if showTagInput}
-                <div class="relative">
+                <div
+                    class="relative"
+                    onfocusout={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { showTagInput = false; tagSuggestions = [] } }}
+                >
                     <form onsubmit={(e) => { e.preventDefault(); addTag(tagInput) }}>
                         <input
                             bind:value={tagInput}
                             oninput={updateSuggestions}
                             placeholder="Add tag…"
                             class="w-28 rounded-full border border-indigo-400 bg-white px-2.5 py-0.5 text-xs text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
-                            onblur={() => { setTimeout(() => { showTagInput = false; tagSuggestions = [] }, 150) }}
                         />
                     </form>
                     {#if tagSuggestions.length > 0}

@@ -3,6 +3,7 @@
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
+  import { getProjectColor } from '$lib/stores/shared'
   import FolderTree from './FolderTree.svelte'
   import { Box, EllipsisVertical, Plus } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -89,9 +90,6 @@
     }
   }
 
-  function projectColor(color: string | null): string {
-    return color ?? '#9ca3af'
-  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -129,7 +127,7 @@
         >
           <Box
             class="h-4 w-4 shrink-0 text-gray-400"
-            style="color: {projectColor(project.color)}"
+            style="color: {getProjectColor(project)}"
           />
           <span class="min-w-0 flex-1 truncate text-left">{project.name}</span>
           <span class="ml-auto shrink-0 text-xs text-gray-400">{project.asset_count || ''}</span>
