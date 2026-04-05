@@ -25,6 +25,19 @@ type Asset struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type AssetFieldValue struct {
+	ID           string   `json:"id"`
+	AssetID      string   `json:"asset_id"`
+	FieldID      string   `json:"field_id"`
+	ValueText    *string  `json:"value_text"`
+	ValueNumber  *float64 `json:"value_number"`
+	ValueDate    *string  `json:"value_date"`
+	ValueBoolean *int64   `json:"value_boolean"`
+	CreatedBy    string   `json:"created_by"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
+}
+
 type AssetTag struct {
 	AssetID string `json:"asset_id"`
 	TagID   string `json:"tag_id"`
@@ -32,6 +45,23 @@ type AssetTag struct {
 
 type AssetsFt struct {
 	OriginalFilename string `json:"original_filename"`
+}
+
+type FieldDefinition struct {
+	ID                 string  `json:"id"`
+	WorkspaceID        string  `json:"workspace_id"`
+	CreatedBy          string  `json:"created_by"`
+	Scope              string  `json:"scope"`
+	Name               string  `json:"name"`
+	Key                string  `json:"key"`
+	FieldType          string  `json:"field_type"`
+	Options            *string `json:"options"`
+	Required           int64   `json:"required"`
+	Position           int64   `json:"position"`
+	InheritFromProject int64   `json:"inherit_from_project"`
+	CreatedAt          string  `json:"created_at"`
+	UpdatedAt          string  `json:"updated_at"`
+	DeletedAt          *string `json:"deleted_at"`
 }
 
 type Folder struct {
@@ -104,6 +134,19 @@ type Project struct {
 	CoverAssetID *string   `json:"cover_asset_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type ProjectFieldValue struct {
+	ID           string   `json:"id"`
+	ProjectID    string   `json:"project_id"`
+	FieldID      string   `json:"field_id"`
+	ValueText    *string  `json:"value_text"`
+	ValueNumber  *float64 `json:"value_number"`
+	ValueDate    *string  `json:"value_date"`
+	ValueBoolean *int64   `json:"value_boolean"`
+	CreatedBy    string   `json:"created_by"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
 }
 
 type Share struct {

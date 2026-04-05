@@ -64,6 +64,10 @@ func main() {
 		scheduler := ingress.NewScheduler(queries, q)
 		scheduler.Start(ctx)
 		log.Printf("ingress scheduler started")
+
+		fieldCleanup := api.NewFieldCleanupScheduler(queries, q)
+		fieldCleanup.Start(ctx)
+		log.Printf("field cleanup scheduler started")
 	}
 
 	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL.String(), cfg.FrontendPath, cfg.AppSecret)

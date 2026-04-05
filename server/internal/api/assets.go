@@ -79,7 +79,16 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "cannot create temp file")
 	}
 
-	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.storage, s.queue, claims.WorkspaceID, tmpFile, services.AssetOptions{})
+	var uploadProjectID *string
+	if pid := c.FormValue("project_id"); pid != "" {
+		uploadProjectID = &pid
+	}
+
+	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.storage, s.queue, claims.WorkspaceID, tmpFile, services.AssetOptions{
+		ProjectID:     uploadProjectID,
+		UserID:        claims.UserID,
+		InheritFields: inheritProjectFields,
+	})
 	if fErr != nil {
 		return errRes(c, fErr.Code, fErr.Message)
 	}
@@ -111,6 +120,11 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		return s.handleListAssetsByTags(c, claims.WorkspaceID, tagNames, limit)
 	}
 
+	// Field value filter — look for any query param prefixed with "field["
+	if hasFieldFilters(c) {
+		return s.handleListAssetsByFields(c, claims.WorkspaceID, limit)
+	}
+
 	// Folder filter
 	if folderID := c.Query("folder_id"); folderID != "" {
 		isRoot := folderID == "root"
@@ -118,37 +132,77 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		return s.handleListAssetsInFolder(c, claims.WorkspaceID, folderID, isRoot, projectID, limit)
 	}
 
-	params := dbgen.ListAssetsParams{
-		WorkspaceID: claims.WorkspaceID,
-		Limit:       limit,
-		OrderBy:     "created_at_desc",
-	}
-
+	orderBy := "created_at DESC, id DESC"
 	if sort := c.Query("sort"); sort != "" {
 		switch sort {
-		case "id_asc", "id_desc", "size_asc", "size_desc", "created_at_asc", "created_at_desc":
-			params.OrderBy = sort
+		case "size_asc":
+			orderBy = "size ASC, id DESC"
+		case "size_desc":
+			orderBy = "size DESC, id DESC"
+		case "created_at_asc":
+			orderBy = "created_at ASC, id ASC"
+		case "created_at_desc":
+			orderBy = "created_at DESC, id DESC"
+		case "id_asc":
+			orderBy = "id ASC"
+		case "id_desc":
+			orderBy = "id DESC"
 		}
 	}
 
+	var whereClauses []string
+	var args []interface{}
+	whereClauses = append(whereClauses, "workspace_id = ?")
+	args = append(args, claims.WorkspaceID)
+
 	if pid := c.Query("project_id"); pid != "" {
-		params.ProjectID = pid
+		whereClauses = append(whereClauses, "project_id = ?")
+		args = append(args, pid)
 	}
 	if mime := c.Query("mime"); mime != "" {
-		params.MimePrefix = mime + "%"
+		whereClauses = append(whereClauses, "mime_type LIKE ?")
+		args = append(args, mime+"%")
 	}
 
 	if cursor := c.Query("cursor"); cursor != "" {
 		at, id, err := decodeCursor(cursor)
 		if err == nil {
-			params.CursorAt = at.UTC().Format("2006-01-02 15:04:05")
-			params.CursorID = &id
+			whereClauses = append(whereClauses, "(created_at < ? OR (created_at = ? AND id < ?))")
+			args = append(args, at.UTC().Format("2006-01-02 15:04:05"), at.UTC().Format("2006-01-02 15:04:05"), id)
 		}
 	}
 
-	assets, err := s.db.ListAssets(c.RequestCtx(), params)
+	args = append(args, limit)
+
+	query := fmt.Sprintf(`
+		SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key,
+		       mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at
+		FROM assets
+		WHERE %s
+		ORDER BY %s
+		LIMIT ?
+	`, strings.Join(whereClauses, " AND "), orderBy)
+
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
 	if err != nil {
 		log.Println("could not list assets", err)
+		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
+	}
+	defer rows.Close()
+
+	var assets []dbgen.Asset
+	for rows.Next() {
+		var a dbgen.Asset
+		if err := rows.Scan(
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
+			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
+			&a.CreatedAt, &a.UpdatedAt,
+		); err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "scan failed")
+		}
+		assets = append(assets, a)
+	}
+	if err := rows.Err(); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
@@ -178,7 +232,7 @@ func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagName
 	args = append(args, limit)
 
 	query := fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.original_filename, a.storage_key,
+		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
 		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		       a.created_at, a.updated_at
 		FROM assets a
@@ -204,7 +258,7 @@ func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagName
 	for rows.Next() {
 		var a dbgen.Asset
 		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.OriginalFilename, &a.StorageKey,
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
 			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
 			&a.CreatedAt, &a.UpdatedAt,
 		); err != nil {
@@ -234,7 +288,7 @@ func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit in
 	args = append(args, limit)
 
 	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.original_filename, a.storage_key,
+		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
 		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		       a.created_at, a.updated_at
 		FROM assets a
@@ -253,7 +307,7 @@ func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit in
 	for rows.Next() {
 		var a dbgen.Asset
 		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.OriginalFilename, &a.StorageKey,
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
 			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
 			&a.CreatedAt, &a.UpdatedAt,
 		); err != nil {
@@ -526,7 +580,7 @@ func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID str
 	args = append(args, limit)
 
 	query := fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.original_filename, a.storage_key,
+		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
 		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		       a.created_at, a.updated_at
 		FROM assets a
@@ -546,7 +600,7 @@ func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID str
 	for rows.Next() {
 		var a dbgen.Asset
 		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.OriginalFilename, &a.StorageKey,
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
 			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
 			&a.CreatedAt, &a.UpdatedAt,
 		); err != nil {

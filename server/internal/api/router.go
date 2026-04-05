@@ -123,12 +123,25 @@ func New(
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)
 
+	// Field definitions — reorder must be registered before /:id to avoid conflict
+	api.Get("/field-definitions", s.handleListFieldDefinitions)
+	api.Post("/field-definitions", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateFieldDefinition)
+	api.Put("/field-definitions/reorder", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleReorderFieldDefinitions)
+	api.Get("/field-definitions/:id", s.handleGetFieldDefinition)
+	api.Get("/field-definitions/:id/stats", s.handleGetFieldDefinitionStats)
+	api.Put("/field-definitions/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateFieldDefinition)
+	api.Delete("/field-definitions/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteFieldDefinition)
+
 	// Projects
 	api.Post("/projects", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateProject)
 	api.Get("/projects", s.handleListProjects)
 	api.Get("/projects/:id", s.handleGetProject)
 	api.Put("/projects/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateProject)
 	api.Delete("/projects/:id", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleDeleteProject)
+
+	// Project field values
+	api.Get("/projects/:id/fields", s.handleGetProjectFields)
+	api.Patch("/projects/:id/fields", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handlePatchProjectFields)
 
 	// Tags
 	api.Get("/tags", s.handleListTags)
@@ -143,6 +156,7 @@ func New(
 	api.Post("/assets/bulk/tag", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleBulkTag)
 	api.Post("/assets/bulk/project", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleBulkProject)
 	api.Delete("/assets/bulk", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleBulkDelete)
+	api.Patch("/assets/bulk/fields", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleBulkPatchAssetFields)
 
 	api.Post("/assets", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUploadAsset)
 	api.Get("/assets", s.handleListAssets)
@@ -151,6 +165,10 @@ func New(
 	api.Get("/assets/:id/file", s.handleGetAssetFile)
 	api.Get("/assets/:id/thumb", s.handleGetAssetThumb)
 	api.Delete("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteAsset)
+
+	// Asset field values
+	api.Get("/assets/:id/fields", s.handleGetAssetFields)
+	api.Patch("/assets/:id/fields", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handlePatchAssetFields)
 
 	// Asset tags
 	api.Get("/assets/:id/tags", s.handleGetAssetTags)

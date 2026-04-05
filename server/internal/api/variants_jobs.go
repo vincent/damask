@@ -31,6 +31,7 @@ func (s *Server) RegisterJobHandlers() {
 	s.queue.Register(queue.JobTypeImageBgRemove, s.jobImageBgRemove)
 	s.queue.Register(queue.JobTypePdfThumbnail, s.jobMagikFirstThumbnail)
 	s.queue.Register(queue.JobTypeAudioWaveform, s.jobAudioWaveform)
+	s.queue.Register(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
 }
 
 type variantJobPayload struct {

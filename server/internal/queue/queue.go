@@ -184,6 +184,7 @@ const (
 	JobTypeVideoTranscode = "video_transcode"
 	JobTypeAudioWaveform  = "audio_waveform"
 	JobTypePdfThumbnail   = "pdf_thumbnail"
-	JobTypeIngestPoll     = "ingest_poll"
-	JobTypeIngestFetch    = "ingest_fetch"
+	JobTypeIngestPoll          = "ingest_poll"
+	JobTypeIngestFetch         = "ingest_fetch"
+	JobTypePurgeDeletedFields  = "purge_deleted_fields"
 )

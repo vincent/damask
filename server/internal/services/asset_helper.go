@@ -100,10 +100,16 @@ func storeFile(storage storage.Storage, key string, filePath string) error {
 
 // -- Main Service
 
+// FieldInheritanceFunc is called after asset creation to copy project field values.
+// It is injected at the API layer to avoid a circular import.
+type FieldInheritanceFunc func(ctx context.Context, db *dbgen.Queries, workspaceID, assetID string, projectID string, userID string)
+
 // AssetOptions holds optional destination fields for CreateAsset.
 type AssetOptions struct {
-	ProjectID *string
-	FolderID  *string
+	ProjectID        *string
+	FolderID         *string
+	UserID           string
+	InheritFields    FieldInheritanceFunc
 }
 
 func CreateAsset(
@@ -177,6 +183,11 @@ func CreateAsset(
 		} else {
 			asset.FolderID = opts.FolderID
 		}
+	}
+
+	// Inherit field values from the destination project (CF-3.3)
+	if opts.InheritFields != nil && opts.ProjectID != nil && opts.UserID != "" {
+		opts.InheritFields(ctx, db, workspaceID, asset.ID, *opts.ProjectID, opts.UserID)
 	}
 
 	// Enqueue jobs
