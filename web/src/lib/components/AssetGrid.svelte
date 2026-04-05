@@ -11,6 +11,43 @@
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
   import { CloudUpload, Inbox, Loader } from '@lucide/svelte'
 
+  const fmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
+
+  const SIZE_BUCKETS: { label: string; min: number }[] = [
+    { label: '> 1 GB',   min: 1_000_000_000 },
+    { label: '> 500 MB', min:   500_000_000 },
+    { label: '> 100 MB', min:   100_000_000 },
+    { label: '> 10 MB',  min:    10_000_000 },
+    { label: '> 1 MB',   min:     1_000_000 },
+    { label: '< 1 MB',   min:             0 },
+  ]
+
+  const assetsBySize = $derived.by(() => {
+    if (sort !== 'size') return []
+    const groups: { label: string; assets: Asset[] }[] = []
+    for (let i = 0; i < SIZE_BUCKETS.length; i++) {
+      const { label, min } = SIZE_BUCKETS[i]
+      const max = i === 0 ? Infinity : SIZE_BUCKETS[i - 1].min
+      const assets = assetsStore.assets.filter((a) => a.size >= min && a.size < max)
+      if (assets.length > 0) groups.push({ label, assets })
+    }
+    return groups
+  })
+
+  const assetsByMonth = $derived.by(() => {
+    if (sort !== 'created_at') return []
+    const groups: { label: string; assets: Asset[] }[] = []
+    for (const asset of assetsStore.assets) {
+      const label = fmt.format(new Date(asset.created_at))
+      if (groups.length === 0 || groups[groups.length - 1].label !== label) {
+        groups.push({ label, assets: [asset] })
+      } else {
+        groups[groups.length - 1].assets.push(asset)
+      }
+    }
+    return groups
+  })
+
   type Props = {
     zoom: number
     maxZoom: number
@@ -69,6 +106,26 @@
   ondrop={onDrop}
   onmousedown={onMouseDown}
 >
+  {#snippet assetCardGrid(assets: Asset[])}
+    <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
+      {#each assets as asset (asset.id)}
+        {@const globalIndex = assetsStore.assets.indexOf(asset)}
+        <div class="relative" data-asset-id={asset.id}>
+          {#if selectionStore.selectedIds.has(asset.id)}
+            <div class="pointer-events-none absolute inset-0 z-5 rounded-xl ring-2 ring-indigo-500">
+              <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
+                <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+          {/if}
+          <AssetCard {asset} {zoom} requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)} />
+        </div>
+      {/each}
+    </div>
+  {/snippet}
+
   {#if isDraggingFiles}
     <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
       <div class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400">
@@ -100,23 +157,7 @@
             <span class="text-sm text-gray-400 dark:text-gray-500">{group.length}</span>
           </div>
           <div class="border-l-2 {CATEGORY_BORDER[cat]} pl-4">
-            <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
-              {#each group as asset (asset.id)}
-                {@const globalIndex = assetsStore.assets.indexOf(asset)}
-                <div class="relative" data-asset-id={asset.id}>
-                  {#if selectionStore.selectedIds.has(asset.id)}
-                    <div class="pointer-events-none absolute inset-0 z-5 rounded-xl ring-2 ring-indigo-500">
-                      <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
-                        <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  {/if}
-                  <AssetCard {asset} {zoom} requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)} />
-                </div>
-              {/each}
-            </div>
+            {@render assetCardGrid(group)}
           </div>
         </div>
       {/if}
@@ -126,20 +167,38 @@
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
       {/if}
     </div>
-  {:else}
-    <div class="mb-10">
-      <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
-        {#each assetsStore.assets as asset, globalIndex (asset.id)}
-          <AssetCard {asset} {zoom} requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)} />
-        {/each}
+  {:else if sort === 'created_at'}
+    {#each assetsByMonth as group}
+      <div class="mb-10">
+        <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-2">
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{group.label}</h2>
+          <span class="text-sm text-gray-400 dark:text-gray-500">{group.assets.length}</span>
+        </div>
+        {@render assetCardGrid(group.assets)}
       </div>
+    {/each}
+    <div bind:this={sentinel} class="flex justify-center py-6">
+      {#if assetsStore.loading && assetsStore.nextCursor}
+        <Loader class="h-6 w-6 animate-spin text-gray-400" />
+      {/if}
     </div>
+  {:else}
+    {#each assetsBySize as group}
+      <div class="mb-10">
+        <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-2">
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{group.label}</h2>
+          <span class="text-sm text-gray-400 dark:text-gray-500">{group.assets.length}</span>
+        </div>
+        {@render assetCardGrid(group.assets)}
+      </div>
+    {/each}
     <div bind:this={sentinel} class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
       {/if}
     </div>
   {/if}
+
 
   <div class="hidden force-tailwind-to-include-these
     grid-cols-1  grid-cols-2  grid-cols-3  grid-cols-4  grid-cols-5
