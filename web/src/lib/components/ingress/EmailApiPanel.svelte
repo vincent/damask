@@ -9,8 +9,8 @@
 
   let { source }: Props = $props()
 
-  // The ingest address is stored in config.address by the email_api source
-  const address = $derived((source.config as Record<string, string>).address ?? '')
+  // The ingest address is the public_token of the email_api source
+  const address = $derived(source.public_token)
 
   let copied = $state(false)
 

@@ -212,6 +212,7 @@ export type IngressSourceType = 'email_api' | 'imap' | 'sftp' | 'dav' | 's3'
 export interface IngressSource {
   id: string
   workspace_id: string
+  public_token: string
   created_by: string
   type: IngressSourceType
   label: string

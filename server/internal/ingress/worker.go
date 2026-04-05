@@ -235,6 +235,20 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		log.Printf("ingest_fetch: update log entry %s: %v", entry.ID, err)
 	}
 
+	tag, err := w.db.GetOrCreateTag(ctx, dbgen.GetOrCreateTagParams{
+		ID:          uuid.NewString(),
+		WorkspaceID: asset.WorkspaceID,
+		Name:        src.Label,
+	})
+	if err != nil {
+		log.Printf("ingest_fetch: could not get or create tag: %v", err)
+	}
+
+	_ = w.db.AddTagToAsset(ctx, dbgen.AddTagToAssetParams{
+		AssetID: assetID,
+		TagID:   tag.ID,
+	})
+
 	return nil
 }
 
