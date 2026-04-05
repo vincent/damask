@@ -14,6 +14,7 @@
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
+  import { ingressStore } from '$lib/stores/ingress.svelte'
   
   let { children }: { data: any, children: Snippet } = $props()
 
@@ -100,6 +101,9 @@
       >
         <Rss class="h-4 w-4 shrink-0 text-gray-400" />
         <span class="flex-1 text-left">Sources</span>
+        {#if ingressStore.sources?.length > 0}
+          <span class="shrink-0 text-xs text-gray-400">{ingressStore.sources?.length}</span>
+        {/if}
       </button>
     </div>
 

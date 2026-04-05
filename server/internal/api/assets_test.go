@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -469,6 +470,181 @@ func TestSearchAssets_Pagination(t *testing.T) {
 	for _, a := range page2.Assets {
 		if seen[a.ID] {
 			t.Errorf("duplicate asset %s returned on both pages", a.ID)
+		}
+	}
+}
+
+// insertAssetWithSize inserts a minimal asset row directly via SQL with a known size value.
+func insertAssetWithSize(t *testing.T, env *testEnv, workspaceID string, size int64) string {
+	t.Helper()
+	id := fmt.Sprintf("asset-%d", size)
+	_, err := env.sqlDB.Exec(`
+		INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+	`, id, workspaceID, fmt.Sprintf("file-%d.bin", size), fmt.Sprintf("key-%d", size), "application/octet-stream", size)
+	if err != nil {
+		t.Fatalf("insert asset with size %d: %v", size, err)
+	}
+	return id
+}
+
+func TestListAssets_PaginationSortBySizeDesc(t *testing.T) {
+	env := setupTestApp(t)
+	owner := register(t, env, "Owner", "owner@example.com", "password123")
+
+	// Insert 25 assets with distinct sizes 1..25 bytes
+	var inserted []string
+	for i := int64(1); i <= 25; i++ {
+		inserted = append(inserted, insertAssetWithSize(t, env, owner.WorkspaceID, i))
+	}
+
+	getPage := func(cursor string) assetListResponse {
+		url := "/api/v1/assets?sort=size_desc&limit=10"
+		if cursor != "" {
+			url += "&cursor=" + cursor
+		}
+		resp, err := env.app.Test(authRequest(http.MethodGet, url, nil, owner.Cookie), fiber.TestConfig{Timeout: 5000})
+		if err != nil {
+			t.Fatalf("list assets: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
+		}
+		var result assetListResponse
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		return result
+	}
+
+	page1 := getPage("")
+	if len(page1.Assets) != 10 {
+		t.Fatalf("page1: expected 10, got %d", len(page1.Assets))
+	}
+	if page1.NextCursor == nil {
+		t.Fatal("page1: expected next_cursor")
+	}
+
+	page2 := getPage(*page1.NextCursor)
+	if len(page2.Assets) != 10 {
+		t.Fatalf("page2: expected 10, got %d", len(page2.Assets))
+	}
+	if page2.NextCursor == nil {
+		t.Fatal("page2: expected next_cursor")
+	}
+
+	page3 := getPage(*page2.NextCursor)
+	if len(page3.Assets) != 5 {
+		t.Fatalf("page3: expected 5, got %d", len(page3.Assets))
+	}
+	if page3.NextCursor != nil {
+		t.Error("page3: expected nil next_cursor")
+	}
+
+	// Collect all IDs and check for duplicates
+	seen := make(map[string]bool)
+	allAssets := append(append(page1.Assets, page2.Assets...), page3.Assets...)
+	if len(allAssets) != 25 {
+		t.Fatalf("expected 25 total assets, got %d", len(allAssets))
+	}
+	for _, a := range allAssets {
+		if seen[a.ID] {
+			t.Errorf("duplicate asset ID: %s", a.ID)
+		}
+		seen[a.ID] = true
+	}
+
+	// Verify non-increasing size order across all pages
+	for i := 1; i < len(allAssets); i++ {
+		if allAssets[i].Size > allAssets[i-1].Size {
+			t.Errorf("size not non-increasing at position %d: %d > %d", i, allAssets[i].Size, allAssets[i-1].Size)
+		}
+	}
+
+	// Verify all 25 inserted assets are present
+	for _, id := range inserted {
+		if !seen[id] {
+			t.Errorf("inserted asset %s missing from results", id)
+		}
+	}
+}
+
+func TestListAssets_PaginationSortBySizeAsc(t *testing.T) {
+	env := setupTestApp(t)
+	owner := register(t, env, "Owner", "owner@example.com", "password123")
+
+	var inserted []string
+	for i := int64(1); i <= 25; i++ {
+		inserted = append(inserted, insertAssetWithSize(t, env, owner.WorkspaceID, i))
+	}
+
+	getPage := func(cursor string) assetListResponse {
+		url := "/api/v1/assets?sort=size_asc&limit=10"
+		if cursor != "" {
+			url += "&cursor=" + cursor
+		}
+		resp, err := env.app.Test(authRequest(http.MethodGet, url, nil, owner.Cookie), fiber.TestConfig{Timeout: 5000})
+		if err != nil {
+			t.Fatalf("list assets: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
+		}
+		var result assetListResponse
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		return result
+	}
+
+	page1 := getPage("")
+	if len(page1.Assets) != 10 {
+		t.Fatalf("page1: expected 10, got %d", len(page1.Assets))
+	}
+	if page1.NextCursor == nil {
+		t.Fatal("page1: expected next_cursor")
+	}
+
+	page2 := getPage(*page1.NextCursor)
+	if len(page2.Assets) != 10 {
+		t.Fatalf("page2: expected 10, got %d", len(page2.Assets))
+	}
+	if page2.NextCursor == nil {
+		t.Fatal("page2: expected next_cursor")
+	}
+
+	page3 := getPage(*page2.NextCursor)
+	if len(page3.Assets) != 5 {
+		t.Fatalf("page3: expected 5, got %d", len(page3.Assets))
+	}
+	if page3.NextCursor != nil {
+		t.Error("page3: expected nil next_cursor")
+	}
+
+	seen := make(map[string]bool)
+	allAssets := append(append(page1.Assets, page2.Assets...), page3.Assets...)
+	if len(allAssets) != 25 {
+		t.Fatalf("expected 25 total assets, got %d", len(allAssets))
+	}
+	for _, a := range allAssets {
+		if seen[a.ID] {
+			t.Errorf("duplicate asset ID: %s", a.ID)
+		}
+		seen[a.ID] = true
+	}
+
+	// Verify non-decreasing size order across all pages
+	for i := 1; i < len(allAssets); i++ {
+		if allAssets[i].Size < allAssets[i-1].Size {
+			t.Errorf("size not non-decreasing at position %d: %d < %d", i, allAssets[i].Size, allAssets[i-1].Size)
+		}
+	}
+
+	for _, id := range inserted {
+		if !seen[id] {
+			t.Errorf("inserted asset %s missing from results", id)
 		}
 	}
 }

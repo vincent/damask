@@ -105,10 +105,10 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 
 	var cursorClause string
 	if cursor := c.Query("cursor"); cursor != "" {
-		at, id, err := decodeCursor(cursor)
+		cv, err := decodeCursor(cursor)
 		if err == nil {
 			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
-			args = append(args, at.UTC().Format("2006-01-02 15:04:05"), at.UTC().Format("2006-01-02 15:04:05"), id)
+			args = append(args, cv.Value, cv.Value, cv.ID)
 		}
 	}
 	args = append(args, limit)
@@ -154,7 +154,7 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 		return errRes(c, fiber.StatusInternalServerError, "query failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit))
+	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
 }
 
 // fieldFilterSQL returns the SQL comparison snippet (without table alias) for a filter.

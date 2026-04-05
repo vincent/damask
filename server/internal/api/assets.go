@@ -132,22 +132,26 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		return s.handleListAssetsInFolder(c, claims.WorkspaceID, folderID, isRoot, projectID, limit)
 	}
 
+	sort := c.Query("sort")
 	orderBy := "created_at DESC, id DESC"
-	if sort := c.Query("sort"); sort != "" {
-		switch sort {
-		case "size_asc":
-			orderBy = "size ASC, id DESC"
-		case "size_desc":
-			orderBy = "size DESC, id DESC"
-		case "created_at_asc":
-			orderBy = "created_at ASC, id ASC"
-		case "created_at_desc":
-			orderBy = "created_at DESC, id DESC"
-		case "id_asc":
-			orderBy = "id ASC"
-		case "id_desc":
-			orderBy = "id DESC"
-		}
+	sortField := "created_at"
+	switch sort {
+	case "size_asc":
+		orderBy = "size ASC, id DESC"
+		sortField = "size"
+	case "size_desc":
+		orderBy = "size DESC, id DESC"
+		sortField = "size"
+	case "created_at_asc":
+		orderBy = "created_at ASC, id ASC"
+	case "created_at_desc":
+		orderBy = "created_at DESC, id DESC"
+	case "id_asc":
+		orderBy = "id ASC"
+		sortField = "id"
+	case "id_desc":
+		orderBy = "id DESC"
+		sortField = "id"
 	}
 
 	var whereClauses []string
@@ -165,10 +169,31 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 
 	if cursor := c.Query("cursor"); cursor != "" {
-		at, id, err := decodeCursor(cursor)
+		cv, err := decodeCursor(cursor)
 		if err == nil {
-			whereClauses = append(whereClauses, "(created_at < ? OR (created_at = ? AND id < ?))")
-			args = append(args, at.UTC().Format("2006-01-02 15:04:05"), at.UTC().Format("2006-01-02 15:04:05"), id)
+			switch cv.Field {
+			case "size":
+				if sort == "size_asc" {
+					whereClauses = append(whereClauses, "(size > ? OR (size = ? AND id < ?))")
+				} else {
+					whereClauses = append(whereClauses, "(size < ? OR (size = ? AND id < ?))")
+				}
+				args = append(args, cv.Value, cv.Value, cv.ID)
+			case "id":
+				if sort == "id_asc" {
+					whereClauses = append(whereClauses, "id > ?")
+				} else {
+					whereClauses = append(whereClauses, "id < ?")
+				}
+				args = append(args, cv.ID)
+			default: // "created_at"
+				if sort == "created_at_asc" {
+					whereClauses = append(whereClauses, "(created_at > ? OR (created_at = ? AND id > ?))")
+				} else {
+					whereClauses = append(whereClauses, "(created_at < ? OR (created_at = ? AND id < ?))")
+				}
+				args = append(args, cv.Value, cv.Value, cv.ID)
+			}
 		}
 	}
 
@@ -206,7 +231,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit))
+	return c.JSON(buildAssetListResponse(assets, limit, sortField))
 }
 
 func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagNames []string, limit int64) error {
@@ -222,10 +247,10 @@ func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagName
 	// Optional cursor
 	var cursorClause string
 	if cursor := c.Query("cursor"); cursor != "" {
-		at, id, err := decodeCursor(cursor)
+		cv, err := decodeCursor(cursor)
 		if err == nil {
 			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
-			args = append(args, at.UTC().Format("2006-01-02 15:04:05"), at.UTC().Format("2006-01-02 15:04:05"), id)
+			args = append(args, cv.Value, cv.Value, cv.ID)
 		}
 	}
 
@@ -270,7 +295,7 @@ func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagName
 		return errRes(c, fiber.StatusInternalServerError, "query failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit))
+	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
 }
 
 func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit int64) error {
@@ -278,10 +303,10 @@ func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit in
 
 	var cursorClause string
 	if cursor := c.Query("cursor"); cursor != "" {
-		at, id, err := decodeCursor(cursor)
+		cv, err := decodeCursor(cursor)
 		if err == nil {
 			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
-			args = append(args, at.UTC().Format("2006-01-02 15:04:05"), at.UTC().Format("2006-01-02 15:04:05"), id)
+			args = append(args, cv.Value, cv.Value, cv.ID)
 		}
 	}
 
@@ -319,10 +344,10 @@ func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit in
 		return errRes(c, fiber.StatusInternalServerError, "search failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit))
+	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
 }
 
-func buildAssetListResponse(assets []dbgen.Asset, limit int64) assetListResponse {
+func buildAssetListResponse(assets []dbgen.Asset, limit int64, sortField string) assetListResponse {
 	items := make([]assetResponse, len(assets))
 	for i, a := range assets {
 		items[i] = assetToResponse(a, nil)
@@ -330,31 +355,63 @@ func buildAssetListResponse(assets []dbgen.Asset, limit int64) assetListResponse
 	var nextCursor *string
 	if int64(len(assets)) == limit && len(assets) > 0 {
 		last := assets[len(assets)-1]
-		encoded := encodeCursor(last.CreatedAt, last.ID)
+		var cv cursorVal
+		cv.ID = last.ID
+		switch sortField {
+		case "size":
+			cv.Field = "size"
+			cv.Value = fmt.Sprintf("%d", last.Size)
+		case "id":
+			cv.Field = "id"
+			cv.Value = last.ID
+		default:
+			cv.Field = "created_at"
+			cv.Value = last.CreatedAt.UTC().Format("2006-01-02 15:04:05")
+		}
+		encoded := encodeCursor(cv)
 		nextCursor = &encoded
 	}
 	return assetListResponse{Assets: items, NextCursor: nextCursor}
 }
 
-func encodeCursor(t time.Time, id string) string {
-	raw := t.UTC().Format(time.RFC3339Nano) + "|" + id
+type cursorVal struct {
+	Field string // "created_at", "size", or "id"
+	Value string // stringified sort-field value
+	ID    string // asset UUID tiebreaker
+}
+
+func encodeCursor(v cursorVal) string {
+	raw := v.Field + "|" + v.Value + "|" + v.ID
 	return base64.StdEncoding.EncodeToString([]byte(raw))
 }
 
-func decodeCursor(cursor string) (time.Time, string, error) {
+func decodeCursor(cursor string) (cursorVal, error) {
 	b, err := base64.StdEncoding.DecodeString(cursor)
 	if err != nil {
-		return time.Time{}, "", err
+		return cursorVal{}, err
 	}
-	parts := strings.SplitN(string(b), "|", 2)
-	if len(parts) != 2 {
-		return time.Time{}, "", errors.New("invalid cursor")
+	parts := strings.SplitN(string(b), "|", 3)
+	if len(parts) != 3 {
+		// Legacy cursor format (created_at|id) — parse and upgrade transparently
+		parts2 := strings.SplitN(string(b), "|", 2)
+		if len(parts2) != 2 {
+			return cursorVal{}, errors.New("invalid cursor")
+		}
+		// Validate the first part is a timestamp (SQLite format or RFC3339)
+		_, errSQLite := time.Parse("2006-01-02 15:04:05", parts2[0])
+		_, errRFC := time.Parse(time.RFC3339Nano, parts2[0])
+		if errSQLite != nil && errRFC != nil {
+			return cursorVal{}, errors.New("invalid cursor")
+		}
+		// Normalise to SQLite format so the WHERE clause comparison works
+		val := parts2[0]
+		if errSQLite != nil {
+			t, _ := time.Parse(time.RFC3339Nano, val)
+			val = t.UTC().Format("2006-01-02 15:04:05")
+		}
+		return cursorVal{Field: "created_at", Value: val, ID: parts2[1]}, nil
 	}
-	t, err := time.Parse(time.RFC3339Nano, parts[0])
-	if err != nil {
-		return time.Time{}, "", err
-	}
-	return t, parts[1], nil
+	return cursorVal{Field: parts[0], Value: parts[1], ID: parts[2]}, nil
 }
 
 func (s *Server) handleGetAsset(c fiber.Ctx) error {
@@ -556,10 +613,10 @@ func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID str
 
 	var cursorClause string
 	if cursor := c.Query("cursor"); cursor != "" {
-		at, id, err := decodeCursor(cursor)
+		cv, err := decodeCursor(cursor)
 		if err == nil {
 			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
-			args = append(args, at.UTC().Format("2006-01-02 15:04:05"), at.UTC().Format("2006-01-02 15:04:05"), id)
+			args = append(args, cv.Value, cv.Value, cv.ID)
 		}
 	}
 	args = append(args, limit)
@@ -597,7 +654,7 @@ func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID str
 		return errRes(c, fiber.StatusInternalServerError, "query failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit))
+	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
 }
 
 func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
