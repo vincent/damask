@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -42,16 +43,21 @@ type versionResponse struct {
 }
 
 func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion) versionResponse {
-	var thumbURL *string
-	if v.ThumbnailKey != nil {
-		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
-		thumbURL = &u
-	}
-
 	user, err := s.db.GetUserByID(ctx, v.CreatedBy)
 	createdBy := versionCreatedByResponse{ID: v.CreatedBy}
 	if err == nil {
 		createdBy.Name = user.Name
+	}
+	return buildVersionResponseWithCreator(v, createdBy)
+}
+
+// buildVersionResponseWithCreator builds a versionResponse using a pre-resolved creator.
+// Use this in list paths to avoid issuing a GetUserByID query per row.
+func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy versionCreatedByResponse) versionResponse {
+	var thumbURL *string
+	if v.ThumbnailKey != nil {
+		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
+		thumbURL = &u
 	}
 
 	return versionResponse{
@@ -83,16 +89,12 @@ func (s *Server) setCurrentVersion(ctx context.Context, assetID, versionID strin
 	qtx := s.db.WithTx(tx)
 
 	// Clear all is_current flags for this asset.
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE asset_versions SET is_current = 0 WHERE asset_id = ?`, assetID,
-	); err != nil {
+	if err := qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
 		return err
 	}
 
 	// Set the target version as current.
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE asset_versions SET is_current = 1 WHERE id = ?`, versionID,
-	); err != nil {
+	if err := qtx.SetCurrentVersionFlag(ctx, versionID); err != nil {
 		return err
 	}
 
@@ -142,16 +144,15 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 	defer os.Remove(tmpFile) //nolint:errcheck
 
-	// Compute content hash while streaming through the file once.
-	hash, size, hErr := func() (string, int64, error) {
-		f, err := os.Open(tmpFile)
-		if err != nil {
-			return "", 0, err
-		}
-		defer f.Close()
-		return versioning.HashReader(f)
-	}()
-	if hErr != nil {
+	// Open the temp file once; hash it, then seek back to reuse for storage.Put.
+	f, err := os.Open(tmpFile)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not open uploaded file")
+	}
+	defer f.Close() //nolint:errcheck
+
+	hash, size, err := versioning.HashReader(f)
+	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash file")
 	}
 
@@ -164,14 +165,16 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusConflict, "this file is identical to the current version")
 	}
 
-	// Determine next version_num.
-	versions, err := s.db.ListAllVersions(c.RequestCtx(), assetID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list versions")
+	// Determine next version_num via MAX to avoid counting deleted rows.
+	var maxNum sql.NullInt64
+	if err := s.sqlDB.QueryRowContext(c.RequestCtx(),
+		`SELECT MAX(version_num) FROM asset_versions WHERE asset_id = ?`, assetID,
+	).Scan(&maxNum); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not determine version number")
 	}
-	nextNum := int64(len(versions) + 1)
+	nextNum := maxNum.Int64 + 1
 
-	// Detect MIME + dimensions.
+	// Detect MIME + dimensions (both use the temp file path, not the reader).
 	mimeType, _ := services.DetectMimeType(tmpFile)
 	if mimeType == "" {
 		mimeType = fh.Header.Get("Content-Type")
@@ -184,15 +187,11 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 
 	// Only write to storage if this is truly a new file (not a hash-matched old version).
 	if lookupErr != nil {
-		// Hash not found — write to storage.
-		if err := func() error {
-			f, err := os.Open(tmpFile)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-			return s.storage.Put(storageKey, f)
-		}(); err != nil {
+		// Seek back to start — f was already read for hashing above.
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not rewind file")
+		}
+		if err := s.storage.Put(storageKey, f); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not store file")
 		}
 	} else {
@@ -245,10 +244,13 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	s.enqueueVersionThumbnail(c.RequestCtx(), asset, newVersion)
 
 	// Reload asset to return latest state.
-	updatedAsset, _ := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+	updatedAsset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	})
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"version": s.buildVersionResponse(c.RequestCtx(), newVersion),
@@ -278,9 +280,23 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list versions")
 	}
 
+	// Batch-resolve creator names to avoid N+1 queries.
+	userNames := make(map[string]string, len(versions))
+	for _, v := range versions {
+		if _, seen := userNames[v.CreatedBy]; !seen {
+			userNames[v.CreatedBy] = "" // placeholder
+			if u, err := s.db.GetUserByID(c.RequestCtx(), v.CreatedBy); err == nil {
+				userNames[v.CreatedBy] = u.Name
+			}
+		}
+	}
+
 	resp := make([]versionResponse, len(versions))
 	for i, v := range versions {
-		resp[i] = s.buildVersionResponse(c.RequestCtx(), v)
+		resp[i] = buildVersionResponseWithCreator(v, versionCreatedByResponse{
+			ID:   v.CreatedBy,
+			Name: userNames[v.CreatedBy],
+		})
 	}
 	return c.JSON(resp)
 }
@@ -336,10 +352,13 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 		log.Printf("restore: sync thumbnail: %v", err)
 	}
 
-	updatedAsset, _ := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+	updatedAsset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
 	})
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
+	}
 
 	target.IsCurrent = 1
 	return c.JSON(fiber.Map{

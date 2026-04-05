@@ -99,6 +99,3 @@ func (s *Server) jobVersionThumbnail(ctx context.Context, job dbgen.Job) error {
 	return nil
 }
 
-func isImageMime(mime string) bool {
-	return len(mime) > 6 && mime[:6] == "image/"
-}

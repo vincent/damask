@@ -30,6 +30,7 @@ ORDER BY version_num DESC;
 -- name: GetVersionByHash :one
 SELECT * FROM asset_versions
 WHERE asset_id = ? AND content_hash = ? AND deleted_at IS NULL
+ORDER BY version_num DESC
 LIMIT 1;
 
 -- name: SoftDeleteVersion :exec
@@ -60,3 +61,10 @@ SELECT DISTINCT asset_id FROM asset_versions WHERE workspace_id = ? AND deleted_
 
 -- name: GetVersionByIDUnchecked :one
 SELECT * FROM asset_versions WHERE id = ?;
+
+-- name: ClearCurrentVersionFlags :exec
+UPDATE asset_versions SET is_current = 0 WHERE asset_id = ?;
+
+-- name: SetCurrentVersionFlag :exec
+UPDATE asset_versions SET is_current = 1 WHERE id = ?;
+

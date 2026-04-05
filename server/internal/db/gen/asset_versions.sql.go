@@ -9,6 +9,15 @@ import (
 	"context"
 )
 
+const clearCurrentVersionFlags = `-- name: ClearCurrentVersionFlags :exec
+UPDATE asset_versions SET is_current = 0 WHERE asset_id = ?
+`
+
+func (q *Queries) ClearCurrentVersionFlags(ctx context.Context, assetID string) error {
+	_, err := q.db.ExecContext(ctx, clearCurrentVersionFlags, assetID)
+	return err
+}
+
 const countActiveVersions = `-- name: CountActiveVersions :one
 SELECT COUNT(*) FROM asset_versions
 WHERE asset_id = ? AND deleted_at IS NULL
@@ -123,6 +132,7 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, assetID string) (AssetV
 const getVersionByHash = `-- name: GetVersionByHash :one
 SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ? AND content_hash = ? AND deleted_at IS NULL
+ORDER BY version_num DESC
 LIMIT 1
 `
 
@@ -436,6 +446,15 @@ func (q *Queries) ListVersionsBeyondRetention(ctx context.Context, arg ListVersi
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCurrentVersionFlag = `-- name: SetCurrentVersionFlag :exec
+UPDATE asset_versions SET is_current = 1 WHERE id = ?
+`
+
+func (q *Queries) SetCurrentVersionFlag(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, setCurrentVersionFlag, id)
+	return err
 }
 
 const setVersionThumbnail = `-- name: SetVersionThumbnail :exec

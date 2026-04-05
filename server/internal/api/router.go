@@ -33,6 +33,29 @@ type Server struct {
 	appSecret      string
 }
 
+func newServer(
+	db *dbgen.Queries,
+	sqlDB *sql.DB,
+	tokenMaker *auth.Maker,
+	stor storage.Storage,
+	q *queue.Queue,
+	removeBgAPIKey, appEnv, baseUrl, appSecret string,
+) *Server {
+	return &Server{
+		db:             db,
+		sqlDB:          sqlDB,
+		tokenMaker:     tokenMaker,
+		storage:        stor,
+		queue:          q,
+		hub:            NewEventHub(),
+		previewCache:   newLRUPreviewCache(100),
+		removeBgAPIKey: removeBgAPIKey,
+		appEnv:         appEnv,
+		baseUrl:        baseUrl,
+		appSecret:      appSecret,
+	}
+}
+
 // New creates a configured Fiber app with all routes registered.
 // @title Damask Swagger API
 // @version 1.0
@@ -60,19 +83,7 @@ func New(
 	frontendPath string,
 	appSecret string,
 ) *fiber.App {
-	s := &Server{
-		db:             db,
-		sqlDB:          sqlDB,
-		tokenMaker:     tokenMaker,
-		storage:        stor,
-		queue:          q,
-		hub:            NewEventHub(),
-		previewCache:   newLRUPreviewCache(100),
-		removeBgAPIKey: removeBgAPIKey,
-		appEnv:         appEnv,
-		baseUrl:        baseUrl,
-		appSecret:      appSecret,
-	}
+	s := newServer(db, sqlDB, tokenMaker, stor, q, removeBgAPIKey, appEnv, baseUrl, appSecret)
 	s.RegisterJobHandlers()
 
 	app := fiber.New(fiber.Config{

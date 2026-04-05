@@ -58,7 +58,7 @@ func (s *Server) enforceRetentionForWorkspace(ctx context.Context, ws dbgen.Work
 		// skipping the `keep` most recent, so what comes back should be deleted.
 		beyond, err := s.db.ListVersionsBeyondRetention(ctx, dbgen.ListVersionsBeyondRetentionParams{
 			AssetID: assetID,
-			Offset:  keep - 1, // keep the N most recent non-current versions
+			Offset:  keep, // skip the `keep` most recent non-current versions
 		})
 		if err != nil {
 			log.Printf("retention: list beyond for %s: %v", assetID, err)
@@ -112,18 +112,18 @@ func (s *Server) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) erro
 		log.Printf("purge-version-storage: version %s has no deleted_at — skipping", p.VersionID)
 		return nil
 	}
-	deletedAt, err := time.Parse("2006-01-02 15:04:05", *ver.DeletedAt)
+	deletedAt, err := parseSQLiteTime(*ver.DeletedAt)
 	if err != nil {
-		// Try RFC3339
-		deletedAt, err = time.Parse(time.RFC3339, *ver.DeletedAt)
-		if err != nil {
-			return fmt.Errorf("parse deleted_at: %w", err)
-		}
+		return fmt.Errorf("parse deleted_at: %w", err)
 	}
 	if time.Since(deletedAt) < 7*24*time.Hour {
-		// Re-enqueue to run again later; return nil so the job is marked done.
-		// The scheduler will emit another purge job on the next retention run.
-		log.Printf("purge-version-storage: version %s grace period not elapsed — deferring", p.VersionID)
+		// Grace period not yet elapsed — re-enqueue so the job is retried rather
+		// than silently dropped. It will check the elapsed time again on next run.
+		log.Printf("purge-version-storage: version %s grace period not elapsed — re-enqueuing", p.VersionID)
+		payload, _ := json.Marshal(p)
+		if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypePurgeVersionStorage, string(payload)); err != nil {
+			log.Printf("purge-version-storage: re-enqueue version %s: %v", p.VersionID, err)
+		}
 		return nil
 	}
 

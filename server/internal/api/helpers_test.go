@@ -30,6 +30,7 @@ func TestMain(m *testing.M) {
 // testEnv holds the shared dependencies for a single test's app instance.
 type testEnv struct {
 	app     *fiber.App
+	server  *Server
 	maker   *auth.Maker
 	sqlDB   *sql.DB
 	storage storage.Storage
@@ -64,8 +65,10 @@ func setupTestApp(t *testing.T) *testEnv {
 
 	q := queue.New(queries, 1)
 
+	srv := newServer(queries, sqlDB, maker, stor, q, "", "development", "http://localhost", "test-app-secret-for-tests!!")
+	srv.RegisterJobHandlers()
 	app := New(queries, sqlDB, maker, stor, q, "", "development", "http://localhost", "", "test-app-secret-for-tests!!")
-	return &testEnv{app: app, maker: maker, sqlDB: sqlDB, storage: stor}
+	return &testEnv{app: app, server: srv, maker: maker, sqlDB: sqlDB, storage: stor}
 }
 
 // authResult holds the parsed outcome of a register or login response.
