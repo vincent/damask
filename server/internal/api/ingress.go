@@ -410,7 +410,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		enabled = 0
 	}
 
-	publicToken, err := ingress.GenerateToken(32)
+	publicToken, err := ingress.GenerateToken(20)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate public token")
 	}
