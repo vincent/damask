@@ -5,3 +5,6 @@ RETURNING *;
 
 -- name: GetWorkspaceByID :one
 SELECT * FROM workspaces WHERE id = ? LIMIT 1;
+
+-- name: ListWorkspacesWithRetention :many
+SELECT * FROM workspaces WHERE version_retention_count > 0;

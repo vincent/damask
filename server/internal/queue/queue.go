@@ -184,7 +184,10 @@ const (
 	JobTypeVideoTranscode = "video_transcode"
 	JobTypeAudioWaveform  = "audio_waveform"
 	JobTypePdfThumbnail   = "pdf_thumbnail"
-	JobTypeIngestPoll          = "ingest_poll"
-	JobTypeIngestFetch         = "ingest_fetch"
-	JobTypePurgeDeletedFields  = "purge_deleted_fields"
+	JobTypeIngestPoll               = "ingest_poll"
+	JobTypeIngestFetch              = "ingest_fetch"
+	JobTypePurgeDeletedFields       = "purge_deleted_fields"
+	JobTypeVersionThumbnail         = "version_thumbnail"
+	JobTypeEnforceVersionRetention  = "enforce_version_retention"
+	JobTypePurgeVersionStorage      = "purge_version_storage"
 )

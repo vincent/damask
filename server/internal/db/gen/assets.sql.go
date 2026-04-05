@@ -12,7 +12,7 @@ import (
 const createAsset = `-- name: CreateAsset :one
 INSERT INTO assets (id, workspace_id, project_id, original_filename, storage_key, mime_type, size, width, height, metadata)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at
+RETURNING id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, metadata, current_version_id, created_at, updated_at
 `
 
 type CreateAssetParams struct {
@@ -55,6 +55,7 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset
 		&i.Height,
 		&i.ThumbnailKey,
 		&i.Metadata,
+		&i.CurrentVersionID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -76,7 +77,7 @@ func (q *Queries) DeleteAsset(ctx context.Context, arg DeleteAssetParams) error 
 }
 
 const getAssetByID = `-- name: GetAssetByID :one
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at FROM assets WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, metadata, current_version_id, created_at, updated_at FROM assets WHERE id = ? AND workspace_id = ?
 `
 
 type GetAssetByIDParams struct {
@@ -100,6 +101,7 @@ func (q *Queries) GetAssetByID(ctx context.Context, arg GetAssetByIDParams) (Ass
 		&i.Height,
 		&i.ThumbnailKey,
 		&i.Metadata,
+		&i.CurrentVersionID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -107,7 +109,7 @@ func (q *Queries) GetAssetByID(ctx context.Context, arg GetAssetByIDParams) (Ass
 }
 
 const listAssets = `-- name: ListAssets :many
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at FROM assets
+SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, metadata, current_version_id, created_at, updated_at FROM assets
 WHERE workspace_id = ?1
   AND (?2 IS NULL OR project_id = ?2)
   AND (?3 IS NULL OR mime_type LIKE ?3)
@@ -117,11 +119,11 @@ WHERE workspace_id = ?1
     OR (created_at = ?4 AND id < ?5)
   )
 ORDER BY
-    CASE WHEN sqlc.arg('order_by') = 'size_asc' THEN size END ASC,
-    CASE WHEN sqlc.arg('order_by') = 'size_desc' THEN size END DESC,
-    CASE WHEN sqlc.arg('order_by') = 'created_at_asc' THEN created_at END ASC,
-    CASE WHEN sqlc.arg('order_by') = 'created_at_desc' THEN created_at END DESC,
-    CASE WHEN sqlc.arg('order_by') = 'id_asc' THEN id END ASC,
+    CASE WHEN @order_by = 'size_asc' THEN size END ASC,
+    CASE WHEN @order_by = 'size_desc' THEN size END DESC,
+    CASE WHEN @order_by = 'created_at_asc' THEN created_at END ASC,
+    CASE WHEN @order_by = 'created_at_desc' THEN created_at END DESC,
+    CASE WHEN @order_by = 'id_asc' THEN id END ASC,
     id DESC
 LIMIT ?6
 `
@@ -164,6 +166,7 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 			&i.Height,
 			&i.ThumbnailKey,
 			&i.Metadata,
+			&i.CurrentVersionID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -178,6 +181,20 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateAssetCurrentVersion = `-- name: UpdateAssetCurrentVersion :exec
+UPDATE assets SET current_version_id = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateAssetCurrentVersionParams struct {
+	CurrentVersionID *string `json:"current_version_id"`
+	ID               string  `json:"id"`
+}
+
+func (q *Queries) UpdateAssetCurrentVersion(ctx context.Context, arg UpdateAssetCurrentVersionParams) error {
+	_, err := q.db.ExecContext(ctx, updateAssetCurrentVersion, arg.CurrentVersionID, arg.ID)
+	return err
 }
 
 const updateAssetDimensions = `-- name: UpdateAssetDimensions :exec

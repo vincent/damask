@@ -68,6 +68,10 @@ func main() {
 		fieldCleanup := api.NewFieldCleanupScheduler(queries, q)
 		fieldCleanup.Start(ctx)
 		log.Printf("field cleanup scheduler started")
+
+		retentionSched := api.NewRetentionScheduler(q)
+		retentionSched.Start(ctx)
+		log.Printf("retention scheduler started")
 	}
 
 	app := api.New(queries, sqlDB, tokenMaker, stor, q, cfg.RemoveBgAPIKey, cfg.AppEnv, cfg.BaseURL.String(), cfg.FrontendPath, cfg.AppSecret)

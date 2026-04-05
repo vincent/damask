@@ -245,7 +245,7 @@ func (q *Queries) GetIngressSourceByPublicToken(ctx context.Context, publicToken
 }
 
 const getWorkspaceByIngestToken = `-- name: GetWorkspaceByIngestToken :one
-SELECT id, name, ingest_token, created_at, updated_at FROM workspaces WHERE ingest_token = ?
+SELECT id, name, ingest_token, version_retention_count, created_at, updated_at FROM workspaces WHERE ingest_token = ?
 `
 
 func (q *Queries) GetWorkspaceByIngestToken(ctx context.Context, ingestToken *string) (Workspace, error) {
@@ -255,6 +255,7 @@ func (q *Queries) GetWorkspaceByIngestToken(ctx context.Context, ingestToken *st
 		&i.ID,
 		&i.Name,
 		&i.IngestToken,
+		&i.VersionRetentionCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

@@ -181,6 +181,14 @@ func New(
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
 	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteVariant)
 
+	// Asset versions
+	api.Get("/assets/:id/versions", s.handleListAssetVersions)
+	api.Post("/assets/:id/versions", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUploadAssetVersion)
+	api.Post("/assets/:id/versions/:vid/restore", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleRestoreAssetVersion)
+	api.Get("/assets/:id/versions/:vid/file", s.handleGetVersionFile)
+	api.Get("/assets/:id/versions/:vid/thumb", s.handleGetVersionThumb)
+	api.Delete("/assets/:id/versions/:vid", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleDeleteAssetVersion)
+
 	// Transform preview (in-memory, no storage write)
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
 

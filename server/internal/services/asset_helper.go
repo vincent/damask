@@ -21,10 +21,11 @@ import (
 // -- Types
 
 type FileMeta struct {
-	MimeType string
-	Size     int64
-	Width    *int64
-	Height   *int64
+	MimeType    string
+	Size        int64
+	Width       *int64
+	Height      *int64
+	DurationSec *float64
 }
 
 type variantJobPayload struct {
@@ -70,6 +71,11 @@ func getHandler(mime string) MediaHandler {
 
 // -- Helpers
 
+// DetectMimeType sniffs the MIME type of the file at filePath.
+func DetectMimeType(filePath string) (string, error) {
+	return detectMimeType(filePath)
+}
+
 func detectMimeType(filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -86,6 +92,17 @@ func detectMimeType(filePath string) (string, error) {
 	}
 
 	return mimeType, nil
+}
+
+// ExtractMeta extracts width, height, duration, etc. from a file using the
+// registered media handler for the given MIME type. Returns a zero FileMeta if
+// no handler is found or extraction fails.
+func ExtractMeta(ctx context.Context, filePath, mimeType string) (FileMeta, error) {
+	h := getHandler(mimeType)
+	if h == nil {
+		return FileMeta{}, nil
+	}
+	return h.ExtractMeta(ctx, filePath)
 }
 
 func storeFile(storage storage.Storage, key string, filePath string) error {

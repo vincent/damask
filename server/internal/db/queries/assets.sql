@@ -39,3 +39,6 @@ UPDATE assets SET folder_id = ?, updated_at = datetime('now') WHERE id = ? AND w
 
 -- name: DeleteAsset :exec
 DELETE FROM assets WHERE id = ? AND workspace_id = ?;
+
+-- name: UpdateAssetCurrentVersion :exec
+UPDATE assets SET current_version_id = ?, updated_at = datetime('now') WHERE id = ?;

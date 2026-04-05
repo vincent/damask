@@ -21,6 +21,7 @@ type Asset struct {
 	Height           *int64    `json:"height"`
 	ThumbnailKey     *string   `json:"thumbnail_key"`
 	Metadata         *string   `json:"metadata"`
+	CurrentVersionID *string   `json:"current_version_id"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
@@ -41,6 +42,26 @@ type AssetFieldValue struct {
 type AssetTag struct {
 	AssetID string `json:"asset_id"`
 	TagID   string `json:"tag_id"`
+}
+
+type AssetVersion struct {
+	ID           string   `json:"id"`
+	AssetID      string   `json:"asset_id"`
+	WorkspaceID  string   `json:"workspace_id"`
+	VersionNum   int64    `json:"version_num"`
+	StorageKey   string   `json:"storage_key"`
+	ContentHash  string   `json:"content_hash"`
+	MimeType     string   `json:"mime_type"`
+	Size         int64    `json:"size"`
+	Width        *int64   `json:"width"`
+	Height       *int64   `json:"height"`
+	DurationSec  *float64 `json:"duration_sec"`
+	ThumbnailKey *string  `json:"thumbnail_key"`
+	Comment      *string  `json:"comment"`
+	CreatedBy    string   `json:"created_by"`
+	CreatedAt    string   `json:"created_at"`
+	IsCurrent    int64    `json:"is_current"`
+	DeletedAt    *string  `json:"deleted_at"`
 }
 
 type AssetsFt struct {
@@ -202,11 +223,12 @@ type Variant struct {
 }
 
 type Workspace struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	IngestToken *string   `json:"ingest_token"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID                    string    `json:"id"`
+	Name                  string    `json:"name"`
+	IngestToken           *string   `json:"ingest_token"`
+	VersionRetentionCount int64     `json:"version_retention_count"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 type WorkspaceInvite struct {

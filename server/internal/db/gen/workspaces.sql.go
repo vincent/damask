@@ -12,7 +12,7 @@ import (
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (id, name, created_at, updated_at)
 VALUES (?, ?, datetime('now'), datetime('now'))
-RETURNING id, name, ingest_token, created_at, updated_at
+RETURNING id, name, ingest_token, version_retention_count, created_at, updated_at
 `
 
 type CreateWorkspaceParams struct {
@@ -27,6 +27,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.ID,
 		&i.Name,
 		&i.IngestToken,
+		&i.VersionRetentionCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -34,7 +35,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 }
 
 const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, name, ingest_token, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
+SELECT id, name, ingest_token, version_retention_count, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
@@ -44,8 +45,43 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 		&i.ID,
 		&i.Name,
 		&i.IngestToken,
+		&i.VersionRetentionCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
+SELECT id, name, ingest_token, version_retention_count, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
+`
+
+func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace, error) {
+	rows, err := q.db.QueryContext(ctx, listWorkspacesWithRetention)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Workspace{}
+	for rows.Next() {
+		var i Workspace
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.IngestToken,
+			&i.VersionRetentionCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

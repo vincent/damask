@@ -1,9 +1,10 @@
 CREATE TABLE workspaces (
-    id           TEXT PRIMARY KEY,
-    name         TEXT NOT NULL,
-    ingest_token TEXT UNIQUE,
-    created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at   DATETIME NOT NULL DEFAULT (datetime('now'))
+    id                      TEXT PRIMARY KEY,
+    name                    TEXT NOT NULL,
+    ingest_token            TEXT UNIQUE,
+    version_retention_count INTEGER NOT NULL DEFAULT 0,
+    created_at              DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at              DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE users (
@@ -59,21 +60,48 @@ CREATE TABLE folders (
 );
 
 CREATE TABLE assets (
-    id                TEXT PRIMARY KEY,
-    workspace_id      TEXT NOT NULL REFERENCES workspaces(id),
-    project_id        TEXT REFERENCES projects(id),
-    folder_id         TEXT REFERENCES folders(id),
-    original_filename TEXT NOT NULL,
-    storage_key       TEXT NOT NULL,
-    mime_type         TEXT NOT NULL,
-    size              INTEGER NOT NULL,
-    width             INTEGER,
-    height            INTEGER,
-    thumbnail_key     TEXT,
-    metadata          TEXT, -- JSON
-    created_at        DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at        DATETIME NOT NULL DEFAULT (datetime('now'))
+    id                  TEXT PRIMARY KEY,
+    workspace_id        TEXT NOT NULL REFERENCES workspaces(id),
+    project_id          TEXT REFERENCES projects(id),
+    folder_id           TEXT REFERENCES folders(id),
+    original_filename   TEXT NOT NULL,
+    storage_key         TEXT NOT NULL,
+    mime_type           TEXT NOT NULL,
+    size                INTEGER NOT NULL,
+    width               INTEGER,
+    height              INTEGER,
+    thumbnail_key       TEXT,
+    metadata            TEXT, -- JSON
+    current_version_id  TEXT,  -- FK added after asset_versions is created
+    created_at          DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at          DATETIME NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE asset_versions (
+  id            TEXT PRIMARY KEY,
+  asset_id      TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  workspace_id  TEXT NOT NULL REFERENCES workspaces(id),
+  version_num   INTEGER NOT NULL,
+  storage_key   TEXT NOT NULL,
+  content_hash  TEXT NOT NULL,
+  mime_type     TEXT NOT NULL,
+  size          INTEGER NOT NULL,
+  width         INTEGER,
+  height        INTEGER,
+  duration_sec  REAL,
+  thumbnail_key TEXT,
+  comment       TEXT,
+  created_by    TEXT NOT NULL REFERENCES users(id),
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  is_current    INTEGER NOT NULL DEFAULT 0,
+  deleted_at    TEXT,
+  UNIQUE(asset_id, version_num)
+);
+
+CREATE INDEX idx_versions_asset     ON asset_versions(asset_id, is_current);
+CREATE INDEX idx_versions_workspace ON asset_versions(workspace_id);
+CREATE INDEX idx_versions_hash      ON asset_versions(content_hash);
+CREATE INDEX idx_versions_created   ON asset_versions(asset_id, created_at DESC);
 
 CREATE TABLE tags (
     id           TEXT PRIMARY KEY,
