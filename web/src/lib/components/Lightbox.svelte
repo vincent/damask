@@ -30,6 +30,7 @@
   import AssetMetadataPills from './AssetMetadataPills.svelte'
   import AssetExportImage from './AssetExportImage.svelte'
   import AssetDeleteButton from './AssetDeleteButton.svelte'
+  import AssetCustomFields from './AssetCustomFields.svelte'
   import { fly } from 'svelte/transition'
 
   interface Props {
@@ -241,6 +242,8 @@
           {#if authStore.role !== 'viewer' || activeProject}
             <AssetProject {asset} {activeProject} {onprojectchanged} />
           {/if}
+
+          <AssetCustomFields {asset} />
         </div>
 
       <!-- ═══ VARIANTS TAB ═══ -->

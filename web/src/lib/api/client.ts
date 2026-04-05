@@ -1,4 +1,4 @@
-import type { Asset, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, Folder, IngressLogEntry, IngressRule, IngressSource, Project, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AssetFieldValue, AssetFieldsResponse, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, Project, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -264,6 +264,64 @@ export const assetApi = {
   },
 }
 
+
+export const fieldDefinitionApi = {
+  list: (scope: FieldScope) =>
+    apiFetch<FieldDefinition[]>(`/api/v1/field-definitions?scope=${scope}`),
+
+  get: (id: string) =>
+    apiFetch<FieldDefinition>(`/api/v1/field-definitions/${id}`),
+
+  stats: (id: string) =>
+    apiFetch<FieldDefinitionStats>(`/api/v1/field-definitions/${id}/stats`),
+
+  create: (params: {
+    scope: FieldScope
+    name: string
+    key: string
+    field_type: string
+    options?: string | null
+    required?: boolean
+    position?: number
+    inherit_from_project?: boolean
+  }) =>
+    apiFetch<FieldDefinition>('/api/v1/field-definitions', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  update: (id: string, params: {
+    name?: string
+    options?: string | null
+    required?: boolean
+    position?: number
+    inherit_from_project?: boolean
+  }) =>
+    apiFetch<FieldDefinition>(`/api/v1/field-definitions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(params),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/field-definitions/${id}`, { method: 'DELETE' }),
+
+  reorder: (entries: { id: string; position: number }[]) =>
+    apiFetch<void>('/api/v1/field-definitions/reorder', {
+      method: 'PUT',
+      body: JSON.stringify(entries),
+    }),
+}
+
+export const assetFieldApi = {
+  get: (assetId: string) =>
+    apiFetch<AssetFieldsResponse>(`/api/v1/assets/${assetId}/fields`),
+
+  patch: (assetId: string, values: { field_id: string; value: string | number | boolean | null }[]) =>
+    apiFetch<AssetFieldsResponse>(`/api/v1/assets/${assetId}/fields`, {
+      method: 'PATCH',
+      body: JSON.stringify({ values }),
+    }),
+}
 
 export function openThumbnailEvents(): EventSource {
   return new EventSource(`${API_BASE}/api/v1/events`, { withCredentials: true })

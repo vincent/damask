@@ -2,6 +2,7 @@
   import { type Asset } from '$lib/api'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { selectionStore } from '$lib/stores/selection.svelte'
+  import { uploadsStore } from '$lib/stores/uploads.svelte'
   import AssetCard from '$lib/components/AssetCard.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
@@ -112,7 +113,7 @@
                       </div>
                     </div>
                   {/if}
-                  <AssetCard {asset} {zoom} onclick={(e) => onCardClick(asset, globalIndex, e)} />
+                  <AssetCard {asset} {zoom} requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)} />
                 </div>
               {/each}
             </div>
@@ -129,7 +130,7 @@
     <div class="mb-10">
       <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
         {#each assetsStore.assets as asset, globalIndex (asset.id)}
-          <AssetCard {asset} {zoom} onclick={(e) => onCardClick(asset, globalIndex, e)} />
+          <AssetCard {asset} {zoom} requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)} />
         {/each}
       </div>
     </div>

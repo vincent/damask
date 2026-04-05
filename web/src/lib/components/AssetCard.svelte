@@ -1,15 +1,21 @@
 <script lang="ts">
   import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api'
-  import { File, Loader, Play } from '@lucide/svelte'
+  import { customFieldsStore } from '$lib/stores/customFields.svelte'
+  import { File, Loader, Play, TriangleAlert } from '@lucide/svelte'
 
   interface Props {
     asset: Asset
     class?: string,
     zoom?: number,
     onclick: (e: MouseEvent) => void
+    /** Set to true when this asset was just uploaded and may be missing required fields */
+    requiresFields?: boolean
   }
 
-  let { asset, class: extraClass = '', zoom = 5, onclick }: Props = $props()
+  let { asset, class: extraClass = '', zoom = 5, onclick, requiresFields = false }: Props = $props()
+
+  const hasRequiredFields = $derived(customFieldsStore.assetFields.some((f) => f.required))
+  const showRequiredNudge = $derived(requiresFields && hasRequiredFields)
   const category = $derived(mimeCategory(asset.mime_type))
   const isProcessing = $derived(!asset.thumbnail_key)
 
@@ -49,6 +55,15 @@
   >
     <!-- Status dot -->
     <div class="absolute left-2.5 top-2.5 h-3 w-3 rounded-full {dotBg[category]}"></div>
+
+    <!-- Required fields nudge -->
+    {#if showRequiredNudge}
+      <div class="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-orange-500 px-1.5 py-0.5 text-white shadow"
+           title="Required fields missing">
+        <TriangleAlert class="h-3 w-3" />
+        <span class="text-[10px] font-semibold leading-none">Fields</span>
+      </div>
+    {/if}
 
     {#if (category === 'image' || category === 'video' || category === 'audio' || category === 'document') && !isProcessing}
       <img

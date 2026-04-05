@@ -274,3 +274,42 @@ export interface CreateIngressRuleParams {
   value: string
   action: string
 }
+
+// ---- Custom Fields ----
+
+export type FieldType = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'url'
+export type FieldScope = 'asset' | 'project'
+
+export interface FieldDefinition {
+  id: string
+  workspace_id: string
+  scope: FieldScope
+  name: string
+  key: string
+  field_type: FieldType
+  options: string | null  // JSON array string for select type
+  required: boolean
+  position: number
+  inherit_from_project: boolean
+  created_at: string
+  updated_at: string
+  deleted_at?: string | null
+}
+
+export interface FieldDefinitionStats {
+  asset_count: number
+  project_count: number
+}
+
+export interface AssetFieldValue {
+  field_id: string
+  key: string
+  name: string
+  field_type: FieldType
+  value: string | number | boolean | null
+  definition_deleted: boolean
+}
+
+export interface AssetFieldsResponse {
+  fields: AssetFieldValue[]
+}

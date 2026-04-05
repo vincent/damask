@@ -1,5 +1,5 @@
 <script lang="ts">
-    let { error, success } = $props()
+    let { error = undefined, success = undefined }: { success?: string, error?: string } = $props()
 </script>
 
 {#if error}
