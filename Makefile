@@ -1,4 +1,4 @@
-.PHONY: dev dev-server dev-web build test lint generate migrate
+.PHONY: dev dev-server dev-web build test lint generate migrate admin admin-run admin-install
 
 # Run both server and web dev servers concurrently
 dev:
@@ -36,3 +36,16 @@ generate:
 # Apply DB migrations (for manual use; server auto-migrates on start)
 migrate:
 	cd server && go run ./cmd/server --migrate-only
+
+## Admin TUI
+admin:
+	@echo "Building damask-admin..."
+	cd cmd/admin && go build -ldflags="-s -w" -o ../../bin/damask-admin .
+	@echo "Binary: bin/damask-admin"
+
+admin-run:
+	cd cmd/admin && go run . --db $${DB_PATH:-./damask.db}
+
+admin-install:
+	cd cmd/admin && go install .
+	@echo "Installed: damask-admin"
