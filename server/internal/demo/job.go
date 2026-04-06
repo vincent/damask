@@ -82,6 +82,7 @@ func (s *Seeder) runReset(ctx context.Context) {
 		return
 	}
 
+	s.lastResetAt = time.Now()
 	log.Printf("demo: reset complete total_duration_ms=%d", time.Since(start).Milliseconds())
 }
 

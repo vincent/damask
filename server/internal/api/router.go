@@ -102,9 +102,10 @@ func NewRouter(
 	// Health check (public)
 	app.Get("/healthz", handleHealthz)
 
-	// Demo session — only registered when DEMO_MODE=true
+	// Demo routes — only registered when DEMO_MODE=true
 	if cfg.Demo.DemoMode {
 		app.Post("/demo/session", s.handleDemoSession)
+		app.Get("/demo/status", s.handleDemoStatus)
 	}
 
 	// Auth routes (public)
@@ -134,11 +135,11 @@ func NewRouter(
 		return member.Role, nil
 	}
 
-	// Workspace settings — owner only
-	api.Put("/workspace/settings", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleUpdateWorkspaceSettings)
+	// Workspace settings — owner only; blocked in demo mode
+	api.Put("/workspace/settings", demoBlock, auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleUpdateWorkspaceSettings)
 
-	// Invites — owner only
-	api.Post("/workspace/invites", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleCreateInvite)
+	// Invites — owner only; blocked in demo mode
+	api.Post("/workspace/invites", demoBlock, auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleCreateInvite)
 
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)
@@ -234,7 +235,7 @@ func NewRouter(
 	ingressGroup.Put("/sources/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateIngressSource)
 	ingressGroup.Delete("/sources/:id", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleDeleteIngressSource)
 	ingressGroup.Post("/sources/:id/test", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleTestIngressSource)
-	ingressGroup.Post("/sources/:id/poll", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handlePollIngressSource)
+	ingressGroup.Post("/sources/:id/poll", demoBlock, auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handlePollIngressSource)
 	ingressGroup.Get("/sources/:id/log", s.handleListIngressSourceLog)
 	ingressGroup.Get("/log", s.handleListIngressLog)
 	ingressGroup.Delete("/log/:entry_id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteIngressLogEntry)

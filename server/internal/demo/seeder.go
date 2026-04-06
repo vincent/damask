@@ -32,9 +32,10 @@ const bcryptHashOfDemo = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL
 
 // Seeder creates and populates the demo workspace.
 type Seeder struct {
-	db      *sql.DB
-	storage storage.Storage
-	cfg     config.DemoConfig
+	db          *sql.DB
+	storage     storage.Storage
+	cfg         config.DemoConfig
+	lastResetAt time.Time // set after each successful reset; zero on first boot
 }
 
 // New returns a Seeder ready to use.
@@ -293,6 +294,48 @@ func (s *Seeder) GetDemoUser(ctx context.Context) (userID, workspaceID string, e
 func VerifyDemoPassword(password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(bcryptHashOfDemo), []byte(password))
 	return err == nil
+}
+
+// ResetInterval returns the configured reset interval.
+func (s *Seeder) ResetInterval() time.Duration {
+	return time.Duration(s.cfg.ResetIntervalHours) * time.Hour
+}
+
+// LastResetAt returns the time of the last successful reset (zero if none yet).
+func (s *Seeder) LastResetAt() time.Time {
+	return s.lastResetAt
+}
+
+// NextResetAt returns the estimated time of the next reset.
+// Returns zero if the reset interval is not configured.
+func (s *Seeder) NextResetAt() time.Time {
+	if s.lastResetAt.IsZero() || s.cfg.ResetIntervalHours == 0 {
+		return time.Time{}
+	}
+	return s.lastResetAt.Add(s.ResetInterval())
+}
+
+// DemoUsage holds the current demo workspace asset count and total storage bytes.
+type DemoUsage struct {
+	AssetCount  int64
+	StorageUsed int64 // bytes
+}
+
+// GetUsage returns the current asset count and total storage used by the demo workspace.
+// Returns zero values if the demo workspace does not exist.
+func (s *Seeder) GetUsage(ctx context.Context, workspaceID string) (DemoUsage, error) {
+	var u DemoUsage
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(DISTINCT a.id),
+		       COALESCE(SUM(av.size), 0)
+		FROM assets a
+		LEFT JOIN asset_versions av ON av.id = a.current_version_id
+		WHERE a.workspace_id = ?
+	`, workspaceID).Scan(&u.AssetCount, &u.StorageUsed)
+	if err != nil {
+		return DemoUsage{}, err
+	}
+	return u, nil
 }
 
 // --- field definitions ---

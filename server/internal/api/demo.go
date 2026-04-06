@@ -7,6 +7,49 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const DemoMaxAssets = 50
+const DemoMaxStorageBytes = 100 * 1024 * 1024 // 100 MB
+
+// handleDemoStatus returns the current state of the demo workspace.
+// Public endpoint — no auth required.
+//
+// GET /demo/status
+func (s *Server) handleDemoStatus(c fiber.Ctx) error {
+	if s.demo == nil {
+		return fiber.NewError(fiber.StatusNotFound, "demo mode not enabled")
+	}
+
+	workspaceID, ok := s.demo.GetWorkspaceID(c.Context())
+	if !ok {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"available": false,
+		})
+	}
+
+	usage, err := s.demo.GetUsage(c.Context(), workspaceID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "demo status unavailable")
+	}
+
+	lastReset := s.demo.LastResetAt()
+	nextReset := s.demo.NextResetAt()
+
+	resp := fiber.Map{
+		"available":        true,
+		"asset_count":      usage.AssetCount,
+		"asset_limit":      DemoMaxAssets,
+		"storage_used_mb":  float64(usage.StorageUsed) / (1024 * 1024),
+		"storage_limit_mb": float64(DemoMaxStorageBytes) / (1024 * 1024),
+	}
+	if !lastReset.IsZero() {
+		resp["last_reset_at"] = lastReset.UTC().Format(time.RFC3339)
+	}
+	if !nextReset.IsZero() {
+		resp["next_reset_at"] = nextReset.UTC().Format(time.RFC3339)
+	}
+	return c.Status(fiber.StatusOK).JSON(resp)
+}
+
 // handleDemoSession issues a passwordless JWT for the demo workspace.
 // Only registered when DEMO_MODE=true.
 //

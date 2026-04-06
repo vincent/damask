@@ -73,6 +73,26 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64) 
 func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
+	// Demo upload cap enforcement (DM-4.2)
+	if claims.IsDemo && s.demo != nil {
+		usage, err := s.demo.GetUsage(c.Context(), claims.WorkspaceID)
+		if err == nil {
+			if usage.AssetCount >= DemoMaxAssets {
+				msg := "Demo upload limit reached (50 assets)."
+				if next := s.demo.NextResetAt(); !next.IsZero() {
+					remaining := time.Until(next).Round(time.Minute)
+					h := int(remaining.Hours())
+					m := int(remaining.Minutes()) % 60
+					msg = fmt.Sprintf("Demo upload limit reached. Resets in %dh %dm.", h, m)
+				}
+				return errRes(c, fiber.StatusTooManyRequests, msg)
+			}
+			if usage.StorageUsed >= DemoMaxStorageBytes {
+				return errRes(c, fiber.StatusTooManyRequests, "Demo storage limit reached (100 MB).")
+			}
+		}
+	}
+
 	fh, err := c.FormFile("file")
 	if err != nil {
 		return errRes(c, fiber.StatusBadRequest, "file field is required")
