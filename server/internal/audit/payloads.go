@@ -2,20 +2,23 @@ package audit
 
 // Asset event types
 const (
-	EventAssetCreated         = "asset_created"
-	EventAssetRenamed         = "asset_renamed"
-	EventAssetMoved           = "asset_moved"
-	EventAssetTagged          = "asset_tagged"
-	EventAssetUntagged        = "asset_untagged"
-	EventAssetFieldSet        = "asset_field_set"
-	EventAssetFieldCleared    = "asset_field_cleared"
-	EventAssetVersionUploaded = "asset_version_uploaded"
-	EventAssetVersionRestored = "asset_version_restored"
-	EventAssetVersionDeleted  = "asset_version_deleted"
-	EventAssetShared          = "asset_shared"
-	EventAssetShareRevoked    = "asset_share_revoked"
-	EventAssetDeleted         = "asset_deleted"
-	EventAssetDownloaded      = "asset_downloaded"
+	EventAssetCreated           = "asset_created"
+	EventAssetRenamed           = "asset_renamed"
+	EventAssetMoved             = "asset_moved"
+	EventAssetTagged            = "asset_tagged"
+	EventAssetUntagged          = "asset_untagged"
+	EventAssetFieldSet          = "asset_field_set"
+	EventAssetFieldCleared      = "asset_field_cleared"
+	EventAssetVersionUploaded   = "asset_version_uploaded"
+	EventAssetVersionRestored   = "asset_version_restored"
+	EventAssetVersionDeleted    = "asset_version_deleted"
+	EventAssetShared            = "asset_shared"
+	EventAssetShareRevoked      = "asset_share_revoked"
+	EventAssetDeleted           = "asset_deleted"
+	EventAssetDownloaded        = "asset_downloaded"
+	EventAssetVariantCreated    = "asset_variant_created"
+	EventAssetVariantDownloaded = "asset_variant_downloaded"
+	EventAssetVariantDeleted    = "asset_variant_deleted"
 )
 
 // Project event types
@@ -119,6 +122,23 @@ type AssetDownloadedPayload struct {
 	V       int     `json:"v"`
 	Via     string  `json:"via"` // "direct" | "share"
 	ShareID *string `json:"share_id,omitempty"`
+}
+
+type AssetVariantCreatedPayload struct {
+	V    int    `json:"v"`
+	Type string `json:"type"`
+}
+
+type AssetVariantDownloadedPayload struct {
+	V         int    `json:"v"`
+	VariantID string `json:"variant_id"`
+	Type      string `json:"type"`
+}
+
+type AssetVariantDeletedPayload struct {
+	V         int    `json:"v"`
+	VariantID string `json:"variant_id"`
+	Type      string `json:"type"`
 }
 
 // --- Project payload structs ---

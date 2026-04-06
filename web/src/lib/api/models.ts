@@ -366,3 +366,37 @@ export interface ProjectFieldValue {
 export interface ProjectFieldsResponse {
   fields: ProjectFieldValue[]
 }
+
+// ---- Event Log ----
+
+export interface EventActor {
+  type: 'user' | 'system'
+  id: string | null
+  name: string | null
+}
+
+export interface AuditEvent {
+  id: string
+  event_type: string
+  actor: EventActor
+  payload: Record<string, unknown>
+  created_at: string
+  human_readable: string
+}
+
+export interface ActivityEvent extends AuditEvent {
+  entity_type: 'asset' | 'project'
+  entity_id: string
+}
+
+export interface AuditLogResponse {
+  events: AuditEvent[]
+  next_cursor: string | null
+  has_more: boolean
+}
+
+export interface ActivityFeedResponse {
+  events: ActivityEvent[]
+  next_cursor: string | null
+  has_more: boolean
+}

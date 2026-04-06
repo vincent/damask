@@ -78,6 +78,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	s.queue.Register(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
 	s.queue.Register(queue.JobTypeEnforceVersionRetention, s.jobEnforceVersionRetention)
 	s.queue.Register(queue.JobTypePurgeVersionStorage, s.jobPurgeVersionStorage)
+	s.queue.Register(queue.JobTypePurgeAuditLog, s.jobPurgeAuditLog)
 }
 
 // ---- OS helpers ----

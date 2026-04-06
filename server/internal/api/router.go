@@ -205,6 +205,16 @@ func NewRouter(
 	// Server-Sent Events (workspace-scoped)
 	api.Get("/events", hub.EventHandler)
 
+	// Asset event log
+	api.Get("/assets/:id/events", s.handleListAssetEvents)
+
+	// Project event log
+	api.Get("/projects/:id/events", s.handleListProjectEvents)
+
+	// Workspace activity feed
+	api.Get("/activity", s.handleListWorkspaceActivity)
+	api.Get("/activity/export", s.handleExportActivity)
+
 	// Ingress sources
 	ingressGroup := api.Group("/ingress")
 	ingressGroup.Post("/sources", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateIngressSource)

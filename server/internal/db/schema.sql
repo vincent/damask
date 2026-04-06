@@ -1,12 +1,14 @@
 CREATE TABLE workspaces (
-    id                      TEXT PRIMARY KEY,
-    name                    TEXT NOT NULL,
-    ingest_token            TEXT UNIQUE,
-    version_retention_count INTEGER NOT NULL DEFAULT 0,
-    icon_asset_id           TEXT,
-    icon_version_id         TEXT,
-    created_at              DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at              DATETIME NOT NULL DEFAULT (datetime('now'))
+    id                          TEXT PRIMARY KEY,
+    name                        TEXT NOT NULL,
+    ingest_token                TEXT UNIQUE,
+    version_retention_count     INTEGER NOT NULL DEFAULT 0,
+    event_log_retention_days    INTEGER NOT NULL DEFAULT 365,
+    download_log_retention_days INTEGER NOT NULL DEFAULT 30,
+    icon_asset_id               TEXT,
+    icon_version_id             TEXT,
+    created_at                  DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at                  DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE users (
@@ -305,3 +307,35 @@ CREATE INDEX idx_pfv_field    ON project_field_values(field_id);
 CREATE INDEX idx_pfv_text     ON project_field_values(field_id, value_text);
 CREATE INDEX idx_pfv_number   ON project_field_values(field_id, value_number);
 CREATE INDEX idx_pfv_date     ON project_field_values(field_id, value_date);
+
+-- Event log (migration 000011)
+CREATE TABLE asset_events (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+  asset_id     TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  user_id      TEXT REFERENCES users(id),
+  actor_type   TEXT NOT NULL DEFAULT 'user' CHECK(actor_type IN ('user','system')),
+  event_type   TEXT NOT NULL,
+  payload      TEXT NOT NULL DEFAULT '{}',
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_aevents_asset     ON asset_events(asset_id, created_at DESC);
+CREATE INDEX idx_aevents_workspace ON asset_events(workspace_id, created_at DESC);
+CREATE INDEX idx_aevents_user      ON asset_events(user_id, created_at DESC);
+CREATE INDEX idx_aevents_type      ON asset_events(workspace_id, event_type);
+
+CREATE TABLE project_events (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+  project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id      TEXT REFERENCES users(id),
+  actor_type   TEXT NOT NULL DEFAULT 'user' CHECK(actor_type IN ('user','system')),
+  event_type   TEXT NOT NULL,
+  payload      TEXT NOT NULL DEFAULT '{}',
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_pevents_project   ON project_events(project_id, created_at DESC);
+CREATE INDEX idx_pevents_workspace ON project_events(workspace_id, created_at DESC);
+CREATE INDEX idx_pevents_user      ON project_events(user_id, created_at DESC);

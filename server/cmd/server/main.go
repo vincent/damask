@@ -68,6 +68,8 @@ func main() {
 		log.Printf("field cleanup scheduler started")
 		jobs.NewRetentionScheduler(q).Start(ctx)
 		log.Printf("retention scheduler started")
+		jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
+		log.Printf("audit-log retention scheduler started")
 	}
 
 	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg)

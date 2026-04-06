@@ -495,15 +495,17 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
 
-	userID := claims.UserID
-	s.audit.WriteAssetAsync(audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     asset.ID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetDownloaded,
-		Payload:     audit.AssetDownloadedPayload{V: 1, Via: "direct"},
-	})
+	if c.Get("Sec-Fetch-Dest") != "image" {
+		userID := claims.UserID
+		s.audit.WriteAssetAsync(audit.AssetEvent{
+			WorkspaceID: claims.WorkspaceID,
+			AssetID:     asset.ID,
+			UserID:      &userID,
+			ActorType:   audit.ActorTypeUser,
+			EventType:   audit.EventAssetDownloaded,
+			Payload:     audit.AssetDownloadedPayload{V: 1, Via: "direct"},
+		})
+	}
 
 	c.Set("Content-Type", asset.MimeType)
 	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, asset.OriginalFilename))

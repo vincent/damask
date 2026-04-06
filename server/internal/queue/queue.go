@@ -204,4 +204,5 @@ const (
 	JobTypePurgeDeletedFields      = "purge_deleted_fields"
 	JobTypeEnforceVersionRetention = "enforce_version_retention"
 	JobTypePurgeVersionStorage     = "purge_version_storage"
+	JobTypePurgeAuditLog           = "purge_event_log"
 )

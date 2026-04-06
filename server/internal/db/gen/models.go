@@ -26,6 +26,17 @@ type Asset struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type AssetEvent struct {
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+	AssetID     string  `json:"asset_id"`
+	UserID      *string `json:"user_id"`
+	ActorType   string  `json:"actor_type"`
+	EventType   string  `json:"event_type"`
+	Payload     string  `json:"payload"`
+	CreatedAt   string  `json:"created_at"`
+}
+
 type AssetFieldValue struct {
 	ID           string   `json:"id"`
 	AssetID      string   `json:"asset_id"`
@@ -158,6 +169,17 @@ type Project struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+type ProjectEvent struct {
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+	ProjectID   string  `json:"project_id"`
+	UserID      *string `json:"user_id"`
+	ActorType   string  `json:"actor_type"`
+	EventType   string  `json:"event_type"`
+	Payload     string  `json:"payload"`
+	CreatedAt   string  `json:"created_at"`
+}
+
 type ProjectFieldValue struct {
 	ID           string   `json:"id"`
 	ProjectID    string   `json:"project_id"`
@@ -224,14 +246,16 @@ type Variant struct {
 }
 
 type Workspace struct {
-	ID                    string    `json:"id"`
-	Name                  string    `json:"name"`
-	IngestToken           *string   `json:"ingest_token"`
-	VersionRetentionCount int64     `json:"version_retention_count"`
-	IconAssetID           *string   `json:"icon_asset_id"`
-	IconVersionID         *string   `json:"icon_version_id"`
-	CreatedAt             time.Time `json:"created_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	ID                       string    `json:"id"`
+	Name                     string    `json:"name"`
+	IngestToken              *string   `json:"ingest_token"`
+	VersionRetentionCount    int64     `json:"version_retention_count"`
+	AuditLogRetentionDays    int64     `json:"event_log_retention_days"`
+	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`
+	IconAssetID              *string   `json:"icon_asset_id"`
+	IconVersionID            *string   `json:"icon_version_id"`
+	CreatedAt                time.Time `json:"created_at"`
+	UpdatedAt                time.Time `json:"updated_at"`
 }
 
 type WorkspaceInvite struct {

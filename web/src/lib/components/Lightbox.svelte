@@ -33,6 +33,7 @@
   import AssetCustomFields from './AssetCustomFields.svelte'
   import VersionHistory from './VersionHistory.svelte'
   import UploadVersionModal from './UploadVersionModal.svelte'
+  import AssetActivity from './AssetActivity.svelte'
   import { fly } from 'svelte/transition'
 
   interface Props {
@@ -47,7 +48,7 @@
   let { asset = $bindable(), onclose, ondeleted, ontagschanged, onprojectchanged, onassetupdated }: Props = $props()
 
   // --- Panel tabs ---
-  type PanelTab = 'details' | 'variants' | 'history' | 'actions'
+  type PanelTab = 'details' | 'variants' | 'history' | 'activity' | 'actions'
   let activeTab = $state<PanelTab>('details')
 
   // --- Variant sub-tabs ---
@@ -215,7 +216,7 @@
     <!-- Animated tab bar -->
     <div class="relative flex-shrink-0 border-b border-gray-100 dark:border-gray-800">
       <div class="flex">
-        {#each (['details', 'variants', 'history', 'actions'] as PanelTab[]) as tab}
+        {#each (['details', 'variants', 'history', 'activity', 'actions'] as PanelTab[]) as tab}
           <button
             type="button"
             class="relative flex-1 py-3 text-xs font-medium transition-colors {activeTab === tab
@@ -319,6 +320,10 @@
             onassetupdated?.(updated)
           }} />
         </div>
+
+      <!-- ═══ ACTIVITY TAB ═══ -->
+      {:else if activeTab === 'activity'}
+        <AssetActivity {asset} />
 
       <!-- ═══ ACTIONS TAB ═══ -->
       {:else if activeTab === 'actions'}

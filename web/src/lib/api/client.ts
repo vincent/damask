@@ -531,6 +531,43 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+export const activityApi = {
+  listAssetEvents: (assetId: string, params: { limit?: number; cursor?: string; types?: string } = {}) => {
+    const q = new URLSearchParams()
+    if (params.limit) q.set('limit', String(params.limit))
+    if (params.cursor) q.set('cursor', params.cursor)
+    if (params.types) q.set('types', params.types)
+    const qs = q.toString()
+    return apiFetch<import('./models').AuditLogResponse>(`/api/v1/assets/${assetId}/events${qs ? '?' + qs : ''}`)
+  },
+
+  listProjectEvents: (projectId: string, params: { limit?: number; cursor?: string; types?: string } = {}) => {
+    const q = new URLSearchParams()
+    if (params.limit) q.set('limit', String(params.limit))
+    if (params.cursor) q.set('cursor', params.cursor)
+    if (params.types) q.set('types', params.types)
+    const qs = q.toString()
+    return apiFetch<import('./models').AuditLogResponse>(`/api/v1/projects/${projectId}/events${qs ? '?' + qs : ''}`)
+  },
+
+  listWorkspaceActivity: (params: { limit?: number; cursor?: string; types?: string; user_id?: string } = {}) => {
+    const q = new URLSearchParams()
+    if (params.limit) q.set('limit', String(params.limit))
+    if (params.cursor) q.set('cursor', params.cursor)
+    if (params.types) q.set('types', params.types)
+    if (params.user_id) q.set('user_id', params.user_id)
+    const qs = q.toString()
+    return apiFetch<import('./models').ActivityFeedResponse>(`/api/v1/activity${qs ? '?' + qs : ''}`)
+  },
+
+  exportCSV: (params: { since?: string; until?: string } = {}) => {
+    const q = new URLSearchParams({ format: 'csv' })
+    if (params.since) q.set('since', params.since)
+    if (params.until) q.set('until', params.until)
+    return `${API_BASE}/api/v1/activity/export?${q.toString()}`
+  },
+}
+
 export function mimeCategory(mimeType: string): 'image' | 'video' | 'audio' | 'document' {
   if (mimeType.startsWith('image/')) return 'image'
   if (mimeType.startsWith('video/')) return 'video'

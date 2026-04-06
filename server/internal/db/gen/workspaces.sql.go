@@ -12,7 +12,7 @@ import (
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (id, name, created_at, updated_at)
 VALUES (?, ?, datetime('now'), datetime('now'))
-RETURNING id, name, ingest_token, version_retention_count, icon_asset_id, icon_version_id, created_at, updated_at
+RETURNING id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, created_at, updated_at
 `
 
 type CreateWorkspaceParams struct {
@@ -28,6 +28,8 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.Name,
 		&i.IngestToken,
 		&i.VersionRetentionCount,
+		&i.AuditLogRetentionDays,
+		&i.DownloadLogRetentionDays,
 		&i.IconAssetID,
 		&i.IconVersionID,
 		&i.CreatedAt,
@@ -37,7 +39,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 }
 
 const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, name, ingest_token, version_retention_count, icon_asset_id, icon_version_id, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
+SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
@@ -48,6 +50,8 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 		&i.Name,
 		&i.IngestToken,
 		&i.VersionRetentionCount,
+		&i.AuditLogRetentionDays,
+		&i.DownloadLogRetentionDays,
 		&i.IconAssetID,
 		&i.IconVersionID,
 		&i.CreatedAt,
@@ -57,7 +61,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 }
 
 const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
-SELECT id, name, ingest_token, version_retention_count, icon_asset_id, icon_version_id, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
+SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
 `
 
 func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace, error) {
@@ -74,6 +78,8 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 			&i.Name,
 			&i.IngestToken,
 			&i.VersionRetentionCount,
+			&i.AuditLogRetentionDays,
+			&i.DownloadLogRetentionDays,
 			&i.IconAssetID,
 			&i.IconVersionID,
 			&i.CreatedAt,

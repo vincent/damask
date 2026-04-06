@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
@@ -147,6 +148,16 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not enqueue job")
 	}
 
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetVariantCreated,
+		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: body.Type},
+	})
+
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"job_id":  job.ID,
 		"status":  "pending",
@@ -183,6 +194,18 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	rc, err := s.storage.Get(variant.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "variant file not found")
+	}
+
+	if c.Get("Sec-Fetch-Dest") != "image" {
+		userID := claims.UserID
+		s.audit.WriteAssetAsync(audit.AssetEvent{
+			WorkspaceID: claims.WorkspaceID,
+			AssetID:     assetID,
+			UserID:      &userID,
+			ActorType:   audit.ActorTypeUser,
+			EventType:   audit.EventAssetVariantDownloaded,
+			Payload:     audit.AssetVariantDownloadedPayload{V: 1, VariantID: variantID, Type: variant.Type},
+		})
 	}
 
 	ext := strings.ToLower(filepath.Ext(variant.StorageKey))
@@ -225,6 +248,16 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete variant")
 	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetVariantDeleted,
+		Payload:     audit.AssetVariantDeletedPayload{V: 1, VariantID: variantID, Type: variant.Type},
+	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
