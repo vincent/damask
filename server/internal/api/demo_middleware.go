@@ -10,6 +10,5 @@ import (
 var demoRestrictedResponse = fiber.Map{
 	"error":      "not_available_in_demo",
 	"message":    "This action is not available in the demo. Sign up for a free account to unlock it.",
-	"signup_url": "https://damask.io/signup",
+	"signup_url": "https://damask.studio/signup",
 }
-

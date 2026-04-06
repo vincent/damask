@@ -53,14 +53,14 @@ type ids struct {
 	marcID      string
 
 	// projects
-	brandProjectID    string
-	summerProjectID   string
-	websiteProjectID  string
-	archiveProjectID  string
+	brandProjectID   string
+	summerProjectID  string
+	websiteProjectID string
+	archiveProjectID string
 
 	// folders (brand)
-	logosFolder   string
-	colorsFolder  string
+	logosFolder  string
+	colorsFolder string
 
 	// folders (summer)
 	photoFolder  string
@@ -68,9 +68,9 @@ type ids struct {
 	socialFolder string
 
 	// folders (website)
-	wireframesFolder  string
-	uiCompFolder      string
-	exportsFolder     string
+	wireframesFolder string
+	uiCompFolder     string
+	exportsFolder    string
 
 	// folders (archive)
 	printReadyFolder string
@@ -88,10 +88,10 @@ type ids struct {
 	pfieldPhase  string
 
 	// key assets (for versioning and events)
-	assetHomepageV2   string
-	assetLogoPrimary  string
-	assetBeachHero    string
-	assetStudioHero   string
+	assetHomepageV2  string
+	assetLogoPrimary string
+	assetBeachHero   string
+	assetStudioHero  string
 
 	// share
 	shareID string
@@ -144,13 +144,13 @@ func (s *Seeder) Seed(ctx context.Context) error {
 	}
 
 	// Create ghost users for the activity log (they may already exist from a previous seed)
-	aliceID, err := s.ensureGhostUser(ctx, "alice@demo.damask.io", "Alice")
+	aliceID, err := s.ensureGhostUser(ctx, "alice@demo.damask.studio", "Alice")
 	if err != nil {
 		return fmt.Errorf("demo: ghost user alice: %w", err)
 	}
 	d.aliceID = aliceID
 
-	marcID, err := s.ensureGhostUser(ctx, "marc@demo.damask.io", "Marc")
+	marcID, err := s.ensureGhostUser(ctx, "marc@demo.damask.studio", "Marc")
 	if err != nil {
 		return fmt.Errorf("demo: ghost user marc: %w", err)
 	}

@@ -46,6 +46,9 @@ jobs:
       - name: Build binary
         working-directory: server
         run: CGO_ENABLED=0 go build -mod=mod -o bin/damask-server ./cmd/server
+      - name: Build demo binary
+        working-directory: server
+        run: CGO_ENABLED=0 go build -tags=demo -mod=mod -o bin/damask-server-demo ./cmd/server
 
   check-frontend:
     name: Check (Svelte)

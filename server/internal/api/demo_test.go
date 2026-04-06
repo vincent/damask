@@ -41,10 +41,10 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	demoCfg := config.DemoConfig{
 		DemoMode:           true,
 		ResetIntervalHours: 6,
-		UserEmail:          "demo@damask.io",
+		UserEmail:          "demo@damask.studio",
 		WorkspaceName:      "Demo Agency",
 		ShowBanner:         true,
-		SignupURL:          "https://damask.io/signup",
+		SignupURL:          "https://damask.studio/signup",
 	}
 	u, _ := url.Parse("http://localhost")
 	cfg := &config.Config{

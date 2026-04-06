@@ -30,7 +30,7 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	}
 
 	var assetsDeleted, versionsDeleted int
-	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM assets WHERE workspace_id = ?`, workspaceID).Scan(&assetsDeleted)         //nolint:errcheck
+	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM assets WHERE workspace_id = ?`, workspaceID).Scan(&assetsDeleted)           //nolint:errcheck
 	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM asset_versions WHERE workspace_id = ?`, workspaceID).Scan(&versionsDeleted) //nolint:errcheck
 
 	// Delete all child data in a transaction.
@@ -68,7 +68,7 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	}
 
 	// Delete ghost users (alice and marc) — they will be recreated on next seed
-	_, err = tx.ExecContext(ctx, `DELETE FROM users WHERE email IN ('alice@demo.damask.io','marc@demo.damask.io')`)
+	_, err = tx.ExecContext(ctx, `DELETE FROM users WHERE email IN ('alice@demo.damask.studio','marc@demo.damask.studio')`)
 	if err != nil {
 		return fmt.Errorf("demo: wipe ghost users: %w", err)
 	}

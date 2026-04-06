@@ -2,12 +2,9 @@
 FROM golang:1.25-bookworm AS go-build
 WORKDIR /build/server
 COPY server/ .
-RUN CGO_ENABLED=0 go build -mod=mod -trimpath \
-    -ldflags="-s -w" \
-    -o /out/damask-server ./cmd/server && \
-    CGO_ENABLED=0 go build -mod=mod -trimpath \
-    -ldflags="-s -w" \
-    -o /out/damask-admin ./cmd/admin
+RUN CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/damask-server ./cmd/server
+RUN CGO_ENABLED=0 go build -tags=demo -mod=mod -trimpath -ldflags="-s -w" -o /out/damask-server-demo ./cmd/server
+RUN CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/damask-admin ./cmd/admin
 
 # ── Web build ─────────────────────────────────────────────────────────────────
 FROM node:24-bookworm-slim AS web-build
@@ -30,6 +27,7 @@ RUN sed -i '/disable ghostscript format types/,+6d' /etc/ImageMagick-6/policy.xm
 RUN mkdir -p /data/storage
 
 COPY --from=go-build /out/damask-server /app/damask-server
+COPY --from=go-build /out/damask-server-demo /app/damask-server-demo
 COPY --from=go-build /out/damask-admin /app/damask-admin
 COPY --from=web-build /build/web/build/ /app/web/
 

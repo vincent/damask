@@ -27,12 +27,12 @@ type Config struct {
 // DemoConfig holds all demo-mode settings. All fields are zero-valued when
 // DemoMode is false.
 type DemoConfig struct {
-	DemoMode          bool
+	DemoMode           bool
 	ResetIntervalHours int
-	UserEmail         string
-	WorkspaceName     string
-	ShowBanner        bool
-	SignupURL         string
+	UserEmail          string
+	WorkspaceName      string
+	ShowBanner         bool
+	SignupURL          string
 }
 
 func Load() (*Config, error) {
@@ -68,10 +68,10 @@ func Load() (*Config, error) {
 		Demo: DemoConfig{
 			DemoMode:           demoMode,
 			ResetIntervalHours: demoResetHours,
-			UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.io"),
+			UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.studio"),
 			WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
 			ShowBanner:         demoMode && getEnv("DEMO_BANNER", "true") != "false",
-			SignupURL:          getEnv("DEMO_SIGNUP_URL", "https://damask.io/signup"),
+			SignupURL:          getEnv("DEMO_SIGNUP_URL", "https://damask.studio/signup"),
 		},
 	}
 
