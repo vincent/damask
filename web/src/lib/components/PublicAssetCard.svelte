@@ -30,7 +30,7 @@
             </Badge>
         </div>
 
-        {#if (category === 'image' || category === 'video' || category === 'audio') && thumbUrl}
+        {#if (category === 'image' || category === 'video' || category === 'audio' || category === 'document') && thumbUrl}
             <img
             src={thumbUrl}
             alt={asset.original_filename}

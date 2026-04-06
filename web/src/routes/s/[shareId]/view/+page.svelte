@@ -63,7 +63,7 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
-  <title>{store.share?.label ?? 'Shared Gallery'} — Damask</title>
+  <title>{store.share?.label || 'Shared Gallery'} — Damask</title>
 </svelte:head>
 
 <div class="damask-texture relative flex min-h-screen flex-col">
