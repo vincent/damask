@@ -4,7 +4,10 @@ WORKDIR /build/server
 COPY server/ .
 RUN CGO_ENABLED=0 go build -mod=mod -trimpath \
     -ldflags="-s -w" \
-    -o /out/server ./cmd/server
+    -o /out/damask-server ./cmd/server && \
+    CGO_ENABLED=0 go build -mod=mod -trimpath \
+    -ldflags="-s -w" \
+    -o /out/damask-admin ./cmd/admin
 
 # ── Web build ─────────────────────────────────────────────────────────────────
 FROM node:24-bookworm-slim AS web-build
@@ -26,7 +29,8 @@ RUN sed -i '/disable ghostscript format types/,+6d' /etc/ImageMagick-6/policy.xm
 # Mount this directory as a persistent volume.
 RUN mkdir -p /data/storage
 
-COPY --from=go-build /out/server /app/server
+COPY --from=go-build /out/damask-server /app/damask-server
+COPY --from=go-build /out/damask-admin /app/damask-admin
 COPY --from=web-build /build/web/build/ /app/web/
 
 WORKDIR /app
@@ -39,4 +43,4 @@ ENV PORT=8080 \
     FRONTEND_PATH=/app/web
 
 # JWT_SECRET must be supplied at runtime via environment variable.
-CMD ["/app/server"]
+CMD ["/app/damask-server"]
