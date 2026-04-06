@@ -10,7 +10,7 @@
   let { source }: Props = $props()
 
   // The ingest address is the public_token of the email_api source
-  const address = $derived(source.public_token)
+  const address = $derived(source.public_token ? `${source.public_token}@damask.studio` : null)
 
   let copied = $state(false)
 
@@ -64,7 +64,7 @@
     {/if}
 
     <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-      Send files as email attachments to this address. Supported formats: images, video, PDF, and common creative files. Max 25 MB per file.
+      Send files as email attachments to this address.<br>Supported formats: images, video, PDF, and common creative files.<br>Max 25 MB per file.
     </p>
   </div>
 

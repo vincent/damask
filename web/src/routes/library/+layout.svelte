@@ -47,7 +47,11 @@
   onMount(() => {
     projectsStore.load()
     assetsStore.load(true)
-    sharesStore.load()
+
+    setTimeout(() => {
+      sharesStore.load()
+      ingressStore.loadSources()
+    }, 1000)
   })
 </script>
 
