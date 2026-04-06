@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 
@@ -18,6 +19,28 @@ type projectFieldValueResponse struct {
 	FieldType         string      `json:"field_type"`
 	Value             interface{} `json:"value"`
 	DefinitionDeleted bool        `json:"definition_deleted"`
+}
+
+func projectFieldRowToValue(row dbgen.GetProjectFieldValuesRow) any {
+	switch row.FieldType {
+	case "text", "url", "select":
+		if row.ValueText != nil {
+			return *row.ValueText
+		}
+	case "number":
+		if row.ValueNumber != nil {
+			return *row.ValueNumber
+		}
+	case "date":
+		if row.ValueDate != nil {
+			return *row.ValueDate
+		}
+	case "boolean":
+		if row.ValueBoolean != nil {
+			return *row.ValueBoolean != 0
+		}
+	}
+	return nil
 }
 
 func rowToProjectFieldValueResponse(row dbgen.GetProjectFieldValuesRow) projectFieldValueResponse {
@@ -111,6 +134,13 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 		}
 	}
 
+	// Snapshot existing values for event before/after.
+	existingProjRows, _ := s.db.GetProjectFieldValues(c.RequestCtx(), id)
+	existingProjByFieldID := make(map[string]dbgen.GetProjectFieldValuesRow, len(existingProjRows))
+	for _, row := range existingProjRows {
+		existingProjByFieldID[row.FieldID] = row
+	}
+
 	resolved := make([]*resolvedValue, len(body.Values))
 	for i, input := range body.Values {
 		rv, err := s.validateAndResolve(c, claims.WorkspaceID, input)
@@ -123,7 +153,10 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 		resolved[i] = rv
 	}
 
+	userID := claims.UserID
 	for i, rv := range resolved {
+		existing := existingProjByFieldID[body.Values[i].FieldID]
+		beforeVal := projectFieldRowToValue(existing)
 		if rv == nil {
 			if err := s.db.DeleteProjectFieldValue(c.RequestCtx(), dbgen.DeleteProjectFieldValueParams{
 				ProjectID: id,
@@ -131,6 +164,14 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 			}); err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return errRes(c, fiber.StatusInternalServerError, "could not clear field value")
 			}
+			s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
+				WorkspaceID: claims.WorkspaceID,
+				ProjectID:   id,
+				UserID:      &userID,
+				ActorType:   audit.ActorTypeUser,
+				EventType:   audit.EventProjectFieldCleared,
+				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal},
+			})
 			continue
 		}
 		if _, err := s.db.UpsertProjectFieldValue(c.RequestCtx(), dbgen.UpsertProjectFieldValueParams{
@@ -145,6 +186,15 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 		}); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not save field value")
 		}
+		afterVal := resolvedToValue(rv)
+		s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
+			WorkspaceID: claims.WorkspaceID,
+			ProjectID:   id,
+			UserID:      &userID,
+			ActorType:   audit.ActorTypeUser,
+			EventType:   audit.EventProjectFieldSet,
+			Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal, After: afterVal},
+		})
 	}
 
 	rows, err := s.db.GetProjectFieldValues(c.RequestCtx(), id)

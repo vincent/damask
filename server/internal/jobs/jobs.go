@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
@@ -26,6 +27,7 @@ type JobServer struct {
 	queue      queue.JobQueue
 	hub        events.EventHub
 	cfg        *config.Config
+	audit      *audit.EventWriter
 }
 
 func NewJobServer(
@@ -45,6 +47,7 @@ func NewJobServer(
 		queue:      q,
 		hub:        hub,
 		cfg:        cfg,
+		audit:      audit.New(sqlDB),
 	}
 }
 
@@ -53,7 +56,7 @@ func NewJobServer(
 func (s *JobServer) RegisterJobHandlers() {
 
 	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg)
+	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg, s.audit)
 	s.queue.Register(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	s.queue.Register(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 

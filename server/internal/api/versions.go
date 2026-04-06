@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
@@ -253,6 +254,20 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
 	}
 
+	userID := claims.UserID
+	commentStr := ""
+	if newVersion.Comment != nil {
+		commentStr = *newVersion.Comment
+	}
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetVersionUploaded,
+		Payload:     audit.AssetVersionUploadedPayload{V: 1, VersionNum: newVersion.VersionNum, Size: newVersion.Size, Comment: commentStr},
+	})
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"version": s.buildVersionResponse(c.RequestCtx(), newVersion),
 		"asset":   assetToResponse(updatedAsset, nil),
@@ -310,10 +325,11 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+	assetBeforeRestore, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
@@ -360,6 +376,27 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
 	}
+
+	// Record the version number we rolled back from (the previous current).
+	var fromVersionNum int64
+	if assetBeforeRestore.CurrentVersionID != nil {
+		if prev, err := s.db.GetVersionByID(c.RequestCtx(), dbgen.GetVersionByIDParams{
+			ID:          *assetBeforeRestore.CurrentVersionID,
+			WorkspaceID: claims.WorkspaceID,
+		}); err == nil {
+			fromVersionNum = prev.VersionNum
+		}
+	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetVersionRestored,
+		Payload:     audit.AssetVersionRestoredPayload{V: 1, FromVersionNum: fromVersionNum, ToVersionNum: target.VersionNum},
+	})
 
 	target.IsCurrent = 1
 	return c.JSON(fiber.Map{
@@ -418,6 +455,16 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 	if err := s.db.SoftDeleteVersion(c.RequestCtx(), versionID); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete version")
 	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetVersionDeleted,
+		Payload:     audit.AssetVersionDeletedPayload{V: 1, VersionNum: target.VersionNum},
+	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

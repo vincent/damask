@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
@@ -29,11 +30,12 @@ type Worker struct {
 	storage storage.Storage
 	queue   queue.JobQueue
 	cfg     *config.Config
+	audit   *audit.EventWriter
 }
 
 // NewWorker creates a Worker.
-func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config) *Worker {
-	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg}
+func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config, au *audit.EventWriter) *Worker {
+	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg, audit: au}
 }
 
 // PollJobPayload is the JSON payload for a JobTypeIngestPoll job.
@@ -236,6 +238,15 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	}); err != nil {
 		log.Printf("ingest_fetch: update log entry %s: %v", entry.ID, err)
 	}
+
+	w.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: src.WorkspaceID,
+		AssetID:     asset.ID,
+		UserID:      nil,
+		ActorType:   audit.ActorTypeSystem,
+		EventType:   audit.EventAssetCreated,
+		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "ingress", SourceID: src.Label},
+	})
 
 	tag, err := w.db.GetOrCreateTag(ctx, dbgen.GetOrCreateTagParams{
 		ID:          uuid.NewString(),

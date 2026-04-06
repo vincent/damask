@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 
@@ -98,6 +99,16 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not add tag")
 	}
 
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetTagged,
+		Payload:     audit.AssetTaggedPayload{V: 1, Tag: tag.Name},
+	})
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"name": tag.Name})
 }
 
@@ -124,6 +135,16 @@ func (s *Server) handleRemoveTagFromAsset(c fiber.Ctx) error {
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not remove tag")
 	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetUntagged,
+		Payload:     audit.AssetUntaggedPayload{V: 1, Tag: tagName},
+	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

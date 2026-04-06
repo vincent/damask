@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/services"
@@ -96,6 +97,16 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	if fErr != nil {
 		return errRes(c, fErr.Code, fErr.Message)
 	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     asset.ID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetCreated,
+		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "upload"},
+	})
 
 	return c.Status(fiber.StatusCreated).JSON(assetToResponse(*asset, nil))
 }
@@ -484,6 +495,16 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
 
+	userID := claims.UserID
+	s.audit.WriteAssetAsync(audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     asset.ID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetDownloaded,
+		Payload:     audit.AssetDownloadedPayload{V: 1, Via: "direct"},
+	})
+
 	c.Set("Content-Type", asset.MimeType)
 	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, asset.OriginalFilename))
 	return c.SendStream(rc)
@@ -543,6 +564,16 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete asset")
 	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     asset.ID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetDeleted,
+		Payload:     audit.AssetDeletedPayload{V: 1},
+	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -691,10 +722,11 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	}
 
 	// Verify asset exists in workspace
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+	before, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
@@ -732,6 +764,22 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
 	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     id,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetMoved,
+		Payload: audit.AssetMovedPayload{
+			V:               1,
+			BeforeProjectID: before.ProjectID,
+			AfterProjectID:  updated.ProjectID,
+			BeforeFolderID:  before.FolderID,
+			AfterFolderID:   updated.FolderID,
+		},
+	})
 
 	return c.JSON(assetToResponse(updated, nil))
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
@@ -52,7 +53,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 
 	cfg := &config.Config{AppSecret: testAppSecret}
 	q := queue.New(queries, 1)
-	w := NewWorker(queries, sqlDB, stor, q, cfg)
+	w := NewWorker(queries, sqlDB, stor, q, cfg, audit.New(sqlDB))
 	return w, queries
 }
 

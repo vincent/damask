@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 
@@ -130,6 +131,19 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create share")
+	}
+
+	// Write asset_shared event for asset-scoped shares only.
+	if share.TargetType == "asset" {
+		userID := claims.UserID
+		s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+			WorkspaceID: claims.WorkspaceID,
+			AssetID:     share.TargetID,
+			UserID:      &userID,
+			ActorType:   audit.ActorTypeUser,
+			EventType:   audit.EventAssetShared,
+			Payload:     audit.AssetSharedPayload{V: 1, ShareID: share.ID, TargetType: share.TargetType, ExpiresAt: share.ExpiresAt},
+		})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(shareToResponse(share, s.cfg.BaseURL.String()))
@@ -306,11 +320,12 @@ func (s *Server) handleRevokeShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	// Verify exists
-	if _, err := s.db.GetShareByIDAndWorkspace(c.RequestCtx(), dbgen.GetShareByIDAndWorkspaceParams{
+	// Verify exists — capture share so we can write the event after revocation.
+	share, err := s.db.GetShareByIDAndWorkspace(c.RequestCtx(), dbgen.GetShareByIDAndWorkspaceParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "share not found")
 		}
@@ -322,6 +337,18 @@ func (s *Server) handleRevokeShare(c fiber.Ctx) error {
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not revoke share")
+	}
+
+	if share.TargetType == "asset" {
+		userID := claims.UserID
+		s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+			WorkspaceID: claims.WorkspaceID,
+			AssetID:     share.TargetID,
+			UserID:      &userID,
+			ActorType:   audit.ActorTypeUser,
+			EventType:   audit.EventAssetShareRevoked,
+			Payload:     audit.AssetShareRevokedPayload{V: 1, ShareID: share.ID},
+		})
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

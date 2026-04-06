@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 
@@ -167,6 +168,49 @@ func rowToAssetFieldValueResponse(row dbgen.GetAssetFieldValuesRow) assetFieldVa
 	return r
 }
 
+// fieldRowToValue extracts the typed value from a field row for event payloads.
+func fieldRowToValue(row dbgen.GetAssetFieldValuesRow) any {
+	switch row.FieldType {
+	case "text", "url", "select":
+		if row.ValueText != nil {
+			return *row.ValueText
+		}
+	case "number":
+		if row.ValueNumber != nil {
+			return *row.ValueNumber
+		}
+	case "date":
+		if row.ValueDate != nil {
+			return *row.ValueDate
+		}
+	case "boolean":
+		if row.ValueBoolean != nil {
+			return *row.ValueBoolean != 0
+		}
+	}
+	return nil
+}
+
+// resolvedToValue extracts the typed value from a resolvedValue for event payloads.
+func resolvedToValue(rv *resolvedValue) any {
+	if rv == nil {
+		return nil
+	}
+	if rv.valueText != nil {
+		return *rv.valueText
+	}
+	if rv.valueNumber != nil {
+		return *rv.valueNumber
+	}
+	if rv.valueDate != nil {
+		return *rv.valueDate
+	}
+	if rv.valueBoolean != nil {
+		return *rv.valueBoolean != 0
+	}
+	return nil
+}
+
 // -- Handlers -----------------------------------------------------------------
 
 func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
@@ -214,6 +258,13 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 		return nil
 	}
 
+	// Snapshot existing values before writing — used for event before/after.
+	existingRows, _ := s.db.GetAssetFieldValues(c.RequestCtx(), id)
+	existingByFieldID := make(map[string]dbgen.GetAssetFieldValuesRow, len(existingRows))
+	for _, row := range existingRows {
+		existingByFieldID[row.FieldID] = row
+	}
+
 	// Validate all first, then write
 	resolved := make([]*resolvedValue, len(body.Values))
 	for i, input := range body.Values {
@@ -227,7 +278,10 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 		resolved[i] = rv
 	}
 
+	userID := claims.UserID
 	for i, rv := range resolved {
+		existing := existingByFieldID[body.Values[i].FieldID]
+		beforeVal := fieldRowToValue(existing)
 		if rv == nil {
 			// null value = delete
 			if err := s.db.DeleteAssetFieldValue(c.RequestCtx(), dbgen.DeleteAssetFieldValueParams{
@@ -236,6 +290,14 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 			}); err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return errRes(c, fiber.StatusInternalServerError, "could not clear field value")
 			}
+			s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+				WorkspaceID: claims.WorkspaceID,
+				AssetID:     id,
+				UserID:      &userID,
+				ActorType:   audit.ActorTypeUser,
+				EventType:   audit.EventAssetFieldCleared,
+				Payload:     audit.AssetFieldClearedPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal},
+			})
 			continue
 		}
 		if _, err := s.db.UpsertAssetFieldValue(c.RequestCtx(), dbgen.UpsertAssetFieldValueParams{
@@ -250,6 +312,15 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 		}); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not save field value")
 		}
+		afterVal := resolvedToValue(rv)
+		s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+			WorkspaceID: claims.WorkspaceID,
+			AssetID:     id,
+			UserID:      &userID,
+			ActorType:   audit.ActorTypeUser,
+			EventType:   audit.EventAssetFieldSet,
+			Payload:     audit.AssetFieldSetPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal, After: afterVal},
+		})
 	}
 
 	// Refresh FTS (best-effort, background)

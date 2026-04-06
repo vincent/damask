@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 
@@ -56,6 +57,16 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create project")
 	}
+
+	userID := claims.UserID
+	s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
+		WorkspaceID: claims.WorkspaceID,
+		ProjectID:   p.ID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventProjectCreated,
+		Payload:     audit.ProjectCreatedPayload{V: 1, Name: p.Name},
+	})
 
 	return c.Status(fiber.StatusCreated).JSON(projectToResponse(p, 0))
 }
@@ -122,10 +133,11 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	// Verify project exists and belongs to workspace
-	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
+	before, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "project not found")
 		}
@@ -147,6 +159,18 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not update project")
+	}
+
+	if p.Name != before.Name {
+		userID := claims.UserID
+		s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
+			WorkspaceID: claims.WorkspaceID,
+			ProjectID:   id,
+			UserID:      &userID,
+			ActorType:   audit.ActorTypeUser,
+			EventType:   audit.EventProjectRenamed,
+			Payload:     audit.ProjectRenamedPayload{V: 1, Before: before.Name, After: p.Name},
+		})
 	}
 
 	return c.JSON(projectToResponse(p, 0))
@@ -192,6 +216,16 @@ func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	if err := tx.Commit(); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
+
+	userID := claims.UserID
+	s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
+		WorkspaceID: claims.WorkspaceID,
+		ProjectID:   id,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventProjectDeleted,
+		Payload:     audit.ProjectDeletedPayload{V: 1},
+	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

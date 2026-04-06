@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
@@ -30,6 +31,7 @@ type Server struct {
 	hub          events.EventHub
 	previewCache *lruPreviewCache
 	cfg          *config.Config
+	audit        *audit.EventWriter
 }
 
 func NewHttpServer(
@@ -50,6 +52,7 @@ func NewHttpServer(
 		hub:          hub,
 		previewCache: NewLRUPreviewCache(100),
 		cfg:          cfg,
+		audit:        audit.New(sqlDB),
 	}
 }
 
