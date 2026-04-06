@@ -14,7 +14,7 @@ dev-web:
 
 # Build the Go server binary
 build:
-	cd server && go build -o bin/server ./cmd/server
+	cd server && go build -o bin/damask-server ./cmd/server
 
 # Update Swagger docs
 swagger:
@@ -39,13 +39,10 @@ migrate:
 
 ## Admin TUI
 admin:
-	@echo "Building damask-admin..."
-	cd cmd/admin && go build -ldflags="-s -w" -o ../../bin/damask-admin .
-	@echo "Binary: bin/damask-admin"
+	cd server && go build -ldflags="-s -w" -o bin/damask-admin ./cmd/admin
 
 admin-run:
-	cd cmd/admin && go run . --db $${DB_PATH:-./damask.db}
+	cd server && go run ./cmd/admin
 
 admin-install:
-	cd cmd/admin && go install .
-	@echo "Installed: damask-admin"
+	cd server && go install ./cmd/admin
