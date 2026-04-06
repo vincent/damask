@@ -74,7 +74,7 @@
 </script>
 
 <svelte:head>
-  <title>Share Links — Damask DAM</title>
+  <title>Share Links — Damask</title>
 </svelte:head>
 
 <div class="flex h-screen bg-gray-50 dark:bg-gray-950">

@@ -52,7 +52,7 @@
 </script>
 
 <svelte:head>
-  <title>Workspace — Damask DAM</title>
+  <title>Workspace — Damask</title>
 </svelte:head>
 
 <div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">

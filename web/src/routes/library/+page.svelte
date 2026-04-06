@@ -147,7 +147,7 @@
 </script>
 
 <svelte:head>
-  <title>Library — Damask DAM</title>
+  <title>Library — Damask</title>
 </svelte:head>
 
 <svelte:window

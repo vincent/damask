@@ -48,7 +48,7 @@
 </script>
 
 <svelte:head>
-  <title>Version History — Damask DAM</title>
+  <title>Version History — Damask</title>
 </svelte:head>
 
 <div class="flex flex-1 flex-col overflow-y-auto bg-gray-50 dark:bg-gray-950">

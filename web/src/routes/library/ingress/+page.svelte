@@ -39,7 +39,7 @@
 </script>
 
 <svelte:head>
-  <title>Ingress Sources — Damask DAM</title>
+  <title>Ingress Sources — Damask</title>
 </svelte:head>
 
 <div class="flex h-screen bg-gray-50 dark:bg-gray-950">

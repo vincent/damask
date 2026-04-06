@@ -90,7 +90,7 @@
 </script>
 
 <svelte:head>
-  <title>Custom Fields — Damask DAM</title>
+  <title>Custom Fields — Damask</title>
 </svelte:head>
 
 <div class="flex h-full flex-col">
