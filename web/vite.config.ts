@@ -9,6 +9,8 @@ export default defineConfig({
       '/api': 'http://localhost:8080',
       '/share': 'http://localhost:8080',
       '/auth': 'http://localhost:8080',
+      '/config': 'http://localhost:8080',
+      '/demo': 'http://localhost:8080',
     },
   },
 })

@@ -101,6 +101,9 @@ func NewRouter(
 	// Health check (public)
 	app.Get("/healthz", handleHealthz)
 
+	// Public server config (demo flag, etc.)
+	app.Get("/config", s.handleConfig)
+
 	// Demo routes — only compiled and registered with -tags=demo
 	s.registerDemoRoutes(app, cfg)
 

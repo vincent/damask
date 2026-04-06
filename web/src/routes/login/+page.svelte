@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
-  import { authApi, ApiError } from '$lib/api'
+  import { authApi, configApi, ApiError } from '$lib/api'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
 
@@ -8,6 +8,12 @@
   let password = $state('')
   let error = $state('')
   let loading = $state(false)
+  let demoLoading = $state(false)
+  let isDemo = $state(false)
+
+  $effect(() => {
+    configApi.get().then(cfg => { isDemo = cfg.demo }).catch(() => {})
+  })
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault()
@@ -21,6 +27,19 @@
       error = err instanceof ApiError ? err.message : 'Login failed'
     } finally {
       loading = false
+    }
+  }
+
+  async function handleDemo() {
+    demoLoading = true
+    error = ''
+    try {
+      await authApi.demoSession()
+      goto('/library')
+    } catch (err) {
+      error = err instanceof ApiError ? err.message : 'Could not start demo session'
+    } finally {
+      demoLoading = false
     }
   }
 </script>
@@ -49,5 +68,13 @@
 
       <Button type="submit" loading={loading} class="w-full">{loading ? 'Signing in…' : 'Sign in'}</Button>
     </form>
+
+    {#if isDemo}
+      <div class="text-center">
+        <button onclick={handleDemo} disabled={demoLoading} class="text-sm text-blue-600 hover:underline disabled:opacity-50">
+          {demoLoading ? 'Starting demo…' : 'Try the demo'}
+        </button>
+      </div>
+    {/if}
   </div>
 </div>

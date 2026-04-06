@@ -39,6 +39,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, fetch = 
   return handleResponse<T>(res)
 }
 
+export const configApi = {
+  get: () => apiFetch<{ demo: boolean }>('/config'),
+}
+
 export const authApi = {
   register: (name: string, email: string, password: string) =>
     apiFetch<AuthResponse>('/auth/register', {
@@ -53,6 +57,8 @@ export const authApi = {
     }),
 
   refresh: () => apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' }),
+
+  demoSession: () => apiFetch<{ token: string; workspace_id: string; user_id: string; is_demo: boolean }>('/demo/session', { method: 'POST' }),
 }
 
 export interface WorkspaceWithRole extends Workspace {

@@ -13,3 +13,11 @@ import "github.com/gofiber/fiber/v3"
 func handleHealthz(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "ok"})
 }
+
+// handleConfig returns public server configuration for the frontend.
+// GET /config
+func (s *Server) handleConfig(c fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"demo": s.cfg.Demo.DemoMode,
+	})
+}
