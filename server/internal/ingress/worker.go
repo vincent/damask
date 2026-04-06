@@ -25,14 +25,15 @@ import (
 // Worker handles ingest_poll and ingest_fetch jobs.
 type Worker struct {
 	db      *dbgen.Queries
+	sqlDB   *sql.DB
 	storage storage.Storage
 	queue   *queue.Queue
 	cfg     *config.Config
 }
 
 // NewWorker creates a Worker.
-func NewWorker(db *dbgen.Queries, stor storage.Storage, qu *queue.Queue, cfg *config.Config) *Worker {
-	return &Worker{db: db, storage: stor, queue: qu, cfg: cfg}
+func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu *queue.Queue, cfg *config.Config) *Worker {
+	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg}
 }
 
 // PollJobPayload is the JSON payload for a JobTypeIngestPoll job.
@@ -219,7 +220,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	}
 	defer os.Remove(namedTmp)
 
-	asset, fErr := services.CreateAsset(ctx, w.db, w.storage, w.queue,
+	asset, fErr := services.CreateAsset(ctx, w.db, w.sqlDB, w.storage, w.queue,
 		src.WorkspaceID, namedTmp,
 		services.AssetOptions{ProjectID: projectID, FolderID: folderID},
 	)

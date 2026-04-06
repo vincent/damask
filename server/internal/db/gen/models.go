@@ -147,14 +147,15 @@ type Job struct {
 }
 
 type Project struct {
-	ID           string    `json:"id"`
-	WorkspaceID  string    `json:"workspace_id"`
-	Name         string    `json:"name"`
-	Description  *string   `json:"description"`
-	Color        *string   `json:"color"`
-	CoverAssetID *string   `json:"cover_asset_id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             string    `json:"id"`
+	WorkspaceID    string    `json:"workspace_id"`
+	Name           string    `json:"name"`
+	Description    *string   `json:"description"`
+	Color          *string   `json:"color"`
+	CoverAssetID   *string   `json:"cover_asset_id"`
+	CoverVersionID *string   `json:"cover_version_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type ProjectFieldValue struct {
@@ -227,6 +228,8 @@ type Workspace struct {
 	Name                  string    `json:"name"`
 	IngestToken           *string   `json:"ingest_token"`
 	VersionRetentionCount int64     `json:"version_retention_count"`
+	IconAssetID           *string   `json:"icon_asset_id"`
+	IconVersionID         *string   `json:"icon_version_id"`
 	CreatedAt             time.Time `json:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }

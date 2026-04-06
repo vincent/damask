@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
+	"damask/server/internal/versioning"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -64,10 +66,6 @@ func getHandler(mime string) MediaHandler {
 
 // DetectMimeType sniffs the MIME type of the file at filePath.
 func DetectMimeType(filePath string) (string, error) {
-	return detectMimeType(filePath)
-}
-
-func detectMimeType(filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return "", err
@@ -96,16 +94,6 @@ func ExtractMeta(ctx context.Context, filePath, mimeType string) (FileMeta, erro
 	return h.ExtractMeta(ctx, filePath)
 }
 
-func storeFile(storage storage.Storage, key string, filePath string) error {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return storage.Put(key, f)
-}
-
 // -- Main Service
 
 // FieldInheritanceFunc is called after asset creation to copy project field values.
@@ -114,16 +102,17 @@ type FieldInheritanceFunc func(ctx context.Context, db *dbgen.Queries, workspace
 
 // AssetOptions holds optional destination fields for CreateAsset.
 type AssetOptions struct {
-	ProjectID        *string
-	FolderID         *string
-	UserID           string
-	InheritFields    FieldInheritanceFunc
+	ProjectID     *string
+	FolderID      *string
+	UserID        string
+	InheritFields FieldInheritanceFunc
 }
 
 func CreateAsset(
 	ctx context.Context,
 	db *dbgen.Queries,
-	storage storage.Storage,
+	sqlDB *sql.DB,
+	stor storage.Storage,
 	qu *queue.Queue,
 	workspaceID string,
 	filePath string,
@@ -135,7 +124,7 @@ func CreateAsset(
 		return nil, fiber.NewError(fiber.StatusInternalServerError, "could not stat uploaded file")
 	}
 
-	mimeType, err := detectMimeType(filePath)
+	mimeType, err := DetectMimeType(filePath)
 	if err != nil {
 		return nil, fiber.NewError(fiber.StatusBadRequest, "could not detect MIME type")
 	}
@@ -144,8 +133,12 @@ func CreateAsset(
 	originalFilename := filepath.Base(filePath)
 	storageKey := fmt.Sprintf("%s/%s/%s", workspaceID, assetID, originalFilename)
 
-	// Store file
-	if err := storeFile(storage, storageKey, filePath); err != nil {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, fiber.NewError(fiber.StatusInternalServerError, "could not open file")
+	}
+	defer f.Close()
+	if err := stor.Put(storageKey, f); err != nil {
 		return nil, fiber.NewError(fiber.StatusInternalServerError, "could not store file")
 	}
 
@@ -180,6 +173,13 @@ func CreateAsset(
 
 	log.Printf("created asset %s with MIME type %s", asset.ID, asset.MimeType)
 
+	// AV-2.1: create the v1 asset_versions row and set current_version_id.
+	if vErr := createInitialVersion(ctx, db, sqlDB, asset, filePath, storageKey, mimeType, meta, opts.UserID); vErr != nil {
+		log.Printf("create initial version for %s: %v", asset.ID, vErr)
+		// Non-fatal: the asset row is already committed; versioning can be
+		// back-filled by the data migration. Do not fail the upload.
+	}
+
 	// Assign folder if specified
 	if opts.FolderID != nil {
 		if err := db.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
@@ -206,4 +206,64 @@ func CreateAsset(
 	}
 
 	return &asset, nil
+}
+
+// createInitialVersion inserts the v1 asset_versions row and sets
+// assets.current_version_id — all within a single transaction.
+func createInitialVersion(
+	ctx context.Context,
+	db *dbgen.Queries,
+	sqlDB *sql.DB,
+	asset dbgen.Asset,
+	filePath, storageKey, mimeType string,
+	meta FileMeta,
+	userID string,
+) error {
+	// Hash the file to populate content_hash.
+	hash, err := versioning.HashFile(filePath)
+	if err != nil {
+		return fmt.Errorf("hash file: %w", err)
+	}
+
+	versionID := uuid.NewString()
+
+	tx, err := sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	qtx := db.WithTx(tx)
+
+	createdBy := userID
+	if createdBy == "" {
+		createdBy = asset.WorkspaceID // fallback: workspace id as sentinel
+	}
+
+	if _, err := qtx.CreateAssetVersion(ctx, dbgen.CreateAssetVersionParams{
+		ID:          versionID,
+		AssetID:     asset.ID,
+		WorkspaceID: asset.WorkspaceID,
+		VersionNum:  1,
+		StorageKey:  storageKey,
+		ContentHash: hash,
+		MimeType:    mimeType,
+		Size:        asset.Size,
+		Width:       meta.Width,
+		Height:      meta.Height,
+		DurationSec: meta.DurationSec,
+		CreatedBy:   createdBy,
+		IsCurrent:   1,
+	}); err != nil {
+		return fmt.Errorf("create version row: %w", err)
+	}
+
+	if err := qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
+		CurrentVersionID: &versionID,
+		ID:               asset.ID,
+	}); err != nil {
+		return fmt.Errorf("set current_version_id: %w", err)
+	}
+
+	return tx.Commit()
 }

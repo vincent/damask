@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -32,6 +33,7 @@ type AssetResponse struct {
 	ThumbnailKey     *string   `json:"thumbnail_key"`
 	Metadata         *string   `json:"metadata"`
 	Tags             []string  `json:"tags"`
+	VersionCount     int64     `json:"version_count"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
@@ -42,6 +44,10 @@ type AssetListResponse struct {
 }
 
 func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
+	return assetToResponseWithCount(a, tags, 0)
+}
+
+func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64) AssetResponse {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -57,6 +63,7 @@ func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
 		ThumbnailKey:     a.ThumbnailKey,
 		Metadata:         a.Metadata,
 		Tags:             tags,
+		VersionCount:     versionCount,
 		CreatedAt:        a.CreatedAt,
 		UpdatedAt:        a.UpdatedAt,
 	}
@@ -81,7 +88,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		uploadProjectID = &pid
 	}
 
-	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.storage, s.queue, claims.WorkspaceID, tmpFile, services.AssetOptions{
+	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.sqlDB, s.storage, s.queue, claims.WorkspaceID, tmpFile, services.AssetOptions{
 		ProjectID:     uploadProjectID,
 		UserID:        claims.UserID,
 		InheritFields: inheritProjectFields,
@@ -228,7 +235,8 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit, sortField))
+	counts := s.batchVersionCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, sortField, counts))
 }
 
 func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagNames []string, limit int64) error {
@@ -292,7 +300,8 @@ func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagName
 		return errRes(c, fiber.StatusInternalServerError, "query failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
+	counts := s.batchVersionCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
 }
 
 func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit int64) error {
@@ -341,13 +350,18 @@ func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit in
 		return errRes(c, fiber.StatusInternalServerError, "search failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
+	counts := s.batchVersionCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
 }
 
-func buildAssetListResponse(assets []dbgen.Asset, limit int64, sortField string) AssetListResponse {
+func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortField string, counts map[string]int64) AssetListResponse {
 	items := make([]AssetResponse, len(assets))
 	for i, a := range assets {
-		items[i] = assetToResponse(a, nil)
+		var vc int64
+		if counts != nil {
+			vc = counts[a.ID]
+		}
+		items[i] = assetToResponseWithCount(a, nil, vc)
 	}
 	var nextCursor *string
 	if int64(len(assets)) == limit && len(assets) > 0 {
@@ -369,6 +383,16 @@ func buildAssetListResponse(assets []dbgen.Asset, limit int64, sortField string)
 		nextCursor = &encoded
 	}
 	return AssetListResponse{Assets: items, NextCursor: nextCursor}
+}
+
+// batchVersionCounts fetches version counts for the given asset IDs in a single
+// pass and returns a map of assetID → count.
+func (s *Server) batchVersionCounts(ctx context.Context, assets []dbgen.Asset) map[string]int64 {
+	counts := make(map[string]int64, len(assets))
+	for _, a := range assets {
+		counts[a.ID], _ = s.db.CountVersionsForAsset(ctx, a.ID)
+	}
+	return counts
 }
 
 type cursorVal struct {
@@ -435,7 +459,9 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 		tagNames[i] = t.Name
 	}
 
-	return c.JSON(assetToResponse(asset, tagNames))
+	versionCount, _ := s.db.CountVersionsForAsset(c.RequestCtx(), id)
+
+	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount))
 }
 
 func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
@@ -651,7 +677,8 @@ func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID str
 		return errRes(c, fiber.StatusInternalServerError, "query failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
+	counts := s.batchVersionCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
 }
 
 func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {

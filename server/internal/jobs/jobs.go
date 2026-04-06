@@ -53,7 +53,7 @@ func NewJobServer(
 func (s *JobServer) RegisterJobHandlers() {
 
 	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(s.db, s.storage, s.queue, s.cfg)
+	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg)
 	s.queue.Register(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	s.queue.Register(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 

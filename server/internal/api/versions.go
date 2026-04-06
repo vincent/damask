@@ -406,6 +406,15 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 			"cannot delete the current version — restore another version first, then delete this one")
 	}
 
+	// Safety: block deletion if this version is in use as a project cover or workspace icon.
+	if refs, err := s.db.IsVersionReferencedAsCover(c.RequestCtx(), dbgen.IsVersionReferencedAsCoverParams{
+		CoverVersionID: &versionID,
+		IconVersionID:  &versionID,
+	}); err == nil && refs > 0 {
+		return errRes(c, fiber.StatusConflict,
+			"this version is in use as a project cover or workspace icon — update the cover first, then delete this version")
+	}
+
 	if err := s.db.SoftDeleteVersion(c.RequestCtx(), versionID); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete version")
 	}

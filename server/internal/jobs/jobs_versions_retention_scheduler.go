@@ -70,6 +70,14 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 			if v.IsCurrent == 1 {
 				continue
 			}
+			// Safety: skip versions referenced as a project cover or workspace icon.
+			if refs, err := s.db.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
+				CoverVersionID: &v.ID,
+				IconVersionID:  &v.ID,
+			}); err == nil && refs > 0 {
+				log.Printf("retention: skipping version %s — in use as cover/icon", v.ID)
+				continue
+			}
 			if err := s.db.SoftDeleteVersion(ctx, v.ID); err != nil {
 				log.Printf("retention: soft-delete version %s: %v", v.ID, err)
 				continue

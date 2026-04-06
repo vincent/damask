@@ -20,6 +20,7 @@ export interface User {
 export interface Workspace {
   id: string
   name: string
+  version_retention_count: number
   created_at: string
   updated_at: string
 }
@@ -50,8 +51,39 @@ export interface Asset {
   thumbnail_key: string | null
   metadata: string | null
   tags: string[]
+  version_count: number
   created_at: string
   updated_at: string
+}
+
+export interface AssetVersionCreatedBy {
+  id: string
+  name: string
+}
+
+export interface AssetVersion {
+  id: string
+  version_num: number
+  mime_type: string
+  size: number
+  width: number | null
+  height: number | null
+  duration_sec: number | null
+  thumbnail_url: string | null
+  comment: string | null
+  created_by: AssetVersionCreatedBy
+  created_at: string
+  is_current: boolean
+}
+
+export interface UploadVersionResponse {
+  version: AssetVersion
+  asset: Asset
+}
+
+export interface RestoreVersionResponse {
+  version: AssetVersion
+  asset: Asset
 }
 
 export interface PublicShare {

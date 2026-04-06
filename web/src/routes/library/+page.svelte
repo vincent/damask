@@ -156,15 +156,6 @@
   onmouseup={() => rb.onMouseUp((ids) => selectionStore.selectByIds(ids))}
 />
 
-<style lang="scss">
-  .library-content {
-    opacity: 1;
-  }
-  .zoom-overlay + .library-content {
-    opacity: 0.1;
-  }
-</style>
-
 <LibraryHeader
   bind:sort
   bind:asc

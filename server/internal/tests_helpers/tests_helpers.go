@@ -61,8 +61,7 @@ func SetupTestApp(t *testing.T) *TestEnv {
 	}
 
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "test.db")
-	queries, sqlDB, err := dbpkg.Open(dbPath)
+	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -268,10 +267,8 @@ func BuildUploadRequest(t *testing.T, filename string, content []byte, cookie *h
 	return req
 }
 
-// UploadAsset is a helper that uploads an asset and seeds the initial v1 version row.
-// The migration 000009 runs for existing rows at migration time; new assets created in
-// tests need their v1 seeded manually since AV-2.1 (refactoring POST /assets) is out
-// of scope for this phase.
+// UploadAsset uploads an asset via the API. AV-2.1 ensures the v1 version row
+// is created automatically inside the upload handler, so no manual seeding is needed.
 func UploadAsset(t *testing.T, env *TestEnv, cookie *http.Cookie) api.AssetResponse {
 	t.Helper()
 	req := BuildUploadRequest(t, "original.jpg", MakeJPEG(100, 100), cookie)
@@ -287,7 +284,6 @@ func UploadAsset(t *testing.T, env *TestEnv, cookie *http.Cookie) api.AssetRespo
 	if err := json.NewDecoder(resp.Body).Decode(&asset); err != nil {
 		t.Fatalf("decode asset: %v", err)
 	}
-	SeedVersionV1(t, env, asset)
 	return asset
 }
 

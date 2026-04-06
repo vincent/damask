@@ -62,6 +62,12 @@ SELECT DISTINCT asset_id FROM asset_versions WHERE workspace_id = ? AND deleted_
 -- name: GetVersionByIDUnchecked :one
 SELECT * FROM asset_versions WHERE id = ?;
 
+-- name: IsVersionReferencedAsCover :one
+SELECT
+  (SELECT COUNT(*) FROM projects  WHERE cover_version_id = ?) +
+  (SELECT COUNT(*) FROM workspaces WHERE icon_version_id  = ?)
+AS ref_count;
+
 -- name: ClearCurrentVersionFlags :exec
 UPDATE asset_versions SET is_current = 0 WHERE asset_id = ?;
 

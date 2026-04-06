@@ -52,7 +52,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 
 	cfg := &config.Config{AppSecret: testAppSecret}
 	q := queue.New(queries, 1)
-	w := NewWorker(queries, stor, q, cfg)
+	w := NewWorker(queries, sqlDB, stor, q, cfg)
 	return w, queries
 }
 

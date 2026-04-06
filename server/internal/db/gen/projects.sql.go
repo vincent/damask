@@ -13,7 +13,7 @@ import (
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects (id, workspace_id, name, description, color, cover_asset_id)
 VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, name, description, color, cover_asset_id, created_at, updated_at
+RETURNING id, workspace_id, name, description, color, cover_asset_id, cover_version_id, created_at, updated_at
 `
 
 type CreateProjectParams struct {
@@ -42,6 +42,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.Description,
 		&i.Color,
 		&i.CoverAssetID,
+		&i.CoverVersionID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -63,7 +64,7 @@ func (q *Queries) DeleteProject(ctx context.Context, arg DeleteProjectParams) er
 }
 
 const getProjectByID = `-- name: GetProjectByID :one
-SELECT id, workspace_id, name, description, color, cover_asset_id, created_at, updated_at FROM projects WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, name, description, color, cover_asset_id, cover_version_id, created_at, updated_at FROM projects WHERE id = ? AND workspace_id = ?
 `
 
 type GetProjectByIDParams struct {
@@ -81,6 +82,7 @@ func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) 
 		&i.Description,
 		&i.Color,
 		&i.CoverAssetID,
+		&i.CoverVersionID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -88,7 +90,7 @@ func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) 
 }
 
 const listProjectsWithCount = `-- name: ListProjectsWithCount :many
-SELECT p.id, p.workspace_id, p.name, p.description, p.color, p.cover_asset_id, p.created_at, p.updated_at, COUNT(a.id) AS asset_count
+SELECT p.id, p.workspace_id, p.name, p.description, p.color, p.cover_asset_id, p.cover_version_id, p.created_at, p.updated_at, COUNT(a.id) AS asset_count
 FROM projects p
 LEFT JOIN assets a ON a.project_id = p.id
 WHERE p.workspace_id = ?
@@ -97,15 +99,16 @@ ORDER BY p.name ASC
 `
 
 type ListProjectsWithCountRow struct {
-	ID           string    `json:"id"`
-	WorkspaceID  string    `json:"workspace_id"`
-	Name         string    `json:"name"`
-	Description  *string   `json:"description"`
-	Color        *string   `json:"color"`
-	CoverAssetID *string   `json:"cover_asset_id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	AssetCount   int64     `json:"asset_count"`
+	ID             string    `json:"id"`
+	WorkspaceID    string    `json:"workspace_id"`
+	Name           string    `json:"name"`
+	Description    *string   `json:"description"`
+	Color          *string   `json:"color"`
+	CoverAssetID   *string   `json:"cover_asset_id"`
+	CoverVersionID *string   `json:"cover_version_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	AssetCount     int64     `json:"asset_count"`
 }
 
 func (q *Queries) ListProjectsWithCount(ctx context.Context, workspaceID string) ([]ListProjectsWithCountRow, error) {
@@ -124,6 +127,7 @@ func (q *Queries) ListProjectsWithCount(ctx context.Context, workspaceID string)
 			&i.Description,
 			&i.Color,
 			&i.CoverAssetID,
+			&i.CoverVersionID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.AssetCount,
@@ -164,7 +168,7 @@ SET name           = COALESCE(?1, name),
     cover_asset_id = COALESCE(?4, cover_asset_id),
     updated_at     = datetime('now')
 WHERE id = ?5 AND workspace_id = ?6
-RETURNING id, workspace_id, name, description, color, cover_asset_id, created_at, updated_at
+RETURNING id, workspace_id, name, description, color, cover_asset_id, cover_version_id, created_at, updated_at
 `
 
 type UpdateProjectParams struct {
@@ -193,6 +197,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.Description,
 		&i.Color,
 		&i.CoverAssetID,
+		&i.CoverVersionID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

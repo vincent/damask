@@ -272,6 +272,25 @@ func (q *Queries) HardDeleteVersion(ctx context.Context, id string) error {
 	return err
 }
 
+const isVersionReferencedAsCover = `-- name: IsVersionReferencedAsCover :one
+SELECT
+  (SELECT COUNT(*) FROM projects  WHERE cover_version_id = ?) +
+  (SELECT COUNT(*) FROM workspaces WHERE icon_version_id  = ?)
+AS ref_count
+`
+
+type IsVersionReferencedAsCoverParams struct {
+	CoverVersionID *string `json:"cover_version_id"`
+	IconVersionID  *string `json:"icon_version_id"`
+}
+
+func (q *Queries) IsVersionReferencedAsCover(ctx context.Context, arg IsVersionReferencedAsCoverParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, isVersionReferencedAsCover, arg.CoverVersionID, arg.IconVersionID)
+	var ref_count int64
+	err := row.Scan(&ref_count)
+	return ref_count, err
+}
+
 const listAllVersions = `-- name: ListAllVersions :many
 SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ?

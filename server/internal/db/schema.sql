@@ -3,6 +3,8 @@ CREATE TABLE workspaces (
     name                    TEXT NOT NULL,
     ingest_token            TEXT UNIQUE,
     version_retention_count INTEGER NOT NULL DEFAULT 0,
+    icon_asset_id           TEXT,
+    icon_version_id         TEXT,
     created_at              DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at              DATETIME NOT NULL DEFAULT (datetime('now'))
 );
@@ -38,14 +40,15 @@ CREATE TABLE workspace_invites (
 );
 
 CREATE TABLE projects (
-    id            TEXT PRIMARY KEY,
-    workspace_id  TEXT NOT NULL REFERENCES workspaces(id),
-    name          TEXT NOT NULL,
-    description   TEXT,
-    color         TEXT,
-    cover_asset_id TEXT,
-    created_at    DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at    DATETIME NOT NULL DEFAULT (datetime('now'))
+    id               TEXT PRIMARY KEY,
+    workspace_id     TEXT NOT NULL REFERENCES workspaces(id),
+    name             TEXT NOT NULL,
+    description      TEXT,
+    color            TEXT,
+    cover_asset_id   TEXT,
+    cover_version_id TEXT,
+    created_at       DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at       DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE folders (

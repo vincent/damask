@@ -43,7 +43,6 @@
   <input
     bind:value
     {placeholder}
-    {autofocus}
     disabled={busy}
     onblur={handleBlur}
     onkeydown={handleKeydown}

@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countVersionsForAsset = `-- name: CountVersionsForAsset :one
+SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL
+`
+
+func (q *Queries) CountVersionsForAsset(ctx context.Context, assetID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countVersionsForAsset, assetID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAsset = `-- name: CreateAsset :one
 INSERT INTO assets (id, workspace_id, project_id, original_filename, storage_key, mime_type, size, width, height, metadata)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

@@ -58,7 +58,6 @@
       {placeholder}
       {disabled}
       {required}
-      {autofocus}
       bind:value
       {onchange}
       {oninput}

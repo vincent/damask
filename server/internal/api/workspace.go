@@ -247,4 +247,26 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 	return c.JSON(SwitchWorkspaceResponse{Token: token, Workspace: workspace, Role: member.Role})
 }
 
+func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+
+	body, ok := decodeAndValidate(c, &updateWorkspaceSettingsRequest{})
+	if !ok {
+		return nil
+	}
+
+	if err := s.db.UpdateWorkspaceVersionRetention(c.RequestCtx(), dbgen.UpdateWorkspaceVersionRetentionParams{
+		VersionRetentionCount: body.VersionRetentionCount,
+		ID:                    claims.WorkspaceID,
+	}); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not update settings")
+	}
+
+	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), claims.WorkspaceID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not reload workspace")
+	}
+	return c.JSON(workspace)
+}
+
 // fiber:context-methods migrated

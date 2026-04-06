@@ -154,7 +154,8 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 		return errRes(c, fiber.StatusInternalServerError, "query failed")
 	}
 
-	return c.JSON(buildAssetListResponse(assets, limit, "created_at"))
+	counts := s.batchVersionCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
 }
 
 // fieldFilterSQL returns the SQL comparison snippet (without table alias) for a filter.

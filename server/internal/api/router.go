@@ -121,6 +121,9 @@ func NewRouter(
 		return member.Role, nil
 	}
 
+	// Workspace settings — owner only
+	api.Put("/workspace/settings", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleUpdateWorkspaceSettings)
+
 	// Invites — owner only
 	api.Post("/workspace/invites", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleCreateInvite)
 

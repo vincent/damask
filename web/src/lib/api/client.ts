@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldsResponse, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, Project, ProjectFieldsResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -70,6 +70,12 @@ export const workspaceApi = {
   useFetch: (f: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) => workspaceApi.fetch = f,
 
   me: () => apiFetch<WorkspaceMeResponse>('/api/v1/workspace/me', undefined, workspaceApi.fetch),
+
+  updateSettings: (settings: { version_retention_count: number }) =>
+    apiFetch<Workspace>('/api/v1/workspace/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
 
   list: () => apiFetch<WorkspaceWithRole[]>('/api/v1/workspaces'),
 
@@ -339,6 +345,52 @@ export const projectFieldApi = {
       method: 'PATCH',
       body: JSON.stringify({ values }),
     }),
+}
+
+export const versionApi = {
+  list: (assetId: string) =>
+    apiFetch<AssetVersion[]>(`/api/v1/assets/${assetId}/versions`),
+
+  upload(assetId: string, file: File, comment: string, onProgress?: (pct: number) => void): Promise<UploadVersionResponse> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${API_BASE}/api/v1/assets/${assetId}/versions`)
+      xhr.withCredentials = true
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+        })
+      }
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 201) {
+          resolve(JSON.parse(xhr.responseText) as UploadVersionResponse)
+        } else if (xhr.status === 401 && typeof window !== 'undefined') {
+          window.location.href = '/login'
+          reject(new ApiError(401, 'Unauthorized'))
+        } else {
+          const body = JSON.parse(xhr.responseText) as { error?: string }
+          reject(new ApiError(xhr.status, body.error ?? xhr.statusText))
+        }
+      })
+      xhr.addEventListener('error', () => reject(new ApiError(0, 'Network error')))
+      const fd = new FormData()
+      fd.append('file', file)
+      if (comment) fd.append('comment', comment)
+      xhr.send(fd)
+    })
+  },
+
+  restore: (assetId: string, versionId: string) =>
+    apiFetch<RestoreVersionResponse>(`/api/v1/assets/${assetId}/versions/${versionId}/restore`, { method: 'POST' }),
+
+  delete: (assetId: string, versionId: string) =>
+    apiFetch<void>(`/api/v1/assets/${assetId}/versions/${versionId}`, { method: 'DELETE' }),
+
+  fileUrl: (assetId: string, versionId: string): string =>
+    `${API_BASE}/api/v1/assets/${assetId}/versions/${versionId}/file`,
+
+  thumbUrl: (assetId: string, versionId: string): string =>
+    `${API_BASE}/api/v1/assets/${assetId}/versions/${versionId}/thumb`,
 }
 
 export function openThumbnailEvents(): EventSource {

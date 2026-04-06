@@ -116,6 +116,18 @@ func (r *switchWorkspaceRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
+type updateWorkspaceSettingsRequest struct {
+	VersionRetentionCount int64 `json:"version_retention_count"`
+}
+
+func (r *updateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if r.VersionRetentionCount < 0 {
+		p["version_retention_count"] = "must be 0 (keep all) or a positive integer"
+	}
+	return p
+}
+
 // -- projects.go --------------------------------------------------------------
 
 type createProjectRequest struct {

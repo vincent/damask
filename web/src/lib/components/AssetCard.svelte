@@ -63,6 +63,11 @@
         <TriangleAlert class="h-3 w-3" />
         <span class="text-[10px] font-semibold leading-none">Fields</span>
       </div>
+    {:else if asset.version_count > 1}
+      <div class="absolute right-2 top-2 rounded-full bg-black/50 px-1.5 py-0.5 text-white backdrop-blur-sm"
+           title="{asset.version_count} versions">
+        <span class="text-[10px] font-bold leading-none">v{asset.version_count}</span>
+      </div>
     {/if}
 
     {#if (category === 'image' || category === 'video' || category === 'audio' || category === 'document') && !isProcessing}

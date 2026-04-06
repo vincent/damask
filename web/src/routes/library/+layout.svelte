@@ -111,11 +111,23 @@
     <div class="px-3 pb-2">
       <button
         class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
-          {(page.route.id?.match('settings')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+          {(page.route.id?.match('custom-fields')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => goto('/library/settings/custom-fields')}
       >
         <Settings2 class="h-4 w-4 shrink-0 text-gray-400" />
         <span class="flex-1 text-left">Custom Fields</span>
+      </button>
+    </div>
+
+    <!-- Versioning settings button -->
+    <div class="px-3 pb-2">
+      <button
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+          {(page.route.id?.match('versioning')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+        onclick={() => goto('/library/settings/versioning')}
+      >
+        <Settings2 class="h-4 w-4 shrink-0 text-gray-400" />
+        <span class="flex-1 text-left">Version History</span>
       </button>
     </div>
 

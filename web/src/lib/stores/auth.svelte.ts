@@ -32,6 +32,10 @@ export const authStore = {
     state.role = role
   },
 
+  patchWorkspace(patch: Partial<Workspace>) {
+    if (state.workspace) state.workspace = { ...state.workspace, ...patch }
+  },
+
   logout() {
     state.user = null
     state.workspace = null

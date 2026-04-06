@@ -9,7 +9,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
-  import { Copy, Inbox, Link, Share } from '@lucide/svelte'
+  import { Copy, Inbox, Link, Share, Upload } from '@lucide/svelte'
   import AssetTags from './AssetTags.svelte';
   import AssetMetadata from './AssetMetadata.svelte';
   import VariantCreateResize from './VariantCreateResize.svelte';
@@ -31,6 +31,8 @@
   import AssetExportImage from './AssetExportImage.svelte'
   import AssetDeleteButton from './AssetDeleteButton.svelte'
   import AssetCustomFields from './AssetCustomFields.svelte'
+  import VersionHistory from './VersionHistory.svelte'
+  import UploadVersionModal from './UploadVersionModal.svelte'
   import { fly } from 'svelte/transition'
 
   interface Props {
@@ -39,12 +41,13 @@
     ondeleted: (id: string) => void
     ontagschanged: () => void
     onprojectchanged: () => void
+    onassetupdated?: (updated: Asset) => void
   }
 
-  let { asset, onclose, ondeleted, ontagschanged, onprojectchanged }: Props = $props()
+  let { asset = $bindable(), onclose, ondeleted, ontagschanged, onprojectchanged, onassetupdated }: Props = $props()
 
   // --- Panel tabs ---
-  type PanelTab = 'details' | 'variants' | 'actions'
+  type PanelTab = 'details' | 'variants' | 'history' | 'actions'
   let activeTab = $state<PanelTab>('details')
 
   // --- Variant sub-tabs ---
@@ -53,7 +56,7 @@
 
   // --- Asset state ---
   let showShareModal = $state(false)
-  let tags = $state<string[]>([])
+  let showUploadVersionModal = $state(false)
   let linkCopied = $state(false)
 
   // --- Variant state ---
@@ -77,7 +80,6 @@
 
   $effect(() => {
     if (!asset) {
-      tags = []
       variants = []
       return
     }
@@ -102,7 +104,7 @@
 
   const activeProject = $derived(
     asset?.project_id
-      ? projectsStore.projects.find((p) => p.id === asset.project_id) ?? null
+      ? projectsStore.projects.find((p) => p.id === asset?.project_id) ?? null
       : null,
   )
 
@@ -213,15 +215,20 @@
     <!-- Animated tab bar -->
     <div class="relative flex-shrink-0 border-b border-gray-100 dark:border-gray-800">
       <div class="flex">
-        {#each (['details', 'variants', 'actions'] as PanelTab[]) as tab}
+        {#each (['details', 'variants', 'history', 'actions'] as PanelTab[]) as tab}
           <button
             type="button"
-            class="relative flex-1 py-3 text-sm font-medium transition-colors {activeTab === tab
+            class="relative flex-1 py-3 text-xs font-medium transition-colors {activeTab === tab
               ? 'text-indigo-600 dark:text-indigo-400'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
             onclick={() => { activeTab = tab; createError = ''; createSuccess = '' }}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {#if tab === 'history' && (asset?.version_count ?? 0) > 1}
+              <span class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
+                {asset.version_count}
+              </span>
+            {/if}
             {#if activeTab === tab}
               <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-t bg-indigo-600 dark:bg-indigo-400"></span>
             {/if}
@@ -292,6 +299,27 @@
           </div>
         </div>
 
+      <!-- ═══ HISTORY TAB ═══ -->
+      {:else if activeTab === 'history'}
+        <div class="flex flex-col">
+          {#if authStore.role !== 'viewer'}
+            <div class="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+              <button
+                type="button"
+                class="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                onclick={() => { showUploadVersionModal = true }}
+              >
+                <Upload class="h-4 w-4" />
+                Upload new version
+              </button>
+            </div>
+          {/if}
+          <VersionHistory {asset} onversionchanged={(updated) => {
+            asset = updated
+            onassetupdated?.(updated)
+          }} />
+        </div>
+
       <!-- ═══ ACTIONS TAB ═══ -->
       {:else if activeTab === 'actions'}
         <div class="px-5 py-5 space-y-6">
@@ -333,6 +361,19 @@
 
     </div>
   </div>
+{/if}
+
+{#if showUploadVersionModal && asset}
+  <UploadVersionModal
+    {asset}
+    onclose={() => { showUploadVersionModal = false }}
+    onuploaded={(updated) => {
+      asset = updated
+      onassetupdated?.(updated)
+      showUploadVersionModal = false
+      activeTab = 'history'
+    }}
+  />
 {/if}
 
 {#if showShareModal && asset}
