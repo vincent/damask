@@ -1,3 +1,5 @@
+//go:build demo
+
 // Package demo implements the demo workspace seeder, wiper, and reset scheduler.
 // All demo functionality is gated behind DEMO_MODE=true in config.
 package demo
@@ -315,27 +317,16 @@ func (s *Seeder) NextResetAt() time.Time {
 	return s.lastResetAt.Add(s.ResetInterval())
 }
 
-// DemoUsage holds the current demo workspace asset count and total storage bytes.
-type DemoUsage struct {
-	AssetCount  int64
-	StorageUsed int64 // bytes
-}
-
-// GetUsage returns the current asset count and total storage used by the demo workspace.
-// Returns zero values if the demo workspace does not exist.
-func (s *Seeder) GetUsage(ctx context.Context, workspaceID string) (DemoUsage, error) {
-	var u DemoUsage
-	err := s.db.QueryRowContext(ctx, `
+// GetUsage returns the current asset count and total storage bytes used by the demo workspace.
+func (s *Seeder) GetUsage(ctx context.Context, workspaceID string) (assetCount, storageUsed int64, err error) {
+	err = s.db.QueryRowContext(ctx, `
 		SELECT COUNT(DISTINCT a.id),
 		       COALESCE(SUM(av.size), 0)
 		FROM assets a
 		LEFT JOIN asset_versions av ON av.id = a.current_version_id
 		WHERE a.workspace_id = ?
-	`, workspaceID).Scan(&u.AssetCount, &u.StorageUsed)
-	if err != nil {
-		return DemoUsage{}, err
-	}
-	return u, nil
+	`, workspaceID).Scan(&assetCount, &storageUsed)
+	return
 }
 
 // --- field definitions ---

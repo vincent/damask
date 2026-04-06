@@ -1,8 +1,8 @@
+//go:build demo
+
 package api
 
 import (
-	"damask/server/internal/auth"
-
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -13,13 +13,3 @@ var demoRestrictedResponse = fiber.Map{
 	"signup_url": "https://damask.io/signup",
 }
 
-// demoBlock is an inline middleware that returns 403 when the request carries a
-// demo token. Attach it on individual routes that are blocked in demo mode.
-// It must appear after auth.RequireAuth in the middleware chain.
-func demoBlock(c fiber.Ctx) error {
-	claims := auth.GetClaims(c)
-	if claims != nil && claims.IsDemo {
-		return c.Status(fiber.StatusForbidden).JSON(demoRestrictedResponse)
-	}
-	return c.Next()
-}

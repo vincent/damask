@@ -16,6 +16,10 @@ dev-web:
 build:
 	cd server && go build -o bin/damask-server ./cmd/server
 
+# Build the Go server binary, with demo jobs
+build-demo:
+	cd server && go build -tags=demo -o bin/damask-server-demo ./cmd/server
+
 # Update Swagger docs
 swagger:
 	cd server && swag init -g cmd/server/main.go

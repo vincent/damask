@@ -1,3 +1,5 @@
+//go:build demo
+
 package api
 
 import (
@@ -6,9 +8,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 )
-
-const DemoMaxAssets = 50
-const DemoMaxStorageBytes = 100 * 1024 * 1024 // 100 MB
 
 // handleDemoStatus returns the current state of the demo workspace.
 // Public endpoint — no auth required.
@@ -26,7 +25,7 @@ func (s *Server) handleDemoStatus(c fiber.Ctx) error {
 		})
 	}
 
-	usage, err := s.demo.GetUsage(c.Context(), workspaceID)
+	assetCount, storageUsed, err := s.demo.GetUsage(c.Context(), workspaceID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "demo status unavailable")
 	}
@@ -36,9 +35,9 @@ func (s *Server) handleDemoStatus(c fiber.Ctx) error {
 
 	resp := fiber.Map{
 		"available":        true,
-		"asset_count":      usage.AssetCount,
+		"asset_count":      assetCount,
 		"asset_limit":      DemoMaxAssets,
-		"storage_used_mb":  float64(usage.StorageUsed) / (1024 * 1024),
+		"storage_used_mb":  float64(storageUsed) / (1024 * 1024),
 		"storage_limit_mb": float64(DemoMaxStorageBytes) / (1024 * 1024),
 	}
 	if !lastReset.IsZero() {
