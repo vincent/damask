@@ -37,7 +37,7 @@ damask/
 | Command | Description |
 |---------|-------------|
 | `make dev` | Start Go server + SvelteKit dev server |
-| `make build` | Compile Go binary to `server/bin/server` |
+| `make build` | Compile Go binary to `server/bin/damask-server` |
 | `make test` | Run Go tests |
 | `make lint` | Run golangci-lint + ESLint |
 | `make generate` | Run sqlc code generation |

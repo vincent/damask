@@ -6,7 +6,7 @@ dev:
 
 # Run the Go backend
 dev-server:
-	cd server && air --build.cmd "go build -o bin/server ./cmd/server" --build.entrypoint "./bin/server" --build.include_dir internal
+	cd server && air --build.cmd "go build -o bin/damask-server ./cmd/server" --build.entrypoint "./bin/damask-server" --build.include_dir internal
 
 # Run the Svelte frontend
 dev-web:

@@ -45,7 +45,7 @@ jobs:
           cache-dependency-path: server/go.sum
       - name: Build binary
         working-directory: server
-        run: CGO_ENABLED=0 go build -mod=mod -o bin/server ./cmd/server
+        run: CGO_ENABLED=0 go build -mod=mod -o bin/damask-server ./cmd/server
 
   check-frontend:
     name: Check (Svelte)
