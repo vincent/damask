@@ -7,7 +7,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func openReadOnly(path string) (*sql.DB, error) {
+func OpenReadOnly(path string) (*sql.DB, error) {
 	dsn := fmt.Sprintf("file:%s?mode=ro&_journal_mode=WAL", path)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

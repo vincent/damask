@@ -1,6 +1,7 @@
 package main
 
 import (
+	"damask/server/internal/admin"
 	"flag"
 	"fmt"
 	"os"
@@ -27,7 +28,7 @@ func main() {
 		}
 	}
 
-	db, err := openReadOnly(dbPath)
+	db, err := admin.OpenReadOnly(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "damask-admin: database not found or locked: %v\n", err)
 		os.Exit(1)
@@ -35,11 +36,11 @@ func main() {
 	defer db.Close()
 
 	// Warn on narrow terminal
-	if w, _, err := termSize(); err == nil && w > 0 && w < 80 {
+	if w, _, err := admin.TermSize(); err == nil && w > 0 && w < 80 {
 		fmt.Fprintf(os.Stderr, "damask-admin: terminal width %d < 80; some layout may be clipped\n", w)
 	}
 
-	m := NewRootModel(db, dbPath, refreshSec)
+	m := admin.NewRootModel(db, dbPath, refreshSec)
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
