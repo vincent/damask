@@ -20,7 +20,7 @@ func (h PdfHandler) ExtractMeta(ctx context.Context, filePath string) (FileMeta,
 	return FileMeta{}, nil
 }
 
-func (h PdfHandler) EnqueueJobs(ctx context.Context, qu *queue.Queue, asset dbgen.Asset) error {
+func (h PdfHandler) EnqueueJobs(ctx context.Context, qu queue.JobQueue, asset dbgen.Asset) error {
 	payload, _ := json.Marshal(thumbnailJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,

@@ -12,11 +12,11 @@ import (
 // FieldCleanupScheduler enqueues a purge_deleted_fields job once per day at 03:00 UTC.
 type FieldCleanupScheduler struct {
 	db    *dbgen.Queries
-	queue *queue.Queue
+	queue queue.JobQueue
 }
 
 // NewFieldCleanupScheduler creates a FieldCleanupScheduler.
-func NewFieldCleanupScheduler(db *dbgen.Queries, q *queue.Queue) *FieldCleanupScheduler {
+func NewFieldCleanupScheduler(db *dbgen.Queries, q queue.JobQueue) *FieldCleanupScheduler {
 	return &FieldCleanupScheduler{db: db, queue: q}
 }
 

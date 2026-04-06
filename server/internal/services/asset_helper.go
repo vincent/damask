@@ -41,7 +41,7 @@ type thumbnailJobPayload struct {
 type MediaHandler interface {
 	Supports(mime string) bool
 	ExtractMeta(ctx context.Context, filePath string) (FileMeta, error)
-	EnqueueJobs(ctx context.Context, qu *queue.Queue, asset dbgen.Asset) error
+	EnqueueJobs(ctx context.Context, qu queue.JobQueue, asset dbgen.Asset) error
 }
 
 // -- Handler Registry
@@ -113,7 +113,7 @@ func CreateAsset(
 	db *dbgen.Queries,
 	sqlDB *sql.DB,
 	stor storage.Storage,
-	qu *queue.Queue,
+	qu queue.JobQueue,
 	workspaceID string,
 	filePath string,
 	opts AssetOptions,

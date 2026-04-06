@@ -18,35 +18,35 @@ type MailServerImpl struct {
 	srv   *smtp.Server
 	hooks []Hook
 	db    *dbgen.Queries
-	queue *queue.Queue
+	queue queue.JobQueue
 }
 
-func NewMailServer(addr, domain string, db *dbgen.Queries, q *queue.Queue) MailServer {
-	be := &MailServerImpl{db: db, queue: q}
-	be.srv = smtp.NewServer(be)
+func NewMailServer(addr, domain string, db *dbgen.Queries, q queue.JobQueue) MailServer {
+	backend := &MailServerImpl{db: db, queue: q}
+	backend.srv = smtp.NewServer(backend)
 
-	be.srv.Addr = addr
-	be.srv.Domain = domain
-	be.srv.AllowInsecureAuth = true
+	backend.srv.Addr = addr
+	backend.srv.Domain = domain
+	backend.srv.AllowInsecureAuth = true
 
-	return be
+	return backend
 }
 
-func (s *MailServerImpl) Start() error {
-	err := s.srv.ListenAndServe()
+func (backend *MailServerImpl) Start() error {
+	err := backend.srv.ListenAndServe()
 	return err
 }
 
 // NewSession is called after client greeting (EHLO, HELO).
-func (bkd *MailServerImpl) NewSession(c *smtp.Conn) (smtp.Session, error) {
+func (backend *MailServerImpl) NewSession(c *smtp.Conn) (smtp.Session, error) {
 	return &Session{
-		hooks: bkd.hooks,
-		db:    bkd.db,
-		queue: bkd.queue,
+		hooks: backend.hooks,
+		db:    backend.db,
+		queue: backend.queue,
 	}, nil
 }
 
 // AddHook adds a new hook to the mail server.
-func (b *MailServerImpl) AddHook(hook Hook) {
-	b.hooks = append(b.hooks, hook)
+func (backend *MailServerImpl) AddHook(hook Hook) {
+	backend.hooks = append(backend.hooks, hook)
 }

@@ -11,11 +11,11 @@ import (
 // RetentionScheduler fires the enforce_version_retention job once per night
 // at approximately 02:00 UTC.
 type RetentionScheduler struct {
-	queue *queue.Queue
+	queue queue.JobQueue
 }
 
 // NewRetentionScheduler creates a RetentionScheduler.
-func NewRetentionScheduler(q *queue.Queue) *RetentionScheduler {
+func NewRetentionScheduler(q queue.JobQueue) *RetentionScheduler {
 	return &RetentionScheduler{queue: q}
 }
 

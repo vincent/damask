@@ -17,6 +17,15 @@ import (
 // HandlerFunc processes a job payload and returns an error on failure.
 type HandlerFunc func(ctx context.Context, job dbgen.Job) error
 
+// JobQueue is the interface implemented by queue backends.
+// The SQLite-backed Queue satisfies this interface; future backends (e.g. asynq) can too.
+type JobQueue interface {
+	Register(jobType string, handler HandlerFunc)
+	Enqueue(ctx context.Context, workspaceID, jobType, payload string) (dbgen.Job, error)
+	Start(ctx context.Context)
+	Stop()
+}
+
 // Queue is an in-process job queue backed by SQLite with a configurable worker pool.
 type Queue struct {
 	db       *dbgen.Queries

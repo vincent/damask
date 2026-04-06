@@ -14,11 +14,11 @@ import (
 // and enqueues ingest_poll jobs for each.
 type Scheduler struct {
 	db    *dbgen.Queries
-	queue *queue.Queue
+	queue queue.JobQueue
 }
 
 // NewScheduler creates a Scheduler.
-func NewScheduler(db *dbgen.Queries, qu *queue.Queue) *Scheduler {
+func NewScheduler(db *dbgen.Queries, qu queue.JobQueue) *Scheduler {
 	return &Scheduler{db: db, queue: qu}
 }
 

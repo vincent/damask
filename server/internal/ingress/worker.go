@@ -27,12 +27,12 @@ type Worker struct {
 	db      *dbgen.Queries
 	sqlDB   *sql.DB
 	storage storage.Storage
-	queue   *queue.Queue
+	queue   queue.JobQueue
 	cfg     *config.Config
 }
 
 // NewWorker creates a Worker.
-func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu *queue.Queue, cfg *config.Config) *Worker {
+func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config) *Worker {
 	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg}
 }
 

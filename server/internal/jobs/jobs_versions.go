@@ -22,7 +22,7 @@ type VersionThumbnailJobPayload struct {
 }
 
 // EnqueueVersionThumbnailJob enqueues a version thumbnail job.
-func EnqueueVersionThumbnailJob(ctx context.Context, q *queue.Queue, workspaceID string, p VersionThumbnailJobPayload) error {
+func EnqueueVersionThumbnailJob(ctx context.Context, q queue.JobQueue, workspaceID string, p VersionThumbnailJobPayload) error {
 	payload, _ := json.Marshal(p)
 	_, err := q.Enqueue(ctx, workspaceID, queue.JobTypeVersionThumbnail, string(payload))
 	return err

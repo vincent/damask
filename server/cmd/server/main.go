@@ -12,6 +12,7 @@ import (
 	"damask/server/internal/config"
 	"damask/server/internal/db"
 	"damask/server/internal/events"
+	"damask/server/internal/ingress"
 	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
 	"damask/server/internal/services"
@@ -59,6 +60,15 @@ func main() {
 
 	js := jobs.NewJobServer(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg)
 	js.RegisterJobHandlers()
+
+	if cfg.EnableScheduler {
+		ingress.NewScheduler(queries, q).Start(ctx)
+		log.Printf("ingress scheduler started")
+		jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)
+		log.Printf("field cleanup scheduler started")
+		jobs.NewRetentionScheduler(q).Start(ctx)
+		log.Printf("retention scheduler started")
+	}
 
 	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg)
 

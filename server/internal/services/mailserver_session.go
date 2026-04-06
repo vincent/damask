@@ -25,7 +25,7 @@ type Session struct {
 	from  string
 	to    string
 	db    *dbgen.Queries
-	queue *queue.Queue
+	queue queue.JobQueue
 }
 
 // AuthPlain implements authentication using SASL PLAIN.

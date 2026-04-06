@@ -12,7 +12,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"os"
 	"time"
@@ -24,7 +23,7 @@ type JobServer struct {
 	sqlDB      *sql.DB
 	tokenMaker *auth.Maker
 	storage    storage.Storage
-	queue      *queue.Queue
+	queue      queue.JobQueue
 	hub        events.EventHub
 	cfg        *config.Config
 }
@@ -35,7 +34,7 @@ func NewJobServer(
 	tokenMaker *auth.Maker,
 	stor storage.Storage,
 	hub events.EventHub,
-	q *queue.Queue,
+	q queue.JobQueue,
 	cfg *config.Config,
 ) *JobServer {
 	return &JobServer{
@@ -49,28 +48,14 @@ func NewJobServer(
 	}
 }
 
-// RegisterJobHandlers wires transform job handlers into the queue.
+// RegisterJobHandlers wires all job handlers into the queue.
+// It does not start any scheduler goroutines — call StartSchedulers for that.
 func (s *JobServer) RegisterJobHandlers() {
 
 	// Register ingress job handlers
 	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg)
 	s.queue.Register(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	s.queue.Register(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
-
-	// Start ingress scheduler (disabled in tests via ENABLE_SCHEDULER=false)
-	if s.cfg.EnableScheduler {
-		scheduler := ingress.NewScheduler(s.db, s.queue)
-		scheduler.Start(context.Background())
-		log.Printf("ingress scheduler started")
-
-		fieldCleanup := NewFieldCleanupScheduler(s.db, s.queue)
-		fieldCleanup.Start(context.Background())
-		log.Printf("field cleanup scheduler started")
-
-		retentionSched := NewRetentionScheduler(s.queue)
-		retentionSched.Start(context.Background())
-		log.Printf("retention scheduler started")
-	}
 
 	// Thumbnail — 2 unified handlers (one per context).
 	s.queue.Register(queue.JobTypeAssetThumbnail, s.jobAssetThumbnail)

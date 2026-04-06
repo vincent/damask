@@ -26,7 +26,7 @@ type Server struct {
 	sqlDB        *sql.DB
 	tokenMaker   *auth.Maker
 	storage      storage.Storage
-	queue        *queue.Queue
+	queue        queue.JobQueue
 	hub          events.EventHub
 	previewCache *lruPreviewCache
 	cfg          *config.Config
@@ -38,7 +38,7 @@ func NewHttpServer(
 	tokenMaker *auth.Maker,
 	stor storage.Storage,
 	hub events.EventHub,
-	q *queue.Queue,
+	q queue.JobQueue,
 	cfg *config.Config,
 ) *Server {
 	return &Server{
@@ -74,7 +74,7 @@ func NewRouter(
 	tokenMaker *auth.Maker,
 	stor storage.Storage,
 	hub events.EventHub,
-	q *queue.Queue,
+	q queue.JobQueue,
 	cfg *config.Config,
 ) *fiber.App {
 	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, cfg)

@@ -41,7 +41,7 @@ func (h ImageHandler) ExtractMeta(ctx context.Context, filePath string) (FileMet
 	}, nil
 }
 
-func (h ImageHandler) EnqueueJobs(ctx context.Context, qu *queue.Queue, asset dbgen.Asset) error {
+func (h ImageHandler) EnqueueJobs(ctx context.Context, qu queue.JobQueue, asset dbgen.Asset) error {
 	payload, _ := json.Marshal(thumbnailJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,
