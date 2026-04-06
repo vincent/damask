@@ -3,7 +3,6 @@ package admin
 import (
 	"database/sql"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -329,7 +328,7 @@ func (m RootModel) renderTabBar() string {
 // ─── status bar ──────────────────────────────────────────────
 
 func (m RootModel) renderStatusBar() string {
-	dbName := filepath.Base(m.dbPath)
+	var dbName string
 	if len(m.dbPath) > 40 {
 		dbName = "…" + m.dbPath[len(m.dbPath)-37:]
 	} else {
