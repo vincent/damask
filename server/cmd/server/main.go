@@ -11,6 +11,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	"damask/server/internal/db"
+	"damask/server/internal/demo"
 	"damask/server/internal/events"
 	"damask/server/internal/ingress"
 	"damask/server/internal/jobs"
@@ -72,7 +73,22 @@ func main() {
 		log.Printf("audit-log retention scheduler started")
 	}
 
-	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg)
+	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop
+	var demoSeeder *demo.Seeder
+	if cfg.Demo.DemoMode {
+		demoSeeder = demo.New(sqlDB, stor, cfg.Demo)
+		if err := demoSeeder.EnsureWorkspace(ctx); err != nil {
+			log.Fatalf("demo: ensure workspace: %v", err)
+		}
+		// Seed content if workspace is empty (first boot or crash recovery)
+		if err := demoSeeder.SeedIfEmpty(ctx); err != nil {
+			log.Printf("demo: initial seed failed (non-fatal): %v", err)
+		}
+		demoSeeder.StartResetLoop(ctx)
+		log.Printf("demo: mode enabled reset_interval=%dh", cfg.Demo.ResetIntervalHours)
+	}
+
+	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg, demoSeeder)
 
 	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host, queries, q)
 	log.Printf("mail server starting on :%s", "2525")

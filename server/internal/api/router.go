@@ -10,6 +10,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/demo"
 	"damask/server/internal/events"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
@@ -32,6 +33,7 @@ type Server struct {
 	previewCache *lruPreviewCache
 	cfg          *config.Config
 	audit        *audit.EventWriter
+	demo         *demo.Seeder // nil when DEMO_MODE=false
 }
 
 func NewHttpServer(
@@ -42,6 +44,7 @@ func NewHttpServer(
 	hub events.EventHub,
 	q queue.JobQueue,
 	cfg *config.Config,
+	demoSeeder *demo.Seeder,
 ) *Server {
 	return &Server{
 		db:           db,
@@ -53,6 +56,7 @@ func NewHttpServer(
 		previewCache: NewLRUPreviewCache(100),
 		cfg:          cfg,
 		audit:        audit.New(sqlDB),
+		demo:         demoSeeder,
 	}
 }
 
@@ -79,8 +83,9 @@ func NewRouter(
 	hub events.EventHub,
 	q queue.JobQueue,
 	cfg *config.Config,
+	demoSeeder *demo.Seeder,
 ) *fiber.App {
-	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, cfg)
+	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, cfg, demoSeeder)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: defaultErrorHandler,
@@ -96,6 +101,11 @@ func NewRouter(
 
 	// Health check (public)
 	app.Get("/healthz", handleHealthz)
+
+	// Demo session — only registered when DEMO_MODE=true
+	if cfg.Demo.DemoMode {
+		app.Post("/demo/session", s.handleDemoSession)
+	}
 
 	// Auth routes (public)
 	authGroup := app.Group("/auth")

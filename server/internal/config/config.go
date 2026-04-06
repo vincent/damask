@@ -21,6 +21,18 @@ type Config struct {
 	QueueWorkers    int
 	FrontendPath    string
 	EnableScheduler bool
+	Demo            DemoConfig
+}
+
+// DemoConfig holds all demo-mode settings. All fields are zero-valued when
+// DemoMode is false.
+type DemoConfig struct {
+	DemoMode          bool
+	ResetIntervalHours int
+	UserEmail         string
+	WorkspaceName     string
+	ShowBanner        bool
+	SignupURL         string
 }
 
 func Load() (*Config, error) {
@@ -31,6 +43,14 @@ func Load() (*Config, error) {
 	if w := os.Getenv("QUEUE_WORKERS"); w != "" {
 		if n, err := strconv.Atoi(w); err == nil && n > 0 {
 			workers = n
+		}
+	}
+
+	demoMode := getEnv("DEMO_MODE", "false") == "true"
+	demoResetHours := 6
+	if h := os.Getenv("DEMO_RESET_INTERVAL_HOURS"); h != "" {
+		if n, err := strconv.Atoi(h); err == nil && n > 0 {
+			demoResetHours = n
 		}
 	}
 
@@ -45,6 +65,14 @@ func Load() (*Config, error) {
 		QueueWorkers:    workers,
 		FrontendPath:    os.Getenv("FRONTEND_PATH"),
 		EnableScheduler: getEnv("ENABLE_SCHEDULER", "true") != "false",
+		Demo: DemoConfig{
+			DemoMode:           demoMode,
+			ResetIntervalHours: demoResetHours,
+			UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.io"),
+			WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
+			ShowBanner:         demoMode && getEnv("DEMO_BANNER", "true") != "false",
+			SignupURL:          getEnv("DEMO_SIGNUP_URL", "https://damask.io/signup"),
+		},
 	}
 
 	if cfg.JWTSecret == "" {

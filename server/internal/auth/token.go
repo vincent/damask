@@ -13,6 +13,7 @@ import (
 type Claims struct {
 	UserID      string `json:"user_id"`
 	WorkspaceID string `json:"workspace_id"`
+	IsDemo      bool   `json:"is_demo,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -46,6 +47,22 @@ func (m *Maker) CreateToken(userID, workspaceID string, duration time.Duration) 
 	claims := &Claims{
 		UserID:      userID,
 		WorkspaceID: workspaceID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(m.secret)
+}
+
+// CreateDemoToken issues a signed token for the demo user. The token carries
+// is_demo=true so middleware can apply demo-specific restrictions.
+func (m *Maker) CreateDemoToken(userID, workspaceID string, duration time.Duration) (string, error) {
+	claims := &Claims{
+		UserID:      userID,
+		WorkspaceID: workspaceID,
+		IsDemo:      true,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
