@@ -245,6 +245,22 @@ func TestIsolation_DeleteAsset(t *testing.T) {
 	}
 }
 
+func TestIsolation_RenameAsset(t *testing.T) {
+	env, ws1, ws2 := setupTwoWorkspaces(t)
+
+	assetID := uploadTestAsset(t, env, ws1)
+
+	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
+		th.JsonStr(`{"name":"hacked"}`), ws2.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
 // --- Tags ---
 
 func TestIsolation_ListTags(t *testing.T) {

@@ -240,6 +240,19 @@ func (r *updateAssetFolderRequest) Valid(_ context.Context) map[string]string {
 	return map[string]string{}
 }
 
+type renameAssetRequest struct {
+	Name string `json:"name"`
+}
+
+func (r *renameAssetRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Name = strings.TrimSpace(r.Name)
+	if r.Name == "" {
+		p["name"] = "required"
+	}
+	return p
+}
+
 type bulkDeleteRequest struct {
 	AssetIDs []string `json:"asset_ids"`
 }

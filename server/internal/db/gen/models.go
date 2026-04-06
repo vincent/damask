@@ -250,7 +250,7 @@ type Workspace struct {
 	Name                     string    `json:"name"`
 	IngestToken              *string   `json:"ingest_token"`
 	VersionRetentionCount    int64     `json:"version_retention_count"`
-	AuditLogRetentionDays    int64     `json:"event_log_retention_days"`
+	EventLogRetentionDays    int64     `json:"event_log_retention_days"`
 	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`
 	IconAssetID              *string   `json:"icon_asset_id"`
 	IconVersionID            *string   `json:"icon_version_id"`

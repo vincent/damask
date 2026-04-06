@@ -256,7 +256,7 @@ func (q *Queries) GetWorkspaceByIngestToken(ctx context.Context, ingestToken *st
 		&i.Name,
 		&i.IngestToken,
 		&i.VersionRetentionCount,
-		&i.AuditLogRetentionDays,
+		&i.EventLogRetentionDays,
 		&i.DownloadLogRetentionDays,
 		&i.IconAssetID,
 		&i.IconVersionID,

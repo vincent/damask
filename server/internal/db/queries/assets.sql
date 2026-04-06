@@ -37,6 +37,9 @@ UPDATE assets SET project_id = ?, updated_at = datetime('now') WHERE id = ? AND 
 -- name: UpdateAssetFolder :exec
 UPDATE assets SET folder_id = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?;
 
+-- name: UpdateAssetName :exec
+UPDATE assets SET original_filename = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?;
+
 -- name: DeleteAsset :exec
 DELETE FROM assets WHERE id = ? AND workspace_id = ?;
 

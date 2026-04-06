@@ -366,7 +366,7 @@ func (q *Queries) ListWorkspacesForEventRetention(ctx context.Context) ([]Worksp
 			&i.Name,
 			&i.IngestToken,
 			&i.VersionRetentionCount,
-			&i.AuditLogRetentionDays,
+			&i.EventLogRetentionDays,
 			&i.DownloadLogRetentionDays,
 			&i.IconAssetID,
 			&i.IconVersionID,

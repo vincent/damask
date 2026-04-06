@@ -46,8 +46,8 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.Work
 	}
 
 	// Purge all asset events beyond the general retention window.
-	if ws.AuditLogRetentionDays > 0 {
-		cutoff := now.AddDate(0, 0, -int(ws.AuditLogRetentionDays)).Format("2006-01-02 15:04:05")
+	if ws.EventLogRetentionDays > 0 {
+		cutoff := now.AddDate(0, 0, -int(ws.EventLogRetentionDays)).Format("2006-01-02 15:04:05")
 		if err := s.db.DeleteAssetEventsOlderThan(ctx, dbgen.DeleteAssetEventsOlderThanParams{
 			WorkspaceID: ws.ID,
 			Cutoff:      cutoff,

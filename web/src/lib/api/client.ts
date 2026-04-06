@@ -260,6 +260,12 @@ export const assetApi = {
       body: JSON.stringify({ folder_id: folderId }),
     }),
 
+  rename: (assetId: string, name: string) =>
+    apiFetch<Asset>(`/api/v1/assets/${assetId}/rename`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    }),
+
   get(id: string): Promise<Asset> {
     return apiFetch<Asset>(`/api/v1/assets/${id}`)
   },

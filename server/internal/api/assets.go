@@ -786,6 +786,74 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	return c.JSON(assetToResponse(updated, nil))
 }
 
+// handleRenameAsset updates the original_filename of an asset, preserving its extension.
+func (s *Server) handleRenameAsset(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	id := c.Params("id")
+
+	body, ok := decodeAndValidate(c, &renameAssetRequest{})
+	if !ok {
+		return nil
+	}
+
+	before, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+		ID:          id,
+		WorkspaceID: claims.WorkspaceID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "asset not found")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	}
+
+	// Preserve the original file extension.
+	// body.Name is the stem only; reconstruct the full filename.
+	ext := filepath.Ext(before.OriginalFilename)
+	stem := strings.TrimSuffix(body.Name, ext) // guard: strip ext if client sent it
+	newName := stem + ext
+
+	// No-op: return early if the name hasn't changed.
+	if newName == before.OriginalFilename {
+		return c.JSON(assetToResponse(before, nil))
+	}
+
+	if err := s.db.UpdateAssetName(c.RequestCtx(), dbgen.UpdateAssetNameParams{
+		OriginalFilename: newName,
+		ID:               id,
+		WorkspaceID:      claims.WorkspaceID,
+	}); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not rename asset")
+	}
+
+	// Refresh FTS index so search reflects the new name.
+	s.refreshAssetFTS(c.RequestCtx(), id)
+
+	updated, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+		ID:          id,
+		WorkspaceID: claims.WorkspaceID,
+	})
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
+	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     id,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetRenamed,
+		Payload: audit.AssetRenamedPayload{
+			V:      1,
+			Before: before.OriginalFilename,
+			After:  updated.OriginalFilename,
+		},
+	})
+
+	return c.JSON(assetToResponse(updated, nil))
+}
+
 // handleBulkDelete deletes multiple assets and their storage files.
 func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)

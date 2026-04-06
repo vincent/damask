@@ -171,6 +171,7 @@ func NewRouter(
 	api.Post("/assets", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUploadAsset)
 	api.Get("/assets", s.handleListAssets)
 	api.Patch("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUpdateAssetFolder)
+	api.Put("/assets/:id/rename", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleRenameAsset)
 	api.Get("/assets/:id", s.handleGetAsset)
 	api.Get("/assets/:id/file", s.handleGetAssetFile)
 	api.Get("/assets/:id/thumb", s.handleGetAssetThumb)

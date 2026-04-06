@@ -244,6 +244,21 @@ func (q *Queries) UpdateAssetFolder(ctx context.Context, arg UpdateAssetFolderPa
 	return err
 }
 
+const updateAssetName = `-- name: UpdateAssetName :exec
+UPDATE assets SET original_filename = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?
+`
+
+type UpdateAssetNameParams struct {
+	OriginalFilename string `json:"original_filename"`
+	ID               string `json:"id"`
+	WorkspaceID      string `json:"workspace_id"`
+}
+
+func (q *Queries) UpdateAssetName(ctx context.Context, arg UpdateAssetNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateAssetName, arg.OriginalFilename, arg.ID, arg.WorkspaceID)
+	return err
+}
+
 const updateAssetProject = `-- name: UpdateAssetProject :exec
 UPDATE assets SET project_id = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?
 `

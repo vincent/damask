@@ -34,6 +34,7 @@
   import VersionHistory from './VersionHistory.svelte'
   import UploadVersionModal from './UploadVersionModal.svelte'
   import AssetActivity from './AssetActivity.svelte'
+  import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import { fly } from 'svelte/transition'
 
   interface Props {
@@ -59,6 +60,31 @@
   let showShareModal = $state(false)
   let showUploadVersionModal = $state(false)
   let linkCopied = $state(false)
+  let renamingAsset = $state(false)
+  let renameBusy = $state(false)
+
+  function stemOf(filename: string) {
+    const dot = filename.lastIndexOf('.')
+    return dot > 0 ? filename.slice(0, dot) : filename
+  }
+
+  function extOf(filename: string) {
+    const dot = filename.lastIndexOf('.')
+    return dot > 0 ? filename.slice(dot) : ''
+  }
+
+  async function submitRename(stem: string) {
+    if (!asset) return
+    renameBusy = true
+    try {
+      const updated = await assetApi.rename(asset.id, stem)
+      asset = updated
+      onassetupdated?.(updated)
+    } finally {
+      renameBusy = false
+      renamingAsset = false
+    }
+  }
 
   // --- Variant state ---
   let variants = $state<Variant[]>([])
@@ -200,9 +226,28 @@
   >
     <!-- Preview (h-20) -->
     <div class="damask-texture damask-texture-strong relative h-20 flex-shrink-0 flex items-center justify-center {previewBg[category]}">
-      <h2 class="max-w-[500px] break-all text-lg font-bold leading-tight text-black dark:text-gray-50" title={asset.original_filename}>
-        {asset.original_filename}
-      </h2>
+      {#if renamingAsset}
+        <div class="flex items-center gap-1 max-w-[500px]">
+          <InlineEditForm
+            value={stemOf(asset.original_filename)}
+            busy={renameBusy}
+            onsubmit={submitRename}
+            oncancel={() => (renamingAsset = false)}
+            size="md"
+            autofocus
+          />
+          <span class="flex-shrink-0 text-sm text-gray-400 dark:text-gray-500">{extOf(asset.original_filename)}</span>
+        </div>
+      {:else}
+        <button
+          type="button"
+          class="damask-asset-name max-w-[500px] break-all text-left text-lg font-bold leading-tight text-black dark:text-gray-50 cursor-pointer hover:underline"
+          title="Click to rename"
+          onclick={() => (renamingAsset = true)}
+        >
+          {asset.original_filename}
+        </button>
+      {/if}
       <!-- Top-right controls -->
       <div class="absolute right-3 top-3 flex items-center gap-1.5">
         <Close close={onclose} />
