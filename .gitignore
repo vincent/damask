@@ -15,9 +15,9 @@ server/bin/
 /server/storage/
 
 # Node
-web/node_modules/
-web/.svelte-kit/
-web/build/
+node_modules/
+.svelte-kit/
+build/
 
 # Go
 server/vendor/
@@ -39,3 +39,7 @@ Thumbs.db
 /ROADMAP.md
 /ISSUES.md
 /ROADMAP.*
+
+# Docs
+.vitepress/dist
+.vitepress/cache

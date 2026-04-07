@@ -1,0 +1,30 @@
+{
+  "name": "damask-website",
+  "version": "1.0.0",
+  "description": "A self-hosted Digital Asset Management (DAM) system. Single binary, local-first, multi-tenant.",
+  "keywords": [
+    "damask",
+    "dam"
+  ],
+  "homepage": "https://github.com/vincent/damask#readme",
+  "bugs": {
+    "url": "https://github.com/vincent/damask/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vincent/damask.git"
+  },
+  "license": "ISC",
+  "author": "vincent.lark@gmail.com",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^2.0.0-alpha.17"
+  }
+}
