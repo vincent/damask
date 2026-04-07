@@ -1,4 +1,0 @@
-DROP TRIGGER IF EXISTS assets_fts_au;
-DROP TRIGGER IF EXISTS assets_fts_ad;
-DROP TRIGGER IF EXISTS assets_fts_ai;
-DROP TABLE IF EXISTS assets_fts;

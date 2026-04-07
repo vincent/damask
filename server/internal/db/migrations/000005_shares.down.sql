@@ -1,2 +1,0 @@
-DROP TABLE IF EXISTS share_comments;
-DROP TABLE IF EXISTS shares;
