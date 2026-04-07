@@ -42,6 +42,7 @@ type VersionResponse struct {
 	CreatedBy    VersionCreatedByResponse `json:"created_by"`
 	CreatedAt    string                   `json:"created_at"`
 	IsCurrent    bool                     `json:"is_current"`
+	VariantCount int64                    `json:"variant_count"`
 }
 
 func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion) VersionResponse {
@@ -53,7 +54,7 @@ func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion)
 	return buildVersionResponseWithCreator(v, createdBy)
 }
 
-// buildVersionResponseWithCreator builds a versionResponse using a pre-resolved creator.
+// buildVersionResponseWithCreator builds a VersionResponse using a pre-resolved creator.
 // Use this in list paths to avoid issuing a GetUserByID query per row.
 func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy VersionCreatedByResponse) VersionResponse {
 	var thumbURL *string
@@ -75,6 +76,32 @@ func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy VersionCrea
 		CreatedBy:    createdBy,
 		CreatedAt:    v.CreatedAt,
 		IsCurrent:    v.IsCurrent == 1,
+	}
+}
+
+// buildVersionResponseWithCount is like buildVersionResponseWithCreator but also
+// carries the per-version variant count returned by ListVersionsWithVariantCount.
+func buildVersionResponseWithCount(v dbgen.ListVersionsWithVariantCountRow, createdBy VersionCreatedByResponse) VersionResponse {
+	var thumbURL *string
+	if v.ThumbnailKey != nil {
+		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
+		thumbURL = &u
+	}
+
+	return VersionResponse{
+		ID:           v.ID,
+		VersionNum:   v.VersionNum,
+		MimeType:     v.MimeType,
+		Size:         v.Size,
+		Width:        v.Width,
+		Height:       v.Height,
+		DurationSec:  v.DurationSec,
+		ThumbnailURL: thumbURL,
+		Comment:      v.Comment,
+		CreatedBy:    createdBy,
+		CreatedAt:    v.CreatedAt,
+		IsCurrent:    v.IsCurrent == 1,
+		VariantCount: v.VariantCount,
 	}
 }
 
@@ -156,6 +183,12 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	hash, size, err := versioning.HashReader(f)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash file")
+	}
+
+	// Capture the current version ID before we promote a new one — needed for rebuild job.
+	var prevVersionID string
+	if asset.CurrentVersionID != nil {
+		prevVersionID = *asset.CurrentVersionID
 	}
 
 	// Dedup: if identical bytes are already the current version, reject.
@@ -245,6 +278,15 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	// Enqueue thumbnail generation for the new version.
 	s.enqueueVersionThumbnail(c.RequestCtx(), asset, newVersion)
 
+	// Enqueue variant rebuild: copy variant definitions from the previous version.
+	// No-op if this is the first version (prevVersionID == "").
+	if err := jobs.EnqueueRebuildVariantsJob(
+		c.RequestCtx(), s.queue,
+		claims.WorkspaceID, assetID, newVersion.ID, prevVersionID,
+	); err != nil {
+		log.Printf("enqueue rebuild variants for %s/%s: %v", assetID, newVersion.ID, err)
+	}
+
 	// Reload asset to return latest state.
 	updatedAsset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
@@ -291,7 +333,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	versions, err := s.db.ListVersions(c.RequestCtx(), assetID)
+	versions, err := s.db.ListVersionsWithVariantCount(c.RequestCtx(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list versions")
 	}
@@ -300,7 +342,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 	userNames := make(map[string]string, len(versions))
 	for _, v := range versions {
 		if _, seen := userNames[v.CreatedBy]; !seen {
-			userNames[v.CreatedBy] = "" // placeholder
+			userNames[v.CreatedBy] = ""
 			if u, err := s.db.GetUserByID(c.RequestCtx(), v.CreatedBy); err == nil {
 				userNames[v.CreatedBy] = u.Name
 			}
@@ -309,7 +351,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 
 	resp := make([]VersionResponse, len(versions))
 	for i, v := range versions {
-		resp[i] = buildVersionResponseWithCreator(v, VersionCreatedByResponse{
+		resp[i] = buildVersionResponseWithCount(v, VersionCreatedByResponse{
 			ID:   v.CreatedBy,
 			Name: userNames[v.CreatedBy],
 		})

@@ -9,16 +9,62 @@ import (
 	"context"
 )
 
+const copyVariantParamsByVersion = `-- name: CopyVariantParamsByVersion :many
+SELECT type, transform_params FROM variants
+WHERE asset_version_id = ? AND type != 'manual'
+`
+
+type CopyVariantParamsByVersionRow struct {
+	Type            string  `json:"type"`
+	TransformParams *string `json:"transform_params"`
+}
+
+// Returns {type, transform_params} for a given version. Used by rebuild job.
+// Excludes manual variants (type = 'manual') since they are version-specific.
+func (q *Queries) CopyVariantParamsByVersion(ctx context.Context, assetVersionID string) ([]CopyVariantParamsByVersionRow, error) {
+	rows, err := q.db.QueryContext(ctx, copyVariantParamsByVersion, assetVersionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CopyVariantParamsByVersionRow{}
+	for rows.Next() {
+		var i CopyVariantParamsByVersionRow
+		if err := rows.Scan(&i.Type, &i.TransformParams); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countVariantsByVersion = `-- name: CountVariantsByVersion :one
+SELECT COUNT(*) FROM variants WHERE asset_version_id = ?
+`
+
+func (q *Queries) CountVariantsByVersion(ctx context.Context, assetVersionID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countVariantsByVersion, assetVersionID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createVariant = `-- name: CreateVariant :one
-INSERT INTO variants (id, asset_id, workspace_id, type, storage_key, transform_params, size)
+INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)
 VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, asset_id, workspace_id, type, storage_key, transform_params, size, created_at
+RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at
 `
 
 type CreateVariantParams struct {
 	ID              string  `json:"id"`
-	AssetID         string  `json:"asset_id"`
 	WorkspaceID     string  `json:"workspace_id"`
+	AssetVersionID  string  `json:"asset_version_id"`
 	Type            string  `json:"type"`
 	StorageKey      string  `json:"storage_key"`
 	TransformParams *string `json:"transform_params"`
@@ -28,8 +74,8 @@ type CreateVariantParams struct {
 func (q *Queries) CreateVariant(ctx context.Context, arg CreateVariantParams) (Variant, error) {
 	row := q.db.QueryRowContext(ctx, createVariant,
 		arg.ID,
-		arg.AssetID,
 		arg.WorkspaceID,
+		arg.AssetVersionID,
 		arg.Type,
 		arg.StorageKey,
 		arg.TransformParams,
@@ -38,8 +84,8 @@ func (q *Queries) CreateVariant(ctx context.Context, arg CreateVariantParams) (V
 	var i Variant
 	err := row.Scan(
 		&i.ID,
-		&i.AssetID,
 		&i.WorkspaceID,
+		&i.AssetVersionID,
 		&i.Type,
 		&i.StorageKey,
 		&i.TransformParams,
@@ -63,22 +109,17 @@ func (q *Queries) DeleteVariant(ctx context.Context, arg DeleteVariantParams) er
 	return err
 }
 
-const deleteVariantsByAsset = `-- name: DeleteVariantsByAsset :exec
-DELETE FROM variants WHERE asset_id = ? AND workspace_id = ?
+const deleteVariantsByVersion = `-- name: DeleteVariantsByVersion :exec
+DELETE FROM variants WHERE asset_version_id = ?
 `
 
-type DeleteVariantsByAssetParams struct {
-	AssetID     string `json:"asset_id"`
-	WorkspaceID string `json:"workspace_id"`
-}
-
-func (q *Queries) DeleteVariantsByAsset(ctx context.Context, arg DeleteVariantsByAssetParams) error {
-	_, err := q.db.ExecContext(ctx, deleteVariantsByAsset, arg.AssetID, arg.WorkspaceID)
+func (q *Queries) DeleteVariantsByVersion(ctx context.Context, assetVersionID string) error {
+	_, err := q.db.ExecContext(ctx, deleteVariantsByVersion, assetVersionID)
 	return err
 }
 
 const getVariantByID = `-- name: GetVariantByID :one
-SELECT id, asset_id, workspace_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ? AND workspace_id = ?
 `
 
 type GetVariantByIDParams struct {
@@ -91,8 +132,8 @@ func (q *Queries) GetVariantByID(ctx context.Context, arg GetVariantByIDParams) 
 	var i Variant
 	err := row.Scan(
 		&i.ID,
-		&i.AssetID,
 		&i.WorkspaceID,
+		&i.AssetVersionID,
 		&i.Type,
 		&i.StorageKey,
 		&i.TransformParams,
@@ -102,17 +143,46 @@ func (q *Queries) GetVariantByID(ctx context.Context, arg GetVariantByIDParams) 
 	return i, err
 }
 
-const listVariants = `-- name: ListVariants :many
-SELECT id, asset_id, workspace_id, type, storage_key, transform_params, size, created_at FROM variants WHERE asset_id = ? AND workspace_id = ? ORDER BY created_at DESC
+const getVariantByTypeAndParams = `-- name: GetVariantByTypeAndParams :one
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants
+WHERE asset_version_id = ? AND type = ? AND transform_params = ?
+LIMIT 1
 `
 
-type ListVariantsParams struct {
-	AssetID     string `json:"asset_id"`
-	WorkspaceID string `json:"workspace_id"`
+type GetVariantByTypeAndParamsParams struct {
+	AssetVersionID  string  `json:"asset_version_id"`
+	Type            string  `json:"type"`
+	TransformParams *string `json:"transform_params"`
 }
 
-func (q *Queries) ListVariants(ctx context.Context, arg ListVariantsParams) ([]Variant, error) {
-	rows, err := q.db.QueryContext(ctx, listVariants, arg.AssetID, arg.WorkspaceID)
+// Dedup check: find variant by version + type + transform_params hash.
+func (q *Queries) GetVariantByTypeAndParams(ctx context.Context, arg GetVariantByTypeAndParamsParams) (Variant, error) {
+	row := q.db.QueryRowContext(ctx, getVariantByTypeAndParams, arg.AssetVersionID, arg.Type, arg.TransformParams)
+	var i Variant
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.AssetVersionID,
+		&i.Type,
+		&i.StorageKey,
+		&i.TransformParams,
+		&i.Size,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const listVariantsByAssetCurrentVersion = `-- name: ListVariantsByAssetCurrentVersion :many
+SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size, v.created_at
+FROM variants v
+JOIN asset_versions av ON av.id = v.asset_version_id
+WHERE av.asset_id = ? AND av.is_current = 1
+ORDER BY v.created_at DESC
+`
+
+// Variants for the current version of an asset (JOIN to asset_versions).
+func (q *Queries) ListVariantsByAssetCurrentVersion(ctx context.Context, assetID string) ([]Variant, error) {
+	rows, err := q.db.QueryContext(ctx, listVariantsByAssetCurrentVersion, assetID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +192,45 @@ func (q *Queries) ListVariants(ctx context.Context, arg ListVariantsParams) ([]V
 		var i Variant
 		if err := rows.Scan(
 			&i.ID,
-			&i.AssetID,
 			&i.WorkspaceID,
+			&i.AssetVersionID,
+			&i.Type,
+			&i.StorageKey,
+			&i.TransformParams,
+			&i.Size,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVariantsByVersion = `-- name: ListVariantsByVersion :many
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants WHERE asset_version_id = ? ORDER BY created_at DESC
+`
+
+// All variants for a specific asset_version_id, ordered newest first.
+func (q *Queries) ListVariantsByVersion(ctx context.Context, assetVersionID string) ([]Variant, error) {
+	rows, err := q.db.QueryContext(ctx, listVariantsByVersion, assetVersionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Variant{}
+	for rows.Next() {
+		var i Variant
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.AssetVersionID,
 			&i.Type,
 			&i.StorageKey,
 			&i.TransformParams,

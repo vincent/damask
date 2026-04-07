@@ -150,12 +150,20 @@
                 <div class="h-12 w-12 shrink-0 rounded-lg bg-gray-200 dark:bg-gray-700"></div>
               {/if}
               <div class="min-w-0 flex flex-col gap-0.5">
-                <p class="text-xs text-gray-600 dark:text-gray-400">
-                  {formatBytes(v.size)}
-                  {#if v.width && v.height}
-                    · {v.width}×{v.height}
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="text-xs text-gray-600 dark:text-gray-400">
+                    {formatBytes(v.size)}
+                    {#if v.width && v.height}
+                      · {v.width}×{v.height}
+                    {/if}
+                  </p>
+                  <!-- Variant count chip (VV-4.2) -->
+                  {#if v.variant_count > 0}
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                      {v.variant_count} variant{v.variant_count === 1 ? '' : 's'}
+                    </span>
                   {/if}
-                </p>
+                </div>
                 {#if v.comment}
                   <p class="text-xs italic text-gray-500 dark:text-gray-400 line-clamp-2">"{v.comment}"</p>
                 {/if}

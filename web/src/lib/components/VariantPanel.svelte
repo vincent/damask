@@ -23,8 +23,10 @@
 
   // Variant list state
   let variants = $state<Variant[]>([])
+  let rebuilding = $state(false)
   let loading = $state(false)
   let loadError = $state('')
+  let rebuildPollTimer: ReturnType<typeof setInterval> | null = null
 
   // Create state
   let creating = $state(false)
@@ -69,18 +71,47 @@
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
   const isVideo = $derived(asset?.mime_type?.startsWith('video/') ?? false)
 
-  // Load variants when asset changes
+  // Load variants when asset changes; start/stop rebuild polling accordingly.
   $effect(() => {
-    if (!asset) { variants = []; return }
+    if (!asset) {
+      variants = []
+      rebuilding = false
+      stopRebuildPoll()
+      return
+    }
     loadVariants()
+    return () => stopRebuildPoll()
   })
+
+  function stopRebuildPoll() {
+    if (rebuildPollTimer !== null) {
+      clearInterval(rebuildPollTimer)
+      rebuildPollTimer = null
+    }
+  }
 
   async function loadVariants() {
     if (!asset) return
     loading = true
     loadError = ''
     try {
-      variants = await variantApi.list(asset.id)
+      const result = await variantApi.list(asset.id)
+      variants = result.variants
+      rebuilding = result.rebuilding
+      // Start polling if a rebuild is in flight; stop it once done.
+      if (rebuilding && rebuildPollTimer === null) {
+        rebuildPollTimer = setInterval(async () => {
+          if (!asset) { stopRebuildPoll(); return }
+          try {
+            const r = await variantApi.list(asset.id)
+            variants = r.variants
+            rebuilding = r.rebuilding
+            if (!r.rebuilding) stopRebuildPoll()
+          } catch { /* ignore poll errors */ }
+        }, 5000)
+      } else if (!rebuilding) {
+        stopRebuildPoll()
+      }
     } catch {
       loadError = 'Failed to load variants'
     } finally {
@@ -114,8 +145,8 @@
     try {
       await variantApi.delete(asset.id, variantId)
       variants = variants.filter(v => v.id !== variantId)
-    } catch {
-      // silently ignore
+    } catch (e: unknown) {
+      createError = e instanceof Error ? e.message : 'Failed to delete variant'
     }
   }
 
@@ -135,7 +166,7 @@
   }
 
   function submitResize() {
-    handleCreate('resize', {
+    handleCreate('image_resize', {
       width: resizeWidth || undefined,
       height: resizeHeight || undefined,
       fit: resizeFit,
@@ -145,14 +176,14 @@
   }
 
   function submitConvert() {
-    handleCreate('convert', {
+    handleCreate('image_convert', {
       format: convertFormat,
       quality: convertQuality,
     })
   }
 
   function submitCrop() {
-    handleCreate('crop', {
+    handleCreate('image_crop', {
       x: cropX,
       y: cropY,
       width: cropWidth,
@@ -163,7 +194,7 @@
   }
 
   function submitWatermark() {
-    handleCreate('watermark', {
+    handleCreate('image_watermark', {
       opacity: watermarkOpacity,
       quality: watermarkQuality,
       format: watermarkFormat,
@@ -171,7 +202,7 @@
   }
 
   function submitVideoThumbnail() {
-    handleCreate('video_thumbnail', { timestamp: videoTimestamp })
+    handleCreate('video_capture_image', { timestamp: videoTimestamp })
   }
 
   function submitTranscode() {
@@ -183,7 +214,7 @@
   }
 
   function submitBgRemove() {
-    handleCreate('bg_remove', {})
+    handleCreate('image_bg_remove', {})
   }
 
   function variantLabel(v: Variant): string {
@@ -191,13 +222,15 @@
       ? (() => { try { return JSON.parse(v.transform_params) } catch { return {} } })()
       : {}
     switch (v.type) {
-      case 'resize': return `Resize ${params.width ?? '?'}×${params.height ?? '?'} (${params.format ?? 'jpeg'})`
-      case 'convert': return `Convert to ${params.format ?? '?'}`
-      case 'crop': return `Crop ${params.width ?? '?'}×${params.height ?? '?'}`
-      case 'watermark': return `Watermark ${params.opacity ?? 50}%`
-      case 'video_thumbnail': return `Frame at ${params.timestamp ?? 1}s`
+      case 'image_resize': return `Resize ${params.width ?? '?'}×${params.height ?? '?'} (${params.format ?? 'jpeg'})`
+      case 'image_convert': return `Convert to ${params.format ?? '?'}`
+      case 'image_crop': return `Crop ${params.width ?? '?'}×${params.height ?? '?'}`
+      case 'image_watermark': return `Watermark ${params.opacity ?? 50}%`
+      case 'video_capture_image': return `Frame at ${params.timestamp ?? 1}s`
       case 'video_transcode': return `Transcode ${params.format ?? 'mp4'}${params.resolution ? ' ' + params.resolution : ''}`
-      case 'bg_remove': return 'Background removed'
+      case 'image_bg_remove': return 'Background removed'
+      case 'image_smartcrop': return `Smart Crop ${params.width ?? '?'}×${params.height ?? '?'}`
+      case 'manual': return 'Manual variant'
       default: return v.type
     }
   }
@@ -238,10 +271,12 @@
       {#each tabs.filter(t => t.show) as tab}
         <button
           type="button"
-          class="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors {activeTab === tab.id
+          disabled={tab.id !== 'list' && rebuilding}
+          title={tab.id !== 'list' && rebuilding ? 'Variants are rebuilding — please wait.' : undefined}
+          class="shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed {activeTab === tab.id
             ? 'border-blue-500 text-blue-600'
             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'}"
-          onclick={() => { activeTab = tab.id; createError = ''; createSuccess = '' }}
+          onclick={() => { if (!rebuilding || tab.id === 'list') { activeTab = tab.id; createError = ''; createSuccess = '' } }}
         >
           {tab.label}
         </button>
@@ -250,6 +285,14 @@
 
     <!-- Body -->
     <div class="flex-1 overflow-y-auto p-5">
+
+      <!-- Rebuilding banner (VV-4.1) -->
+      {#if rebuilding}
+        <div class="mb-4 flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+          <Spinner size="sm" class="text-blue-500 shrink-0" />
+          <span>Variants are being rebuilt for the new version…</span>
+        </div>
+      {/if}
 
       <!-- Feedback -->
       {#if createError}
@@ -289,6 +332,7 @@
                 <a
                   href={variantApi.fileUrl(asset.id, v.id)}
                   download
+                  target="_blank"
                   class="shrink-0 rounded-lg border border-gray-300 p-1.5 text-gray-500 hover:bg-white hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                   aria-label="Download variant"
                 >
@@ -325,21 +369,21 @@
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Width (px)</label>
-              <input type="number" min="1" max="8000" bind:value={resizeWidth}
+              <label for="variant-resize-width" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Width (px)</label>
+              <input id="variant-resize-width" type="number" min="1" max="8000" bind:value={resizeWidth}
                 oninput={updatePreview}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Height (px) <span class="text-gray-400">(0=auto)</span></label>
-              <input type="number" min="0" max="8000" bind:value={resizeHeight}
+              <label for="variant-resize-height" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Height (px) <span class="text-gray-400">(0=auto)</span></label>
+              <input id="variant-resize-height" type="number" min="0" max="8000" bind:value={resizeHeight}
                 oninput={updatePreview}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Fit</label>
+            <label for="variant-resize-fit" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Fit</label>
             <div class="flex gap-2">
               {#each ['contain', 'cover', 'fill'] as f}
                 <button type="button"
@@ -353,14 +397,14 @@
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {resizeQuality}%</label>
-            <input type="range" min="1" max="100" bind:value={resizeQuality}
+            <label for="variant-resize-quality" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {resizeQuality}%</label>
+            <input id="variant-resize-quality" type="range" min="1" max="100" bind:value={resizeQuality}
               oninput={updatePreview}
               class="w-full accent-blue-500" />
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
+            <label for="variant-resize-format" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
@@ -399,21 +443,21 @@
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Opacity ({watermarkOpacity}%)</label>
-              <input type="range" min="1" max="100" bind:value={watermarkOpacity}
+              <label for="variant-watermark-opacity" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Opacity ({watermarkOpacity}%)</label>
+              <input id="variant-watermark-opacity" type="range" min="1" max="100" bind:value={watermarkOpacity}
                 oninput={updatePreview}
                 class="w-full accent-blue-500" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {watermarkQuality}%</label>
-              <input type="range" min="1" max="100" bind:value={watermarkQuality}
+              <label for="variant-watermark-quality" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {watermarkQuality}%</label>
+              <input id="variant-watermark-quality" type="range" min="1" max="100" bind:value={watermarkQuality}
                 oninput={updatePreview}
                 class="w-full accent-blue-500" />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
+            <label for="variant-watermark-format" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
@@ -440,7 +484,7 @@
       {:else if activeTab === 'convert'}
         <div class="space-y-5">
           <div>
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Output Format</label>
+            <label for="variant-convert-format" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Output Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
@@ -455,8 +499,8 @@
 
           {#if convertFormat === 'jpeg'}
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {convertQuality}%</label>
-              <input type="range" min="1" max="100" bind:value={convertQuality}
+              <label for="variant-convert-quality" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quality: {convertQuality}%</label>
+              <input id="variant-convert-quality" type="range" min="1" max="100" bind:value={convertQuality}
                 class="w-full accent-blue-500" />
             </div>
           {/if}
@@ -482,29 +526,29 @@
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">X offset</label>
-              <input type="number" min="0" bind:value={cropX}
+              <label for="variant-crop-x" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">X offset</label>
+              <input id="variant-crop-x" type="number" min="0" bind:value={cropX}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Y offset</label>
-              <input type="number" min="0" bind:value={cropY}
+              <label for="variant-crop-y" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Y offset</label>
+              <input id="variant-crop-y" type="number" min="0" bind:value={cropY}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Width</label>
-              <input type="number" min="1" bind:value={cropWidth}
+              <label for="variant-crop-width" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Width</label>
+              <input id="variant-crop-width" type="number" min="1" bind:value={cropWidth}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Height</label>
-              <input type="number" min="1" bind:value={cropHeight}
+              <label for="variant-crop-height" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Height</label>
+              <input id="variant-crop-height" type="number" min="1" bind:value={cropHeight}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
+            <label for="variant-crop-format" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
             <div class="flex gap-2">
               {#each ['jpeg', 'png'] as fmt}
                 <button type="button"
@@ -534,8 +578,8 @@
           <div class="rounded-xl border border-gray-200 p-4 space-y-4 dark:border-gray-700">
             <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Extract Frame</h3>
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Timestamp (seconds)</label>
-              <input type="number" min="0" step="0.1" bind:value={videoTimestamp}
+              <label for="variant-video-timestamp" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Timestamp (seconds)</label>
+              <input id="variant-video-timestamp" type="number" min="0" step="0.1" bind:value={videoTimestamp}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
             </div>
             <Button
@@ -554,7 +598,7 @@
             <p class="text-xs text-gray-500 dark:text-gray-400">Heavy operation — max 2 concurrent transcodes. Requires ffmpeg.</p>
 
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Output Format</label>
+              <label for="variant-transcode-format" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Output Format</label>
               <div class="flex gap-2">
                 {#each ['mp4', 'webm'] as fmt}
                   <button type="button"
@@ -568,8 +612,8 @@
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Resolution <span class="text-gray-400">(optional)</span></label>
-              <select bind:value={transcodeResolution}
+              <label for="variant-transcode-resolution" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Resolution <span class="text-gray-400">(optional)</span></label>
+              <select id="variant-transcode-resolution" bind:value={transcodeResolution}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
                 <option value="">Original</option>
                 <option value="1080p">1080p</option>

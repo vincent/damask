@@ -16,16 +16,18 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
+	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 // ---- Response types ----
 
 type VariantResponse struct {
 	ID              string    `json:"id"`
-	AssetID         string    `json:"asset_id"`
+	AssetVersionID  string    `json:"asset_version_id"`
 	Type            string    `json:"type"`
 	TransformParams *string   `json:"transform_params"`
 	Size            *int64    `json:"size"`
@@ -34,50 +36,81 @@ type VariantResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
-func (s *Server) variantToResponse(v dbgen.Variant) VariantResponse {
+type ListVariantsResponse struct {
+	Variants   []VariantResponse `json:"variants"`
+	Rebuilding bool              `json:"rebuilding"`
+}
+
+func variantToResponse(v dbgen.Variant) VariantResponse {
 	return VariantResponse{
 		ID:              v.ID,
-		AssetID:         v.AssetID,
+		AssetVersionID:  v.AssetVersionID,
 		Type:            v.Type,
 		TransformParams: v.TransformParams,
 		Size:            v.Size,
 		StorageKey:      v.StorageKey,
-		DownloadURL:     fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", v.AssetID, v.ID),
+		DownloadURL:     fmt.Sprintf("/api/v1/variants/%s/file", v.ID),
 		CreatedAt:       v.CreatedAt,
 	}
 }
 
+// isRebuildingVariants returns true when a rebuild_variants job for the given
+// version is in pending or processing state.
+func (s *Server) isRebuildingVariants(c fiber.Ctx, versionID string) bool {
+	var count int64
+	err := s.sqlDB.QueryRowContext(c.RequestCtx(),
+		`SELECT COUNT(*) FROM jobs
+		 WHERE type = 'rebuild_variants'
+		   AND JSON_EXTRACT(payload, '$.new_version_id') = ?
+		   AND status IN ('pending', 'processing')`,
+		versionID,
+	).Scan(&count)
+	return err == nil && count > 0
+}
+
 // ---- Handlers ----
 
+// handleListVariants handles GET /api/v1/assets/:id/variants
+// Returns variants for the current version only, plus a rebuilding flag.
 func (s *Server) handleListVariants(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	variants, err := s.db.ListVariants(c.RequestCtx(), dbgen.ListVariantsParams{
-		AssetID:     assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	variants, err := s.db.ListVariantsByAssetCurrentVersion(c.RequestCtx(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list variants")
 	}
 
 	out := make([]VariantResponse, len(variants))
 	for i, v := range variants {
-		out[i] = s.variantToResponse(v)
+		out[i] = variantToResponse(v)
 	}
-	return c.JSON(out)
+
+	// Determine if a rebuild job is in flight for the current version.
+	rebuilding := false
+	if asset.CurrentVersionID != nil {
+		rebuilding = s.isRebuildingVariants(c, *asset.CurrentVersionID)
+	}
+
+	return c.JSON(ListVariantsResponse{
+		Variants:   out,
+		Rebuilding: rebuilding,
+	})
 }
 
+// handleCreateVariant handles POST /api/v1/assets/:id/variants
+// Creates a variant bound to the asset's current version.
 func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -91,6 +124,16 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	}
+
+	// Require a current version.
+	if asset.CurrentVersionID == nil {
+		return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
+	}
+
+	// Block creation while a rebuild is in progress.
+	if s.isRebuildingVariants(c, *asset.CurrentVersionID) {
+		return errRes(c, fiber.StatusConflict, "variants are rebuilding — please wait for the rebuild to complete before creating new variants")
 	}
 
 	body, ok := decodeAndValidate(c, &createVariantRequest{})
@@ -129,18 +172,26 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		}
 	}
 
+	// Load the current version to get its storage key and version num.
+	currentVer, err := s.db.GetCurrentVersion(c.RequestCtx(), assetID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
+	}
+
 	params := json.RawMessage("{}")
 	if len(body.Params) > 0 {
 		params = body.Params
 	}
 
 	payload, _ := json.Marshal(jobs.VariantJobPayload{
-		AssetID:     asset.ID,
-		WorkspaceID: asset.WorkspaceID,
-		StorageKey:  asset.StorageKey,
-		MimeType:    asset.MimeType,
-		Type:        body.Type,
-		Params:      params,
+		AssetID:        asset.ID,
+		WorkspaceID:    asset.WorkspaceID,
+		VersionID:      currentVer.ID,
+		VersionNum:     currentVer.VersionNum,
+		StorageKey:     currentVer.StorageKey,
+		MimeType:       currentVer.MimeType,
+		Type:           body.Type,
+		Params:         params,
 	})
 
 	job, err := s.queue.Enqueue(c.RequestCtx(), claims.WorkspaceID, body.Type, string(payload))
@@ -165,6 +216,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	})
 }
 
+// handleGetVariantFile handles GET /api/v1/assets/:id/variants/:vid/file
 func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -214,15 +266,18 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
+// handleDeleteVariant handles DELETE /api/v1/assets/:id/variants/:vid
+// Guards against deleting variants that belong to non-current versions.
 func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	variantID := c.Params("vid")
 
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
@@ -238,6 +293,13 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 			return errRes(c, fiber.StatusNotFound, "variant not found")
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not load variant")
+	}
+
+	// Guard: only allow deleting variants for the current version.
+	// Variants on old versions are managed by the retention purge job.
+	if asset.CurrentVersionID == nil || variant.AssetVersionID != *asset.CurrentVersionID {
+		return errRes(c, fiber.StatusUnprocessableEntity,
+			"this variant belongs to a previous version and will be cleaned up automatically")
 	}
 
 	_ = s.storage.Delete(variant.StorageKey)
@@ -260,6 +322,85 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 	})
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// handleUploadManualVariant handles POST /api/v1/assets/:id/variants/upload
+// Accepts a raw file upload and attaches it as a manual variant of type "manual"
+// on the current version. Manual variants are NOT rebuilt on new version uploads.
+func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+		ID:          assetID,
+		WorkspaceID: claims.WorkspaceID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "asset not found")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	}
+
+	if asset.CurrentVersionID == nil {
+		return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
+	}
+
+	currentVer, err := s.db.GetCurrentVersion(c.RequestCtx(), assetID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
+	}
+
+	fh, err := c.FormFile("file")
+	if err != nil {
+		return errRes(c, fiber.StatusBadRequest, "file field is required")
+	}
+
+	f, err := fh.Open()
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not open uploaded file")
+	}
+	defer f.Close() //nolint:errcheck
+
+	variantID := uuid.NewString()
+	ext := strings.ToLower(filepath.Ext(fh.Filename))
+	// Use first 8 chars of variant ID as the params hash (manual = no transform params).
+	storageKey := storage.VersionedVariantKey(
+		asset.WorkspaceID, assetID, currentVer.VersionNum,
+		"manual", variantID[:8], ext,
+	)
+
+	if err := s.storage.Put(storageKey, f); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not store file")
+	}
+
+	sz := fh.Size
+	emptyParams := "{}"
+	v, err := s.db.CreateVariant(c.RequestCtx(), dbgen.CreateVariantParams{
+		ID:              variantID,
+		WorkspaceID:     asset.WorkspaceID,
+		AssetVersionID:  currentVer.ID,
+		Type:            "manual",
+		StorageKey:      storageKey,
+		TransformParams: &emptyParams,
+		Size:            &sz,
+	})
+	if err != nil {
+		_ = s.storage.Delete(storageKey)
+		return errRes(c, fiber.StatusInternalServerError, "could not create variant record")
+	}
+
+	userID := claims.UserID
+	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetVariantCreated,
+		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: "manual"},
+	})
+
+	return c.Status(fiber.StatusCreated).JSON(variantToResponse(v))
 }
 
 // handlePreviewTransform runs a transform in-memory and returns a small image.
@@ -318,5 +459,3 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	c.Set("Cache-Control", "public, max-age=300")
 	return c.Send(data)
 }
-
-// fiber:context-methods migrated

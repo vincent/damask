@@ -121,10 +121,11 @@ CREATE TABLE asset_tags (
     PRIMARY KEY (asset_id, tag_id)
 );
 
+-- variants: bound to asset_versions (versioned, VV-M3)
 CREATE TABLE variants (
     id               TEXT PRIMARY KEY,
-    asset_id         TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     workspace_id     TEXT NOT NULL REFERENCES workspaces(id),
+    asset_version_id TEXT NOT NULL REFERENCES asset_versions(id) ON DELETE CASCADE,
     type             TEXT NOT NULL,
     storage_key      TEXT NOT NULL,
     transform_params TEXT, -- JSON
@@ -150,7 +151,9 @@ CREATE INDEX idx_assets_project ON assets(project_id);
 CREATE INDEX idx_folders_project ON folders(project_id);
 CREATE INDEX idx_assets_folder ON assets(folder_id);
 CREATE INDEX idx_tags_workspace ON tags(workspace_id);
-CREATE INDEX idx_variants_asset ON variants(asset_id);
+CREATE INDEX idx_variants_version   ON variants(asset_version_id);
+CREATE INDEX idx_variants_workspace ON variants(workspace_id);
+CREATE INDEX idx_variants_type      ON variants(asset_version_id, type);
 CREATE INDEX idx_jobs_status ON jobs(status);
 
 -- FTS5 virtual table for asset search (migration 000002)

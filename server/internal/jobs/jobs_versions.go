@@ -28,6 +28,22 @@ func EnqueueVersionThumbnailJob(ctx context.Context, q queue.JobQueue, workspace
 	return err
 }
 
+// EnqueueRebuildVariantsJob enqueues a rebuild_variants job when a new version is uploaded.
+// sourceVersionID is the version that was current before the upload — its variant params are copied.
+// If sourceVersionID is empty (first upload), this is a no-op.
+func EnqueueRebuildVariantsJob(ctx context.Context, q queue.JobQueue, workspaceID, assetID, newVersionID, sourceVersionID string) error {
+	if sourceVersionID == "" {
+		return nil
+	}
+	payload, _ := json.Marshal(RebuildVariantsPayload{
+		AssetID:         assetID,
+		NewVersionID:    newVersionID,
+		SourceVersionID: sourceVersionID,
+	})
+	_, err := q.Enqueue(ctx, workspaceID, queue.JobTypeRebuildVariants, string(payload))
+	return err
+}
+
 // jobVersionThumbnail generates a thumbnail for a specific asset version.
 // It writes the thumbnail to storage and updates asset_versions.thumbnail_key.
 // If this is the current version, it also updates assets.thumbnail_key.

@@ -467,6 +467,79 @@ func (q *Queries) ListVersionsBeyondRetention(ctx context.Context, arg ListVersi
 	return items, nil
 }
 
+const listVersionsWithVariantCount = `-- name: ListVersionsWithVariantCount :many
+SELECT av.id, av.asset_id, av.workspace_id, av.version_num, av.storage_key, av.content_hash, av.mime_type, av.size, av.width, av.height, av.duration_sec, av.thumbnail_key, av.comment, av.created_by, av.created_at, av.is_current, av.deleted_at, COUNT(v.id) AS variant_count
+FROM asset_versions av
+LEFT JOIN variants v ON v.asset_version_id = av.id
+WHERE av.asset_id = ? AND av.deleted_at IS NULL
+GROUP BY av.id
+ORDER BY av.version_num DESC
+`
+
+type ListVersionsWithVariantCountRow struct {
+	ID           string   `json:"id"`
+	AssetID      string   `json:"asset_id"`
+	WorkspaceID  string   `json:"workspace_id"`
+	VersionNum   int64    `json:"version_num"`
+	StorageKey   string   `json:"storage_key"`
+	ContentHash  string   `json:"content_hash"`
+	MimeType     string   `json:"mime_type"`
+	Size         int64    `json:"size"`
+	Width        *int64   `json:"width"`
+	Height       *int64   `json:"height"`
+	DurationSec  *float64 `json:"duration_sec"`
+	ThumbnailKey *string  `json:"thumbnail_key"`
+	Comment      *string  `json:"comment"`
+	CreatedBy    string   `json:"created_by"`
+	CreatedAt    string   `json:"created_at"`
+	IsCurrent    int64    `json:"is_current"`
+	DeletedAt    *string  `json:"deleted_at"`
+	VariantCount int64    `json:"variant_count"`
+}
+
+// Versions for an asset with per-version variant count (for History tab VV-4.2).
+func (q *Queries) ListVersionsWithVariantCount(ctx context.Context, assetID string) ([]ListVersionsWithVariantCountRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVersionsWithVariantCount, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVersionsWithVariantCountRow{}
+	for rows.Next() {
+		var i ListVersionsWithVariantCountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AssetID,
+			&i.WorkspaceID,
+			&i.VersionNum,
+			&i.StorageKey,
+			&i.ContentHash,
+			&i.MimeType,
+			&i.Size,
+			&i.Width,
+			&i.Height,
+			&i.DurationSec,
+			&i.ThumbnailKey,
+			&i.Comment,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.IsCurrent,
+			&i.DeletedAt,
+			&i.VariantCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setCurrentVersionFlag = `-- name: SetCurrentVersionFlag :exec
 UPDATE asset_versions SET is_current = 1 WHERE id = ?
 `

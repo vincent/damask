@@ -135,7 +135,19 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 		return nil
 	}
 
-	// Delete storage files.
+	// Delete variant storage files for this version (VV-3.3).
+	// DB rows are cleaned up by ON DELETE CASCADE when the version row is hard-deleted.
+	variants, varErr := s.db.ListVariantsByVersion(ctx, p.VersionID)
+	if varErr != nil {
+		log.Printf("purge-version-storage: list variants for version %s: %v", p.VersionID, varErr)
+	}
+	for _, v := range variants {
+		if err := s.storage.Delete(v.StorageKey); err != nil {
+			log.Printf("purge-version-storage: delete variant storage %s: %v", v.StorageKey, err)
+		}
+	}
+
+	// Delete source + thumbnail storage files.
 	if err := s.storage.Delete(ver.StorageKey); err != nil {
 		log.Printf("purge-version-storage: delete storage %s: %v", ver.StorageKey, err)
 	}
@@ -145,6 +157,6 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 		}
 	}
 
-	// Hard-delete the row.
+	// Hard-delete the row (ON DELETE CASCADE removes variant DB rows automatically).
 	return s.db.HardDeleteVersion(ctx, p.VersionID)
 }

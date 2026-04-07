@@ -70,6 +70,9 @@ func (s *JobServer) RegisterJobHandlers() {
 	s.queue.Register(queue.JobTypeImageSmartCrop, s.jobImageTransform)
 	s.queue.Register(queue.JobTypeImageBgRemove, s.jobImageBgRemove)
 
+	// Rebuild jobs — system-triggered on version upload.
+	s.queue.Register(queue.JobTypeRebuildVariants, s.jobRebuildVariants)
+
 	// Maintenance jobs.
 	s.queue.Register(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
 	s.queue.Register(queue.JobTypeEnforceVersionRetention, s.jobEnforceVersionRetention)

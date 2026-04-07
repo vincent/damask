@@ -23,20 +23,21 @@ import (
 )
 
 type AssetResponse struct {
-	ID               string    `json:"id"`
-	WorkspaceID      string    `json:"workspace_id"`
-	ProjectID        *string   `json:"project_id"`
-	OriginalFilename string    `json:"original_filename"`
-	MimeType         string    `json:"mime_type"`
-	Size             int64     `json:"size"`
-	Width            *int64    `json:"width"`
-	Height           *int64    `json:"height"`
-	ThumbnailKey     *string   `json:"thumbnail_key"`
-	Metadata         *string   `json:"metadata"`
-	Tags             []string  `json:"tags"`
-	VersionCount     int64     `json:"version_count"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID                 string    `json:"id"`
+	WorkspaceID        string    `json:"workspace_id"`
+	ProjectID          *string   `json:"project_id"`
+	OriginalFilename   string    `json:"original_filename"`
+	MimeType           string    `json:"mime_type"`
+	Size               int64     `json:"size"`
+	Width              *int64    `json:"width"`
+	Height             *int64    `json:"height"`
+	ThumbnailKey       *string   `json:"thumbnail_key"`
+	Metadata           *string   `json:"metadata"`
+	Tags               []string  `json:"tags"`
+	VersionCount       int64     `json:"version_count"`
+	VariantsRebuilding bool      `json:"variants_rebuilding"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 type AssetListResponse struct {
@@ -45,28 +46,29 @@ type AssetListResponse struct {
 }
 
 func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
-	return assetToResponseWithCount(a, tags, 0)
+	return assetToResponseWithCount(a, tags, 0, false)
 }
 
-func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64) AssetResponse {
+func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, variantsRebuilding bool) AssetResponse {
 	if tags == nil {
 		tags = []string{}
 	}
 	return AssetResponse{
-		ID:               a.ID,
-		WorkspaceID:      a.WorkspaceID,
-		ProjectID:        a.ProjectID,
-		OriginalFilename: a.OriginalFilename,
-		MimeType:         a.MimeType,
-		Size:             a.Size,
-		Width:            a.Width,
-		Height:           a.Height,
-		ThumbnailKey:     a.ThumbnailKey,
-		Metadata:         a.Metadata,
-		Tags:             tags,
-		VersionCount:     versionCount,
-		CreatedAt:        a.CreatedAt,
-		UpdatedAt:        a.UpdatedAt,
+		ID:                 a.ID,
+		WorkspaceID:        a.WorkspaceID,
+		ProjectID:          a.ProjectID,
+		OriginalFilename:   a.OriginalFilename,
+		MimeType:           a.MimeType,
+		Size:               a.Size,
+		Width:              a.Width,
+		Height:             a.Height,
+		ThumbnailKey:       a.ThumbnailKey,
+		Metadata:           a.Metadata,
+		Tags:               tags,
+		VersionCount:       versionCount,
+		VariantsRebuilding: variantsRebuilding,
+		CreatedAt:          a.CreatedAt,
+		UpdatedAt:          a.UpdatedAt,
 	}
 }
 
@@ -377,7 +379,7 @@ func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortFie
 		if counts != nil {
 			vc = counts[a.ID]
 		}
-		items[i] = assetToResponseWithCount(a, nil, vc)
+		items[i] = assetToResponseWithCount(a, nil, vc, false)
 	}
 	var nextCursor *string
 	if int64(len(assets)) == limit && len(assets) > 0 {
@@ -477,7 +479,22 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	versionCount, _ := s.db.CountVersionsForAsset(c.RequestCtx(), id)
 
-	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount))
+	// Check if a variant rebuild job is in flight for the current version.
+	variantsRebuilding := false
+	if asset.CurrentVersionID != nil {
+		var rebuildCount int64
+		if err := s.sqlDB.QueryRowContext(c.RequestCtx(),
+			`SELECT COUNT(*) FROM jobs
+			 WHERE type = 'rebuild_variants'
+			   AND JSON_EXTRACT(payload, '$.new_version_id') = ?
+			   AND status IN ('pending', 'processing')`,
+			*asset.CurrentVersionID,
+		).Scan(&rebuildCount); err == nil {
+			variantsRebuilding = rebuildCount > 0
+		}
+	}
+
+	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount, variantsRebuilding))
 }
 
 func (s *Server) handleGetAssetFile(c fiber.Ctx) error {

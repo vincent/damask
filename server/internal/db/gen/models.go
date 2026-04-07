@@ -236,8 +236,8 @@ type User struct {
 
 type Variant struct {
 	ID              string    `json:"id"`
-	AssetID         string    `json:"asset_id"`
 	WorkspaceID     string    `json:"workspace_id"`
+	AssetVersionID  string    `json:"asset_version_id"`
 	Type            string    `json:"type"`
 	StorageKey      string    `json:"storage_key"`
 	TransformParams *string   `json:"transform_params"`

@@ -25,7 +25,6 @@ func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *htt
 	t.Helper()
 	res := th.Register(t, env, "User", "user@test.com", "password123")
 
-	// Build a minimal PNG in memory.
 	img := image.NewRGBA(image.Rect(0, 0, 10, 10))
 	img.Set(5, 5, color.RGBA{R: 255, G: 0, B: 0, A: 255})
 	var buf bytes.Buffer
@@ -59,47 +58,40 @@ func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *htt
 }
 
 // insertVariantDirectly inserts a variant row into the DB bypassing the queue.
+// It uses the current version of the given asset as the asset_version_id.
 func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID string) dbgen.Variant {
 	t.Helper()
 	variantID := "test-variant-id"
 
-	// Store a dummy file so file download works.
-	_ = env.Storage.Put(
-		fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID),
-		bytes.NewReader([]byte("dummy variant content")),
-	)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	queries, _, err := openTestDB(t)
-	if err != nil {
-		t.Fatalf("open queries: %v", err)
+	// Resolve the current version ID for this asset.
+	var versionID string
+	row := env.SqlDB.QueryRowContext(ctx,
+		`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, assetID)
+	if err := row.Scan(&versionID); err != nil {
+		t.Fatalf("resolve current version for asset %s: %v", assetID, err)
 	}
-	_ = queries // avoid unused; we use env.SqlDB directly
 
-	_, err = env.SqlDB.ExecContext(ctx, `
-		INSERT INTO variants (id, asset_id, workspace_id, type, storage_key, transform_params, size)
-		VALUES (?, ?, ?, 'resize', ?, '{"width":100}', 1024)
-	`, variantID, assetID, workspaceID,
-		fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID),
-	)
+	storageKey := fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID)
+	_ = env.Storage.Put(storageKey, bytes.NewReader([]byte("dummy variant content")))
+
+	_, err := env.SqlDB.ExecContext(ctx, `
+		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)
+		VALUES (?, ?, ?, 'image_resize', ?, '{"width":100}', 1024)
+	`, variantID, workspaceID, versionID, storageKey)
 	if err != nil {
 		t.Fatalf("insert variant: %v", err)
 	}
 
-	row := env.SqlDB.QueryRowContext(ctx, `SELECT id, asset_id, workspace_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ?`, variantID)
 	var v dbgen.Variant
-	if err := row.Scan(&v.ID, &v.AssetID, &v.WorkspaceID, &v.Type, &v.StorageKey, &v.TransformParams, &v.Size, &v.CreatedAt); err != nil {
+	scanRow := env.SqlDB.QueryRowContext(ctx,
+		`SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ?`, variantID)
+	if err := scanRow.Scan(&v.ID, &v.WorkspaceID, &v.AssetVersionID, &v.Type, &v.StorageKey, &v.TransformParams, &v.Size, &v.CreatedAt); err != nil {
 		t.Fatalf("scan variant: %v", err)
 	}
 	return v
-}
-
-// openTestDB is a test helper that just re-uses the env's sqlDB — here unused
-// but kept for clarity.
-func openTestDB(t *testing.T) (interface{}, interface{}, error) {
-	return nil, nil, nil
 }
 
 // ---- Tests ----
@@ -117,12 +109,15 @@ func TestListVariants_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var variants []api.VariantResponse
-	if err := json.NewDecoder(resp.Body).Decode(&variants); err != nil {
+	var result api.ListVariantsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatal(err)
 	}
-	if len(variants) != 0 {
-		t.Fatalf("expected empty list, got %d", len(variants))
+	if len(result.Variants) != 0 {
+		t.Fatalf("expected empty variants, got %d", len(result.Variants))
+	}
+	if result.Rebuilding {
+		t.Error("expected rebuilding=false")
 	}
 }
 
@@ -141,7 +136,6 @@ func TestListVariants_WithVariant(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	// Get the workspace ID from the asset.
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
 	resp, _ := env.App.Test(req)
 	var a api.AssetResponse
@@ -158,15 +152,15 @@ func TestListVariants_WithVariant(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp2.StatusCode)
 	}
 
-	var variants []api.VariantResponse
-	_ = json.NewDecoder(resp2.Body).Decode(&variants)
-	if len(variants) != 1 {
-		t.Fatalf("expected 1 variant, got %d", len(variants))
+	var result api.ListVariantsResponse
+	_ = json.NewDecoder(resp2.Body).Decode(&result)
+	if len(result.Variants) != 1 {
+		t.Fatalf("expected 1 variant, got %d", len(result.Variants))
 	}
-	if variants[0].Type != "resize" {
-		t.Errorf("expected type resize, got %s", variants[0].Type)
+	if result.Variants[0].Type != "image_resize" {
+		t.Errorf("expected type image_resize, got %s", result.Variants[0].Type)
 	}
-	if variants[0].DownloadURL == "" {
+	if result.Variants[0].DownloadURL == "" {
 		t.Error("expected non-empty download URL")
 	}
 }
@@ -188,7 +182,7 @@ func TestCreateVariant_VideoOnImage(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonStr(`{"type":"video_thumbnail","params":{}}`), cookie)
+		th.JsonStr(`{"type":"video_capture_image","params":{}}`), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
@@ -279,10 +273,10 @@ func TestDeleteVariant(t *testing.T) {
 	// Verify deleted
 	listReq := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
 	listResp, _ := env.App.Test(listReq)
-	var variants []api.VariantResponse
-	_ = json.NewDecoder(listResp.Body).Decode(&variants)
-	if len(variants) != 0 {
-		t.Fatalf("expected 0 variants after delete, got %d", len(variants))
+	var result api.ListVariantsResponse
+	_ = json.NewDecoder(listResp.Body).Decode(&result)
+	if len(result.Variants) != 0 {
+		t.Fatalf("expected 0 variants after delete, got %d", len(result.Variants))
 	}
 }
 
@@ -295,6 +289,45 @@ func TestDeleteVariant_NotFound(t *testing.T) {
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteVariant_PreviousVersionGuard(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	// Get the workspace ID.
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	// Insert a variant on the current version.
+	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
+
+	// Now upload a second version, making the old version non-current.
+	img := image.NewRGBA(image.Rect(0, 0, 20, 20))
+	var buf2 bytes.Buffer
+	_ = png.Encode(&buf2, img)
+	var body2 bytes.Buffer
+	boundary2 := "B2"
+	_, _ = fmt.Fprintf(&body2, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"v2.png\"\r\nContent-Type: image/png\r\n\r\n", boundary2)
+	_, _ = body2.Write(buf2.Bytes())
+	_, _ = fmt.Fprintf(&body2, "\r\n--%s--\r\n", boundary2)
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/versions", &body2)
+	req2.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary2))
+	req2.AddCookie(cookie)
+	resp2, _ := env.App.Test(req2, fiber.TestConfig{Timeout: 10000})
+	if resp2.StatusCode != http.StatusCreated {
+		t.Fatalf("upload second version: expected 201, got %d", resp2.StatusCode)
+	}
+
+	// Trying to delete the variant (which now belongs to the old version) should return 422.
+	delReq := th.AuthRequest(http.MethodDelete,
+		fmt.Sprintf("/api/v1/assets/%s/variants/%s", assetID, v.ID), nil, cookie)
+	delResp, _ := env.App.Test(delReq)
+	if delResp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 (previous version guard), got %d", delResp.StatusCode)
 	}
 }
 
@@ -360,7 +393,6 @@ func TestPreviewTransform_NonImage(t *testing.T) {
 	env := th.SetupTestApp(t)
 	res := th.Register(t, env, "U", "u2@test.com", "pass1234")
 
-	// Upload a non-image file.
 	var body bytes.Buffer
 	boundary := "TestBoundaryPDF"
 	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"doc.pdf\"\r\nContent-Type: application/pdf\r\n\r\n", boundary)
@@ -380,6 +412,196 @@ func TestPreviewTransform_NonImage(t *testing.T) {
 	previewResp, _ := env.App.Test(previewReq, fiber.TestConfig{Timeout: 5000})
 	if previewResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 for non-image preview, got %d", previewResp.StatusCode)
+	}
+}
+
+func TestCreateVariant_ViewerForbidden(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, ownerCookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ownerCookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, "viewer")
+	createReq := th.BearerRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonStr(`{"type":"image_resize","params":{"width":100}}`), viewerToken)
+	createResp, _ := env.App.Test(createReq)
+	if createResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for viewer create variant, got %d", createResp.StatusCode)
+	}
+}
+
+func TestCreateVariant_BlockedDuringRebuild(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	// Get the asset to resolve the workspace ID and current version ID.
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	var versionID string
+	_ = env.SqlDB.QueryRow( //nolint:errcheck
+		`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, assetID,
+	).Scan(&versionID)
+	if versionID == "" {
+		t.Fatal("no current version found")
+	}
+
+	// Simulate an in-flight rebuild by inserting a pending rebuild_variants job.
+	// Use the real workspace_id to satisfy the FK constraint.
+	payload := fmt.Sprintf(`{"asset_id":%q,"new_version_id":%q,"source_version_id":"old"}`, assetID, versionID)
+	_, err := env.SqlDB.Exec(
+		`INSERT INTO jobs (id, workspace_id, type, payload, status, created_at)
+		 VALUES ('rebuild-job-1', ?, 'rebuild_variants', ?, 'pending', datetime('now'))`,
+		a.WorkspaceID, payload,
+	)
+	if err != nil {
+		t.Fatalf("insert fake rebuild job: %v", err)
+	}
+
+	body := `{"type":"image_resize","params":{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}}`
+	createReq := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", th.JsonStr(body), cookie)
+	createResp, _ := env.App.Test(createReq)
+	if createResp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 while rebuild in-flight, got %d", createResp.StatusCode)
+	}
+}
+
+func TestListVariants_OnlyShowsCurrentVersionVariants(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	// Insert a variant on v1 (currently current).
+	insertVariantDirectly(t, env, assetID, a.WorkspaceID)
+
+	// Upload v2 — v1 becomes non-current.
+	img := image.NewRGBA(image.Rect(0, 0, 20, 20))
+	var buf bytes.Buffer
+	_ = png.Encode(&buf, img)
+	var body bytes.Buffer
+	boundary := "B2"
+	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"v2.png\"\r\nContent-Type: image/png\r\n\r\n", boundary)
+	_, _ = body.Write(buf.Bytes())
+	_, _ = fmt.Fprintf(&body, "\r\n--%s--\r\n", boundary)
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/versions", &body)
+	req2.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
+	req2.AddCookie(cookie)
+	resp2, _ := env.App.Test(req2, fiber.TestConfig{Timeout: 10000})
+	if resp2.StatusCode != http.StatusCreated {
+		t.Fatalf("upload second version: expected 201, got %d", resp2.StatusCode)
+	}
+
+	// List variants — should return empty (v2's variants), not v1's variant.
+	listReq := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants", nil, cookie)
+	listResp, _ := env.App.Test(listReq)
+	var result api.ListVariantsResponse
+	_ = json.NewDecoder(listResp.Body).Decode(&result)
+	if len(result.Variants) != 0 {
+		t.Fatalf("expected 0 variants for new current version, got %d", len(result.Variants))
+	}
+}
+
+func TestUploadManualVariant_Success(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	var body bytes.Buffer
+	boundary := "ManualUploadBoundary"
+	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"manual.png\"\r\nContent-Type: image/png\r\n\r\n", boundary)
+	_, _ = body.WriteString("fake manual variant content")
+	_, _ = fmt.Fprintf(&body, "\r\n--%s--\r\n", boundary)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants/upload", &body)
+	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
+	req.AddCookie(cookie)
+
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var variant api.VariantResponse
+	if err := json.NewDecoder(resp.Body).Decode(&variant); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if variant.Type != "manual" {
+		t.Errorf("expected type=manual, got %q", variant.Type)
+	}
+	if variant.ID == "" {
+		t.Error("expected non-empty variant ID")
+	}
+	if variant.DownloadURL == "" {
+		t.Error("expected non-empty download URL")
+	}
+}
+
+func TestUploadManualVariant_NoFile(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants/upload", nil, cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing file, got %d", resp.StatusCode)
+	}
+}
+
+func TestUploadManualVariant_AssetNotFound(t *testing.T) {
+	env := th.SetupTestApp(t)
+	_, cookie := createTestAsset(t, env)
+
+	var body bytes.Buffer
+	boundary := "TestBoundaryManual"
+	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"x.png\"\r\nContent-Type: image/png\r\n\r\n", boundary)
+	_, _ = body.WriteString("data")
+	_, _ = fmt.Fprintf(&body, "\r\n--%s--\r\n", boundary)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets/nonexistent/variants/upload", &body)
+	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
+	req.AddCookie(cookie)
+
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestUploadManualVariant_ViewerForbidden(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, ownerCookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ownerCookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, "viewer")
+
+	var body bytes.Buffer
+	boundary := "ViewerBoundary"
+	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"x.png\"\r\nContent-Type: image/png\r\n\r\n", boundary)
+	_, _ = body.WriteString("data")
+	_, _ = fmt.Fprintf(&body, "\r\n--%s--\r\n", boundary)
+
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants/upload", &body)
+	req2.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
+	req2.Header.Set("Authorization", "Bearer "+viewerToken)
+
+	resp2, _ := env.App.Test(req2)
+	if resp2.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for viewer manual upload, got %d", resp2.StatusCode)
 	}
 }
 

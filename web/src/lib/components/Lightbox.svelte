@@ -117,7 +117,7 @@
     if (!asset) return
     variantsLoading = true
     try {
-      variants = await variantApi.list(asset.id)
+      variants = (await variantApi.list(asset.id))?.variants ?? []
     } catch {
       // silently ignore
     } finally {

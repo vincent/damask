@@ -3,24 +3,30 @@ package jobs
 import (
 	"bytes"
 	"context"
-	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/events"
-	"damask/server/internal/queue"
-	"damask/server/internal/transform"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/events"
+	"damask/server/internal/queue"
+	"damask/server/internal/storage"
+	"damask/server/internal/transform"
+
 	"github.com/google/uuid"
 )
 
 // ---- Payload types ----
 
+// VariantJobPayload is the payload for user-triggered variant creation jobs.
+// VersionID and VersionNum identify the asset version the variant is bound to.
 type VariantJobPayload struct {
 	AssetID     string          `json:"asset_id"`
 	WorkspaceID string          `json:"workspace_id"`
+	VersionID   string          `json:"version_id"`
+	VersionNum  int64           `json:"version_num"`
 	StorageKey  string          `json:"storage_key"`
 	MimeType    string          `json:"mime_type"`
 	Type        string          `json:"type"`
@@ -67,7 +73,10 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 	}
 
 	variantID := uuid.NewString()
-	storageKey := fmt.Sprintf("%s/%s/variants/%s.jpg", p.WorkspaceID, p.AssetID, variantID)
+	paramsJSON, _ := json.Marshal(params)
+	paramsHash := canonicalParamsHash(string(paramsJSON))
+	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoCaptureImage, paramsHash, ".jpg")
+
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
@@ -87,13 +96,12 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 		}
 	}
 
-	paramsJSON, _ := json.Marshal(params)
 	pj := string(paramsJSON)
 	sz := int64(len(data))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
-		AssetID:         p.AssetID,
 		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
 		Type:            queue.JobTypeVideoCaptureImage,
 		StorageKey:      storageKey,
 		TransformParams: &pj,
@@ -157,21 +165,22 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 
 	ext := MimeToExt(contentType)
 	variantID := uuid.NewString()
-	storageKey := fmt.Sprintf("%s/%s/variants/%s%s", p.WorkspaceID, p.AssetID, variantID, ext)
+	paramsStr := string(p.Params)
+	paramsHash := canonicalParamsHash(paramsStr)
+	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, job.Type, paramsHash, ext)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
-	paramsJSON := string(p.Params)
 	sz := int64(len(data))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
-		AssetID:         p.AssetID,
 		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
 		Type:            job.Type,
 		StorageKey:      storageKey,
-		TransformParams: &paramsJSON,
+		TransformParams: &paramsStr,
 		Size:            &sz,
 	})
 	return err
@@ -212,7 +221,7 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 
 	ext := transform.TranscodeExtension(params.Format)
 	dstPath := srcPath + "_out" + ext
-	defer os.Remove(dstPath)
+	defer os.Remove(dstPath) //nolint:errcheck
 
 	if err := transform.TranscodeVideo(ctx, srcPath, dstPath, params); err != nil {
 		return fmt.Errorf("transcode: %w", err)
@@ -224,18 +233,20 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 	}
 
 	variantID := uuid.NewString()
-	storageKey := fmt.Sprintf("%s/%s/variants/%s%s", p.WorkspaceID, p.AssetID, variantID, ext)
+	paramsJSON, _ := json.Marshal(params)
+	pj := string(paramsJSON)
+	paramsHash := canonicalParamsHash(pj)
+	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoTranscode, paramsHash, ext)
+
 	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	pj := string(paramsJSON)
 	sz := int64(len(dstData))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
-		AssetID:         p.AssetID,
 		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
 		Type:            queue.JobTypeVideoTranscode,
 		StorageKey:      storageKey,
 		TransformParams: &pj,
@@ -267,19 +278,23 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 	}
 
 	variantID := uuid.NewString()
-	storageKey := fmt.Sprintf("%s/%s/variants/%s.png", p.WorkspaceID, p.AssetID, variantID)
+	emptyParams := "{}"
+	paramsHash := canonicalParamsHash(emptyParams)
+	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeImageBgRemove, paramsHash, ".png")
+
 	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
 	sz := int64(len(result))
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:          variantID,
-		AssetID:     p.AssetID,
-		WorkspaceID: p.WorkspaceID,
-		Type:        queue.JobTypeImageBgRemove,
-		StorageKey:  storageKey,
-		Size:        &sz,
+		ID:              variantID,
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
+		Type:            queue.JobTypeImageBgRemove,
+		StorageKey:      storageKey,
+		TransformParams: &emptyParams,
+		Size:            &sz,
 	})
 	return err
 }

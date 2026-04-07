@@ -52,6 +52,7 @@ export interface Asset {
   metadata: string | null
   tags: string[]
   version_count: number
+  variants_rebuilding: boolean
   created_at: string
   updated_at: string
 }
@@ -74,6 +75,7 @@ export interface AssetVersion {
   created_by: AssetVersionCreatedBy
   created_at: string
   is_current: boolean
+  variant_count: number
 }
 
 export interface UploadVersionResponse {
@@ -151,13 +153,18 @@ export interface Tag {
 
 export interface Variant {
   id: string
-  asset_id: string
+  asset_version_id: string
   type: string
   transform_params: string | null
   size: number | null
   storage_key: string
   download_url: string
   created_at: string
+}
+
+export interface ListVariantsResponse {
+  variants: Variant[]
+  rebuilding: boolean
 }
 
 export interface CreateVariantResponse {

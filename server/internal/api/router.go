@@ -199,6 +199,7 @@ func NewRouter(
 	// Variants
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateVariant)
+	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleUploadManualVariant)
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
 	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleDeleteVariant)
 

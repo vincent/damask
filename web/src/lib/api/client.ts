@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -411,7 +411,7 @@ export function openThumbnailEvents(): EventSource {
 
 export const variantApi = {
   list: (assetId: string) =>
-    apiFetch<Variant[]>(`/api/v1/assets/${assetId}/variants`),
+    apiFetch<ListVariantsResponse>(`/api/v1/assets/${assetId}/variants`),
 
   create: (assetId: string, type: string, params: object) =>
     apiFetch<CreateVariantResponse>(`/api/v1/assets/${assetId}/variants`, {
@@ -419,13 +419,23 @@ export const variantApi = {
       body: JSON.stringify({ type, params }),
     }),
 
+  uploadManual: (assetId: string, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return apiFetch<Variant>(`/api/v1/assets/${assetId}/variants/upload`, {
+      method: 'POST',
+      headers: {},
+      body: fd,
+    })
+  },
+
   delete: (assetId: string, variantId: string) =>
     apiFetch<void>(`/api/v1/assets/${assetId}/variants/${variantId}`, {
       method: 'DELETE',
     }),
 
   fileUrl: (assetId: string, variantId: string): string =>
-    `${API_BASE}/api/v1/assets/${assetId}/variants/${variantId}/file`,
+    `${API_BASE}/api/v1/variants/${variantId}/file`,
 
   previewUrl: (assetId: string, params: {
     w?: number

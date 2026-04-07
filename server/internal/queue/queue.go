@@ -38,6 +38,8 @@ type Queue struct {
 
 	// Semaphore limiting concurrent transcode jobs to 2.
 	transcodeSem chan struct{}
+	// Semaphore limiting concurrent rebuild_variants jobs to 2.
+	rebuildSem chan struct{}
 }
 
 // New creates a new Queue. Call Start() to begin processing.
@@ -52,6 +54,7 @@ func New(db *dbgen.Queries, workers int) *Queue {
 		notify:       make(chan struct{}, workers),
 		done:         make(chan struct{}),
 		transcodeSem: make(chan struct{}, 2),
+		rebuildSem:   make(chan struct{}, 2),
 	}
 }
 
@@ -137,6 +140,12 @@ func (q *Queue) processNext(ctx context.Context) {
 		defer func() { <-q.transcodeSem }()
 	}
 
+	// For rebuild_variants jobs, enforce concurrency limit of 2.
+	if job.Type == JobTypeRebuildVariants {
+		q.rebuildSem <- struct{}{}
+		defer func() { <-q.rebuildSem }()
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("queue: job %s (%s) panicked: %v", job.ID, job.Type, r)
@@ -199,6 +208,9 @@ const (
 	// Ingress jobs.
 	JobTypeIngestPoll  = "ingest_poll"
 	JobTypeIngestFetch = "ingest_fetch"
+
+	// Rebuild jobs — system-triggered on new version upload.
+	JobTypeRebuildVariants = "rebuild_variants"
 
 	// Maintenance jobs.
 	JobTypePurgeDeletedFields      = "purge_deleted_fields"
