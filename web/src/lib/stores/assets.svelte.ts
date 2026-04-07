@@ -34,6 +34,35 @@ function patchAsset(assetId: string, patch: Partial<Asset>) {
   assets = assets.map((a) => (a.id === assetId ? { ...a, ...patch } : a))
 }
 
+function reloadAssetResources(assetId: string) {
+  const ts = Date.now()
+  const els = document.querySelectorAll<HTMLElement>(`[data-asset-dynamic-resource="${assetId}"]`)
+  const mediaToReload = new Set<HTMLMediaElement>()
+
+  for (const el of els) {
+    const tag = el.tagName.toLowerCase()
+    if (tag === 'img' || tag === 'iframe') {
+      const current = (el as HTMLImageElement | HTMLIFrameElement).src
+      const url = new URL(current, window.location.href)
+      url.searchParams.set('t', String(ts));
+      (el as HTMLImageElement | HTMLIFrameElement).src = url.toString()
+    } else if (tag === 'source') {
+      const current = (el as HTMLSourceElement).src
+      const url = new URL(current, window.location.href)
+      url.searchParams.set('t', String(ts))
+      ;(el as HTMLSourceElement).src = url.toString()
+      const parent = el.parentElement
+      if (parent instanceof HTMLMediaElement) {
+        mediaToReload.add(parent)
+      }
+    }
+  }
+
+  for (const media of mediaToReload) {
+    media.load()
+  }
+}
+
 function ensureSSE() {
   if (sseSource && sseSource.readyState !== EventSource.CLOSED) return
   sseSource = openThumbnailEvents()
@@ -42,6 +71,8 @@ function ensureSSE() {
     try {
       const event = JSON.parse(e.data) as { type: string; asset_id: string; thumbnail_key: string }
       if (event.type !== 'thumbnail_ready') return
+
+      reloadAssetResources(event.asset_id)
 
       const uploadId = pendingThumbnails.get(event.asset_id)
       if (!uploadId) return
@@ -201,5 +232,13 @@ export const assetsStore = {
         })
         .catch((err: Error) => uploadsStore.update(id, { status: 'error', error: err.message }))
     }
+  },
+
+  patch(assetId: string, update: Partial<Asset>) {
+    patchAsset(assetId, update)
+  },
+
+  reloadResources(assetId: string) {
+    reloadAssetResources(assetId)
   },
 }

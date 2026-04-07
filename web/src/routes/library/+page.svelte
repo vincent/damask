@@ -216,6 +216,11 @@
   ondeleted={handleDeleted}
   ontagschanged={() => assetsStore.load(true)}
   onprojectchanged={() => { projectsStore.load(); assetsStore.load(true) }}
+  onassetupdated={(updated) => {
+    selectedAsset = updated
+    assetsStore.patch(updated.id, updated)
+    assetsStore.reloadResources(updated.id)
+  }}
 />
 
 <BulkActionBar
