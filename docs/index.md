@@ -51,7 +51,7 @@ features:
   - icon: 🔓
     title: Open source & self-hostable
     link: /open-source-self-hostable
-    details: MIT licensed. Ships as a single Go binary with no runtime dependencies. SQLite database - no Postgres, no Redis, no infrastructure to manage. Self-host in minutes.
+    details: Apache-2 licensed. Ships as a single Go binary with no runtime dependencies. SQLite database - no Postgres, no Redis, no infrastructure to manage. Self-host in minutes.
 
   - icon: 👥
     title: Multi-workspace & team-ready

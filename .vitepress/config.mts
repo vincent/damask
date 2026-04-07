@@ -4,6 +4,18 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   srcDir: "docs",
   
+  head: [
+    [
+      'script',
+      { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-393D2KZD43' }
+    ],
+    [
+      'script',
+      {},
+      "window.dataLayer = window.dataLayer || [];\nfunction gtag(){dataLayer.push(arguments);}\ngtag('js', new Date());\ngtag('config', 'G-393D2KZD43');"
+    ]
+  ],
+
   title: "Damask",
   description: "Damask is a digital asset manager for designers, photographers, and creative studios.",
   themeConfig: {

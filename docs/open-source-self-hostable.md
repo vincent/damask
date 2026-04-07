@@ -4,17 +4,20 @@ outline: deep
 
 # Open Source & Self-Hostable
 
-Damask is MIT licensed and ships as a single, self-contained binary. There are no runtime dependencies to install, no database server to manage, and no cloud service to subscribe to. Run it on your laptop, your home server, or a VPS - the experience is identical.
+Damask is Apache-2 licensed and ships as a single, self-contained binary. There are no runtime dependencies to install, no database server to manage, and no cloud service to subscribe to. Run it on your laptop, your home server, or a VPS - the experience is identical.
 
 ## License
 
-Damask is released under the **MIT License**. You can use it, modify it, self-host it, and distribute it - commercially or otherwise - without restriction. The full license text is in the `LICENSE` file at the root of the repository.
+Damask is released under the **Apache License 2.0**. You can use it, modify it, self-host it, and distribute it - commercially or otherwise - with few restrictions. The full license text is in the `LICENSE` file at the root of the repository.
 
 This means:
 - Self-hosting is always free, for any number of users and assets
 - You can fork the project and customise it for your studio or team
 - You can build commercial products on top of Damask
 - You are not required to contribute changes back (though it's appreciated)
+- You have to include the original copyright notice
+- You have to disclose any significant changes made to the original code
+- You are not granted rights to use the trademarks, logos, names of Damask software, or logos of the licensor (Apache Software Foundation)
 
 ## The single binary
 
@@ -48,16 +51,13 @@ Pre-built binaries are available for:
 
 Damask uses **SQLite** as its database. SQLite is a file, not a server. There is nothing to install, configure, or monitor. The database lives at `./damask.db` by default and works correctly under high read concurrency thanks to WAL journal mode.
 
-You do not need:
-- PostgreSQL or MySQL
-- Redis or Memcached
-- Elasticsearch or any search server
-- A message queue (RabbitMQ, Kafka, etc.)
-- A separate job runner
-
-Everything is handled in-process. The job queue is SQLite-backed. Full-text search uses SQLite FTS5. Sessions are stateless Paseto tokens.
+Everything is handled in-process. The job queue is SQLite-backed. Full-text search uses SQLite FTS5. Sessions are stateless tokens.
 
 This keeps the operational burden minimal. A single `systemctl restart damask` command is all you need to update or recover.
+
+## Optional dependencies
+
+As of current version, Damask expects Ffmpeg and ImageMagick binaries to be installed and accessible in $PATH. A future release is planned to include them in the binary.
 
 ## Contributing
 
@@ -69,11 +69,8 @@ The source code is at `https://github.com/vincent/damask`.
 git clone https://github.com/vincent/damask
 cd damask
 
-# Start the Go backend (hot reload via air)
-make dev-server
-
-# Start the SvelteKit frontend dev server
-make dev-web
+# Start the Go backend and SvelteKit frontend, both in watch mode
+make dev
 ```
 
 Both processes run in parallel. The frontend dev server proxies API requests to the Go server.

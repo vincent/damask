@@ -67,7 +67,7 @@ Configure how many days of activity log events to retain. Default is 365 days. D
 
 ## Workspace isolation in the API
 
-Every API endpoint is scoped to the authenticated user's workspace. The workspace is read from the Paseto token claim - it is not a URL parameter or a request header.
+Every API endpoint is scoped to the authenticated user's workspace. The workspace is read from the token claim - it is not a URL parameter or a request header.
 
 This means:
 - A user cannot access another workspace's assets even if they know an asset ID
