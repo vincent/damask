@@ -87,7 +87,7 @@ func SetupTestApp(t *testing.T) *TestEnv {
 	q := queue.New(queries, 1)
 
 	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, cfg, nil)
-	j := jobs.NewJobServer(queries, sqlDB, maker, stor, eventsHub, q, cfg)
+	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, cfg)
 	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, cfg, nil)
 	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor}
 }

@@ -58,7 +58,7 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	js := jobs.NewJobServer(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg)
+	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, cfg)
 	js.RegisterJobHandlers()
 
 	if cfg.EnableScheduler {

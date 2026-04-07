@@ -3,7 +3,6 @@ package jobs
 import (
 	"context"
 	"damask/server/internal/audit"
-	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
@@ -20,34 +19,31 @@ import (
 
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
-	db         *dbgen.Queries
-	sqlDB      *sql.DB
-	tokenMaker *auth.Maker
-	storage    storage.Storage
-	queue      queue.JobQueue
-	hub        events.EventHub
-	cfg        *config.Config
-	audit      *audit.EventWriter
+	db      *dbgen.Queries
+	sqlDB   *sql.DB
+	storage storage.Storage
+	queue   queue.JobQueue
+	hub     events.EventHub
+	cfg     *config.Config
+	audit   *audit.EventWriter
 }
 
 func NewJobServer(
 	db *dbgen.Queries,
 	sqlDB *sql.DB,
-	tokenMaker *auth.Maker,
 	stor storage.Storage,
 	hub events.EventHub,
 	q queue.JobQueue,
 	cfg *config.Config,
 ) *JobServer {
 	return &JobServer{
-		db:         db,
-		sqlDB:      sqlDB,
-		tokenMaker: tokenMaker,
-		storage:    stor,
-		queue:      q,
-		hub:        hub,
-		cfg:        cfg,
-		audit:      audit.New(sqlDB),
+		db:      db,
+		sqlDB:   sqlDB,
+		storage: stor,
+		queue:   q,
+		hub:     hub,
+		cfg:     cfg,
+		audit:   audit.New(sqlDB),
 	}
 }
 
