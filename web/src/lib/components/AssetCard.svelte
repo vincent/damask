@@ -74,6 +74,7 @@
       <img
         src={assetApi.thumbUrl(asset.id)}
         alt={asset.original_filename}
+        data-asset-dynamic-resource={asset.id}
         class="h-full w-full object-cover"
         loading="lazy"
         onerror={(e) => {

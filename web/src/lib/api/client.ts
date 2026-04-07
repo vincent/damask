@@ -435,7 +435,7 @@ export const variantApi = {
     }),
 
   fileUrl: (assetId: string, variantId: string): string =>
-    `${API_BASE}/api/v1/variants/${variantId}/file`,
+    `${API_BASE}/api/v1/assets/${assetId}/variants/${variantId}/file`,
 
   previewUrl: (assetId: string, params: {
     w?: number

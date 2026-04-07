@@ -512,7 +512,15 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	rc, err := s.storage.Get(asset.StorageKey)
+	version, err := s.db.GetCurrentVersion(c.RequestCtx(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "asset file not found")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "could not load asset version")
+	}
+
+	rc, err := s.storage.Get(version.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}

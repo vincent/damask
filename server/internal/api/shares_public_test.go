@@ -5,10 +5,13 @@ import (
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -374,6 +377,45 @@ func TestShareGetAssetFile_AllowDownloadTrue(t *testing.T) {
 	// 200 = file streamed successfully
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestShareGetAssetFile_ServesCurrentVersion(t *testing.T) {
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+
+	// Upload original asset (100×100) then a second version (200×200).
+	asset := th.UploadAsset(t, env, owner.Cookie)
+	v2Data := th.MakeJPEG(200, 200)
+	vReq := th.BuildVersionUploadRequest(t, asset.ID, "v2.jpg", v2Data, "", owner.Cookie)
+	vResp, err := env.App.Test(vReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("upload v2: %v", err)
+	}
+	if vResp.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(vResp.Body)
+		t.Fatalf("expected 201 for v2 upload, got %d: %s", vResp.StatusCode, b)
+	}
+
+	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q,"allow_download":true}`, asset.ID))
+	token := accessShare(t, env, sh.ID, "")
+
+	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+asset.ID+"/file", "", token)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("shared file: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	fileBytes, _ := io.ReadAll(resp.Body)
+	if len(fileBytes) == 0 {
+		t.Fatal("expected non-empty file content")
+	}
+	v1Bytes := th.MakeJPEG(100, 100)
+	if len(fileBytes) <= len(v1Bytes) {
+		t.Errorf("expected v2 file (%d bytes) to be larger than v1 (%d bytes)", len(fileBytes), len(v1Bytes))
 	}
 }
 

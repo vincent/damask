@@ -2,12 +2,9 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"strings"
 
-	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/queue"
 	"damask/server/internal/transform"
 )
 
@@ -34,14 +31,3 @@ func (h VideoHandler) ExtractMeta(ctx context.Context, filePath string) (FileMet
 	}, nil
 }
 
-func (h VideoHandler) EnqueueJobs(ctx context.Context, qu queue.JobQueue, asset dbgen.Asset) error {
-	payload, _ := json.Marshal(thumbnailJobPayload{
-		AssetID:     asset.ID,
-		WorkspaceID: asset.WorkspaceID,
-		StorageKey:  asset.StorageKey,
-		MimeType:    asset.MimeType,
-	})
-
-	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeAssetThumbnail, string(payload))
-	return err
-}

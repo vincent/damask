@@ -191,8 +191,6 @@ func (q *Queue) processNext(ctx context.Context) {
 
 // Job type constants used throughout the application.
 const (
-	// Thumbnail jobs — one unified handler per context (asset upload, version upload).
-	JobTypeAssetThumbnail   = "asset_thumbnail"
 	JobTypeVersionThumbnail = "version_thumbnail"
 
 	// Variant jobs — user-triggered, each creates a variants row.

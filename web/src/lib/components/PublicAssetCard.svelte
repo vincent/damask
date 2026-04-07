@@ -33,6 +33,7 @@
         {#if (category === 'image' || category === 'video' || category === 'audio' || category === 'document') && thumbUrl}
             <img
             src={thumbUrl}
+            data-asset-dynamic-resource={asset.id}
             alt={asset.original_filename}
             class="h-full w-full object-cover"
             loading="lazy"

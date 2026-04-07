@@ -2,6 +2,7 @@ package tests_helpers
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -285,6 +286,14 @@ func UploadAsset(t *testing.T, env *TestEnv, cookie *http.Cookie) api.AssetRespo
 		t.Fatalf("decode asset: %v", err)
 	}
 	return asset
+}
+
+// DrainJobs registers all job handlers and synchronously processes every pending job
+// in the queue. Use this in tests to run thumbnail/variant jobs without starting the
+// background worker goroutines.
+func DrainJobs(t *testing.T, env *TestEnv) {
+	t.Helper()
+	env.JobServer.DrainForTest(context.Background())
 }
 
 // SeedVersionV1 inserts a v1 asset_versions row for assets created via the old upload

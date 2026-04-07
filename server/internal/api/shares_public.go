@@ -296,9 +296,12 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	}
 
 	row := s.sqlDB.QueryRowContext(c.RequestCtx(), `
-		SELECT storage_key, mime_type, original_filename FROM assets WHERE id = ?`, assetID)
-	var storageKey, mimeType, filename string
-	if err := row.Scan(&storageKey, &mimeType, &filename); err != nil {
+		SELECT a.mime_type, a.original_filename, v.storage_key
+		FROM assets a
+		JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
+		WHERE a.id = ?`, assetID)
+	var mimeType, filename, storageKey string
+	if err := row.Scan(&mimeType, &filename, &storageKey); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}

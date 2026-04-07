@@ -239,6 +239,46 @@ func TestGetAssetFile(t *testing.T) {
 	}
 }
 
+func TestGetAssetFile_ServesCurrentVersion(t *testing.T) {
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+
+	// Upload original asset (100×100).
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	// Upload a second version with different dimensions (200×200).
+	v2Data := th.MakeJPEG(200, 200)
+	vReq := th.BuildVersionUploadRequest(t, asset.ID, "v2.jpg", v2Data, "", owner.Cookie)
+	vResp, err := env.App.Test(vReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("upload v2: %v", err)
+	}
+	if vResp.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(vResp.Body)
+		t.Fatalf("expected 201 for v2 upload, got %d: %s", vResp.StatusCode, b)
+	}
+
+	// GET /api/v1/assets/:id/file must return v2 bytes (larger than v1).
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/file", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("get asset file: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	fileBytes, _ := io.ReadAll(resp.Body)
+	if len(fileBytes) == 0 {
+		t.Fatal("expected non-empty file content")
+	}
+	// v2 (200×200) must be larger than v1 (100×100).
+	v1Bytes := th.MakeJPEG(100, 100)
+	if len(fileBytes) <= len(v1Bytes) {
+		t.Errorf("expected v2 file (%d bytes) to be larger than v1 (%d bytes)", len(fileBytes), len(v1Bytes))
+	}
+}
+
 func TestDeleteAsset(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")

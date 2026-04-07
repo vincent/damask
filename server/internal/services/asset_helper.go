@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,8 +30,9 @@ type FileMeta struct {
 	DurationSec *float64
 }
 
-type thumbnailJobPayload struct {
+type versionThumbnailPayload struct {
 	AssetID     string `json:"asset_id"`
+	VersionID   string `json:"version_id"`
 	WorkspaceID string `json:"workspace_id"`
 	StorageKey  string `json:"storage_key"`
 	MimeType    string `json:"mime_type"`
@@ -41,7 +43,6 @@ type thumbnailJobPayload struct {
 type MediaHandler interface {
 	Supports(mime string) bool
 	ExtractMeta(ctx context.Context, filePath string) (FileMeta, error)
-	EnqueueJobs(ctx context.Context, qu queue.JobQueue, asset dbgen.Asset) error
 }
 
 // -- Handler Registry
@@ -174,7 +175,8 @@ func CreateAsset(
 	log.Printf("created asset %s with MIME type %s", asset.ID, asset.MimeType)
 
 	// AV-2.1: create the v1 asset_versions row and set current_version_id.
-	if vErr := createInitialVersion(ctx, db, sqlDB, asset, filePath, storageKey, mimeType, meta, opts.UserID); vErr != nil {
+	initialVersionID, vErr := createInitialVersion(ctx, db, sqlDB, asset, filePath, storageKey, mimeType, meta, opts.UserID)
+	if vErr != nil {
 		log.Printf("create initial version for %s: %v", asset.ID, vErr)
 		// Non-fatal: the asset row is already committed; versioning can be
 		// back-filled by the data migration. Do not fail the upload.
@@ -198,10 +200,11 @@ func CreateAsset(
 		opts.InheritFields(ctx, db, workspaceID, asset.ID, *opts.ProjectID, opts.UserID)
 	}
 
-	// Enqueue jobs
-	if handler != nil {
-		if err := handler.EnqueueJobs(ctx, qu, asset); err != nil {
-			log.Printf("enqueue failed for %s: %v", asset.ID, err)
+	// Enqueue version thumbnail job (updates both asset_versions.thumbnail_key and
+	// assets.thumbnail_key once done). Only enqueue if the initial version was created.
+	if handler != nil && initialVersionID != "" {
+		if err := enqueueVersionThumbnail(ctx, qu, asset, initialVersionID); err != nil {
+			log.Printf("enqueue version thumbnail for %s: %v", asset.ID, err)
 		}
 	}
 
@@ -218,18 +221,18 @@ func createInitialVersion(
 	filePath, storageKey, mimeType string,
 	meta FileMeta,
 	userID string,
-) error {
+) (string, error) {
 	// Hash the file to populate content_hash.
 	hash, err := versioning.HashFile(filePath)
 	if err != nil {
-		return fmt.Errorf("hash file: %w", err)
+		return "", fmt.Errorf("hash file: %w", err)
 	}
 
 	versionID := uuid.NewString()
 
 	tx, err := sqlDB.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+		return "", fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
@@ -255,15 +258,28 @@ func createInitialVersion(
 		CreatedBy:   createdBy,
 		IsCurrent:   1,
 	}); err != nil {
-		return fmt.Errorf("create version row: %w", err)
+		return "", fmt.Errorf("create version row: %w", err)
 	}
 
 	if err := qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
 		CurrentVersionID: &versionID,
 		ID:               asset.ID,
 	}); err != nil {
-		return fmt.Errorf("set current_version_id: %w", err)
+		return "", fmt.Errorf("set current_version_id: %w", err)
 	}
 
-	return tx.Commit()
+	return versionID, tx.Commit()
+}
+
+// enqueueVersionThumbnail enqueues a version_thumbnail job for the given asset and version.
+func enqueueVersionThumbnail(ctx context.Context, qu queue.JobQueue, asset dbgen.Asset, versionID string) error {
+	payload, _ := json.Marshal(versionThumbnailPayload{
+		AssetID:     asset.ID,
+		VersionID:   versionID,
+		WorkspaceID: asset.WorkspaceID,
+		StorageKey:  asset.StorageKey,
+		MimeType:    asset.MimeType,
+	})
+	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload))
+	return err
 }

@@ -658,3 +658,39 @@ func TestVersions_WorkspaceIsolation(t *testing.T) {
 		t.Errorf("expected 404, got %d", uploadResp.StatusCode)
 	}
 }
+
+// TestListVersions_InitialVersionHasThumbnailURL verifies that after the thumbnail
+// job runs, the initial v1 version returned by GET /versions has a non-nil thumbnail_url.
+// This is a regression test for the bug where CreateAsset enqueued asset_thumbnail
+// (which only updated assets.thumbnail_key) instead of version_thumbnail (which also
+// updates asset_versions.thumbnail_key).
+func TestListVersions_InitialVersionHasThumbnailURL(t *testing.T) {
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	// Run the enqueued version_thumbnail job synchronously.
+	th.DrainJobs(t, env)
+
+	req := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("list versions: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, b)
+	}
+
+	var versions []api.VersionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&versions); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("expected 1 version, got %d", len(versions))
+	}
+	if versions[0].ThumbnailURL == nil {
+		t.Error("expected thumbnail_url to be set on v1 after thumbnail job ran, got nil")
+	}
+}

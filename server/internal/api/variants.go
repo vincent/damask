@@ -41,7 +41,7 @@ type ListVariantsResponse struct {
 	Rebuilding bool              `json:"rebuilding"`
 }
 
-func variantToResponse(v dbgen.Variant) VariantResponse {
+func variantToResponse(assetID string, v dbgen.Variant) VariantResponse {
 	return VariantResponse{
 		ID:              v.ID,
 		AssetVersionID:  v.AssetVersionID,
@@ -49,7 +49,7 @@ func variantToResponse(v dbgen.Variant) VariantResponse {
 		TransformParams: v.TransformParams,
 		Size:            v.Size,
 		StorageKey:      v.StorageKey,
-		DownloadURL:     fmt.Sprintf("/api/v1/variants/%s/file", v.ID),
+		DownloadURL:     fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", assetID, v.ID),
 		CreatedAt:       v.CreatedAt,
 	}
 }
@@ -94,7 +94,7 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 
 	out := make([]VariantResponse, len(variants))
 	for i, v := range variants {
-		out[i] = variantToResponse(v)
+		out[i] = variantToResponse(assetID, v)
 	}
 
 	// Determine if a rebuild job is in flight for the current version.
@@ -400,7 +400,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: "manual"},
 	})
 
-	return c.Status(fiber.StatusCreated).JSON(variantToResponse(v))
+	return c.Status(fiber.StatusCreated).JSON(variantToResponse(assetID, v))
 }
 
 // handlePreviewTransform runs a transform in-memory and returns a small image.

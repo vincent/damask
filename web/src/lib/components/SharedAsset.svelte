@@ -11,7 +11,7 @@
 
     let { category, asset, thumbUrl, assetUrl }: Props = $props();
     let isPdf = $derived(asset.mime_type.includes('/pdf'))
-    let haveSlashImage = $derived(thumbUrl && (category === 'audio' || (category === 'document' && !isPdf)))
+    let haveSplashImage = $derived(thumbUrl && (category === 'audio' || (category === 'document' && !isPdf)))
 </script>
 
 <div class="min-w-xl max-w-3xl max-h-[80vh]">
@@ -19,14 +19,16 @@
         <img
             src={assetUrl}
             alt={asset.original_filename}
+            data-asset-dynamic-resource={asset.id}
             class="object-cover w-full h-full"
             loading="lazy"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
         />
-    {:else if haveSlashImage}
+    {:else if haveSplashImage}
         <img
             src={thumbUrl}
             alt={asset.original_filename}
+            data-asset-dynamic-resource={asset.id}
             class="object-cover min-w-xl  { category === 'audio' ? 'invert' : '' }"
             loading="lazy"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
@@ -36,12 +38,12 @@
         <iframe class="w-full min-w-3xl min-h-[80vh]" src={assetUrl} title={asset.original_filename}></iframe>
     {:else if category === 'video'}
         <video class="w-full" controls>
-            <source src={assetUrl} type={asset.mime_type} />
+            <source data-asset-dynamic-resource={asset.id} src={assetUrl} type={asset.mime_type} />
             Your browser does not support the video tag.
         </video>
     {:else if category === 'audio'}
         <audio class="w-full" controls>
-            <source src={assetUrl} type={asset.mime_type} />
+            <source data-asset-dynamic-resource={asset.id} src={assetUrl} type={asset.mime_type} />
             Your browser does not support the audio element.
         </audio>
     {:else if !thumbUrl}

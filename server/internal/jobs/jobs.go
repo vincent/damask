@@ -19,13 +19,14 @@ import (
 
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
-	db      *dbgen.Queries
-	sqlDB   *sql.DB
-	storage storage.Storage
-	queue   queue.JobQueue
-	hub     events.EventHub
-	cfg     *config.Config
-	audit   *audit.EventWriter
+	db       *dbgen.Queries
+	sqlDB    *sql.DB
+	storage  storage.Storage
+	queue    queue.JobQueue
+	hub      events.EventHub
+	cfg      *config.Config
+	audit    *audit.EventWriter
+	handlers map[string]queue.HandlerFunc
 }
 
 func NewJobServer(
@@ -37,47 +38,67 @@ func NewJobServer(
 	cfg *config.Config,
 ) *JobServer {
 	return &JobServer{
-		db:      db,
-		sqlDB:   sqlDB,
-		storage: stor,
-		queue:   q,
-		hub:     hub,
-		cfg:     cfg,
-		audit:   audit.New(sqlDB),
+		db:       db,
+		sqlDB:    sqlDB,
+		storage:  stor,
+		queue:    q,
+		hub:      hub,
+		cfg:      cfg,
+		audit:    audit.New(sqlDB),
+		handlers: make(map[string]queue.HandlerFunc),
+	}
+}
+
+// DrainForTest registers all handlers and synchronously processes every pending
+// job. Intended for use in tests only — not safe for concurrent use.
+func (s *JobServer) DrainForTest(ctx context.Context) {
+	s.RegisterJobHandlers()
+	for {
+		job, err := s.db.ClaimNextJob(ctx)
+		if err != nil {
+			return // queue empty
+		}
+		h, ok := s.handlers[job.Type]
+		if !ok {
+			continue
+		}
+		_ = h(ctx, job)
 	}
 }
 
 // RegisterJobHandlers wires all job handlers into the queue.
 // It does not start any scheduler goroutines — call StartSchedulers for that.
 func (s *JobServer) RegisterJobHandlers() {
+	reg := func(jobType string, h queue.HandlerFunc) {
+		s.queue.Register(jobType, h)
+		s.handlers[jobType] = h
+	}
 
 	// Register ingress job handlers
 	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg, s.audit)
-	s.queue.Register(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
-	s.queue.Register(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
+	reg(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
+	reg(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 
-	// Thumbnail — 2 unified handlers (one per context).
-	s.queue.Register(queue.JobTypeAssetThumbnail, s.jobAssetThumbnail)
-	s.queue.Register(queue.JobTypeVersionThumbnail, s.jobVersionThumbnail)
+	reg(queue.JobTypeVersionThumbnail, s.jobVersionThumbnail)
 
 	// Variant jobs — user-triggered, each creates a variants row.
-	s.queue.Register(queue.JobTypeVideoCaptureImage, s.jobVideoCaptureImage)
-	s.queue.Register(queue.JobTypeVideoTranscode, s.jobVideoTranscode)
-	s.queue.Register(queue.JobTypeImageResize, s.jobImageTransform)
-	s.queue.Register(queue.JobTypeImageConvert, s.jobImageTransform)
-	s.queue.Register(queue.JobTypeImageCrop, s.jobImageTransform)
-	s.queue.Register(queue.JobTypeImageWatermark, s.jobImageTransform)
-	s.queue.Register(queue.JobTypeImageSmartCrop, s.jobImageTransform)
-	s.queue.Register(queue.JobTypeImageBgRemove, s.jobImageBgRemove)
+	reg(queue.JobTypeVideoCaptureImage, s.jobVideoCaptureImage)
+	reg(queue.JobTypeVideoTranscode, s.jobVideoTranscode)
+	reg(queue.JobTypeImageResize, s.jobImageTransform)
+	reg(queue.JobTypeImageConvert, s.jobImageTransform)
+	reg(queue.JobTypeImageCrop, s.jobImageTransform)
+	reg(queue.JobTypeImageWatermark, s.jobImageTransform)
+	reg(queue.JobTypeImageSmartCrop, s.jobImageTransform)
+	reg(queue.JobTypeImageBgRemove, s.jobImageBgRemove)
 
 	// Rebuild jobs — system-triggered on version upload.
-	s.queue.Register(queue.JobTypeRebuildVariants, s.jobRebuildVariants)
+	reg(queue.JobTypeRebuildVariants, s.jobRebuildVariants)
 
 	// Maintenance jobs.
-	s.queue.Register(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
-	s.queue.Register(queue.JobTypeEnforceVersionRetention, s.jobEnforceVersionRetention)
-	s.queue.Register(queue.JobTypePurgeVersionStorage, s.jobPurgeVersionStorage)
-	s.queue.Register(queue.JobTypePurgeAuditLog, s.jobPurgeAuditLog)
+	reg(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
+	reg(queue.JobTypeEnforceVersionRetention, s.jobEnforceVersionRetention)
+	reg(queue.JobTypePurgeVersionStorage, s.jobPurgeVersionStorage)
+	reg(queue.JobTypePurgeAuditLog, s.jobPurgeAuditLog)
 }
 
 // ---- OS helpers ----
