@@ -18,11 +18,13 @@ import (
 	"image/png"
 	"log"
 	"math/rand"
+	"mime"
 	"strings"
 	"time"
 
 	"damask/server/internal/config"
 	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -502,13 +504,14 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 	for i := range specs {
 		sp := &specs[i]
 		assetID := newID("ast")
+		ext := MimeToExt(sp.mime)
 
 		data, width, height, err := s.generateFile(sp, 0, rng)
 		if err != nil {
 			return fmt.Errorf("demo: generate %s: %w", sp.name, err)
 		}
 
-		storageKey := fmt.Sprintf("demo/%s/%s", d.workspaceID, assetID)
+		storageKey := fmt.Sprintf("demo/%s/%s/%s%s", d.workspaceID, assetID, assetID, ext)
 		if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 			return fmt.Errorf("demo: store %s: %w", sp.name, err)
 		}
@@ -561,6 +564,20 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 		_, err = s.db.ExecContext(ctx, `UPDATE assets SET current_version_id = ? WHERE id = ?`, versionID, assetID)
 		if err != nil {
 			return fmt.Errorf("demo: link version for %s: %w", sp.name, err)
+		}
+
+		// Generate thumbnail synchronously
+		thumbData, thumbExt, tErr := transform.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
+		if tErr == nil && thumbData != nil {
+			thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
+			if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {
+				s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID) //nolint:errcheck
+				s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)           //nolint:errcheck
+			} else {
+				log.Printf("demo: store thumbnail failed for %s: %v", sp.name, putErr)
+			}
+		} else {
+			log.Printf("demo: thumbnail generation failed for %s: %v", sp.name, tErr)
 		}
 
 		d.allAssets = append(d.allAssets, assetMeta{id: assetID, name: sp.name, projectID: sp.projectID})
@@ -643,7 +660,29 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 
 	// Update asset's current_version_id
 	_, err = s.db.ExecContext(ctx, `UPDATE assets SET current_version_id = ? WHERE id = ?`, versionID, assetID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Generate thumbnail synchronously
+	thumbData, thumbExt, tErr := transform.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
+	if tErr == nil && thumbData != nil {
+		thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
+		if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {
+			s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID) //nolint:errcheck
+			s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)           //nolint:errcheck
+		}
+	}
+
+	return nil
+}
+
+func MimeToExt(ct string) string {
+	ms, err := mime.ExtensionsByType(ct)
+	if err == nil && len(ms) > 0 {
+		return ms[0]
+	}
+	return "application/octet-stream"
 }
 
 func versionComments(filename string, versionNum int) string {

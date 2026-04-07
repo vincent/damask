@@ -37,7 +37,7 @@ func (s *LocalStorage) Get(key string) (io.ReadCloser, error) {
 }
 
 func (s *LocalStorage) Delete(key string) error {
-	return os.Remove(filepath.Join(s.base, filepath.FromSlash(key)))
+	return os.RemoveAll(filepath.Join(s.base, filepath.FromSlash(key)))
 }
 
 func (s *LocalStorage) List(prefix string) ([]string, error) {

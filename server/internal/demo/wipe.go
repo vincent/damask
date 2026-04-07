@@ -47,7 +47,6 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 		"asset_tags",
 		"asset_events",
 		"project_events",
-		"asset_versions",
 		"variants",
 		"jobs",
 		"share_comments",
@@ -57,6 +56,7 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 		"ingress_sources",
 		"field_definitions",
 		"assets",
+		"asset_versions",
 		"folders",
 		"projects",
 	}
@@ -78,18 +78,13 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	}
 
 	// Delete storage files after the transaction succeeds
-	storageFilesDeleted := 0
-	for _, key := range storageKeys {
-		if err := s.storage.Delete(key); err != nil {
-			// Non-fatal: log and continue
-			log.Printf("demo: wipe storage delete %s: %v", key, err)
-		} else {
-			storageFilesDeleted++
-		}
+	if err := s.storage.Delete(fmt.Sprintf("demo/%s", workspaceID)); err != nil {
+		// Non-fatal: log and continue
+		log.Printf("demo: wipe storage delete: %v", err)
 	}
 
 	log.Printf("demo: wipe complete assets_deleted=%d versions_deleted=%d storage_files_deleted=%d",
-		assetsDeleted, versionsDeleted, storageFilesDeleted)
+		assetsDeleted, versionsDeleted, len(storageKeys))
 	return nil
 }
 
