@@ -10,6 +10,7 @@ import (
 	"io"
 	"strings"
 
+	"git.sr.ht/~jackmordaunt/go-libwebp/v2/webp"
 	"github.com/disintegration/imaging"
 	"github.com/muesli/smartcrop"
 	"github.com/muesli/smartcrop/nfnt"
@@ -228,6 +229,13 @@ func encodeImage(img image.Image, format string, quality int) ([]byte, string, e
 	var buf bytes.Buffer
 	var contentType string
 	switch strings.ToLower(format) {
+	case "webp":
+		opts := []webp.EncodeOption{}
+		opts = append(opts, webp.Quality(float32(quality)))
+		if err := webp.Encode(&buf, img, opts...); err != nil {
+			return nil, "", fmt.Errorf("encoding webp: %w", err)
+		}
+		contentType = "image/webp"
 	case "png":
 		if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
 			return nil, "", fmt.Errorf("encode png: %w", err)

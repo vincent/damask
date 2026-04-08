@@ -563,6 +563,8 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not ready")
 	}
 
+	// log.Println("thumbnail: serve", *asset.ThumbnailKey)
+
 	rc, err := s.storage.Get(*asset.ThumbnailKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")

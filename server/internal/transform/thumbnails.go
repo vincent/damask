@@ -59,7 +59,7 @@ func ThumbnailFromImage(rc io.ReadCloser) ([]byte, string, error) {
 		Width:   400,
 		Height:  400,
 		Fit:     "contain",
-		Quality: 85,
+		Quality: 75,
 		Format:  "jpeg",
 	})
 	if err != nil {
