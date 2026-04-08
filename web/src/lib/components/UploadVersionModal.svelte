@@ -107,12 +107,12 @@
       >
         {#if file}
           <div class="flex flex-col items-center gap-1 text-center">
-            <span class="text-sm font-medium text-gray-800 dark:text-gray-100">{file.name}</span>
-            <span class="text-xs text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB · {file.type}</span>
+            <span class="text-md font-medium text-gray-800 dark:text-gray-100">{file.name}</span>
+            <span class="text-sm text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB · {file.type}</span>
           </div>
         {:else}
           <Upload class="h-8 w-8 text-gray-300 dark:text-gray-600" />
-          <p class="text-sm text-gray-500 dark:text-gray-400">Drop a file here or click to browse</p>
+          <p class="text-md text-gray-500 dark:text-gray-400">Drop a file here or click to browse</p>
         {/if}
         <input
           type="file"
@@ -123,19 +123,19 @@
       </div>
 
       {#if mimeWarning}
-        <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+        <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
           {mimeWarning}
         </p>
       {/if}
 
       <!-- Comment -->
       <div>
-        <label class="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400" for="version-comment">
+        <label class="mb-1.5 block text-sm font-medium text-gray-500 dark:text-gray-400" for="version-comment">
           What changed? <span class="font-normal">(optional)</span>
         </label>
         <textarea
           id="version-comment"
-          class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
+          class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-md text-gray-800 placeholder-gray-400 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
           rows="2"
           maxlength="500"
           placeholder="e.g. Colour corrected, logo removed"
@@ -154,7 +154,7 @@
       {/if}
 
       {#if error}
-        <p class="text-sm text-red-500 dark:text-red-400">{error}</p>
+        <p class="text-md text-red-500 dark:text-red-400">{error}</p>
       {/if}
     </div>
 
@@ -162,7 +162,7 @@
     <div class="flex justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
       <button
         type="button"
-        class="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+        class="rounded-lg border border-gray-200 px-4 py-2 text-md text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
         onclick={onclose}
         disabled={uploading}
       >
@@ -170,7 +170,7 @@
       </button>
       <button
         type="button"
-        class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-md font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         disabled={!file || uploading}
         onclick={handleSubmit}
       >

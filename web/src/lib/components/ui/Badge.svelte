@@ -24,7 +24,7 @@
 
   const sizes: Record<string, string> = {
     sm: 'px-1.5 py-0.5 text-[11px]',
-    md: 'px-2 py-1 text-xs',
+    md: 'px-2 py-1 text-sm',
   }
 </script>
 

@@ -109,7 +109,7 @@
         </div>
       {:else}
         <button
-          class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors
+          class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-md transition-colors
             {navigationStore.activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}
             {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400 dark:bg-green-900/30' : ''}"
           onclick={() => onSelect(project.id)}
@@ -131,7 +131,7 @@
             style="color: {getProjectColor(project)}"
           />
           <span class="min-w-0 flex-1 truncate text-left">{project.name}</span>
-          <span class="ml-auto shrink-0 text-xs text-gray-400">{project.asset_count || ''}</span>
+          <span class="ml-auto shrink-0 text-sm text-gray-400">{project.asset_count || ''}</span>
         </button>
 
         {#if authStore.role !== 'viewer'}
@@ -176,10 +176,10 @@
                 <input
                   bind:value={newFolderName}
                   placeholder="Folder name"
-                  class="min-w-0 flex-1 bg-transparent text-xs text-gray-900 outline-none dark:text-gray-100"
+                  class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-100"
                   onblur={() => { if (!newFolderName.trim()) creatingFolderForProject = null }}
                 />
-                <button type="submit" class="shrink-0 text-xs text-indigo-600 hover:text-indigo-800">Add</button>
+                <button type="submit" class="shrink-0 text-sm text-indigo-600 hover:text-indigo-800">Add</button>
               </form>
             {:else}
               <Button variant="ghost" size="sm" class="mt-0.5 w-full justify-start" onclick={() => { creatingFolderForProject = project.id; newFolderName = '' }}>
@@ -203,7 +203,7 @@
         <input
           bind:value={newName}
           placeholder="Project name"
-          class="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+          class="rounded border border-gray-300 bg-white px-2 py-1 text-md text-gray-900 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
         />
         <div class="flex flex-wrap gap-1">
           {#each COLORS as c}
@@ -230,6 +230,6 @@
   {/if}
 
   {#if error}
-    <p class="mt-1 px-2 text-xs text-red-500">{error}</p>
+    <p class="mt-1 px-2 text-sm text-red-500">{error}</p>
   {/if}
 </div>

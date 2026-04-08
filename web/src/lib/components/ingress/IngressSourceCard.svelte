@@ -56,8 +56,8 @@
     <!-- Meta -->
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-sm font-semibold text-gray-900 dark:text-gray-50">{source.label}</span>
-        <span class="text-xs text-gray-400 dark:text-gray-500">{SOURCE_LABELS[source.type] ?? source.type}</span>
+        <span class="text-md font-semibold text-gray-900 dark:text-gray-50">{source.label}</span>
+        <span class="text-sm text-gray-400 dark:text-gray-500">{SOURCE_LABELS[source.type] ?? source.type}</span>
 
         <!-- Status pill -->
         {#if !source.enabled}
@@ -76,7 +76,7 @@
       </div>
 
       <!-- Destination + last polled -->
-      <div class="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+      <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
         {#if destProject}
           <span>→ {destProject.name}</span>
         {/if}
@@ -88,7 +88,7 @@
       </div>
 
       {#if source.last_error}
-        <p class="mt-1.5 truncate text-xs text-red-500 dark:text-red-400">{source.last_error}</p>
+        <p class="mt-1.5 truncate text-sm text-red-500 dark:text-red-400">{source.last_error}</p>
       {/if}
     </div>
 

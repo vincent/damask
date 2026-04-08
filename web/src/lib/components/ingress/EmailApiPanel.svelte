@@ -36,14 +36,14 @@
 
 <div class="space-y-5">
   <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-5 dark:border-indigo-900/40 dark:bg-indigo-900/20">
-    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
+    <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
       Your ingest address
     </p>
 
     {#if address}
       <div class="flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 dark:border-indigo-800 dark:bg-gray-900">
         <Mail class="h-4 w-4 shrink-0 text-indigo-400" />
-        <span class="flex-1 font-mono text-sm text-gray-800 dark:text-gray-200 break-all">{address}</span>
+        <span class="flex-1 font-mono text-md text-gray-800 dark:text-gray-200 break-all">{address}</span>
         <button
           type="button"
           class="shrink-0 text-gray-400 transition-colors hover:text-indigo-600 dark:hover:text-indigo-400"
@@ -58,12 +58,12 @@
         </button>
       </div>
     {:else}
-      <p class="text-sm text-gray-400 dark:text-gray-500 italic">
+      <p class="text-md text-gray-400 dark:text-gray-500 italic">
         Address not yet assigned. Contact your workspace owner.
       </p>
     {/if}
 
-    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+    <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
       Send files as email attachments to this address.<br>Supported formats: images, video, PDF, and common creative files.<br>Max 25 MB per file.
     </p>
   </div>
@@ -71,7 +71,7 @@
   {#if address}
     <button
       type="button"
-      class="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+      class="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-md font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
       onclick={openMailto}
     >
       <Mail class="h-4 w-4" />

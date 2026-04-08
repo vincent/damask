@@ -61,7 +61,7 @@
         <Spinner size="sm" />
       </div>
     {:else if stats}
-      <p class="text-sm text-gray-600 dark:text-gray-400">
+      <p class="text-md text-gray-600 dark:text-gray-400">
         {#if stats.asset_count > 0 || stats.project_count > 0}
           This field has values set on
           {#if stats.asset_count > 0}
@@ -79,7 +79,7 @@
     {/if}
 
     {#if error}
-      <p class="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+      <p class="mt-3 text-md text-red-600 dark:text-red-400">{error}</p>
     {/if}
 
     <div class="mt-5 flex justify-end gap-2">

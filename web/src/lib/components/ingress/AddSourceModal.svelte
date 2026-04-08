@@ -159,8 +159,8 @@
   {#if step === 'pick'}
     <!-- Step 1: Type picker -->
     <div class="px-6 py-5">
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-50">Add ingress source</h2>
-      <p class="mt-1 text-sm text-gray-400">Choose where files will come from.</p>
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">Add ingress source</h2>
+      <p class="mt-1 text-md text-gray-400">Choose where files will come from.</p>
     </div>
 
     <div class="grid grid-cols-1 gap-3 px-6 pb-6 sm:grid-cols-2">
@@ -176,8 +176,8 @@
             <Icon class="h-5 w-5" />
           </div>
           <div>
-            <p class="text-sm font-medium text-gray-900 dark:text-gray-50">{typeLabel}</p>
-            <p class="text-xs text-gray-400 dark:text-gray-500">{desc}</p>
+            <p class="text-md font-medium text-gray-900 dark:text-gray-50">{typeLabel}</p>
+            <p class="text-sm text-gray-400 dark:text-gray-500">{desc}</p>
           </div>
         </button>
       {/each}
@@ -197,7 +197,7 @@
         <h2 class="text-base font-semibold text-gray-900 dark:text-gray-50">
           {selectedTypeMeta?.label}
         </h2>
-        <p class="text-xs text-gray-400">{selectedTypeMeta?.desc}</p>
+        <p class="text-sm text-gray-400">{selectedTypeMeta?.desc}</p>
       </div>
     </div>
 
@@ -215,13 +215,13 @@
       <div class="grid grid-cols-2 gap-4">
         <!-- Destination project -->
         <div>
-          <label for="dest-project" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label for="dest-project" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
             Destination project
           </label>
           <select
             id="dest-project"
             bind:value={destProjectId}
-            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
+            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
           >
             <option value="">— none —</option>
             {#each projectsStore.projects as p (p.id)}
@@ -229,20 +229,20 @@
             {/each}
           </select>
           {#if errors.destProjectId}
-            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{errors.destProjectId}</p>
+            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{errors.destProjectId}</p>
           {/if}
         </div>
 
         <!-- Poll interval (hidden for email_api) -->
         {#if selectedType !== 'email_api'}
           <div>
-            <label for="poll-interval" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label for="poll-interval" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
               Poll interval
             </label>
             <select
               id="poll-interval"
               bind:value={pollIntervalMin}
-              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
+              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
             >
               {#each POLL_INTERVALS as opt (opt.value)}
                 <option value={opt.value}>{opt.label}</option>
@@ -259,7 +259,7 @@
       {#if selectedType !== 'email_api'}
         <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
           <div class="flex items-center justify-between gap-3">
-            <div class="text-sm text-gray-600 dark:text-gray-300">
+            <div class="text-md text-gray-600 dark:text-gray-300">
               {#if testStatus === 'idle'}
                 Test the connection before saving.
               {:else if testStatus === 'testing'}

@@ -55,12 +55,12 @@
   <div class="mx-auto w-full max-w-2xl px-8 py-10 space-y-8">
 
     <div>
-      <h1 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Version History</h1>
-      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Control how many versions are kept per asset. Versions beyond the limit are soft-deleted during the nightly cleanup and permanently purged after 7 days.</p>
+      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Version History</h1>
+      <p class="mt-1 text-md text-gray-500 dark:text-gray-400">Control how many versions are kept per asset. Versions beyond the limit are soft-deleted during the nightly cleanup and permanently purged after 7 days.</p>
     </div>
 
     {#if authStore.role !== 'owner'}
-      <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+      <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-md text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
         Only workspace owners can change version history settings.
       </p>
     {/if}
@@ -78,8 +78,8 @@
           disabled={authStore.role !== 'owner'}
         />
         <div>
-          <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Keep all versions</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">No limit — every uploaded version is preserved indefinitely.</p>
+          <p class="text-md font-medium text-gray-900 dark:text-gray-100">Keep all versions</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">No limit — every uploaded version is preserved indefinitely.</p>
         </div>
       </label>
 
@@ -94,19 +94,19 @@
           disabled={authStore.role !== 'owner'}
         />
         <div class="flex-1 space-y-2">
-          <p class="text-sm font-medium text-gray-900 dark:text-gray-100">Keep last N versions per asset</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">Versions beyond the limit are removed during the nightly cleanup.</p>
+          <p class="text-md font-medium text-gray-900 dark:text-gray-100">Keep last N versions per asset</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Versions beyond the limit are removed during the nightly cleanup.</p>
           {#if mode === 'capped'}
             <div class="flex items-center gap-3">
               <input
                 type="number"
                 min="1"
                 max="50"
-                class="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                class="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-md text-gray-800 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                 bind:value={capValue}
                 disabled={authStore.role !== 'owner'}
               />
-              <span class="text-xs text-gray-400">versions (1–50)</span>
+              <span class="text-sm text-gray-400">versions (1–50)</span>
             </div>
           {/if}
         </div>
@@ -117,7 +117,7 @@
       <div class="flex justify-end">
         <button
           type="button"
-          class="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          class="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-md font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           disabled={!isDirty || saving}
           onclick={save}
         >

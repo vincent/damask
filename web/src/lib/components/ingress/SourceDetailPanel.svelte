@@ -124,8 +124,8 @@
   <!-- Panel header -->
   <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
     <div class="min-w-0">
-      <h2 class="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">{source.label}</h2>
-      <p class="text-xs text-gray-400 capitalize">{source.type.replace('_', ' ')}</p>
+      <h2 class="truncate text-md font-semibold text-gray-900 dark:text-gray-50">{source.label}</h2>
+      <p class="text-sm text-gray-400 capitalize">{source.type.replace('_', ' ')}</p>
     </div>
     <button
       type="button"
@@ -141,7 +141,7 @@
     {#each (['config', 'rules', 'log'] as Tab[]) as tab}
       <button
         type="button"
-        class="flex-1 py-2.5 text-xs font-medium capitalize transition-colors
+        class="flex-1 py-2.5 text-sm font-medium capitalize transition-colors
           {activeTab === tab
             ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400'
             : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}"
@@ -165,22 +165,22 @@
         <div class="space-y-5 p-5">
           <!-- Label -->
           <div>
-            <label for="detail-label" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Label</label>
+            <label for="detail-label" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">Label</label>
             <input
               id="detail-label"
               type="text"
               bind:value={label}
-              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
 
           <!-- Destination project -->
           <div>
-            <label for="detail-project" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Destination project</label>
+            <label for="detail-project" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">Destination project</label>
             <select
               id="detail-project"
               bind:value={destProjectId}
-              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
               <option value="">— none —</option>
               {#each projectsStore.projects as p (p.id)}
@@ -191,11 +191,11 @@
 
           <!-- Poll interval -->
           <div>
-            <label for="detail-interval" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Poll interval</label>
+            <label for="detail-interval" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">Poll interval</label>
             <select
               id="detail-interval"
               bind:value={pollIntervalMin}
-              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
               {#each POLL_INTERVALS as opt (opt.value)}
                 <option value={opt.value}>{opt.label}</option>
@@ -205,7 +205,7 @@
 
           <!-- Source-specific config -->
           <div class="border-t border-gray-100 pt-4 dark:border-gray-800">
-            <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">Connection settings</p>
+            <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-gray-400">Connection settings</p>
             <SourceConfigForm type={source.type} bind:config={sourceConfig} />
           </div>
         </div>
@@ -231,10 +231,10 @@
 
         {:else if ingressStore.rules.length === 0 && !addingRule}
           <div class="py-10 text-center">
-            <p class="text-sm text-gray-400">No rules yet. Rules filter or route incoming files.</p>
+            <p class="text-md text-gray-400">No rules yet. Rules filter or route incoming files.</p>
             <button
               type="button"
-              class="mt-3 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+              class="mt-3 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
               onclick={() => { addingRule = true }}
             >
               Add first rule
@@ -246,7 +246,7 @@
             {#each ingressStore.rules as rule (rule.id)}
               <div class="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
                 <div class="flex-1 min-w-0">
-                  <p class="text-xs text-gray-700 dark:text-gray-300">
+                  <p class="text-sm text-gray-700 dark:text-gray-300">
                     <span class="font-medium">{rule.field}</span>
                     <span class="text-gray-400"> {rule.operator} </span>
                     <span class="font-mono text-gray-600 dark:text-gray-200">"{rule.value}"</span>
@@ -269,12 +269,12 @@
         <!-- Add rule form -->
         {#if addingRule}
           <div class="mt-4 space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/40 p-4 dark:border-indigo-800 dark:bg-indigo-900/20">
-            <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">New rule</p>
+            <p class="text-sm font-semibold text-gray-600 dark:text-gray-300">New rule</p>
             <div class="grid grid-cols-2 gap-2">
               <select
                 bind:value={newRule.field}
                 onchange={() => { newRule.operator = (OPERATOR_MAP[newRule.field] ?? ['equals'])[0] }}
-                class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
               >
                 {#each FIELD_OPTIONS as f}
                   <option value={f}>{f}</option>
@@ -282,7 +282,7 @@
               </select>
               <select
                 bind:value={newRule.operator}
-                class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                class="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
               >
                 {#each availableOperators as op}
                   <option value={op}>{op}</option>
@@ -293,11 +293,11 @@
               type="text"
               placeholder="Value"
               bind:value={newRule.value}
-              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
             <select
               bind:value={newRule.action}
-              class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
               {#each ACTION_OPTIONS as a}
                 <option value={a}>{a}</option>
@@ -311,7 +311,7 @@
         {:else}
           <button
             type="button"
-            class="mt-4 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            class="mt-4 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
             onclick={() => { addingRule = true }}
           >
             + Add rule
@@ -327,7 +327,7 @@
           {#each ['', 'imported', 'failed', 'skipped', 'pending'] as status}
             <button
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-medium transition-colors
+              class="rounded-full px-2.5 py-1 text-sm font-medium transition-colors
                 {logFilter === status
                   ? 'bg-indigo-600 text-white'
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
@@ -354,7 +354,7 @@
           </div>
 
         {:else if filteredLog.length === 0}
-          <p class="py-10 text-center text-sm text-gray-400">No log entries.</p>
+          <p class="py-10 text-center text-md text-gray-400">No log entries.</p>
 
         {:else}
           <div class="space-y-1.5">
@@ -362,15 +362,15 @@
               <div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
                 <div class="flex items-start gap-2">
                   <div class="flex-1 min-w-0">
-                    <p class="truncate text-xs font-medium text-gray-800 dark:text-gray-200">{entry.filename}</p>
+                    <p class="truncate text-sm font-medium text-gray-800 dark:text-gray-200">{entry.filename}</p>
                     <div class="mt-0.5 flex items-center gap-2">
-                      <span class="inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium {STATUS_STYLES[entry.status] ?? ''}">
+                      <span class="inline-flex rounded-full px-1.5 py-0.5 text-xs font-medium {STATUS_STYLES[entry.status] ?? ''}">
                         {entry.status}
                       </span>
-                      <span class="text-[10px] text-gray-400">{formatDate(entry.imported_at)}</span>
+                      <span class="text-xs text-gray-400">{formatDate(entry.imported_at)}</span>
                     </div>
                     {#if entry.error}
-                      <p class="mt-1 truncate text-[10px] text-red-500 dark:text-red-400">{entry.error}</p>
+                      <p class="mt-1 truncate text-xs text-red-500 dark:text-red-400">{entry.error}</p>
                     {/if}
                   </div>
 

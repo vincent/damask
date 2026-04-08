@@ -60,7 +60,7 @@
 </script>
 
 <div>
-    <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Tags</p>
+    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Tags</p>
     <div class="flex flex-wrap gap-1.5">
         {#each tags as tag}
         <Chip
@@ -80,7 +80,7 @@
                             bind:value={tagInput}
                             oninput={updateSuggestions}
                             placeholder="Add tag…"
-                            class="w-28 rounded-full border border-indigo-400 bg-white px-2.5 py-0.5 text-xs text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
+                            class="w-28 rounded-full border border-indigo-400 bg-white px-2.5 py-0.5 text-sm text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
                         />
                     </form>
                     {#if tagSuggestions.length > 0}
@@ -88,7 +88,7 @@
                             {#each tagSuggestions as s}
                                 <li>
                                     <button
-                                        class="w-full px-3 py-1 text-left text-xs text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                                        class="w-full px-3 py-1 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                                         onmousedown={() => addTag(s)}
                                     >{s}</button>
                                 </li>
@@ -98,7 +98,7 @@
                 </div>
             {:else}
                 <button
-                    class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-xs text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
+                    class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-sm text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
                     onclick={() => { showTagInput = true }}
                 >+ Add Tag</button>
             {/if}

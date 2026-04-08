@@ -73,12 +73,12 @@
     </div>
 
   {:else if error}
-    <p class="px-5 py-6 text-sm text-red-500">{error}</p>
+    <p class="px-5 py-6 text-md text-red-500">{error}</p>
 
   {:else if events.length === 0}
     <div class="flex flex-col items-center gap-3 py-12 text-center text-zinc-400 dark:text-zinc-500">
       <Inbox class="h-10 w-10" />
-      <p class="text-sm">No activity yet.</p>
+      <p class="text-md">No activity yet.</p>
     </div>
 
   {:else}
@@ -99,7 +99,7 @@
 
           <!-- Content -->
           <div class="min-w-0 flex-1">
-            <p class="text-sm text-zinc-800 dark:text-zinc-200">
+            <p class="text-md text-zinc-800 dark:text-zinc-200">
               {#if event.actor.type === 'user' && event.actor.name}
                 <span class="font-medium">{event.actor.name}</span>
                 {' '}
@@ -109,7 +109,7 @@
               {/if}
               <span class="text-zinc-600 dark:text-zinc-400">{event.human_readable}</span>
             </p>
-            <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">
+            <p class="mt-0.5 text-sm text-zinc-400 dark:text-zinc-500">
               {relativeTime(event.created_at)}
             </p>
           </div>
@@ -121,7 +121,7 @@
       <div class="border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
         <button
           type="button"
-          class="flex w-full items-center justify-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+          class="flex w-full items-center justify-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           onclick={loadMore}
           disabled={loadingMore}
         >

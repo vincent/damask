@@ -73,8 +73,8 @@
     <div class="mx-auto flex max-w-6xl items-center justify-between">
       <div>
         {#if store.share}
-          <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">{store.share.label}</h1>
-          <div class="mt-0.5 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{store.share.label}</h1>
+          <div class="mt-0.5 flex items-center gap-2 text-md text-gray-500 dark:text-gray-400">
             <span>{store.assets.length} asset{store.assets.length === 1 ? '' : 's'}</span>
             {#if store.expiryWarning}
               <span class="text-gray-300 dark:text-gray-600">•</span>
@@ -166,10 +166,10 @@
     <div class="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
       <AssetIcon {category} />
       <div class="min-w-0 flex-1">
-        <p class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100" title={store.selectedAsset.original_filename}>
+        <p class="truncate text-md font-semibold text-gray-900 dark:text-gray-100" title={store.selectedAsset.original_filename}>
           {store.selectedAsset.original_filename}
         </p>
-        <p class="text-xs text-gray-500 dark:text-gray-400">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
           {formatBytes(store.selectedAsset.size)} • {category.toUpperCase()}
         </p>
       </div>
@@ -206,9 +206,9 @@
         <!-- Comments header -->
         <div class="flex items-center gap-2 px-4 py-3">
           <MessageSquare class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-          <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">Comments</span>
+          <span class="text-md font-semibold text-gray-900 dark:text-gray-100">Comments</span>
           {#if store.comments.length > 0}
-            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
               {store.comments.length}
             </span>
           {/if}
@@ -221,22 +221,22 @@
               <Spinner size="sm" />
             </div>
           {:else if store.comments.length === 0}
-            <p class="py-4 text-center text-sm text-gray-400 dark:text-gray-600">No comments yet. Be the first!</p>
+            <p class="py-4 text-center text-md text-gray-400 dark:text-gray-600">No comments yet. Be the first!</p>
           {:else}
             <div class="flex flex-col gap-4 pb-4">
               {#each store.comments as comment}
                 <div class="flex gap-3">
                   <div
-                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold {avatarColor(comment.author_name)}"
+                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold {avatarColor(comment.author_name)}"
                   >
                     {initials(comment.author_name)}
                   </div>
                   <div class="flex-1">
                     <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{comment.author_name}</span>
-                      <span class="text-xs text-gray-400">{formatDateTime(comment.created_at)}</span>
+                      <span class="text-md font-medium text-gray-900 dark:text-gray-100">{comment.author_name}</span>
+                      <span class="text-sm text-gray-400">{formatDateTime(comment.created_at)}</span>
                     </div>
-                    <div class="mt-1 rounded-xl rounded-tl-sm bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                    <div class="mt-1 rounded-xl rounded-tl-sm bg-gray-50 px-3 py-2 text-md text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                       {comment.body}
                     </div>
                   </div>
@@ -248,10 +248,10 @@
 
         <!-- Comment form -->
         <div class="border-t border-gray-200 px-4 py-4 dark:border-gray-800">
-          <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Leave a comment</p>
+          <p class="mb-3 text-md font-medium text-gray-700 dark:text-gray-300">Leave a comment</p>
 
           {#if store.commentPosted}
-            <div class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+            <div class="rounded-lg bg-emerald-50 px-3 py-2 text-md text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
               Comment posted! Thank you.
             </div>
           {:else}
@@ -273,7 +273,7 @@
                 />
               </div>
               <div class="mb-3">
-                <label for="comment-body" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label for="comment-body" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
                   Message *
                 </label>
                 <textarea
@@ -281,10 +281,10 @@
                   placeholder="Add your feedback…"
                   id="comment-body"
                   rows="3"
-                  class="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {store.commentBodyError ? 'border-red-400 focus:ring-red-200 dark:border-red-500' : ''}"
+                  class="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {store.commentBodyError ? 'border-red-400 focus:ring-red-200 dark:border-red-500' : ''}"
                 ></textarea>
                 {#if store.commentBodyError}
-                  <p class="mt-1 text-xs text-red-600 dark:text-red-400">{store.commentBodyError}</p>
+                  <p class="mt-1 text-sm text-red-600 dark:text-red-400">{store.commentBodyError}</p>
                 {/if}
               </div>
               <div class="flex justify-end">

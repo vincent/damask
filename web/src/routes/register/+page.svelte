@@ -34,14 +34,14 @@
   <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
     <div>
       <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Create your account</h1>
-      <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+      <p class="mt-1 text-md text-gray-600 dark:text-gray-400">
         Already have an account? <a href="/login" class="text-blue-600 hover:underline">Sign in</a>
       </p>
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">
       {#if error}
-        <p class="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 p-3 rounded">{error}</p>
+        <p class="text-md text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 p-3 rounded">{error}</p>
       {/if}
 
       <Input id="name" type="text" label="Full name" bind:value={name} required autocomplete="name" />
@@ -50,7 +50,7 @@
 
       <div>
         <Input id="password" type="password" label="Password" bind:value={password} required autocomplete="new-password" />
-        <p class="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
+        <p class="mt-1 text-sm text-gray-500">Minimum 8 characters</p>
       </div>
 
       <Button type="submit" loading={loading} class="w-full">{loading ? 'Creating account…' : 'Create account'}</Button>

@@ -101,7 +101,7 @@
       <h1 class="text-base font-semibold text-gray-900 dark:text-gray-100">Custom Fields</h1>
     </div>
     <button
-      class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+      class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-md font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
       onclick={() => { editingField = null; showCreateModal = true }}
     >
       <Plus class="h-4 w-4" />
@@ -114,7 +114,7 @@
     {#each (['asset', 'project'] as FieldScope[]) as scope}
       <button
         type="button"
-        class="relative py-3 pr-6 text-sm font-medium transition-colors
+        class="relative py-3 pr-6 text-md font-medium transition-colors
           {activeScope === scope
             ? 'text-indigo-600 dark:text-indigo-400'
             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
@@ -157,7 +157,7 @@
 
             <!-- Field info -->
             <div class="flex flex-1 flex-wrap items-center gap-2 min-w-0">
-              <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{field.name}</span>
+              <span class="text-md font-medium text-gray-900 dark:text-gray-100">{field.name}</span>
               <Badge>{fieldTypeBadge(field.field_type)}</Badge>
               <span class="font-mono text-[11px] text-gray-400 dark:text-gray-500">{field.key}</span>
               {#if field.required}
@@ -201,12 +201,12 @@
           </li>
         {/each}
       </ul>
-      <p class="mt-3 text-xs text-gray-400 dark:text-gray-600">Drag rows to reorder.</p>
+      <p class="mt-3 text-sm text-gray-400 dark:text-gray-600">Drag rows to reorder.</p>
     {/if}
 
     <div class="flex justify-center items-center">
       <button
-        class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+        class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-md font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
         onclick={() => { editingField = null; showCreateModal = true }}
       >
         <Plus class="h-4 w-4" />

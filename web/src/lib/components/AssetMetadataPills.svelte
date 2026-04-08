@@ -32,17 +32,17 @@
             <Badge variant={category as 'image'|'video'|'audio'|'document'|'neutral'} size="md">
                 {typeLabel[category]} ({asset.mime_type})
             </Badge>
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 text-sm font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+        <span class="rounded bg-gray-100 px-1.5 py-0.5 text-md font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
             {formatBytes(asset.size)}
         </span>
         {#if asset.width != null && asset.height != null}
-            <span class="rounded bg-gray-100 px-1.5 py-0.5 text-sm font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+            <span class="rounded bg-gray-100 px-1.5 py-0.5 text-md font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
              {asset.width} × {asset.height}
             </span>
         {/if}
         </div>
             <!-- Author + date -->
-            <p class="mt-0.5 text-sm text-gray-400 dark:text-gray-500">
+            <p class="mt-0.5 text-md text-gray-400 dark:text-gray-500">
             {formatDate(asset.created_at)}
         </p>
     </div>

@@ -10,11 +10,11 @@
 </script>
 
 <div>
-    <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Export</p>
+    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Export</p>
     <div class="flex gap-2">
         <select
             bind:value={exportFormat}
-            class="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            class="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-md text-gray-700 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
         >
             <option value="original">Original</option>
             <option value="jpeg">JPEG</option>

@@ -52,14 +52,14 @@
   <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
     <div>
       <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Sign in</h1>
-      <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+      <p class="mt-1 text-md text-gray-600 dark:text-gray-400">
         Don't have an account? <a href="/register" class="text-blue-600 hover:underline">Register</a>
       </p>
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">
       {#if error}
-        <p class="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 p-3 rounded">{error}</p>
+        <p class="text-md text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 p-3 rounded">{error}</p>
       {/if}
 
       <Input id="email" type="email" label="Email" bind:value={email} required autocomplete="email" />
@@ -71,7 +71,7 @@
 
     {#if isDemo}
       <div class="text-center">
-        <button onclick={handleDemo} disabled={demoLoading} class="text-sm text-blue-600 hover:underline disabled:opacity-50">
+        <button onclick={handleDemo} disabled={demoLoading} class="text-md text-blue-600 hover:underline disabled:opacity-50">
           {demoLoading ? 'Starting demo…' : 'Try the demo'}
         </button>
       </div>

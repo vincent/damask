@@ -72,10 +72,10 @@
     class="flex w-full items-center gap-2.5 rounded-lg px-1 py-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
     aria-expanded={open}
   >
-    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white">
+    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-md font-bold text-white">
       {initials}
     </div>
-    <span class="flex-1 truncate text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+    <span class="flex-1 truncate text-left text-xl font-semibold text-gray-900 dark:text-gray-50">
       {authStore.workspace?.name ?? 'Workspace'}
     </span>
     <ChevronDown class="h-4 w-4 shrink-0 text-gray-400 transition-transform {open ? 'rotate-180' : ''}" />
@@ -86,7 +86,7 @@
       class="absolute left-0 top-full z-50 w-64 rounded-xl border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-900"
       role="menu"
     >
-      <p class="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+      <p class="px-3 pb-1 pt-0.5 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
         Workspaces
       </p>
 
@@ -94,13 +94,13 @@
         <button
           onclick={() => switchTo(ws)}
           disabled={switching}
-          class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors
+          class="flex w-full items-center gap-3 px-3 py-2 text-left text-md transition-colors
             {ws.id === authStore.workspace?.id
               ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
               : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'}"
           role="menuitem"
         >
-          <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-xs font-bold text-white">
+          <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white">
             {ws.name[0]?.toUpperCase()}
           </div>
           <span class="flex-1 truncate font-medium">{ws.name}</span>
@@ -114,7 +114,7 @@
 
       <button
         onclick={createNew}
-        class="flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+        class="flex w-full items-center gap-3 px-3 py-2 text-md text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
         role="menuitem"
       >
         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">

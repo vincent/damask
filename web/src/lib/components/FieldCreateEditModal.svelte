@@ -160,10 +160,10 @@
           >
             <div class="flex items-center">
               <Icon class="h-5 w-5 me-3 text-indigo-500 dark:text-indigo-400" />
-              <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{ft.label}</p>
+              <p class="text-md font-medium text-gray-900 dark:text-gray-100">{ft.label}</p>
             </div>
             <div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">{ft.description}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{ft.description}</p>
             </div>
           </button>
         {/each}
@@ -187,13 +187,13 @@
 
         <!-- Generated key (read-only after create) -->
         <div>
-          <label for="field-generated-key" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label for="field-generated-key" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
             Key
             {#if editing}
-              <span class="ml-1 text-xs text-gray-400">(immutable)</span>
+              <span class="ml-1 text-sm text-gray-400">(immutable)</span>
             {/if}
           </label>
-          <div id="field-generated-key" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div id="field-generated-key" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-md text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             {generatedKey || '—'}
           </div>
         </div>
@@ -201,10 +201,10 @@
         {#if editing}
           <!-- Show field type as read-only -->
           <div>
-            <label for="field-type" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Type <span class="ml-1 text-xs text-gray-400">(immutable)</span>
+            <label for="field-type" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+              Type <span class="ml-1 text-sm text-gray-400">(immutable)</span>
             </label>
-            <div id="field-type"  class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+            <div id="field-type"  class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-md text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
               {fieldTypes.find((f) => f.type === selectedType)?.label ?? selectedType}
             </div>
           </div>
@@ -213,7 +213,7 @@
         <!-- Select options -->
         {#if selectedType === 'select'}
           <div>
-            <label for={generatedKey + "-field-select-value"} class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Options</label>
+            <label for={generatedKey + "-field-select-value"} class="mb-2 block text-md font-medium text-gray-700 dark:text-gray-300">Options</label>
             <div id={generatedKey + "-field-select-value"} class="space-y-2">
               {#each optionItems as opt, i}
                 <div class="flex items-center gap-2">
@@ -222,7 +222,7 @@
                     value={opt}
                     placeholder="Option {i + 1}"
                     oninput={(e) => updateOption(i, (e.target as HTMLInputElement).value)}
-                    class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400
+                    class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 placeholder-gray-400
                       focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
                       dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500
                       dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
@@ -230,7 +230,7 @@
                   {#if optionItems.length > 1}
                     <button
                       type="button"
-                      class="shrink-0 text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                      class="shrink-0 text-sm text-gray-400 hover:text-red-500 dark:hover:text-red-400"
                       onclick={() => removeOption(i)}
                     >
                       Remove
@@ -241,7 +241,7 @@
             </div>
             <button
               type="button"
-              class="mt-2 text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+              class="mt-2 text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
               onclick={addOption}
             >
               + Add option
@@ -256,7 +256,7 @@
             bind:checked={required}
             class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
           />
-          <span class="text-sm text-gray-700 dark:text-gray-300">Required</span>
+          <span class="text-md text-gray-700 dark:text-gray-300">Required</span>
         </label>
 
         <!-- Inherit from project (only for asset scope) -->
@@ -267,9 +267,9 @@
               bind:checked={inheritFromProject}
               class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
             />
-            <span class="text-sm text-gray-700 dark:text-gray-300">
+            <span class="text-md text-gray-700 dark:text-gray-300">
               Inherit default from project
-              <span class="ml-1 text-xs text-gray-400">— new assets get the project's value</span>
+              <span class="ml-1 text-sm text-gray-400">— new assets get the project's value</span>
             </span>
           </label>
         {/if}

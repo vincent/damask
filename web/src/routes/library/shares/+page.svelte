@@ -84,8 +84,8 @@
     <header class="border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">Share Links</h1>
-          <p class="mt-0.5 text-sm text-gray-400">Manage public share links for your workspace assets and projects.</p>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Share Links</h1>
+          <p class="mt-0.5 text-md text-gray-400">Manage public share links for your workspace assets and projects.</p>
         </div>
         <Button
           variant="primary"
@@ -113,7 +113,7 @@
             <Link class="h-8 w-8 text-gray-400 dark:text-gray-500" />
           </div>
           <h2 class="mb-1 text-base font-semibold text-gray-900 dark:text-gray-50">No share links yet</h2>
-          <p class="mb-6 text-sm text-gray-400">Create a share link to let clients review assets without an account.</p>
+          <p class="mb-6 text-md text-gray-400">Create a share link to let clients review assets without an account.</p>
           <Button variant="primary" onclick={() => { showCreateModal = true }} disabled={createTargets.length === 0}>
             {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
             Create your first share
@@ -134,18 +134,18 @@
                 <!-- Meta -->
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-sm font-medium text-gray-900 dark:text-gray-50">
+                    <span class="text-md font-medium text-gray-900 dark:text-gray-50">
                       {share.label || targetLabel(share)}
                     </span>
                     <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {status.cls}">{status.label}</span>
                     {#if share.has_password}
-                      <span class="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                      <span class="inline-flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
                         <Lock class="h-3 w-3" /> Password
                       </span>
                     {/if}
                   </div>
-                  <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{targetLabel(share)}</p>
-                  <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                  <p class="mt-0.5 text-sm text-gray-400 dark:text-gray-500">{targetLabel(share)}</p>
+                  <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
                     <span class="inline-flex items-center gap-1">
                       <Eye class="h-3 w-3" /> {share.view_count} view{share.view_count !== 1 ? 's' : ''}
                     </span>
@@ -189,7 +189,7 @@
                       <Trash2 class="h-4 w-4" />
                     </button>
                   {:else}
-                    <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-600">
+                    <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gray-400 dark:text-gray-600">
                       <AlertCircle class="h-3.5 w-3.5" /> Revoked
                     </span>
                   {/if}
@@ -199,7 +199,7 @@
               <!-- URL bar for active shares -->
               {#if !share.revoked_at && !share.is_expired}
                 <div class="border-t border-gray-50 bg-gray-50/60 px-5 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
-                  <span class="text-xs font-mono text-gray-400 dark:text-gray-500">{share.public_url}</span>
+                  <span class="text-sm font-mono text-gray-400 dark:text-gray-500">{share.public_url}</span>
                 </div>
               {/if}
             </div>

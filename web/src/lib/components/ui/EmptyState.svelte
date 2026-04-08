@@ -17,9 +17,9 @@
       {@render icon()}
     </div>
   {/if}
-  <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{title}</p>
+  <p class="text-md font-medium text-gray-600 dark:text-gray-300">{title}</p>
   {#if description}
-    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{description}</p>
+    <p class="mt-1 text-sm text-gray-400 dark:text-gray-500">{description}</p>
   {/if}
   {#if action}
     <div class="mt-4">

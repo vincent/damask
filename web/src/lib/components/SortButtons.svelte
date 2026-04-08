@@ -18,7 +18,7 @@
 {#each Object.entries(keys) as [key, label] (key)}
     <button
       type="button"
-      class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 transition-colors { value !== key ? '' : 'border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400' }"
+      class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-md text-gray-600 dark:text-gray-400 transition-colors { value !== key ? '' : 'border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400' }"
       onclick={() => onSort(key) }
       title={label}
     >

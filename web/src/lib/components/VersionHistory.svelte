@@ -98,11 +98,11 @@
       <Spinner size="md" />
     </div>
   {:else if error}
-    <div class="px-5 py-4 text-sm text-red-500 dark:text-red-400">{error}</div>
+    <div class="px-5 py-4 text-md text-red-500 dark:text-red-400">{error}</div>
   {:else if versions.length === 0}
     <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
       <Inbox class="h-10 w-10" />
-      <p class="text-sm">No version history yet.</p>
+      <p class="text-md">No version history yet.</p>
     </div>
   {:else}
     <ol class="relative mx-5 mt-4 mb-2 border-l border-gray-200 dark:border-gray-700">
@@ -151,7 +151,7 @@
               {/if}
               <div class="min-w-0 flex flex-col gap-0.5">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <p class="text-xs text-gray-600 dark:text-gray-400">
+                  <p class="text-sm text-gray-600 dark:text-gray-400">
                     {formatBytes(v.size)}
                     {#if v.width && v.height}
                       · {v.width}×{v.height}
@@ -159,13 +159,13 @@
                   </p>
                   <!-- Variant count chip (VV-4.2) -->
                   {#if v.variant_count > 0}
-                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400">
                       {v.variant_count} variant{v.variant_count === 1 ? '' : 's'}
                     </span>
                   {/if}
                 </div>
                 {#if v.comment}
-                  <p class="text-xs italic text-gray-500 dark:text-gray-400 line-clamp-2">"{v.comment}"</p>
+                  <p class="text-sm italic text-gray-500 dark:text-gray-400 line-clamp-2">"{v.comment}"</p>
                 {/if}
                 <p class="text-[11px] text-gray-400 dark:text-gray-500">
                   by {v.created_by.name || 'Unknown'} · {formatDate(v.created_at)}
@@ -178,7 +178,7 @@
               <a
                 href={versionApi.fileUrl(asset.id, v.id)}
                 download
-                class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 <Download class="h-3 w-3" />
                 Download
@@ -187,7 +187,7 @@
               {#if !v.is_current && authStore.role !== 'viewer'}
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-2.5 py-1 text-xs text-indigo-600 transition-colors hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                  class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-2.5 py-1 text-sm text-indigo-600 transition-colors hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
                   onclick={() => { restoreTarget = v; restoreError = '' }}
                 >
                   <RotateCcw class="h-3 w-3" />
@@ -198,7 +198,7 @@
               {#if !v.is_current && authStore.role === 'owner'}
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-500 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                  class="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-sm text-red-500 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
                   onclick={() => { deleteTarget = v; deleteError = '' }}
                 >
                   <Trash2 class="h-3 w-3" />
@@ -217,10 +217,10 @@
 <Modal bind:open={showRestoreModal} onclose={() => { restoreTarget = null; restoreError = '' }}>
   {#if restoreTarget}
     <div class="p-6 space-y-4">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
         Restore version {restoreTarget.version_num}?
       </h3>
-      <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+      <div class="space-y-2 text-md text-gray-600 dark:text-gray-300">
         <p>
           Uploaded by <strong>{restoreTarget.created_by.name || 'Unknown'}</strong> on {formatDate(restoreTarget.created_at)}.
         </p>
@@ -237,14 +237,14 @@
       <div class="flex justify-end gap-3 pt-2">
         <button
           type="button"
-          class="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          class="rounded-lg border border-gray-200 px-4 py-2 text-md text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           onclick={() => { restoreTarget = null; restoreError = '' }}
         >
           Cancel
         </button>
         <button
           type="button"
-          class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+          class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-md font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
           disabled={restoring}
           onclick={confirmRestore}
         >
@@ -260,10 +260,10 @@
 <Modal bind:open={showDeleteModal} onclose={() => { deleteTarget = null; deleteError = '' }}>
   {#if deleteTarget}
     <div class="p-6 space-y-4">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
         Delete version {deleteTarget.version_num}?
       </h3>
-      <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+      <div class="space-y-2 text-md text-gray-600 dark:text-gray-300">
         <p>This version will be soft-deleted and permanently purged after 7 days.</p>
         {#if deleteError}
           <p class="text-red-500 dark:text-red-400">{deleteError}</p>
@@ -272,14 +272,14 @@
       <div class="flex justify-end gap-3 pt-2">
         <button
           type="button"
-          class="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          class="rounded-lg border border-gray-200 px-4 py-2 text-md text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           onclick={() => { deleteTarget = null; deleteError = '' }}
         >
           Cancel
         </button>
         <button
           type="button"
-          class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+          class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-md font-medium text-white hover:bg-red-700 disabled:opacity-60"
           disabled={deleting}
           onclick={confirmDelete}
         >

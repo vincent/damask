@@ -28,7 +28,7 @@
 
 {#if type === 'email_api'}
   <!-- No config needed — handled by IV-5 UI -->
-  <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 text-sm text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:text-indigo-300">
+  <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4 text-md text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:text-indigo-300">
     No configuration needed. After saving, you'll get a unique ingest email address.
   </div>
 
@@ -57,7 +57,7 @@
         onchange={(e) => setField('tls', (e.target as HTMLInputElement).checked)}
         class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
       />
-      <label for="imap-tls" class="text-sm text-gray-700 dark:text-gray-300">Use TLS</label>
+      <label for="imap-tls" class="text-md text-gray-700 dark:text-gray-300">Use TLS</label>
     </div>
     <Input
       label="Username"
@@ -89,12 +89,12 @@
       oninput={(e) => setField('mailbox', (e.target as HTMLInputElement).value)}
     />
     <div>
-      <label for="imap-after-import" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">After import</label>
+      <label for="imap-after-import" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">After import</label>
       <select
         id="imap-after-import"
         value={field('after_import') || 'mark_read'}
         onchange={(e) => setField('after_import', (e.target as HTMLSelectElement).value)}
-        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
       >
         <option value="mark_read">Mark as read</option>
         <option value="move_to">Move to mailbox</option>
@@ -135,12 +135,12 @@
       oninput={(e) => setField('username', (e.target as HTMLInputElement).value)}
     />
     <div>
-      <label for="sftp-auth-method" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Auth method</label>
+      <label for="sftp-auth-method" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">Auth method</label>
       <select
         id="sftp-auth-method"
         value={field('auth_method') || 'password'}
         onchange={(e) => setField('auth_method', (e.target as HTMLSelectElement).value)}
-        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
       >
         <option value="password">Password</option>
         <option value="key">Private key</option>
@@ -166,14 +166,14 @@
       </div>
     {:else}
       <div class="relative">
-        <label for="sftp-private-key" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Private key (PEM)</label>
+        <label for="sftp-private-key" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">Private key (PEM)</label>
         <textarea
           id="sftp-private-key"
           rows="4"
           placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;…"
           value={field('private_key')}
           oninput={(e) => setField('private_key', (e.target as HTMLTextAreaElement).value)}
-          class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
         ></textarea>
       </div>
     {/if}
@@ -184,12 +184,12 @@
       oninput={(e) => setField('remote_path', (e.target as HTMLInputElement).value)}
     />
     <div>
-      <label for="sftp-after-import" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">After import</label>
+      <label for="sftp-after-import" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">After import</label>
       <select
         id="sftp-after-import"
         value={field('after_import') || 'leave'}
         onchange={(e) => setField('after_import', (e.target as HTMLSelectElement).value)}
-        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
       >
         <option value="leave">Leave in place</option>
         <option value="move_to">Move to path</option>
@@ -214,7 +214,7 @@
       value={field('url')}
       oninput={(e) => setField('url', (e.target as HTMLInputElement).value)}
     />
-    <p class="text-xs text-gray-400 dark:text-gray-500">
+    <p class="text-sm text-gray-400 dark:text-gray-500">
       Nextcloud: <code class="rounded bg-gray-100 px-1 dark:bg-gray-800">{'{nextcloud_url}'}/remote.php/dav/files/{'{username}'}/</code>
     </p>
     <Input
@@ -241,12 +241,12 @@
       </button>
     </div>
     <div>
-      <label for="dav-after-import" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">After import</label>
+      <label for="dav-after-import" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">After import</label>
       <select
         id="dav-after-import"
         value={field('after_import') || 'leave'}
         onchange={(e) => setField('after_import', (e.target as HTMLSelectElement).value)}
-        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
       >
         <option value="leave">Leave in place</option>
         <option value="move_to">Move to URL</option>
@@ -315,12 +315,12 @@
       </button>
     </div>
     <div>
-      <label for="s3-after-import" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">After import</label>
+      <label for="s3-after-import" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">After import</label>
       <select
         id="s3-after-import"
         value={field('after_import') || 'leave'}
         onchange={(e) => setField('after_import', (e.target as HTMLSelectElement).value)}
-        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
       >
         <option value="leave">Leave in place</option>
         <option value="move_to">Move to prefix</option>
@@ -343,7 +343,7 @@
         onchange={(e) => setField('use_path_style', (e.target as HTMLInputElement).checked)}
         class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
       />
-      <label for="s3-path-style" class="text-sm text-gray-700 dark:text-gray-300">
+      <label for="s3-path-style" class="text-md text-gray-700 dark:text-gray-300">
         Use path-style URLs (required for MinIO)
       </label>
     </div>

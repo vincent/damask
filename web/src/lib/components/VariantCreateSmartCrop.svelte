@@ -21,28 +21,28 @@
 
 <div class="space-y-5">
     {#if asset.width != null && asset.height != null}
-        <p class="text-xs text-gray-400 dark:text-gray-500">Original: {asset.width} × {asset.height} px</p>
+        <p class="text-sm text-gray-400 dark:text-gray-500">Original: {asset.width} × {asset.height} px</p>
     {/if}
 
     <div class="grid grid-cols-2 gap-4">
         <div>
-            <label for="variant-{kind}-width" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Width (px)</label>
+            <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Width (px)</label>
             <input id="variant-{kind}-width" type="number" min="1" max="8000" bind:value={width}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
         </div>
         <div>
-            <label for="variant-{kind}-height" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Height (px)</label>
+            <label for="variant-{kind}-height" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Height (px)</label>
             <input id="variant-{kind}-height" type="number" min="1" max="8000" bind:value={height}
-                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
         </div>
     </div>
 
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Format</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Format</label>
         <div class="flex gap-2">
             {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
-                    class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {format === fmt
+                    class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {format === fmt
                         ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
                         : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
                     onclick={() => { format = fmt as typeof format }}
@@ -52,7 +52,7 @@
     </div>
 
     <div>
-        <label for="variant-{kind}-quality" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Quality: {quality}%</label>
+        <label for="variant-{kind}-quality" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Quality: {quality}%</label>
         <input id="variant-{kind}-quality" type="range" min="1" max="100" bind:value={quality}
             class="w-full accent-indigo-500" />
     </div>

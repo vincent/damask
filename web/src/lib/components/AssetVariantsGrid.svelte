@@ -69,8 +69,8 @@
             </div>
             <!-- Info -->
             <div class="px-3 py-2.5">
-                <p class="truncate text-xs font-semibold text-gray-800 dark:text-gray-200">{variantLabel(v)}</p>
-                <p class="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">
+                <p class="truncate text-sm font-semibold text-gray-800 dark:text-gray-200">{variantLabel(v)}</p>
+                <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                     {v.size != null ? formatBytes(v.size) + ' · ' : ''}{new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </p>
             </div>

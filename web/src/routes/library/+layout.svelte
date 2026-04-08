@@ -82,14 +82,14 @@
     <!-- All Assets button -->
     <div class="px-3 pb-2">
       <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
           {(!page.route.id?.match('shares') && navigationStore.activeProjectId === null) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => handleProjectSelect(null)}
       >
         <Book class="h-4 w-4 shrink-0 text-gray-400" />
         <span class="flex-1 text-left">All Assets</span>
         {#if projectsStore.totalAssetCount > 0}
-          <span class="shrink-0 text-xs text-gray-400">{projectsStore.totalAssetCount}</span>
+          <span class="shrink-0 text-sm text-gray-400">{projectsStore.totalAssetCount}</span>
         {/if}
       </button>
     </div>
@@ -97,14 +97,14 @@
     <!-- All Shares button -->
     <div class="px-3 pb-2">
       <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
           {(page.route.id?.match('shares')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => goto('/library/shares')}
       >
         <Share2 class="h-4 w-4 shrink-0 text-gray-400" />
         <span class="flex-1 text-left">All Shares</span>
         {#if sharesStore.shares?.length > 0}
-          <span class="shrink-0 text-xs text-gray-400">{sharesStore.shares?.length}</span>
+          <span class="shrink-0 text-sm text-gray-400">{sharesStore.shares?.length}</span>
         {/if}
       </button>
     </div>
@@ -112,14 +112,14 @@
     <!-- Ingress Sources button -->
     <div class="px-3 pb-2">
       <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
           {(page.route.id?.match('ingress')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => goto('/library/ingress')}
       >
         <Rss class="h-4 w-4 shrink-0 text-gray-400" />
         <span class="flex-1 text-left">Sources</span>
         {#if ingressStore.sources?.length > 0}
-          <span class="shrink-0 text-xs text-gray-400">{ingressStore.sources?.length}</span>
+          <span class="shrink-0 text-sm text-gray-400">{ingressStore.sources?.length}</span>
         {/if}
       </button>
     </div>
@@ -127,7 +127,7 @@
     <!-- Custom Fields settings button -->
     <div class="px-3 pb-2">
       <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
           {(page.route.id?.match('custom-fields')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => goto('/library/settings/custom-fields')}
       >
@@ -139,7 +139,7 @@
     <!-- Versioning settings button -->
     <div class="px-3 pb-2">
       <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
           {(page.route.id?.match('versioning')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => goto('/library/settings/versioning')}
       >
@@ -151,7 +151,7 @@
     <!-- Activity feed button -->
     <div class="px-3 pb-2">
       <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
           {(page.route.id?.match('activity')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => goto('/library/activity')}
       >
@@ -163,7 +163,7 @@
     <!-- Projects section -->
     <div class="flex flex-1 flex-col overflow-hidden px-3">
       <div class="mb-2 flex items-center justify-between px-2">
-        <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Projects</span>
+        <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Projects</span>
         {#if authStore.role !== 'viewer'}
           <button
             class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -191,7 +191,7 @@
     <!-- Bottom sign out + theme toggle -->
     <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
       <ThemeToggle />
-      <a href="/logout" class="flex items-center gap-2 rounded-lg px-2 text-sm text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+      <a href="/logout" class="flex items-center gap-2 rounded-lg px-2 text-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
         <LogOut class="h-3.5 w-3.5" />
         Sign out
       </a>

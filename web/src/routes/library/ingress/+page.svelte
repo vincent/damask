@@ -48,8 +48,8 @@
     <header class="border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">Ingress Sources</h1>
-          <p class="mt-0.5 text-sm text-gray-400">Automatically import files from external sources into your workspace.</p>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Ingress Sources</h1>
+          <p class="mt-0.5 text-md text-gray-400">Automatically import files from external sources into your workspace.</p>
         </div>
         <Button variant="primary" onclick={() => { showAddModal = true }}>
           {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}

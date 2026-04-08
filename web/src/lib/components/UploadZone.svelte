@@ -96,7 +96,7 @@
       d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
     />
   </svg>
-  <p class="text-sm {isDragging ? 'text-blue-600' : 'text-gray-500'}">
+  <p class="text-md {isDragging ? 'text-blue-600' : 'text-gray-500'}">
     {isDragging ? 'Drop files here' : 'Drag & drop files, or click to browse'}
   </p>
 
@@ -115,7 +115,7 @@
     {#each uploadsStore.items as item (item.id)}
       <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
         <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium text-gray-800">{item.file.name}</p>
+          <p class="truncate text-md font-medium text-gray-800">{item.file.name}</p>
           {#if item.status === 'uploading'}
             <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
               <div
@@ -124,11 +124,11 @@
               ></div>
             </div>
           {:else if item.status === 'processing'}
-            <p class="text-xs text-amber-600">Processing thumbnail…</p>
+            <p class="text-sm text-amber-600">Processing thumbnail…</p>
           {:else if item.status === 'done'}
-            <p class="text-xs text-green-600">Done</p>
+            <p class="text-sm text-green-600">Done</p>
           {:else if item.status === 'error'}
-            <p class="truncate text-xs text-red-600">{item.error}</p>
+            <p class="truncate text-sm text-red-600">{item.error}</p>
           {/if}
         </div>
 

@@ -150,12 +150,12 @@
         </div>
       {:else}
         <button
-          class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left text-sm {activeFolderId === folder.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
+          class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left text-md {activeFolderId === folder.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
           onclick={() => onselect(folder.id)}
         >
-          <span class="min-w-0 flex-1 truncate text-xs">{folder.name}</span>
+          <span class="min-w-0 flex-1 truncate text-sm">{folder.name}</span>
           {#if folder.asset_count > 0}
-            <span class="shrink-0 text-xs text-gray-400">{folder.asset_count}</span>
+            <span class="shrink-0 text-sm text-gray-400">{folder.asset_count}</span>
           {/if}
         </button>
       {/if}
@@ -193,7 +193,7 @@
           <input
             bind:value={newFolderName}
             placeholder="Folder name"
-            class="min-w-0 flex-1 bg-transparent text-xs text-gray-900 outline-none dark:text-gray-100"
+            class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-100"
             onblur={() => { if (!newFolderName.trim()) creatingUnder = null }}
           />
           <Button type="submit" variant="ghost" size="sm" class="shrink-0">Add</Button>
@@ -229,9 +229,9 @@
                 class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left {activeFolderId === child.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
                 onclick={() => onselect(child.id)}
               >
-                <span class="min-w-0 flex-1 truncate text-xs">{child.name}</span>
+                <span class="min-w-0 flex-1 truncate text-sm">{child.name}</span>
                 {#if child.asset_count > 0}
-                  <span class="shrink-0 text-xs text-gray-400">{child.asset_count}</span>
+                  <span class="shrink-0 text-sm text-gray-400">{child.asset_count}</span>
                 {/if}
               </button>
             {/if}
@@ -265,5 +265,5 @@
 {/each}
 
 {#if error}
-  <p class="mt-1 px-2 text-xs text-red-500">{error}</p>
+  <p class="mt-1 px-2 text-sm text-red-500">{error}</p>
 {/if}

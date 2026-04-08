@@ -42,13 +42,13 @@
 
 <div class="flex flex-col items-center justify-center py-16 px-8 max-w-3xl mx-auto">
   <!-- Header -->
-  <p class="text-sm font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
+  <p class="text-md font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
     Your workspace is ready
   </p>
   <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
     Start building your library
   </h1>
-  <p class="mt-2 text-md text-gray-500 dark:text-gray-400 max-w-md text-center">
+  <p class="mt-2 text-lg text-gray-500 dark:text-gray-400 max-w-md text-center">
     Here's what you can do right now.
   </p>
 
@@ -61,10 +61,10 @@
           <div class="w-9 h-9 rounded-xl flex items-center justify-center {card.iconClass}">
             <Icon class="h-4 w-4" />
           </div>
-          <p class="text-md font-semibold text-gray-900 dark:text-gray-50">{card.title}</p>
+          <p class="text-lg font-semibold text-gray-900 dark:text-gray-50">{card.title}</p>
         </div>
-        <p class="text-md text-gray-500 dark:text-gray-400 leading-relaxed">{card.body}</p>
-        <p class="text-sm text-gray-400 dark:text-gray-500 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700/60">
+        <p class="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">{card.body}</p>
+        <p class="text-md text-gray-400 dark:text-gray-500 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700/60">
           {card.hint}
         </p>
       </div>
@@ -74,8 +74,8 @@
   <!-- Footer -->
   <div class="mt-10 flex items-center gap-4">
     <Button onclick={onDismiss}>Get started</Button>
-    <span class="text-sm text-gray-400 dark:text-gray-500">
-      Tip: press <kbd class="rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 font-mono text-sm text-gray-500 dark:text-gray-400">⌘K</kbd> to quickly jump between projects
+    <span class="text-md text-gray-400 dark:text-gray-500">
+      Tip: press <kbd class="rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 font-mono text-md text-gray-500 dark:text-gray-400">⌘K</kbd> to quickly jump between projects
     </span>
   </div>
 </div>

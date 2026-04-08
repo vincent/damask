@@ -75,9 +75,9 @@
         bind:this={inputEl}
         bind:value={query}
         placeholder="Jump to project…"
-        class="flex-1 text-sm outline-none placeholder-gray-400"
+        class="flex-1 text-md outline-none placeholder-gray-400"
       />
-      <kbd class="rounded border border-gray-200 px-1.5 py-0.5 text-xs text-gray-400">Esc</kbd>
+      <kbd class="rounded border border-gray-200 px-1.5 py-0.5 text-sm text-gray-400">Esc</kbd>
     </div>
 
     <!-- Results -->
@@ -85,7 +85,7 @@
       {#each items as item, i}
         <li>
           <button
-            class="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors {i === activeIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}"
+            class="flex w-full items-center gap-3 px-4 py-2.5 text-md transition-colors {i === activeIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}"
             onclick={() => { onselect(item); onclose() }}
             onmouseenter={() => { activeIndex = i }}
           >
@@ -96,13 +96,13 @@
             {/if}
             <span class="flex-1 text-left">{item.label}</span>
             {#if item.count !== undefined}
-              <span class="text-xs text-gray-400">{item.count}</span>
+              <span class="text-sm text-gray-400">{item.count}</span>
             {/if}
           </button>
         </li>
       {/each}
       {#if items.length === 0}
-        <li class="px-4 py-3 text-sm text-gray-400">No results</li>
+        <li class="px-4 py-3 text-md text-gray-400">No results</li>
       {/if}
     </ul>
   </div>

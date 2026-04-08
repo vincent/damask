@@ -143,7 +143,7 @@
     <div class="flex flex-wrap items-end gap-x-6 gap-y-3 px-6 py-3">
       {#each activeDefinitions as def}
         <div class="flex flex-col gap-1 min-w-0">
-          <label for="field-name" class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          <label for="field-name" class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
             {def.name}
           </label>
 

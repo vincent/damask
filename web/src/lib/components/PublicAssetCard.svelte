@@ -60,8 +60,8 @@
             {asset.original_filename}
         </p>
         <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-400">{formatBytes(asset.size)}</span>
-            <span class="text-xs text-gray-400">{formatDate(asset.created_at)}</span>
+            <span class="text-sm text-gray-400">{formatBytes(asset.size)}</span>
+            <span class="text-sm text-gray-400">{formatDate(asset.created_at)}</span>
         </div>
         </div>
     </button>

@@ -54,7 +54,7 @@
     {/each}
 
     {#if activeTags.length > 0}
-      <span class="text-xs text-gray-300">|</span>
+      <span class="text-sm text-gray-300">|</span>
     {/if}
 
     <!-- All available tags -->
@@ -73,7 +73,7 @@
 
     {#if activeTags.length > 0}
       <button
-        class="ml-1 text-xs text-gray-400 hover:text-gray-600"
+        class="ml-1 text-sm text-gray-400 hover:text-gray-600"
         onclick={() => onchange([])}
       >Clear</button>
     {/if}

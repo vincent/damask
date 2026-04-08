@@ -130,7 +130,7 @@
     <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
       <div class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400">
         <CloudUpload class="h-10 w-10" />
-        <p class="text-sm font-medium">Drop to upload</p>
+        <p class="text-md font-medium">Drop to upload</p>
       </div>
     </div>
   {/if}
@@ -153,8 +153,8 @@
         <div class="mb-10">
           <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-3">
             <AssetIcon category={cat} class="h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[cat].light} {CATEGORY_ICON_BG[cat].dark}"/>
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{CATEGORY_LABELS[cat]}</h2>
-            <span class="text-sm text-gray-400 dark:text-gray-500">{group.length}</span>
+            <h2 class="text-md font-semibold text-gray-900 dark:text-gray-50">{CATEGORY_LABELS[cat]}</h2>
+            <span class="text-md text-gray-400 dark:text-gray-500">{group.length}</span>
           </div>
           <div class="border-l-2 {CATEGORY_BORDER[cat]} pl-4">
             {@render assetCardGrid(group)}
@@ -171,8 +171,8 @@
     {#each assetsByMonth as group}
       <div class="mb-10">
         <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-2">
-          <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{group.label}</h2>
-          <span class="text-sm text-gray-400 dark:text-gray-500">{group.assets.length}</span>
+          <h2 class="text-md font-semibold text-gray-900 dark:text-gray-50">{group.label}</h2>
+          <span class="text-md text-gray-400 dark:text-gray-500">{group.assets.length}</span>
         </div>
         {@render assetCardGrid(group.assets)}
       </div>
@@ -186,8 +186,8 @@
     {#each assetsBySize as group}
       <div class="mb-10">
         <div class="sticky top-[-25px] z-10 bg-gray-50 dark:bg-gray-950 py-2 flex items-center gap-2">
-          <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-50">{group.label}</h2>
-          <span class="text-sm text-gray-400 dark:text-gray-500">{group.assets.length}</span>
+          <h2 class="text-md font-semibold text-gray-900 dark:text-gray-50">{group.label}</h2>
+          <span class="text-md text-gray-400 dark:text-gray-500">{group.assets.length}</span>
         </div>
         {@render assetCardGrid(group.assets)}
       </div>

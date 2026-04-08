@@ -19,17 +19,17 @@
 <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
   <div class="flex items-center gap-3">
     <div>
-      <h1 class="text-xl font-bold text-gray-900 dark:text-gray-50">
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">
         {projectsStore.activeProjectName ?? 'Library'}
       </h1>
-      <p class="mt-0.5 text-sm text-gray-400">
+      <p class="mt-0.5 text-md text-gray-400">
         All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
       </p>
     </div>
     {#if showShareButton}
       <button
         type="button"
-        class="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400"
+        class="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-md text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400"
         onclick={onShareProject}
         title="Share this project"
       >
@@ -56,7 +56,7 @@
     />
 
     {#if authStore.role !== 'viewer'}
-      <label class="flex gap-2 cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+      <label class="flex gap-2 cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-md font-medium text-white hover:bg-indigo-700">
         Upload
         <Upload class="h-4 w-4" />
         <input

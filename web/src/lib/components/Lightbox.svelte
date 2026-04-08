@@ -236,12 +236,12 @@
             size="md"
             autofocus
           />
-          <span class="flex-shrink-0 text-sm text-gray-400 dark:text-gray-500">{extOf(asset.original_filename)}</span>
+          <span class="flex-shrink-0 text-md text-gray-400 dark:text-gray-500">{extOf(asset.original_filename)}</span>
         </div>
       {:else}
         <button
           type="button"
-          class="damask-asset-name max-w-[500px] break-all text-left text-lg font-bold leading-tight text-black dark:text-gray-50 cursor-pointer hover:underline"
+          class="damask-asset-name max-w-[500px] break-all text-left text-xl font-bold leading-tight text-black dark:text-gray-50 cursor-pointer hover:underline"
           title="Click to rename"
           onclick={() => (renamingAsset = true)}
         >
@@ -264,14 +264,14 @@
         {#each (['details', 'variants', 'history', 'activity', 'actions'] as PanelTab[]) as tab}
           <button
             type="button"
-            class="relative flex-1 py-3 text-xs font-medium transition-colors {activeTab === tab
+            class="relative flex-1 py-3 text-sm font-medium transition-colors {activeTab === tab
               ? 'text-indigo-600 dark:text-indigo-400'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
             onclick={() => { activeTab = tab; createError = ''; createSuccess = '' }}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
             {#if tab === 'history' && (asset?.version_count ?? 0) > 1}
-              <span class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
+              <span class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
                 {asset.version_count}
               </span>
             {/if}
@@ -316,9 +316,9 @@
               {:else if variants.length === 0}
                 <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
                   <Inbox class="h-10 w-10" />
-                  <p class="text-sm">No variants yet.</p>
+                  <p class="text-md">No variants yet.</p>
                   {#if authStore.role !== 'viewer' && (isImage || isVideo)}
-                    <p class="text-xs">Use the tabs above to create a variant.</p>
+                    <p class="text-sm">Use the tabs above to create a variant.</p>
                   {/if}
                 </div>
               {:else}
@@ -352,7 +352,7 @@
             <div class="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
               <button
                 type="button"
-                class="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                class="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-4 py-2 text-md font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
                 onclick={() => { showUploadVersionModal = true }}
               >
                 <Upload class="h-4 w-4" />
@@ -376,17 +376,17 @@
 
           <!-- Quick Actions -->
           <div>
-            <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Quick Actions</p>
+            <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Quick Actions</p>
             <div class="space-y-2">
               <button
-                class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                 onclick={() => { showShareModal = true }}
               >
                 <Share class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
                 Share…
               </button>
               <button
-                class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 {linkCopied ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}"
+                class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 {linkCopied ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}"
                 onclick={copyShareLink}
               >
                 {#if linkCopied}

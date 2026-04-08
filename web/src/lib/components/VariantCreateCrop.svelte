@@ -24,13 +24,13 @@
 
 <div class="space-y-5">
     {#if asset.width != null && asset.height != null}
-        <p class="text-xs text-gray-400 dark:text-gray-500">Original: {asset.width} × {asset.height} px</p>
+        <p class="text-sm text-gray-400 dark:text-gray-500">Original: {asset.width} × {asset.height} px</p>
     {/if}
 
     <div class="grid grid-cols-2 gap-4">
         {#each [['X offset', 'cropX'], ['Y offset', 'cropY'], ['Width', 'cropWidth'], ['Height', 'cropHeight']] as [label, key]}
         <div>
-            <label for="variant-{kind}-{key}" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{label}</label>
+            <label for="variant-{kind}-{key}" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{label}</label>
             <input id="variant-{kind}-{key}" type="number" min="0"
             value={key === 'cropX' ? cropX : key === 'cropY' ? cropY : key === 'cropWidth' ? cropWidth : cropHeight}
             oninput={(e) => {
@@ -40,17 +40,17 @@
                 else if (key === 'cropWidth') cropWidth = v
                 else cropHeight = v
             }}
-            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
         </div>
         {/each}
     </div>
 
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Format</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Format</label>
         <div class="flex gap-2">
             {#each ['jpeg', 'png'] as fmt}
                 <button type="button"
-                class="flex-1 rounded-lg border py-2 text-xs font-medium transition-colors {cropFormat === fmt
+                class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {cropFormat === fmt
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
                     : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
                 onclick={() => { cropFormat = fmt as typeof cropFormat }}

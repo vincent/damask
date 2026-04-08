@@ -59,7 +59,7 @@
 {#if selectedIds.size > 0}
   <div class="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
     <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-      <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{selectedIds.size} selected</span>
+      <span class="text-md font-medium text-gray-700 dark:text-gray-300">{selectedIds.size} selected</span>
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
       <!-- Tag -->
@@ -81,7 +81,7 @@
             <input
               bind:value={tagInput}
               placeholder="Tag name"
-              class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm shadow-lg focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-md shadow-lg focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
             <Button type="submit" variant="primary" size="sm" disabled={busy}>Add</Button>
           </form>
@@ -102,7 +102,7 @@
         {#if activePanel === 'projects'}
           <div class="absolute bottom-full mb-2 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
             <button
-              class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+              class="flex w-full items-center gap-2 px-3 py-1.5 text-md text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
               onclick={() => bulkProject(null)}
             >
               <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
@@ -110,7 +110,7 @@
             </button>
             {#each projects as p}
               <button
-                class="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                class="flex w-full items-center gap-2 px-3 py-1.5 text-md text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                 onclick={() => bulkProject(p.id)}
               >
                 <span
@@ -129,7 +129,7 @@
       <!-- Delete (owner only) -->
       {#if authStore.role === 'owner'}
         <button
-          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-md font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
           disabled={busy}
           onclick={bulkDelete}
         >

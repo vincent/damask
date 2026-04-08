@@ -87,11 +87,11 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
-      <span class="text-sm">Loading…</span>
+      <span class="text-md">Loading…</span>
     </div>
   {:else if error && !password}
     <div class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-8 shadow-sm text-center">
-      <p class="text-gray-600 dark:text-gray-400 text-sm">{error}</p>
+      <p class="text-gray-600 dark:text-gray-400 text-md">{error}</p>
     </div>
   {:else}
     <div class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-8 shadow-sm">
@@ -102,10 +102,10 @@
         </div>
       </div>
 
-      <h1 class="mb-2 text-center text-xl font-bold text-gray-900 dark:text-gray-100">
+      <h1 class="mb-2 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
         {shareLabel}
       </h1>
-      <p class="mb-6 text-center text-sm text-gray-500 dark:text-gray-400">
+      <p class="mb-6 text-center text-md text-gray-500 dark:text-gray-400">
         This shared gallery is password protected. Please enter the password provided by the sender to view the assets.
       </p>
 
@@ -139,7 +139,7 @@
   {/if}
 
   <!-- Footer -->
-  <div class="mt-4 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-600">
+  <div class="mt-4 flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-600">
     <a href="https://damask.studio" class="uppercase tracking-widest">Powered by</a>
     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />

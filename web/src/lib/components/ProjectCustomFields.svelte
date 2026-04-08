@@ -110,7 +110,7 @@
 </script>
 
 <div>
-  <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+  <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
     Custom Fields
   </p>
 
@@ -119,7 +119,7 @@
       <Spinner size="sm" />
     </div>
   {:else if activeDefinitions.length === 0}
-    <p class="text-xs text-gray-400 dark:text-gray-500">No project fields defined yet.</p>
+    <p class="text-sm text-gray-400 dark:text-gray-500">No project fields defined yet.</p>
   {:else}
     <div class="space-y-2">
       {#each activeDefinitions as def (def.id)}
@@ -131,7 +131,7 @@
         <div class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5">
-              <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+              <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
                 {def.name}
                 {#if def.required && (!fv || fv.value === null)}
                   <span class="ml-1 text-orange-400">*</span>
@@ -156,17 +156,17 @@
             <div class="mt-1.5">
               {#if def.field_type === 'boolean'}
                 <div class="flex gap-3">
-                  <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300">
+                  <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
                     <input type="radio" bind:group={editValue} value="true" class="text-indigo-600" /> Yes
                   </label>
-                  <label class="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300">
+                  <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
                     <input type="radio" bind:group={editValue} value="false" class="text-indigo-600" /> No
                   </label>
                 </div>
               {:else if def.field_type === 'select'}
                 <select
                   bind:value={editValue}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900
+                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
                     focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
                     dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
@@ -180,7 +180,7 @@
                   type="date"
                   bind:value={editValue}
                   onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900
+                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
                     focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
                     dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
@@ -190,7 +190,7 @@
                   step="any"
                   bind:value={editValue}
                   onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900
+                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
                     focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
                     dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
@@ -200,7 +200,7 @@
                   bind:value={editValue}
                   placeholder="https://"
                   onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900
+                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
                     focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
                     dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
@@ -209,26 +209,26 @@
                   type="text"
                   bind:value={editValue}
                   onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900
+                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
                     focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
                     dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
               {/if}
 
               {#if saveError}
-                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{saveError}</p>
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{saveError}</p>
               {/if}
 
               <div class="mt-1.5 flex gap-2">
                 <button
-                  class="text-xs font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-50"
+                  class="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-50"
                   disabled={isSaving}
                   onclick={() => saveField(def)}
                 >
                   {isSaving ? 'Saving…' : 'Save'}
                 </button>
                 <button
-                  class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  class="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   onclick={cancelEdit}
                 >
                   Cancel
@@ -238,7 +238,7 @@
 
           {:else if def.field_type === 'boolean' && fv}
             <button
-              class="mt-1 flex items-center gap-2 text-sm font-medium
+              class="mt-1 flex items-center gap-2 text-md font-medium
                 {fv.value ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}"
               onclick={() => {
                 editValue = fv.value ? 'false' : 'true'
@@ -257,15 +257,15 @@
               class="mt-1 flex w-full items-center justify-between text-left"
               onclick={() => startEdit(def)}
             >
-              <span class="text-sm font-semibold text-gray-900 dark:text-gray-100 {def.field_type === 'url' ? 'truncate text-indigo-600 dark:text-indigo-400' : ''}">
+              <span class="text-md font-semibold text-gray-900 dark:text-gray-100 {def.field_type === 'url' ? 'truncate text-indigo-600 dark:text-indigo-400' : ''}">
                 {displayValue(fv)}
               </span>
-              <span class="shrink-0 text-xs text-gray-400 opacity-0 transition-opacity hover:opacity-100">Edit</span>
+              <span class="shrink-0 text-sm text-gray-400 opacity-0 transition-opacity hover:opacity-100">Edit</span>
             </button>
 
           {:else}
             <button
-              class="mt-1 text-xs text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+              class="mt-1 text-sm text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
               onclick={() => startEdit(def)}
             >
               Add value
@@ -279,7 +279,7 @@
   {#if orphanedValues.length > 0}
     <div class="mt-4">
       <button
-        class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        class="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         onclick={() => { showDeprecated = !showDeprecated }}
       >
         {#if showDeprecated}
@@ -294,10 +294,10 @@
         <div class="mt-2 space-y-1.5">
           {#each orphanedValues as fv}
             <div class="rounded-lg border border-dashed border-gray-200 px-3 py-2 dark:border-gray-700">
-              <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-300 dark:text-gray-600">
+              <p class="text-xs font-semibold uppercase tracking-widest text-gray-300 dark:text-gray-600">
                 {fv.name} <span class="ml-1 normal-case text-gray-300 dark:text-gray-600">(deleted)</span>
               </p>
-              <p class="mt-0.5 text-sm text-gray-400 dark:text-gray-500">{displayValue(fv)}</p>
+              <p class="mt-0.5 text-md text-gray-400 dark:text-gray-500">{displayValue(fv)}</p>
             </div>
           {/each}
         </div>

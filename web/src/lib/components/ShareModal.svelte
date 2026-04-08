@@ -118,20 +118,20 @@
       <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40">
         <Link class="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
       </div>
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-50">Create Share Link</h2>
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">Create Share Link</h2>
     </div>
 
     {#if createdShare || existingShare}
       {@const share = createdShare ?? existingShare!}
       <!-- Success / Existing share view -->
       <div class="space-y-4">
-        <p class="text-sm text-gray-600 dark:text-gray-400">
+        <p class="text-md text-gray-600 dark:text-gray-400">
           {createdShare ? 'Your share link is ready.' : 'An active share already exists for this target.'}
         </p>
 
         <!-- Link copy box -->
         <div class="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3 dark:border-indigo-800/60 dark:bg-indigo-900/20">
-          <span class="min-w-0 flex-1 truncate text-sm font-mono text-indigo-700 dark:text-indigo-300">
+          <span class="min-w-0 flex-1 truncate text-md font-mono text-indigo-700 dark:text-indigo-300">
             {share.public_url}
           </span>
           <button
@@ -149,7 +149,7 @@
         </div>
 
         <!-- Share meta pills -->
-        <div class="flex flex-wrap gap-2 text-xs">
+        <div class="flex flex-wrap gap-2 text-sm">
           {#if share.has_password}
             <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
               <Lock class="h-3 w-3" /> Password protected
@@ -201,7 +201,7 @@
         <!-- Target picker -->
         {#if targets.length > 1}
           <div>
-            <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">What do you want to share?</p>
+            <p class="mb-2 text-md font-medium text-gray-700 dark:text-gray-300">What do you want to share?</p>
             <div class="grid grid-cols-2 gap-3">
               {#each targets as t, i}
                 <button
@@ -217,11 +217,11 @@
                   {:else}
                     <Globe class="h-5 w-5 {selectedTargetIdx === i ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}" />
                   {/if}
-                  <span class="text-sm font-medium {selectedTargetIdx === i ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-300'}">
+                  <span class="text-md font-medium {selectedTargetIdx === i ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-300'}">
                     {t.label}
                   </span>
                   {#if t.assetCount !== undefined}
-                    <span class="text-xs text-gray-400">{t.assetCount} asset{t.assetCount !== 1 ? 's' : ''}</span>
+                    <span class="text-sm text-gray-400">{t.assetCount} asset{t.assetCount !== 1 ? 's' : ''}</span>
                   {/if}
                 </button>
               {/each}
@@ -239,7 +239,7 @@
 
         <!-- Link Settings -->
         <div>
-          <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Link Settings</p>
+          <p class="mb-3 text-md font-medium text-gray-700 dark:text-gray-300">Link Settings</p>
           <div class="divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
 
             <!-- Require Password -->
@@ -248,8 +248,8 @@
                 <Lock class="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div class="flex-1">
-                <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Require Password</p>
-                <p class="text-xs text-gray-400 dark:text-gray-500">Only people with the password can view</p>
+                <p class="text-md font-medium text-gray-800 dark:text-gray-200">Require Password</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500">Only people with the password can view</p>
               </div>
               <button
                 type="button"
@@ -287,8 +287,8 @@
                 <Download class="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div class="flex-1">
-                <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Allow Downloads</p>
-                <p class="text-xs text-gray-400 dark:text-gray-500">Viewers can download original files</p>
+                <p class="text-md font-medium text-gray-800 dark:text-gray-200">Allow Downloads</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500">Viewers can download original files</p>
               </div>
               <button
                 type="button"
@@ -310,8 +310,8 @@
                 <MessageSquare class="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div class="flex-1">
-                <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Allow Comments</p>
-                <p class="text-xs text-gray-400 dark:text-gray-500">Viewers can leave feedback on assets</p>
+                <p class="text-md font-medium text-gray-800 dark:text-gray-200">Allow Comments</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500">Viewers can leave feedback on assets</p>
               </div>
               <button
                 type="button"
@@ -333,10 +333,10 @@
                 <Calendar class="h-4 w-4 text-gray-500 dark:text-gray-400" />
               </div>
               <div class="flex-1">
-                <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Link Expiration</p>
+                <p class="text-md font-medium text-gray-800 dark:text-gray-200">Link Expiration</p>
               </div>
               <select
-                class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-md text-gray-700 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 value={expiryDays === null ? 'null' : String(expiryDays)}
                 onchange={(e) => {
                   const v = (e.target as HTMLSelectElement).value

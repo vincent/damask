@@ -83,12 +83,12 @@
   <!-- Header -->
   <div class="flex flex-shrink-0 items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
     <div>
-      <h1 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Workspace Activity</h1>
-      <p class="text-sm text-zinc-500 dark:text-zinc-400">Audit trail of all asset and project changes</p>
+      <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Workspace Activity</h1>
+      <p class="text-md text-zinc-500 dark:text-zinc-400">Audit trail of all asset and project changes</p>
     </div>
     <a
       href={csvUrl}
-      class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+      class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-1.5 text-md text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
     >
       <Download class="h-4 w-4" />
       Export CSV
@@ -100,7 +100,7 @@
     {#each ([['', 'All'], ['uploads', 'Uploads'], ['changes', 'Changes'], ['shares', 'Shares']] as [string, string][]) as [val, label]}
       <button
         type="button"
-        class="rounded-full px-3 py-1 text-xs font-medium transition-colors
+        class="rounded-full px-3 py-1 text-sm font-medium transition-colors
           {typeFilter === val
             ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
             : 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'}"
@@ -119,12 +119,12 @@
       </div>
 
     {:else if error}
-      <p class="px-6 py-8 text-sm text-red-500">{error}</p>
+      <p class="px-6 py-8 text-md text-red-500">{error}</p>
 
     {:else if events.length === 0}
       <div class="flex flex-col items-center gap-3 py-16 text-center text-zinc-400 dark:text-zinc-500">
         <Inbox class="h-10 w-10" />
-        <p class="text-sm">No activity yet.</p>
+        <p class="text-md">No activity yet.</p>
       </div>
 
     {:else}
@@ -145,7 +145,7 @@
 
             <!-- Content -->
             <div class="min-w-0 flex-1">
-              <p class="text-sm text-zinc-800 dark:text-zinc-200">
+              <p class="text-md text-zinc-800 dark:text-zinc-200">
                 {#if event.actor.type === 'user' && event.actor.name}
                   <span class="font-medium">{event.actor.name}</span>
                   {' '}
@@ -155,7 +155,7 @@
                 {/if}
                 <span class="text-zinc-600 dark:text-zinc-400">{event.human_readable}</span>
               </p>
-              <div class="mt-0.5 flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
+              <div class="mt-0.5 flex items-center gap-2 text-sm text-zinc-400 dark:text-zinc-500">
                 <span class="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800">
                   {event.entity_type}
                 </span>
@@ -170,7 +170,7 @@
         <div class="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">
           <button
             type="button"
-            class="flex w-full items-center justify-center gap-2 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            class="flex w-full items-center justify-center gap-2 text-md text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             onclick={loadMore}
             disabled={loadingMore}
           >

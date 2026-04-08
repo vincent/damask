@@ -50,6 +50,6 @@
       border-indigo-400 focus:ring-1 focus:ring-indigo-300
       dark:border-indigo-500 dark:bg-gray-800 dark:text-gray-100 dark:focus:ring-indigo-600
       disabled:opacity-50
-      {size === 'sm' ? 'text-xs' : 'text-sm'}"
+      {size === 'sm' ? 'text-sm' : 'text-md'}"
   />
 </form>

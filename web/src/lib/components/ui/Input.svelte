@@ -42,7 +42,7 @@
 
 <div class="w-full {extraClass}">
   {#if label}
-    <label for={id} class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+    <label for={id} class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
       {label}
     </label>
   {/if}
@@ -62,7 +62,7 @@
       {onchange}
       {oninput}
       {onblur}
-      class="w-full rounded-lg border px-3 py-2 text-sm shadow-sm transition-colors
+      class="w-full rounded-lg border px-3 py-2 text-md shadow-sm transition-colors
         focus:outline-none focus:ring-2
         {error
           ? 'border-red-400 focus:ring-red-200 dark:border-red-500 dark:focus:ring-red-900'
@@ -80,6 +80,6 @@
     {/if}
   </div>
   {#if error}
-    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>
+    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
   {/if}
 </div>
