@@ -21,6 +21,7 @@
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
   import { goto } from '$app/navigation'
+  import UploadsTray from '$lib/components/UploadsTray.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
@@ -232,6 +233,8 @@
   ondone={handleBulkDone}
   onclear={() => selectionStore.clear()}
 />
+
+<UploadsTray />
 
 {#if showPalette}
   <CommandPalette

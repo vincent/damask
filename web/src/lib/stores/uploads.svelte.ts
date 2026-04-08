@@ -1,4 +1,5 @@
 import type { Asset } from '$lib/api'
+import { SvelteSet } from 'svelte/reactivity'
 
 export interface UploadItem {
   id: string
@@ -9,9 +10,10 @@ export interface UploadItem {
   error?: string
 }
 
+let timer: number | null = null;
 let items = $state<UploadItem[]>([])
 // IDs of assets completed in this session — used for the required-fields nudge
-let recentlyUploadedIds = $state<Set<string>>(new Set())
+let recentlyUploadedIds = $state(new SvelteSet<string>())
 
 export const uploadsStore = {
   get items() {
@@ -23,6 +25,7 @@ export const uploadsStore = {
   },
 
   add(item: UploadItem) {
+    if (timer) clearTimeout(timer)
     items = [...items, item]
   },
 
@@ -30,7 +33,10 @@ export const uploadsStore = {
     items = items.map((item) => (item.id === id ? { ...item, ...patch } : item))
     // Track newly completed uploads by their asset ID
     if (patch.status === 'done' && patch.asset) {
-      recentlyUploadedIds = new Set([...recentlyUploadedIds, patch.asset.id])
+      recentlyUploadedIds = new SvelteSet([...recentlyUploadedIds, patch.asset.id])
+    }
+    if (items.every(i => i.status === 'done')) {
+      timer = setTimeout(() => uploadsStore.clear(), 10_000)
     }
   },
 
@@ -43,6 +49,6 @@ export const uploadsStore = {
   },
 
   clearRecentlyUploaded() {
-    recentlyUploadedIds = new Set()
+    recentlyUploadedIds = new SvelteSet()
   },
 }
