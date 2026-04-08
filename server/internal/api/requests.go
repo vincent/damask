@@ -435,22 +435,28 @@ type reorderRuleEntry struct {
 
 // -- custom_fields_definitions.go (reorder) -----------------------------------
 
-type reorderFieldEntry struct {
+type ReorderFieldEntry struct {
 	ID       string `json:"id"`
 	Position int64  `json:"position"`
 }
 
-type reorderFieldDefinitionsRequest struct {
-	Items []reorderFieldEntry
+// reorderFieldEntry is the unexported alias for backward compatibility
+type reorderFieldEntry = ReorderFieldEntry
+
+type ReorderFieldDefinitionsRequest struct {
+	Items []ReorderFieldEntry
 }
+
+// reorderFieldDefinitionsRequest is the unexported alias for backward compatibility
+type reorderFieldDefinitionsRequest = ReorderFieldDefinitionsRequest
 
 // UnmarshalJSON lets the client send a bare JSON array while still satisfying
 // the Validator interface required by decodeAndValidate.
-func (r *reorderFieldDefinitionsRequest) UnmarshalJSON(b []byte) error {
+func (r *ReorderFieldDefinitionsRequest) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &r.Items)
 }
 
-func (r *reorderFieldDefinitionsRequest) Valid(_ context.Context) map[string]string {
+func (r *ReorderFieldDefinitionsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Items) == 0 {
 		p["items"] = "at least one item required"
@@ -460,7 +466,7 @@ func (r *reorderFieldDefinitionsRequest) Valid(_ context.Context) map[string]str
 
 // -- custom_fields_definitions.go ---------------------------------------------
 
-type createFieldDefinitionRequest struct {
+type CreateFieldDefinitionRequest struct {
 	Scope              string  `json:"scope"`
 	Name               string  `json:"name"`
 	Key                string  `json:"key"`
@@ -471,7 +477,10 @@ type createFieldDefinitionRequest struct {
 	InheritFromProject bool    `json:"inherit_from_project"`
 }
 
-func (r *createFieldDefinitionRequest) Valid(_ context.Context) map[string]string {
+// createFieldDefinitionRequest is the unexported alias for backward compatibility
+type createFieldDefinitionRequest = CreateFieldDefinitionRequest
+
+func (r *CreateFieldDefinitionRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
@@ -500,7 +509,7 @@ func (r *createFieldDefinitionRequest) Valid(_ context.Context) map[string]strin
 	return p
 }
 
-type updateFieldDefinitionRequest struct {
+type UpdateFieldDefinitionRequest struct {
 	Name               *string `json:"name"`
 	Key                *string `json:"key"`
 	FieldType          *string `json:"field_type"`
@@ -510,7 +519,10 @@ type updateFieldDefinitionRequest struct {
 	InheritFromProject *bool   `json:"inherit_from_project"`
 }
 
-func (r *updateFieldDefinitionRequest) Valid(_ context.Context) map[string]string {
+// updateFieldDefinitionRequest is the unexported alias for backward compatibility
+type updateFieldDefinitionRequest = UpdateFieldDefinitionRequest
+
+func (r *UpdateFieldDefinitionRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Name != nil {
 		trimmed := strings.TrimSpace(*r.Name)
@@ -525,11 +537,14 @@ func (r *updateFieldDefinitionRequest) Valid(_ context.Context) map[string]strin
 
 // -- custom_fields_values.go --------------------------------------------------
 
-type patchAssetFieldsRequest struct {
-	Values []fieldValueInput `json:"values"`
+type PatchAssetFieldsRequest struct {
+	Values []FieldValueInput `json:"values"`
 }
 
-func (r *patchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
+// patchAssetFieldsRequest is the unexported alias for backward compatibility
+type patchAssetFieldsRequest = PatchAssetFieldsRequest
+
+func (r *PatchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Values) == 0 {
 		p["values"] = "required"
@@ -537,12 +552,15 @@ func (r *patchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type bulkPatchAssetFieldsRequest struct {
+type BulkPatchAssetFieldsRequest struct {
 	AssetIDs []string          `json:"asset_ids"`
-	Values   []fieldValueInput `json:"values"`
+	Values   []FieldValueInput `json:"values"`
 }
 
-func (r *bulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
+// bulkPatchAssetFieldsRequest is the unexported alias for backward compatibility
+type bulkPatchAssetFieldsRequest = BulkPatchAssetFieldsRequest
+
+func (r *BulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.AssetIDs) == 0 {
 		p["asset_ids"] = "required"
@@ -555,11 +573,14 @@ func (r *bulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string
 
 // -- custom_fields_project_values.go ------------------------------------------
 
-type patchProjectFieldsRequest struct {
-	Values []fieldValueInput `json:"values"`
+type PatchProjectFieldsRequest struct {
+	Values []FieldValueInput `json:"values"`
 }
 
-func (r *patchProjectFieldsRequest) Valid(_ context.Context) map[string]string {
+// patchProjectFieldsRequest is the unexported alias for backward compatibility
+type patchProjectFieldsRequest = PatchProjectFieldsRequest
+
+func (r *PatchProjectFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Values) == 0 {
 		p["values"] = "required"

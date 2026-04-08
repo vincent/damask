@@ -201,6 +201,15 @@ func JsonStr(s string) io.Reader {
 	return strings.NewReader(s)
 }
 
+// JsonBody marshals v to JSON and returns an io.Reader suitable for AuthRequest/BearerRequest.
+func JsonBody(v any) io.Reader {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(fmt.Sprintf("JsonBody: marshal failed: %v", err))
+	}
+	return bytes.NewReader(b)
+}
+
 // BuildVersionUploadRequest creates a multipart upload request for POST /assets/:id/versions.
 func BuildVersionUploadRequest(t *testing.T, assetID string, filename string, content []byte, comment string, cookie *http.Cookie) *http.Request {
 	t.Helper()

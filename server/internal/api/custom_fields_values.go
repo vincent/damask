@@ -21,10 +21,13 @@ import (
 
 var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
-type fieldValueInput struct {
+type FieldValueInput struct {
 	FieldID string      `json:"field_id"`
 	Value   interface{} `json:"value"`
 }
+
+// fieldValueInput is the unexported alias for backward compatibility
+type fieldValueInput = FieldValueInput
 
 type resolvedValue struct {
 	fieldID      string

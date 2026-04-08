@@ -4,9 +4,7 @@ import (
 	"damask/server/internal/api"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,13 +15,14 @@ import (
 
 func createFieldDef(t *testing.T, env *th.TestEnv, cookie *http.Cookie, scope, name, key, fieldType string, options *string) api.FieldDefinitionResponse {
 	t.Helper()
-	body := fmt.Sprintf(`{"scope":%q,"name":%q,"key":%q,"field_type":%q}`, scope, name, key, fieldType)
-	if options != nil {
-		// options must be sent as a JSON string (the DB stores it as TEXT containing a JSON array)
-		optJSON, _ := json.Marshal(*options)
-		body = fmt.Sprintf(`{"scope":%q,"name":%q,"key":%q,"field_type":%q,"options":%s}`, scope, name, key, fieldType, optJSON)
+	req := api.CreateFieldDefinitionRequest{
+		Scope:     scope,
+		Name:      name,
+		Key:       key,
+		FieldType: fieldType,
+		Options:   options,
 	}
-	resp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/field-definitions", strings.NewReader(body), cookie))
+	resp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/field-definitions", th.JsonBody(req), cookie))
 	if err != nil {
 		t.Fatalf("create field def: %v", err)
 	}
@@ -71,8 +70,9 @@ func TestFieldDefinitions_CRUD(t *testing.T) {
 	}
 
 	// Update name (allowed)
+	nameVal := "Client"
 	resp, _ = env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/field-definitions/"+id,
-		th.JsonStr(`{"name":"Client"}`), u.Cookie))
+		th.JsonBody(api.UpdateFieldDefinitionRequest{Name: &nameVal}), u.Cookie))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("update: expected 200, got %d", resp.StatusCode)
 	}
@@ -83,15 +83,17 @@ func TestFieldDefinitions_CRUD(t *testing.T) {
 	}
 
 	// Update key (forbidden)
+	keyVal := "new_key"
 	resp, _ = env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/field-definitions/"+id,
-		th.JsonStr(`{"key":"new_key"}`), u.Cookie))
+		th.JsonBody(api.UpdateFieldDefinitionRequest{Key: &keyVal}), u.Cookie))
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("update key: expected 422, got %d", resp.StatusCode)
 	}
 
 	// Update field_type (forbidden)
+	fieldTypeVal := "number"
 	resp, _ = env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/field-definitions/"+id,
-		th.JsonStr(`{"field_type":"number"}`), u.Cookie))
+		th.JsonBody(api.UpdateFieldDefinitionRequest{FieldType: &fieldTypeVal}), u.Cookie))
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("update field_type: expected 422, got %d", resp.StatusCode)
 	}
@@ -115,8 +117,14 @@ func TestFieldDefinitions_SelectValidation(t *testing.T) {
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	// select without options → 400
+	req := api.CreateFieldDefinitionRequest{
+		Scope:     "asset",
+		Name:      "Status",
+		Key:       "status",
+		FieldType: "select",
+	}
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/field-definitions",
-		th.JsonStr(`{"scope":"asset","name":"Status","key":"status","field_type":"select"}`), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("select no options: expected 422, got %d", resp.StatusCode)
 	}
@@ -133,8 +141,14 @@ func TestFieldDefinitions_InvalidKey(t *testing.T) {
 	env := th.SetupTestApp(t)
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
+	req := api.CreateFieldDefinitionRequest{
+		Scope:     "asset",
+		Name:      "Bad Key",
+		Key:       "Bad Key!",
+		FieldType: "text",
+	}
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/field-definitions",
-		th.JsonStr(`{"scope":"asset","name":"Bad Key","key":"Bad Key!","field_type":"text"}`), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("bad key: expected 422, got %d", resp.StatusCode)
 	}
@@ -146,8 +160,14 @@ func TestFieldDefinitions_DuplicateKey(t *testing.T) {
 
 	createFieldDef(t, env, u.Cookie, "asset", "Client", "client", "text", nil)
 
+	req := api.CreateFieldDefinitionRequest{
+		Scope:     "asset",
+		Name:      "Client2",
+		Key:       "client",
+		FieldType: "text",
+	}
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/field-definitions",
-		th.JsonStr(`{"scope":"asset","name":"Client2","key":"client","field_type":"text"}`), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("duplicate key: expected 409, got %d", resp.StatusCode)
 	}
@@ -182,9 +202,13 @@ func TestFieldDefinitions_Reorder(t *testing.T) {
 	d1 := createFieldDef(t, env, u.Cookie, "asset", "Alpha", "alpha", "text", nil)
 	d2 := createFieldDef(t, env, u.Cookie, "asset", "Beta", "beta", "text", nil)
 
-	body := fmt.Sprintf(`[{"id":%q,"position":10},{"id":%q,"position":5}]`, d1.ID, d2.ID)
+	// Reorder expects a bare JSON array, not an object
+	items := []api.ReorderFieldEntry{
+		{ID: d1.ID, Position: 10},
+		{ID: d2.ID, Position: 5},
+	}
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/field-definitions/reorder",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(items), u.Cookie))
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("reorder: expected 204, got %d", resp.StatusCode)
 	}
@@ -268,9 +292,11 @@ func TestAssetFieldValues_GetPatch(t *testing.T) {
 	}
 
 	// PATCH — set value
-	body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":"Nike"}]}`, fieldID)
+	req := api.PatchAssetFieldsRequest{
+		Values: []api.FieldValueInput{{FieldID: fieldID, Value: "Nike"}},
+	}
 	resp, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("patch fields: expected 200, got %d", resp.StatusCode)
 	}
@@ -285,9 +311,11 @@ func TestAssetFieldValues_GetPatch(t *testing.T) {
 	}
 
 	// PATCH — clear value (null)
-	body = fmt.Sprintf(`{"values":[{"field_id":%q,"value":null}]}`, fieldID)
+	reqClear := api.PatchAssetFieldsRequest{
+		Values: []api.FieldValueInput{{FieldID: fieldID, Value: nil}},
+	}
 	resp, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(reqClear), u.Cookie))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("clear field: expected 200, got %d", resp.StatusCode)
 	}
@@ -330,9 +358,13 @@ func TestAssetFieldValues_TypeValidation(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":%s}]}`, tc.fieldID, tc.value)
+			var val interface{}
+			_ = json.Unmarshal([]byte(tc.value), &val)
+			req := api.PatchAssetFieldsRequest{
+				Values: []api.FieldValueInput{{FieldID: tc.fieldID, Value: val}},
+			}
 			resp, _ := env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
-				strings.NewReader(body), u.Cookie))
+				th.JsonBody(req), u.Cookie))
 			if resp.StatusCode != tc.wantCode {
 				t.Fatalf("%s: expected %d, got %d", tc.name, tc.wantCode, resp.StatusCode)
 			}
@@ -352,16 +384,18 @@ func TestAssetFieldValues_SoftDeletedField(t *testing.T) {
 		VALUES (?, ?, ?, ?, ?, ?)`, assetID, u.WorkspaceID, "t.jpg", "s/t.jpg", "image/jpeg", 100)
 
 	// Set a value
-	body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":"some value"}]}`, fieldID)
+	req := api.PatchAssetFieldsRequest{
+		Values: []api.FieldValueInput{{FieldID: fieldID, Value: "some value"}},
+	}
 	_, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 
 	// Soft delete the definition
 	_, _ = env.App.Test(th.AuthRequest(http.MethodDelete, "/api/v1/field-definitions/"+fieldID, nil, u.Cookie))
 
 	// Cannot write to soft-deleted field
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID+"/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("write to deleted field: expected 422, got %d", resp.StatusCode)
 	}
@@ -393,9 +427,12 @@ func TestAssetFieldValues_BulkPatch(t *testing.T) {
 			VALUES (?, ?, ?, ?, ?, ?)`, id, u.WorkspaceID, id+".jpg", "s/"+id, "image/jpeg", 100)
 	}
 
-	body := fmt.Sprintf(`{"asset_ids":["bulk-asset-1","bulk-asset-2"],"values":[{"field_id":%q,"value":"Nike"}]}`, fieldID)
+	req := api.BulkPatchAssetFieldsRequest{
+		AssetIDs: []string{"bulk-asset-1", "bulk-asset-2"},
+		Values:   []api.FieldValueInput{{FieldID: fieldID, Value: "Nike"}},
+	}
 	resp, err2 := env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/bulk/fields",
-		strings.NewReader(body), u.Cookie), fiber.TestConfig{Timeout: 5 * time.Second})
+		th.JsonBody(req), u.Cookie), fiber.TestConfig{Timeout: 5 * time.Second})
 	if err2 != nil {
 		t.Fatalf("bulk patch request: %v", err2)
 	}
@@ -438,13 +475,17 @@ func TestAssetFieldFilter(t *testing.T) {
 	}
 
 	// Set client=Nike on first asset
-	body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":"Nike"}]}`, fieldID)
+	req := api.PatchAssetFieldsRequest{
+		Values: []api.FieldValueInput{{FieldID: fieldID, Value: "Nike"}},
+	}
 	_, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/filter-asset-nike/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 
-	body = fmt.Sprintf(`{"values":[{"field_id":%q,"value":"Puma"}]}`, fieldID)
+	req2 := api.PatchAssetFieldsRequest{
+		Values: []api.FieldValueInput{{FieldID: fieldID, Value: "Puma"}},
+	}
 	_, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/filter-asset-puma/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(req2), u.Cookie))
 
 	// Filter by exact match
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/assets?field[client]=Nike", nil, u.Cookie))
@@ -509,9 +550,11 @@ func TestProjectFieldValues(t *testing.T) {
 	}
 
 	// PATCH — set value
-	body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":50000}]}`, fieldID)
+	req := api.PatchProjectFieldsRequest{
+		Values: []api.FieldValueInput{{FieldID: fieldID, Value: 50000}},
+	}
 	resp, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/projects/"+projectID+"/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("patch project fields: expected 200, got %d", resp.StatusCode)
 	}
@@ -541,9 +584,11 @@ func TestProjectFieldValues_WrongScope(t *testing.T) {
 	projectID := proj["id"].(string)
 
 	// Try to set an asset-scoped field on a project → 422
-	body := fmt.Sprintf(`{"values":[{"field_id":%q,"value":"Nike"}]}`, fieldID)
+	req := api.PatchProjectFieldsRequest{
+		Values: []api.FieldValueInput{{FieldID: fieldID, Value: "Nike"}},
+	}
 	resp, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/projects/"+projectID+"/fields",
-		strings.NewReader(body), u.Cookie))
+		th.JsonBody(req), u.Cookie))
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("wrong scope: expected 422, got %d", resp.StatusCode)
 	}
