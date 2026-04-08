@@ -650,7 +650,7 @@ func (s *Server) handleBulkTag(c fiber.Ctx) error {
 func (s *Server) handleBulkProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &bulkProjectRequest{})
+	body, ok := decodeAndValidate(c, &BulkProjectRequest{})
 	if !ok {
 		return nil
 	}
@@ -752,7 +752,7 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	body, ok := decodeAndValidate(c, &updateAssetFolderRequest{})
+	body, ok := decodeAndValidate(c, &UpdateAssetFolderRequest{})
 	if !ok {
 		return nil
 	}
@@ -825,7 +825,7 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	body, ok := decodeAndValidate(c, &renameAssetRequest{})
+	body, ok := decodeAndValidate(c, &RenameAssetRequest{})
 	if !ok {
 		return nil
 	}
@@ -892,7 +892,7 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &bulkDeleteRequest{})
+	body, ok := decodeAndValidate(c, &BulkDeleteRequest{})
 	if !ok {
 		return nil
 	}

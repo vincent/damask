@@ -136,7 +136,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusConflict, "variants are rebuilding — please wait for the rebuild to complete before creating new variants")
 	}
 
-	body, ok := decodeAndValidate(c, &createVariantRequest{})
+	body, ok := decodeAndValidate(c, &CreateVariantRequest{})
 	if !ok {
 		return nil
 	}

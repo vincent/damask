@@ -111,7 +111,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 	}
 
 	// Parse optional password (errors ignored — body is optional)
-	body := &shareAccessRequest{}
+	body := &ShareAccessRequest{}
 	_ = c.Bind().Body(body)
 
 	// Check password
@@ -370,7 +370,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 		return err
 	}
 
-	body, ok := decodeAndValidate(c, &createCommentRequest{})
+	body, ok := decodeAndValidate(c, &CreateCommentRequest{})
 	if !ok {
 		return nil
 	}

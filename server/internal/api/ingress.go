@@ -194,7 +194,7 @@ func (s *Server) handleCreateIngressRule(c fiber.Ctx) error {
 	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
 		return nil
 	}
-	req, ok := decodeAndValidate(c, &ingressRuleReq{})
+	req, ok := decodeAndValidate(c, &IngressRuleReq{})
 	if !ok {
 		return nil
 	}
@@ -231,7 +231,7 @@ func (s *Server) handleUpdateIngressRule(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "rule not found")
 	}
 
-	var req ingressRuleReq
+	var req IngressRuleReq
 	if err := c.Bind().JSON(&req); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
@@ -294,7 +294,7 @@ func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 	if _, ok := s.requireSourceOwnership(c, c.Params("id")); !ok {
 		return nil
 	}
-	var entries []reorderRuleEntry
+	var entries []ReorderRuleEntry
 	if err := c.Bind().JSON(&entries); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
@@ -340,7 +340,7 @@ func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	req, ok := decodeAndValidate(c, &createIngressSourceReq{})
+	req, ok := decodeAndValidate(c, &CreateIngressSourceReq{})
 	if !ok {
 		return nil
 	}
@@ -471,7 +471,7 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not get source")
 	}
 
-	req, ok := decodeAndValidate(c, &updateIngressSourceReq{})
+	req, ok := decodeAndValidate(c, &UpdateIngressSourceReq{})
 	if !ok {
 		return nil
 	}

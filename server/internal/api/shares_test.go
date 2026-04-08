@@ -106,7 +106,7 @@ func TestCreateShare_InvalidTargetType(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonStr(`{"target_type":"unknown","target_id":"abc"}`), owner.Cookie)
+		th.JsonBody(api.CreateShareRequest{TargetType: "unknown", TargetID: "abc"}), owner.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("expected 422, got %d", resp.StatusCode)
@@ -117,7 +117,7 @@ func TestCreateShare_TargetNotFound(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonStr(`{"target_type":"project","target_id":"nonexistent"}`), owner.Cookie)
+		th.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "nonexistent"}), owner.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", resp.StatusCode)
@@ -142,7 +142,7 @@ func TestCreateShare_TargetFromOtherWorkspace(t *testing.T) {
 func TestCreateShare_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonStr(`{"target_type":"project","target_id":"x"}`), nil)
+		th.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "x"}), nil)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", resp.StatusCode)

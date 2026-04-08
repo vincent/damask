@@ -42,7 +42,7 @@ func projectToResponse(p dbgen.Project, assetCount int64) ProjectResponse {
 func (s *Server) handleCreateProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &createProjectRequest{})
+	body, ok := decodeAndValidate(c, &CreateProjectRequest{})
 	if !ok {
 		return nil
 	}
@@ -144,7 +144,7 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	body, ok := decodeAndValidate(c, &updateProjectRequest{})
+	body, ok := decodeAndValidate(c, &UpdateProjectRequest{})
 	if !ok {
 		return nil
 	}

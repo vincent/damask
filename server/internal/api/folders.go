@@ -53,7 +53,7 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	body, ok := decodeAndValidate(c, &createFolderRequest{})
+	body, ok := decodeAndValidate(c, &CreateFolderRequest{})
 	if !ok {
 		return nil
 	}
@@ -215,7 +215,7 @@ func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load folder")
 	}
 
-	body, ok := decodeAndValidate(c, &updateFolderRequest{})
+	body, ok := decodeAndValidate(c, &UpdateFolderRequest{})
 	if !ok {
 		return nil
 	}

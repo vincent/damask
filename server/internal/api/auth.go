@@ -107,7 +107,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 // // @Success 200 {object} AuthResponse
 // @Router /login [post]
 func (s *Server) handleLogin(c fiber.Ctx) error {
-	req, ok := decodeAndValidate(c, &loginRequest{})
+	req, ok := decodeAndValidate(c, &LoginRequest{})
 	if !ok {
 		return nil
 	}

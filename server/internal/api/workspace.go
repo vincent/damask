@@ -60,7 +60,7 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load user")
 	}
 
-	req, ok := decodeAndValidate(c, &createWorkspaceRequest{})
+	req, ok := decodeAndValidate(c, &CreateWorkspaceRequest{})
 	if !ok {
 		return nil
 	}
@@ -95,7 +95,7 @@ type InviteResponse struct {
 func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	req, ok := decodeAndValidate(c, &createInviteRequest{})
+	req, ok := decodeAndValidate(c, &CreateInviteRequest{})
 	if !ok {
 		return nil
 	}
@@ -122,7 +122,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 }
 
 func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
-	req, ok := decodeAndValidate(c, &acceptInviteRequest{})
+	req, ok := decodeAndValidate(c, &AcceptInviteRequest{})
 	if !ok {
 		return nil
 	}
@@ -220,7 +220,7 @@ type SwitchWorkspaceResponse struct {
 func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	req, ok := decodeAndValidate(c, &switchWorkspaceRequest{})
+	req, ok := decodeAndValidate(c, &SwitchWorkspaceRequest{})
 	if !ok {
 		return nil
 	}
@@ -250,7 +250,7 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &updateWorkspaceSettingsRequest{})
+	body, ok := decodeAndValidate(c, &UpdateWorkspaceSettingsRequest{})
 	if !ok {
 		return nil
 	}

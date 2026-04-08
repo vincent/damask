@@ -11,8 +11,14 @@ import (
 func TestCreateProject_Success(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
+	color := "#3b82f6"
+	description := "Summer campaign"
 	req := th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonStr(`{"name":"Campaign 2024","color":"#3b82f6","description":"Summer campaign"}`),
+		th.JsonBody(api.CreateProjectRequest{
+			Name:        "Campaign 2024",
+			Color:       &color,
+			Description: &description,
+		}),
 		owner.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -43,7 +49,8 @@ func TestCreateProject_Success(t *testing.T) {
 func TestCreateProject_MissingName(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":""}`), owner.Cookie)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: ""}), owner.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -57,7 +64,8 @@ func TestCreateProject_ViewerRejected(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
 
-	req := th.BearerRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"My Project"}`), viewerToken)
+	req := th.BearerRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "My Project"}), viewerToken)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -149,8 +157,10 @@ func TestUpdateProject(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := th.CreateProject(t, env, owner.Cookie, "Old Name", "#aabbcc")
 
+	newName := "New Name"
+	newColor := "#112233"
 	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonStr(`{"name":"New Name","color":"#112233"}`), owner.Cookie)
+		th.JsonBody(api.UpdateProjectRequest{Name: &newName, Color: &newColor}), owner.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)

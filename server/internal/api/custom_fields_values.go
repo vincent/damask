@@ -256,7 +256,7 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	body, ok := decodeAndValidate(c, &patchAssetFieldsRequest{})
+	body, ok := decodeAndValidate(c, &PatchAssetFieldsRequest{})
 	if !ok {
 		return nil
 	}
@@ -343,7 +343,7 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &bulkPatchAssetFieldsRequest{})
+	body, ok := decodeAndValidate(c, &BulkPatchAssetFieldsRequest{})
 	if !ok {
 		return nil
 	}

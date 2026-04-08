@@ -160,8 +160,9 @@ func TestCreateVariant_InvalidType(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
+	params := json.RawMessage(`{}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonStr(`{"type":"invalid_type","params":{}}`), cookie)
+		th.JsonBody(api.CreateVariantRequest{Type: "invalid_type", Params: params}), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
@@ -173,7 +174,7 @@ func TestCreateVariant_VideoOnImage(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonStr(`{"type":"video_capture_image","params":{}}`), cookie)
+		th.JsonBody(api.CreateVariantRequest{Type: "video_capture_image", Params: json.RawMessage(`{}`)}), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
@@ -184,8 +185,9 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	body := `{"type":"image_watermark","params":{"opacity":50,"quality":80,"format":"jpeg"}}`
-	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", th.JsonStr(body), cookie)
+	paramsData := json.RawMessage(`{"opacity":50,"quality":80,"format":"jpeg"}`)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{Type: "image_watermark", Params: paramsData}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -208,8 +210,9 @@ func TestCreateVariant_ResizeQueued(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 
-	body := `{"type":"image_resize","params":{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}}`
-	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", th.JsonStr(body), cookie)
+	paramsData := json.RawMessage(`{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}`)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: paramsData}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -233,7 +236,7 @@ func TestCreateVariant_BgRemoveNoKey(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonStr(`{"type":"image_bg_remove","params":{}}`), cookie)
+		th.JsonBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 (no API key), got %d", resp.StatusCode)
@@ -417,7 +420,7 @@ func TestCreateVariant_ViewerForbidden(t *testing.T) {
 
 	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, "viewer")
 	createReq := th.BearerRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonStr(`{"type":"image_resize","params":{"width":100}}`), viewerToken)
+		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: json.RawMessage(`{"width":100}`)}), viewerToken)
 	createResp, _ := env.App.Test(createReq)
 	if createResp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for viewer create variant, got %d", createResp.StatusCode)

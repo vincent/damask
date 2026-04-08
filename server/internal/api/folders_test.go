@@ -4,7 +4,6 @@ import (
 	"damask/server/internal/api"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -15,12 +14,8 @@ import (
 // createFolder creates a folder in the given project and returns its parsed response.
 func createFolder(t *testing.T, env *th.TestEnv, cookie *http.Cookie, projectID, name string, parentID *string) api.FolderResponse {
 	t.Helper()
-	body := fmt.Sprintf(`{"name":%q`, name)
-	if parentID != nil {
-		body += fmt.Sprintf(`,"parent_id":%q`, *parentID)
-	}
-	body += "}"
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders", th.JsonStr(body), cookie)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
+		th.JsonBody(api.CreateFolderRequest{Name: name, ParentID: parentID}), cookie)
 	res, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +30,8 @@ func createFolder(t *testing.T, env *th.TestEnv, cookie *http.Cookie, projectID,
 func TestCreateFolder_Success(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	projRes, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"My Project"}`), owner.Cookie))
+	projRes, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "My Project"}), owner.Cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +44,8 @@ func TestCreateFolder_Success(t *testing.T) {
 	_ = json.Unmarshal(b, &proj)
 	projectID := proj["id"].(string)
 
-	folderReq := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders", th.JsonStr(`{"name":"Assets"}`), owner.Cookie)
+	folderReq := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
+		th.JsonBody(api.CreateFolderRequest{Name: "Assets"}), owner.Cookie)
 	folderRes, err := env.App.Test(folderReq)
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +69,8 @@ func TestCreateFolder_Success(t *testing.T) {
 func TestCreateFolder_SubfolderSuccess(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"P"}`), owner.Cookie))
+	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
 	var proj map[string]interface{}
 	b, _ := io.ReadAll(projRes.Body)
@@ -85,7 +83,7 @@ func TestCreateFolder_SubfolderSuccess(t *testing.T) {
 
 	// Create subfolder — should succeed
 	subReq := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonStr(fmt.Sprintf(`{"name":"Sub","parent_id":%q}`, rootID)), owner.Cookie)
+		th.JsonBody(api.CreateFolderRequest{Name: "Sub", ParentID: &rootID}), owner.Cookie)
 	subRes, _ := env.App.Test(subReq)
 	defer subRes.Body.Close()
 	if subRes.StatusCode != http.StatusCreated {
@@ -97,7 +95,8 @@ func TestCreateFolder_SubfolderSuccess(t *testing.T) {
 func TestCreateFolder_MaxDepthEnforced(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"P"}`), owner.Cookie))
+	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
 	var proj map[string]interface{}
 	b, _ := io.ReadAll(projRes.Body)
@@ -114,7 +113,7 @@ func TestCreateFolder_MaxDepthEnforced(t *testing.T) {
 
 	// Try to create depth 2 subfolder — should return 422
 	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonStr(fmt.Sprintf(`{"name":"Deep","parent_id":%q}`, subID)), owner.Cookie)
+		th.JsonBody(api.CreateFolderRequest{Name: "Deep", ParentID: &subID}), owner.Cookie)
 	deepRes, _ := env.App.Test(req)
 	defer deepRes.Body.Close()
 	if deepRes.StatusCode != http.StatusUnprocessableEntity {
@@ -125,7 +124,8 @@ func TestCreateFolder_MaxDepthEnforced(t *testing.T) {
 func TestCreateFolder_DuplicateName(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"P"}`), owner.Cookie))
+	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
 	var proj map[string]interface{}
 	b, _ := io.ReadAll(projRes.Body)
@@ -134,7 +134,8 @@ func TestCreateFolder_DuplicateName(t *testing.T) {
 
 	createFolder(t, env, owner.Cookie, projectID, "Dupe", nil)
 
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders", th.JsonStr(`{"name":"Dupe"}`), owner.Cookie)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
+		th.JsonBody(api.CreateFolderRequest{Name: "Dupe"}), owner.Cookie)
 	dupeRes, _ := env.App.Test(req)
 	defer dupeRes.Body.Close()
 	if dupeRes.StatusCode != http.StatusConflict {
@@ -145,7 +146,8 @@ func TestCreateFolder_DuplicateName(t *testing.T) {
 func TestGetFolders_Tree(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"P"}`), owner.Cookie))
+	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
 	var proj map[string]interface{}
 	b, _ := io.ReadAll(projRes.Body)
@@ -180,7 +182,8 @@ func TestGetFolders_Tree(t *testing.T) {
 func TestUpdateFolder_Rename(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"P"}`), owner.Cookie))
+	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
 	var proj map[string]interface{}
 	b, _ := io.ReadAll(projRes.Body)
@@ -190,7 +193,9 @@ func TestUpdateFolder_Rename(t *testing.T) {
 	folderOut := createFolder(t, env, owner.Cookie, projectID, "OldName", nil)
 	folderID := folderOut.ID
 
-	req := th.AuthRequest(http.MethodPut, "/api/v1/folders/"+folderID, th.JsonStr(`{"name":"NewName"}`), owner.Cookie)
+	newName := "NewName"
+	req := th.AuthRequest(http.MethodPut, "/api/v1/folders/"+folderID,
+		th.JsonBody(api.UpdateFolderRequest{Name: &newName}), owner.Cookie)
 	updateRes, _ := env.App.Test(req)
 	defer updateRes.Body.Close()
 	if updateRes.StatusCode != http.StatusOK {
@@ -208,7 +213,8 @@ func TestUpdateFolder_Rename(t *testing.T) {
 func TestDeleteFolder_NullifiesAssets(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"P"}`), owner.Cookie))
+	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
 	var proj map[string]interface{}
 	b, _ := io.ReadAll(projRes.Body)
@@ -223,7 +229,7 @@ func TestDeleteFolder_NullifiesAssets(t *testing.T) {
 
 	// Move asset to folder
 	patchReq := th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID,
-		th.JsonStr(fmt.Sprintf(`{"folder_id":%q}`, folderID)), owner.Cookie)
+		th.JsonBody(api.UpdateAssetFolderRequest{FolderID: &folderID}), owner.Cookie)
 	patchRes, err2 := env.App.Test(patchReq)
 	if err2 != nil {
 		t.Fatalf("patch request error: %v", err2)

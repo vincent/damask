@@ -65,7 +65,7 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	body, ok := decodeAndValidate(c, &addTagRequest{})
+	body, ok := decodeAndValidate(c, &AddTagRequest{})
 	if !ok {
 		return nil
 	}

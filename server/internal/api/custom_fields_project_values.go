@@ -112,7 +112,7 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load project")
 	}
 
-	body, ok := decodeAndValidate(c, &patchProjectFieldsRequest{})
+	body, ok := decodeAndValidate(c, &PatchProjectFieldsRequest{})
 	if !ok {
 		return nil
 	}

@@ -77,7 +77,7 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &createFieldDefinitionRequest{})
+	body, ok := decodeAndValidate(c, &CreateFieldDefinitionRequest{})
 	if !ok {
 		return nil
 	}
@@ -183,7 +183,7 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	body, ok := decodeAndValidate(c, &updateFieldDefinitionRequest{})
+	body, ok := decodeAndValidate(c, &UpdateFieldDefinitionRequest{})
 	if !ok {
 		return nil
 	}
@@ -291,7 +291,7 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &reorderFieldDefinitionsRequest{})
+	body, ok := decodeAndValidate(c, &ReorderFieldDefinitionsRequest{})
 	if !ok {
 		return nil
 	}

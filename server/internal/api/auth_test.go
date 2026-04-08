@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -14,7 +13,11 @@ func TestRegister_Success(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register",
-		th.JsonStr(`{"name":"Alice","email":"alice@example.com","password":"password123"}`))
+		th.JsonBody(api.RegisterRequest{
+			Name:     "Alice",
+			Email:    "alice@example.com",
+			Password: "password123",
+		}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -50,7 +53,11 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register",
-		th.JsonStr(`{"name":"Alice2","email":"alice@example.com","password":"password456"}`))
+		th.JsonBody(api.RegisterRequest{
+			Name:     "Alice2",
+			Email:    "alice@example.com",
+			Password: "password456",
+		}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -67,17 +74,17 @@ func TestRegister_InvalidBody(t *testing.T) {
 
 	cases := []struct {
 		name string
-		body string
+		req  api.RegisterRequest
 	}{
-		{"missing name", `{"email":"a@b.com","password":"password123"}`},
-		{"missing email", `{"name":"Alice","password":"password123"}`},
-		{"missing password", `{"name":"Alice","email":"a@b.com"}`},
-		{"short password", `{"name":"Alice","email":"a@b.com","password":"short"}`},
+		{"missing name", api.RegisterRequest{Name: "", Email: "a@b.com", Password: "password123"}},
+		{"missing email", api.RegisterRequest{Name: "Alice", Email: "", Password: "password123"}},
+		{"missing password", api.RegisterRequest{Name: "Alice", Email: "a@b.com", Password: ""}},
+		{"short password", api.RegisterRequest{Name: "Alice", Email: "a@b.com", Password: "short"}},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(tc.body))
+			req := httptest.NewRequest(http.MethodPost, "/auth/register", th.JsonBody(tc.req))
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := env.App.Test(req)
 			if err != nil {
@@ -95,7 +102,10 @@ func TestLogin_Success(t *testing.T) {
 	th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		th.JsonStr(`{"email":"alice@example.com","password":"password123"}`))
+		th.JsonBody(api.LoginRequest{
+			Email:    "alice@example.com",
+			Password: "password123",
+		}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -117,7 +127,10 @@ func TestLogin_WrongPassword(t *testing.T) {
 	th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		th.JsonStr(`{"email":"alice@example.com","password":"wrongpassword"}`))
+		th.JsonBody(api.LoginRequest{
+			Email:    "alice@example.com",
+			Password: "wrongpassword",
+		}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -133,7 +146,10 @@ func TestLogin_UnknownEmail(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		th.JsonStr(`{"email":"nobody@example.com","password":"password123"}`))
+		th.JsonBody(api.LoginRequest{
+			Email:    "nobody@example.com",
+			Password: "password123",
+		}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {

@@ -32,12 +32,12 @@ func (r *RegisterRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type loginRequest struct {
+type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func (r *loginRequest) Valid(_ context.Context) map[string]string {
+func (r *LoginRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Email == "" {
 		p["email"] = "required"
@@ -50,11 +50,11 @@ func (r *loginRequest) Valid(_ context.Context) map[string]string {
 
 // -- workspace.go -------------------------------------------------------------
 
-type createWorkspaceRequest struct {
+type CreateWorkspaceRequest struct {
 	Name string `json:"name"`
 }
 
-func (r *createWorkspaceRequest) Valid(_ context.Context) map[string]string {
+func (r *CreateWorkspaceRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
@@ -63,12 +63,12 @@ func (r *createWorkspaceRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type createInviteRequest struct {
+type CreateInviteRequest struct {
 	Email string `json:"email"`
 	Role  string `json:"role"` // "editor" or "viewer"
 }
 
-func (r *createInviteRequest) Valid(_ context.Context) map[string]string {
+func (r *CreateInviteRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Email == "" {
 		p["email"] = "required"
@@ -82,13 +82,13 @@ func (r *createInviteRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type acceptInviteRequest struct {
+type AcceptInviteRequest struct {
 	Token    string `json:"token"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
 }
 
-func (r *acceptInviteRequest) Valid(_ context.Context) map[string]string {
+func (r *AcceptInviteRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Token == "" {
 		p["token"] = "required"
@@ -104,11 +104,11 @@ func (r *acceptInviteRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type switchWorkspaceRequest struct {
+type SwitchWorkspaceRequest struct {
 	WorkspaceID string `json:"workspace_id"`
 }
 
-func (r *switchWorkspaceRequest) Valid(_ context.Context) map[string]string {
+func (r *SwitchWorkspaceRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.WorkspaceID == "" {
 		p["workspace_id"] = "required"
@@ -116,11 +116,11 @@ func (r *switchWorkspaceRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type updateWorkspaceSettingsRequest struct {
+type UpdateWorkspaceSettingsRequest struct {
 	VersionRetentionCount int64 `json:"version_retention_count"`
 }
 
-func (r *updateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {
+func (r *UpdateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.VersionRetentionCount < 0 {
 		p["version_retention_count"] = "must be 0 (keep all) or a positive integer"
@@ -130,13 +130,13 @@ func (r *updateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]str
 
 // -- projects.go --------------------------------------------------------------
 
-type createProjectRequest struct {
+type CreateProjectRequest struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description"`
 	Color       *string `json:"color"`
 }
 
-func (r *createProjectRequest) Valid(_ context.Context) map[string]string {
+func (r *CreateProjectRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
@@ -145,14 +145,14 @@ func (r *createProjectRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type updateProjectRequest struct {
+type UpdateProjectRequest struct {
 	Name         *string `json:"name"`
 	Description  *string `json:"description"`
 	Color        *string `json:"color"`
 	CoverAssetID *string `json:"cover_asset_id"`
 }
 
-func (r *updateProjectRequest) Valid(_ context.Context) map[string]string {
+func (r *UpdateProjectRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Name != nil {
 		trimmed := strings.TrimSpace(*r.Name)
@@ -167,13 +167,13 @@ func (r *updateProjectRequest) Valid(_ context.Context) map[string]string {
 
 // -- folders.go ---------------------------------------------------------------
 
-type createFolderRequest struct {
+type CreateFolderRequest struct {
 	Name     string  `json:"name"`
 	ParentID *string `json:"parent_id"`
 	Position int64   `json:"position"`
 }
 
-func (r *createFolderRequest) Valid(_ context.Context) map[string]string {
+func (r *CreateFolderRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
@@ -182,12 +182,12 @@ func (r *createFolderRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type updateFolderRequest struct {
+type UpdateFolderRequest struct {
 	Name     *string `json:"name"`
 	Position *int64  `json:"position"`
 }
 
-func (r *updateFolderRequest) Valid(_ context.Context) map[string]string {
+func (r *UpdateFolderRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Name != nil {
 		trimmed := strings.TrimSpace(*r.Name)
@@ -219,12 +219,12 @@ func (r *BulkTagRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type bulkProjectRequest struct {
+type BulkProjectRequest struct {
 	AssetIDs  []string `json:"asset_ids"`
 	ProjectID *string  `json:"project_id"` // null = unassign
 }
 
-func (r *bulkProjectRequest) Valid(_ context.Context) map[string]string {
+func (r *BulkProjectRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.AssetIDs) == 0 {
 		p["asset_ids"] = "required"
@@ -232,19 +232,19 @@ func (r *bulkProjectRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type updateAssetFolderRequest struct {
+type UpdateAssetFolderRequest struct {
 	FolderID *string `json:"folder_id"`
 }
 
-func (r *updateAssetFolderRequest) Valid(_ context.Context) map[string]string {
+func (r *UpdateAssetFolderRequest) Valid(_ context.Context) map[string]string {
 	return map[string]string{}
 }
 
-type renameAssetRequest struct {
+type RenameAssetRequest struct {
 	Name string `json:"name"`
 }
 
-func (r *renameAssetRequest) Valid(_ context.Context) map[string]string {
+func (r *RenameAssetRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
@@ -253,11 +253,11 @@ func (r *renameAssetRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type bulkDeleteRequest struct {
+type BulkDeleteRequest struct {
 	AssetIDs []string `json:"asset_ids"`
 }
 
-func (r *bulkDeleteRequest) Valid(_ context.Context) map[string]string {
+func (r *BulkDeleteRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.AssetIDs) == 0 {
 		p["asset_ids"] = "required"
@@ -267,11 +267,11 @@ func (r *bulkDeleteRequest) Valid(_ context.Context) map[string]string {
 
 // -- tags.go ------------------------------------------------------------------
 
-type addTagRequest struct {
+type AddTagRequest struct {
 	Name string `json:"name"`
 }
 
-func (r *addTagRequest) Valid(_ context.Context) map[string]string {
+func (r *AddTagRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(strings.ToLower(r.Name))
 	if r.Name == "" {
@@ -282,7 +282,7 @@ func (r *addTagRequest) Valid(_ context.Context) map[string]string {
 
 // -- shares.go ----------------------------------------------------------------
 
-type createShareRequest struct {
+type CreateShareRequest struct {
 	Label         string  `json:"label"`
 	TargetType    string  `json:"target_type"`
 	TargetID      string  `json:"target_id"`
@@ -292,7 +292,7 @@ type createShareRequest struct {
 	AllowDownload *bool   `json:"allow_download"`
 }
 
-func (r *createShareRequest) Valid(_ context.Context) map[string]string {
+func (r *CreateShareRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	validTargetTypes := map[string]bool{"collection": true, "asset": true, "project": true}
 	if !validTargetTypes[r.TargetType] {
@@ -304,7 +304,7 @@ func (r *createShareRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type updateShareRequest struct {
+type UpdateShareRequest struct {
 	Label         *string `json:"label"`
 	Password      *string `json:"password"`       // empty string = remove password
 	ClearPassword *bool   `json:"clear_password"` // explicit flag to remove password
@@ -314,28 +314,28 @@ type updateShareRequest struct {
 	AllowDownload *bool   `json:"allow_download"`
 }
 
-func (r *updateShareRequest) Valid(_ context.Context) map[string]string {
+func (r *UpdateShareRequest) Valid(_ context.Context) map[string]string {
 	return map[string]string{}
 }
 
 // -- shares_public.go ---------------------------------------------------------
 
-type shareAccessRequest struct {
+type ShareAccessRequest struct {
 	Password string `json:"password"`
 }
 
-func (r *shareAccessRequest) Valid(_ context.Context) map[string]string {
+func (r *ShareAccessRequest) Valid(_ context.Context) map[string]string {
 	return map[string]string{}
 }
 
-type createCommentRequest struct {
+type CreateCommentRequest struct {
 	AssetID     string  `json:"asset_id"`
 	AuthorName  string  `json:"author_name"`
 	AuthorEmail *string `json:"author_email"`
 	Body        string  `json:"body"`
 }
 
-func (r *createCommentRequest) Valid(_ context.Context) map[string]string {
+func (r *CreateCommentRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.AuthorName = strings.TrimSpace(r.AuthorName)
 	r.Body = strings.TrimSpace(r.Body)
@@ -353,12 +353,12 @@ func (r *createCommentRequest) Valid(_ context.Context) map[string]string {
 
 // -- variants.go --------------------------------------------------------------
 
-type createVariantRequest struct {
+type CreateVariantRequest struct {
 	Type   string          `json:"type"`
 	Params json.RawMessage `json:"params"`
 }
 
-func (r *createVariantRequest) Valid(_ context.Context) map[string]string {
+func (r *CreateVariantRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Type == "" {
 		p["type"] = "required"
@@ -368,7 +368,7 @@ func (r *createVariantRequest) Valid(_ context.Context) map[string]string {
 
 // -- ingress.go ---------------------------------------------------------------
 
-type ingressRuleReq struct {
+type IngressRuleReq struct {
 	Position int64  `json:"position"`
 	Field    string `json:"field"`
 	Operator string `json:"operator"`
@@ -376,7 +376,7 @@ type ingressRuleReq struct {
 	Action   string `json:"action"`
 }
 
-func (r *ingressRuleReq) Valid(_ context.Context) map[string]string {
+func (r *IngressRuleReq) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Field == "" {
 		p["field"] = "required"
@@ -393,7 +393,7 @@ func (r *ingressRuleReq) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type createIngressSourceReq struct {
+type CreateIngressSourceReq struct {
 	Type            string           `json:"type"`
 	Label           string           `json:"label"`
 	Config          map[string]any   `json:"config"`
@@ -401,10 +401,10 @@ type createIngressSourceReq struct {
 	DestProjectID   *string          `json:"dest_project_id"`
 	Enabled         *bool            `json:"enabled"`
 	PollIntervalMin int64            `json:"poll_interval_min"`
-	Rules           []ingressRuleReq `json:"rules"`
+	Rules           []IngressRuleReq `json:"rules"`
 }
 
-func (r *createIngressSourceReq) Valid(_ context.Context) map[string]string {
+func (r *CreateIngressSourceReq) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Type == "" {
 		p["type"] = "required"
@@ -415,7 +415,7 @@ func (r *createIngressSourceReq) Valid(_ context.Context) map[string]string {
 	return p
 }
 
-type updateIngressSourceReq struct {
+type UpdateIngressSourceReq struct {
 	Label           string           `json:"label"`
 	Config          map[string]any   `json:"config"`
 	DestFolderID    *json.RawMessage `json:"dest_folder_id"`
@@ -424,11 +424,11 @@ type updateIngressSourceReq struct {
 	PollIntervalMin int64            `json:"poll_interval_min"`
 }
 
-func (r *updateIngressSourceReq) Valid(_ context.Context) map[string]string {
+func (r *UpdateIngressSourceReq) Valid(_ context.Context) map[string]string {
 	return map[string]string{}
 }
 
-type reorderRuleEntry struct {
+type ReorderRuleEntry struct {
 	ID       string `json:"id"`
 	Position int64  `json:"position"`
 }
@@ -440,15 +440,9 @@ type ReorderFieldEntry struct {
 	Position int64  `json:"position"`
 }
 
-// reorderFieldEntry is the unexported alias for backward compatibility
-type reorderFieldEntry = ReorderFieldEntry
-
 type ReorderFieldDefinitionsRequest struct {
 	Items []ReorderFieldEntry
 }
-
-// reorderFieldDefinitionsRequest is the unexported alias for backward compatibility
-type reorderFieldDefinitionsRequest = ReorderFieldDefinitionsRequest
 
 // UnmarshalJSON lets the client send a bare JSON array while still satisfying
 // the Validator interface required by decodeAndValidate.
@@ -476,9 +470,6 @@ type CreateFieldDefinitionRequest struct {
 	Position           int64   `json:"position"`
 	InheritFromProject bool    `json:"inherit_from_project"`
 }
-
-// createFieldDefinitionRequest is the unexported alias for backward compatibility
-type createFieldDefinitionRequest = CreateFieldDefinitionRequest
 
 func (r *CreateFieldDefinitionRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
@@ -519,9 +510,6 @@ type UpdateFieldDefinitionRequest struct {
 	InheritFromProject *bool   `json:"inherit_from_project"`
 }
 
-// updateFieldDefinitionRequest is the unexported alias for backward compatibility
-type updateFieldDefinitionRequest = UpdateFieldDefinitionRequest
-
 func (r *UpdateFieldDefinitionRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Name != nil {
@@ -541,9 +529,6 @@ type PatchAssetFieldsRequest struct {
 	Values []FieldValueInput `json:"values"`
 }
 
-// patchAssetFieldsRequest is the unexported alias for backward compatibility
-type patchAssetFieldsRequest = PatchAssetFieldsRequest
-
 func (r *PatchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Values) == 0 {
@@ -556,9 +541,6 @@ type BulkPatchAssetFieldsRequest struct {
 	AssetIDs []string          `json:"asset_ids"`
 	Values   []FieldValueInput `json:"values"`
 }
-
-// bulkPatchAssetFieldsRequest is the unexported alias for backward compatibility
-type bulkPatchAssetFieldsRequest = BulkPatchAssetFieldsRequest
 
 func (r *BulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
@@ -576,9 +558,6 @@ func (r *BulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string
 type PatchProjectFieldsRequest struct {
 	Values []FieldValueInput `json:"values"`
 }
-
-// patchProjectFieldsRequest is the unexported alias for backward compatibility
-type patchProjectFieldsRequest = PatchProjectFieldsRequest
 
 func (r *PatchProjectFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}

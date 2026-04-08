@@ -14,7 +14,7 @@ func TestCreateWorkspace_Success(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonStr(`{"name":"My New Workspace"}`), result.Cookie)
+		th.JsonBody(api.CreateWorkspaceRequest{Name: "My New Workspace"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -44,7 +44,7 @@ func TestCreateWorkspace_MissingName(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonStr(`{"name":""}`), result.Cookie)
+		th.JsonBody(api.CreateWorkspaceRequest{Name: ""}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -59,7 +59,7 @@ func TestCreateWorkspace_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonStr(`{"name":"My Workspace"}`))
+		th.JsonBody(api.CreateWorkspaceRequest{Name: "My Workspace"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -116,7 +116,7 @@ func TestCreateInvite_AsOwner(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonStr(`{"email":"bob@example.com","role":"editor"}`), result.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -144,7 +144,7 @@ func TestCreateInvite_AsEditor_Forbidden(t *testing.T) {
 	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, "editor")
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonStr(`{"email":"carol@example.com","role":"viewer"}`), editorToken)
+		th.JsonBody(api.CreateInviteRequest{Email: "carol@example.com", Role: "viewer"}), editorToken)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -159,7 +159,7 @@ func TestCreateInvite_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonStr(`{"email":"bob@example.com","role":"editor"}`))
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -177,7 +177,7 @@ func TestAcceptInvite_Success(t *testing.T) {
 
 	// Create an invite as owner
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonStr(`{"email":"bob@example.com","role":"editor"}`), owner.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), owner.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil {
 		t.Fatalf("create invite request: %v", err)
@@ -192,8 +192,8 @@ func TestAcceptInvite_Success(t *testing.T) {
 	}
 
 	// Accept the invite
-	acceptBody := `{"token":"` + invite.InviteToken + `","name":"Bob","password":"password123"}`
-	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept", th.JsonStr(acceptBody))
+	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept",
+		th.JsonBody(api.AcceptInviteRequest{Token: invite.InviteToken, Name: "Bob", Password: "password123"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -214,7 +214,7 @@ func TestAcceptInvite_InvalidToken(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept",
-		th.JsonStr(`{"token":"does-not-exist","name":"Bob","password":"password123"}`))
+		th.JsonBody(api.AcceptInviteRequest{Token: "does-not-exist", Name: "Bob", Password: "password123"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -260,7 +260,7 @@ func TestListWorkspaces_MultipleWorkspaces(t *testing.T) {
 
 	// Create a second workspace
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonStr(`{"name":"Second Workspace"}`), result.Cookie)
+		th.JsonBody(api.CreateWorkspaceRequest{Name: "Second Workspace"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("create workspace request: %v", err)
@@ -319,7 +319,7 @@ func TestSwitchWorkspace_Success(t *testing.T) {
 
 	// Switch to second workspace
 	switchReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonStr(`{"workspace_id":"`+secondID+`"}`), result.Cookie)
+		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: secondID}), result.Cookie)
 	switchResp, err := env.App.Test(switchReq)
 	if err != nil {
 		t.Fatalf("switch request: %v", err)
@@ -372,7 +372,7 @@ func TestSwitchWorkspace_NotMember(t *testing.T) {
 	aliceResult := th.Register(t, env, "Alice2", "alice2@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonStr(`{"workspace_id":"`+aliceResult.WorkspaceID+`"}`), bob.Cookie)
+		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: aliceResult.WorkspaceID}), bob.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -387,7 +387,7 @@ func TestSwitchWorkspace_InvalidWorkspaceID(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonStr(`{"workspace_id":"does-not-exist"}`), result.Cookie)
+		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: "does-not-exist"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -401,7 +401,7 @@ func TestSwitchWorkspace_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonStr(`{"workspace_id":"anything"}`))
+		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: "anything"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -418,7 +418,7 @@ func TestAcceptInvite_ExpiredInvite(t *testing.T) {
 
 	// Create an invite
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonStr(`{"email":"bob@example.com","role":"editor"}`), owner.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), owner.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil {
 		t.Fatalf("create invite request: %v", err)
@@ -438,8 +438,8 @@ func TestAcceptInvite_ExpiredInvite(t *testing.T) {
 	}
 
 	// Attempt to accept the expired invite
-	acceptBody := `{"token":"` + invite.InviteToken + `","name":"Bob","password":"password123"}`
-	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept", th.JsonStr(acceptBody))
+	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept",
+		th.JsonBody(api.AcceptInviteRequest{Token: invite.InviteToken, Name: "Bob", Password: "password123"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {

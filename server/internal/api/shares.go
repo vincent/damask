@@ -70,7 +70,7 @@ func shareToResponse(s dbgen.Share, baseURL string) ShareResponse {
 func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	body, ok := decodeAndValidate(c, &createShareRequest{})
+	body, ok := decodeAndValidate(c, &CreateShareRequest{})
 	if !ok {
 		return nil
 	}
@@ -245,7 +245,7 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load share")
 	}
 
-	body, ok := decodeAndValidate(c, &updateShareRequest{})
+	body, ok := decodeAndValidate(c, &UpdateShareRequest{})
 	if !ok {
 		return nil
 	}
