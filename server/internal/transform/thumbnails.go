@@ -55,7 +55,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 }
 
 func ThumbnailFromImage(rc io.ReadCloser) ([]byte, string, error) {
-	data, _, err := Resize(rc, ResizeParams{
+	data, _, err := ImageResize(rc, ResizeParams{
 		Width:   400,
 		Height:  400,
 		Fit:     "contain",
@@ -75,7 +75,7 @@ func ThumbnailFromVideo(ctx context.Context, rc io.ReadCloser, mimeType string) 
 		return nil, "", err
 	}
 	defer cleanup()
-	data, err := ExtractVideoThumbnail(ctx, tmpPath, VideoThumbnailParams{Timestamp: 1.0})
+	data, err := VideoExtractThumbnail(ctx, tmpPath, VideoThumbnailParams{Timestamp: 1.0})
 	if err != nil {
 		return nil, "", err
 	}

@@ -9,6 +9,7 @@
   import { X, Download, Inbox, Trash } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import ResolutionOptions from './ResolutionOptions.svelte'
 
   interface Props {
     asset: Asset | null
@@ -615,10 +616,7 @@
               <label for="variant-transcode-resolution" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Resolution <span class="text-gray-400">(optional)</span></label>
               <select id="variant-transcode-resolution" bind:value={transcodeResolution}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                <option value="">Original</option>
-                <option value="1080p">1080p</option>
-                <option value="720p">720p</option>
-                <option value="480p">480p</option>
+                <ResolutionOptions />
               </select>
             </div>
 

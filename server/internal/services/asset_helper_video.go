@@ -15,7 +15,7 @@ func (h VideoHandler) Supports(mime string) bool {
 }
 
 func (h VideoHandler) ExtractMeta(ctx context.Context, filePath string) (FileMeta, error) {
-	res, err := transform.ExtractVideoResolution(ctx, filePath)
+	res, err := transform.VideoExtractResolution(ctx, filePath)
 
 	var width, height *int64
 	if err == nil {
@@ -30,4 +30,3 @@ func (h VideoHandler) ExtractMeta(ctx context.Context, filePath string) (FileMet
 		Height: height,
 	}, nil
 }
-

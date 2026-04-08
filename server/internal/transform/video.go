@@ -29,10 +29,10 @@ type TranscodeParams struct {
 	StripAudio bool   `json:"strip_audio"`
 }
 
-// ExtractVideoResolution runs ffprobe to extract a single frame from a video file.
+// VideoExtractResolution runs ffprobe to extract a single frame from a video file.
 // srcPath must be a filesystem path to the source video.
 // Returns VideoResolution.
-func ExtractVideoResolution(ctx context.Context, srcPath string) (*VideoResolution, error) {
+func VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResolution, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -72,10 +72,10 @@ func ExtractVideoResolution(ctx context.Context, srcPath string) (*VideoResoluti
 	return &VideoResolution{Width: width, Height: height}, nil
 }
 
-// ExtractVideoThumbnail runs ffmpeg to extract a single frame from a video file.
+// VideoExtractThumbnail runs ffmpeg to extract a single frame from a video file.
 // srcPath must be a filesystem path to the source video.
 // Returns JPEG bytes.
-func ExtractVideoThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error) {
+func VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error) {
 	if len(strings.TrimSpace(srcPath)) == 0 {
 		return nil, fmt.Errorf("source path is empty")
 	}
@@ -115,9 +115,9 @@ func ExtractVideoThumbnail(ctx context.Context, srcPath string, p VideoThumbnail
 	return buf.Bytes(), nil
 }
 
-// TranscodeVideo transcodes a video using ffmpeg, writing the result to dstPath.
+// VideoTranscode transcodes a video using ffmpeg, writing the result to dstPath.
 // Both srcPath and dstPath must be filesystem paths.
-func TranscodeVideo(ctx context.Context, srcPath, dstPath string, p TranscodeParams) error {
+func VideoTranscode(ctx context.Context, srcPath, dstPath string, p TranscodeParams) error {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 
@@ -144,7 +144,7 @@ func TranscodeVideo(ctx context.Context, srcPath, dstPath string, p TranscodePar
 	}
 
 	// Resolution scaling
-	if scale := resolutionScale(p.Resolution); scale != "" {
+	if scale := ffmpegResolutionScale(p.Resolution); scale != "" {
 		args = append(args, "-vf", "scale="+scale)
 	}
 
@@ -160,8 +160,8 @@ func TranscodeVideo(ctx context.Context, srcPath, dstPath string, p TranscodePar
 	return nil
 }
 
-// resolutionScale returns the ffmpeg scale filter value for a named resolution.
-func resolutionScale(res string) string {
+// ffmpegResolutionScale returns the ffmpeg scale filter value for a named resolution.
+func ffmpegResolutionScale(res string) string {
 	switch res {
 	case "1080p":
 		return "-2:1080"
@@ -169,23 +169,15 @@ func resolutionScale(res string) string {
 		return "-2:720"
 	case "480p":
 		return "-2:480"
+	case "tiktok", "instagram", "youtube_shorts":
+		return "1080:1920"
+	case "youtube_standard":
+		return "1920:1080"
+	case "facebook":
+		return "1080:1080"
+	case "linkedin":
+		return "1920:1080"
 	default:
 		return ""
-	}
-}
-
-// FFmpegAvailable reports whether ffmpeg is in PATH.
-func FFmpegAvailable() bool {
-	_, err := exec.LookPath("ffmpeg")
-	return err == nil
-}
-
-// TranscodeExtension returns the output file extension for the given format.
-func TranscodeExtension(format string) string {
-	switch format {
-	case "webm":
-		return ".webm"
-	default:
-		return ".mp4"
 	}
 }

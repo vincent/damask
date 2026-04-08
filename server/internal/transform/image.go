@@ -68,8 +68,8 @@ type PreviewParams struct {
 	Format  string `json:"format"`
 }
 
-// Watermark reads an image, resizes it according to params, and returns encoded bytes.
-func Watermark(src io.Reader, p WatermarkParams) ([]byte, string, error) {
+// ImageWatermark reads an image, resizes it according to params, and returns encoded bytes.
+func ImageWatermark(src io.Reader, p WatermarkParams) ([]byte, string, error) {
 	if p.Opacity <= 0 || p.Opacity > 100 {
 		p.Opacity = 50
 	}
@@ -102,8 +102,8 @@ func overlayWatermark(originalImg, watermarkImg image.Image, opacity float64) im
 	return imaging.Overlay(originalImg, watermarkResized, image.Pt(offsetX, offsetY), opacity)
 }
 
-// Resize reads an image, resizes it according to params, and returns encoded bytes.
-func Resize(src io.Reader, p ResizeParams) ([]byte, string, error) {
+// ImageResize reads an image, resizes it according to params, and returns encoded bytes.
+func ImageResize(src io.Reader, p ResizeParams) ([]byte, string, error) {
 	if p.Width <= 0 && p.Height <= 0 {
 		return nil, "", errors.New("width or height must be > 0")
 	}
@@ -131,8 +131,8 @@ func Resize(src io.Reader, p ResizeParams) ([]byte, string, error) {
 	return encodeImage(result, p.Format, p.Quality)
 }
 
-// Convert reads an image and re-encodes it in the target format.
-func Convert(src io.Reader, p ConvertParams) ([]byte, string, error) {
+// ImageConvert reads an image and re-encodes it in the target format.
+func ImageConvert(src io.Reader, p ConvertParams) ([]byte, string, error) {
 	if p.Quality <= 0 || p.Quality > 100 {
 		p.Quality = 85
 	}
@@ -143,8 +143,8 @@ func Convert(src io.Reader, p ConvertParams) ([]byte, string, error) {
 	return encodeImage(img, p.Format, p.Quality)
 }
 
-// Crop reads an image, crops the specified rectangle, and returns encoded bytes.
-func Crop(src io.Reader, p CropParams) ([]byte, string, error) {
+// ImageCrop reads an image, crops the specified rectangle, and returns encoded bytes.
+func ImageCrop(src io.Reader, p CropParams) ([]byte, string, error) {
 	if p.Width <= 0 || p.Height <= 0 {
 		return nil, "", errors.New("width and height must be > 0")
 	}
@@ -159,8 +159,8 @@ func Crop(src io.Reader, p CropParams) ([]byte, string, error) {
 	return encodeImage(cropped, p.Format, p.Quality)
 }
 
-// SmartCrop finds the most visually interesting region of src at the given size.
-func SmartCrop(src io.Reader, p SmartCropParams) ([]byte, string, error) {
+// ImageSmartCrop finds the most visually interesting region of src at the given size.
+func ImageSmartCrop(src io.Reader, p SmartCropParams) ([]byte, string, error) {
 	if p.Width <= 0 || p.Height <= 0 {
 		return nil, "", errors.New("width and height must be > 0")
 	}
@@ -188,8 +188,8 @@ func SmartCrop(src io.Reader, p SmartCropParams) ([]byte, string, error) {
 	return encodeImage(result, p.Format, p.Quality)
 }
 
-// Preview generates a small in-memory preview (max 800px) for the UI.
-func Preview(src io.Reader, p PreviewParams) ([]byte, string, error) {
+// ImagePreview generates a small in-memory preview (max 800px) for the UI.
+func ImagePreview(src io.Reader, p PreviewParams) ([]byte, string, error) {
 	if p.Quality <= 0 || p.Quality > 100 {
 		p.Quality = 80
 	}
@@ -264,16 +264,4 @@ func ensureDimensions(img image.Image, w, h int) (int, int) {
 		h = img.Bounds().Dy()
 	}
 	return w, h
-}
-
-// FormatExtension maps a format name to a file extension.
-func FormatExtension(format string) string {
-	switch strings.ToLower(format) {
-	case "png":
-		return ".png"
-	case "tiff":
-		return ".tiff"
-	default:
-		return ".jpg"
-	}
 }

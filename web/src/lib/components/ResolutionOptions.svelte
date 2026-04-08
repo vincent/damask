@@ -1,0 +1,10 @@
+<option value="">Original</option>
+<option value="1080p">1080p</option>
+<option value="720p">720p</option>
+<option value="480p">480p</option>
+<option value="tiktok">TikTok 1080x1920</option>
+<option value="instagram">Instagram 1080x1920</option>
+<option value="youtube_shorts">YouTube Shorts 1080x1920</option>
+<option value="youtube_standard">YouTube Standard 1920x1080</option>
+<option value="facebook">Facebook 1080x1080</option>
+<option value="linkedin">LinkedIn 1920x1080</option>

@@ -184,14 +184,14 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	}
 
 	payload, _ := json.Marshal(jobs.VariantJobPayload{
-		AssetID:        asset.ID,
-		WorkspaceID:    asset.WorkspaceID,
-		VersionID:      currentVer.ID,
-		VersionNum:     currentVer.VersionNum,
-		StorageKey:     currentVer.StorageKey,
-		MimeType:       currentVer.MimeType,
-		Type:           body.Type,
-		Params:         params,
+		AssetID:     asset.ID,
+		WorkspaceID: asset.WorkspaceID,
+		VersionID:   currentVer.ID,
+		VersionNum:  currentVer.VersionNum,
+		StorageKey:  currentVer.StorageKey,
+		MimeType:    currentVer.MimeType,
+		Type:        body.Type,
+		Params:      params,
 	})
 
 	job, err := s.queue.Enqueue(c.RequestCtx(), claims.WorkspaceID, body.Type, string(payload))
@@ -443,7 +443,7 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	}
 	defer rc.Close()
 
-	data, ct, err := transform.Preview(rc, transform.PreviewParams{
+	data, ct, err := transform.ImagePreview(rc, transform.PreviewParams{
 		Width:   w,
 		Height:  h,
 		Fit:     fit,

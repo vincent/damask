@@ -67,7 +67,7 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 	}
 	defer cleanup()
 
-	data, err := transform.ExtractVideoThumbnail(ctx, tmpPath, params)
+	data, err := transform.VideoExtractThumbnail(ctx, tmpPath, params)
 	if err != nil {
 		return fmt.Errorf("extract thumbnail: %w", err)
 	}
@@ -131,31 +131,31 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		if err := json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse resize params: %w", err)
 		}
-		data, contentType, err = transform.Resize(rc, params)
+		data, contentType, err = transform.ImageResize(rc, params)
 	case queue.JobTypeImageConvert:
 		var params transform.ConvertParams
 		if err := json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse convert params: %w", err)
 		}
-		data, contentType, err = transform.Convert(rc, params)
+		data, contentType, err = transform.ImageConvert(rc, params)
 	case queue.JobTypeImageCrop:
 		var params transform.CropParams
 		if err := json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse crop params: %w", err)
 		}
-		data, contentType, err = transform.Crop(rc, params)
+		data, contentType, err = transform.ImageCrop(rc, params)
 	case queue.JobTypeImageWatermark:
 		var params transform.WatermarkParams
 		if err := json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
-		data, contentType, err = transform.Watermark(rc, params)
+		data, contentType, err = transform.ImageWatermark(rc, params)
 	case queue.JobTypeImageSmartCrop:
 		var params transform.SmartCropParams
 		if err := json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse smartcrop params: %w", err)
 		}
-		data, contentType, err = transform.SmartCrop(rc, params)
+		data, contentType, err = transform.ImageSmartCrop(rc, params)
 	default:
 		return fmt.Errorf("unknown image job type: %s", job.Type)
 	}
@@ -219,11 +219,11 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 	}
 	defer cleanSrc()
 
-	ext := transform.TranscodeExtension(params.Format)
+	ext := transform.FormatExtension(params.Format)
 	dstPath := srcPath + "_out" + ext
 	defer os.Remove(dstPath) //nolint:errcheck
 
-	if err := transform.TranscodeVideo(ctx, srcPath, dstPath, params); err != nil {
+	if err := transform.VideoTranscode(ctx, srcPath, dstPath, params); err != nil {
 		return fmt.Errorf("transcode: %w", err)
 	}
 

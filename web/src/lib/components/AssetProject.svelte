@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tagApi, type Asset, type Project } from '$lib/api'
+  import { assetApi, type Asset, type Project } from '$lib/api'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import ColorDot from './ui/ColorDot.svelte'
@@ -17,7 +17,7 @@
   async function assignProject(projectId: string | null) {
     if (!asset) return
     try {
-      await tagApi.bulkProject([asset.id], projectId)
+      await assetApi.bulkProject([asset.id], projectId)
       showProjectPicker = false
       onprojectchanged()
     } catch { /* silently ignore */ }

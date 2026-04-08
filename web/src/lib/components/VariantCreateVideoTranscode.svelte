@@ -1,8 +1,8 @@
 <script lang="ts">
+    import { type Asset } from '$lib/api'
     import { authStore } from '$lib/stores/auth.svelte'
     import Button from '$lib/components/ui/Button.svelte'
-    import { type Asset } from '$lib/api'
-    import Spinner from './ui/Spinner.svelte'
+    import ResolutionOptions from './ResolutionOptions.svelte';
     
     interface Props {
         asset: Asset
@@ -24,7 +24,7 @@
 <div class="space-y-6">
     <div class="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Transcode Video</h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400">Heavy operation — max 2 concurrent transcodes. Requires ffmpeg.</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Heavy operation. Requires ffmpeg.</p>
 
         <div>
         <label for="variant-{kind}-format" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Output Format</label>
@@ -44,10 +44,7 @@
         <label for="variant-{kind}-resolution" class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Resolution <span class="text-gray-400">(optional)</span></label>
             <select id="variant-{kind}-resolution" bind:value={transcodeResolution}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
-                <option value="">Original</option>
-                <option value="1080p">1080p</option>
-                <option value="720p">720p</option>
-                <option value="480p">480p</option>
+                <ResolutionOptions />
             </select>
         </div>
         
