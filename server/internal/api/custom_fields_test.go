@@ -256,7 +256,7 @@ func TestFieldDefinitions_Auth(t *testing.T) {
 	// Viewer cannot create
 	viewerToken := th.MintEditorToken(t, env, u.WorkspaceID, "viewer")
 	resp, _ = env.App.Test(th.BearerRequest(http.MethodPost, "/api/v1/field-definitions",
-		th.JsonStr(`{"scope":"asset","name":"X","key":"x","field_type":"text"}`), viewerToken))
+		th.JsonBody(api.CreateFieldDefinitionRequest{Scope: "asset", Name: "X", Key: "x", FieldType: "text"}), viewerToken))
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("viewer create: expected 403, got %d", resp.StatusCode)
 	}
@@ -532,7 +532,7 @@ func TestProjectFieldValues(t *testing.T) {
 
 	// Create a project
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonStr(`{"name":"Test Project"}`), u.Cookie))
+		th.JsonBody(api.CreateProjectRequest{Name: "Test Project"}), u.Cookie))
 	var proj map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&proj)
 	projectID := proj["id"].(string)
@@ -578,7 +578,7 @@ func TestProjectFieldValues_WrongScope(t *testing.T) {
 
 	// Create a project
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonStr(`{"name":"Test"}`), u.Cookie))
+		th.JsonBody(api.CreateProjectRequest{Name: "Test"}), u.Cookie))
 	var proj map[string]interface{}
 	_ = json.NewDecoder(resp.Body).Decode(&proj)
 	projectID := proj["id"].(string)

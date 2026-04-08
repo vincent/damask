@@ -176,7 +176,7 @@ func TestGetAsset(t *testing.T) {
 	uploadReq := th.BuildUploadRequest(t, "test.jpg", th.MakeJPEG(50, 50), owner.Cookie)
 	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
 	var uploaded api.AssetResponse
-	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
+	_ = json.NewDecoder(uploadResp.Body).Decode(&uploaded)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
 	resp, err := env.App.Test(req)
@@ -188,7 +188,7 @@ func TestGetAsset(t *testing.T) {
 	}
 
 	var got api.AssetResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.ID != uploaded.ID {
 		t.Errorf("id mismatch: got %q want %q", got.ID, uploaded.ID)
 	}
@@ -211,7 +211,7 @@ func TestGetAssetFile(t *testing.T) {
 	uploadReq := th.BuildUploadRequest(t, "file.jpg", jpegData, owner.Cookie)
 	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
 	var uploaded api.AssetResponse
-	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
+	_ = json.NewDecoder(uploadResp.Body).Decode(&uploaded)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+uploaded.ID+"/file", nil, owner.Cookie)
 	resp, err := env.App.Test(req)
@@ -277,7 +277,7 @@ func TestDeleteAsset(t *testing.T) {
 	uploadReq := th.BuildUploadRequest(t, "del.jpg", th.MakeJPEG(10, 10), owner.Cookie)
 	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
 	var uploaded api.AssetResponse
-	json.NewDecoder(uploadResp.Body).Decode(&uploaded) //nolint:errcheck
+	_ = json.NewDecoder(uploadResp.Body).Decode(&uploaded)
 
 	delReq := th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+uploaded.ID, nil, owner.Cookie)
 	resp, err := env.App.Test(delReq)
@@ -308,7 +308,7 @@ func TestListAssets_Sort(t *testing.T) {
 			t.Fatalf("upload %dx%d: status %d err %v", s, s, resp.StatusCode, err)
 		}
 		var a api.AssetResponse
-		json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
+		_ = json.NewDecoder(resp.Body).Decode(&a)
 		time.Sleep(10 * time.Millisecond)
 	}
 
@@ -361,7 +361,7 @@ func TestListAssets_Sort(t *testing.T) {
 				t.Fatalf("expected 200, got %d", resp.StatusCode)
 			}
 			var result api.AssetListResponse
-			json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
+			_ = json.NewDecoder(resp.Body).Decode(&result)
 			if len(result.Assets) != 3 {
 				t.Fatalf("expected 3 assets, got %d", len(result.Assets))
 			}
@@ -394,7 +394,7 @@ func TestSearchAssets(t *testing.T) {
 	}
 
 	var result api.AssetListResponse
-	json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 	if len(result.Assets) != 1 {
 		t.Fatalf("expected 1 search result, got %d", len(result.Assets))
 	}

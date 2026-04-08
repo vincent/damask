@@ -63,7 +63,10 @@ func TestShareAccess_NoPassword(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	token := accessShare(t, env, sh.ID, "")
 	if token == "" {
@@ -75,7 +78,12 @@ func TestShareAccess_WithCorrectPassword(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"s3cr3t"}`, p.ID))
+	password := "s3cr3t"
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+		Password:   &password,
+	})
 
 	token := accessShare(t, env, sh.ID, "s3cr3t")
 	if token == "" {
@@ -87,9 +95,14 @@ func TestShareAccess_WrongPassword(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"s3cr3t"}`, p.ID))
+	password := "s3cr3t"
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+		Password:   &password,
+	})
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonStr(`{"password":"wrong"}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: "password"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -101,9 +114,14 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"s3cr3t"}`, p.ID))
+	password := "s3cr3t"
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+		Password:   &password,
+	})
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonStr(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -113,7 +131,7 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 
 func TestShareAccess_NotFound(t *testing.T) {
 	env := th.SetupTestApp(t)
-	req := httptest.NewRequest(http.MethodPost, "/shared/nonexistent/access", th.JsonStr(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/nonexistent/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
@@ -125,13 +143,16 @@ func TestShareAccess_Revoked(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	// Revoke the share
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
 	env.App.Test(req) //nolint:errcheck
 
-	req2 := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonStr(`{}`))
+	req2 := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
 	req2.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req2)
 	if resp.StatusCode != http.StatusNotFound {
@@ -145,7 +166,11 @@ func TestShareInfo_NoPassword(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"label":"My Gallery"}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		Label:      "My Gallery",
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/shared/"+sh.ID+"/access", nil)
 	resp, err := env.App.Test(req)
@@ -171,7 +196,12 @@ func TestShareInfo_WithPassword(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"s3cr3t"}`, p.ID))
+	password := "s3cr3t"
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+		Password:   &password,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/shared/"+sh.ID+"/access", nil)
 	resp, _ := env.App.Test(req)
@@ -200,12 +230,17 @@ func TestShareAccess_Expired(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"expires_in_days":7}`, p.ID))
+	expiresInDays := 7
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "project",
+		TargetID:      p.ID,
+		ExpiresInDays: &expiresInDays,
+	})
 
 	// Force expiry
 	env.SqlDB.Exec(`UPDATE shares SET expires_at = datetime('now', '-1 day') WHERE id = ?`, sh.ID) //nolint:errcheck
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonStr(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusGone {
@@ -217,7 +252,10 @@ func TestShareAccess_IncrementsViewCount(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	if sh.ViewCount != 0 {
 		t.Fatalf("expected view_count = 0, got %d", sh.ViewCount)
@@ -229,7 +267,7 @@ func TestShareAccess_IncrementsViewCount(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var got api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.ViewCount != 1 {
 		t.Errorf("expected view_count = 1 after access, got %d", got.ViewCount)
 	}
@@ -247,7 +285,10 @@ func TestShareListAssets_Project(t *testing.T) {
 		t.Fatalf("assign asset to project: %v", err)
 	}
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets", "", token)
@@ -265,7 +306,10 @@ func TestShareListAssets_SingleAsset(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "asset",
+		TargetID:   assetID,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets", "", token)
@@ -276,7 +320,7 @@ func TestShareListAssets_SingleAsset(t *testing.T) {
 	var body struct {
 		Assets []api.AssetResponse `json:"assets"`
 	}
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if len(body.Assets) != 1 || body.Assets[0].ID != assetID {
 		t.Errorf("expected 1 asset with id %s, got %v", assetID, body.Assets)
 	}
@@ -286,7 +330,10 @@ func TestShareListAssets_NoToken(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/shared/"+sh.ID+"/assets", nil)
 	resp, _ := env.App.Test(req)
@@ -300,8 +347,14 @@ func TestShareListAssets_WrongShareToken(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p1 := createProject(t, env, owner.Cookie, "P1", "#000")
 	p2 := createProject(t, env, owner.Cookie, "P2", "#000")
-	sh1 := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p1.ID))
-	sh2 := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p2.ID))
+	sh1 := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p1.ID,
+	})
+	sh2 := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p2.ID,
+	})
 	token1 := accessShare(t, env, sh1.ID, "")
 
 	// Use sh1 token on sh2 path
@@ -317,7 +370,10 @@ func TestShareGetAsset_Success(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "asset",
+		TargetID:   assetID,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID, "", token)
@@ -326,7 +382,7 @@ func TestShareGetAsset_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var got api.AssetResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.ID != assetID {
 		t.Errorf("asset id mismatch: got %s", got.ID)
 	}
@@ -339,7 +395,10 @@ func TestShareGetAsset_NotInShare(t *testing.T) {
 	assetID2 := uploadTestAsset(t, env, owner)
 
 	// Share only targets assetID1
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID1))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "asset",
+		TargetID:   assetID1,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID2, "", token)
@@ -354,7 +413,12 @@ func TestShareGetAssetFile_AllowDownloadFalse(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q,"allow_download":false}`, assetID))
+	allowDownload := false
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowDownload: &allowDownload,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID+"/file", "", token)
@@ -369,7 +433,12 @@ func TestShareGetAssetFile_AllowDownloadTrue(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q,"allow_download":true}`, assetID))
+	allowDownload := true
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowDownload: &allowDownload,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+assetID+"/file", "", token)
@@ -397,7 +466,12 @@ func TestShareGetAssetFile_ServesCurrentVersion(t *testing.T) {
 		t.Fatalf("expected 201 for v2 upload, got %d: %s", vResp.StatusCode, b)
 	}
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q,"allow_download":true}`, asset.ID))
+	allowDownload := true
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      asset.ID,
+		AllowDownload: &allowDownload,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	req := shareRequest(http.MethodGet, "/shared/"+sh.ID+"/assets/"+asset.ID+"/file", "", token)
@@ -423,7 +497,10 @@ func TestShareContentRecheck_RevokedMidSession(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	// Obtain a valid token
 	token := accessShare(t, env, sh.ID, "")
@@ -447,8 +524,11 @@ func TestShareCreateComment_Success(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(
-		`{"target_type":"asset","target_id":%q,"allow_comments":true}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Sarah","body":"Looks great!"}`, assetID)
@@ -458,7 +538,7 @@ func TestShareCreateComment_Success(t *testing.T) {
 		t.Fatalf("expected 201, got %d", resp.StatusCode)
 	}
 	var got api.CommentResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.AuthorName != "Sarah" {
 		t.Errorf("author_name = %q, want Sarah", got.AuthorName)
 	}
@@ -476,7 +556,10 @@ func TestShareCreateComment_CommentsNotAllowed(t *testing.T) {
 	assetID := uploadTestAsset(t, env, owner)
 
 	// allow_comments defaults to false
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "asset",
+		TargetID:   assetID,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Sarah","body":"Hi"}`, assetID)
@@ -492,8 +575,11 @@ func TestShareCreateComment_MissingAuthorName(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(
-		`{"target_type":"asset","target_id":%q,"allow_comments":true}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"body":"Hi"}`, assetID)
@@ -510,8 +596,11 @@ func TestShareCreateComment_AssetNotInShare(t *testing.T) {
 	assetID1 := uploadTestAsset(t, env, owner)
 	assetID2 := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(
-		`{"target_type":"asset","target_id":%q,"allow_comments":true}`, assetID1))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID1,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Sarah","body":"Hi"}`, assetID2)
@@ -534,8 +623,11 @@ func TestShareListComments_Grouped(t *testing.T) {
 		t.Fatalf("assign assets to project: %v", err)
 	}
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(
-		`{"target_type":"project","target_id":%q,"allow_comments":true}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "project",
+		TargetID:      p.ID,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	// Post one comment on each asset
@@ -559,7 +651,7 @@ func TestShareListComments_Grouped(t *testing.T) {
 		Comments []api.CommentResponse `json:"comments"`
 	}
 	var groups []group
-	json.NewDecoder(resp.Body).Decode(&groups) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&groups)
 	if len(groups) != 2 {
 		t.Errorf("expected 2 groups, got %d", len(groups))
 	}
@@ -570,8 +662,11 @@ func TestShareListAssetComments(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(
-		`{"target_type":"asset","target_id":%q,"allow_comments":true}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	// Post two comments
@@ -587,7 +682,7 @@ func TestShareListAssetComments(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var items []api.CommentResponse
-	json.NewDecoder(resp.Body).Decode(&items) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&items)
 	if len(items) != 2 {
 		t.Errorf("expected 2 comments, got %d", len(items))
 	}
@@ -600,8 +695,11 @@ func TestOwnerListComments_Success(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(
-		`{"target_type":"asset","target_id":%q,"allow_comments":true}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Client","body":"Feedback"}`, assetID)
@@ -614,7 +712,7 @@ func TestOwnerListComments_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var items []api.CommentResponse
-	json.NewDecoder(resp.Body).Decode(&items) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&items)
 	if len(items) != 1 {
 		t.Errorf("expected 1 comment, got %d", len(items))
 	}
@@ -625,7 +723,10 @@ func TestOwnerListComments_WrongWorkspace(t *testing.T) {
 	owner1 := th.Register(t, env, "Owner1", "owner1@example.com", "password123")
 	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
 	p := createProject(t, env, owner1.Cookie, "P", "#000")
-	sh := createShare(t, env, owner1.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner1.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID+"/comments", nil, owner2.Cookie)
 	resp, _ := env.App.Test(req)
@@ -639,8 +740,11 @@ func TestOwnerDeleteComment_Success(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner)
 
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(
-		`{"target_type":"asset","target_id":%q,"allow_comments":true}`, assetID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	// Post a comment
@@ -648,7 +752,7 @@ func TestOwnerDeleteComment_Success(t *testing.T) {
 	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.App.Test(req)
 	var comment api.CommentResponse
-	json.NewDecoder(resp.Body).Decode(&comment) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&comment)
 
 	// Owner deletes the comment
 	delReq := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID+"/comments/"+comment.ID, nil, owner.Cookie)
@@ -661,7 +765,7 @@ func TestOwnerDeleteComment_Success(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID+"/comments", nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var items []api.CommentResponse
-	json.NewDecoder(listResp.Body).Decode(&items) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&items)
 	if len(items) != 0 {
 		t.Errorf("expected 0 comments after delete, got %d", len(items))
 	}
@@ -673,15 +777,18 @@ func TestOwnerDeleteComment_WrongWorkspace(t *testing.T) {
 	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
 	assetID := uploadTestAsset(t, env, owner1)
 
-	sh := createShare(t, env, owner1.Cookie, fmt.Sprintf(
-		`{"target_type":"asset","target_id":%q,"allow_comments":true}`, assetID))
+	sh := createShare(t, env, owner1.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      assetID,
+		AllowComments: true,
+	})
 	token := accessShare(t, env, sh.ID, "")
 
 	body := fmt.Sprintf(`{"asset_id":%q,"author_name":"Client","body":"Feedback"}`, assetID)
 	req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
 	resp, _ := env.App.Test(req)
 	var comment api.CommentResponse
-	json.NewDecoder(resp.Body).Decode(&comment) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&comment)
 
 	// owner2 tries to delete it
 	delReq := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID+"/comments/"+comment.ID, nil, owner2.Cookie)

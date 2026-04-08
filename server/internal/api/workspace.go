@@ -69,7 +69,7 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	qtx := s.db.WithTx(tx)
 
@@ -141,7 +141,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	qtx := s.db.WithTx(tx)
 

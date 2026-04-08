@@ -21,7 +21,7 @@ func uploadTestJPEG(t *testing.T, env *th.TestEnv, cookie *http.Cookie, filename
 		t.Fatalf("upload: %v", err)
 	}
 	var a api.AssetResponse
-	json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&a)
 	return a.ID
 }
 
@@ -31,7 +31,7 @@ func TestRenameAsset_Success(t *testing.T) {
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
-		th.JsonStr(`{"name":"renamed"}`), owner.Cookie)
+		th.JsonBody(api.RenameAssetRequest{Name: "renamed"}), owner.Cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -57,7 +57,7 @@ func TestRenameAsset_ExtensionPreserved(t *testing.T) {
 
 	// Client sends stem with extension included — backend must not duplicate it.
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
-		th.JsonStr(`{"name":"newname.jpg"}`), owner.Cookie)
+		th.JsonBody(api.RenameAssetRequest{Name: "newname.jpg"}), owner.Cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -83,7 +83,7 @@ func TestRenameAsset_NoOp(t *testing.T) {
 
 	// Sending the same stem as the current name — should return 200 with no change.
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
-		th.JsonStr(`{"name":"photo"}`), owner.Cookie)
+		th.JsonBody(api.RenameAssetRequest{Name: "photo"}), owner.Cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -108,7 +108,7 @@ func TestRenameAsset_Unauthenticated(t *testing.T) {
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
-		th.JsonStr(`{"name":"new"}`), nil)
+		th.JsonBody(api.RenameAssetRequest{Name: "new"}), nil)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -125,7 +125,7 @@ func TestRenameAsset_ViewerForbidden(t *testing.T) {
 
 	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
 	req := th.BearerRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
-		th.JsonStr(`{"name":"new"}`), viewerToken)
+		th.JsonBody(api.RenameAssetRequest{Name: "new"}), viewerToken)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -141,7 +141,7 @@ func TestRenameAsset_EmptyName(t *testing.T) {
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
-		th.JsonStr(`{"name":"   "}`), owner.Cookie)
+		th.JsonBody(api.RenameAssetRequest{Name: "   "}), owner.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -155,7 +155,7 @@ func TestRenameAsset_NotFound(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/nonexistent/rename",
-		th.JsonStr(`{"name":"new"}`), owner.Cookie)
+		th.JsonBody(api.RenameAssetRequest{Name: "new"}), owner.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)

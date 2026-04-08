@@ -4,17 +4,16 @@ import (
 	"damask/server/internal/api"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 )
 
 // createShare is a test helper that POSTs to /api/v1/shares.
-func createShare(t *testing.T, env *th.TestEnv, cookie *http.Cookie, body string) api.ShareResponse {
+func createShare(t *testing.T, env *th.TestEnv, cookie *http.Cookie, req api.CreateShareRequest) api.ShareResponse {
 	t.Helper()
-	req := th.AuthRequest(http.MethodPost, "/api/v1/shares", strings.NewReader(body), cookie)
-	resp, err := env.App.Test(req)
+	httpReq := th.AuthRequest(http.MethodPost, "/api/v1/shares", th.JsonBody(req), cookie)
+	resp, err := env.App.Test(httpReq)
 	if err != nil {
 		t.Fatalf("create share request: %v", err)
 	}
@@ -34,8 +33,13 @@ func TestCreateShare_ProjectTarget(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "Nike Q3", "#ff0000")
 
-	body := fmt.Sprintf(`{"label":"Nike Q3 delivery","target_type":"project","target_id":%q,"allow_download":true}`, p.ID)
-	sh := createShare(t, env, owner.Cookie, body)
+	allowDownload := true
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		Label:         "Nike Q3 delivery",
+		TargetType:    "project",
+		TargetID:      p.ID,
+		AllowDownload: &allowDownload,
+	})
 
 	if sh.TargetType != "project" {
 		t.Errorf("target_type = %q, want project", sh.TargetType)
@@ -64,8 +68,10 @@ func TestCreateShare_AssetTarget(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
-	body := fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID)
-	sh := createShare(t, env, owner.Cookie, body)
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "asset",
+		TargetID:   assetID,
+	})
 
 	if sh.TargetType != "asset" {
 		t.Errorf("target_type = %q, want asset", sh.TargetType)
@@ -79,8 +85,12 @@ func TestCreateShare_WithPassword(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "Secret", "#000")
 
-	body := fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"hunter2"}`, p.ID)
-	sh := createShare(t, env, owner.Cookie, body)
+	password := "hunter2"
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+		Password:   &password,
+	})
 
 	if !sh.HasPassword {
 		t.Errorf("expected has_password = true")
@@ -91,8 +101,12 @@ func TestCreateShare_WithExpiry(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "Expiring", "#000")
 
-	body := fmt.Sprintf(`{"target_type":"project","target_id":%q,"expires_in_days":14}`, p.ID)
-	sh := createShare(t, env, owner.Cookie, body)
+	expiresInDays := 14
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "project",
+		TargetID:      p.ID,
+		ExpiresInDays: &expiresInDays,
+	})
 
 	if sh.ExpiresAt == nil {
 		t.Errorf("expected expires_at to be set")
@@ -131,8 +145,8 @@ func TestCreateShare_TargetFromOtherWorkspace(t *testing.T) {
 	p := createProject(t, env, owner1.Cookie, "Private", "#000")
 
 	// owner2 tries to share owner1's project
-	body := fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID)
-	req := th.AuthRequest(http.MethodPost, "/api/v1/shares", strings.NewReader(body), owner2.Cookie)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
+		th.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: p.ID}), owner2.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404 for cross-workspace target, got %d", resp.StatusCode)
@@ -160,7 +174,7 @@ func TestListShares_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var items []api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&items) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&items)
 	if len(items) != 0 {
 		t.Errorf("expected 0 shares, got %d", len(items))
 	}
@@ -172,12 +186,15 @@ func TestListShares_WorkspaceIsolation(t *testing.T) {
 	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
 
 	p := createProject(t, env, owner1.Cookie, "Alpha", "#000")
-	createShare(t, env, owner1.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	createShare(t, env, owner1.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares", nil, owner2.Cookie)
 	resp, _ := env.App.Test(req)
 	var items []api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&items) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&items)
 	if len(items) != 0 {
 		t.Errorf("owner2 should see 0 shares, got %d", len(items))
 	}
@@ -188,7 +205,10 @@ func TestListShares_WorkspaceIsolation(t *testing.T) {
 func TestGetShare_Success(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -196,7 +216,7 @@ func TestGetShare_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var got api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.ID != sh.ID {
 		t.Errorf("id mismatch")
 	}
@@ -217,7 +237,10 @@ func TestGetShare_OtherWorkspace(t *testing.T) {
 	owner1 := th.Register(t, env, "Owner1", "owner1@example.com", "password123")
 	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
 	p := createProject(t, env, owner1.Cookie, "P", "#000")
-	sh := createShare(t, env, owner1.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner1.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, owner2.Cookie)
 	resp, _ := env.App.Test(req)
@@ -231,16 +254,21 @@ func TestGetShare_OtherWorkspace(t *testing.T) {
 func TestUpdateShare_Label(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"label":"Old","target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		Label:      "Old",
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
+	label := "New Label"
 	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonStr(`{"label":"New Label"}`), owner.Cookie)
+		th.JsonBody(api.UpdateShareRequest{Label: &label}), owner.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var got api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.Label != "New Label" {
 		t.Errorf("label = %q, want New Label", got.Label)
 	}
@@ -249,30 +277,35 @@ func TestUpdateShare_Label(t *testing.T) {
 func TestUpdateShare_SetAndClearPassword(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	// Set password
+	password := "s3cr3t"
 	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonStr(`{"password":"s3cr3t"}`), owner.Cookie)
+		th.JsonBody(api.UpdateShareRequest{Password: &password}), owner.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("set password: expected 200, got %d", resp.StatusCode)
 	}
 	var got api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if !got.HasPassword {
 		t.Errorf("expected has_password = true after setting password")
 	}
 
 	// Clear password
+	clearPassword := true
 	req2 := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonStr(`{"clear_password":true}`), owner.Cookie)
+		th.JsonBody(api.UpdateShareRequest{ClearPassword: &clearPassword}), owner.Cookie)
 	resp2, _ := env.App.Test(req2)
 	if resp2.StatusCode != http.StatusOK {
 		t.Fatalf("clear password: expected 200, got %d", resp2.StatusCode)
 	}
 	var got2 api.ShareResponse
-	json.NewDecoder(resp2.Body).Decode(&got2) //nolint:errcheck
+	_ = json.NewDecoder(resp2.Body).Decode(&got2)
 	if got2.HasPassword {
 		t.Errorf("expected has_password = false after clearing password")
 	}
@@ -281,17 +314,21 @@ func TestUpdateShare_SetAndClearPassword(t *testing.T) {
 func TestUpdateShare_AllowComments(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	if sh.AllowComments {
 		t.Fatalf("expected allow_comments = false by default")
 	}
 
+	allowComments := true
 	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonStr(`{"allow_comments":true}`), owner.Cookie)
+		th.JsonBody(api.UpdateShareRequest{AllowComments: &allowComments}), owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var got api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if !got.AllowComments {
 		t.Errorf("expected allow_comments = true after update")
 	}
@@ -300,8 +337,9 @@ func TestUpdateShare_AllowComments(t *testing.T) {
 func TestUpdateShare_NotFound(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
+	x := "x"
 	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/nonexistent",
-		th.JsonStr(`{"label":"x"}`), owner.Cookie)
+		th.JsonBody(api.UpdateShareRequest{Label: &x}), owner.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", resp.StatusCode)
@@ -313,7 +351,10 @@ func TestUpdateShare_NotFound(t *testing.T) {
 func TestRevokeShare_Success(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -328,7 +369,7 @@ func TestRevokeShare_Success(t *testing.T) {
 		t.Fatalf("share should still be accessible after soft revoke, got %d", resp2.StatusCode)
 	}
 	var got api.ShareResponse
-	json.NewDecoder(resp2.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp2.Body).Decode(&got)
 	if got.RevokedAt == nil {
 		t.Errorf("expected revoked_at to be set after DELETE")
 	}
@@ -349,7 +390,10 @@ func TestRevokeShare_OtherWorkspace(t *testing.T) {
 	owner1 := th.Register(t, env, "Owner1", "owner1@example.com", "password123")
 	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
 	p := createProject(t, env, owner1.Cookie, "P", "#000")
-	sh := createShare(t, env, owner1.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
+	sh := createShare(t, env, owner1.Cookie, api.CreateShareRequest{
+		TargetType: "project",
+		TargetID:   p.ID,
+	})
 
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner2.Cookie)
 	resp, _ := env.App.Test(req)
@@ -361,7 +405,12 @@ func TestRevokeShare_OtherWorkspace(t *testing.T) {
 func TestListShares_IncludesIsExpired(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"expires_in_days":7}`, p.ID))
+	expiresInDays := 7
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "project",
+		TargetID:      p.ID,
+		ExpiresInDays: &expiresInDays,
+	})
 
 	// Force expires_at into the past
 	_, err := env.SqlDB.Exec(
@@ -374,7 +423,7 @@ func TestListShares_IncludesIsExpired(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var items []api.ShareResponse
-	json.NewDecoder(resp.Body).Decode(&items) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&items)
 
 	if len(items) != 1 {
 		t.Fatalf("expected 1 share, got %d", len(items))

@@ -114,7 +114,7 @@ func TestUploadVersion_Success(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 	if len(versions) != 2 {
 		t.Errorf("expected 2 versions, got %d", len(versions))
 	}
@@ -218,7 +218,7 @@ func TestRestoreVersion_Success(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 
 	var v1ID string
 	for _, v := range versions {
@@ -246,7 +246,7 @@ func TestRestoreVersion_Success(t *testing.T) {
 		Version api.VersionResponse `json:"version"`
 		Asset   api.AssetResponse   `json:"asset"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	if !result.Version.IsCurrent {
 		t.Error("restored version should be current")
@@ -265,7 +265,7 @@ func TestRestoreVersion_AlreadyCurrent(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 	if len(versions) == 0 {
 		t.Fatal("no versions")
 	}
@@ -307,7 +307,7 @@ func TestDeleteVersion_Success(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 
 	// Find v2 (non-current after we restore v1).
 	var v2ID, v1ID string
@@ -338,7 +338,7 @@ func TestDeleteVersion_Success(t *testing.T) {
 	// Deleted version should not appear in active list.
 	listResp2, _ := env.App.Test(th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie))
 	var versions2 []api.VersionResponse
-	json.NewDecoder(listResp2.Body).Decode(&versions2) //nolint:errcheck
+	_ = json.NewDecoder(listResp2.Body).Decode(&versions2)
 	for _, v := range versions2 {
 		if v.ID == v2ID {
 			t.Error("deleted version still appears in active list")
@@ -354,7 +354,7 @@ func TestDeleteVersion_CannotDeleteCurrent(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 	if len(versions) == 0 {
 		t.Fatal("no versions")
 	}
@@ -375,7 +375,7 @@ func TestDeleteVersion_ViewerForbidden(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 
 	deleteURL := fmt.Sprintf("/api/v1/assets/%s/versions/%s", asset.ID, versions[0].ID)
 	req := httptest.NewRequest(http.MethodDelete, deleteURL, nil)
@@ -396,7 +396,7 @@ func TestGetVersionFile_Success(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 	if len(versions) == 0 {
 		t.Fatal("no versions")
 	}
@@ -436,7 +436,7 @@ func TestGetVersionThumb_NotReady(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 
 	thumbURL := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", asset.ID, versions[0].ID)
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, thumbURL, nil, owner.Cookie))
@@ -456,7 +456,7 @@ func TestListVersions_VariantCountZeroInitially(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var versions []api.VersionResponse
-	json.NewDecoder(resp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&versions)
 
 	if len(versions) != 1 {
 		t.Fatalf("expected 1 version, got %d", len(versions))
@@ -477,7 +477,7 @@ func TestListVersions_VariantCountReflectsInsertedVariant(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var versions []api.VersionResponse
-	json.NewDecoder(resp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&versions)
 
 	if len(versions) != 1 {
 		t.Fatalf("expected 1 version, got %d", len(versions))
@@ -505,7 +505,7 @@ func TestListVersions_VariantCountPerVersion(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var versions []api.VersionResponse
-	json.NewDecoder(resp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&versions)
 
 	if len(versions) != 2 {
 		t.Fatalf("expected 2 versions, got %d", len(versions))
@@ -550,7 +550,7 @@ func TestUploadVersion_EnqueuesRebuildVariantsJob(t *testing.T) {
 	if err := json.NewDecoder(resp2.Body).Decode(&result); err != nil {
 		// Body was already consumed; fetch the version ID from the DB instead.
 		var newVersionID string
-		_ = env.SqlDB.QueryRow( //nolint:errcheck
+		_ = env.SqlDB.QueryRow(
 			`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, asset.ID,
 		).Scan(&newVersionID)
 		result.Version.ID = newVersionID
@@ -578,7 +578,7 @@ func TestUploadVersion_FirstUploadNoRebuildJob(t *testing.T) {
 
 	// There should be no rebuild_variants job for the first version (no previous version).
 	var count int
-	_ = env.SqlDB.QueryRow( //nolint:errcheck
+	_ = env.SqlDB.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'rebuild_variants'`,
 	).Scan(&count)
 	if count != 0 {
@@ -604,7 +604,7 @@ func TestRestoreVersion_NoRebuildJobEnqueued(t *testing.T) {
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)
 	var versions []api.VersionResponse
-	json.NewDecoder(listResp.Body).Decode(&versions) //nolint:errcheck
+	_ = json.NewDecoder(listResp.Body).Decode(&versions)
 	var v1ID string
 	for _, v := range versions {
 		if v.VersionNum == 1 {

@@ -306,7 +306,7 @@ func TestSwitchWorkspace_Success(t *testing.T) {
 
 	// Create a second workspace
 	createReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonStr(`{"name":"Second Workspace"}`), result.Cookie)
+		th.JsonBody(api.CreateWorkspaceRequest{Name: "Second Workspace"}), result.Cookie)
 	createResp, err := env.App.Test(createReq)
 	if err != nil {
 		t.Fatalf("create workspace request: %v", err)
@@ -366,7 +366,7 @@ func TestSwitchWorkspace_NotMember(t *testing.T) {
 	// Alice's workspace ID is stored in result; Bob tries to access it
 	alice, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/workspace/me", nil, bob.Cookie))
 	var bobMe api.WorkspaceMeResponse
-	json.NewDecoder(alice.Body).Decode(&bobMe) //nolint:errcheck
+	_ = json.NewDecoder(alice.Body).Decode(&bobMe)
 
 	// Re-register alice to get her workspace ID
 	aliceResult := th.Register(t, env, "Alice2", "alice2@example.com", "password123")

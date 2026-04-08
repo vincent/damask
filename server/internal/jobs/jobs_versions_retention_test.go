@@ -42,7 +42,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 
 	// Confirm we have 5 active versions before enforcement.
 	var countBefore int64
-	_ = env.SqlDB.QueryRow( //nolint:errcheck
+	_ = env.SqlDB.QueryRow(
 		`SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL`, asset.ID,
 	).Scan(&countBefore)
 	if countBefore != 5 {
@@ -64,7 +64,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 
 	// Count non-current active versions after enforcement.
 	var nonCurrentActive int64
-	_ = env.SqlDB.QueryRow( //nolint:errcheck
+	_ = env.SqlDB.QueryRow(
 		`SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL AND is_current = 0`, asset.ID,
 	).Scan(&nonCurrentActive)
 
@@ -74,7 +74,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 
 	// Current version must still be alive.
 	var currentActive int64
-	_ = env.SqlDB.QueryRow( //nolint:errcheck
+	_ = env.SqlDB.QueryRow(
 		`SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL AND is_current = 1`, asset.ID,
 	).Scan(&currentActive)
 	if currentActive != 1 {

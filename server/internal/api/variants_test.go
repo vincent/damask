@@ -438,7 +438,7 @@ func TestCreateVariant_BlockedDuringRebuild(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	var versionID string
-	_ = env.SqlDB.QueryRow( //nolint:errcheck
+	_ = env.SqlDB.QueryRow(
 		`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, assetID,
 	).Scan(&versionID)
 	if versionID == "" {
@@ -457,8 +457,9 @@ func TestCreateVariant_BlockedDuringRebuild(t *testing.T) {
 		t.Fatalf("insert fake rebuild job: %v", err)
 	}
 
-	body := `{"type":"image_resize","params":{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}}`
-	createReq := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants", th.JsonStr(body), cookie)
+	resizeParams := json.RawMessage(`{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}`)
+	createReq := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: resizeParams}), cookie)
 	createResp, _ := env.App.Test(createReq)
 	if createResp.StatusCode != http.StatusConflict {
 		t.Fatalf("expected 409 while rebuild in-flight, got %d", createResp.StatusCode)

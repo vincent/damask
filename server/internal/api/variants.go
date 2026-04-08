@@ -360,7 +360,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not open uploaded file")
 	}
-	defer f.Close() //nolint:errcheck
+	defer f.Close()
 
 	variantID := uuid.NewString()
 	ext := strings.ToLower(filepath.Ext(fh.Filename))

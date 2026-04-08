@@ -118,7 +118,7 @@ func (s *Seeder) SeedIfEmpty(ctx context.Context) error {
 	}
 
 	var count int
-	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE workspace_id = ?`, workspaceID).Scan(&count) //nolint:errcheck
+	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE workspace_id = ?`, workspaceID).Scan(&count)
 	if count > 0 {
 		return nil // already seeded
 	}
@@ -163,7 +163,7 @@ func (s *Seeder) Seed(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("demo: begin tx: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	if err := s.seedFieldDefinitions(ctx, tx, &d); err != nil {
 		return err
@@ -189,7 +189,7 @@ func (s *Seeder) Seed(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("demo: begin tx2: %w", err)
 	}
-	defer tx2.Rollback() //nolint:errcheck
+	defer tx2.Rollback()
 
 	if err := s.seedTags(ctx, tx2, &d); err != nil {
 		return err
@@ -235,7 +235,7 @@ func (s *Seeder) EnsureWorkspace(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("demo: begin workspace tx: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	workspaceID := "demo_ws_" + uuid.NewString()
 	userID := "demo_usr_" + uuid.NewString()
@@ -571,8 +571,8 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 		if tErr == nil && thumbData != nil {
 			thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
 			if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {
-				s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID) //nolint:errcheck
-				s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)           //nolint:errcheck
+				s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID)
+				s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)
 			} else {
 				log.Printf("demo: store thumbnail failed for %s: %v", sp.name, putErr)
 			}
@@ -669,8 +669,8 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 	if tErr == nil && thumbData != nil {
 		thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
 		if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {
-			s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID) //nolint:errcheck
-			s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)           //nolint:errcheck
+			s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID)
+			s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)
 		}
 	}
 

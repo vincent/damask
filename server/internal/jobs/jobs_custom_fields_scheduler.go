@@ -53,7 +53,7 @@ func (s *JobServer) jobPurgeDeletedFields(ctx context.Context, job dbgen.Job) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 	qtx := s.db.WithTx(tx)
 
 	for _, id := range ids {

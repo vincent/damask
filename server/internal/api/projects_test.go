@@ -114,7 +114,7 @@ func TestListProjects_WithCount(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/projects", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var items []api.ProjectResponse
-	json.NewDecoder(resp.Body).Decode(&items) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&items)
 
 	if len(items) != 1 {
 		t.Fatalf("expected 1 project, got %d", len(items))
@@ -137,7 +137,7 @@ func TestGetProject_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var got api.ProjectResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.ID != p.ID {
 		t.Errorf("id mismatch: got %s, want %s", got.ID, p.ID)
 	}
@@ -169,7 +169,7 @@ func TestUpdateProject(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	var got api.ProjectResponse
-	json.NewDecoder(resp.Body).Decode(&got) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&got)
 	if got.Name != "New Name" {
 		t.Errorf("name = %q, want New Name", got.Name)
 	}

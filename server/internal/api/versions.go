@@ -113,7 +113,7 @@ func (s *Server) setCurrentVersion(ctx context.Context, assetID, versionID strin
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	qtx := s.db.WithTx(tx)
 
@@ -171,14 +171,14 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	if err := c.SaveFile(fh, tmpFile); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "cannot save uploaded file")
 	}
-	defer os.Remove(tmpFile) //nolint:errcheck
+	defer os.Remove(tmpFile)
 
 	// Open the temp file once; hash it, then seek back to reuse for storage.Put.
 	f, err := os.Open(tmpFile)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not open uploaded file")
 	}
-	defer f.Close() //nolint:errcheck
+	defer f.Close()
 
 	hash, size, err := versioning.HashReader(f)
 	if err != nil {

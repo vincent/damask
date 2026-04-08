@@ -30,8 +30,8 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	}
 
 	var assetsDeleted, versionsDeleted int
-	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM assets WHERE workspace_id = ?`, workspaceID).Scan(&assetsDeleted)           //nolint:errcheck
-	s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM asset_versions WHERE workspace_id = ?`, workspaceID).Scan(&versionsDeleted) //nolint:errcheck
+	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM assets WHERE workspace_id = ?`, workspaceID).Scan(&assetsDeleted)
+	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM asset_versions WHERE workspace_id = ?`, workspaceID).Scan(&versionsDeleted)
 
 	// Delete all child data in a transaction.
 	// Order matters: delete leaves first to avoid FK violations on tables
@@ -40,7 +40,7 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("demo: wipe begin tx: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	tables := []string{
 		"asset_field_values",

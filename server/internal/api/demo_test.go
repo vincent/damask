@@ -59,7 +59,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { rawDB.Close() }) //nolint:errcheck
+	t.Cleanup(func() { rawDB.Close() })
 
 	maker, err := auth.NewMaker("test-secret-key-must-be-32chars!!")
 	if err != nil {
@@ -114,7 +114,7 @@ func TestDemoMiddleware_BlocksWorkspaceSettings(t *testing.T) {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["error"] != "not_available_in_demo" {
 		t.Errorf("expected not_available_in_demo error, got %v", body["error"])
 	}
@@ -134,7 +134,7 @@ func TestDemoMiddleware_BlocksCreateInvite(t *testing.T) {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["error"] != "not_available_in_demo" {
 		t.Errorf("expected not_available_in_demo error, got %v", body["error"])
 	}
@@ -153,7 +153,7 @@ func TestDemoMiddleware_BlocksIngressPoll(t *testing.T) {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["error"] != "not_available_in_demo" {
 		t.Errorf("expected not_available_in_demo error, got %v", body["error"])
 	}
@@ -170,7 +170,7 @@ func TestDemoMiddleware_BlockedResponse_HasSignupURLAndMessage(t *testing.T) {
 		t.Fatalf("request: %v", err)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["signup_url"] == nil {
 		t.Error("expected signup_url in demo 403 response")
 	}
@@ -203,7 +203,7 @@ func TestDemoMiddleware_AllowsRegularUser(t *testing.T) {
 	}
 	if resp.StatusCode == http.StatusForbidden {
 		var body map[string]any
-		json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+		_ = json.NewDecoder(resp.Body).Decode(&body)
 		if body["error"] == "not_available_in_demo" {
 			t.Fatal("regular user must not be blocked by demo middleware")
 		}
@@ -243,7 +243,7 @@ func TestDemoUploadCap_AssetLimit(t *testing.T) {
 		t.Fatalf("expected 429, got %d: %s", resp.StatusCode, b)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if errMsg, ok := body["error"].(string); !ok || !strings.Contains(errMsg, "limit") {
 		t.Errorf("expected limit message in error, got %v", body["error"])
 	}
@@ -280,7 +280,7 @@ func TestDemoSession_IssuesToken(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, b)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["token"] == nil || body["token"] == "" {
 		t.Error("expected token in response")
 	}
@@ -331,7 +331,7 @@ func TestDemoSession_TokenGrantsWorkspaceAccess(t *testing.T) {
 	var sessionBody struct {
 		Token string `json:"token"`
 	}
-	json.NewDecoder(resp.Body).Decode(&sessionBody) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&sessionBody)
 
 	meReq := th.BearerRequest(http.MethodGet, "/api/v1/workspace/me", nil, sessionBody.Token)
 	meResp, err := env.App.Test(meReq)
@@ -359,7 +359,7 @@ func TestDemoStatus_ReturnsExpectedFields(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, b)
 	}
 	var body map[string]any
-	json.NewDecoder(resp.Body).Decode(&body) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&body)
 	if body["available"] != true {
 		t.Errorf("expected available=true, got %v", body["available"])
 	}

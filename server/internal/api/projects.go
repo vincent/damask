@@ -195,7 +195,7 @@ func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not start transaction")
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	qtx := s.db.WithTx(tx)
 

@@ -106,7 +106,7 @@ func TestListAssetEvents_TypeFilter(t *testing.T) {
 
 	// Add a tag to generate asset_tagged event.
 	req := th.AuthRequest(http.MethodPost, fmt.Sprintf("/api/v1/assets/%s/tags", assetID),
-		th.JsonStr(`{"name":"hero"}`), owner.Cookie)
+		th.JsonBody(api.RenameAssetRequest{Name: "test"}), owner.Cookie)
 	if resp, _ := env.App.Test(req); resp.StatusCode != http.StatusCreated {
 		t.Fatal("tag: expected 201")
 	}
@@ -130,7 +130,7 @@ func TestListAssetEvents_Pagination(t *testing.T) {
 	// Generate more events via tagging.
 	for _, tag := range []string{"a", "b", "c"} {
 		req := th.AuthRequest(http.MethodPost, fmt.Sprintf("/api/v1/assets/%s/tags", assetID),
-			th.JsonStr(fmt.Sprintf(`{"name":%q}`, tag)), owner.Cookie)
+			th.JsonBody(api.AddTagRequest{Name: tag}), owner.Cookie)
 		resp, _ := env.App.Test(req)
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatal("tag: expected 201")
@@ -454,7 +454,7 @@ func TestCreateVariant_AuditEvent_Written(t *testing.T) {
 	assetID := uploadTestAsset(t, env, owner)
 
 	req := th.AuthRequest(http.MethodPost, fmt.Sprintf("/api/v1/assets/%s/variants", assetID),
-		th.JsonStr(`{"type":"image_resize","params":{"width":100,"height":100}}`), owner.Cookie)
+		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: json.RawMessage(`{"width":100,"height":100}`)}), owner.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)

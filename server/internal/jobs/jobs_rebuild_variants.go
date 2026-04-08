@@ -346,7 +346,7 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 
 	ext := transform.FormatExtension(params.Format)
 	dstPath := srcPath + "_out" + ext
-	defer os.Remove(dstPath) //nolint:errcheck
+	defer os.Remove(dstPath)
 
 	if err := transform.VideoTranscode(ctx, srcPath, dstPath, params); err != nil {
 		return fmt.Errorf("transcode: %w", err)

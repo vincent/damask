@@ -34,7 +34,7 @@ func QueryOverviewStats(ctx context.Context, db *sql.DB) (OverviewStats, error) 
 	if err != nil {
 		return OverviewStats{}, err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	var s OverviewStats
 

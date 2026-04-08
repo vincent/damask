@@ -234,7 +234,7 @@ func createInitialVersion(
 	if err != nil {
 		return "", fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback()
 
 	qtx := db.WithTx(tx)
 

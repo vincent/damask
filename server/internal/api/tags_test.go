@@ -35,7 +35,7 @@ func TestAddTag_AutoCreates(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var tags []api.TagResponse
-	json.NewDecoder(resp.Body).Decode(&tags) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&tags)
 	if len(tags) != 1 || tags[0].Name != "summer" {
 		t.Errorf("expected tag 'summer', got %+v", tags)
 	}
@@ -51,7 +51,7 @@ func TestAddTag_Idempotent(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var names []string
-	json.NewDecoder(resp.Body).Decode(&names) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&names)
 	if len(names) != 1 {
 		t.Errorf("expected 1 tag after duplicate add, got %d", len(names))
 	}
@@ -76,7 +76,7 @@ func TestRemoveTag_Success(t *testing.T) {
 	req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
 	resp2, _ := env.App.Test(req2)
 	var names []string
-	json.NewDecoder(resp2.Body).Decode(&names) //nolint:errcheck
+	_ = json.NewDecoder(resp2.Body).Decode(&names)
 	if len(names) != 0 {
 		t.Errorf("expected 0 tags after removal, got %d", len(names))
 	}
@@ -95,7 +95,7 @@ func TestListTags_WithCounts(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var tags []api.TagResponse
-	json.NewDecoder(resp.Body).Decode(&tags) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&tags)
 
 	counts := map[string]int64{}
 	for _, tag := range tags {
@@ -119,7 +119,7 @@ func TestGetAssetTags(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/tags", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var names []string
-	json.NewDecoder(resp.Body).Decode(&names) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&names)
 
 	if len(names) != 2 {
 		t.Errorf("expected 2 tags, got %d", len(names))
@@ -135,7 +135,7 @@ func TestGetAsset_IncludesTags(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var a api.AssetResponse
-	json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	if len(a.Tags) != 1 || a.Tags[0] != "coast" {
 		t.Errorf("expected tags=[coast], got %v", a.Tags)
@@ -154,7 +154,7 @@ func TestListAssets_FilterBySingleTag(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?tags=forest", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var result api.AssetListResponse
-	json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	if len(result.Assets) != 1 {
 		t.Fatalf("expected 1 asset for tag=forest, got %d", len(result.Assets))
@@ -179,7 +179,7 @@ func TestListAssets_FilterByMultiTagAND(t *testing.T) {
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?tags=red,blue", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
 	var result api.AssetListResponse
-	json.NewDecoder(resp.Body).Decode(&result) //nolint:errcheck
+	_ = json.NewDecoder(resp.Body).Decode(&result)
 
 	if len(result.Assets) != 1 {
 		t.Fatalf("expected 1 asset with both tags, got %d", len(result.Assets))
@@ -210,7 +210,7 @@ func TestBulkTag(t *testing.T) {
 		req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+id+"/tags", nil, owner.Cookie)
 		resp2, _ := env.App.Test(req2)
 		var names []string
-		json.NewDecoder(resp2.Body).Decode(&names) //nolint:errcheck
+		_ = json.NewDecoder(resp2.Body).Decode(&names)
 		if len(names) != 1 || names[0] != "promo" {
 			t.Errorf("asset %s: expected tag promo, got %v", id, names)
 		}
@@ -239,7 +239,7 @@ func TestBulkProject(t *testing.T) {
 		req2 := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+id, nil, owner.Cookie)
 		resp2, _ := env.App.Test(req2)
 		var a api.AssetResponse
-		json.NewDecoder(resp2.Body).Decode(&a) //nolint:errcheck
+		_ = json.NewDecoder(resp2.Body).Decode(&a)
 		if a.ProjectID == nil || *a.ProjectID != p.ID {
 			t.Errorf("asset %s: expected project_id=%s, got %v", id, p.ID, a.ProjectID)
 		}
