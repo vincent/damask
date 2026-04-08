@@ -39,10 +39,10 @@ func TestCreateFolder_Success(t *testing.T) {
 	if projRes.StatusCode != http.StatusCreated {
 		t.Fatalf("create project: got %d", projRes.StatusCode)
 	}
-	var proj map[string]interface{}
+	var proj api.ProjectResponse
 	b, _ := io.ReadAll(projRes.Body)
 	_ = json.Unmarshal(b, &proj)
-	projectID := proj["id"].(string)
+	projectID := proj.ID
 
 	folderReq := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
 		th.JsonBody(api.CreateFolderRequest{Name: "Assets"}), owner.Cookie)
@@ -55,14 +55,14 @@ func TestCreateFolder_Success(t *testing.T) {
 		b, _ := io.ReadAll(folderRes.Body)
 		t.Fatalf("create folder: got %d, body: %s", folderRes.StatusCode, string(b))
 	}
-	var folder map[string]interface{}
+	var folder api.FolderResponse
 	b, _ = io.ReadAll(folderRes.Body)
 	_ = json.Unmarshal(b, &folder)
-	if folder["name"] != "Assets" {
-		t.Errorf("got name %v, want Assets", folder["name"])
+	if folder.Name != "Assets" {
+		t.Errorf("got name %v, want Assets", folder.Name)
 	}
-	if folder["project_id"] != projectID {
-		t.Errorf("got project_id %v, want %s", folder["project_id"], projectID)
+	if folder.ProjectID != projectID {
+		t.Errorf("got project_id %v, want %s", folder.ProjectID, projectID)
 	}
 }
 
@@ -72,10 +72,10 @@ func TestCreateFolder_SubfolderSuccess(t *testing.T) {
 	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
-	var proj map[string]interface{}
+	var proj api.ProjectResponse
 	b, _ := io.ReadAll(projRes.Body)
 	_ = json.Unmarshal(b, &proj)
-	projectID := proj["id"].(string)
+	projectID := proj.ID
 
 	// Create root folder
 	rootOut := createFolder(t, env, owner.Cookie, projectID, "Root", nil)
@@ -98,10 +98,10 @@ func TestCreateFolder_MaxDepthEnforced(t *testing.T) {
 	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
-	var proj map[string]interface{}
+	var proj api.ProjectResponse
 	b, _ := io.ReadAll(projRes.Body)
 	_ = json.Unmarshal(b, &proj)
-	projectID := proj["id"].(string)
+	projectID := proj.ID
 
 	// Create root folder (depth 0)
 	rootOut := createFolder(t, env, owner.Cookie, projectID, "Root", nil)
@@ -127,10 +127,10 @@ func TestCreateFolder_DuplicateName(t *testing.T) {
 	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
-	var proj map[string]interface{}
+	var proj api.ProjectResponse
 	b, _ := io.ReadAll(projRes.Body)
 	_ = json.Unmarshal(b, &proj)
-	projectID := proj["id"].(string)
+	projectID := proj.ID
 
 	createFolder(t, env, owner.Cookie, projectID, "Dupe", nil)
 
@@ -149,10 +149,10 @@ func TestGetFolders_Tree(t *testing.T) {
 	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
-	var proj map[string]interface{}
+	var proj api.ProjectResponse
 	b, _ := io.ReadAll(projRes.Body)
 	_ = json.Unmarshal(b, &proj)
-	projectID := proj["id"].(string)
+	projectID := proj.ID
 
 	rootOut := createFolder(t, env, owner.Cookie, projectID, "Root", nil)
 	rootID := rootOut.ID
@@ -164,18 +164,14 @@ func TestGetFolders_Tree(t *testing.T) {
 	if treeRes.StatusCode != http.StatusOK {
 		t.Fatalf("get folders: got %d", treeRes.StatusCode)
 	}
-	var tree []map[string]interface{}
+	var tree []api.FolderResponse
 	b, _ = io.ReadAll(treeRes.Body)
 	_ = json.Unmarshal(b, &tree)
 	if len(tree) != 1 {
 		t.Fatalf("expected 1 root folder, got %d", len(tree))
 	}
-	children, ok := tree[0]["children"].([]interface{})
-	if !ok {
-		t.Fatalf("children is not an array")
-	}
-	if len(children) != 1 {
-		t.Fatalf("expected 1 child, got %d", len(children))
+	if len(tree[0].Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(tree[0].Children))
 	}
 }
 
@@ -185,10 +181,10 @@ func TestUpdateFolder_Rename(t *testing.T) {
 	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
-	var proj map[string]interface{}
+	var proj api.ProjectResponse
 	b, _ := io.ReadAll(projRes.Body)
 	_ = json.Unmarshal(b, &proj)
-	projectID := proj["id"].(string)
+	projectID := proj.ID
 
 	folderOut := createFolder(t, env, owner.Cookie, projectID, "OldName", nil)
 	folderID := folderOut.ID
@@ -202,11 +198,11 @@ func TestUpdateFolder_Rename(t *testing.T) {
 		b, _ := io.ReadAll(updateRes.Body)
 		t.Fatalf("update folder: got %d, body: %s", updateRes.StatusCode, string(b))
 	}
-	var updated map[string]interface{}
+	var updated api.FolderResponse
 	b, _ = io.ReadAll(updateRes.Body)
 	_ = json.Unmarshal(b, &updated)
-	if updated["name"] != "NewName" {
-		t.Errorf("got name %v, want NewName", updated["name"])
+	if updated.Name != "NewName" {
+		t.Errorf("got name %v, want NewName", updated.Name)
 	}
 }
 
@@ -216,10 +212,10 @@ func TestDeleteFolder_NullifiesAssets(t *testing.T) {
 	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
 	defer projRes.Body.Close()
-	var proj map[string]interface{}
+	var proj api.ProjectResponse
 	b, _ := io.ReadAll(projRes.Body)
 	_ = json.Unmarshal(b, &proj)
-	projectID := proj["id"].(string)
+	projectID := proj.ID
 
 	folderOut := createFolder(t, env, owner.Cookie, projectID, "ToDelete", nil)
 	folderID := folderOut.ID

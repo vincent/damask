@@ -21,6 +21,10 @@ type projectFieldValueResponse struct {
 	DefinitionDeleted bool        `json:"definition_deleted"`
 }
 
+type GetProjectFieldsResponse struct {
+	Fields []projectFieldValueResponse `json:"fields"`
+}
+
 func projectFieldRowToValue(row dbgen.GetProjectFieldValuesRow) any {
 	switch row.FieldType {
 	case "text", "url", "select":
@@ -95,7 +99,7 @@ func (s *Server) handleGetProjectFields(c fiber.Ctx) error {
 	for i, row := range rows {
 		items[i] = rowToProjectFieldValueResponse(row)
 	}
-	return c.JSON(fiber.Map{"fields": items})
+	return c.JSON(GetProjectFieldsResponse{Fields: items})
 }
 
 func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
@@ -205,5 +209,5 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 	for i, row := range rows {
 		items[i] = rowToProjectFieldValueResponse(row)
 	}
-	return c.JSON(fiber.Map{"fields": items})
+	return c.JSON(GetProjectFieldsResponse{Fields: items})
 }

@@ -34,6 +34,11 @@ type FieldDefinitionResponse struct {
 	DeletedAt          *string `json:"deleted_at,omitempty"`
 }
 
+type FieldDefinitionStatsResponse struct {
+	AssetCount   int64 `json:"asset_count"`
+	ProjectCount int64 `json:"project_count"`
+}
+
 func fieldDefToResponse(f dbgen.FieldDefinition) FieldDefinitionResponse {
 	return FieldDefinitionResponse{
 		ID:                 f.ID,
@@ -173,9 +178,9 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not count project values")
 	}
 
-	return c.JSON(fiber.Map{
-		"asset_count":   assetCount,
-		"project_count": projectCount,
+	return c.JSON(FieldDefinitionStatsResponse{
+		AssetCount:   assetCount,
+		ProjectCount: projectCount,
 	})
 }
 

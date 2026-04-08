@@ -41,6 +41,12 @@ type ListVariantsResponse struct {
 	Rebuilding bool              `json:"rebuilding"`
 }
 
+type CreateVariantResponse struct {
+	JobID   string `json:"job_id"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
 func variantToResponse(assetID string, v dbgen.Variant) VariantResponse {
 	return VariantResponse{
 		ID:              v.ID,
@@ -209,10 +215,10 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: body.Type},
 	})
 
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
-		"job_id":  job.ID,
-		"status":  "pending",
-		"message": "variant creation queued",
+	return c.Status(fiber.StatusAccepted).JSON(CreateVariantResponse{
+		JobID:   job.ID,
+		Status:  "pending",
+		Message: "variant creation queued",
 	})
 }
 

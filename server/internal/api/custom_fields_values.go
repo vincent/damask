@@ -142,6 +142,14 @@ type assetFieldValueResponse struct {
 	DefinitionDeleted bool        `json:"definition_deleted"`
 }
 
+type GetAssetFieldsResponse struct {
+	Fields []assetFieldValueResponse `json:"fields"`
+}
+
+type BulkPatchAssetFieldsResponse struct {
+	Updated int64 `json:"updated"`
+}
+
 func rowToAssetFieldValueResponse(row dbgen.GetAssetFieldValuesRow) assetFieldValueResponse {
 	r := assetFieldValueResponse{
 		FieldID:           row.FieldID,
@@ -239,7 +247,7 @@ func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
 	for i, row := range rows {
 		items[i] = rowToAssetFieldValueResponse(row)
 	}
-	return c.JSON(fiber.Map{"fields": items})
+	return c.JSON(GetAssetFieldsResponse{Fields: items})
 }
 
 func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
@@ -337,7 +345,7 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 	for i, row := range rows {
 		items[i] = rowToAssetFieldValueResponse(row)
 	}
-	return c.JSON(fiber.Map{"fields": items})
+	return c.JSON(GetAssetFieldsResponse{Fields: items})
 }
 
 func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
@@ -413,5 +421,5 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 		}
 	}()
 
-	return c.JSON(fiber.Map{"updated": updatedCount})
+	return c.JSON(BulkPatchAssetFieldsResponse{Updated: int64(updatedCount)})
 }

@@ -196,13 +196,13 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 		t.Fatalf("expected 202, got %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result api.CreateVariantResponse
 	_ = json.NewDecoder(resp.Body).Decode(&result)
-	if result["job_id"] == "" {
+	if result.JobID == "" {
 		t.Error("expected job_id in response")
 	}
-	if result["status"] != "pending" {
-		t.Errorf("expected status=pending, got %v", result["status"])
+	if result.Status != "pending" {
+		t.Errorf("expected status=pending, got %v", result.Status)
 	}
 }
 
@@ -221,13 +221,13 @@ func TestCreateVariant_ResizeQueued(t *testing.T) {
 		t.Fatalf("expected 202, got %d", resp.StatusCode)
 	}
 
-	var result map[string]interface{}
+	var result api.CreateVariantResponse
 	_ = json.NewDecoder(resp.Body).Decode(&result)
-	if result["job_id"] == "" {
+	if result.JobID == "" {
 		t.Error("expected job_id in response")
 	}
-	if result["status"] != "pending" {
-		t.Errorf("expected status=pending, got %v", result["status"])
+	if result.Status != "pending" {
+		t.Errorf("expected status=pending, got %v", result.Status)
 	}
 }
 
