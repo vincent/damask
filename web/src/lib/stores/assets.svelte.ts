@@ -241,4 +241,12 @@ export const assetsStore = {
   reloadResources(assetId: string) {
     reloadAssetResources(assetId)
   },
+
+  bulkProject: async (assetIds: string[], projectId: string | null) => {
+    await assetApi.bulkProject(assetIds, projectId)
+  },
+
+  bulkDelete: async (assetIds: string[]) => {
+    await assetApi.bulkDelete(assetIds)
+  }
 }

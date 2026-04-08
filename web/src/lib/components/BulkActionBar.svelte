@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tagApi, type Project } from '$lib/api'
+  import { tagApi, assetApi, type Project } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { SquareArrowRightExit, Tag, Trash } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -35,7 +35,7 @@
     if (selectedIds.size === 0) return
     busy = true
     try {
-      await tagApi.bulkProject([...selectedIds], projectId)
+      await assetApi.bulkProject([...selectedIds], projectId)
       ondone()
     } finally {
       activePanel = null
@@ -48,7 +48,7 @@
     if (!confirm(`Delete ${selectedIds.size} asset${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
     busy = true
     try {
-      await tagApi.bulkDelete([...selectedIds])
+      await assetApi.bulkDelete([...selectedIds])
       ondone()
     } finally {
       busy = false

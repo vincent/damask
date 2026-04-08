@@ -13,13 +13,14 @@
   interface Props {
     selectedAssetIds: Set<string>
     creating: boolean
-    oncreatingchange: (v: boolean) => void
-    onselect: (id: string | null) => void
-    onfolderselect: (projectId: string, folderId: string | null) => void
-    onassetsDropped: (assetIds: string[], folderId: string | null, projectId: string) => void
+    onCreatingChange: (v: boolean) => void
+    onSelect: (id: string | null) => void
+    onFolderSelect: (projectId: string, folderId: string | null) => void
+    onAssetsFolderDropped: (assetIds: string[], folderId: string | null, projectId: string) => void
+    onAssetsProjectDropped: (assetIds: string[], projectId: string) => void
   }
 
-  let { selectedAssetIds, creating, oncreatingchange, onselect, onfolderselect, onassetsDropped }: Props = $props()
+  let { selectedAssetIds, creating, onCreatingChange, onSelect, onFolderSelect, onAssetsFolderDropped, onAssetsProjectDropped }: Props = $props()
 
   let dropTargetProjectId = $state<string | null>(null)
   let creatingFolderForProject = $state<string | null>(null)
@@ -40,7 +41,7 @@
       await projectsStore.create({ name, color: newColor })
       newName = ''
       newColor = '#6366f1'
-      oncreatingchange(false)
+      onCreatingChange(false)
     } catch {
       error = 'Could not create project'
     }
@@ -85,7 +86,7 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      oncreatingchange(false)
+      onCreatingChange(false)
       editingId = null
     }
   }
@@ -111,7 +112,7 @@
           class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors
             {navigationStore.activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}
             {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400 dark:bg-green-900/30' : ''}"
-          onclick={() => onselect(project.id)}
+          onclick={() => onSelect(project.id)}
           ondragover={(e) => { e.preventDefault(); dropTargetProjectId = project.id }}
           ondragleave={() => { dropTargetProjectId = null }}
           ondrop={(e) => {
@@ -122,7 +123,7 @@
             const assetIds = selectedAssetIds.has(assetId) && selectedAssetIds.size > 1
               ? [...selectedAssetIds]
               : [assetId]
-            onassetsDropped(assetIds, null, project.id)
+            onAssetsProjectDropped(assetIds, project.id)
           }}
         >
           <Box
@@ -163,8 +164,8 @@
             activeFolderId={navigationStore.activeFolderId}
             projectId={project.id}
             {selectedAssetIds}
-            onselect={(folderId) => onfolderselect(project.id, folderId)}
-            onassetsDropped={(assetIds, folderId) => onassetsDropped(assetIds, folderId, project.id)}
+            onselect={(folderId) => onFolderSelect(project.id, folderId)}
+            onassetsDropped={(assetIds, folderId) => onAssetsFolderDropped(assetIds, folderId, project.id)}
           />
           {#if authStore.role !== 'viewer'}
             {#if creatingFolderForProject === project.id}
@@ -217,11 +218,11 @@
         </div>
         <div class="flex gap-1">
           <Button type="submit" size="sm" class="flex-1">Create</Button>
-          <Button type="button" variant="secondary" size="sm" class="flex-1" onclick={() => oncreatingchange(false)}>Cancel</Button>
+          <Button type="button" variant="secondary" size="sm" class="flex-1" onclick={() => onCreatingChange(false)}>Cancel</Button>
         </div>
       </form>
     {:else}
-      <Button variant="ghost" size="sm" class="mt-1 w-full justify-start" onclick={() => oncreatingchange(true)}>
+      <Button variant="ghost" size="sm" class="mt-1 w-full justify-start" onclick={() => onCreatingChange(true)}>
         {#snippet icon()}<Plus class="h-3.5 w-3.5" />{/snippet}
         New project
       </Button>

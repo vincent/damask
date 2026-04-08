@@ -175,18 +175,6 @@ export const tagApi = {
       method: 'POST',
       body: JSON.stringify({ asset_ids: assetIds, tag_name: tagName }),
     }),
-
-  bulkProject: (assetIds: string[], projectId: string | null) =>
-    apiFetch<void>('/api/v1/assets/bulk/project', {
-      method: 'POST',
-      body: JSON.stringify({ asset_ids: assetIds, project_id: projectId }),
-    }),
-
-  bulkDelete: (assetIds: string[]) =>
-    apiFetch<void>('/api/v1/assets/bulk', {
-      method: 'DELETE',
-      body: JSON.stringify({ asset_ids: assetIds }),
-    }),
 }
 
 export interface AssetListResponse {
@@ -287,6 +275,18 @@ export const assetApi = {
   fileUrl(id: string): string {
     return `${API_BASE}/api/v1/assets/${id}/file`
   },
+
+  bulkProject: (assetIds: string[], projectId: string | null) =>
+    apiFetch<void>('/api/v1/assets/bulk/project', {
+      method: 'POST',
+      body: JSON.stringify({ asset_ids: assetIds, project_id: projectId }),
+    }),
+
+  bulkDelete: (assetIds: string[]) =>
+    apiFetch<void>('/api/v1/assets/bulk', {
+      method: 'DELETE',
+      body: JSON.stringify({ asset_ids: assetIds }),
+    }),
 }
 
 

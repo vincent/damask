@@ -38,11 +38,24 @@
       await foldersStore.moveAssets(assetIds, folderId, projectId)
       toastStore.show(`Moved ${assetIds.length} asset${assetIds.length > 1 ? 's' : ''}`)
       await assetsStore.load(true)
+      selectionStore.clear()
     } catch {
       toastStore.show('Could not move assets', 'error')
     }
   }
 
+  async function handleAssetsProjectDropped(assetIds: string[], projectId: string) {
+    try {
+      await assetsStore.bulkProject(assetIds, projectId)
+      toastStore.show(`Moved ${assetIds.length} asset${assetIds.length > 1 ? 's' : ''}`)
+      await assetsStore.load(true)
+      await projectsStore.load()
+      await foldersStore.loadForProject(projectId)
+      selectionStore.clear()
+    } catch {
+      toastStore.show('Could not move assets', 'error')
+    }
+  }
 
   onMount(() => {
     projectsStore.load()
@@ -166,10 +179,11 @@
         <ProjectSidebar
           selectedAssetIds={selectionStore.selectedIds}
           creating={sidebarCreating}
-          oncreatingchange={(v) => { sidebarCreating = v }}
-          onselect={handleProjectSelect}
-          onfolderselect={handleFolderSelect}
-          onassetsDropped={handleAssetsDropped}
+          onCreatingChange={(v) => { sidebarCreating = v }}
+          onSelect={handleProjectSelect}
+          onFolderSelect={handleFolderSelect}
+          onAssetsFolderDropped={handleAssetsDropped}
+          onAssetsProjectDropped={handleAssetsProjectDropped}
         />
       </nav>
     </div>

@@ -26,6 +26,7 @@ type AssetResponse struct {
 	ID                 string    `json:"id"`
 	WorkspaceID        string    `json:"workspace_id"`
 	ProjectID          *string   `json:"project_id"`
+	FolderID           *string   `json:"folder_id"`
 	OriginalFilename   string    `json:"original_filename"`
 	MimeType           string    `json:"mime_type"`
 	Size               int64     `json:"size"`
@@ -57,6 +58,7 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 		ID:                 a.ID,
 		WorkspaceID:        a.WorkspaceID,
 		ProjectID:          a.ProjectID,
+		FolderID:           a.FolderID,
 		OriginalFilename:   a.OriginalFilename,
 		MimeType:           a.MimeType,
 		Size:               a.Size,
