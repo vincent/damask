@@ -327,8 +327,7 @@ func TestDeleteIngressSource_Success(t *testing.T) {
 }
 
 func TestDeleteIngressSource_RequiresOwner(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	created := createIngressSource(t, env, owner.Cookie,
 		`{"type":"imap","label":"Src","config":{}}`)
@@ -807,8 +806,7 @@ func TestCreateIngressRule_MissingFields(t *testing.T) {
 }
 
 func TestCreateIngressRule_RequiresEditor(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	src := createIngressSource(t, env, owner.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 

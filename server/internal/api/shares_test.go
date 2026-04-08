@@ -31,8 +31,7 @@ func createShare(t *testing.T, env *th.TestEnv, cookie *http.Cookie, body string
 // --- S-2: POST /shares ---
 
 func TestCreateShare_ProjectTarget(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "Nike Q3", "#ff0000")
 
 	body := fmt.Sprintf(`{"label":"Nike Q3 delivery","target_type":"project","target_id":%q,"allow_download":true}`, p.ID)
@@ -62,8 +61,7 @@ func TestCreateShare_ProjectTarget(t *testing.T) {
 }
 
 func TestCreateShare_AssetTarget(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	body := fmt.Sprintf(`{"target_type":"asset","target_id":%q}`, assetID)
@@ -78,8 +76,7 @@ func TestCreateShare_AssetTarget(t *testing.T) {
 }
 
 func TestCreateShare_WithPassword(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "Secret", "#000")
 
 	body := fmt.Sprintf(`{"target_type":"project","target_id":%q,"password":"hunter2"}`, p.ID)
@@ -91,8 +88,7 @@ func TestCreateShare_WithPassword(t *testing.T) {
 }
 
 func TestCreateShare_WithExpiry(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "Expiring", "#000")
 
 	body := fmt.Sprintf(`{"target_type":"project","target_id":%q,"expires_in_days":14}`, p.ID)
@@ -107,8 +103,7 @@ func TestCreateShare_WithExpiry(t *testing.T) {
 }
 
 func TestCreateShare_InvalidTargetType(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
 		th.JsonStr(`{"target_type":"unknown","target_id":"abc"}`), owner.Cookie)
@@ -119,8 +114,7 @@ func TestCreateShare_InvalidTargetType(t *testing.T) {
 }
 
 func TestCreateShare_TargetNotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
 		th.JsonStr(`{"target_type":"project","target_id":"nonexistent"}`), owner.Cookie)
@@ -158,8 +152,7 @@ func TestCreateShare_Unauthenticated(t *testing.T) {
 // --- S-3: GET /shares ---
 
 func TestListShares_Empty(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -193,8 +186,7 @@ func TestListShares_WorkspaceIsolation(t *testing.T) {
 // --- S-3: GET /shares/:id ---
 
 func TestGetShare_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
 
@@ -211,8 +203,7 @@ func TestGetShare_Success(t *testing.T) {
 }
 
 func TestGetShare_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/nonexistent", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -238,8 +229,7 @@ func TestGetShare_OtherWorkspace(t *testing.T) {
 // --- S-3: PUT /shares/:id ---
 
 func TestUpdateShare_Label(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"label":"Old","target_type":"project","target_id":%q}`, p.ID))
 
@@ -257,8 +247,7 @@ func TestUpdateShare_Label(t *testing.T) {
 }
 
 func TestUpdateShare_SetAndClearPassword(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
 
@@ -290,8 +279,7 @@ func TestUpdateShare_SetAndClearPassword(t *testing.T) {
 }
 
 func TestUpdateShare_AllowComments(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
 
@@ -310,8 +298,7 @@ func TestUpdateShare_AllowComments(t *testing.T) {
 }
 
 func TestUpdateShare_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/nonexistent",
 		th.JsonStr(`{"label":"x"}`), owner.Cookie)
@@ -324,8 +311,7 @@ func TestUpdateShare_NotFound(t *testing.T) {
 // --- S-3: DELETE /shares/:id (soft revoke) ---
 
 func TestRevokeShare_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q}`, p.ID))
 
@@ -349,8 +335,7 @@ func TestRevokeShare_Success(t *testing.T) {
 }
 
 func TestRevokeShare_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/nonexistent", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -374,8 +359,7 @@ func TestRevokeShare_OtherWorkspace(t *testing.T) {
 }
 
 func TestListShares_IncludesIsExpired(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "P", "#000")
 	sh := createShare(t, env, owner.Cookie, fmt.Sprintf(`{"target_type":"project","target_id":%q,"expires_in_days":7}`, p.ID))
 

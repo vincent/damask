@@ -32,16 +32,7 @@ func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *htt
 		t.Fatalf("encode test png: %v", err)
 	}
 
-	var body bytes.Buffer
-	boundary := "TestBoundary"
-	_, _ = fmt.Fprintf(&body, "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\nContent-Type: image/png\r\n\r\n", boundary)
-	_, _ = body.Write(buf.Bytes())
-	_, _ = fmt.Fprintf(&body, "\r\n--%s--\r\n", boundary)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
-	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
-	req.AddCookie(res.Cookie)
-
+	req := th.BuildUploadRequest(t, "test.png", buf.Bytes(), res.Cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
 	if err != nil {
 		t.Fatalf("upload asset: %v", err)

@@ -16,6 +16,16 @@ import (
 
 // --- helpers ---
 
+func uploadTestAsset(t *testing.T, env *th.TestEnv, owner th.AuthResult) string {
+	t.Helper()
+	return env.UploadTestAsset(t, owner.Cookie)
+}
+
+func createProject(t *testing.T, env *th.TestEnv, cookie *http.Cookie, name, color string) api.ProjectResponse {
+	t.Helper()
+	return th.CreateProject(t, env, cookie, name, color)
+}
+
 func getAssetEvents(t *testing.T, env *th.TestEnv, assetID string, cookie *http.Cookie, query string) (int, api.EventListResponse) {
 	t.Helper()
 	path := fmt.Sprintf("/api/v1/assets/%s/events", assetID)
@@ -51,8 +61,7 @@ func getProjectEvents(t *testing.T, env *th.TestEnv, projectID string, cookie *h
 // --- asset events ---
 
 func TestListAssetEvents_Empty(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	assetID := uploadTestAsset(t, env, owner)
 
@@ -73,8 +82,7 @@ func TestListAssetEvents_Empty(t *testing.T) {
 }
 
 func TestListAssetEvents_Unauthenticated(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	code, _ := getAssetEvents(t, env, assetID, nil, "")
@@ -84,8 +92,7 @@ func TestListAssetEvents_Unauthenticated(t *testing.T) {
 }
 
 func TestListAssetEvents_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	code, _ := getAssetEvents(t, env, "nonexistent-id", owner.Cookie, "")
 	if code != http.StatusNotFound {
@@ -94,8 +101,7 @@ func TestListAssetEvents_NotFound(t *testing.T) {
 }
 
 func TestListAssetEvents_TypeFilter(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	// Add a tag to generate asset_tagged event.
@@ -118,8 +124,7 @@ func TestListAssetEvents_TypeFilter(t *testing.T) {
 }
 
 func TestListAssetEvents_Pagination(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	// Generate more events via tagging.
@@ -171,8 +176,7 @@ func TestListAssetEvents_WorkspaceIsolation(t *testing.T) {
 // --- project events ---
 
 func TestListProjectEvents_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	project := createProject(t, env, owner.Cookie, "My Project", "#123456")
 
 	code, body := getProjectEvents(t, env, project.ID, owner.Cookie, "")
@@ -188,8 +192,7 @@ func TestListProjectEvents_Success(t *testing.T) {
 }
 
 func TestListProjectEvents_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	code, _ := getProjectEvents(t, env, "nonexistent", owner.Cookie, "")
 	if code != http.StatusNotFound {
@@ -198,8 +201,7 @@ func TestListProjectEvents_NotFound(t *testing.T) {
 }
 
 func TestListProjectEvents_Unauthenticated(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	project := createProject(t, env, owner.Cookie, "My Project", "#123456")
 
 	code, _ := getProjectEvents(t, env, project.ID, nil, "")
@@ -211,8 +213,7 @@ func TestListProjectEvents_Unauthenticated(t *testing.T) {
 // --- workspace activity ---
 
 func TestListWorkspaceActivity_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	uploadTestAsset(t, env, owner)
 	createProject(t, env, owner.Cookie, "My Project", "#aabbcc")
@@ -254,8 +255,7 @@ func TestListWorkspaceActivity_Unauthenticated(t *testing.T) {
 }
 
 func TestListWorkspaceActivity_UserFilter(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	uploadTestAsset(t, env, owner)
 
@@ -271,8 +271,7 @@ func TestListWorkspaceActivity_UserFilter(t *testing.T) {
 // --- CSV export ---
 
 func TestExportActivity_CSV(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	uploadTestAsset(t, env, owner)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/activity/export?format=csv", nil, owner.Cookie)
@@ -299,8 +298,7 @@ func TestExportActivity_CSV(t *testing.T) {
 }
 
 func TestExportActivity_InvalidFormat(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/activity/export?format=pdf", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -320,8 +318,7 @@ func TestExportActivity_Unauthenticated(t *testing.T) {
 }
 
 func TestExportActivity_InvalidDate(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/activity/export?format=csv&since=not-a-date", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -346,8 +343,7 @@ func downloadAssetFile(t *testing.T, env *th.TestEnv, assetID string, cookie *ht
 }
 
 func TestGetAssetFile_AuditEvent_Written(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	code := downloadAssetFile(t, env, assetID, owner.Cookie, "")
@@ -374,8 +370,7 @@ func TestGetAssetFile_AuditEvent_Written(t *testing.T) {
 }
 
 func TestGetAssetFile_AuditEvent_SkippedForImageFetch(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	code := downloadAssetFile(t, env, assetID, owner.Cookie, "image")
@@ -408,8 +403,7 @@ func downloadVariantFile(t *testing.T, env *th.TestEnv, assetID, variantID strin
 }
 
 func TestGetVariantFile_AuditEvent_Written(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 	variant := insertVariantDirectly(t, env, assetID, owner.WorkspaceID)
 
@@ -437,8 +431,7 @@ func TestGetVariantFile_AuditEvent_Written(t *testing.T) {
 }
 
 func TestGetVariantFile_AuditEvent_SkippedForImageFetch(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 	variant := insertVariantDirectly(t, env, assetID, owner.WorkspaceID)
 
@@ -457,8 +450,7 @@ func TestGetVariantFile_AuditEvent_SkippedForImageFetch(t *testing.T) {
 }
 
 func TestCreateVariant_AuditEvent_Written(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	req := th.AuthRequest(http.MethodPost, fmt.Sprintf("/api/v1/assets/%s/variants", assetID),
@@ -481,8 +473,7 @@ func TestCreateVariant_AuditEvent_Written(t *testing.T) {
 }
 
 func TestDeleteVariant_AuditEvent_Written(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 	variant := insertVariantDirectly(t, env, assetID, owner.WorkspaceID)
 

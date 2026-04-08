@@ -18,8 +18,7 @@ import (
 )
 
 func TestUploadAsset_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	jpegData := th.MakeJPEG(200, 150)
 	req := th.BuildUploadRequest(t, "photo.jpg", jpegData, owner.Cookie)
@@ -71,8 +70,7 @@ func TestUploadAsset_Unauthenticated(t *testing.T) {
 }
 
 func TestUploadAsset_ViewerForbidden(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
 
 	var body bytes.Buffer
@@ -98,8 +96,7 @@ func TestUploadAsset_ViewerForbidden(t *testing.T) {
 }
 
 func TestListAssets_Empty(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets", nil, owner.Cookie)
 	resp, err := env.App.Test(req)
@@ -123,8 +120,7 @@ func TestListAssets_Empty(t *testing.T) {
 }
 
 func TestListAssets_Pagination(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	// Upload 3 assets with small delays to ensure distinct created_at
 	for i := range 3 {
@@ -175,8 +171,7 @@ func TestListAssets_Pagination(t *testing.T) {
 }
 
 func TestGetAsset(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	uploadReq := th.BuildUploadRequest(t, "test.jpg", th.MakeJPEG(50, 50), owner.Cookie)
 	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
@@ -200,8 +195,7 @@ func TestGetAsset(t *testing.T) {
 }
 
 func TestGetAsset_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/nonexistent", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -211,8 +205,7 @@ func TestGetAsset_NotFound(t *testing.T) {
 }
 
 func TestGetAssetFile(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	jpegData := th.MakeJPEG(20, 20)
 	uploadReq := th.BuildUploadRequest(t, "file.jpg", jpegData, owner.Cookie)
@@ -240,8 +233,7 @@ func TestGetAssetFile(t *testing.T) {
 }
 
 func TestGetAssetFile_ServesCurrentVersion(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	// Upload original asset (100×100).
 	asset := th.UploadAsset(t, env, owner.Cookie)
@@ -280,8 +272,7 @@ func TestGetAssetFile_ServesCurrentVersion(t *testing.T) {
 }
 
 func TestDeleteAsset(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	uploadReq := th.BuildUploadRequest(t, "del.jpg", th.MakeJPEG(10, 10), owner.Cookie)
 	uploadResp, _ := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
@@ -306,8 +297,7 @@ func TestDeleteAsset(t *testing.T) {
 }
 
 func TestListAssets_Sort(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	// Upload assets with distinct sizes: 10x10, 50x50, 100x100
 	sizes := []int{10, 50, 100}
@@ -381,8 +371,7 @@ func TestListAssets_Sort(t *testing.T) {
 }
 
 func TestSearchAssets(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	// Upload two assets with distinct names
 	for _, name := range []string{"sunset_beach.jpg", "mountain_peak.jpg"} {
@@ -415,8 +404,7 @@ func TestSearchAssets(t *testing.T) {
 }
 
 func TestSearchAssets_Pagination(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	// Upload 3 assets whose names all match "photo"
 	for i := range 3 {
@@ -490,8 +478,7 @@ func insertAssetWithSize(t *testing.T, env *th.TestEnv, workspaceID string, size
 }
 
 func TestListAssets_PaginationSortBySizeDesc(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	// Insert 25 assets with distinct sizes 1..25 bytes
 	var inserted []string
@@ -572,8 +559,7 @@ func TestListAssets_PaginationSortBySizeDesc(t *testing.T) {
 }
 
 func TestListAssets_PaginationSortBySizeAsc(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	var inserted []string
 	for i := int64(1); i <= 25; i++ {

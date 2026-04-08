@@ -111,7 +111,7 @@ func TestIsolation_GetFolders(t *testing.T) {
 	env, ws1, ws2 := setupTwoWorkspaces(t)
 
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
-	createFolderHelper(t, env, ws1.Cookie, p.ID, "Folder A", nil)
+	createFolder(t, env, ws1.Cookie, p.ID, "Folder A", nil)
 
 	req := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/projects/%s/folders", p.ID), nil, ws2.Cookie)
 	resp, err := env.App.Test(req)
@@ -127,8 +127,8 @@ func TestIsolation_UpdateFolder(t *testing.T) {
 	env, ws1, ws2 := setupTwoWorkspaces(t)
 
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
-	folder := createFolderHelper(t, env, ws1.Cookie, p.ID, "Folder A", nil)
-	folderID, _ := folder["id"].(string)
+	folder := createFolder(t, env, ws1.Cookie, p.ID, "Folder A", nil)
+	folderID := folder.ID
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/folders/"+folderID,
 		th.JsonStr(`{"name":"Hacked"}`), ws2.Cookie)
@@ -145,8 +145,8 @@ func TestIsolation_DeleteFolder(t *testing.T) {
 	env, ws1, ws2 := setupTwoWorkspaces(t)
 
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
-	folder := createFolderHelper(t, env, ws1.Cookie, p.ID, "Folder A", nil)
-	folderID, _ := folder["id"].(string)
+	folder := createFolder(t, env, ws1.Cookie, p.ID, "Folder A", nil)
+	folderID := folder.ID
 
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/folders/"+folderID, nil, ws2.Cookie)
 	resp, err := env.App.Test(req)

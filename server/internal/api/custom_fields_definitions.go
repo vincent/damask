@@ -18,7 +18,7 @@ var keyRegexp = regexp.MustCompile(`^[a-z0-9_]+$`)
 
 const maxFieldDefinitionsPerScope = 50
 
-type fieldDefinitionResponse struct {
+type FieldDefinitionResponse struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`
 	Scope              string  `json:"scope"`
@@ -34,8 +34,8 @@ type fieldDefinitionResponse struct {
 	DeletedAt          *string `json:"deleted_at,omitempty"`
 }
 
-func fieldDefToResponse(f dbgen.FieldDefinition) fieldDefinitionResponse {
-	return fieldDefinitionResponse{
+func fieldDefToResponse(f dbgen.FieldDefinition) FieldDefinitionResponse {
+	return FieldDefinitionResponse{
 		ID:                 f.ID,
 		WorkspaceID:        f.WorkspaceID,
 		Scope:              f.Scope,
@@ -67,7 +67,7 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list field definitions")
 	}
 
-	items := make([]fieldDefinitionResponse, len(defs))
+	items := make([]FieldDefinitionResponse, len(defs))
 	for i, d := range defs {
 		items[i] = fieldDefToResponse(d)
 	}

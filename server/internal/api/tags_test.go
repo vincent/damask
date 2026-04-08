@@ -23,8 +23,7 @@ func addTag(t *testing.T, env *th.TestEnv, cookie *http.Cookie, assetID, name st
 }
 
 func TestAddTag_AutoCreates(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	code := addTag(t, env, owner.Cookie, assetID, "summer")
@@ -43,8 +42,7 @@ func TestAddTag_AutoCreates(t *testing.T) {
 }
 
 func TestAddTag_Idempotent(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "beach")
@@ -60,8 +58,7 @@ func TestAddTag_Idempotent(t *testing.T) {
 }
 
 func TestRemoveTag_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "travel")
@@ -86,8 +83,7 @@ func TestRemoveTag_Success(t *testing.T) {
 }
 
 func TestListTags_WithCounts(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
@@ -114,8 +110,7 @@ func TestListTags_WithCounts(t *testing.T) {
 }
 
 func TestGetAssetTags(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "alpha")
@@ -132,8 +127,7 @@ func TestGetAssetTags(t *testing.T) {
 }
 
 func TestGetAsset_IncludesTags(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
 
 	addTag(t, env, owner.Cookie, assetID, "coast")
@@ -149,8 +143,7 @@ func TestGetAsset_IncludesTags(t *testing.T) {
 }
 
 func TestListAssets_FilterBySingleTag(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
@@ -172,8 +165,7 @@ func TestListAssets_FilterBySingleTag(t *testing.T) {
 }
 
 func TestListAssets_FilterByMultiTagAND(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
@@ -198,8 +190,7 @@ func TestListAssets_FilterByMultiTagAND(t *testing.T) {
 }
 
 func TestBulkTag(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
@@ -227,8 +218,7 @@ func TestBulkTag(t *testing.T) {
 }
 
 func TestBulkProject(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	p := createProject(t, env, owner.Cookie, "Batch", "#abcdef")
 
 	a1 := uploadTestAsset(t, env, owner)
@@ -257,8 +247,7 @@ func TestBulkProject(t *testing.T) {
 }
 
 func TestBulkDelete(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)

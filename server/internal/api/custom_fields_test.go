@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"damask/server/internal/api"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 
 // -- helpers -----------------------------------------------------------------
 
-func createFieldDef(t *testing.T, env *th.TestEnv, cookie *http.Cookie, scope, name, key, fieldType string, options *string) map[string]interface{} {
+func createFieldDef(t *testing.T, env *th.TestEnv, cookie *http.Cookie, scope, name, key, fieldType string, options *string) api.FieldDefinitionResponse {
 	t.Helper()
 	body := fmt.Sprintf(`{"scope":%q,"name":%q,"key":%q,"field_type":%q}`, scope, name, key, fieldType)
 	if options != nil {
@@ -29,7 +30,7 @@ func createFieldDef(t *testing.T, env *th.TestEnv, cookie *http.Cookie, scope, n
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create field def: expected 201, got %d", resp.StatusCode)
 	}
-	var result map[string]interface{}
+	var result api.FieldDefinitionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("decode field def: %v", err)
 	}
@@ -44,13 +45,13 @@ func TestFieldDefinitions_CRUD(t *testing.T) {
 
 	// Create
 	def := createFieldDef(t, env, u.Cookie, "asset", "Client Name", "client_name", "text", nil)
-	if def["key"] != "client_name" {
-		t.Fatalf("expected key=client_name, got %v", def["key"])
+	if def.Key != "client_name" {
+		t.Fatalf("expected key=client_name, got %v", def.Key)
 	}
-	if def["field_type"] != "text" {
-		t.Fatalf("expected field_type=text, got %v", def["field_type"])
+	if def.FieldType != "text" {
+		t.Fatalf("expected field_type=text, got %v", def.FieldType)
 	}
-	id := def["id"].(string)
+	id := def.ID
 
 	// List
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/field-definitions?scope=asset", nil, u.Cookie))
@@ -123,7 +124,7 @@ func TestFieldDefinitions_SelectValidation(t *testing.T) {
 	// select with valid options → 201
 	opts := `["Draft","Review","Approved"]`
 	def := createFieldDef(t, env, u.Cookie, "asset", "Status", "status", "select", &opts)
-	if def["options"] == nil {
+	if def.Options == nil {
 		t.Fatal("expected options to be set")
 	}
 }
@@ -181,7 +182,7 @@ func TestFieldDefinitions_Reorder(t *testing.T) {
 	d1 := createFieldDef(t, env, u.Cookie, "asset", "Alpha", "alpha", "text", nil)
 	d2 := createFieldDef(t, env, u.Cookie, "asset", "Beta", "beta", "text", nil)
 
-	body := fmt.Sprintf(`[{"id":%q,"position":10},{"id":%q,"position":5}]`, d1["id"], d2["id"])
+	body := fmt.Sprintf(`[{"id":%q,"position":10},{"id":%q,"position":5}]`, d1.ID, d2.ID)
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/field-definitions/reorder",
 		strings.NewReader(body), u.Cookie))
 	if resp.StatusCode != http.StatusNoContent {
@@ -205,7 +206,7 @@ func TestFieldDefinitions_Stats(t *testing.T) {
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	def := createFieldDef(t, env, u.Cookie, "asset", "Client", "client", "text", nil)
-	id := def["id"].(string)
+	id := def.ID
 
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/field-definitions/"+id+"/stats", nil, u.Cookie))
 	if resp.StatusCode != http.StatusOK {
@@ -244,7 +245,7 @@ func TestAssetFieldValues_GetPatch(t *testing.T) {
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	def := createFieldDef(t, env, u.Cookie, "asset", "Client", "client", "text", nil)
-	fieldID := def["id"].(string)
+	fieldID := def.ID
 
 	// Create an asset via direct SQL (no file upload needed)
 	assetID := "test-asset-fields-01"
@@ -317,14 +318,14 @@ func TestAssetFieldValues_TypeValidation(t *testing.T) {
 		value    string
 		wantCode int
 	}{
-		{"number valid", numDef["id"].(string), `42.5`, http.StatusOK},
-		{"number string", numDef["id"].(string), `"not a number"`, http.StatusUnprocessableEntity},
-		{"date valid", dateDef["id"].(string), `"2026-12-31"`, http.StatusOK},
-		{"date bad format", dateDef["id"].(string), `"31-12-2026"`, http.StatusUnprocessableEntity},
-		{"boolean valid", boolDef["id"].(string), `true`, http.StatusOK},
-		{"boolean string", boolDef["id"].(string), `"yes"`, http.StatusUnprocessableEntity},
-		{"select valid", selDef["id"].(string), `"Draft"`, http.StatusOK},
-		{"select invalid", selDef["id"].(string), `"Unknown"`, http.StatusUnprocessableEntity},
+		{"number valid", numDef.ID, `42.5`, http.StatusOK},
+		{"number string", numDef.ID, `"not a number"`, http.StatusUnprocessableEntity},
+		{"date valid", dateDef.ID, `"2026-12-31"`, http.StatusOK},
+		{"date bad format", dateDef.ID, `"31-12-2026"`, http.StatusUnprocessableEntity},
+		{"boolean valid", boolDef.ID, `true`, http.StatusOK},
+		{"boolean string", boolDef.ID, `"yes"`, http.StatusUnprocessableEntity},
+		{"select valid", selDef.ID, `"Draft"`, http.StatusOK},
+		{"select invalid", selDef.ID, `"Unknown"`, http.StatusUnprocessableEntity},
 	}
 
 	for _, tc := range cases {
@@ -344,7 +345,7 @@ func TestAssetFieldValues_SoftDeletedField(t *testing.T) {
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	def := createFieldDef(t, env, u.Cookie, "asset", "Old Field", "old_field", "text", nil)
-	fieldID := def["id"].(string)
+	fieldID := def.ID
 
 	assetID := "test-asset-deleted-field"
 	_, _ = env.SqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
@@ -384,7 +385,7 @@ func TestAssetFieldValues_BulkPatch(t *testing.T) {
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	def := createFieldDef(t, env, u.Cookie, "asset", "Client", "client", "text", nil)
-	fieldID := def["id"].(string)
+	fieldID := def.ID
 
 	// Create two assets
 	for _, id := range []string{"bulk-asset-1", "bulk-asset-2"} {
@@ -428,7 +429,7 @@ func TestAssetFieldFilter(t *testing.T) {
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	def := createFieldDef(t, env, u.Cookie, "asset", "Client", "client", "text", nil)
-	fieldID := def["id"].(string)
+	fieldID := def.ID
 
 	// Create assets
 	for _, id := range []string{"filter-asset-nike", "filter-asset-puma"} {
@@ -486,7 +487,7 @@ func TestProjectFieldValues(t *testing.T) {
 
 	// Create a project field definition
 	def := createFieldDef(t, env, u.Cookie, "project", "Budget", "budget", "number", nil)
-	fieldID := def["id"].(string)
+	fieldID := def.ID
 
 	// Create a project
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
@@ -530,7 +531,7 @@ func TestProjectFieldValues_WrongScope(t *testing.T) {
 
 	// Create an ASSET-scoped field
 	def := createFieldDef(t, env, u.Cookie, "asset", "Client", "client", "text", nil)
-	fieldID := def["id"].(string)
+	fieldID := def.ID
 
 	// Create a project
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
@@ -557,7 +558,7 @@ func TestFieldDefinitions_WorkspaceIsolation(t *testing.T) {
 
 	// u1 creates a field definition
 	def := createFieldDef(t, env, u1.Cookie, "asset", "Secret", "secret", "text", nil)
-	id := def["id"].(string)
+	id := def.ID
 
 	// u2 cannot see it
 	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/field-definitions?scope=asset", nil, u2.Cookie))

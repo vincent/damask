@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// uploadTestJPEG uploads a JPEG with a specified filename and returns the asset ID.
 func uploadTestJPEG(t *testing.T, env *th.TestEnv, cookie *http.Cookie, filename string) string {
 	t.Helper()
 	req := th.BuildUploadRequest(t, filename, th.MakeJPEG(10, 10), cookie)
@@ -25,8 +26,7 @@ func uploadTestJPEG(t *testing.T, env *th.TestEnv, cookie *http.Cookie, filename
 }
 
 func TestRenameAsset_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
@@ -51,8 +51,7 @@ func TestRenameAsset_Success(t *testing.T) {
 }
 
 func TestRenameAsset_ExtensionPreserved(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "original.jpg")
 
@@ -78,8 +77,7 @@ func TestRenameAsset_ExtensionPreserved(t *testing.T) {
 }
 
 func TestRenameAsset_NoOp(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
@@ -105,8 +103,7 @@ func TestRenameAsset_NoOp(t *testing.T) {
 }
 
 func TestRenameAsset_Unauthenticated(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
@@ -122,8 +119,7 @@ func TestRenameAsset_Unauthenticated(t *testing.T) {
 }
 
 func TestRenameAsset_ViewerForbidden(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
@@ -140,8 +136,7 @@ func TestRenameAsset_ViewerForbidden(t *testing.T) {
 }
 
 func TestRenameAsset_EmptyName(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
@@ -157,8 +152,7 @@ func TestRenameAsset_EmptyName(t *testing.T) {
 }
 
 func TestRenameAsset_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/nonexistent/rename",
 		th.JsonStr(`{"name":"new"}`), owner.Cookie)

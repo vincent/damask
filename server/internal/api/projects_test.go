@@ -4,36 +4,12 @@ import (
 	"damask/server/internal/api"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 	"testing"
-
-	"github.com/gofiber/fiber/v3"
 )
 
-// createProject is a test helper that POSTs to /api/v1/projects.
-func createProject(t *testing.T, env *th.TestEnv, cookie *http.Cookie, name, color string) api.ProjectResponse {
-	t.Helper()
-	body := fmt.Sprintf(`{"name":%q,"color":%q}`, name, color)
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body), cookie)
-	resp, err := env.App.Test(req)
-	if err != nil {
-		t.Fatalf("create project: %v", err)
-	}
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("expected 201, got %d", resp.StatusCode)
-	}
-	var p api.ProjectResponse
-	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
-		t.Fatalf("decode project: %v", err)
-	}
-	return p
-}
-
 func TestCreateProject_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonStr(`{"name":"Campaign 2024","color":"#3b82f6","description":"Summer campaign"}`),
@@ -65,8 +41,7 @@ func TestCreateProject_Success(t *testing.T) {
 }
 
 func TestCreateProject_MissingName(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":""}`), owner.Cookie)
 	resp, err := env.App.Test(req)
@@ -79,8 +54,7 @@ func TestCreateProject_MissingName(t *testing.T) {
 }
 
 func TestCreateProject_ViewerRejected(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/projects", th.JsonStr(`{"name":"My Project"}`), viewerToken)
@@ -94,8 +68,7 @@ func TestCreateProject_ViewerRejected(t *testing.T) {
 }
 
 func TestListProjects_Empty(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/projects", nil, owner.Cookie)
 	resp, err := env.App.Test(req)
@@ -116,13 +89,12 @@ func TestListProjects_Empty(t *testing.T) {
 }
 
 func TestListProjects_WithCount(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
-	p := createProject(t, env, owner.Cookie, "Alpha", "#ff0000")
+	p := th.CreateProject(t, env, owner.Cookie, "Alpha", "#ff0000")
 
 	// Upload an asset and assign it to the project
-	assetID := uploadTestAsset(t, env, owner)
+	assetID := env.UploadTestAsset(t, owner.Cookie)
 	_, err := env.SqlDB.Exec(
 		`UPDATE assets SET project_id = ? WHERE id = ?`,
 		p.ID, assetID,
@@ -145,9 +117,8 @@ func TestListProjects_WithCount(t *testing.T) {
 }
 
 func TestGetProject_Success(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
-	p := createProject(t, env, owner.Cookie, "MyProject", "#00ff00")
+	env, owner := th.SetupWithOwner(t)
+	p := th.CreateProject(t, env, owner.Cookie, "MyProject", "#00ff00")
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/projects/"+p.ID, nil, owner.Cookie)
 	resp, err := env.App.Test(req)
@@ -165,8 +136,7 @@ func TestGetProject_Success(t *testing.T) {
 }
 
 func TestGetProject_NotFound(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
+	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/projects/nonexistent", nil, owner.Cookie)
 	resp, _ := env.App.Test(req)
@@ -176,9 +146,8 @@ func TestGetProject_NotFound(t *testing.T) {
 }
 
 func TestUpdateProject(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
-	p := createProject(t, env, owner.Cookie, "Old Name", "#aabbcc")
+	env, owner := th.SetupWithOwner(t)
+	p := th.CreateProject(t, env, owner.Cookie, "Old Name", "#aabbcc")
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
 		th.JsonStr(`{"name":"New Name","color":"#112233"}`), owner.Cookie)
@@ -200,11 +169,10 @@ func TestUpdateProject(t *testing.T) {
 }
 
 func TestDeleteProject_UnlinksAssets(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
-	p := createProject(t, env, owner.Cookie, "Temp", "#000000")
+	env, owner := th.SetupWithOwner(t)
+	p := th.CreateProject(t, env, owner.Cookie, "Temp", "#000000")
 
-	assetID := uploadTestAsset(t, env, owner)
+	assetID := env.UploadTestAsset(t, owner.Cookie)
 	env.SqlDB.Exec(`UPDATE assets SET project_id = ? WHERE id = ?`, p.ID, assetID) //nolint:errcheck
 
 	// Delete the project
@@ -226,18 +194,4 @@ func TestDeleteProject_UnlinksAssets(t *testing.T) {
 	if projectID != nil {
 		t.Errorf("expected project_id to be NULL after deletion, got %v", *projectID)
 	}
-}
-
-// uploadTestAsset is a small helper that uploads a JPEG and returns its ID.
-func uploadTestAsset(t *testing.T, env *th.TestEnv, owner th.AuthResult) string {
-	t.Helper()
-	jpegData := th.MakeJPEG(10, 10)
-	req := th.BuildUploadRequest(t, "test.jpg", jpegData, owner.Cookie)
-	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
-	if err != nil {
-		t.Fatalf("upload: %v", err)
-	}
-	var a api.AssetResponse
-	json.NewDecoder(resp.Body).Decode(&a) //nolint:errcheck
-	return a.ID
 }

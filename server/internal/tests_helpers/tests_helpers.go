@@ -354,3 +354,40 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 	}
 	return versionID
 }
+
+// SetupWithOwner creates a test app and registers one owner user.
+// This is the universal preamble for most test functions.
+func SetupWithOwner(t *testing.T) (*TestEnv, AuthResult) {
+	t.Helper()
+	env := SetupTestApp(t)
+	owner := Register(t, env, "Owner", "owner@test.com", "password123")
+	return env, owner
+}
+
+// UploadTestAsset uploads an asset for the given auth cookie and returns the asset ID.
+// This is a convenience wrapper around UploadAsset that extracts just the ID.
+func (env *TestEnv) UploadTestAsset(t *testing.T, cookie *http.Cookie) string {
+	t.Helper()
+	asset := UploadAsset(t, env, cookie)
+	return asset.ID
+}
+
+// CreateProject creates a project and returns the full response.
+func CreateProject(t *testing.T, env *TestEnv, cookie *http.Cookie, name, color string) api.ProjectResponse {
+	t.Helper()
+	body := fmt.Sprintf(`{"name":%q,"color":%q}`, name, color)
+	req := AuthRequest(http.MethodPost, "/api/v1/projects", JsonStr(body), cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("create project: expected 201, got %d: %s", resp.StatusCode, b)
+	}
+	var project api.ProjectResponse
+	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
+		t.Fatalf("decode project: %v", err)
+	}
+	return project
+}

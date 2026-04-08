@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type folderResponse struct {
+type FolderResponse struct {
 	ID          string           `json:"id"`
 	WorkspaceID string           `json:"workspace_id"`
 	ProjectID   string           `json:"project_id"`
@@ -20,12 +20,12 @@ type folderResponse struct {
 	Name        string           `json:"name"`
 	Position    int64            `json:"position"`
 	AssetCount  int64            `json:"asset_count"`
-	Children    []folderResponse `json:"children"`
+	Children    []FolderResponse `json:"children"`
 	CreatedAt   string           `json:"created_at"`
 }
 
-func folderToResponse(f dbgen.Folder, assetCount int64) folderResponse {
-	return folderResponse{
+func folderToResponse(f dbgen.Folder, assetCount int64) FolderResponse {
+	return FolderResponse{
 		ID:          f.ID,
 		WorkspaceID: f.WorkspaceID,
 		ProjectID:   f.ProjectID,
@@ -33,7 +33,7 @@ func folderToResponse(f dbgen.Folder, assetCount int64) folderResponse {
 		Name:        f.Name,
 		Position:    f.Position,
 		AssetCount:  assetCount,
-		Children:    []folderResponse{},
+		Children:    []FolderResponse{},
 		CreatedAt:   f.CreatedAt,
 	}
 }
@@ -147,7 +147,7 @@ func (s *Server) handleGetFolders(c fiber.Ctx) error {
 	defer rows.Close()
 
 	type flatRow struct {
-		folderResponse
+		FolderResponse
 		depth    int64
 		id       string
 		parentID *string
@@ -169,7 +169,7 @@ func (s *Server) handleGetFolders(c fiber.Ctx) error {
 		f.depth = depth
 		f.ID = id
 		f.ParentID = parentID
-		f.Children = []folderResponse{}
+		f.Children = []FolderResponse{}
 		flat = append(flat, f)
 	}
 	if err := rows.Err(); err != nil {
@@ -179,24 +179,24 @@ func (s *Server) handleGetFolders(c fiber.Ctx) error {
 	// Build tree — two-pass approach (works correctly with slice mutation)
 	// Pass 1: collect roots into slice + map their index
 	rootMap := make(map[string]int) // folder id -> index in roots slice
-	var roots []folderResponse
+	var roots []FolderResponse
 	for _, row := range flat {
 		if row.parentID == nil {
 			rootMap[row.id] = len(roots)
-			roots = append(roots, row.folderResponse)
+			roots = append(roots, row.FolderResponse)
 		}
 	}
 	// Pass 2: attach children to parent root entries
 	for _, row := range flat {
 		if row.parentID != nil {
 			if idx, ok := rootMap[*row.parentID]; ok {
-				roots[idx].Children = append(roots[idx].Children, row.folderResponse)
+				roots[idx].Children = append(roots[idx].Children, row.FolderResponse)
 			}
 		}
 	}
 
 	if roots == nil {
-		roots = []folderResponse{}
+		roots = []FolderResponse{}
 	}
 	return c.JSON(roots)
 }
