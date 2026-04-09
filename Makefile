@@ -26,7 +26,7 @@ build-demo: build-web
 
 # Update Swagger docs
 swagger:
-	swag init -g cmd/server/main.go
+	swag init -g cmd/server/main.go -o internal/docs
 
 # Run all tests
 test:
@@ -34,7 +34,7 @@ test:
 
 # Run linters
 lint:
-	golangci-lint run
+	golangci-lint run --config .golangci.yaml
 	cd cmd/server/web && npm run check
 
 # Run sqlc code generation

@@ -17,7 +17,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
-	_ "damask/server/docs"
+	_ "damask/server/internal/docs"
 )
 
 // Server holds shared dependencies injected at startup.

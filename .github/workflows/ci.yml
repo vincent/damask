@@ -14,8 +14,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
@@ -28,10 +28,9 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: Run tests
-        working-directory: server
         run: go test -mod=mod ./...
 
   build-go:
@@ -41,8 +40,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: Build binary
         working-directory: server
         run: CGO_ENABLED=0 go build -mod=mod -o bin/damask-server ./cmd/server
@@ -59,12 +58,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: cmd/server/web/package-lock.json
       - name: Install deps
-        working-directory: web
+        working-directory: cmd/server/web
         run: npm ci
       - name: Type-check
-        working-directory: web
+        working-directory: cmd/server/web
         run: npm run check
 
   build-frontend:
@@ -76,12 +75,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: cmd/server/web/package-lock.json
       - name: Install deps
-        working-directory: web
+        working-directory: cmd/server/web
         run: npm ci
       - name: Build
-        working-directory: web
+        working-directory: cmd/server/web
         env:
           VITE_API_URL: ""
         run: npm run build
