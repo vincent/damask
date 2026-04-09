@@ -1,5 +1,6 @@
 # Binaries
 server/bin/
+/dist/
 *.exe
 
 # Environment
