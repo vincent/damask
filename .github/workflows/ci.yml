@@ -17,7 +17,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: Create web dist directory
-        run: mkdir -p cmd/server/web/build
+        run: mkdir -p cmd/server/web/build && echo "{}" > cmd/server/web/build/placeholder.json
       - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
@@ -32,7 +32,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: Create web dist directory
-        run: mkdir -p cmd/server/web/build
+        run: mkdir -p cmd/server/web/build && echo "{}" > cmd/server/web/build/placeholder.json
       - name: Run tests
         run: go test -mod=mod ./...
 
@@ -46,7 +46,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: Create web dist directory
-        run: mkdir -p cmd/server/web/build
+        run: mkdir -p cmd/server/web/build && echo "{}" > cmd/server/web/build/placeholder.json
       - name: Build binary
         run: CGO_ENABLED=0 go build -mod=mod -o bin/damask-server ./cmd/server
       - name: Build demo binary
