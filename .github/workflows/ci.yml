@@ -19,8 +19,7 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
-          working-directory: server
-
+  
   test-go:
     name: Test (Go)
     runs-on: ubuntu-latest
@@ -43,10 +42,8 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: Build binary
-        working-directory: server
         run: CGO_ENABLED=0 go build -mod=mod -o bin/damask-server ./cmd/server
       - name: Build demo binary
-        working-directory: server
         run: CGO_ENABLED=0 go build -tags=demo -mod=mod -o bin/damask-server-demo ./cmd/server
 
   check-frontend:
