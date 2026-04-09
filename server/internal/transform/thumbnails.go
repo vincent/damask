@@ -22,15 +22,15 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		return ThumbnailFromImage(rc)
 
 	case isVideoMime(mimeType):
-		if !FFmpegAvailable() {
-			log.Printf("thumbnail: ffmpeg not available, skipping video %q", storageKey)
-			return nil, "", nil
-		}
 		rc, err := storage.Get(storageKey)
 		if err != nil {
 			return nil, "", err
 		}
 		defer rc.Close()
+		if !FFmpegAvailable() {
+			log.Printf("thumbnail: ffmpeg not available, skipping video %q", storageKey)
+			return nil, "", nil
+		}
 		return ThumbnailFromVideo(ctx, rc, mimeType)
 
 	case isPdfMime(mimeType):
