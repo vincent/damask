@@ -23,3 +23,8 @@ func isAudioMime(mime string) bool {
 func isPdfMime(mime string) bool {
 	return mime == "application/pdf"
 }
+
+// isTextMime reports whether mime is text/*.
+func isTextMime(mime string) bool {
+	return strings.HasPrefix(mime, "text/")
+}

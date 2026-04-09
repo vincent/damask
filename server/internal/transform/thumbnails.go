@@ -48,6 +48,14 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		defer rc.Close()
 		return ThumbnailFromAudio(ctx, rc, mimeType)
 
+	case isTextMime(mimeType):
+		rc, err := storage.Get(storageKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		return ThumbnailFromText(ctx, rc, mimeType)
+
 	default:
 		log.Printf("thumbnail: unsupported MIME type %q, skipping", mimeType)
 		return nil, "", nil
@@ -66,6 +74,20 @@ func ThumbnailFromImage(rc io.ReadCloser) ([]byte, string, error) {
 		return nil, "", err
 	}
 	return data, ".jpg", nil
+}
+
+func ThumbnailFromText(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {
+	text := make([]byte, 4096) // cap thumbnail text at 4KB
+	n, err := rc.Read(text)
+	if err != nil && err != io.EOF {
+		return nil, "", err
+	}
+	text = text[:n]
+	data, err := GenerateImageOfText(ctx, string(text), "#000000", "#ffffff", "goregular", 0)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, ".png", nil
 }
 
 func ThumbnailFromVideo(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {

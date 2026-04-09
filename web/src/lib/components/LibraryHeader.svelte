@@ -56,7 +56,7 @@
     />
 
     {#if authStore.role !== 'viewer'}
-      <label class="flex gap-2 cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-md font-medium text-white hover:bg-indigo-700">
+      <label class="flex items-center gap-2 cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-md font-medium text-white hover:bg-indigo-700">
         Upload
         <Upload class="h-4 w-4" />
         <input

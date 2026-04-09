@@ -52,6 +52,7 @@ var handlers = []MediaHandler{
 	VideoHandler{},
 	AudioHandler{},
 	PdfHandler{},
+	PlainTextHandler{},
 }
 
 func getHandler(mime string) MediaHandler {
