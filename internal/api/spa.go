@@ -102,9 +102,9 @@ func newViteProxy() fiber.Handler {
 		}
 
 		// Copy response headers
-		resp.Header.VisitAll(func(key, value []byte) {
+		for key, value := range resp.Header.All() {
 			c.Set(string(key), string(value))
-		})
+		}
 
 		// Send response body
 		c.Status(resp.StatusCode())
