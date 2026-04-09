@@ -50,9 +50,12 @@ type MediaHandler interface {
 var handlers = []MediaHandler{
 	ImageHandler{},
 	VideoHandler{},
-	AudioHandler{},
-	PdfHandler{},
-	PlainTextHandler{},
+	NewDefaultHandler([]string{
+		"text/plain",
+		"audio/",
+		"font/",
+		"/pdf",
+	}),
 }
 
 func getHandler(mime string) MediaHandler {

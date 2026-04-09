@@ -28,3 +28,8 @@ func isPdfMime(mime string) bool {
 func isTextMime(mime string) bool {
 	return strings.HasPrefix(mime, "text/")
 }
+
+// isFontMime reports whether mime is a font/* type.
+func isFontMime(mime string) bool {
+	return strings.HasPrefix(mime, "font/")
+}

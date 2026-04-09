@@ -5,6 +5,7 @@ import (
 	"damask/server/internal/storage"
 	"io"
 	"log"
+	"path/filepath"
 )
 
 // generateThumbnailData produces thumbnail bytes and a file extension for any
@@ -56,6 +57,14 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		defer rc.Close()
 		return ThumbnailFromText(ctx, rc, mimeType)
 
+	case isFontMime(mimeType):
+		rc, err := storage.Get(storageKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		return ThumbnailFromFontFile(ctx, rc, mimeType, storageKey)
+
 	default:
 		log.Printf("thumbnail: unsupported MIME type %q, skipping", mimeType)
 		return nil, "", nil
@@ -83,7 +92,19 @@ func ThumbnailFromText(ctx context.Context, rc io.ReadCloser, mimeType string) (
 		return nil, "", err
 	}
 	text = text[:n]
-	data, err := GenerateImageOfText(ctx, string(text), "#000000", "#ffffff", "goregular", 0)
+	data, err := GenerateImageOfText(ctx, ImageOfTextOptions{TextContent: string(text)})
+	if err != nil {
+		return nil, "", err
+	}
+	return data, ".png", nil
+}
+
+func ThumbnailFromFontFile(ctx context.Context, rc io.ReadCloser, mimeType string, fileName string) ([]byte, string, error) {
+	text := filepath.Base(fileName) + "\n\nThe quick brown fox jumps over the lazy dog."
+	data, err := GenerateImageOfText(ctx, ImageOfTextOptions{
+		TextContent: string(text),
+		FontFile:    rc,
+	})
 	if err != nil {
 		return nil, "", err
 	}

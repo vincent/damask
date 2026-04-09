@@ -1,58 +1,170 @@
 package transform
 
 import (
+	"bytes"
+	"image/png"
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
-func Test_generateImageOfText(t *testing.T) {
+func TestGenerateImageOfText_DefaultFont(t *testing.T) {
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for target function.
+		name        string
 		textContent string
 		fgColorHex  string
 		bgColorHex  string
-		ttfFontName string
 		fontSize    float64
-		want        []byte
 		wantErr     bool
 	}{
-		// TODO: Add test cases.
 		{
-			textContent: `Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.`,
+			name:        "multiline text with default font",
+			textContent: "Lorem ipsum dolor sit amet",
 			fgColorHex:  "#000000",
 			bgColorHex:  "#ffffff",
-			ttfFontName: "goregular",
-			fontSize:    0,
-			want:        nil, // TODO: set expected output
+			fontSize:    14,
 			wantErr:     false,
 		},
 		{
-			textContent: `Lorem ipsum dolor`,
+			name:        "simple text",
+			textContent: "Hello, World!",
 			fgColorHex:  "#000000",
 			bgColorHex:  "#ffffff",
-			ttfFontName: "goregular",
+			fontSize:    16,
+			wantErr:     false,
+		},
+		{
+			name:        "custom colors",
+			textContent: "Red text on blue",
+			fgColorHex:  "#ff0000",
+			bgColorHex:  "#0000ff",
+			fontSize:    12,
+			wantErr:     false,
+		},
+		{
+			name:        "auto font size",
+			textContent: "Auto sized text",
+			fgColorHex:  "#000000",
+			bgColorHex:  "#ffffff",
+			fontSize:    0, // auto-calculate
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GenerateImageOfText(t.Context(), ImageOfTextOptions{
+				TextContent: tt.textContent,
+				FgColorHex:  tt.fgColorHex,
+				BgColorHex:  tt.bgColorHex,
+				FontSize:    tt.fontSize,
+				Width:       400,
+				Height:      400,
+			})
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GenerateImageOfText() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr && !isPNG(got) {
+				t.Error("GenerateImageOfText() did not produce valid PNG")
+			}
+		})
+	}
+}
+
+func TestGenerateImageOfText_CustomFont(t *testing.T) {
+	fontPath := filepath.Join("AovelSansRounded-rdDL.ttf")
+
+	if _, err := os.Stat(fontPath); os.IsNotExist(err) {
+		t.Skipf("Font file %s not found", fontPath)
+	}
+	ff, _ := os.Open(fontPath)
+	defer ff.Close()
+
+	tests := []struct {
+		name        string
+		textContent string
+		fontSize    float64
+		wantErr     bool
+	}{
+		{
+			name:        "simple text with custom font",
+			textContent: filepath.Base(fontPath) + "\n\nThe quick brown fox jumps over the lazy dog.",
+			fontSize:    16,
+			wantErr:     false,
+		},
+		{
+			name:        "multiline with custom font",
+			textContent: "Line 1\nLine 2\nLine 3",
+			fontSize:    14,
+			wantErr:     false,
+		},
+		{
+			name:        "custom font with auto sizing",
+			textContent: "Auto sized custom",
 			fontSize:    0,
-			want:        nil, // TODO: set expected output
 			wantErr:     false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, gotErr := GenerateImageOfText(t.Context(), tt.textContent, tt.fgColorHex, tt.bgColorHex, tt.ttfFontName, tt.fontSize)
-			if gotErr != nil {
-				if !tt.wantErr {
-					t.Errorf("generateImageOfText() failed: %v", gotErr)
-				}
-				return
+			_, _ = ff.Seek(0, io.SeekStart)
+			got, err := GenerateImageOfText(t.Context(), ImageOfTextOptions{
+				TextContent: tt.textContent,
+				FontSize:    tt.fontSize,
+				FontFile:    ff,
+				Width:       400,
+				Height:      400,
+			})
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GenerateImageOfText() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if tt.wantErr {
-				t.Fatal("generateImageOfText() succeeded unexpectedly")
+
+			if !tt.wantErr {
+				// os.WriteFile("/tmp/ttf.png", got, os.FileMode(os.O_CREATE))
+				if !isPNG(got) {
+					t.Error("GenerateImageOfText() did not produce valid PNG")
+				}
 			}
 		})
 	}
+}
+
+func TestGenerateImageOfText_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		opts        ImageOfTextOptions
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "invalid font file path",
+			opts: ImageOfTextOptions{
+				TextContent: "Hello",
+				FontFile:    io.NopCloser(bytes.NewReader([]byte("not a real font file"))),
+				Width:       400,
+				Height:      400,
+			},
+			wantErr:     true,
+			errContains: "read font file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := GenerateImageOfText(t.Context(), tt.opts)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GenerateImageOfText() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func isPNG(data []byte) bool {
+	_, err := png.Decode(bytes.NewReader(data))
+	return err == nil && len(data) > 0
 }
