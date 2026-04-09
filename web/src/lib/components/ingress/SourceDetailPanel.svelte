@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { X, Save, RefreshCw, Trash2, RotateCcw, ExternalLink } from '@lucide/svelte'
+  import { X, Save, RefreshCw, Trash2, RotateCcw, ExternalLink, AlertCircle } from '@lucide/svelte'
   import type { IngressSource } from '$lib/api/models'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
@@ -135,6 +135,13 @@
       <X class="h-4 w-4" />
     </button>
   </div>
+
+  {#if source.last_error}
+    <div class="flex items-center gap-2 bg-red-50 px-5 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
+      <AlertCircle class="h-4 w-4" />
+      <textarea class="w-full min-h-[100px]">{source.last_error}</textarea>
+    </div>
+  {/if}
 
   <!-- Tabs -->
   <div class="flex border-b border-gray-100 dark:border-gray-800">

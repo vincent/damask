@@ -242,9 +242,10 @@ func createInitialVersion(
 
 	qtx := db.WithTx(tx)
 
-	createdBy := userID
-	if createdBy == "" {
-		createdBy = asset.WorkspaceID // fallback: workspace id as sentinel
+	// created_by is now nullable; NULL means system action (e.g., ingress)
+	var createdByPtr *string
+	if userID != "" {
+		createdByPtr = &userID
 	}
 
 	if _, err := qtx.CreateAssetVersion(ctx, dbgen.CreateAssetVersionParams{
@@ -259,10 +260,10 @@ func createInitialVersion(
 		Width:       meta.Width,
 		Height:      meta.Height,
 		DurationSec: meta.DurationSec,
-		CreatedBy:   createdBy,
+		CreatedBy:   createdByPtr,
 		IsCurrent:   1,
 	}); err != nil {
-		return "", fmt.Errorf("create version row: %w", err)
+		return "", fmt.Errorf("create version row (asset_id, workspace_id, created_by) (%s, %s, %v): %w", asset.ID, asset.WorkspaceID, createdByPtr, err)
 	}
 
 	if err := qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{

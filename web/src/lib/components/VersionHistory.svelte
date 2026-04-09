@@ -168,7 +168,7 @@
                   <p class="text-sm italic text-gray-500 dark:text-gray-400 line-clamp-2">"{v.comment}"</p>
                 {/if}
                 <p class="text-[11px] text-gray-400 dark:text-gray-500">
-                  by {v.created_by.name || 'Unknown'} · {formatDate(v.created_at)}
+                  by {v?.created_by?.name || 'Unknown'} · {formatDate(v.created_at)}
                 </p>
               </div>
             </div>
@@ -222,7 +222,7 @@
       </h3>
       <div class="space-y-2 text-md text-gray-600 dark:text-gray-300">
         <p>
-          Uploaded by <strong>{restoreTarget.created_by.name || 'Unknown'}</strong> on {formatDate(restoreTarget.created_at)}.
+          Uploaded by <strong>{restoreTarget?.created_by?.name || 'Unknown'}</strong> on {formatDate(restoreTarget.created_at)}.
         </p>
         {#if restoreTarget.comment}
           <p class="italic">"{restoreTarget.comment}"</p>

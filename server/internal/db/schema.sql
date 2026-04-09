@@ -96,7 +96,7 @@ CREATE TABLE asset_versions (
   duration_sec  REAL,
   thumbnail_key TEXT,
   comment       TEXT,
-  created_by    TEXT NOT NULL REFERENCES users(id),
+  created_by    TEXT REFERENCES users(id),
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   is_current    INTEGER NOT NULL DEFAULT 0,
   deleted_at    TEXT,

@@ -69,7 +69,7 @@ type AssetVersion struct {
 	DurationSec  *float64 `json:"duration_sec"`
 	ThumbnailKey *string  `json:"thumbnail_key"`
 	Comment      *string  `json:"comment"`
-	CreatedBy    string   `json:"created_by"`
+	CreatedBy    *string  `json:"created_by"`
 	CreatedAt    string   `json:"created_at"`
 	IsCurrent    int64    `json:"is_current"`
 	DeletedAt    *string  `json:"deleted_at"`

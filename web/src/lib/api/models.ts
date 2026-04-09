@@ -72,7 +72,7 @@ export interface AssetVersion {
   duration_sec: number | null
   thumbnail_url: string | null
   comment: string | null
-  created_by: AssetVersionCreatedBy
+  created_by: AssetVersionCreatedBy | null
   created_at: string
   is_current: boolean
   variant_count: number

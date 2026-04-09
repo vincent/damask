@@ -30,33 +30,37 @@ type VersionCreatedByResponse struct {
 }
 
 type VersionResponse struct {
-	ID           string                   `json:"id"`
-	VersionNum   int64                    `json:"version_num"`
-	MimeType     string                   `json:"mime_type"`
-	Size         int64                    `json:"size"`
-	Width        *int64                   `json:"width"`
-	Height       *int64                   `json:"height"`
-	DurationSec  *float64                 `json:"duration_sec"`
-	ThumbnailURL *string                  `json:"thumbnail_url"`
-	Comment      *string                  `json:"comment"`
-	CreatedBy    VersionCreatedByResponse `json:"created_by"`
-	CreatedAt    string                   `json:"created_at"`
-	IsCurrent    bool                     `json:"is_current"`
-	VariantCount int64                    `json:"variant_count"`
+	ID           string                    `json:"id"`
+	VersionNum   int64                     `json:"version_num"`
+	MimeType     string                    `json:"mime_type"`
+	Size         int64                     `json:"size"`
+	Width        *int64                    `json:"width"`
+	Height       *int64                    `json:"height"`
+	DurationSec  *float64                  `json:"duration_sec"`
+	ThumbnailURL *string                   `json:"thumbnail_url"`
+	Comment      *string                   `json:"comment"`
+	CreatedBy    *VersionCreatedByResponse `json:"created_by"`
+	CreatedAt    string                    `json:"created_at"`
+	IsCurrent    bool                      `json:"is_current"`
+	VariantCount int64                     `json:"variant_count"`
 }
 
 func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion) VersionResponse {
-	user, err := s.db.GetUserByID(ctx, v.CreatedBy)
-	createdBy := VersionCreatedByResponse{ID: v.CreatedBy}
-	if err == nil {
-		createdBy.Name = user.Name
+	var createdBy *VersionCreatedByResponse
+	if v.CreatedBy != nil {
+		user, err := s.db.GetUserByID(ctx, *v.CreatedBy)
+		createdByResp := VersionCreatedByResponse{ID: *v.CreatedBy}
+		if err == nil {
+			createdByResp.Name = user.Name
+		}
+		createdBy = &createdByResp
 	}
 	return buildVersionResponseWithCreator(v, createdBy)
 }
 
 // buildVersionResponseWithCreator builds a VersionResponse using a pre-resolved creator.
 // Use this in list paths to avoid issuing a GetUserByID query per row.
-func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy VersionCreatedByResponse) VersionResponse {
+func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy *VersionCreatedByResponse) VersionResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
 		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
@@ -81,7 +85,7 @@ func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy VersionCrea
 
 // buildVersionResponseWithCount is like buildVersionResponseWithCreator but also
 // carries the per-version variant count returned by ListVersionsWithVariantCount.
-func buildVersionResponseWithCount(v dbgen.ListVersionsWithVariantCountRow, createdBy VersionCreatedByResponse) VersionResponse {
+func buildVersionResponseWithCount(v dbgen.ListVersionsWithVariantCountRow, createdBy *VersionCreatedByResponse) VersionResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
 		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
@@ -240,6 +244,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		commentPtr = &comment
 	}
 
+	createdByPtr := &claims.UserID
 	newVersion, err := s.db.CreateAssetVersion(c.RequestCtx(), dbgen.CreateAssetVersionParams{
 		ID:          uuid.NewString(),
 		AssetID:     assetID,
@@ -253,7 +258,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		Height:      meta.Height,
 		DurationSec: meta.DurationSec,
 		Comment:     commentPtr,
-		CreatedBy:   claims.UserID,
+		CreatedBy:   createdByPtr,
 		IsCurrent:   0,
 	})
 	if err != nil {
@@ -339,22 +344,28 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 	}
 
 	// Batch-resolve creator names to avoid N+1 queries.
-	userNames := make(map[string]string, len(versions))
+	userNames := make(map[string]string)
 	for _, v := range versions {
-		if _, seen := userNames[v.CreatedBy]; !seen {
-			userNames[v.CreatedBy] = ""
-			if u, err := s.db.GetUserByID(c.RequestCtx(), v.CreatedBy); err == nil {
-				userNames[v.CreatedBy] = u.Name
+		if v.CreatedBy != nil {
+			if _, seen := userNames[*v.CreatedBy]; !seen {
+				userNames[*v.CreatedBy] = ""
+				if u, err := s.db.GetUserByID(c.RequestCtx(), *v.CreatedBy); err == nil {
+					userNames[*v.CreatedBy] = u.Name
+				}
 			}
 		}
 	}
 
 	resp := make([]VersionResponse, len(versions))
 	for i, v := range versions {
-		resp[i] = buildVersionResponseWithCount(v, VersionCreatedByResponse{
-			ID:   v.CreatedBy,
-			Name: userNames[v.CreatedBy],
-		})
+		var createdBy *VersionCreatedByResponse
+		if v.CreatedBy != nil {
+			createdBy = &VersionCreatedByResponse{
+				ID:   *v.CreatedBy,
+				Name: userNames[*v.CreatedBy],
+			}
+		}
+		resp[i] = buildVersionResponseWithCount(v, createdBy)
 	}
 	return c.JSON(resp)
 }
