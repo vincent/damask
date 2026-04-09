@@ -1,0 +1,43 @@
+version: 2
+
+project_name: damask
+
+builds:
+
+  - id: damask-admin
+    main: ./cmd/admin
+    goarch:
+      - amd64
+      - arm
+      - arm64
+
+  - id: damask-server
+    main: ./cmd/server
+    goarch:
+      - amd64
+      - arm
+      - arm64
+
+  - id: damask-server-demo
+    main: ./cmd/server
+    tags:
+      - demo
+    goarch:
+      - amd64
+      - arm
+      - arm64
+
+archives:
+
+  - id: damask-windows
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: ["zip", "tar.gz"]
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - README.md
+    ids:
+      - damask-admin
+      - damask-server
+      - damask-server-demo
+
