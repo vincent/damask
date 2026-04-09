@@ -1,5 +1,5 @@
 # Binaries
-server/bin/
+bin/
 /dist/
 *.exe
 
@@ -13,15 +13,15 @@ server/bin/
 *.db-wal
 
 # Storage
-/server/storage/
+/storage/
 
 # Node
-web/node_modules/
-web/.svelte-kit/
-web/build/
+cmd/server/web/node_modules/
+cmd/server/web/.svelte-kit/
+cmd/server/web/build/
 
 # Go
-server/vendor/
+vendor/
 
 # IDE
 .idea/
@@ -36,7 +36,7 @@ CLAUDE.md
 Thumbs.db
 
 # TMP
-/server/tmp/
+/tmp/
 /ROADMAP.md
 /ISSUES.md
 /ROADMAP.*

@@ -3,8 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
-	"os"
-	"path/filepath"
+	"io/fs"
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
@@ -83,6 +82,7 @@ func NewRouter(
 	q queue.JobQueue,
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
+	uiFS fs.FS,
 ) *fiber.App {
 	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, cfg, demoSeeder)
 
@@ -277,16 +277,13 @@ func NewRouter(
 	// Mount the UI with the default configuration under /swagger
 	app.Get("/swagger/*", swaggo.HandlerDefault)
 
-	// Serve the SvelteKit SPA when a frontend build path is configured.
-	// Unknown paths fall back to index.html for client-side routing.
-	if cfg.FrontendPath != "" {
-		app.Use("/", func(c fiber.Ctx) error {
-			clean := filepath.Join(cfg.FrontendPath, filepath.Clean("/"+c.Path()))
-			if info, err := os.Stat(clean); err == nil && !info.IsDir() {
-				return c.SendFile(clean)
-			}
-			return c.SendFile(filepath.Join(cfg.FrontendPath, "index.html"))
-		})
+	// Serve the SvelteKit SPA
+	if uiFS != nil {
+		// Production: serve embedded SPA
+		app.Use("/", newSPAHandler(uiFS))
+	} else {
+		// Development: proxy to Vite dev server
+		app.Use("/", newViteProxy())
 	}
 
 	return app

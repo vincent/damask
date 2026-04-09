@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"log"
 	"os"
 	"os/signal"
@@ -26,11 +27,15 @@ import (
 	_ "damask/server/internal/ingress/sources/sftp"
 )
 
+var uiFS fs.FS // Populated by ui.go (prod) or ui_dev.go (dev)
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
+
+	log.Println("database:", cfg.DBPath)
 
 	queries, sqlDB, err := db.Open(cfg.DBPath)
 	if err != nil {
@@ -76,7 +81,7 @@ func main() {
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
 	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor)
 
-	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg, demoSeeder)
+	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg, demoSeeder, uiFS)
 
 	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host, queries, q)
 	log.Printf("mail server starting on :%s", "2525")

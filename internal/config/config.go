@@ -37,7 +37,7 @@ type DemoConfig struct {
 
 func Load() (*Config, error) {
 	// Load .env file in development (ignore error if file doesn't exist)
-	_ = godotenv.Load("../.env")
+	_ = godotenv.Load(".env")
 
 	workers := 4
 	if w := os.Getenv("QUEUE_WORKERS"); w != "" {
