@@ -23,10 +23,10 @@ func GenerateImageOfText(ctx context.Context, textContent string, fgColorHex str
 	ttfFont := goregular.TTF
 
 	fgColor := color.RGBA{0, 0, 0, 255}
-	fmt.Sscanf(fgColorHex, "#%02x%02x%02x", &fgColor.R, &fgColor.G, &fgColor.B)
+	_, _ = fmt.Sscanf(fgColorHex, "#%02x%02x%02x", &fgColor.R, &fgColor.G, &fgColor.B)
 
 	bgColor := color.RGBA{255, 255, 255, 255}
-	fmt.Sscanf(bgColorHex, "#%02x%02x%02x", &bgColor.R, &bgColor.G, &bgColor.B)
+	_, _ = fmt.Sscanf(bgColorHex, "#%02x%02x%02x", &bgColor.R, &bgColor.G, &bgColor.B)
 
 	lines := strings.Split(textContent, "\n")
 	maxLen := 0

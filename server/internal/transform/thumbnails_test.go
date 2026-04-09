@@ -45,7 +45,7 @@ func (m *mockStorage) List(prefix string) ([]string, error) {
 func createTestJPEG() []byte {
 	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
 	var buf bytes.Buffer
-	jpeg.Encode(&buf, img, nil)
+	_ = jpeg.Encode(&buf, img, nil)
 	return buf.Bytes()
 }
 
