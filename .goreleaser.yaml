@@ -2,6 +2,10 @@ version: 2
 
 project_name: damask
 
+before:
+  hooks:
+    - make build-web
+
 builds:
 
   - id: damask-admin
