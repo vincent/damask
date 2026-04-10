@@ -43,7 +43,11 @@ Damask enforces a maximum of two folder levels:
 
 ```
 Project
+|
 └── Root folder          ← level 1
+|
+└── Root folder          ← level 1
+    |
     └── Subfolder        ← level 2 (deepest allowed)
 ```
 
@@ -65,6 +69,8 @@ Tags are workspace-scoped labels that can be applied to any asset regardless of 
 
 Open any asset's detail panel and type in the tag field. Tags are created on first use - no pre-registration needed. Press `Enter` or comma to confirm each tag. A maximum of 20 tags per asset is enforced.
 
+![Applying tags](assets/screenshot_asset_tags_fields.png)
+
 ### Filtering by tags
 
 The tag filter bar appears below the search input in the library. Click a tag chip to filter. Hold `Shift` and click a second tag to add it to the filter (AND logic - only assets matching all selected tags are shown). Click an active tag chip again to remove it from the filter.
@@ -81,11 +87,15 @@ Open an asset's detail panel and click the `×` on any tag chip. To remove a tag
 
 The Settings → Tags page lists all workspace tags with their asset counts. From here you can rename a tag (updates all assets) or delete it (removes the tag from all assets - assets themselves are unaffected).
 
+![Tag management](assets/screenshot_tags_management.png)
+
 ## Search
 
 The search bar in the header runs a full-text search across asset filenames, tag names, project names, and all text-type custom metadata fields.
 
 Search is debounced - results update as you type after a short pause. The library grid updates in place; you don't leave the current view.
+
+![Search with tags](assets/screenshot_search_tags_fields.png)
 
 ### Combining search with filters
 

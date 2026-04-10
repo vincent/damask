@@ -15,6 +15,8 @@ Share links can be created from two places:
 
 Both open the same share creation panel.
 
+![New share modal](assets/screenshot_share_new.png)
+
 ### Share settings
 
 | Setting | Description |
@@ -55,6 +57,8 @@ The gallery shows a virtual-scrolled grid of asset thumbnails. The header shows 
 
 Clicking an asset opens the review panel.
 
+![Shared gallery](assets/screenshot_shared_gallery.png)
+
 ### Asset review panel
 
 The review panel shows:
@@ -62,7 +66,6 @@ The review panel shows:
 - Full asset preview (image, video player, or document thumbnail)
 - A **Download** button (if downloads are allowed)
 - The comment thread for that asset (if comments are enabled)
-
 
 ## Client comments
 
@@ -77,6 +80,8 @@ The comment form asks for:
 - **Message** - the comment body
 
 No account creation, no login. The name is the identity.
+
+![Shared asset comments](assets/screenshot_shared_asset_comment.png)
 
 ### Viewing received comments
 

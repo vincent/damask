@@ -18,12 +18,11 @@ Damask is designed to run entirely on your own machine or server. There is no cl
 ### Quick start
 
 ```bash
-# Download the binary for your platform from the releases page
-curl -L https://github.com/vincent/damask/releases/latest/download/damask-linux-amd64 -o damask
-chmod +x damask
+# Download the latest archive for your platform from the releases page
+open https://github.com/vincent/damask/releases
 
-# Run it - that's it
-./damask
+# Extract, update config, and run it - that's it
+./damask-server
 ```
 
 Damask starts on `http://localhost:8080` by default. Open it in your browser.
@@ -61,7 +60,7 @@ After=network.target
 User=damask
 WorkingDirectory=/opt/damask
 EnvironmentFile=/opt/damask/.env
-ExecStart=/opt/damask/damask
+ExecStart=/opt/damask/damask-server
 Restart=on-failure
 
 [Install]
@@ -87,6 +86,7 @@ STORAGE_PATH=./storage
 
 Files are stored as-is on the local filesystem. Simple, fast, no dependencies. Back up this directory along with `damask.db` to have a complete backup.
 
+<!--
 ### S3-compatible (AWS S3, Cloudflare R2, MinIO, Backblaze B2)
 
 ```bash
@@ -106,6 +106,7 @@ When using an S3 backend, the database (`damask.db`) still lives locally. Only a
 Changing `STORAGE_BACKEND` on an existing instance does not migrate existing files. Assets uploaded before the switch remain accessible at their original location. New uploads go to the new backend.
 
 A migration utility to move files between backends is planned for a future release.
+-->
 
 ## Remote deployment
 
@@ -137,7 +138,22 @@ docker run -d \
   ghcr.io/vincent/damask:latest
 ```
 
-A `docker-compose.yml` is available in the repository for a complete setup including Caddy.
+or
+
+```yaml
+ damask:
+    image: ghcr.io/vincent/damask:main
+    restart: unless-stopped
+    environment:
+      APP_SECRET: your_very_long_secure_jwt_application_key
+      JWT_SECRET: your_very_long_secure_jwt_secret_key
+      BASE_URL: https://base.url
+    ports:
+      - 25:2525 # to ingest mail
+      - 80:8080 # to expose http
+    volumes:
+      - /local/path:/data
+```
 
 ## Backups
 

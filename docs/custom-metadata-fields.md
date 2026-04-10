@@ -98,6 +98,8 @@ The library filter panel includes a **Custom fields** section. Each active field
 
 Active field filters appear as dismissible chips in the filter bar alongside tag chips. A combined filter might look like: `client: Nike` + `status: Approved` + `usage_rights: before Jan 1 2027`.
 
+![Search with fields](assets/screenshot_search_tags_fields_alt.png)
+
 ## Field scope
 
 Fields are either **asset-scoped** (appear on individual assets) or **project-scoped** (appear on projects). Both are defined in the same Settings → Custom fields page, separated into two tabs.

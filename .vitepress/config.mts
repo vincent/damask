@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import lightbox from "vitepress-plugin-lightbox"
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -45,6 +46,13 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/vincent/damask' }
     ]
-  }
+  },
+
+  markdown: {
+    config: (md) => {
+      // Use lightbox plugin
+      md.use(lightbox, {});
+    },
+  },
 })
 

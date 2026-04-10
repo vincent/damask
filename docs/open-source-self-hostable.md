@@ -78,32 +78,30 @@ Both processes run in parallel. The frontend dev server proxies API requests to 
 ### Project structure
 
 ```
-damask/
-├── server/         ← Go backend
-│   ├── cmd/server/ ← entry point
-│   └── internal/
-│       ├── api/        ← Fiber HTTP handlers
-│       ├── db/         ← sqlc generated queries + migrations
-│       ├── storage/    ← storage abstraction + local/S3 implementations
-│       ├── transform/  ← image/video processing pipeline
-│       ├── queue/      ← in-process job queue
-│       ├── ingress/    ← ingestion sources
-│       ├── demo/       ← demo seeder + reset loop
-│       └── config/     ← environment config
-└── web/            ← SvelteKit frontend
-    └── src/
-        ├── lib/
-        │   ├── api/    ← typed API client
-        │   └── stores/ ← Svelte stores
-        └── routes/     ← pages and layouts
+damask
+├─ cmd/server
+|    └─ main.go          ← entry point
+|    └─ web              ← SvelteKit frontend
+|       └─ src
+|          ├─ lib
+|          │  ├─ api     ← typed API client
+|          │  └─ stores  ← Svelte stores
+|          └─ routes     ← pages and layouts
+|
+└─ internal
+     ├─ config           ← environment config
+     ├─ api              ← Fiber HTTP handlers
+     ├─ db               ← sqlc generated queries + migrations
+     ├─ storage          ← storage abstraction + local/S3 implementations
+     ├─ transform        ← image/video processing pipeline
+     ├─ queue            ← in-process job queue
+     └─ ingress          ← ingestion sources
 ```
 
-### Running tests
+### Running linting and tests
 
 ```bash
-make test           # Go unit tests
-make test-web       # SvelteKit component tests
-make test-e2e       # end-to-end (requires a running instance)
+make test     # Go unit tests
 ```
 
 ### Submitting a pull request

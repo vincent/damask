@@ -6,6 +6,8 @@ outline: deep
 
 Damask can pull assets from external sources on a schedule, so files flow into your library without manual importing. Connect a source once, point it at a destination project and folder, and let it run.
 
+![New ingress source](assets/screenshot_ingress_choose_source.png)
+
 ## How ingestion works
 
 Each ingress source is polled on a configurable interval (default: every 15 minutes). When new files are found, Damask downloads them, validates their type and size, writes them to storage, and creates asset records - using the same pipeline as a manual upload. Thumbnails and metadata are extracted automatically.
@@ -25,6 +27,8 @@ ws_abc123@ingest.damask.studio
 Find yours in **Settings → Ingestion → Email address**.
 
 Email any file as an attachment to this address. The attachments appear in your target project within seconds. No configuration needed beyond choosing the default destination folder.
+
+![Email ingress source](assets/screenshot_ingress_email_address.png)
 
 ::: tip
 Share this address with clients, collaborators, or your own devices. "Send to Damask" becomes a one-tap action from any email app.
@@ -121,6 +125,8 @@ Go to a source's detail page and open the **Rules** tab. Click **+ Add rule**.
 | Operator | `equals`, `contains`, `starts_with`, `ends_with`, `gt`, `lt` |
 | Value | The value to match against |
 | Then... | `allow` (default), `deny` (skip this file), or `route to folder` |
+
+![Ingress rules](assets/screenshot_ingress_email_rules.png)
 
 ### Example rules
 
