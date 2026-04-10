@@ -56,6 +56,49 @@ func TestUploadAsset_Success(t *testing.T) {
 	}
 }
 
+func TestUploadAsset_InFolder(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	// Create a project
+	projRes, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "My Project"}), owner.Cookie))
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	defer projRes.Body.Close()
+	if projRes.StatusCode != http.StatusCreated {
+		t.Fatalf("create project: got %d", projRes.StatusCode)
+	}
+	var proj api.ProjectResponse
+	if err := json.NewDecoder(projRes.Body).Decode(&proj); err != nil {
+		t.Fatalf("decode project: %v", err)
+	}
+
+	// Create a folder inside the project
+	folder := createFolder(t, env, owner.Cookie, proj.ID, "Photos", nil)
+
+	// Upload an asset into the folder
+	req := th.BuildUploadRequest(t, "photo.jpg", th.MakeJPEG(10, 10), owner.Cookie,
+		map[string]string{"folder_id": folder.ID})
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, body)
+	}
+
+	var asset api.AssetResponse
+	if err := json.NewDecoder(resp.Body).Decode(&asset); err != nil {
+		t.Fatalf("decode asset: %v", err)
+	}
+	if asset.FolderID == nil || *asset.FolderID != folder.ID {
+		t.Errorf("folder_id = %v, want %s", asset.FolderID, folder.ID)
+	}
+}
+
 func TestUploadAsset_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 

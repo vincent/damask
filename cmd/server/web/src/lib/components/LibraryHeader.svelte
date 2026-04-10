@@ -5,6 +5,7 @@
   import SortButtons from '$lib/components/SortButtons.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import { Share2, Upload } from '@lucide/svelte'
+  import { navigationStore } from '$lib/stores/navigation.svelte'
 
   type Props = {
     sort: 'mimetype' | 'created_at' | 'size'
@@ -65,7 +66,7 @@
           class="hidden"
           onchange={(e) => {
             const files = Array.from((e.target as HTMLInputElement).files ?? [])
-            assetsStore.upload(files)
+            assetsStore.upload(files, navigationStore.activeProjectId, navigationStore.activeFolderId)
             ;(e.target as HTMLInputElement).value = ''
           }}
         />

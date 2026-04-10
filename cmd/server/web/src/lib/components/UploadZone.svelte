@@ -45,7 +45,7 @@
       uploadsStore.add({ id, file, progress: 0, status: 'uploading' })
 
       assetApi
-        .upload(file, (pct) => uploadsStore.update(id, { progress: pct }))
+        .upload(file, null, null, (pct) => uploadsStore.update(id, { progress: pct }))
         .then((asset) => {
           uploadsStore.update(id, { status: 'processing', asset, progress: 100 })
           onuploaded(asset)

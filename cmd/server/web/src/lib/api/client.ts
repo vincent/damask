@@ -230,7 +230,7 @@ export interface AssetListResponse {
 /** Asset management endpoints — upload, list, get, delete, bulk operations. */
 export const assetApi = {
   /** POST /api/v1/assets (editor+) — upload a new asset via XHR (with progress callback). */
-  upload(file: File, onProgress?: (pct: number) => void): Promise<Asset> {
+  upload(file: File, projectId: string|null, folderId: string|null, onProgress?: (pct: number) => void): Promise<Asset> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `${API_BASE}/api/v1/assets`)
@@ -260,6 +260,8 @@ export const assetApi = {
 
       const fd = new FormData()
       fd.append('file', file)
+      if (projectId) fd.append('project_id', projectId)
+      if (folderId) fd.append('folder_id', folderId)
       xhr.send(fd)
     })
   },

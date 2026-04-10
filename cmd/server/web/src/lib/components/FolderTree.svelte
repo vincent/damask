@@ -150,7 +150,7 @@
         </div>
       {:else}
         <button
-          class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left text-md {activeFolderId === folder.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
+          class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-3 text-left text-md {activeFolderId === folder.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
           onclick={() => onselect(folder.id)}
         >
           <span class="min-w-0 flex-1 truncate text-sm">{folder.name}</span>

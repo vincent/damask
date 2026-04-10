@@ -9,16 +9,18 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { sharesStore } from '$lib/stores/shares.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
-  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2 } from '@lucide/svelte'
+  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, GitBranch } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import { ingressStore } from '$lib/stores/ingress.svelte'
+  import { fly } from 'svelte/transition'
   
   let { children }: { data: any, children: Snippet } = $props()
 
   let sidebarCreating = $state(false)
+  let sidebarDetails = $state(false)
 
   async function handleProjectSelect(id: string | null) {
     navigationStore.selectProject(id)
@@ -83,7 +85,7 @@
     <div class="px-3 pb-2">
       <button
         class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-          {(!page.route.id?.match('shares') && navigationStore.activeProjectId === null) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+          {(page.route.id === '/library' && navigationStore.activeProjectId === null) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
         onclick={() => handleProjectSelect(null)}
       >
         <Book class="h-4 w-4 shrink-0 text-gray-400" />
@@ -94,79 +96,91 @@
       </button>
     </div>
 
-    <!-- All Shares button -->
-    <div class="px-3 pb-2">
-      <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-          {(page.route.id?.match('shares')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-        onclick={() => goto('/library/shares')}
-      >
-        <Share2 class="h-4 w-4 shrink-0 text-gray-400" />
-        <span class="flex-1 text-left">All Shares</span>
-        {#if sharesStore.shares?.length > 0}
-          <span class="shrink-0 text-sm text-gray-400">{sharesStore.shares?.length}</span>
-        {/if}
-      </button>
-    </div>
+    {#if sidebarDetails}
+      <div transition:fly={{ y: '-50%', duration: 50 }}>
+        <!-- All Shares button -->
+        <div class="px-3 pb-2">
+          <button
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {(page.route.id?.match('shares')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => goto('/library/shares')}
+          >
+            <Share2 class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">All Shares</span>
+            {#if sharesStore.shares?.length > 0}
+              <span class="shrink-0 text-sm text-gray-400">{sharesStore.shares?.length}</span>
+            {/if}
+          </button>
+        </div>
 
-    <!-- Ingress Sources button -->
-    <div class="px-3 pb-2">
-      <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-          {(page.route.id?.match('ingress')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-        onclick={() => goto('/library/ingress')}
-      >
-        <Rss class="h-4 w-4 shrink-0 text-gray-400" />
-        <span class="flex-1 text-left">Sources</span>
-        {#if ingressStore.sources?.length > 0}
-          <span class="shrink-0 text-sm text-gray-400">{ingressStore.sources?.length}</span>
-        {/if}
-      </button>
-    </div>
+        <!-- Ingress Sources button -->
+        <div class="px-3 pb-2">
+          <button
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {(page.route.id?.match('ingress')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => goto('/library/ingress')}
+          >
+            <Rss class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">Sources</span>
+            {#if ingressStore.sources?.length > 0}
+              <span class="shrink-0 text-sm text-gray-400">{ingressStore.sources?.length}</span>
+            {/if}
+          </button>
+        </div>
 
-    <!-- Custom Fields settings button -->
-    <div class="px-3 pb-2">
-      <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-          {(page.route.id?.match('custom-fields')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-        onclick={() => goto('/library/settings/custom-fields')}
-      >
-        <Settings2 class="h-4 w-4 shrink-0 text-gray-400" />
-        <span class="flex-1 text-left">Custom Fields</span>
-      </button>
-    </div>
+        <!-- Custom Fields settings button -->
+        <div class="px-3 pb-2">
+          <button
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {(page.route.id?.match('custom-fields')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => goto('/library/settings/custom-fields')}
+          >
+            <Settings2 class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">Custom Fields</span>
+          </button>
+        </div>
 
-    <!-- Versioning settings button -->
-    <div class="px-3 pb-2">
-      <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-          {(page.route.id?.match('versioning')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-        onclick={() => goto('/library/settings/versioning')}
-      >
-        <Settings2 class="h-4 w-4 shrink-0 text-gray-400" />
-        <span class="flex-1 text-left">Version History</span>
-      </button>
-    </div>
+        <!-- Versioning settings button -->
+        <div class="px-3 pb-2">
+          <button
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {(page.route.id?.match('versioning')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => goto('/library/settings/versioning')}
+          >
+            <GitBranch class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">Version History</span>
+          </button>
+        </div>
 
-    <!-- Activity feed button -->
-    <div class="px-3 pb-2">
-      <button
-        class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-          {(page.route.id?.match('activity')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-        onclick={() => goto('/library/activity')}
-      >
-        <Activity class="h-4 w-4 shrink-0 text-gray-400" />
-        <span class="flex-1 text-left">Activity</span>
-      </button>
-    </div>
+        <!-- Activity feed button -->
+        <div class="px-3 pb-2">
+          <button
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {(page.route.id?.match('activity')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => goto('/library/activity')}
+          >
+            <Activity class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">Activity</span>
+          </button>
+        </div>
+
+        <div onclick={() => (sidebarDetails = false)} class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
+          <button type="button"><ChevronUp class="h-4 w-4" /></button>
+        </div>
+      </div>
+    {:else}
+      <div onclick={() => (sidebarDetails = true)}  class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
+        <button type="button"><ChevronDown class="h-4 w-4" /></button>
+      </div>
+    {/if}
 
     <!-- Projects section -->
-    <div class="flex flex-1 flex-col overflow-hidden px-3">
+    <div class="flex flex-1 flex-col overflow-hidden px-3 pt-4 border-t border-gray-100 dark:border-gray-800">
       <div class="mb-2 flex items-center justify-between px-2">
         <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Projects</span>
         {#if authStore.role !== 'viewer'}
           <button
-            class="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             onclick={() => { sidebarCreating = true }}
             aria-label="New project"
           >

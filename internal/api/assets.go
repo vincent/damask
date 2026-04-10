@@ -98,8 +98,14 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		uploadProjectID = &pid
 	}
 
+	var uploadFolderID *string
+	if fid := c.FormValue("folder_id"); fid != "" {
+		uploadFolderID = &fid
+	}
+
 	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.sqlDB, s.storage, s.queue, claims.WorkspaceID, tmpFile, services.AssetOptions{
 		ProjectID:     uploadProjectID,
+		FolderID:      uploadFolderID,
 		UserID:        claims.UserID,
 		InheritFields: inheritProjectFields,
 	})

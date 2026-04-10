@@ -124,7 +124,7 @@
     if (!e.dataTransfer?.files.length) return
     if (authStore.role === 'viewer') return
     e.preventDefault()
-    assetsStore.upload(Array.from(e.dataTransfer.files))
+    assetsStore.upload(Array.from(e.dataTransfer.files), activeProject?.id ?? null, navigationStore.activeFolderId ?? null)
   }
 
   function handleWindowKeydown(e: KeyboardEvent) {

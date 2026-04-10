@@ -198,12 +198,12 @@ export const assetsStore = {
     assets = assets.filter((a) => a.id !== id)
   },
 
-  upload(files: File[]) {
+  upload(files: File[], projectId: string|null, folderId: string|null) {
     for (const file of files) {
       const id = crypto.randomUUID()
       uploadsStore.add({ id, file, progress: 0, status: 'uploading' })
       assetApi
-        .upload(file, (pct) => uploadsStore.update(id, { progress: pct }))
+        .upload(file, projectId, folderId, (pct) => uploadsStore.update(id, { progress: pct }))
         .then((asset) => {
           assetsStore.prepend(asset)
           uploadsStore.update(id, { status: 'processing', asset })

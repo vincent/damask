@@ -253,7 +253,8 @@ func MakeJPEG(width, height int) []byte {
 }
 
 // BuildUploadRequest creates a multipart/form-data request with a file field.
-func BuildUploadRequest(t *testing.T, filename string, content []byte, cookie *http.Cookie) *http.Request {
+// Optional extra form fields can be passed as additional map arguments.
+func BuildUploadRequest(t *testing.T, filename string, content []byte, cookie *http.Cookie, extraFields ...map[string]string) *http.Request {
 	t.Helper()
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
@@ -263,6 +264,13 @@ func BuildUploadRequest(t *testing.T, filename string, content []byte, cookie *h
 	}
 	if _, err := fw.Write(content); err != nil {
 		t.Fatalf("write form file: %v", err)
+	}
+	for _, fields := range extraFields {
+		for k, v := range fields {
+			if err := w.WriteField(k, v); err != nil {
+				t.Fatalf("write form field %q: %v", k, err)
+			}
+		}
 	}
 	err = w.Close()
 	if err != nil {

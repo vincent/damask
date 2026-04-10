@@ -109,8 +109,8 @@
         </div>
       {:else}
         <button
-          class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-md transition-colors
-            {navigationStore.activeProjectId === project.id ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}
+          class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-md transition-colors font-medium
+            {navigationStore.activeProjectId === project.id ? 'bg-gray-100 focus-visible:ring-gray-300 dark:text-gray-300 dark:bg-gray-700' : 'hover:bg-gray-100 focus-visible:ring-gray-300 dark:text-gray-300 dark:hover:bg-gray-700'}
             {dropTargetProjectId === project.id ? 'bg-green-50 ring-1 ring-green-400 dark:bg-green-900/30' : ''}"
           onclick={() => onSelect(project.id)}
           ondragover={(e) => { e.preventDefault(); dropTargetProjectId = project.id }}
@@ -131,12 +131,12 @@
             style="color: {getProjectColor(project)}"
           />
           <span class="min-w-0 flex-1 truncate text-left">{project.name}</span>
-          <span class="ml-auto shrink-0 text-sm text-gray-400">{project.asset_count || ''}</span>
+          <span class="ml-auto shrink-0 text-sm text-gray-400 p-1">{project.asset_count || ''}</span>
         </button>
 
         {#if authStore.role !== 'viewer'}
           <button
-            class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-300 opacity-0 hover:bg-gray-200 hover:text-gray-600 group-hover:opacity-100 dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-400"
+            class="absolute right-7 top-2.5 rounded p-0.5 text-gray-300 opacity-0 hover:bg-gray-200 hover:text-gray-600 group-hover:opacity-100 dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-400"
             onclick={(e) => { e.stopPropagation(); menuOpenId = menuOpenId === project.id ? null : project.id }}
             aria-label="Project menu"
           >
