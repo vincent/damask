@@ -9,6 +9,7 @@ before:
 builds:
 
   - id: damask-admin
+    binary: damask-admin
     main: ./cmd/admin
     goarch:
       - amd64
@@ -20,6 +21,7 @@ builds:
       - v1
 
   - id: damask-server
+    binary: damask-server
     main: ./cmd/server
     goarch:
       - amd64
@@ -31,6 +33,7 @@ builds:
       - v1
 
   - id: damask-server-demo
+    binary: damask-server-demo
     main: ./cmd/server
     tags:
       - demo
@@ -45,8 +48,7 @@ builds:
 
 archives:
 
-  - id: damask
-    formats: ["zip", "tar.gz"]
+  - formats: ["zip", "tar.gz"]
     wrap_in_directory: true
     strip_binary_directory: true
     files:
