@@ -461,6 +461,29 @@ func decodeCursor(cursor string) (cursorVal, error) {
 	return cursorVal{Field: parts[0], Value: parts[1], ID: parts[2]}, nil
 }
 
+func (s *Server) handleGetComments(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	id := c.Params("id")
+
+	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
+		ID:          id,
+		WorkspaceID: claims.WorkspaceID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "asset not found")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	}
+
+	comments, err := s.db.ListCommentsOnAsset(c.RequestCtx(), asset.ID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load comments")
+	}
+
+	return c.JSON(comments)
+}
+
 func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")

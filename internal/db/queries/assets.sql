@@ -48,3 +48,6 @@ UPDATE assets SET current_version_id = ?, updated_at = datetime('now') WHERE id 
 
 -- name: CountVersionsForAsset :one
 SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL;
+
+-- name: ListCommentsOnAsset :many
+SELECT * FROM share_comments WHERE asset_id = ? ORDER BY created_at ASC;

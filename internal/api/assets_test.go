@@ -678,3 +678,262 @@ func TestListAssets_PaginationSortBySizeAsc(t *testing.T) {
 		}
 	}
 }
+
+func TestGetComments_Success(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	// Create a share with comments enabled and post two comments via the share endpoint
+	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
+		TargetType:    "asset",
+		TargetID:      asset.ID,
+		AllowComments: true,
+	})
+	token := accessShare(t, env, sh.ID, "")
+
+	for _, name := range []string{"Alice", "Bob"} {
+		body := fmt.Sprintf(`{"asset_id":%q,"author_name":%q,"body":"hello"}`, asset.ID, name)
+		req := shareRequest(http.MethodPost, "/shared/"+sh.ID+"/comments", body, token)
+		resp, _ := env.App.Test(req)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("create comment for %s: got %d", name, resp.StatusCode)
+		}
+	}
+
+	// Fetch comments via the authenticated asset endpoint
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/comments", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var comments []api.CommentResponse
+	if err := json.NewDecoder(resp.Body).Decode(&comments); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(comments) != 2 {
+		t.Fatalf("expected 2 comments, got %d", len(comments))
+	}
+	if comments[0].AuthorName != "Alice" || comments[1].AuthorName != "Bob" {
+		t.Errorf("unexpected author names: %q, %q", comments[0].AuthorName, comments[1].AuthorName)
+	}
+}
+
+func TestGetComments_NotFound(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/nonexistent/comments", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetComments_Unauthenticated(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/comments", nil)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetAssetThumb_NotReady(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	// No thumbnail has been generated yet — thumbnail_key is NULL
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/thumb", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 (thumbnail not ready), got %d", resp.StatusCode)
+	}
+}
+
+func TestGetAssetThumb_Ready(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	// Store a fake thumbnail in local storage and point the DB row at it
+	thumbKey := "thumbs/" + asset.ID + ".jpg"
+	thumbData := th.MakeJPEG(50, 50)
+	if err := env.Storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
+		t.Fatalf("put thumbnail: %v", err)
+	}
+	if _, err := env.SqlDB.Exec(`UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, asset.ID); err != nil {
+		t.Fatalf("set thumbnail_key: %v", err)
+	}
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/thumb", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "image/jpeg" {
+		t.Errorf("Content-Type = %q, want image/jpeg", ct)
+	}
+}
+
+func TestGetAssetThumb_NotFound(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/nonexistent/thumb", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetAssetThumb_Unauthenticated(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/thumb", nil)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestListAssetsInFolder_ByFolderID(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	proj := th.CreateProject(t, env, owner.Cookie, "Proj", "")
+	folder := createFolder(t, env, owner.Cookie, proj.ID, "Docs", nil)
+
+	// Upload one asset into the folder, one without
+	req1 := th.BuildUploadRequest(t, "in-folder.jpg", th.MakeJPEG(10, 10), owner.Cookie,
+		map[string]string{"folder_id": folder.ID, "project_id": proj.ID})
+	resp1, err := env.App.Test(req1, fiber.TestConfig{Timeout: 5000})
+	if err != nil || resp1.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp1.Body)
+		t.Fatalf("upload in-folder: %d %s %v", resp1.StatusCode, body, err)
+	}
+	req2 := th.BuildUploadRequest(t, "no-folder.jpg", th.MakeJPEG(10, 10), owner.Cookie)
+	resp2, err := env.App.Test(req2, fiber.TestConfig{Timeout: 5000})
+	if err != nil || resp2.StatusCode != http.StatusCreated {
+		t.Fatalf("upload no-folder: %v %d", err, resp2.StatusCode)
+	}
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?folder_id="+folder.ID, nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
+	}
+	var result api.AssetListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(result.Assets) != 1 {
+		t.Fatalf("expected 1 asset in folder, got %d", len(result.Assets))
+	}
+	if result.Assets[0].OriginalFilename != "in-folder.jpg" {
+		t.Errorf("unexpected asset: %s", result.Assets[0].OriginalFilename)
+	}
+}
+
+func TestListAssetsInFolder_Root(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	proj := th.CreateProject(t, env, owner.Cookie, "Proj", "")
+	folder := createFolder(t, env, owner.Cookie, proj.ID, "Sub", nil)
+
+	// Asset in root of project (no folder)
+	req1 := th.BuildUploadRequest(t, "root.jpg", th.MakeJPEG(10, 10), owner.Cookie,
+		map[string]string{"project_id": proj.ID})
+	resp1, err := env.App.Test(req1, fiber.TestConfig{Timeout: 5000})
+	if err != nil || resp1.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp1.Body)
+		t.Fatalf("upload root: %d %s %v", resp1.StatusCode, body, err)
+	}
+	// Asset inside a subfolder
+	req2 := th.BuildUploadRequest(t, "sub.jpg", th.MakeJPEG(10, 10), owner.Cookie,
+		map[string]string{"project_id": proj.ID, "folder_id": folder.ID})
+	resp2, err := env.App.Test(req2, fiber.TestConfig{Timeout: 5000})
+	if err != nil || resp2.StatusCode != http.StatusCreated {
+		t.Fatalf("upload sub: %v %d", err, resp2.StatusCode)
+	}
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?folder_id=root&project_id="+proj.ID, nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("list root: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
+	}
+	var result api.AssetListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(result.Assets) != 1 {
+		t.Fatalf("expected 1 root asset, got %d", len(result.Assets))
+	}
+	if result.Assets[0].OriginalFilename != "root.jpg" {
+		t.Errorf("unexpected asset: %s", result.Assets[0].OriginalFilename)
+	}
+}
+
+func TestListAssetsInFolder_Root_MissingProjectID(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?folder_id=root", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetComments_Empty(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	asset := th.UploadAsset(t, env, owner.Cookie)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/comments", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var comments []api.CommentResponse
+	if err := json.NewDecoder(resp.Body).Decode(&comments); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(comments) != 0 {
+		t.Errorf("expected empty slice, got %d comments", len(comments))
+	}
+}

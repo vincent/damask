@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -376,6 +376,10 @@ export const assetApi = {
       method: 'DELETE',
       body: JSON.stringify({ asset_ids: assetIds }),
     }),
+
+  /** GET /api/v1/assets/:id/comments — list comments for an asset. */
+  listAssetComments: (id: string) =>
+    apiFetch<ShareComment[]>(`${API_BASE}/api/v1/assets/${id}/comments`)
 }
 
 

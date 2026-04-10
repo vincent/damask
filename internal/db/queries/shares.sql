@@ -37,7 +37,7 @@ RETURNING *;
 -- name: ListCommentsByShare :many
 SELECT * FROM share_comments WHERE share_id = ? ORDER BY created_at ASC;
 
--- name: ListCommentsByAsset :many
+-- name: ListCommentsByShareAndAsset :many
 SELECT * FROM share_comments WHERE share_id = ? AND asset_id = ? ORDER BY created_at ASC;
 
 -- name: DeleteComment :exec

@@ -281,7 +281,7 @@ func TestCreateTag_Conflict(t *testing.T) {
 
 	body := `{"name":"duplicate"}`
 	req := th.AuthRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(body), owner.Cookie)
-	env.App.Test(req)
+	_, _ = env.App.Test(req)
 
 	req2 := th.AuthRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(`{"name":"duplicate"}`), owner.Cookie)
 	resp, _ := env.App.Test(req2)

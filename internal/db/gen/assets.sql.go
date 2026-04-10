@@ -194,6 +194,41 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 	return items, nil
 }
 
+const listCommentsOnAsset = `-- name: ListCommentsOnAsset :many
+SELECT id, share_id, asset_id, author_name, author_email, body, created_at FROM share_comments WHERE asset_id = ? ORDER BY created_at ASC
+`
+
+func (q *Queries) ListCommentsOnAsset(ctx context.Context, assetID string) ([]ShareComment, error) {
+	rows, err := q.db.QueryContext(ctx, listCommentsOnAsset, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ShareComment{}
+	for rows.Next() {
+		var i ShareComment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShareID,
+			&i.AssetID,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.Body,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateAssetCurrentVersion = `-- name: UpdateAssetCurrentVersion :exec
 UPDATE assets SET current_version_id = ?, updated_at = datetime('now') WHERE id = ?
 `

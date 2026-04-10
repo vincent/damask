@@ -449,7 +449,7 @@ func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 		return err
 	}
 
-	comments, err := s.db.ListCommentsByAsset(c.RequestCtx(), dbgen.ListCommentsByAssetParams{
+	comments, err := s.db.ListCommentsByShareAndAsset(c.RequestCtx(), dbgen.ListCommentsByShareAndAssetParams{
 		ShareID: shareID,
 		AssetID: assetID,
 	})

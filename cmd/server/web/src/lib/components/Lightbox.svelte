@@ -9,7 +9,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
-  import { Copy, Inbox, Link, Share, Upload } from '@lucide/svelte'
+  import { Copy, Inbox, Link, Settings, Share, Upload } from '@lucide/svelte'
   import AssetTags from './AssetTags.svelte';
   import AssetMetadata from './AssetMetadata.svelte';
   import VariantCreateResize from './VariantCreateResize.svelte';
@@ -37,6 +37,7 @@
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import { fly } from 'svelte/transition'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
+  import AssetComments from './AssetComments.svelte'
 
   interface Props {
     asset: Asset | null
@@ -50,7 +51,15 @@
   let { asset = $bindable(), onclose, ondeleted, ontagschanged, onprojectchanged, onassetupdated }: Props = $props()
 
   // --- Panel tabs ---
-  type PanelTab = 'details' | 'variants' | 'history' | 'activity' | 'actions'
+  const panelTabs = {
+    details:  { label: 'Details',  icon: null },
+    variants: { label: 'Variants', icon: null },
+    comments: { label: 'Comments', icon: null },
+    history:  { label: 'History',  icon: null },
+    activity: { label: 'Activity', icon: null },
+    actions:  { label: 'Actions',  icon: null },
+  }
+  type PanelTab = keyof typeof panelTabs
   let activeTab = $state<PanelTab>('details')
 
   // --- Variant sub-tabs ---
@@ -262,15 +271,18 @@
     <!-- Animated tab bar -->
     <div class="relative flex-shrink-0 border-b border-gray-100 dark:border-gray-800">
       <div class="flex">
-        {#each (['details', 'variants', 'history', 'activity', 'actions'] as PanelTab[]) as tab}
+        {#each Object.keys(panelTabs) as tab}
+          {@const tabInfo = panelTabs[tab as PanelTab]}
           <button
             type="button"
             class="relative flex-1 py-3 text-sm font-medium transition-colors {activeTab === tab
               ? 'text-indigo-600 dark:text-indigo-400'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
-            onclick={() => { activeTab = tab; createError = ''; createSuccess = '' }}
+            onclick={() => { activeTab = tab as PanelTab; createError = ''; createSuccess = '' }}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {#if tabInfo.label}
+              {tabInfo.label.charAt(0).toUpperCase() + tabInfo.label.slice(1)}
+            {/if}
             {#if tab === 'history' && (asset?.version_count ?? 0) > 1}
               <span class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
                 {asset.version_count}
@@ -345,6 +357,10 @@
             {/if}
           </div>
         </div>
+
+      <!-- ═══ COMMENTS TAB ═══ -->
+      {:else if activeTab === 'comments'}
+        <AssetComments {asset} />
 
       <!-- ═══ HISTORY TAB ═══ -->
       {:else if activeTab === 'history'}

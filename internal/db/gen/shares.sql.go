@@ -175,17 +175,12 @@ func (q *Queries) IncrementShareViewCount(ctx context.Context, id string) error 
 	return err
 }
 
-const listCommentsByAsset = `-- name: ListCommentsByAsset :many
-SELECT id, share_id, asset_id, author_name, author_email, body, created_at FROM share_comments WHERE share_id = ? AND asset_id = ? ORDER BY created_at ASC
+const listCommentsByShare = `-- name: ListCommentsByShare :many
+SELECT id, share_id, asset_id, author_name, author_email, body, created_at FROM share_comments WHERE share_id = ? ORDER BY created_at ASC
 `
 
-type ListCommentsByAssetParams struct {
-	ShareID string `json:"share_id"`
-	AssetID string `json:"asset_id"`
-}
-
-func (q *Queries) ListCommentsByAsset(ctx context.Context, arg ListCommentsByAssetParams) ([]ShareComment, error) {
-	rows, err := q.db.QueryContext(ctx, listCommentsByAsset, arg.ShareID, arg.AssetID)
+func (q *Queries) ListCommentsByShare(ctx context.Context, shareID string) ([]ShareComment, error) {
+	rows, err := q.db.QueryContext(ctx, listCommentsByShare, shareID)
 	if err != nil {
 		return nil, err
 	}
@@ -215,12 +210,17 @@ func (q *Queries) ListCommentsByAsset(ctx context.Context, arg ListCommentsByAss
 	return items, nil
 }
 
-const listCommentsByShare = `-- name: ListCommentsByShare :many
-SELECT id, share_id, asset_id, author_name, author_email, body, created_at FROM share_comments WHERE share_id = ? ORDER BY created_at ASC
+const listCommentsByShareAndAsset = `-- name: ListCommentsByShareAndAsset :many
+SELECT id, share_id, asset_id, author_name, author_email, body, created_at FROM share_comments WHERE share_id = ? AND asset_id = ? ORDER BY created_at ASC
 `
 
-func (q *Queries) ListCommentsByShare(ctx context.Context, shareID string) ([]ShareComment, error) {
-	rows, err := q.db.QueryContext(ctx, listCommentsByShare, shareID)
+type ListCommentsByShareAndAssetParams struct {
+	ShareID string `json:"share_id"`
+	AssetID string `json:"asset_id"`
+}
+
+func (q *Queries) ListCommentsByShareAndAsset(ctx context.Context, arg ListCommentsByShareAndAssetParams) ([]ShareComment, error) {
+	rows, err := q.db.QueryContext(ctx, listCommentsByShareAndAsset, arg.ShareID, arg.AssetID)
 	if err != nil {
 		return nil, err
 	}
