@@ -52,6 +52,7 @@ archives:
     wrap_in_directory: true
     strip_binary_directory: true
     files:
+      - .env.example
       - LICENSE
       - README.md
     ids:
