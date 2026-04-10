@@ -45,10 +45,10 @@ builds:
 
 archives:
 
-  - id: damask-windows
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: damask
     formats: ["zip", "tar.gz"]
     wrap_in_directory: true
+    strip_binary_directory: true
     files:
       - LICENSE
       - README.md
