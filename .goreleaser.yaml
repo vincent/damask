@@ -15,7 +15,9 @@ builds:
       - arm
       - arm64
     goarm64:
-      - "v1"
+      - v8.0
+    goamd64:
+      - v1
 
   - id: damask-server
     main: ./cmd/server
@@ -24,7 +26,9 @@ builds:
       - arm
       - arm64
     goarm64:
-      - "v1"
+      - v8.0
+    goamd64:
+      - v1
 
   - id: damask-server-demo
     main: ./cmd/server
@@ -35,7 +39,9 @@ builds:
       - arm
       - arm64
     goarm64:
-      - "v1"
+      - v8.0
+    goamd64:
+      - v1
 
 archives:
 
