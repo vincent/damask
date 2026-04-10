@@ -8,6 +8,7 @@
   import SourceConfigForm from './SourceConfigForm.svelte'
   import EmailApiPanel from './EmailApiPanel.svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import GridSkeleton from '../ui/GridSkeleton.svelte'
 
   interface Props {
     source: IngressSource
@@ -230,11 +231,7 @@
     {:else if activeTab === 'rules'}
       <div class="p-5">
         {#if ingressStore.loadingRules}
-          <div class="space-y-2">
-            {#each { length: 3 } as _}
-              <div class="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800"></div>
-            {/each}
-          </div>
+          <GridSkeleton lines={3} />
 
         {:else if ingressStore.rules.length === 0 && !addingRule}
           <div class="py-10 text-center">
@@ -354,11 +351,7 @@
         </div>
 
         {#if ingressStore.loadingLog}
-          <div class="space-y-2">
-            {#each { length: 5 } as _}
-              <div class="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800"></div>
-            {/each}
-          </div>
+          <GridSkeleton lines={5} />
 
         {:else if filteredLog.length === 0}
           <p class="py-10 text-center text-md text-gray-400">No log entries.</p>

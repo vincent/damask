@@ -36,6 +36,7 @@
   import AssetActivity from './AssetActivity.svelte'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import { fly } from 'svelte/transition'
+  import SubSectionTitle from './ui/SubSectionTitle.svelte'
 
   interface Props {
     asset: Asset | null
@@ -376,7 +377,7 @@
 
           <!-- Quick Actions -->
           <div>
-            <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Quick Actions</p>
+            <SubSectionTitle>Quick Actions</SubSectionTitle>
             <div class="space-y-2">
               <button
                 class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"

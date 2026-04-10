@@ -220,9 +220,13 @@ type ShareComment struct {
 }
 
 type Tag struct {
-	ID          string `json:"id"`
-	WorkspaceID string `json:"workspace_id"`
-	Name        string `json:"name"`
+	ID          string     `json:"id"`
+	WorkspaceID string     `json:"workspace_id"`
+	Name        string     `json:"name"`
+	Color       *string    `json:"color"`
+	GroupName   *string    `json:"group_name"`
+	CreatedAt   time.Time  `json:"created_at"`
+	LastUsedAt  *time.Time `json:"last_used_at"`
 }
 
 type User struct {

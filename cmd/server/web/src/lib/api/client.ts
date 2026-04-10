@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -192,10 +192,41 @@ export const folderApi = {
 
 
 
-/** Tag management endpoints — list, add, remove, bulk tag. */
+/** Tag management endpoints — list, add, remove, bulk tag, merge, duplicate suggestions. */
 export const tagApi = {
   /** GET /api/v1/tags — list all tags in the workspace (with usage counts). */
   list: () => apiFetch<Tag[]>('/api/v1/tags'),
+
+  /** POST /api/v1/tags (editor+) — create a tag directly (asset_count = 0). */
+  create: (name: string, color?: string | null, group_name?: string | null) =>
+    apiFetch<Tag>('/api/v1/tags', {
+      method: 'POST',
+      body: JSON.stringify({ name, color, group_name }),
+    }),
+
+  /** PATCH /api/v1/tags/:name (editor+) — rename, recolor, or regroup a tag. */
+  patch: (name: string, fields: { name?: string; color?: string | null; group_name?: string | null }) =>
+    apiFetch<Tag>(`/api/v1/tags/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(fields),
+    }),
+
+  /** DELETE /api/v1/tags (editor+) — bulk delete tags by name. */
+  bulkDelete: (names: string[]) =>
+    apiFetch<BulkDeleteTagsResult>('/api/v1/tags', {
+      method: 'DELETE',
+      body: JSON.stringify({ names }),
+    }),
+
+  /** POST /api/v1/tags/merge (editor+) — merge source tags into target. */
+  merge: (sources: string[], target: string) =>
+    apiFetch<MergeTagsResult>('/api/v1/tags/merge', {
+      method: 'POST',
+      body: JSON.stringify({ sources, target }),
+    }),
+
+  /** GET /api/v1/tags/suggestions/duplicates — near-duplicate tag pairs. */
+  duplicateSuggestions: () => apiFetch<DuplicateTagPair[]>('/api/v1/tags/suggestions/duplicates'),
 
   /** GET /api/v1/assets/:id/tags — fetch tags assigned to a specific asset. */
   getForAsset: (assetId: string) => apiFetch<string[]>(`/api/v1/assets/${assetId}/tags`),

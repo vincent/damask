@@ -11,6 +11,8 @@
   import Button from '$lib/components/ui/Button.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
+  import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
 
   let showAddModal = $state(false)
   let editingSource = $state<IngressSource | null>(null)
@@ -44,30 +46,22 @@
 
 <div class="flex h-screen bg-gray-50 dark:bg-gray-950">
   <div class="flex flex-1 flex-col overflow-hidden">
-    <!-- Header -->
-    <header class="border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Ingress Sources</h1>
-          <p class="mt-0.5 text-md text-gray-400">Automatically import files from external sources into your workspace.</p>
-        </div>
-        <Button variant="primary" onclick={() => { showAddModal = true }}>
-          {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-          Add source
-        </Button>
-      </div>
-    </header>
+    <PageHeader
+      title="Ingress Sources"
+      description="Automatically import files from external sources into your workspace."
+    >
+      <Button variant="primary" onclick={() => { showAddModal = true }}>
+        {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
+        Add source
+      </Button>
+    </PageHeader>
 
     <!-- Content -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Source list -->
       <main class="flex-1 overflow-y-auto px-6 py-6">
         {#if ingressStore.loadingSources}
-          <div class="space-y-3">
-            {#each { length: 3 } as _}
-              <div class="h-20 animate-pulse rounded-xl bg-white dark:bg-gray-800"></div>
-            {/each}
-          </div>
+          <GridSkeleton lines={4} />
 
         {:else if ingressStore.sources.length === 0}
           <EmptyState

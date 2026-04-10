@@ -20,6 +20,8 @@
     AlertCircle,
     CheckCircle,
   } from '@lucide/svelte'
+  import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
 
   let showCreateModal = $state(false)
   let copied = $state<string | null>(null)
@@ -77,35 +79,23 @@
   <title>Share Links — Damask</title>
 </svelte:head>
 
-<div class="flex h-screen bg-gray-50 dark:bg-gray-950">
+<div class="flex h-full flex-col">
   <!-- Simple settings layout: full-width content -->
   <div class="flex flex-1 flex-col overflow-hidden">
-    <!-- Header -->
-    <header class="border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Share Links</h1>
-          <p class="mt-0.5 text-md text-gray-400">Manage public share links for your workspace assets and projects.</p>
-        </div>
-        <Button
-          variant="primary"
-          disabled={createTargets.length === 0}
-          onclick={() => { showCreateModal = true }}
-        >
-          {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-          New Share
-        </Button>
-      </div>
-    </header>
+    <PageHeader
+      title="Share Links"
+      description="Manage public share links for your workspace assets and projects."
+    >
+      <Button variant="primary" disabled={createTargets.length === 0} onclick={() => { showCreateModal = true }}>
+        {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
+        New Share
+      </Button>
+    </PageHeader>
 
     <!-- Content -->
     <main class="flex-1 overflow-y-auto px-6 py-6">
       {#if sharesStore.loading}
-        <div class="space-y-3">
-          {#each { length: 4 } as _}
-            <div class="h-20 animate-pulse rounded-xl bg-white dark:bg-gray-800"></div>
-          {/each}
-        </div>
+        <GridSkeleton lines={4} />
 
       {:else if sharesStore.shares.length === 0}
         <div class="flex flex-col items-center justify-center py-24 text-center">

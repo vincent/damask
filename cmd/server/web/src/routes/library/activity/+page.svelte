@@ -2,6 +2,8 @@
   import { activityApi, type ActivityEvent } from '$lib/api'
   import { Bot, ChevronDown, Download, Inbox, User } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import Button from '$lib/components/ui/Button.svelte'
 
   let events = $state<ActivityEvent[]>([])
   let loading = $state(true)
@@ -80,12 +82,10 @@
 </svelte:head>
 
 <div class="flex h-full flex-col overflow-hidden">
-  <!-- Header -->
-  <div class="flex flex-shrink-0 items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
-    <div>
-      <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Workspace Activity</h1>
-      <p class="text-md text-zinc-500 dark:text-zinc-400">Audit trail of all asset and project changes</p>
-    </div>
+  <PageHeader
+    title="Share Links"
+    description="Manage public share links for your workspace assets and projects."
+  >
     <a
       href={csvUrl}
       class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-1.5 text-md text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
@@ -93,7 +93,7 @@
       <Download class="h-4 w-4" />
       Export CSV
     </a>
-  </div>
+  </PageHeader>
 
   <!-- Filter bar -->
   <div class="flex flex-shrink-0 gap-2 border-b border-zinc-100 px-6 py-2 dark:border-zinc-800">

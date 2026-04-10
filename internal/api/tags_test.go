@@ -246,6 +246,403 @@ func TestBulkProject(t *testing.T) {
 	}
 }
 
+// ── handleCreateTag ──────────────────────────────────────────────────────────
+
+func TestCreateTag_Success(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	body := `{"name":"landscape","color":"#22c55e","group_name":"nature"}`
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(body), owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+	var tag api.TagResponse
+	_ = json.NewDecoder(resp.Body).Decode(&tag)
+	if tag.Name != "landscape" {
+		t.Errorf("name = %q, want landscape", tag.Name)
+	}
+	if tag.Color == nil || *tag.Color != "#22c55e" {
+		t.Errorf("color = %v, want #22c55e", tag.Color)
+	}
+	if tag.GroupName == nil || *tag.GroupName != "nature" {
+		t.Errorf("group_name = %v, want nature", tag.GroupName)
+	}
+	if tag.AssetCount != 0 {
+		t.Errorf("asset_count = %d, want 0", tag.AssetCount)
+	}
+}
+
+func TestCreateTag_Conflict(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	body := `{"name":"duplicate"}`
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(body), owner.Cookie)
+	env.App.Test(req)
+
+	req2 := th.AuthRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(`{"name":"duplicate"}`), owner.Cookie)
+	resp, _ := env.App.Test(req2)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateTag_InvalidColor(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	body := `{"name":"oops","color":"notacolor"}`
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(body), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateTag_MissingName(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(`{}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateTag_RequiresEditor(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	// Viewer token cannot create tags
+	viewerToken, _ := env.Maker.CreateToken("viewer-user", owner.WorkspaceID, 0)
+	_, _ = env.SqlDB.Exec(
+		`INSERT INTO users (id, name, email, password_hash) VALUES ('viewer-user','V','v@test.com','x')`,
+	)
+	_, _ = env.SqlDB.Exec(
+		`INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, 'viewer-user', 'viewer')`,
+		owner.WorkspaceID,
+	)
+	_ = viewerToken
+
+	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	req := th.BearerRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(`{"name":"x"}`), editorToken)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for viewer, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateTag_Unauthenticated(t *testing.T) {
+	env, _ := th.SetupWithOwner(t)
+
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(`{"name":"x"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+// ── handlePatchTag ────────────────────────────────────────────────────────────
+
+func TestPatchTag_Rename(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, assetID, "old-name")
+
+	body := `{"name":"new-name"}`
+	req := th.AuthRequest(http.MethodPatch, "/api/v1/tags/old-name", strings.NewReader(body), owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var tag api.TagResponse
+	_ = json.NewDecoder(resp.Body).Decode(&tag)
+	if tag.Name != "new-name" {
+		t.Errorf("name = %q, want new-name", tag.Name)
+	}
+}
+
+func TestPatchTag_UpdateColor(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, assetID, "mytag")
+
+	body := `{"color":"#ff0000"}`
+	req := th.AuthRequest(http.MethodPatch, "/api/v1/tags/mytag", strings.NewReader(body), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var tag api.TagResponse
+	_ = json.NewDecoder(resp.Body).Decode(&tag)
+	if tag.Color == nil || *tag.Color != "#ff0000" {
+		t.Errorf("color = %v, want #ff0000", tag.Color)
+	}
+}
+
+func TestPatchTag_NotFound(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodPatch, "/api/v1/tags/nonexistent", strings.NewReader(`{"name":"x"}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestPatchTag_RenameConflict(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	a := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, a, "tagA")
+	addTag(t, env, owner.Cookie, a, "tagB")
+
+	req := th.AuthRequest(http.MethodPatch, "/api/v1/tags/tagA", strings.NewReader(`{"name":"tagB"}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", resp.StatusCode)
+	}
+}
+
+func TestPatchTag_InvalidColor(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	a := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, a, "tag1")
+
+	req := th.AuthRequest(http.MethodPatch, "/api/v1/tags/tag1", strings.NewReader(`{"color":"bad"}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+// ── handleBulkDeleteTags ─────────────────────────────────────────────────────
+
+func TestBulkDeleteTags_Success(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	a := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, a, "alpha")
+	addTag(t, env, owner.Cookie, a, "beta")
+
+	body := `{"names":["alpha","beta"]}`
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/tags", strings.NewReader(body), owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]int
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if result["deleted"] != 2 {
+		t.Errorf("deleted = %d, want 2", result["deleted"])
+	}
+
+	// Tags should be gone
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
+	resp2, _ := env.App.Test(req2)
+	var tags []api.TagResponse
+	_ = json.NewDecoder(resp2.Body).Decode(&tags)
+	if len(tags) != 0 {
+		t.Errorf("expected 0 tags after bulk delete, got %d", len(tags))
+	}
+}
+
+func TestBulkDeleteTags_SkipsUnknown(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	a := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, a, "real")
+
+	body := `{"names":["real","doesnotexist"]}`
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/tags", strings.NewReader(body), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]int
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if result["deleted"] != 1 {
+		t.Errorf("deleted = %d, want 1", result["deleted"])
+	}
+}
+
+func TestBulkDeleteTags_EmptyNames(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/tags", strings.NewReader(`{"names":[]}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestBulkDeleteTags_RemovesAssetAssociations(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	a := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, a, "removeme")
+
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/tags", strings.NewReader(`{"names":["removeme"]}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]int
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if result["removed_from_assets"] != 1 {
+		t.Errorf("removed_from_assets = %d, want 1", result["removed_from_assets"])
+	}
+}
+
+// ── handleMergeTags ───────────────────────────────────────────────────────────
+
+func TestMergeTags_Success(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	a1 := uploadTestAsset(t, env, owner)
+	a2 := uploadTestAsset(t, env, owner)
+
+	addTag(t, env, owner.Cookie, a1, "src1")
+	addTag(t, env, owner.Cookie, a2, "src2")
+
+	body := `{"sources":["src1","src2"],"target":"merged"}`
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags/merge", strings.NewReader(body), owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result struct {
+		MergedAssets int64           `json:"merged_assets"`
+		Target       api.TagResponse `json:"target"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if result.Target.Name != "merged" {
+		t.Errorf("target name = %q, want merged", result.Target.Name)
+	}
+	if result.Target.AssetCount != 2 {
+		t.Errorf("target asset_count = %d, want 2", result.Target.AssetCount)
+	}
+
+	// Source tags should be deleted
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
+	resp2, _ := env.App.Test(req2)
+	var tags []api.TagResponse
+	_ = json.NewDecoder(resp2.Body).Decode(&tags)
+	for _, tag := range tags {
+		if tag.Name == "src1" || tag.Name == "src2" {
+			t.Errorf("source tag %q should have been deleted after merge", tag.Name)
+		}
+	}
+}
+
+func TestMergeTags_TargetExists(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	a1 := uploadTestAsset(t, env, owner)
+	a2 := uploadTestAsset(t, env, owner)
+
+	addTag(t, env, owner.Cookie, a1, "old")
+	addTag(t, env, owner.Cookie, a2, "existing")
+
+	body := `{"sources":["old"],"target":"existing"}`
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags/merge", strings.NewReader(body), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Target api.TagResponse `json:"target"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if result.Target.AssetCount != 2 {
+		t.Errorf("target asset_count = %d, want 2", result.Target.AssetCount)
+	}
+}
+
+func TestMergeTags_MissingTarget(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags/merge", strings.NewReader(`{"sources":["x"],"target":""}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestMergeTags_MissingSources(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/tags/merge", strings.NewReader(`{"sources":[],"target":"x"}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+// ── handleTagDuplicateSuggestions ─────────────────────────────────────────────
+
+func TestTagDuplicateSuggestions_FindsSimilar(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	a := uploadTestAsset(t, env, owner)
+
+	// "colour" and "color" are close
+	addTag(t, env, owner.Cookie, a, "colour")
+	addTag(t, env, owner.Cookie, a, "color")
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/tags/suggestions/duplicates", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var pairs []struct {
+		A     string  `json:"a"`
+		B     string  `json:"b"`
+		Score float64 `json:"score"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&pairs)
+	if len(pairs) == 0 {
+		t.Error("expected at least one duplicate suggestion for 'colour'/'color'")
+	}
+}
+
+func TestTagDuplicateSuggestions_EmptyWhenNoTags(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/tags/suggestions/duplicates", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var pairs []interface{}
+	_ = json.NewDecoder(resp.Body).Decode(&pairs)
+	if len(pairs) != 0 {
+		t.Errorf("expected empty array, got %d items", len(pairs))
+	}
+}
+
+func TestTagDuplicateSuggestions_Unauthenticated(t *testing.T) {
+	env, _ := th.SetupWithOwner(t)
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/tags/suggestions/duplicates", nil)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
 func TestBulkDelete(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 

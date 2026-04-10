@@ -3,6 +3,7 @@
   import type { Asset, AssetFieldValue, FieldDefinition } from '$lib/api/models'
   import { Check, ChevronDown, ChevronRight } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import SubSectionTitle from './ui/SubSectionTitle.svelte'
 
   interface Props {
     asset: Asset
@@ -119,9 +120,7 @@
 </script>
 
 <div>
-  <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-    Custom Fields
-  </p>
+  <SubSectionTitle>Custom Fields</SubSectionTitle>
 
   {#if loading}
     <div class="flex justify-center py-4">

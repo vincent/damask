@@ -2,6 +2,7 @@
   import { tagApi, type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
+  import SubSectionTitle from './ui/SubSectionTitle.svelte'
   
   interface Props {
     asset: Asset | null
@@ -60,7 +61,7 @@
 </script>
 
 <div>
-    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Tags</p>
+    <SubSectionTitle>Tags</SubSectionTitle>
     <div class="flex flex-wrap gap-1.5">
         {#each tags as tag}
         <Chip

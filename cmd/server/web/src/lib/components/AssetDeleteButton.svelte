@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Loader, Trash } from "@lucide/svelte"
     import { assetApi, type Asset } from "$lib/api"
+  import SubSectionTitle from "./ui/SubSectionTitle.svelte"
 
     type Props = {
         asset: Asset
@@ -23,14 +24,14 @@
 </script>
 
 <div>
-    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Delete</p>
-        <button
-            class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md text-black transition-colors bg-red-500 hover:bg-red-600 dark:border-red-700"
-            onclick={handleDelete}
-            disabled={deleting}
-            aria-label="Delete asset"
-            title="Delete"
-        >
+    <SubSectionTitle>Delete</SubSectionTitle>
+    <button
+        class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md text-black transition-colors bg-red-500 hover:bg-red-600 dark:border-red-700"
+        onclick={handleDelete}
+        disabled={deleting}
+        aria-label="Delete asset"
+        title="Delete"
+    >
         {#if deleting}
             <Loader class="h-4 w-4 animate-spin" />
         {:else}

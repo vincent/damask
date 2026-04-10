@@ -148,7 +148,28 @@ export interface Tag {
   id: string
   name: string
   asset_count: number
+  color?: string | null
+  group_name?: string | null
+  created_at: string
+  last_used_at?: string | null
 }
+
+export interface DuplicateTagPair {
+  a: string
+  b: string
+  score: number
+}
+
+export interface MergeTagsResult {
+  merged_assets: number
+  target: Tag
+}
+
+export interface BulkDeleteTagsResult {
+  deleted: number
+  removed_from_assets: number
+}
+
 // ---- Variants ----
 
 export interface Variant {

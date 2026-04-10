@@ -1,6 +1,7 @@
 <script lang="ts">
     import { assetApi, type Asset } from "$lib/api"
     import { Download } from "@lucide/svelte"
+  import SubSectionTitle from "./ui/SubSectionTitle.svelte"
 
     type Props = {
         asset: Asset
@@ -10,7 +11,7 @@
 </script>
 
 <div>
-    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Export</p>
+    <SubSectionTitle>Export</SubSectionTitle>
     <div class="flex gap-2">
         <select
             bind:value={exportFormat}

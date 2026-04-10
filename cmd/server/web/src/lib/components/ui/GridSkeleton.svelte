@@ -1,18 +1,18 @@
 <script lang="ts">
     type Props = {
-        x: number
-        y: number
-        zoom: number
-        maxZoom: number
+        lines?: number,
+        x?: number
+        y?: number
+        zoom?: number
+        maxZoom?: number
     }
-    let { x, y, zoom, maxZoom }: Props = $props();
+    let { lines = 1, x = 0, y = 0, zoom = 6, maxZoom = 20 }: Props = $props();
 </script>
 
-<div class="mb-10">
-    <div class="mb-4 flex items-center gap-3">
-        <div class="h-8 w-8 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"></div>
-        <div class="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-    </div>
+<div class="mb-10 space-y-3">
+    {#each { length: lines } as _}
+        <div class="h-20 animate-pulse rounded-xl bg-white dark:bg-gray-800"></div>
+    {/each}
     {#each { length: y } as _}
         <div class="mb-6 grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
             {#each { length: x } as _}

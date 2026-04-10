@@ -73,11 +73,11 @@
           type="radio"
           name="retention"
           value="unlimited"
-          class="mt-0.5 accent-indigo-600"
+          class="mt-1.5 accent-indigo-600"
           bind:group={mode}
           disabled={authStore.role !== 'owner'}
         />
-        <div>
+        <div class="flex-1 space-y-2">
           <p class="text-md font-medium text-gray-900 dark:text-gray-100">Keep all versions</p>
           <p class="text-sm text-gray-500 dark:text-gray-400">No limit — every uploaded version is preserved indefinitely.</p>
         </div>
@@ -89,7 +89,7 @@
           type="radio"
           name="retention"
           value="capped"
-          class="mt-0.5 accent-indigo-600"
+          class="mt-1.5 accent-indigo-600"
           bind:group={mode}
           disabled={authStore.role !== 'owner'}
         />

@@ -112,6 +112,10 @@ CREATE TABLE tags (
     id           TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL REFERENCES workspaces(id),
     name         TEXT NOT NULL,
+    color        TEXT,
+    group_name   TEXT,
+    created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+    last_used_at DATETIME,
     UNIQUE(workspace_id, name)
 );
 

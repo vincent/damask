@@ -165,6 +165,11 @@ func NewRouter(
 
 	// Tags
 	api.Get("/tags", s.handleListTags)
+	api.Post("/tags", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateTag)
+	api.Patch("/tags/:name", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handlePatchTag)
+	api.Delete("/tags", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleBulkDeleteTags)
+	api.Post("/tags/merge", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleMergeTags)
+	api.Get("/tags/suggestions/duplicates", s.handleTagDuplicateSuggestions)
 
 	// Folders
 	api.Post("/projects/:id/folders", auth.RequireRole(tokenMaker, getRoleFn, "editor"), s.handleCreateFolder)

@@ -280,6 +280,85 @@ func (r *AddTagRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
+type createTagRequest struct {
+	Name      string  `json:"name"`
+	Color     *string `json:"color"`
+	GroupName *string `json:"group_name"`
+}
+
+func (r *createTagRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Name = strings.TrimSpace(strings.ToLower(r.Name))
+	if r.Name == "" {
+		p["name"] = "required"
+	}
+	if r.Color != nil {
+		*r.Color = strings.ToLower(strings.TrimSpace(*r.Color))
+		if !hexColorRegex.MatchString(*r.Color) {
+			p["color"] = "must be a valid hex color (e.g. #22c55e)"
+		}
+	}
+	return p
+}
+
+type patchTagRequest struct {
+	Name      *string `json:"name"`
+	Color     *string `json:"color"`
+	GroupName *string `json:"group_name"`
+}
+
+func (r *patchTagRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if r.Name != nil {
+		*r.Name = strings.TrimSpace(strings.ToLower(*r.Name))
+		if *r.Name == "" {
+			p["name"] = "must not be empty"
+		}
+	}
+	if r.Color != nil {
+		*r.Color = strings.ToLower(strings.TrimSpace(*r.Color))
+		if !hexColorRegex.MatchString(*r.Color) {
+			p["color"] = "must be a valid hex color (e.g. #22c55e)"
+		}
+	}
+	return p
+}
+
+type bulkDeleteTagsRequest struct {
+	Names []string `json:"names"`
+}
+
+func (r *bulkDeleteTagsRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if len(r.Names) == 0 {
+		p["names"] = "required"
+	}
+	for i, n := range r.Names {
+		r.Names[i] = strings.TrimSpace(strings.ToLower(n))
+	}
+	return p
+}
+
+type mergeTagsRequest struct {
+	Sources []string `json:"sources"`
+	Target  string   `json:"target"`
+}
+
+func (r *mergeTagsRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Target = strings.TrimSpace(strings.ToLower(r.Target))
+	if r.Target == "" {
+		p["target"] = "required"
+	}
+	if len(r.Sources) == 0 {
+		p["sources"] = "required"
+	}
+	for i, s := range r.Sources {
+		r.Sources[i] = strings.TrimSpace(strings.ToLower(s))
+	}
+	return p
+}
+
 // -- shares.go ----------------------------------------------------------------
 
 type CreateShareRequest struct {

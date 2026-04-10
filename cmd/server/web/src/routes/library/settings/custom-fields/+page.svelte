@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { GripVertical, Pencil, Trash2, Plus, LayoutList } from '@lucide/svelte'
+  import { GripVertical, Pencil, Trash2, Plus } from '@lucide/svelte'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import type { FieldDefinition, FieldScope } from '$lib/api/models'
@@ -9,6 +9,8 @@
   import Badge from '$lib/components/ui/Badge.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
+  import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import Button from '$lib/components/ui/Button.svelte'
 
   let activeScope = $state<FieldScope>('asset')
 
@@ -94,20 +96,15 @@
 </svelte:head>
 
 <div class="flex h-full flex-col">
-  <!-- Page header -->
-  <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
-    <div class="flex items-center gap-3">
-      <LayoutList class="h-5 w-5 text-gray-400" />
-      <h1 class="text-base font-semibold text-gray-900 dark:text-gray-100">Custom Fields</h1>
-    </div>
-    <button
-      class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-md font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-      onclick={() => { editingField = null; showCreateModal = true }}
-    >
-      <Plus class="h-4 w-4" />
+  <PageHeader
+    title="Custom Fields"
+    description="Manage custom metadata fields for your assets and projects."
+  >
+    <Button variant="primary" onclick={() => { editingField = null; showCreateModal = true }}>
+      {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
       Add field
-    </button>
-  </div>
+    </Button>
+  </PageHeader>
 
   <!-- Scope tabs -->
   <div class="flex border-b border-gray-100 px-6 dark:border-gray-800">

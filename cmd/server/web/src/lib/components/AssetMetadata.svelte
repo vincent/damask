@@ -1,5 +1,6 @@
 <script lang="ts">
   import { type Asset } from '$lib/api'
+  import SubSectionTitle from './ui/SubSectionTitle.svelte'
   
   interface Props {
     asset: Asset
@@ -9,7 +10,7 @@
 </script>
 
 <div>
-    <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Metadata</p>
+    <SubSectionTitle>Metadata</SubSectionTitle>
     <div class="grid grid-cols-3 gap-3">
         <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
             <p class="mb-1 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Created By</p>

@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"time"
 )
 
 const addTagToAsset = `-- name: AddTagToAsset :exec
@@ -23,11 +24,60 @@ func (q *Queries) AddTagToAsset(ctx context.Context, arg AddTagToAssetParams) er
 	return err
 }
 
+const createTag = `-- name: CreateTag :one
+INSERT INTO tags (id, workspace_id, name, color, group_name)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, workspace_id, name, color, group_name, created_at, last_used_at
+`
+
+type CreateTagParams struct {
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+	Name        string  `json:"name"`
+	Color       *string `json:"color"`
+	GroupName   *string `json:"group_name"`
+}
+
+func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error) {
+	row := q.db.QueryRowContext(ctx, createTag,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.Name,
+		arg.Color,
+		arg.GroupName,
+	)
+	var i Tag
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.Color,
+		&i.GroupName,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+	)
+	return i, err
+}
+
+const deleteTag = `-- name: DeleteTag :exec
+DELETE FROM tags WHERE workspace_id = ? AND name = ?
+`
+
+type DeleteTagParams struct {
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+}
+
+func (q *Queries) DeleteTag(ctx context.Context, arg DeleteTagParams) error {
+	_, err := q.db.ExecContext(ctx, deleteTag, arg.WorkspaceID, arg.Name)
+	return err
+}
+
 const getOrCreateTag = `-- name: GetOrCreateTag :one
 INSERT INTO tags (id, workspace_id, name)
 VALUES (?, ?, ?)
 ON CONFLICT (workspace_id, name) DO UPDATE SET name = name
-RETURNING id, workspace_id, name
+RETURNING id, workspace_id, name, color, group_name, created_at, last_used_at
 `
 
 type GetOrCreateTagParams struct {
@@ -39,12 +89,20 @@ type GetOrCreateTagParams struct {
 func (q *Queries) GetOrCreateTag(ctx context.Context, arg GetOrCreateTagParams) (Tag, error) {
 	row := q.db.QueryRowContext(ctx, getOrCreateTag, arg.ID, arg.WorkspaceID, arg.Name)
 	var i Tag
-	err := row.Scan(&i.ID, &i.WorkspaceID, &i.Name)
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.Color,
+		&i.GroupName,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+	)
 	return i, err
 }
 
 const getTagByWorkspaceAndName = `-- name: GetTagByWorkspaceAndName :one
-SELECT id, workspace_id, name FROM tags WHERE workspace_id = ? AND name = ?
+SELECT id, workspace_id, name, color, group_name, created_at, last_used_at FROM tags WHERE workspace_id = ? AND name = ?
 `
 
 type GetTagByWorkspaceAndNameParams struct {
@@ -55,7 +113,15 @@ type GetTagByWorkspaceAndNameParams struct {
 func (q *Queries) GetTagByWorkspaceAndName(ctx context.Context, arg GetTagByWorkspaceAndNameParams) (Tag, error) {
 	row := q.db.QueryRowContext(ctx, getTagByWorkspaceAndName, arg.WorkspaceID, arg.Name)
 	var i Tag
-	err := row.Scan(&i.ID, &i.WorkspaceID, &i.Name)
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.Color,
+		&i.GroupName,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+	)
 	return i, err
 }
 
@@ -66,15 +132,21 @@ JOIN asset_tags at ON at.tag_id = t.id
 WHERE at.asset_id = ?
 `
 
-func (q *Queries) GetTagsForAsset(ctx context.Context, assetID string) ([]Tag, error) {
+type GetTagsForAssetRow struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+}
+
+func (q *Queries) GetTagsForAsset(ctx context.Context, assetID string) ([]GetTagsForAssetRow, error) {
 	rows, err := q.db.QueryContext(ctx, getTagsForAsset, assetID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Tag{}
+	items := []GetTagsForAssetRow{}
 	for rows.Next() {
-		var i Tag
+		var i GetTagsForAssetRow
 		if err := rows.Scan(&i.ID, &i.WorkspaceID, &i.Name); err != nil {
 			return nil, err
 		}
@@ -89,8 +161,44 @@ func (q *Queries) GetTagsForAsset(ctx context.Context, assetID string) ([]Tag, e
 	return items, nil
 }
 
+const listTagsInWorkspace = `-- name: ListTagsInWorkspace :many
+SELECT id, workspace_id, name, color, group_name, created_at, last_used_at FROM tags WHERE workspace_id = ? ORDER BY name ASC
+`
+
+func (q *Queries) ListTagsInWorkspace(ctx context.Context, workspaceID string) ([]Tag, error) {
+	rows, err := q.db.QueryContext(ctx, listTagsInWorkspace, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Tag{}
+	for rows.Next() {
+		var i Tag
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Name,
+			&i.Color,
+			&i.GroupName,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTagsWithCount = `-- name: ListTagsWithCount :many
-SELECT t.id, t.workspace_id, t.name, COUNT(at.asset_id) AS asset_count
+SELECT t.id, t.workspace_id, t.name, t.color, t.group_name, t.created_at, t.last_used_at,
+       COUNT(at.asset_id) AS asset_count
 FROM tags t
 LEFT JOIN asset_tags at ON at.tag_id = t.id
 WHERE t.workspace_id = ?
@@ -99,10 +207,14 @@ ORDER BY t.name ASC
 `
 
 type ListTagsWithCountRow struct {
-	ID          string `json:"id"`
-	WorkspaceID string `json:"workspace_id"`
-	Name        string `json:"name"`
-	AssetCount  int64  `json:"asset_count"`
+	ID          string     `json:"id"`
+	WorkspaceID string     `json:"workspace_id"`
+	Name        string     `json:"name"`
+	Color       *string    `json:"color"`
+	GroupName   *string    `json:"group_name"`
+	CreatedAt   time.Time  `json:"created_at"`
+	LastUsedAt  *time.Time `json:"last_used_at"`
+	AssetCount  int64      `json:"asset_count"`
 }
 
 func (q *Queries) ListTagsWithCount(ctx context.Context, workspaceID string) ([]ListTagsWithCountRow, error) {
@@ -118,6 +230,10 @@ func (q *Queries) ListTagsWithCount(ctx context.Context, workspaceID string) ([]
 			&i.ID,
 			&i.WorkspaceID,
 			&i.Name,
+			&i.Color,
+			&i.GroupName,
+			&i.CreatedAt,
+			&i.LastUsedAt,
 			&i.AssetCount,
 		); err != nil {
 			return nil, err
@@ -147,5 +263,55 @@ type RemoveTagFromAssetParams struct {
 
 func (q *Queries) RemoveTagFromAsset(ctx context.Context, arg RemoveTagFromAssetParams) error {
 	_, err := q.db.ExecContext(ctx, removeTagFromAsset, arg.AssetID, arg.WorkspaceID, arg.Name)
+	return err
+}
+
+const touchTagLastUsed = `-- name: TouchTagLastUsed :exec
+UPDATE tags SET last_used_at = datetime('now') WHERE workspace_id = ? AND name = ?
+`
+
+type TouchTagLastUsedParams struct {
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+}
+
+func (q *Queries) TouchTagLastUsed(ctx context.Context, arg TouchTagLastUsedParams) error {
+	_, err := q.db.ExecContext(ctx, touchTagLastUsed, arg.WorkspaceID, arg.Name)
+	return err
+}
+
+const updateTagMetadata = `-- name: UpdateTagMetadata :exec
+UPDATE tags SET color = ?, group_name = ? WHERE workspace_id = ? AND name = ?
+`
+
+type UpdateTagMetadataParams struct {
+	Color       *string `json:"color"`
+	GroupName   *string `json:"group_name"`
+	WorkspaceID string  `json:"workspace_id"`
+	Name        string  `json:"name"`
+}
+
+func (q *Queries) UpdateTagMetadata(ctx context.Context, arg UpdateTagMetadataParams) error {
+	_, err := q.db.ExecContext(ctx, updateTagMetadata,
+		arg.Color,
+		arg.GroupName,
+		arg.WorkspaceID,
+		arg.Name,
+	)
+	return err
+}
+
+const updateTagName = `-- name: UpdateTagName :exec
+UPDATE tags SET name = ? WHERE workspace_id = ? AND name = ?
+`
+
+type UpdateTagNameParams struct {
+	Name        string `json:"name"`
+	WorkspaceID string `json:"workspace_id"`
+	Name_2      string `json:"name_2"`
+}
+
+func (q *Queries) UpdateTagName(ctx context.Context, arg UpdateTagNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateTagName, arg.Name, arg.WorkspaceID, arg.Name_2)
 	return err
 }

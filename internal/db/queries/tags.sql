@@ -8,7 +8,8 @@ RETURNING *;
 SELECT * FROM tags WHERE workspace_id = ? AND name = ?;
 
 -- name: ListTagsWithCount :many
-SELECT t.id, t.workspace_id, t.name, COUNT(at.asset_id) AS asset_count
+SELECT t.id, t.workspace_id, t.name, t.color, t.group_name, t.created_at, t.last_used_at,
+       COUNT(at.asset_id) AS asset_count
 FROM tags t
 LEFT JOIN asset_tags at ON at.tag_id = t.id
 WHERE t.workspace_id = ?
@@ -28,3 +29,23 @@ INSERT OR IGNORE INTO asset_tags (asset_id, tag_id) VALUES (?, ?);
 DELETE FROM asset_tags
 WHERE asset_id = ?
   AND tag_id = (SELECT id FROM tags WHERE workspace_id = ? AND name = ?);
+
+-- name: TouchTagLastUsed :exec
+UPDATE tags SET last_used_at = datetime('now') WHERE workspace_id = ? AND name = ?;
+
+-- name: CreateTag :one
+INSERT INTO tags (id, workspace_id, name, color, group_name)
+VALUES (?, ?, ?, ?, ?)
+RETURNING *;
+
+-- name: UpdateTagName :exec
+UPDATE tags SET name = ? WHERE workspace_id = ? AND name = ?;
+
+-- name: UpdateTagMetadata :exec
+UPDATE tags SET color = ?, group_name = ? WHERE workspace_id = ? AND name = ?;
+
+-- name: DeleteTag :exec
+DELETE FROM tags WHERE workspace_id = ? AND name = ?;
+
+-- name: ListTagsInWorkspace :many
+SELECT * FROM tags WHERE workspace_id = ? ORDER BY name ASC;
