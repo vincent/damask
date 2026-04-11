@@ -29,7 +29,7 @@ func (s *JobServer) jobPurgeAuditLog(ctx context.Context, job dbgen.Job) error {
 	return nil
 }
 
-func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.Workspace) error {
+func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.ListWorkspacesForEventRetentionRow) error {
 	now := time.Now().UTC()
 
 	// Purge download events on their shorter retention cycle.

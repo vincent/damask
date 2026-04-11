@@ -12,7 +12,7 @@ import (
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (id, name, created_at, updated_at)
 VALUES (?, ?, datetime('now'), datetime('now'))
-RETURNING id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, created_at, updated_at
+RETURNING id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, created_at, updated_at
 `
 
 type CreateWorkspaceParams struct {
@@ -32,6 +32,8 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.DownloadLogRetentionDays,
 		&i.IconAssetID,
 		&i.IconVersionID,
+		&i.ExifKeep,
+		&i.ExifKeepGps,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -39,7 +41,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 }
 
 const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
+SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
@@ -54,6 +56,8 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 		&i.DownloadLogRetentionDays,
 		&i.IconAssetID,
 		&i.IconVersionID,
+		&i.ExifKeep,
+		&i.ExifKeepGps,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -61,7 +65,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 }
 
 const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
-SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
+SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
 `
 
 func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace, error) {
@@ -82,6 +86,8 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 			&i.DownloadLogRetentionDays,
 			&i.IconAssetID,
 			&i.IconVersionID,
+			&i.ExifKeep,
+			&i.ExifKeepGps,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -96,6 +102,21 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateWorkspaceExifSettings = `-- name: UpdateWorkspaceExifSettings :exec
+UPDATE workspaces SET exif_keep = ?, exif_keep_gps = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateWorkspaceExifSettingsParams struct {
+	ExifKeep    int64  `json:"exif_keep"`
+	ExifKeepGps int64  `json:"exif_keep_gps"`
+	ID          string `json:"id"`
+}
+
+func (q *Queries) UpdateWorkspaceExifSettings(ctx context.Context, arg UpdateWorkspaceExifSettingsParams) error {
+	_, err := q.db.ExecContext(ctx, updateWorkspaceExifSettings, arg.ExifKeep, arg.ExifKeepGps, arg.ID)
+	return err
 }
 
 const updateWorkspaceVersionRetention = `-- name: UpdateWorkspaceVersionRetention :exec

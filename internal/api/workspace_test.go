@@ -5,6 +5,7 @@ import (
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"net/http"
+	"io"
 	"net/http/httptest"
 	"testing"
 )
@@ -448,5 +449,138 @@ func TestAcceptInvite_ExpiredInvite(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateWorkspaceSettings_ExifKeep(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	body := map[string]any{
+		"version_retention_count": 0,
+		"exif_keep":               true,
+		"exif_keep_gps":           false,
+	}
+	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/settings", th.JsonBody(body), result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, b)
+	}
+
+	var ws struct {
+		ExifKeep    int64 `json:"exif_keep"`
+		ExifKeepGps int64 `json:"exif_keep_gps"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&ws); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if ws.ExifKeep != 1 {
+		t.Errorf("exif_keep = %d, want 1", ws.ExifKeep)
+	}
+	if ws.ExifKeepGps != 0 {
+		t.Errorf("exif_keep_gps = %d, want 0", ws.ExifKeepGps)
+	}
+}
+
+func TestUpdateWorkspaceSettings_ExifKeep_NonOwner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	body := map[string]any{"version_retention_count": 0, "exif_keep": true}
+	req := th.BearerRequest(http.MethodPut, "/api/v1/workspace/settings", th.JsonBody(body), editorToken)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestTriggerWorkspaceJob_UnknownType(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/jobs/not_a_real_job/trigger", nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestTriggerWorkspaceJob_ExtractExif_NoAssets(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/jobs/extract_exif/trigger", nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 202, got %d: %s", resp.StatusCode, b)
+	}
+
+	var body struct {
+		Enqueued int `json:"enqueued"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Enqueued != 0 {
+		t.Errorf("enqueued = %d, want 0", body.Enqueued)
+	}
+}
+
+func TestTriggerWorkspaceJob_ExtractExif_WithAssets(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	// Upload two image assets
+	th.UploadAsset(t, env, result.Cookie)
+	th.UploadAsset(t, env, result.Cookie)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/jobs/extract_exif/trigger", nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 202, got %d: %s", resp.StatusCode, b)
+	}
+
+	var body struct {
+		Enqueued int `json:"enqueued"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Enqueued != 2 {
+		t.Errorf("enqueued = %d, want 2", body.Enqueued)
+	}
+}
+
+func TestTriggerWorkspaceJob_ExtractExif_NonOwner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	req := th.BearerRequest(http.MethodPost, "/api/v1/workspace/jobs/extract_exif/trigger", nil, editorToken)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
 }

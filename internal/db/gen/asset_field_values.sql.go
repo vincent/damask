@@ -32,6 +32,33 @@ func (q *Queries) DeleteAssetFieldValuesByField(ctx context.Context, fieldID str
 	return err
 }
 
+const getAssetFieldValueByAssetAndField = `-- name: GetAssetFieldValueByAssetAndField :one
+SELECT id, asset_id, field_id, value_text, value_number, value_date, value_boolean, created_by, created_at, updated_at FROM asset_field_values WHERE asset_id = ? AND field_id = ? LIMIT 1
+`
+
+type GetAssetFieldValueByAssetAndFieldParams struct {
+	AssetID string `json:"asset_id"`
+	FieldID string `json:"field_id"`
+}
+
+func (q *Queries) GetAssetFieldValueByAssetAndField(ctx context.Context, arg GetAssetFieldValueByAssetAndFieldParams) (AssetFieldValue, error) {
+	row := q.db.QueryRowContext(ctx, getAssetFieldValueByAssetAndField, arg.AssetID, arg.FieldID)
+	var i AssetFieldValue
+	err := row.Scan(
+		&i.ID,
+		&i.AssetID,
+		&i.FieldID,
+		&i.ValueText,
+		&i.ValueNumber,
+		&i.ValueDate,
+		&i.ValueBoolean,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getAssetFieldValues = `-- name: GetAssetFieldValues :many
 SELECT
   v.id,

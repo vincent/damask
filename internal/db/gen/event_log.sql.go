@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"time"
 )
 
 const deleteAssetEventsOlderThan = `-- name: DeleteAssetEventsOlderThan :exec
@@ -352,15 +353,28 @@ FROM workspaces
 WHERE event_log_retention_days > 0 OR download_log_retention_days > 0
 `
 
-func (q *Queries) ListWorkspacesForEventRetention(ctx context.Context) ([]Workspace, error) {
+type ListWorkspacesForEventRetentionRow struct {
+	ID                       string    `json:"id"`
+	Name                     string    `json:"name"`
+	IngestToken              *string   `json:"ingest_token"`
+	VersionRetentionCount    int64     `json:"version_retention_count"`
+	EventLogRetentionDays    int64     `json:"event_log_retention_days"`
+	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`
+	IconAssetID              *string   `json:"icon_asset_id"`
+	IconVersionID            *string   `json:"icon_version_id"`
+	CreatedAt                time.Time `json:"created_at"`
+	UpdatedAt                time.Time `json:"updated_at"`
+}
+
+func (q *Queries) ListWorkspacesForEventRetention(ctx context.Context) ([]ListWorkspacesForEventRetentionRow, error) {
 	rows, err := q.db.QueryContext(ctx, listWorkspacesForEventRetention)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Workspace{}
+	items := []ListWorkspacesForEventRetentionRow{}
 	for rows.Next() {
-		var i Workspace
+		var i ListWorkspacesForEventRetentionRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,

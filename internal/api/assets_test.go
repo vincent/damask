@@ -937,3 +937,79 @@ func TestGetComments_Empty(t *testing.T) {
 		t.Errorf("expected empty slice, got %d comments", len(comments))
 	}
 }
+
+func TestListAssets_SortByTakenAt(t *testing.T) {
+	env := th.SetupTestApp(t)
+	owner := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	a1 := th.UploadAsset(t, env, owner.Cookie)
+	a2 := th.UploadAsset(t, env, owner.Cookie)
+	a3 := th.UploadAsset(t, env, owner.Cookie) // no EXIF date — should sort last
+
+	// Enable exif_keep and create the field definition
+	_, err := env.SqlDB.Exec(`UPDATE workspaces SET exif_keep = 1 WHERE id = ?`, owner.WorkspaceID)
+	if err != nil {
+		t.Fatalf("enable exif: %v", err)
+	}
+
+	// Drain to create field definitions via tombstone
+	th.DrainJobs(t, env)
+
+	// Manually set taken_at values for a1 and a2
+	var fieldID string
+	if err := env.SqlDB.QueryRow(
+		`SELECT id FROM field_definitions WHERE key = '_exif_taken_at' AND workspace_id = ?`,
+		owner.WorkspaceID,
+	).Scan(&fieldID); err != nil {
+		t.Fatalf("get field id: %v", err)
+	}
+
+	userID := owner.UserID
+	// a1 gets 2023, a2 gets 2024 — expect a2 first (ASC: 2023 before 2024, so a1 first for ASC)
+	for _, row := range []struct {
+		assetID string
+		date    string
+	}{
+		{a1.ID, "2023-06-15"},
+		{a2.ID, "2024-01-20"},
+	} {
+		_, err := env.SqlDB.Exec(
+			`INSERT OR REPLACE INTO asset_field_values (id, asset_id, field_id, value_date, created_by)
+			 VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?)`,
+			row.assetID, fieldID, row.date, userID,
+		)
+		if err != nil {
+			t.Fatalf("insert field value for %s: %v", row.assetID, err)
+		}
+	}
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets?sort=taken_at", nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, b)
+	}
+
+	var body struct {
+		Assets []api.AssetResponse `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Assets) != 3 {
+		t.Fatalf("expected 3 assets, got %d", len(body.Assets))
+	}
+	// ASC: a1 (2023) first, then a2 (2024), then a3 (no date) last
+	if body.Assets[0].ID != a1.ID {
+		t.Errorf("first asset = %s, want %s (2023)", body.Assets[0].ID, a1.ID)
+	}
+	if body.Assets[1].ID != a2.ID {
+		t.Errorf("second asset = %s, want %s (2024)", body.Assets[1].ID, a2.ID)
+	}
+	if body.Assets[2].ID != a3.ID {
+		t.Errorf("third asset (no date) = %s, want %s", body.Assets[2].ID, a3.ID)
+	}
+}

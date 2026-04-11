@@ -118,6 +118,8 @@ func (r *SwitchWorkspaceRequest) Valid(_ context.Context) map[string]string {
 
 type UpdateWorkspaceSettingsRequest struct {
 	VersionRetentionCount int64 `json:"version_retention_count"`
+	ExifKeep             bool  `json:"exif_keep"`
+	ExifKeepGPS          bool  `json:"exif_keep_gps"`
 }
 
 func (r *UpdateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {

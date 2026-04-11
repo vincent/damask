@@ -9,7 +9,7 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { sharesStore } from '$lib/stores/shares.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
-  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, GitBranch, Tag, Megaphone, Info } from '@lucide/svelte'
+  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, GitBranch, Tag, Megaphone, Info, ScanLine } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
@@ -161,6 +161,18 @@
           >
             <Tag class="h-4 w-4 shrink-0 text-gray-400" />
             <span class="flex-1 text-left">Tags</span>
+          </button>
+        </div>
+
+        <!-- EXIF & Privacy settings button -->
+        <div class="px-3 pb-2">
+          <button
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {(page.route.id?.match('settings/privacy')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => goto('/library/settings/privacy')}
+          >
+            <ScanLine class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">EXIF & Privacy</span>
           </button>
         </div>
 

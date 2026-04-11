@@ -99,11 +99,15 @@ export const workspaceApi = {
   me: () => apiFetch<WorkspaceMeResponse>('/api/v1/workspace/me', undefined, workspaceApi.fetch),
 
   /** PUT /api/v1/workspace/settings (owner only) — update workspace settings. */
-  updateSettings: (settings: { version_retention_count: number }) =>
+  updateSettings: (settings: { version_retention_count: number; exif_keep?: boolean; exif_keep_gps?: boolean }) =>
     apiFetch<Workspace>('/api/v1/workspace/settings', {
       method: 'PUT',
       body: JSON.stringify(settings),
     }),
+
+  /** POST /api/v1/workspace/jobs/:type/trigger (owner only) — trigger a predefined background job. */
+  triggerJob: (type: string) =>
+    apiFetch<{ enqueued: number }>(`/api/v1/workspace/jobs/${type}/trigger`, { method: 'POST' }),
 
   /** GET /api/v1/workspaces — list all workspaces the user is a member of. */
   list: () => apiFetch<WorkspaceWithRole[]>('/api/v1/workspaces'),

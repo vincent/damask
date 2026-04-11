@@ -51,3 +51,6 @@ SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL;
 
 -- name: ListCommentsOnAsset :many
 SELECT * FROM share_comments WHERE asset_id = ? ORDER BY created_at ASC;
+
+-- name: ListImageAssetIDs :many
+SELECT id FROM assets WHERE workspace_id = ? AND mime_type LIKE 'image/%' ORDER BY created_at DESC;

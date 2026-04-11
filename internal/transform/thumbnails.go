@@ -13,7 +13,7 @@ import (
 // or skipped (e.g. video when ffmpeg is unavailable) — callers should no-op.
 func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeType, storageKey string) (data []byte, ext string, err error) {
 	switch {
-	case isImageMime(mimeType):
+	case IsImageMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
 			return nil, "", err
@@ -21,7 +21,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		defer rc.Close()
 		return ThumbnailFromImage(rc)
 
-	case isVideoMime(mimeType):
+	case IsVideoMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
 			return nil, "", err
@@ -33,7 +33,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		}
 		return ThumbnailFromVideo(ctx, rc, mimeType)
 
-	case isPdfMime(mimeType):
+	case IsPdfMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
 			return nil, "", err
@@ -41,7 +41,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		defer rc.Close()
 		return ThumbnailFromPDF(ctx, rc, mimeType)
 
-	case isAudioMime(mimeType):
+	case IsAudioMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
 			return nil, "", err
@@ -49,7 +49,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		defer rc.Close()
 		return ThumbnailFromAudio(ctx, rc, mimeType)
 
-	case isTextMime(mimeType):
+	case IsTextMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
 			return nil, "", err
@@ -57,7 +57,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		defer rc.Close()
 		return ThumbnailFromText(ctx, rc, mimeType)
 
-	case isFontMime(mimeType):
+	case IsFontMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
 			return nil, "", err

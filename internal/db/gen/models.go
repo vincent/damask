@@ -258,6 +258,8 @@ type Workspace struct {
 	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`
 	IconAssetID              *string   `json:"icon_asset_id"`
 	IconVersionID            *string   `json:"icon_version_id"`
+	ExifKeep                 int64     `json:"exif_keep"`
+	ExifKeepGps              int64     `json:"exif_keep_gps"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }

@@ -224,7 +224,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 
 	asset, fErr := services.CreateAsset(ctx, w.db, w.sqlDB, w.storage, w.queue,
 		src.WorkspaceID, namedTmp,
-		services.AssetOptions{ProjectID: projectID, FolderID: folderID},
+		services.AssetOptions{ProjectID: projectID, FolderID: folderID, UserID: src.CreatedBy},
 	)
 	if fErr != nil {
 		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: create asset: %s", fErr.Message))

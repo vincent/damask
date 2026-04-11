@@ -11,3 +11,6 @@ SELECT * FROM workspaces WHERE version_retention_count > 0;
 
 -- name: UpdateWorkspaceVersionRetention :exec
 UPDATE workspaces SET version_retention_count = ?, updated_at = datetime('now') WHERE id = ?;
+
+-- name: UpdateWorkspaceExifSettings :exec
+UPDATE workspaces SET exif_keep = ?, exif_keep_gps = ?, updated_at = datetime('now') WHERE id = ?;

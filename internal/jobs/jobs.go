@@ -94,6 +94,9 @@ func (s *JobServer) RegisterJobHandlers() {
 	// Rebuild jobs — system-triggered on version upload.
 	reg(queue.JobTypeRebuildVariants, s.jobRebuildVariants)
 
+	// EXIF extraction.
+	reg(queue.JobTypeExtractExif, s.jobExtractExif)
+
 	// Maintenance jobs.
 	reg(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
 	reg(queue.JobTypeEnforceVersionRetention, s.jobEnforceVersionRetention)

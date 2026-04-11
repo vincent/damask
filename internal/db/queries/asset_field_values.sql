@@ -36,3 +36,6 @@ DELETE FROM asset_field_values WHERE asset_id = ? AND field_id = ?;
 
 -- name: DeleteAssetFieldValuesByField :exec
 DELETE FROM asset_field_values WHERE field_id = ?;
+
+-- name: GetAssetFieldValueByAssetAndField :one
+SELECT * FROM asset_field_values WHERE asset_id = ? AND field_id = ? LIMIT 1;

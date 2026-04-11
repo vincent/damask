@@ -133,6 +133,38 @@ func (q *Queries) GetFieldDefinitionByID(ctx context.Context, arg GetFieldDefini
 	return i, err
 }
 
+const getFieldDefinitionByKey = `-- name: GetFieldDefinitionByKey :one
+SELECT id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
+WHERE workspace_id = ? AND key = ? AND deleted_at IS NULL LIMIT 1
+`
+
+type GetFieldDefinitionByKeyParams struct {
+	WorkspaceID string `json:"workspace_id"`
+	Key         string `json:"key"`
+}
+
+func (q *Queries) GetFieldDefinitionByKey(ctx context.Context, arg GetFieldDefinitionByKeyParams) (FieldDefinition, error) {
+	row := q.db.QueryRowContext(ctx, getFieldDefinitionByKey, arg.WorkspaceID, arg.Key)
+	var i FieldDefinition
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.CreatedBy,
+		&i.Scope,
+		&i.Name,
+		&i.Key,
+		&i.FieldType,
+		&i.Options,
+		&i.Required,
+		&i.Position,
+		&i.InheritFromProject,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const hardDeleteExpiredFieldDefinitions = `-- name: HardDeleteExpiredFieldDefinitions :many
 SELECT id FROM field_definitions
 WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')
@@ -209,6 +241,42 @@ func (q *Queries) ListAllFieldDefinitions(ctx context.Context, arg ListAllFieldD
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAssetsMissingExifField = `-- name: ListAssetsMissingExifField :many
+SELECT a.id FROM assets a
+LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?
+WHERE a.workspace_id = ? AND a.mime_type LIKE 'image/%' AND afv.id IS NULL
+LIMIT ?
+`
+
+type ListAssetsMissingExifFieldParams struct {
+	FieldID     string `json:"field_id"`
+	WorkspaceID string `json:"workspace_id"`
+	Limit       int64  `json:"limit"`
+}
+
+func (q *Queries) ListAssetsMissingExifField(ctx context.Context, arg ListAssetsMissingExifFieldParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listAssetsMissingExifField, arg.FieldID, arg.WorkspaceID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

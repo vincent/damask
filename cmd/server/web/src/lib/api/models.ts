@@ -21,6 +21,8 @@ export interface Workspace {
   id: string
   name: string
   version_retention_count: number
+  exif_keep: boolean
+  exif_keep_gps: boolean
   created_at: string
   updated_at: string
 }

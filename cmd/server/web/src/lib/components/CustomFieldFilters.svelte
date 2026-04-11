@@ -159,7 +159,7 @@
             />
 
           {:else if def.field_type === 'number'}
-            {@const nums = local[def.key] as { min: string; max: string }}
+            {@const nums = { ...{ min: 0, max: 100 }, ...local[def.key] as { min: string; max: string } }}
             <div class="flex items-center gap-1">
               <input
                 type="number"

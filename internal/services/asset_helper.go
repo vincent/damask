@@ -14,6 +14,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
 
 	"github.com/gofiber/fiber/v3"
@@ -207,8 +208,27 @@ func CreateAsset(
 	// Enqueue version thumbnail job (updates both asset_versions.thumbnail_key and
 	// assets.thumbnail_key once done). Only enqueue if the initial version was created.
 	if handler != nil && initialVersionID != "" {
-		if err := enqueueVersionThumbnail(ctx, qu, asset, initialVersionID); err != nil {
+		payload, _ := json.Marshal(versionThumbnailPayload{
+			AssetID:     asset.ID,
+			VersionID:   initialVersionID,
+			WorkspaceID: asset.WorkspaceID,
+			StorageKey:  asset.StorageKey,
+			MimeType:    asset.MimeType,
+		})
+		if _, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload)); err != nil {
 			log.Printf("enqueue version thumbnail for %s: %v", asset.ID, err)
+		}
+	}
+
+	// Enqueue EXIF extraction for images (handler checks exif_keep; fire-and-forget).
+	if transform.IsImageMime(mimeType) {
+		exifPayload, _ := json.Marshal(map[string]string{ // TODO: find a way to use ExtractExifPayload without circular import
+			"asset_id":     asset.ID,
+			"workspace_id": workspaceID,
+			"user_id":      opts.UserID,
+		})
+		if _, err := qu.Enqueue(ctx, workspaceID, queue.JobTypeExtractExif, string(exifPayload)); err != nil {
+			log.Printf("enqueue extract_exif for %s: %v", asset.ID, err)
 		}
 	}
 
@@ -274,17 +294,4 @@ func createInitialVersion(
 	}
 
 	return versionID, tx.Commit()
-}
-
-// enqueueVersionThumbnail enqueues a version_thumbnail job for the given asset and version.
-func enqueueVersionThumbnail(ctx context.Context, qu queue.JobQueue, asset dbgen.Asset, versionID string) error {
-	payload, _ := json.Marshal(versionThumbnailPayload{
-		AssetID:     asset.ID,
-		VersionID:   versionID,
-		WorkspaceID: asset.WorkspaceID,
-		StorageKey:  asset.StorageKey,
-		MimeType:    asset.MimeType,
-	})
-	_, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload))
-	return err
 }

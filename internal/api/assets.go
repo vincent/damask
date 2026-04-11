@@ -163,6 +163,11 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 
 	sort := c.Query("sort")
+
+	if sort == "taken_at" || sort == "taken_at_desc" {
+		return s.handleListAssetsSortByTakenAt(c, claims.WorkspaceID, limit, sort == "taken_at_desc")
+	}
+
 	orderBy := "created_at DESC, id DESC"
 	sortField := "created_at"
 	switch sort {
@@ -263,6 +268,83 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 
 	counts := s.batchVersionCounts(c.RequestCtx(), assets)
 	return c.JSON(buildAssetListResponseWithCounts(assets, limit, sortField, counts))
+}
+
+// handleListAssetsSortByTakenAt sorts assets by _exif_taken_at field value (ASC, NULLs last).
+// desc=true reverses to DESC (still NULLs last).
+func (s *Server) handleListAssetsSortByTakenAt(c fiber.Ctx, workspaceID string, limit int64, desc bool) error {
+	// Look up the _exif_taken_at field definition ID.
+	fd, err := s.db.GetFieldDefinitionByKey(c.RequestCtx(), dbgen.GetFieldDefinitionByKeyParams{
+		WorkspaceID: workspaceID,
+		Key:         "_exif_taken_at",
+	})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errRes(c, fiber.StatusInternalServerError, "could not query field definitions")
+	}
+
+	var whereExtra string
+	var extraArgs []interface{}
+
+	if pid := c.Query("project_id"); pid != "" {
+		whereExtra += " AND a.project_id = ?"
+		extraArgs = append(extraArgs, pid)
+	}
+	if mime := c.Query("mime"); mime != "" {
+		whereExtra += " AND a.mime_type LIKE ?"
+		extraArgs = append(extraArgs, mime+"%")
+	}
+
+	// Field ID for the LEFT JOIN (empty string if field doesn't exist yet — join yields no rows).
+	fieldID := ""
+	if err == nil {
+		fieldID = fd.ID
+	}
+
+	orderDir := "ASC"
+	if desc {
+		orderDir = "DESC"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
+		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
+		       a.created_at, a.updated_at
+		FROM assets a
+		LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?
+		WHERE a.workspace_id = ?%s
+		ORDER BY afv.value_date %s NULLS LAST, a.created_at DESC, a.id DESC
+		LIMIT ?
+	`, whereExtra, orderDir)
+
+	// Args order: fieldID (JOIN), workspaceID (WHERE), extra filters, limit.
+	queryArgs := []interface{}{fieldID, workspaceID}
+	queryArgs = append(queryArgs, extraArgs...)
+	queryArgs = append(queryArgs, limit)
+
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, queryArgs...)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
+	}
+	defer rows.Close()
+
+	var assets []dbgen.Asset
+	for rows.Next() {
+		var a dbgen.Asset
+		if err := rows.Scan(
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
+			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
+			&a.CreatedAt, &a.UpdatedAt,
+		); err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "scan failed")
+		}
+		assets = append(assets, a)
+	}
+	if err := rows.Err(); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
+	}
+
+	counts := s.batchVersionCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
 }
 
 func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagNames []string, limit int64) error {

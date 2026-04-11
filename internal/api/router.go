@@ -137,6 +137,9 @@ func NewRouter(
 	// Workspace settings — owner only; blocked in demo mode
 	api.Put("/workspace/settings", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleUpdateWorkspaceSettings)
 
+	// Generic job trigger — owner only
+	api.Post("/workspace/jobs/:type/trigger", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleTriggerWorkspaceJob)
+
 	// Invites — owner only; blocked in demo mode
 	api.Post("/workspace/invites", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleCreateInvite)
 

@@ -2,11 +2,13 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
 	"damask/server/internal/services"
 
 	"github.com/gofiber/fiber/v3"
@@ -262,11 +264,100 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not update settings")
 	}
 
+	exifKeep := int64(0)
+	if body.ExifKeep {
+		exifKeep = 1
+	}
+	exifKeepGPS := int64(0)
+	if body.ExifKeepGPS {
+		exifKeepGPS = 1
+	}
+	if err := s.db.UpdateWorkspaceExifSettings(c.RequestCtx(), dbgen.UpdateWorkspaceExifSettingsParams{
+		ExifKeep:    exifKeep,
+		ExifKeepGps: exifKeepGPS,
+		ID:          claims.WorkspaceID,
+	}); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not update exif settings")
+	}
+
 	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload workspace")
 	}
 	return c.JSON(workspace)
+}
+
+// triggerableJobs is the allowlist of job types that can be triggered via the
+// generic POST /workspace/jobs/:type/trigger endpoint.
+var triggerableJobs = map[string]string{
+	"extract_exif": queue.JobTypeExtractExif,
+}
+
+func (s *Server) handleTriggerWorkspaceJob(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	jobTypeKey := c.Params("type")
+
+	jobType, ok := triggerableJobs[jobTypeKey]
+	if !ok {
+		return errRes(c, fiber.StatusBadRequest, "unknown job type")
+	}
+
+	switch jobType {
+	case queue.JobTypeExtractExif:
+		return s.triggerExtractExifBackfill(c, claims.WorkspaceID, claims.UserID)
+	default:
+		return errRes(c, fiber.StatusBadRequest, "unknown job type")
+	}
+}
+
+func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID string) error {
+	// Find the _exif_make field definition to use as tombstone marker.
+	// If it doesn't exist yet, every image asset is pending.
+	var pendingIDs []string
+
+	tombstoneDef, err := s.db.GetFieldDefinitionByKey(c.RequestCtx(), dbgen.GetFieldDefinitionByKeyParams{
+		WorkspaceID: workspaceID,
+		Key:         "_exif_make",
+	})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errRes(c, fiber.StatusInternalServerError, "could not query field definitions")
+	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		// No field definitions yet — every image asset is pending.
+		ids, qErr := s.db.ListImageAssetIDs(c.RequestCtx(), workspaceID)
+		if qErr != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not list assets")
+		}
+		pendingIDs = ids
+	} else {
+		ids, qErr := s.db.ListAssetsMissingExifField(c.RequestCtx(), dbgen.ListAssetsMissingExifFieldParams{
+			FieldID:     tombstoneDef.ID,
+			WorkspaceID: workspaceID,
+			Limit:       10000,
+		})
+		if qErr != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not list pending assets")
+		}
+		pendingIDs = ids
+	}
+
+	if len(pendingIDs) == 0 {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": 0})
+	}
+
+	for _, assetID := range pendingIDs {
+		payload, _ := json.Marshal(map[string]string{
+			"asset_id":     assetID,
+			"workspace_id": workspaceID,
+			"user_id":      userID,
+		})
+		if _, err := s.queue.Enqueue(c.RequestCtx(), workspaceID, queue.JobTypeExtractExif, string(payload)); err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not enqueue jobs")
+		}
+	}
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": len(pendingIDs)})
 }
 
 // fiber:context-methods migrated

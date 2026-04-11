@@ -210,6 +210,9 @@ const (
 	// Rebuild jobs — system-triggered on new version upload.
 	JobTypeRebuildVariants = "rebuild_variants"
 
+	// EXIF extraction.
+	JobTypeExtractExif = "extract_exif"
+
 	// Maintenance jobs.
 	JobTypePurgeDeletedFields      = "purge_deleted_fields"
 	JobTypeEnforceVersionRetention = "enforce_version_retention"

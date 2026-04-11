@@ -7,6 +7,8 @@ CREATE TABLE workspaces (
     download_log_retention_days INTEGER NOT NULL DEFAULT 30,
     icon_asset_id               TEXT,
     icon_version_id             TEXT,
+    exif_keep                   INTEGER NOT NULL DEFAULT 0,
+    exif_keep_gps               INTEGER NOT NULL DEFAULT 0,
     created_at                  DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at                  DATETIME NOT NULL DEFAULT (datetime('now'))
 );

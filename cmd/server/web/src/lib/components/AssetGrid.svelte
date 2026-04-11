@@ -35,24 +35,26 @@
   })
 
   const assetsByMonth = $derived.by(() => {
-    if (sort !== 'created_at') return []
-    const groups: { label: string; assets: Asset[] }[] = []
-    for (const asset of assetsStore.assets) {
-      const label = fmt.format(new Date(asset.created_at))
-      if (groups.length === 0 || groups[groups.length - 1].label !== label) {
-        groups.push({ label, assets: [asset] })
-      } else {
-        groups[groups.length - 1].assets.push(asset)
+    if (sort === 'created_at') {
+      const groups: { label: string; assets: Asset[] }[] = []
+      for (const asset of assetsStore.assets) {
+        const label = fmt.format(new Date(asset.created_at))
+        if (groups.length === 0 || groups[groups.length - 1].label !== label) {
+          groups.push({ label, assets: [asset] })
+        } else {
+          groups[groups.length - 1].assets.push(asset)
+        }
       }
+      return groups
     }
-    return groups
+    return []
   })
 
   type Props = {
     zoom: number
     maxZoom: number
     seenSplashScreen: boolean
-    sort: 'mimetype' | 'created_at' | 'size'
+    sort: 'mimetype' | 'created_at' | 'size' | 'taken_at'
     isDraggingFiles: boolean
     mainEl?: HTMLElement
     onCardClick: (asset: Asset, index: number, event: MouseEvent) => void
@@ -162,6 +164,13 @@
         </div>
       {/if}
     {/each}
+    <div bind:this={sentinel} class="flex justify-center py-6">
+      {#if assetsStore.loading && assetsStore.nextCursor}
+        <Loader class="h-6 w-6 animate-spin text-gray-400" />
+      {/if}
+    </div>
+  {:else if sort === 'taken_at'}
+    {@render assetCardGrid(assetsStore.assets)}
     <div bind:this={sentinel} class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />

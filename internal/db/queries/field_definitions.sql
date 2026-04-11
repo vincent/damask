@@ -56,3 +56,13 @@ SELECT COUNT(DISTINCT v.project_id) FROM project_field_values v WHERE v.field_id
 -- name: ListInheritableAssetFieldDefinitions :many
 SELECT * FROM field_definitions
 WHERE workspace_id = ? AND scope = 'asset' AND inherit_from_project = 1 AND deleted_at IS NULL;
+
+-- name: GetFieldDefinitionByKey :one
+SELECT * FROM field_definitions
+WHERE workspace_id = ? AND key = ? AND deleted_at IS NULL LIMIT 1;
+
+-- name: ListAssetsMissingExifField :many
+SELECT a.id FROM assets a
+LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?
+WHERE a.workspace_id = ? AND a.mime_type LIKE 'image/%' AND afv.id IS NULL
+LIMIT ?;

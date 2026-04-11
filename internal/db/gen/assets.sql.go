@@ -229,6 +229,33 @@ func (q *Queries) ListCommentsOnAsset(ctx context.Context, assetID string) ([]Sh
 	return items, nil
 }
 
+const listImageAssetIDs = `-- name: ListImageAssetIDs :many
+SELECT id FROM assets WHERE workspace_id = ? AND mime_type LIKE 'image/%' ORDER BY created_at DESC
+`
+
+func (q *Queries) ListImageAssetIDs(ctx context.Context, workspaceID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listImageAssetIDs, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateAssetCurrentVersion = `-- name: UpdateAssetCurrentVersion :exec
 UPDATE assets SET current_version_id = ?, updated_at = datetime('now') WHERE id = ?
 `
