@@ -35,8 +35,6 @@ func approxEqual(a, b, eps float64) bool {
 // --- tests using the real Kodak PIXPRO image ---
 
 func TestExtract_KodakPixpro(t *testing.T) {
-	t.Skip("wont test with a real file")
-
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 
 	result, err := Extract(bytes.NewReader(data), true)
@@ -130,8 +128,6 @@ func TestExtract_KodakPixpro(t *testing.T) {
 }
 
 func TestExtract_KodakPixpro_StripGPS(t *testing.T) {
-	t.Skip("wont test with a real file")
-
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 
 	result, err := Extract(bytes.NewReader(data), false)
@@ -170,8 +166,6 @@ func TestExtract_Panic(t *testing.T) {
 // --- helper unit tests ---
 
 func TestGetRational_WholeNumber(t *testing.T) {
-	t.Skip("wont test with a real file")
-
 	// getRational should format whole-number rationals without denominator.
 	// We test via Extract on a real file to avoid directly coupling to internals.
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
@@ -186,8 +180,6 @@ func TestGetRational_WholeNumber(t *testing.T) {
 }
 
 func TestExtract_TakenAt_Format(t *testing.T) {
-	t.Skip("wont test with a real file")
-
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 	result, _ := Extract(bytes.NewReader(data), false)
 	if result == nil || result.TakenAt == nil {
