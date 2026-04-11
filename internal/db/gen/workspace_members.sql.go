@@ -32,6 +32,20 @@ func (q *Queries) CreateMember(ctx context.Context, arg CreateMemberParams) erro
 	return err
 }
 
+const deleteMember = `-- name: DeleteMember :exec
+DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?
+`
+
+type DeleteMemberParams struct {
+	WorkspaceID string `json:"workspace_id"`
+	UserID      string `json:"user_id"`
+}
+
+func (q *Queries) DeleteMember(ctx context.Context, arg DeleteMemberParams) error {
+	_, err := q.db.ExecContext(ctx, deleteMember, arg.WorkspaceID, arg.UserID)
+	return err
+}
+
 const getMember = `-- name: GetMember :one
 SELECT workspace_id, user_id, role, invited_by, created_at FROM workspace_members
 WHERE workspace_id = ? AND user_id = ?
@@ -74,6 +88,56 @@ func (q *Queries) GetMemberByUserID(ctx context.Context, userID string) (Workspa
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listMembers = `-- name: ListMembers :many
+SELECT wm.workspace_id, wm.user_id, wm.role, wm.invited_by, wm.created_at,
+       u.email, u.name
+FROM workspace_members wm
+JOIN users u ON u.id = wm.user_id
+WHERE wm.workspace_id = ?
+ORDER BY wm.created_at ASC
+`
+
+type ListMembersRow struct {
+	WorkspaceID string    `json:"workspace_id"`
+	UserID      string    `json:"user_id"`
+	Role        string    `json:"role"`
+	InvitedBy   *string   `json:"invited_by"`
+	CreatedAt   time.Time `json:"created_at"`
+	Email       string    `json:"email"`
+	Name        string    `json:"name"`
+}
+
+func (q *Queries) ListMembers(ctx context.Context, workspaceID string) ([]ListMembersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMembers, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMembersRow{}
+	for rows.Next() {
+		var i ListMembersRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.UserID,
+			&i.Role,
+			&i.InvitedBy,
+			&i.CreatedAt,
+			&i.Email,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listWorkspacesByUserID = `-- name: ListWorkspacesByUserID :many
@@ -119,4 +183,19 @@ func (q *Queries) ListWorkspacesByUserID(ctx context.Context, userID string) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateMemberRole = `-- name: UpdateMemberRole :exec
+UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?
+`
+
+type UpdateMemberRoleParams struct {
+	Role        string `json:"role"`
+	WorkspaceID string `json:"workspace_id"`
+	UserID      string `json:"user_id"`
+}
+
+func (q *Queries) UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) error {
+	_, err := q.db.ExecContext(ctx, updateMemberRole, arg.Role, arg.WorkspaceID, arg.UserID)
+	return err
 }

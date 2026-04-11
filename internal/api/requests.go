@@ -82,6 +82,18 @@ func (r *CreateInviteRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
+type UpdateMemberRoleRequest struct {
+	Role string `json:"role"`
+}
+
+func (r *UpdateMemberRoleRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if r.Role != "owner" && r.Role != "editor" && r.Role != "viewer" {
+		p["role"] = "must be owner, editor, or viewer"
+	}
+	return p
+}
+
 type AcceptInviteRequest struct {
 	Token    string `json:"token"`
 	Name     string `json:"name"`

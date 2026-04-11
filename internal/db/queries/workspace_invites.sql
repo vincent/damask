@@ -12,3 +12,11 @@ LIMIT 1;
 UPDATE workspace_invites
 SET accepted_at = datetime('now')
 WHERE id = ?;
+
+-- name: ListPendingInvites :many
+SELECT * FROM workspace_invites
+WHERE workspace_id = ? AND accepted_at IS NULL AND expires_at > datetime('now')
+ORDER BY created_at DESC;
+
+-- name: DeleteInvite :exec
+DELETE FROM workspace_invites WHERE id = ? AND workspace_id = ?;

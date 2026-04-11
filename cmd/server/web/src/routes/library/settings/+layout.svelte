@@ -7,6 +7,7 @@
   let { children }: { children: Snippet } = $props()
 
   const tabs = [
+    { id: 'members',   label: 'Members',          path: '/library/settings/members' },
     { id: 'ingress',    label: 'Ingress',          path: '/library/settings/ingress' },
     { id: 'versioning', label: 'Version History',  path: '/library/settings/versioning' },
     { id: 'privacy',    label: 'EXIF & Privacy',   path: '/library/settings/privacy' },

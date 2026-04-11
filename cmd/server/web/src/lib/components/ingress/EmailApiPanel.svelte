@@ -2,6 +2,7 @@
   import { Copy, CheckCircle, Mail } from '@lucide/svelte'
   import type { IngressSource } from '$lib/api/models'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import Hint from '../ui/Hint.svelte'
 
   interface Props {
     source: IngressSource
@@ -58,14 +59,12 @@
         </button>
       </div>
     {:else}
-      <p class="text-md text-gray-400 dark:text-gray-500 italic">
-        Address not yet assigned. Contact your workspace owner.
-      </p>
+      <Hint class="italic">Address not yet assigned. Contact your workspace owner.</Hint>
     {/if}
 
-    <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+    <Hint class="mt-3 text-sm">
       Send files as email attachments to this address.<br>Supported formats: images, video, PDF, and common creative files.<br>Max 25 MB per file.
-    </p>
+    </Hint>
   </div>
 
   {#if address}

@@ -9,7 +9,7 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { sharesStore } from '$lib/stores/shares.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
-  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info } from '@lucide/svelte'
+  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
@@ -156,7 +156,7 @@
               {(['ingress','versioning','privacy'].some(s => page.route.id?.includes(s))) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
             onclick={() => goto('/library/settings/ingress')}
           >
-            <Rss class="h-4 w-4 shrink-0 text-gray-400" />
+            <Settings class="h-4 w-4 shrink-0 text-gray-400" />
             <span class="flex-1 text-left">Settings</span>
           </button>
         </div>

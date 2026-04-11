@@ -88,10 +88,12 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 }
 
 type InviteResponse struct {
-	ID          string `json:"id"`
-	InviteToken string `json:"invite_token"`
-	Email       string `json:"email"`
-	Role        string `json:"role"`
+	ID          string    `json:"id"`
+	InviteToken string    `json:"invite_token,omitempty"`
+	Email       string    `json:"email"`
+	Role        string    `json:"role"`
+	ExpiresAt   time.Time `json:"expires_at,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
 }
 
 func (s *Server) handleCreateInvite(c fiber.Ctx) error {
@@ -361,3 +363,132 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 }
 
 // fiber:context-methods migrated
+
+type MemberResponse struct {
+	UserID   string    `json:"user_id"`
+	Name     string    `json:"name"`
+	Email    string    `json:"email"`
+	Role     string    `json:"role"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+func (s *Server) handleListMembers(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	rows, err := s.db.ListMembers(c.RequestCtx(), claims.WorkspaceID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list members")
+	}
+	result := make([]MemberResponse, len(rows))
+	for i, row := range rows {
+		result[i] = MemberResponse{
+			UserID:   row.UserID,
+			Name:     row.Name,
+			Email:    row.Email,
+			Role:     row.Role,
+			JoinedAt: row.CreatedAt,
+		}
+	}
+	return c.JSON(result)
+}
+
+func (s *Server) handleRemoveMember(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	targetUserID := c.Params("userId")
+
+	if targetUserID == claims.UserID {
+		return errRes(c, fiber.StatusBadRequest, "cannot remove yourself")
+	}
+
+	// Prevent removing the last owner.
+	members, err := s.db.ListMembers(c.RequestCtx(), claims.WorkspaceID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list members")
+	}
+	ownerCount := 0
+	for _, m := range members {
+		if m.Role == "owner" {
+			ownerCount++
+		}
+	}
+	for _, m := range members {
+		if m.UserID == targetUserID && m.Role == "owner" && ownerCount <= 1 {
+			return errRes(c, fiber.StatusBadRequest, "cannot remove the last owner")
+		}
+	}
+
+	if err := s.db.DeleteMember(c.RequestCtx(), dbgen.DeleteMemberParams{
+		WorkspaceID: claims.WorkspaceID,
+		UserID:      targetUserID,
+	}); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not remove member")
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	targetUserID := c.Params("userId")
+
+	body, ok := decodeAndValidate(c, &UpdateMemberRoleRequest{})
+	if !ok {
+		return nil
+	}
+
+	// Prevent demoting self if last owner.
+	if targetUserID == claims.UserID && body.Role != "owner" {
+		members, err := s.db.ListMembers(c.RequestCtx(), claims.WorkspaceID)
+		if err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not list members")
+		}
+		ownerCount := 0
+		for _, m := range members {
+			if m.Role == "owner" {
+				ownerCount++
+			}
+		}
+		if ownerCount <= 1 {
+			return errRes(c, fiber.StatusBadRequest, "cannot demote the last owner")
+		}
+	}
+
+	if err := s.db.UpdateMemberRole(c.RequestCtx(), dbgen.UpdateMemberRoleParams{
+		Role:        body.Role,
+		WorkspaceID: claims.WorkspaceID,
+		UserID:      targetUserID,
+	}); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not update member role")
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Server) handleListInvites(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	invites, err := s.db.ListPendingInvites(c.RequestCtx(), claims.WorkspaceID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list invites")
+	}
+	result := make([]InviteResponse, len(invites))
+	for i, inv := range invites {
+		result[i] = InviteResponse{
+			ID:        inv.ID,
+			Email:     inv.Email,
+			Role:      inv.Role,
+			ExpiresAt: inv.ExpiresAt,
+			CreatedAt: inv.CreatedAt,
+		}
+	}
+	return c.JSON(result)
+}
+
+func (s *Server) handleDeleteInvite(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	inviteID := c.Params("inviteId")
+
+	if err := s.db.DeleteInvite(c.RequestCtx(), dbgen.DeleteInviteParams{
+		ID:          inviteID,
+		WorkspaceID: claims.WorkspaceID,
+	}); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not delete invite")
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}

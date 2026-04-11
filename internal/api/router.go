@@ -142,6 +142,13 @@ func NewRouter(
 
 	// Invites — owner only; blocked in demo mode
 	api.Post("/workspace/invites", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleCreateInvite)
+	api.Get("/workspace/invites", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleListInvites)
+	api.Delete("/workspace/invites/:inviteId", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleDeleteInvite)
+
+	// Members — owner only
+	api.Get("/workspace/members", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleListMembers)
+	api.Delete("/workspace/members/:userId", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleRemoveMember)
+	api.Put("/workspace/members/:userId", auth.RequireRole(tokenMaker, getRoleFn, "owner"), s.handleUpdateMemberRole)
 
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)

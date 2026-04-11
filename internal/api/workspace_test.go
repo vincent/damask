@@ -4,8 +4,8 @@ import (
 	"damask/server/internal/api"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
-	"net/http"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 )
@@ -576,6 +576,238 @@ func TestTriggerWorkspaceJob_ExtractExif_NonOwner(t *testing.T) {
 	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/workspace/jobs/extract_exif/trigger", nil, editorToken)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+// ── Members ──────────────────────────────────────────────────────────────────
+
+func TestListMembers_Owner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/workspace/members", nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var members []api.MemberResponse
+	if err := json.NewDecoder(resp.Body).Decode(&members); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("expected 2 members, got %d", len(members))
+	}
+}
+
+func TestListMembers_NonOwner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	req := th.BearerRequest(http.MethodGet, "/api/v1/workspace/members", nil, editorToken)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestRemoveMember_Success(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	// Find the editor's user ID
+	var editorUserID string
+	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	if err := row.Scan(&editorUserID); err != nil {
+		t.Fatalf("find editor: %v", err)
+	}
+
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/workspace/members/"+editorUserID, nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+}
+
+func TestRemoveMember_Self(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/workspace/members/"+result.UserID, nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestRemoveMember_NonOwner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	req := th.BearerRequest(http.MethodDelete, "/api/v1/workspace/members/"+result.UserID, nil, editorToken)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateMemberRole_Success(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	var editorUserID string
+	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	if err := row.Scan(&editorUserID); err != nil {
+		t.Fatalf("find editor: %v", err)
+	}
+
+	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+editorUserID,
+		th.JsonBody(api.UpdateMemberRoleRequest{Role: "viewer"}), result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateMemberRole_InvalidRole(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	var editorUserID string
+	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	if err := row.Scan(&editorUserID); err != nil {
+		t.Fatalf("find editor: %v", err)
+	}
+
+	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+editorUserID,
+		th.JsonBody(api.UpdateMemberRoleRequest{Role: "superadmin"}), result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateMemberRole_DemoteLastOwner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+result.UserID,
+		th.JsonBody(api.UpdateMemberRoleRequest{Role: "editor"}), result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+// ── Invites (list + delete) ───────────────────────────────────────────────────
+
+func TestListInvites_Owner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	// Create an invite first
+	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), result.Cookie)
+	invResp, err := env.App.Test(invReq)
+	if err != nil || invResp.StatusCode != http.StatusCreated {
+		t.Fatalf("create invite failed: %v / %d", err, invResp.StatusCode)
+	}
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/workspace/invites", nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var invites []api.InviteResponse
+	if err := json.NewDecoder(resp.Body).Decode(&invites); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(invites) != 1 {
+		t.Fatalf("expected 1 invite, got %d", len(invites))
+	}
+	if invites[0].Email != "bob@example.com" {
+		t.Errorf("invite email = %q, want bob@example.com", invites[0].Email)
+	}
+}
+
+func TestDeleteInvite_Success(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), result.Cookie)
+	invResp, err := env.App.Test(invReq)
+	if err != nil || invResp.StatusCode != http.StatusCreated {
+		t.Fatalf("create invite: %v / %d", err, invResp.StatusCode)
+	}
+	var invite api.InviteResponse
+	if err := json.NewDecoder(invResp.Body).Decode(&invite); err != nil {
+		t.Fatalf("decode invite: %v", err)
+	}
+
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/workspace/invites/"+invite.ID, nil, result.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+
+	// Confirm it's gone
+	listReq := th.AuthRequest(http.MethodGet, "/api/v1/workspace/invites", nil, result.Cookie)
+	listResp, _ := env.App.Test(listReq)
+	var remaining []api.InviteResponse
+	_ = json.NewDecoder(listResp.Body).Decode(&remaining)
+	if len(remaining) != 0 {
+		t.Fatalf("expected 0 invites after delete, got %d", len(remaining))
+	}
+}
+
+func TestListInvites_NonOwner(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+
+	req := th.BearerRequest(http.MethodGet, "/api/v1/workspace/invites", nil, editorToken)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)

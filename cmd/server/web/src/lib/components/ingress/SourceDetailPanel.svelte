@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
   import { X, Save, RefreshCw, Trash2, RotateCcw, ExternalLink, AlertCircle } from '@lucide/svelte'
   import type { IngressSource } from '$lib/api/models'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
-  import { ingressApi } from '$lib/api'
   import SourceConfigForm from './SourceConfigForm.svelte'
   import EmailApiPanel from './EmailApiPanel.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import GridSkeleton from '../ui/GridSkeleton.svelte'
+  import Hint from '../ui/Hint.svelte'
 
   interface Props {
     source: IngressSource
@@ -126,7 +125,7 @@
   <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
     <div class="min-w-0">
       <h2 class="truncate text-md font-semibold text-gray-900 dark:text-gray-50">{source.label}</h2>
-      <p class="text-sm text-gray-400 capitalize">{source.type.replace('_', ' ')}</p>
+      <Hint class="text-sm capitalize">{source.type.replace('_', ' ')}</Hint>
     </div>
     <button
       type="button"
@@ -235,7 +234,7 @@
 
         {:else if ingressStore.rules.length === 0 && !addingRule}
           <div class="py-10 text-center">
-            <p class="text-md text-gray-400">No rules yet. Rules filter or route incoming files.</p>
+            <Hint>No rules yet. Rules filter or route incoming files.</Hint>
             <button
               type="button"
               class="mt-3 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"

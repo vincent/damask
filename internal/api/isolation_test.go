@@ -351,3 +351,29 @@ func TestIsolation_WorkspaceMe(t *testing.T) {
 		t.Error("ws2 must not see ws1's workspace")
 	}
 }
+
+func TestIsolation_Members_CannotAccessOtherWorkspace(t *testing.T) {
+	env := th.SetupTestApp(t)
+	ws1 := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	ws2 := th.Register(t, env, "Bob", "bob@example.com", "password456")
+
+	// ws1 owner cannot list/modify ws2 members — they have no JWT for ws2
+	// The owner token for ws1 should return their own workspace members (ws1 only)
+	req := th.AuthRequest(http.MethodGet, "/api/v1/workspace/members", nil, ws1.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var members []api.MemberResponse
+	if err := json.NewDecoder(resp.Body).Decode(&members); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, m := range members {
+		if m.UserID == ws2.UserID {
+			t.Error("ws1 owner must not see ws2 member in their member list")
+		}
+	}
+}

@@ -2,6 +2,7 @@
   import { versionApi, mimeCategory, type Asset } from '$lib/api'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import { Upload, X } from '@lucide/svelte'
+  import Hint from './ui/Hint.svelte'
 
   interface Props {
     asset: Asset
@@ -112,7 +113,7 @@
           </div>
         {:else}
           <Upload class="h-8 w-8 text-gray-300 dark:text-gray-600" />
-          <p class="text-md text-gray-500 dark:text-gray-400">Drop a file here or click to browse</p>
+          <Hint>Drop a file here or click to browse</Hint>
         {/if}
         <input
           type="file"

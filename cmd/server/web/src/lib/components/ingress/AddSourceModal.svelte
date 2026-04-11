@@ -8,6 +8,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import SourceConfigForm from './SourceConfigForm.svelte'
+  import Hint from '../ui/Hint.svelte'
 
   interface Props {
     open?: boolean
@@ -160,7 +161,7 @@
     <!-- Step 1: Type picker -->
     <div class="px-6 py-5">
       <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">Add ingress source</h2>
-      <p class="mt-1 text-md text-gray-400">Choose where files will come from.</p>
+      <Hint>Choose where files will come from.</Hint>
     </div>
 
     <div class="grid grid-cols-1 gap-3 px-6 pb-6 sm:grid-cols-2">
@@ -176,8 +177,8 @@
             <Icon class="h-5 w-5" />
           </div>
           <div>
-            <p class="text-md font-medium text-gray-900 dark:text-gray-50">{typeLabel}</p>
-            <p class="text-sm text-gray-400 dark:text-gray-500">{desc}</p>
+            <Hint class="text-md font-semibold">{typeLabel}</Hint>
+            <Hint class="text-sm">{desc}</Hint>
           </div>
         </button>
       {/each}
@@ -197,7 +198,7 @@
         <h2 class="text-base font-semibold text-gray-900 dark:text-gray-50">
           {selectedTypeMeta?.label}
         </h2>
-        <p class="text-sm text-gray-400">{selectedTypeMeta?.desc}</p>
+        <Hint class="text-sm">{selectedTypeMeta?.desc}</Hint>
       </div>
     </div>
 

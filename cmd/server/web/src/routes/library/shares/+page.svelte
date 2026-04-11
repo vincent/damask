@@ -114,7 +114,7 @@
         <div class="space-y-3">
           {#each sharesStore.shares as share (share.id)}
             {@const status = statusInfo(share)}
-            <div class="overflow-hidden rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
               <div class="flex items-start gap-4 px-5 py-4">
                 <!-- Icon -->
                 <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">

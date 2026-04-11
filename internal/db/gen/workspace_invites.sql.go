@@ -62,6 +62,20 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Wor
 	return i, err
 }
 
+const deleteInvite = `-- name: DeleteInvite :exec
+DELETE FROM workspace_invites WHERE id = ? AND workspace_id = ?
+`
+
+type DeleteInviteParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) DeleteInvite(ctx context.Context, arg DeleteInviteParams) error {
+	_, err := q.db.ExecContext(ctx, deleteInvite, arg.ID, arg.WorkspaceID)
+	return err
+}
+
 const getInviteByToken = `-- name: GetInviteByToken :one
 SELECT id, workspace_id, email, token, role, invited_by, expires_at, accepted_at, created_at FROM workspace_invites
 WHERE token = ? AND accepted_at IS NULL AND expires_at > datetime('now')
@@ -83,4 +97,43 @@ func (q *Queries) GetInviteByToken(ctx context.Context, token string) (Workspace
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listPendingInvites = `-- name: ListPendingInvites :many
+SELECT id, workspace_id, email, token, role, invited_by, expires_at, accepted_at, created_at FROM workspace_invites
+WHERE workspace_id = ? AND accepted_at IS NULL AND expires_at > datetime('now')
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListPendingInvites(ctx context.Context, workspaceID string) ([]WorkspaceInvite, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingInvites, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WorkspaceInvite{}
+	for rows.Next() {
+		var i WorkspaceInvite
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Email,
+			&i.Token,
+			&i.Role,
+			&i.InvitedBy,
+			&i.ExpiresAt,
+			&i.AcceptedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

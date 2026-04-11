@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse } from "./models"
+import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse, WorkspaceMember, WorkspaceInvite } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -139,6 +139,27 @@ export const workspaceApi = {
       method: 'POST',
       body: JSON.stringify({ token, name, password }),
     }),
+
+  /** GET /api/v1/workspace/members (owner only) — list workspace members. */
+  listMembers: () => apiFetch<WorkspaceMember[]>('/api/v1/workspace/members'),
+
+  /** DELETE /api/v1/workspace/members/:userId (owner only) — remove a member. */
+  removeMember: (userId: string) =>
+    apiFetch<void>(`/api/v1/workspace/members/${userId}`, { method: 'DELETE' }),
+
+  /** PUT /api/v1/workspace/members/:userId (owner only) — change member role. */
+  updateMemberRole: (userId: string, role: string) =>
+    apiFetch<void>(`/api/v1/workspace/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+
+  /** GET /api/v1/workspace/invites (owner only) — list pending invites. */
+  listInvites: () => apiFetch<WorkspaceInvite[]>('/api/v1/workspace/invites'),
+
+  /** DELETE /api/v1/workspace/invites/:inviteId (owner only) — cancel an invite. */
+  deleteInvite: (inviteId: string) =>
+    apiFetch<void>(`/api/v1/workspace/invites/${inviteId}`, { method: 'DELETE' }),
 }
 
 

@@ -430,3 +430,18 @@ export interface ActivityFeedResponse {
   next_cursor: string | null
   has_more: boolean
 }
+export interface WorkspaceMember {
+  user_id: string
+  name: string
+  email: string
+  role: string
+  joined_at: string
+}
+
+export interface WorkspaceInvite {
+  id: string
+  email: string
+  role: string
+  expires_at: string
+  created_at: string
+}
