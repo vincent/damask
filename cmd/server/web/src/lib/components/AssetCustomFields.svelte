@@ -1,9 +1,10 @@
 <script lang="ts">
   import { assetFieldApi, fieldDefinitionApi } from '$lib/api/client'
   import type { Asset, AssetFieldValue, FieldDefinition } from '$lib/api/models'
-  import { Check, ChevronDown, ChevronRight } from '@lucide/svelte'
+  import { ChevronDown, ChevronRight, Camera } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
+  import FieldCard from './FieldCard.svelte'
 
   interface Props {
     asset: Asset
@@ -16,7 +17,6 @@
   let loading = $state(true)
   let showDeprecated = $state(false)
 
-  // Per-field editing state
   let editingFieldId = $state<string | null>(null)
   let editValue = $state<string>('')
   let savingFieldId = $state<string | null>(null)
@@ -57,11 +57,7 @@
     saveError = null
     saveSuccess = null
     if (fv && fv.value !== null && fv.value !== undefined) {
-      if (def.field_type === 'boolean') {
-        editValue = fv.value ? 'true' : 'false'
-      } else {
-        editValue = String(fv.value)
-      }
+      editValue = def.field_type === 'boolean' ? (fv.value ? 'true' : 'false') : String(fv.value)
     } else {
       editValue = ''
     }
@@ -111,12 +107,17 @@
     if (e.key === 'Escape') cancelEdit()
   }
 
-  // Active definitions (not deleted)
-  const activeDefinitions = $derived(definitions.filter((d) => !d.deleted_at))
-  // Orphaned values (definition soft-deleted)
-  const orphanedValues = $derived(
-    values.filter((v) => v.definition_deleted)
-  )
+  function toggleBoolean(def: FieldDefinition) {
+    const fv = valueFor(def.id)
+    editValue = fv?.value ? 'false' : 'true'
+    editingFieldId = def.id
+    saveField(def)
+  }
+
+  const activeDefinitions = $derived(definitions.filter((d) => !d.deleted_at && !d.key.startsWith('_exif_')))
+  const exifDefinitions = $derived(definitions.filter((d) => !d.deleted_at && d.key.startsWith('_exif_')))
+  const orphanedValues = $derived(values.filter((v) => v.definition_deleted))
+  $inspect({ definitions, values, activeDefinitions, exifDefinitions, orphanedValues }).with(console.log);
 </script>
 
 <div>
@@ -126,162 +127,61 @@
     <div class="flex justify-center py-4">
       <Spinner size="sm" />
     </div>
-  {:else if activeDefinitions.length === 0}
+  {:else if activeDefinitions.length === 0 && exifDefinitions.length === 0}
     <p class="text-sm text-gray-400 dark:text-gray-500">No custom fields defined yet.</p>
   {:else}
     <div class="space-y-2">
       {#each activeDefinitions as def (def.id)}
-        {@const fv = valueFor(def.id)}
-        {@const isEditing = editingFieldId === def.id}
-        {@const isSaving = savingFieldId === def.id}
-        {@const didSave = saveSuccess === def.id}
-
-        <div class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-              {def.name}
-              {#if def.required && (!fv || fv.value === null)}
-                <span class="ml-1 text-orange-400">*</span>
-              {/if}
-            </p>
-            {#if didSave}
-              <Check class="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-            {/if}
-          </div>
-
-          {#if isEditing}
-            <!-- Edit mode -->
-            <div class="mt-1.5">
-              {#if def.field_type === 'boolean'}
-                <div class="flex gap-3">
-                  <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-                    <input type="radio" bind:group={editValue} value="true" class="text-indigo-600" /> Yes
-                  </label>
-                  <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-                    <input type="radio" bind:group={editValue} value="false" class="text-indigo-600" /> No
-                  </label>
-                  <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-                    <input type="radio" bind:group={editValue} value="" disabled class="text-indigo-600" /> Unset
-                  </label>
-                </div>
-              {:else if def.field_type === 'select'}
-                <select
-                  bind:value={editValue}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-                    focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
-                    dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                >
-                  <option value="">— clear —</option>
-                  {#each (def.options ? JSON.parse(def.options) as string[] : []) as opt}
-                    <option value={opt}>{opt}</option>
-                  {/each}
-                </select>
-              {:else if def.field_type === 'date'}
-                <input
-                  type="date"
-                  bind:value={editValue}
-                  onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-                    focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
-                    dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                />
-              {:else if def.field_type === 'number'}
-                <input
-                  type="number"
-                  step="any"
-                  bind:value={editValue}
-                  onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-                    focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
-                    dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                />
-              {:else if def.field_type === 'url'}
-                <input
-                  type="url"
-                  bind:value={editValue}
-                  placeholder="https://"
-                  onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-                    focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
-                    dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                />
-              {:else}
-                <!-- text -->
-                <input
-                  type="text"
-                  bind:value={editValue}
-                  onkeydown={(e) => handleKeydown(e, def)}
-                  class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-                    focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
-                    dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                />
-              {/if}
-
-              {#if saveError}
-                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{saveError}</p>
-              {/if}
-
-              <div class="mt-1.5 flex gap-2">
-                <button
-                  class="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-50"
-                  disabled={isSaving}
-                  onclick={() => saveField(def)}
-                >
-                  {isSaving ? 'Saving…' : 'Save'}
-                </button>
-                <button
-                  class="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  onclick={cancelEdit}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-
-          {:else if def.field_type === 'boolean' && fv}
-            <!-- Boolean: toggle immediately -->
-            <button
-              class="mt-1 flex items-center gap-2 text-md font-medium
-                {fv.value ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}"
-              onclick={() => {
-                editValue = fv.value ? 'false' : 'true'
-                editingFieldId = def.id
-                saveField(def)
-              }}
-            >
-              <span class="h-4 w-7 rounded-full transition-colors {fv.value ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'} relative">
-                <span class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform {fv.value ? 'left-3.5' : 'left-0.5'}"></span>
-              </span>
-              {fv.value ? 'Yes' : 'No'}
-            </button>
-
-          {:else if fv && fv.value !== null && fv.value !== undefined}
-            <!-- Has a value — show + edit on click -->
-            <button
-              class="mt-1 flex w-full items-center justify-between text-left"
-              onclick={() => startEdit(def)}
-            >
-              <span class="text-md font-semibold text-gray-900 dark:text-gray-100 {def.field_type === 'url' ? 'truncate text-indigo-600 dark:text-indigo-400' : ''}">
-                {displayValue(fv)}
-              </span>
-              <span class="shrink-0 text-sm text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100">Edit</span>
-            </button>
-
-          {:else}
-            <!-- No value — "Add value" placeholder -->
-            <button
-              class="mt-1 text-sm text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-              onclick={() => startEdit(def)}
-            >
-              Add value
-            </button>
-          {/if}
-        </div>
+        <FieldCard
+          {def}
+          fv={valueFor(def.id)}
+          showUnset
+          isEditing={editingFieldId === def.id}
+          isSaving={savingFieldId === def.id}
+          didSave={saveSuccess === def.id}
+          {editValue}
+          {saveError}
+          onStartEdit={() => startEdit(def)}
+          onSave={() => saveField(def)}
+          onCancel={cancelEdit}
+          onKeydown={(e) => handleKeydown(e, def)}
+          onToggle={() => toggleBoolean(def)}
+          onEditValueChange={(v) => { editValue = v }}
+        />
       {/each}
     </div>
+
+    {#if exifDefinitions.length > 0}
+      <div class="mt-5">
+        <div class="mb-2 flex items-center gap-1.5">
+          <Camera class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
+          <span class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">EXIF</span>
+        </div>
+        <div class="space-y-2">
+          {#each exifDefinitions as def (def.id)}
+            <FieldCard
+              {def}
+              fv={valueFor(def.id)}
+              displayName={def.name.replace(/^_exif_/, '')}
+              showUnset
+              isEditing={editingFieldId === def.id}
+              isSaving={savingFieldId === def.id}
+              didSave={saveSuccess === def.id}
+              {editValue}
+              {saveError}
+              onStartEdit={() => startEdit(def)}
+              onSave={() => saveField(def)}
+              onCancel={cancelEdit}
+              onKeydown={(e) => handleKeydown(e, def)}
+              onToggle={() => toggleBoolean(def)}
+              onEditValueChange={(v) => { editValue = v }}
+            />
+          {/each}
+        </div>
+      </div>
+    {/if}
   {/if}
 
-  <!-- Deprecated (soft-deleted) field values -->
   {#if orphanedValues.length > 0}
     <div class="mt-4">
       <button

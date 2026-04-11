@@ -3,6 +3,8 @@
   import type { FieldDefinition, FieldFilter } from '$lib/api/models'
   import { onMount } from 'svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
+  import FieldFilterInput from '$lib/components/FieldFilterInput.svelte'
+  import { ChevronDown, ChevronRight } from '@lucide/svelte'
 
   interface Props {
     activeFilters: FieldFilter[]
@@ -12,6 +14,7 @@
   let { activeFilters, onchange }: Props = $props()
 
   let definitions = $state<FieldDefinition[]>([])
+  let showExif = $state(false)
 
   onMount(async () => {
     try {
@@ -70,10 +73,6 @@
           break
         }
         case 'select': {
-          // Each selected option emits a separate eq filter — backend handles AND per field
-          // but for OR-within-field, we send only the first selected (backend doesn't yet support OR)
-          // Per roadmap: "multi-select → OR logic" is noted but the backend supports one eq per key.
-          // We'll emit the first selection here and iterate options as radio-style.
           const s = v as string
           if (s) filters.push({ key: def.key, op: 'eq', value: s })
           break
@@ -111,15 +110,15 @@
   }
 
   function removeChip(f: FieldFilter) {
-    // Clear the local state for this field's key and re-emit
     clearField(f.key)
   }
 
-  const activeDefinitions = $derived(definitions.filter((d) => !d.deleted_at))
+  const activeDefinitions = $derived(definitions.filter((d) => !d.deleted_at && !d.key.startsWith('_exif_')))
+  const exifDefinitions = $derived(definitions.filter((d) => !d.deleted_at && d.key.startsWith('_exif_')))
   const hasFilters = $derived(activeFilters.length > 0)
 </script>
 
-{#if activeDefinitions.length > 0}
+{#if activeDefinitions.length > 0 || exifDefinitions.length > 0}
   <div class="border-t border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
 
     <!-- Active filter chips -->
@@ -140,109 +139,29 @@
     {/if}
 
     <!-- Filter controls per field -->
-    <div class="flex flex-wrap items-end gap-x-6 gap-y-3 px-6 py-3">
-      {#each activeDefinitions as def}
-        <div class="flex flex-col gap-1 min-w-0">
-          <label for="field-name" class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-            {def.name}
-          </label>
+    {#if activeDefinitions.length > 0}
+      <div class="flex flex-wrap items-end gap-x-6 gap-y-3 px-6 py-3">
+        {#each activeDefinitions as def}
+          <FieldFilterInput {def} {local} onchange={emit} ondebouncedchange={debouncedEmit} />
+        {/each}
 
-          {#if def.field_type === 'text' || def.field_type === 'url'}
-            <input
-              type="text"
-              placeholder="contains…"
-              value={local[def.key] as string}
-              oninput={(e) => { local[def.key] = (e.target as HTMLInputElement).value; debouncedEmit() }}
-              class="w-36 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
-                focus:border-indigo-400 focus:outline-none
-                dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-            />
+        <!-- EXIF fields (collapsed by default) -->
+        {#if exifDefinitions.length > 0}
+            {#if !showExif}
+              <button
+                class="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                onclick={() => { showExif = !showExif }}
+              >
+                EXIF fields
+              </button>
+            {:else}
+                {#each exifDefinitions as def}
+                  <FieldFilterInput {def} {local} onchange={emit} ondebouncedchange={debouncedEmit} />
+                {/each}
+            {/if}
+        {/if}
 
-          {:else if def.field_type === 'number'}
-            {@const nums = { ...{ min: 0, max: 100 }, ...local[def.key] as { min: string; max: string } }}
-            <div class="flex items-center gap-1">
-              <input
-                type="number"
-                step="any"
-                placeholder="min"
-                value={nums.min}
-                oninput={(e) => { (local[def.key] as { min: string; max: string }).min = (e.target as HTMLInputElement).value; debouncedEmit() }}
-                class="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
-                  focus:border-indigo-400 focus:outline-none
-                  dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              />
-              <span class="text-sm text-gray-400">–</span>
-              <input
-                type="number"
-                step="any"
-                placeholder="max"
-                value={nums.max}
-                oninput={(e) => { (local[def.key] as { min: string; max: string }).max = (e.target as HTMLInputElement).value; debouncedEmit() }}
-                class="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
-                  focus:border-indigo-400 focus:outline-none
-                  dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              />
-            </div>
-
-          {:else if def.field_type === 'date'}
-            {@const dates = local[def.key] as { from: string; to: string }}
-            <div class="flex items-center gap-1">
-              <input
-                type="date"
-                value={dates?.from || new Date}
-                onchange={(e) => { (local[def.key] as { from: string; to: string }).from = (e.target as HTMLInputElement).value; emit() }}
-                class="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
-                  focus:border-indigo-400 focus:outline-none
-                  dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              />
-              <span class="text-sm text-gray-400">–</span>
-              <input
-                type="date"
-                value={dates?.to || new Date}
-                onchange={(e) => { (local[def.key] as { from: string; to: string }).to = (e.target as HTMLInputElement).value; emit() }}
-                class="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
-                  focus:border-indigo-400 focus:outline-none
-                  dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              />
-            </div>
-
-          {:else if def.field_type === 'boolean'}
-            {@const bv = local[def.key] as string}
-            <div class="flex gap-2">
-              {#each [['', 'Any'], ['true', 'Yes'], ['false', 'No']] as [val, label]}
-                <button
-                  type="button"
-                  class="rounded-full border px-2.5 py-1 text-sm transition-colors
-                    {bv === val
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/40 dark:text-indigo-300'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'}"
-                  onclick={() => { local[def.key] = val; emit() }}
-                >
-                  {label}
-                </button>
-              {/each}
-            </div>
-
-          {:else if def.field_type === 'select'}
-            {@const opts = def.options ? JSON.parse(def.options) as string[] : []}
-            {@const sv = local[def.key] as string}
-            <div class="flex flex-wrap gap-1">
-              {#each opts as opt}
-                <button
-                  type="button"
-                  class="rounded-full border px-2.5 py-1 text-sm transition-colors
-                    {sv === opt
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/40 dark:text-indigo-300'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'}"
-                  onclick={() => { local[def.key] = sv === opt ? '' : opt; emit() }}
-                >
-                  {opt}
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/each}
-    </div>
+      </div>
+    {/if}
   </div>
 {/if}

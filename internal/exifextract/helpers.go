@@ -59,11 +59,21 @@ func getFloat(x *exif.Exif, tag exif.FieldName) *float64 {
 	if err != nil {
 		return nil
 	}
-	f, err := t.Float(0)
-	if err != nil {
-		return nil
+	// Try rational first (most common for FNumber, FocalLength)
+	if num, den, err2 := t.Rat2(0); err2 == nil && den != 0 {
+		f := float64(num) / float64(den)
+		return &f
 	}
-	return &f
+	// Try integer (e.g. FocalLengthIn35mmFilm stored as SHORT)
+	if v, err2 := t.Int64(0); err2 == nil {
+		f := float64(v)
+		return &f
+	}
+	// Fallback for native float tags
+	if f, err2 := t.Float(0); err2 == nil {
+		return &f
+	}
+	return nil
 }
 
 func getInt(x *exif.Exif, tag exif.FieldName) *int64 {

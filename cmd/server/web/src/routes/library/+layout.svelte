@@ -188,12 +188,18 @@
           </button>
         </div>
 
-        <div onclick={() => (sidebarDetails = false)} class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
+        <!-- svelte-ignore a11y_unknown_role -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div role="expand" onclick={() => (sidebarDetails = false)} class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
           <button type="button"><ChevronUp class="h-4 w-4" /></button>
         </div>
       </div>
     {:else}
-      <div onclick={() => (sidebarDetails = true)}  class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
+        <!-- svelte-ignore a11y_unknown_role -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div role="expand" onclick={() => (sidebarDetails = true)}  class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
         <button type="button"><ChevronDown class="h-4 w-4" /></button>
       </div>
     {/if}
