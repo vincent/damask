@@ -9,7 +9,7 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { sharesStore } from '$lib/stores/shares.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
-  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, GitBranch, Tag } from '@lucide/svelte'
+  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, GitBranch, Tag, Megaphone, Info } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
@@ -214,12 +214,23 @@
       </nav>
     </div>
 
+    <div class="flex items-center justify-start border-t border-gray-200 px-4 py-3 dark:border-gray-800">
+      <Info class="h-3.5 w-3.5 text-gray-400" />
+      <a href="https://docs.damask.studio" target="_blank" class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        <span class="text-sm">Docs</span>
+      </a>
+    </div>
+    <div class="flex items-center justify-start px-4 py-3">
+      <Megaphone class="h-3.5 w-3.5 text-gray-400" />
+      <a href="https://github.com/vincent/damask/discussions" target="_blank" class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        <span class="text-sm">Feedback</span>
+      </a>
+    </div>
     <!-- Bottom sign out + theme toggle -->
     <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
       <ThemeToggle />
       <a href="/logout" class="flex items-center gap-2 rounded-lg px-2 text-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
         <LogOut class="h-3.5 w-3.5" />
-        Sign out
       </a>
     </div>
   </aside>
