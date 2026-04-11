@@ -67,7 +67,7 @@
   <title>EXIF & Privacy — Damask</title>
 </svelte:head>
 
-<div class="flex flex-1 flex-col overflow-y-auto bg-gray-50 dark:bg-gray-950">
+<div class="flex-1 overflow-y-auto">
   <div class="mx-auto w-full max-w-2xl px-8 py-10 space-y-8">
 
     <div>
