@@ -137,7 +137,7 @@
 
       <section>
         {#if showInviteForm}
-          <div class="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div class="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-gray-900/50">
             <div class="flex gap-2">
               <Input
                 type="email"
@@ -149,7 +149,7 @@
                 bind:value={inviteRole}
                 class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700
                        focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500
-                       dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+                       dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
               >
                 <option value="editor">Editor</option>
                 <option value="viewer">Viewer</option>
@@ -162,7 +162,7 @@
           </div>
         {/if}
 
-        <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900">
           {#each members as member (member.user_id)}
             <div class="flex items-center gap-3 px-4 py-3">
               <!-- Avatar -->
@@ -192,7 +192,7 @@
                   onchange={e => changeRole(member.user_id, (e.target as HTMLSelectElement).value)}
                   class="rounded border border-zinc-300 bg-white py-0.5 pl-2 pr-6 text-xs text-zinc-700
                          focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500
-                         dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+                         dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
                 >
                   <option value="owner">Owner</option>
                   <option value="editor">Editor</option>
@@ -228,7 +228,7 @@
           <Hint>Manage pending member invitations.</Hint>
         </section>
         <section>
-          <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
+          <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900">
             {#each invites as invite (invite.id)}
               <div class="flex items-center gap-3 px-4 py-3">
                 <div class="min-w-0 flex-1">
