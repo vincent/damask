@@ -12,7 +12,7 @@
   import AssetGrid from '$lib/components/AssetGrid.svelte'
   import ZoomOverlay from '$lib/components/ui/ZoomOverlay.svelte'
   import Lightbox from '$lib/components/Lightbox.svelte'
-  import BulkActionBar from '$lib/components/BulkActionBar.svelte'
+  import AssetBulkActionBar from '$lib/components/AssetBulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
@@ -224,7 +224,7 @@
   }}
 />
 
-<BulkActionBar
+<AssetBulkActionBar
   selectedIds={selectionStore.selectedIds}
   projects={projectsStore.projects}
   ondone={handleBulkDone}

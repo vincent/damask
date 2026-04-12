@@ -27,6 +27,9 @@
   import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
   import ButtonCancel from '$lib/components/ui/ButtonCancel.svelte'
   import PageContainer from '$lib/components/ui/PageContainer.svelte'
+  import type { Tag } from '$lib/api'
+  import TagsBulkActionBar from '$lib/components/TagsBulkActionBar.svelte'
+  import { SvelteSet } from 'svelte/reactivity'
   
   // ── View state ──────────────────────────────────────────────────────────────
   type SortKey = 'name' | 'asset_count' | 'last_used_at'
@@ -89,18 +92,15 @@
   }
 
   // ── Multi-select ─────────────────────────────────────────────────────────────
-  let selected = $state<Set<string>>(new Set())
+  let selected = $state<SvelteSet<string>>(new SvelteSet())
 
-  function toggleSelect(name: string) {
-    const s = new Set(selected)
-    if (s.has(name)) s.delete(name)
-    else s.add(name)
-    selected = s
+  function resetSelection(value?: Iterable<string> | null | undefined) {
+    selected = new SvelteSet(value)
   }
 
-  function toggleAll() {
-    if (selected.size === sorted.length) selected = new Set()
-    else selected = new Set(sorted.map((t) => t.name))
+  function toggleSelect(name: string) {
+    if (selected.has(name)) selected.delete(name)
+    else selected.add(name)
   }
 
   // ── Inline editing ───────────────────────────────────────────────────────────
@@ -210,7 +210,7 @@
     try {
       const res = await tagsManagementStore.bulkDelete(names)
       toastStore.show(`Deleted ${res.deleted} tag${res.deleted !== 1 ? 's' : ''}`)
-      selected = new Set()
+      resetSelection()
       showBulkDeleteModal = false
     } catch {
       toastStore.show('Could not delete tags', 'error')
@@ -253,7 +253,7 @@ function openMergeForSelected() {
     try {
       const res = await tagsManagementStore.mergeTags(sources, mergeTarget)
       toastStore.show(`Merged ${res.merged_assets} asset${res.merged_assets !== 1 ? 's' : ''}`)
-      selected = new Set()
+      resetSelection()
       showMergeModal = false
     } catch {
       toastStore.show('Could not merge tags', 'error')
@@ -338,21 +338,6 @@ function openMergeForSelected() {
       </Button>
     </div>
   </PageHeader>
-
-  <!-- Bulk action bar -->
-  {#if selected.size > 0}
-    <div class="flex items-center gap-3 border-b border-indigo-100 bg-indigo-50 px-6 py-2.5 dark:border-indigo-900 dark:bg-indigo-950/30">
-      <span class="text-sm font-medium text-indigo-700 dark:text-indigo-300">{selected.size} tag{selected.size !== 1 ? 's' : ''} selected</span>
-      <ButtonDelete onclick={() => (showBulkDeleteModal = true)} />
-      {#if selected.size >= 2}
-        <ButtonEdit onclick={openMergeForSelected}>
-          <Merge class="h-3.5 w-3.5 mr-1" />
-          Merge selected
-        </ButtonEdit>
-      {/if}
-      <ButtonCancel x onclick={() => (selected = new Set())} />
-    </div>
-  {/if}
 
   <!-- Toolbar -->
   <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-3 dark:border-gray-800">
@@ -495,8 +480,15 @@ function openMergeForSelected() {
   </div>
 </PageContainer>
 
+<TagsBulkActionBar
+  {selected}
+  ondelete={bulkDeleteSelected}
+  onmerge={openMergeForSelected}
+  onclear={() => resetSelection()}
+/>
+
 <!-- ── Tag row snippet ─────────────────────────────────────────────────────── -->
-{#snippet tagRow(tag: import('$lib/api/models').Tag)}
+{#snippet tagRow(tag: Tag)}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="group grid grid-cols-[24px_16px_1fr_160px_80px_100px_80px] items-center gap-3 rounded-lg px-3 py-2 transition-colors
