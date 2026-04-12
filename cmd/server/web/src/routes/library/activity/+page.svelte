@@ -4,6 +4,7 @@
   import ActivityList from '$lib/components/ActivityList.svelte'
   import ButtonDownload from '$lib/components/ui/ButtonDownload.svelte'
   import PageContainer from '$lib/components/ui/PageContainer.svelte'
+  import Chip from '$lib/components/ui/Chip.svelte'
 
   let events = $state<ActivityEvent[]>([])
   let loading = $state(true)
@@ -88,16 +89,7 @@
   <!-- Filter bar -->
   <div class="flex flex-shrink-0 gap-2 border-b border-zinc-100 px-6 py-2 dark:border-zinc-800">
     {#each typeFFilters as [val, label]}
-      <button
-        type="button"
-        class="rounded-full px-3 py-1 text-sm font-medium transition-colors
-          {typeFilter === val
-            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
-            : 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'}"
-        onclick={() => { typeFilter = val as typeof typeFilter }}
-      >
-        {label}
-      </button>
+      <Chip {label} onclick={() => { typeFilter = val as typeof typeFilter }} color={typeFilter === val ? "#6366f1": "#000"} />
     {/each}
   </div>
 

@@ -2,7 +2,7 @@
     import { assetsStore } from "$lib/stores/assets.svelte"
     import { selectionStore } from "$lib/stores/selection.svelte"
     import { ZoomIn, ZoomOut } from "@lucide/svelte"
-  import Hint from "./ui/Hint.svelte"
+    import Hint from "./ui/Hint.svelte"
 
     let { zoom = $bindable<number>(), max = 20 } = $props();
 
@@ -12,9 +12,9 @@
 <div class="absolute z-10 bottom-0 right-0 left-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 opacity-[92%]">
     <Hint class="text-sm">
         {#if selectionCount > 0}
-            {selectionCount} selected asset{selectionCount === 1 ? '' : 's'}
+            {selectionCount} selected assets
         {:else}
-            {assetsStore.assets.length} asset{assetsStore.assets.length === 1 ? '' : 's'}
+            {assetsStore.assets.length} assets
         {/if}
     </Hint>
     <div class="flex items-center gap-2 text-md text-gray-500 dark:text-gray-400">
