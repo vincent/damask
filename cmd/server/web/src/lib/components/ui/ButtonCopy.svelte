@@ -1,7 +1,7 @@
 <script lang="ts">
     import { CircleCheck, Copy } from "@lucide/svelte"
     import type { Snippet } from "svelte"
-    let { title = 'Copy', class: extraClass, onclick, children, copied = false }: { copied?: boolean, onclick: () => void, title?: string, class?: string, children?: Snippet } = $props()
+    let { title = 'Copy', text = '', class: extraClass, onclick, children, copied = false }: { copied?: boolean, text?: string, onclick: () => void, title?: string, class?: string, children?: Snippet } = $props()
 </script>
 
 <button
@@ -17,5 +17,6 @@
         {@render children()}
     {:else}
        <Copy class="h-4 w-4" />
-     {/if}
+    {/if}
+    {text}
 </button>

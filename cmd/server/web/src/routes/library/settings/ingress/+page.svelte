@@ -9,7 +9,6 @@
   import SourceDetailPanel from '$lib/components/ingress/SourceDetailPanel.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
-  import Toast from '$lib/components/ui/Toast.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
 
   let showAddModal = $state(false)
@@ -98,8 +97,6 @@
     />
   {/if}
 </div>
-
-<Toast />
 
 {#if showAddModal}
   <AddSourceModal

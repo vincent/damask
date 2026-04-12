@@ -3,7 +3,9 @@
   import { authApi, configApi, ApiError } from '$lib/api'
   import Button from '$lib/components/ui/Button.svelte'
   import Feedback from '$lib/components/ui/Feedback.svelte'
+  import Hint from '$lib/components/ui/Hint.svelte'
   import Input from '$lib/components/ui/Input.svelte'
+  import Title from '$lib/components/ui/Title.svelte'
 
   let email = $state('')
   let password = $state('')
@@ -52,20 +54,17 @@
 <div class="damask-texture-strong relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
   <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">Sign in</h1>
-      <p class="mt-1 text-md text-gray-600 dark:text-gray-400">
+      <Title>Sign in</Title>
+      <Hint>
         Don't have an account? <a href="/register" class="text-blue-600 hover:underline">Register</a>
-      </p>
+      </Hint>
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">
       <Feedback {error} />
-
       <Input id="email" type="email" label="Email" bind:value={email} required autocomplete="email" />
-
       <Input id="password" type="password" label="Password" bind:value={password} required autocomplete="current-password" />
-
-      <Button type="submit" loading={loading} class="w-full">{loading ? 'Signing in…' : 'Sign in'}</Button>
+      <Button type="submit" {loading} class="w-full">{loading ? 'Signing in…' : 'Sign in'}</Button>
     </form>
 
     {#if isDemo}

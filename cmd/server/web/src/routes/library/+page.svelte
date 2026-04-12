@@ -10,7 +10,7 @@
   import { createRubberBand } from '$lib/stores/rubberBand.svelte'
   import LibraryHeader from '$lib/components/LibraryHeader.svelte'
   import AssetGrid from '$lib/components/AssetGrid.svelte'
-  import ZoomOverlay from '$lib/components/ZoomOverlay.svelte'
+  import ZoomOverlay from '$lib/components/ui/ZoomOverlay.svelte'
   import Lightbox from '$lib/components/Lightbox.svelte'
   import BulkActionBar from '$lib/components/BulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
@@ -19,7 +19,6 @@
   import ProjectInfoPanel from '$lib/components/ProjectInfoPanel.svelte'
   import TagFilterBar from '$lib/components/TagFilterBar.svelte'
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
-  import Toast from '$lib/components/ui/Toast.svelte'
   import { goto } from '$app/navigation'
   import UploadsTray from '$lib/components/UploadsTray.svelte'
 
@@ -211,8 +210,6 @@
     style="left:{rb.band.x}px; top:{rb.band.y}px; width:{rb.band.w}px; height:{rb.band.h}px"
   ></div>
 {/if}
-
-<Toast />
 
 <Lightbox
   asset={selectedAsset}

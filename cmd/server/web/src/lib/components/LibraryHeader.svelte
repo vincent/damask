@@ -4,11 +4,14 @@
   import { projectsStore } from '$lib/stores/projects.svelte'
   import SortButtons from '$lib/components/SortButtons.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
-  import { Share2, Upload } from '@lucide/svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
+  import { Share2, Upload } from '@lucide/svelte'
+  import Button from './ui/Button.svelte'
+  import Title from './ui/Title.svelte'
+  import Hint from './ui/Hint.svelte'
 
   type Props = {
-    sort: 'mimetype' | 'created_at' | 'size'
+    sort: 'mimetype' | 'created_at' | 'size' | 'taken_at'
     asc: boolean
     onShareProject?: () => void
     showShareButton?: boolean
@@ -20,23 +23,22 @@
 <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
   <div class="flex items-center gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">
-        {projectsStore.activeProjectName ?? 'Library'}
-      </h1>
-      <p class="mt-0.5 text-md text-gray-400">
+      <Title>{projectsStore.activeProjectName ?? 'Library'}</Title>
+      <Hint>
         All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
-      </p>
+      </Hint>
     </div>
     {#if showShareButton}
-      <button
-        type="button"
-        class="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-md text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400"
+      <Button
+        size="md"
+        variant="outline"
+        class="ms-3 flex items-center gap-1.5"
         onclick={onShareProject}
         title="Share this project"
       >
         <Share2 class="h-3.5 w-3.5" />
         Share
-      </button>
+      </Button>
     {/if}
   </div>
 
@@ -53,7 +55,7 @@
       class="w-64"
       value={assetsStore.query}
       placeholder="Search anything..."
-      onchange={(v) => { assetsStore.query = v; assetsStore.search() }}
+      onchange={(q) => { assetsStore.search(q) }}
     />
 
     {#if authStore.role !== 'viewer'}

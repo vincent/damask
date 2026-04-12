@@ -2,7 +2,7 @@
     import { type Asset } from '$lib/api'
     import { authStore } from '$lib/stores/auth.svelte'
     import Button from '$lib/components/ui/Button.svelte'
-    import ResolutionOptions from './ResolutionOptions.svelte';
+    import ResolutionOptions from '../ResolutionOptions.svelte';
     
     interface Props {
         asset: Asset

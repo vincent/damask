@@ -26,6 +26,7 @@
   import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
   import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
   import ButtonCancel from '$lib/components/ui/ButtonCancel.svelte'
+  import PageContainer from '$lib/components/ui/PageContainer.svelte'
   
   // ── View state ──────────────────────────────────────────────────────────────
   type SortKey = 'name' | 'asset_count' | 'last_used_at'
@@ -319,21 +320,23 @@ function openMergeForSelected() {
   }}
 />
 
-<div class="flex h-full flex-col">
+<PageContainer>
   <PageHeader
     title="Tags"
     description="Manage tags for your assets. Click a tag to edit its name, color, or group. Drag and drop one tag onto another to merge them."
-  >
-    {#if unusedTags.length > 0}
-      <Button variant="primary" onclick={() => (showPurgeModal = true)}>
-        {#snippet icon()}<Trash2 class="h-3.5 w-3.5" />{/snippet}
-        Purge unused ({unusedTags.length})
+    >
+    <div class="space-x-2">
+      {#if unusedTags.length > 0}
+        <Button variant="primary" onclick={() => (showPurgeModal = true)}>
+          {#snippet icon()}<Trash2 class="h-3.5 w-3.5" />{/snippet}
+          Purge unused ({unusedTags.length})
+        </Button>
+      {/if}
+      <Button variant="primary" onclick={() => { showNewTagModal = true; newTagName = ''; newTagColor = null; newTagGroup = null; newTagError = '' }}>
+        {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
+        New tag
       </Button>
-    {/if}
-    <Button variant="primary" onclick={() => { showNewTagModal = true; newTagName = ''; newTagColor = null; newTagGroup = null; newTagError = '' }}>
-      {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-      New tag
-    </Button>
+    </div>
   </PageHeader>
 
   <!-- Bulk action bar -->
@@ -490,7 +493,7 @@ function openMergeForSelected() {
       </div>
     {/if}
   </div>
-</div>
+</PageContainer>
 
 <!-- ── Tag row snippet ─────────────────────────────────────────────────────── -->
 {#snippet tagRow(tag: import('$lib/api/models').Tag)}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { GripVertical, Trash2, Plus } from '@lucide/svelte'
+  import { GripVertical, Plus } from '@lucide/svelte'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import type { FieldDefinition, FieldScope } from '$lib/api/models'
@@ -13,6 +13,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
   import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
+  import PageContainer from '$lib/components/ui/PageContainer.svelte'
 
   let activeScope = $state<FieldScope>('asset')
 
@@ -97,7 +98,7 @@
   <title>Custom Fields — Damask</title>
 </svelte:head>
 
-<div class="flex h-full flex-col">
+<PageContainer>
   <PageHeader
     title="Custom Fields"
     description="Manage custom metadata fields for your assets and projects."
@@ -201,7 +202,7 @@
       </button>
     </div>
   </div>
-</div>
+</PageContainer>
 
 <FieldCreateEditModal
   bind:open={showCreateModal}

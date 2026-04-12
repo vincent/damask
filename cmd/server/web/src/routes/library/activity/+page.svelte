@@ -1,10 +1,9 @@
 <script lang="ts">
   import { activityApi, type ActivityEvent } from '$lib/api'
-  import { Bot, ChevronDown, Download, Inbox, User } from '@lucide/svelte'
-  import Spinner from '$lib/components/ui/Spinner.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
-  import Button from '$lib/components/ui/Button.svelte'
-  import Feedback from '$lib/components/ui/Feedback.svelte'
+  import ActivityList from '$lib/components/ActivityList.svelte'
+  import ButtonDownload from '$lib/components/ui/ButtonDownload.svelte'
+  import PageContainer from '$lib/components/ui/PageContainer.svelte'
 
   let events = $state<ActivityEvent[]>([])
   let loading = $state(true)
@@ -15,6 +14,12 @@
 
   // Filter state
   let typeFilter = $state<'' | 'uploads' | 'changes' | 'shares'>('')
+  let typeFFilters: [string, string][] = [
+    ['', 'All'],
+    ['uploads', 'Uploads'],
+    ['changes', 'Changes'],
+    ['shares', 'Shares'],
+  ]
 
   const typesParam: Record<string, string> = {
     uploads: 'asset_created',
@@ -65,16 +70,6 @@
     finally { loadingMore = false }
   }
 
-  function relativeTime(isoOrSqlite: string): string {
-    const date = new Date(isoOrSqlite.replace(' ', 'T') + (isoOrSqlite.includes('T') ? '' : 'Z'))
-    const diffSec = Math.floor((Date.now() - date.getTime()) / 1000)
-    if (diffSec < 60) return 'just now'
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
-    if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}d ago`
-    return date.toLocaleDateString()
-  }
-
   const csvUrl = $derived(activityApi.exportCSV())
 </script>
 
@@ -82,23 +77,17 @@
   <title>Activity — Damask</title>
 </svelte:head>
 
-<div class="flex h-full flex-col overflow-hidden">
+<PageContainer>
   <PageHeader
-    title="Share Links"
-    description="Manage public share links for your workspace assets and projects."
+    title="Workspace activity"
+    description="See all actions taken in this workspace, including uploads, edits, and shares."
   >
-    <a
-      href={csvUrl}
-      class="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-1.5 text-md text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
-    >
-      <Download class="h-4 w-4" />
-      Export CSV
-    </a>
+    <ButtonDownload resourceUrl={csvUrl} text="Export CSV" />
   </PageHeader>
 
   <!-- Filter bar -->
   <div class="flex flex-shrink-0 gap-2 border-b border-zinc-100 px-6 py-2 dark:border-zinc-800">
-    {#each ([['', 'All'], ['uploads', 'Uploads'], ['changes', 'Changes'], ['shares', 'Shares']] as [string, string][]) as [val, label]}
+    {#each typeFFilters as [val, label]}
       <button
         type="button"
         class="rounded-full px-3 py-1 text-sm font-medium transition-colors
@@ -113,77 +102,5 @@
   </div>
 
   <!-- Content -->
-  <div class="flex-1 overflow-y-auto">
-    {#if loading}
-      <div class="flex justify-center py-16">
-        <Spinner size="md" />
-      </div>
-
-    {:else if error}
-      <Feedback {error} />
-
-    {:else if events.length === 0}
-      <div class="flex flex-col items-center gap-3 py-16 text-center text-zinc-400 dark:text-zinc-500">
-        <Inbox class="h-10 w-10" />
-        <p class="text-md">No activity yet.</p>
-      </div>
-
-    {:else}
-      <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
-        {#each events as event (event.id)}
-          <li class="flex gap-4 px-6 py-4">
-            <!-- Actor icon -->
-            <div class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full
-              {event.actor.type === 'system'
-                ? 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'
-                : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400'}">
-              {#if event.actor.type === 'system'}
-                <Bot class="h-4 w-4" />
-              {:else}
-                <User class="h-4 w-4" />
-              {/if}
-            </div>
-
-            <!-- Content -->
-            <div class="min-w-0 flex-1">
-              <p class="text-md text-zinc-800 dark:text-zinc-200">
-                {#if event.actor.type === 'user' && event.actor.name}
-                  <span class="font-medium">{event.actor.name}</span>
-                  {' '}
-                {:else if event.actor.type === 'system'}
-                  <span class="font-medium italic text-zinc-500 dark:text-zinc-400">System</span>
-                  {' '}
-                {/if}
-                <span class="text-zinc-600 dark:text-zinc-400">{event.human_readable}</span>
-              </p>
-              <div class="mt-0.5 flex items-center gap-2 text-sm text-zinc-400 dark:text-zinc-500">
-                <span class="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800">
-                  {event.entity_type}
-                </span>
-                <span>{relativeTime(event.created_at)}</span>
-              </div>
-            </div>
-          </li>
-        {/each}
-      </ul>
-
-      {#if hasMore}
-        <div class="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">
-          <button
-            type="button"
-            class="flex w-full items-center justify-center gap-2 text-md text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-            onclick={loadMore}
-            disabled={loadingMore}
-          >
-            {#if loadingMore}
-              <Spinner size="sm" />
-            {:else}
-              <ChevronDown class="h-4 w-4" />
-              Load more
-            {/if}
-          </button>
-        </div>
-      {/if}
-    {/if}
-  </div>
-</div>
+  <ActivityList class="overflow-y-auto" {loading} {error} {events} {hasMore} {loadMore} {loadingMore} />
+</PageContainer>

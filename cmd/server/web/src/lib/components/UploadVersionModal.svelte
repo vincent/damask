@@ -1,9 +1,12 @@
 <script lang="ts">
   import { versionApi, mimeCategory, type Asset } from '$lib/api'
-  import Spinner from '$lib/components/ui/Spinner.svelte'
-  import { Upload, X } from '@lucide/svelte'
+  import { Upload } from '@lucide/svelte'
   import Hint from './ui/Hint.svelte'
   import Feedback from './ui/Feedback.svelte'
+  import ButtonCancel from './ui/ButtonCancel.svelte'
+  import Button from './ui/Button.svelte'
+  import ProgressBar from './ui/ProgressBar.svelte'
+  import Backdrop from './ui/Backdrop.svelte'
 
   interface Props {
     asset: Asset
@@ -69,15 +72,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- Backdrop -->
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-  role="button"
-  tabindex="-1"
-  onclick={(e) => { if (e.target === e.currentTarget) onclose() }}
-  onkeydown={(e) => e.key === 'Enter' && onclose()}
-  aria-label="Close modal"
->
+<Backdrop {onclose}>
   <div
     class="relative w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
@@ -86,13 +81,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
       <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Upload new version</h2>
-      <button
-        type="button"
-        class="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-        onclick={onclose}
-      >
-        <X class="h-4 w-4" />
-      </button>
+      <ButtonCancel x onclick={onclose} />
     </div>
 
     <!-- Body -->
@@ -147,12 +136,7 @@
       </div>
 
       {#if uploading}
-        <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
-          <div
-            class="h-full rounded-full bg-indigo-500 transition-all"
-            style="width: {progress}%"
-          ></div>
-        </div>
+        <ProgressBar value={progress} />
       {/if}
 
       <Feedback {error} />
@@ -160,28 +144,11 @@
 
     <!-- Footer -->
     <div class="flex justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
-      <button
-        type="button"
-        class="rounded-lg border border-gray-200 px-4 py-2 text-md text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-        onclick={onclose}
-        disabled={uploading}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-md font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        disabled={!file || uploading}
-        onclick={handleSubmit}
-      >
-        {#if uploading}
-          <Spinner size="sm" />
-          Uploading… {progress}%
-        {:else}
-          <Upload class="h-4 w-4" />
-          Upload version
-        {/if}
-      </button>
+      <ButtonCancel onclick={onclose} disabled={uploading} />
+      <Button variant="primary" onclick={handleSubmit} disabled={!file || uploading} loading={uploading}>
+        <Upload class="h-4 w-4" />
+        Upload version
+      </Button>
     </div>
   </div>
-</div>
+</Backdrop>

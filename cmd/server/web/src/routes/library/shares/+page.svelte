@@ -6,25 +6,21 @@
   import type { Share } from '$lib/api'
   import ShareModal from '$lib/components/ShareModal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import Toast from '$lib/components/ui/Toast.svelte'
   import {
-    Copy,
     Eye,
     Globe,
     Link,
     Lock,
     Plus,
-    Trash2,
     MessageSquare,
     Download,
-    AlertCircle,
-    CheckCircle,
   } from '@lucide/svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
   import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte'
   import ButtonCopy from '$lib/components/ui/ButtonCopy.svelte'
+  import PageContainer from '$lib/components/ui/PageContainer.svelte'
 
   let showCreateModal = $state(false)
   let copied = $state<string | null>(null)
@@ -82,110 +78,105 @@
   <title>Share Links — Damask</title>
 </svelte:head>
 
-<div class="flex h-full flex-col">
-  <!-- Simple settings layout: full-width content -->
-  <div class="flex flex-1 flex-col overflow-hidden">
-    <PageHeader
-      title="Share Links"
-      description="Manage public share links for your workspace assets and projects."
-    >
-      <Button variant="primary" disabled={createTargets.length === 0} onclick={() => { showCreateModal = true }}>
-        {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-        New Share
-      </Button>
-    </PageHeader>
+<PageContainer>
+  <PageHeader
+    title="Share Links"
+    description="Manage public share links for your workspace assets and projects."
+  >
+    <Button variant="primary" disabled={createTargets.length === 0} onclick={() => { showCreateModal = true }}>
+      {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
+      New Share
+    </Button>
+  </PageHeader>
 
-    <!-- Content -->
-    <main class="flex-1 overflow-y-auto px-6 py-6">
-      {#if sharesStore.loading}
-        <GridSkeleton lines={4} />
+  <!-- Content -->
+  <main class="flex-1 overflow-y-auto px-6 py-6">
+    {#if sharesStore.loading}
+      <GridSkeleton lines={4} />
 
-      {:else if sharesStore.shares.length === 0}
-        <div class="flex flex-col items-center justify-center py-24 text-center">
-          <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-            <Link class="h-8 w-8 text-gray-400 dark:text-gray-500" />
-          </div>
-          <h2 class="mb-1 text-base font-semibold text-gray-900 dark:text-gray-50">No share links yet</h2>
-          <p class="mb-6 text-md text-gray-400">Create a share link to let clients review assets without an account.</p>
-          <Button variant="primary" onclick={() => { showCreateModal = true }} disabled={createTargets.length === 0}>
-            {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-            Create your first share
-          </Button>
+    {:else if sharesStore.shares.length === 0}
+      <div class="flex flex-col items-center justify-center py-24 text-center">
+        <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+          <Link class="h-8 w-8 text-gray-400 dark:text-gray-500" />
         </div>
+        <h2 class="mb-1 text-base font-semibold text-gray-900 dark:text-gray-50">No share links yet</h2>
+        <p class="mb-6 text-md text-gray-400">Create a share link to let clients review assets without an account.</p>
+        <Button variant="primary" onclick={() => { showCreateModal = true }} disabled={createTargets.length === 0}>
+          {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
+          Create your first share
+        </Button>
+      </div>
 
-      {:else}
-        <div class="space-y-3">
-          {#each sharesStore.shares as share (share.id)}
-            {@const status = statusInfo(share)}
-            <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
-              <div class="flex items-start gap-4 px-5 py-4">
-                <!-- Icon -->
-                <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                  <Globe class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                </div>
+    {:else}
+      <div class="space-y-3">
+        {#each sharesStore.shares as share (share.id)}
+          {@const status = statusInfo(share)}
+          <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="flex items-start gap-4 px-5 py-4">
+              <!-- Icon -->
+              <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+                <Globe class="h-4 w-4 text-gray-500 dark:text-gray-400" />
+              </div>
 
-                <!-- Meta -->
-                <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-md font-medium text-gray-900 dark:text-gray-50">
-                      {share.label || targetLabel(share)}
+              <!-- Meta -->
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-md font-medium text-gray-900 dark:text-gray-50">
+                    {share.label || targetLabel(share)}
+                  </span>
+                  <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {status.cls}">{status.label}</span>
+                  {#if share.has_password}
+                    <span class="inline-flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+                      <Lock class="h-3 w-3" /> Password
                     </span>
-                    <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {status.cls}">{status.label}</span>
-                    {#if share.has_password}
-                      <span class="inline-flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
-                        <Lock class="h-3 w-3" /> Password
-                      </span>
-                    {/if}
-                  </div>
-                  <p class="mt-0.5 text-sm text-gray-400 dark:text-gray-500">{targetLabel(share)}</p>
-                  <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
-                    <span class="inline-flex items-center gap-1">
-                      <Eye class="h-3 w-3" /> {share.view_count} view{share.view_count !== 1 ? 's' : ''}
-                    </span>
-                    <span>Created {formatDate(share.created_at)}</span>
-                    {#if share.allow_download}
-                      <span class="inline-flex items-center gap-1 text-green-600 dark:text-green-500">
-                        <Download class="h-3 w-3" /> Downloads
-                      </span>
-                    {/if}
-                    {#if share.allow_comments}
-                      <span class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-500">
-                        <MessageSquare class="h-3 w-3" /> Comments
-                      </span>
-                    {/if}
-                  </div>
+                  {/if}
                 </div>
-
-                <!-- Actions -->
-                <div class="flex shrink-0 items-center gap-1.5">
-                  {#if !share.revoked_at}
-                    <ButtonCopy
-                      onclick={() => copyLink(share)}
-                      copied={copied === share.id}
-                      title="Copy link"
-                    />
-                    <ButtonDelete onclick={() => sharesStore.revoke(share.id)} title="Revoke share" />
-                  {:else}
-                    <StatusBadge i status="disabled" text="Revoked" />
+                <p class="mt-0.5 text-sm text-gray-400 dark:text-gray-500">{targetLabel(share)}</p>
+                <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
+                  <span class="inline-flex items-center gap-1">
+                    <Eye class="h-3 w-3" /> {share.view_count} view{share.view_count !== 1 ? 's' : ''}
+                  </span>
+                  <span>Created {formatDate(share.created_at)}</span>
+                  {#if share.allow_download}
+                    <span class="inline-flex items-center gap-1 text-green-600 dark:text-green-500">
+                      <Download class="h-3 w-3" /> Downloads
+                    </span>
+                  {/if}
+                  {#if share.allow_comments}
+                    <span class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-500">
+                      <MessageSquare class="h-3 w-3" /> Comments
+                    </span>
                   {/if}
                 </div>
               </div>
 
-              <!-- URL bar for active shares -->
-              {#if !share.revoked_at && !share.is_expired}
-                <div class="border-t border-gray-50 bg-gray-50/60 px-5 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
-                  <span class="text-sm font-mono text-gray-400 dark:text-gray-500">{share.public_url}</span>
-                </div>
-              {/if}
+              <!-- Actions -->
+              <div class="flex shrink-0 items-center gap-1.5">
+                {#if !share.revoked_at}
+                  <ButtonCopy
+                    onclick={() => copyLink(share)}
+                    copied={copied === share.id}
+                    title="Copy link"
+                  />
+                  <ButtonDelete onclick={() => sharesStore.revoke(share.id)} title="Revoke share" />
+                {:else}
+                  <StatusBadge i status="disabled" text="Revoked" />
+                {/if}
+              </div>
             </div>
-          {/each}
-        </div>
-      {/if}
-    </main>
-  </div>
-</div>
 
-<Toast />
+            <!-- URL bar for active shares -->
+            {#if !share.revoked_at && !share.is_expired}
+              <div class="border-t border-gray-50 bg-gray-50/60 px-5 py-2.5 dark:border-gray-800 dark:bg-gray-800/40">
+                <span class="text-sm font-mono text-gray-400 dark:text-gray-500">{share.public_url}</span>
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </main>
+</PageContainer>
 
 {#if showCreateModal && createTargets.length > 0}
   <ShareModal

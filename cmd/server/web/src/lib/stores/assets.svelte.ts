@@ -170,7 +170,8 @@ export const assetsStore = {
     this.load(true)
   },
 
-  search() {
+  search(query: string) {
+    assetsStore.query = query
     clearTimeout(searchTimer)
     nextCursor = null
     searchTimer = setTimeout(() => {

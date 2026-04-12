@@ -9,20 +9,13 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
-  import { Copy, Inbox, Link, Settings, Share, Upload } from '@lucide/svelte'
+  import { Inbox, Share, Upload } from '@lucide/svelte'
   import AssetTags from './AssetTags.svelte';
   import AssetMetadata from './AssetMetadata.svelte';
-  import VariantCreateResize from './VariantCreateResize.svelte';
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SharedAsset from './SharedAsset.svelte'
   import Close from './ui/Close.svelte'
-  import VariantCreateWatermark from './VariantCreateWatermark.svelte'
-  import VariantCreateConvert from './VariantCreateConvert.svelte'
-  import VariantCreateCrop from './VariantCreateCrop.svelte'
-  import VariantCreateRemoveBackground from './VariantCreateRemoveBackground.svelte'
-  import VariantCreateSmartCrop from './VariantCreateSmartCrop.svelte'
-  import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
-  import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
+  import VariantsTool, { type VariantTab } from './variants/VariantsTool.svelte';
   import AssetProject from './AssetProject.svelte'
   import Pills from './ui/Pills.svelte'
   import Feedback from './ui/Feedback.svelte'
@@ -38,6 +31,8 @@
   import { fly } from 'svelte/transition'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import AssetComments from './AssetComments.svelte'
+  import Backdrop from './ui/Backdrop.svelte'
+  import ButtonCopy from './ui/ButtonCopy.svelte'
 
   interface Props {
     asset: Asset | null
@@ -62,8 +57,6 @@
   type PanelTab = keyof typeof panelTabs
   let activeTab = $state<PanelTab>('details')
 
-  // --- Variant sub-tabs ---
-  type VariantTab = 'all' | 'resize' | 'watermark' | 'convert' | 'smart_crop' | 'crop' | 'bg_remove' | 'video_transcode' | 'video_thumbnail'
   let activeVariantTab = $state<VariantTab>('all')
 
   // --- Asset state ---
@@ -208,8 +201,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if asset}
-  <!-- Backdrop -->
-  <div class="asset-lightbox-bg fixed w-screen inset-0 z-40 bg-black/80 backdrop-blur-sm">
+  <Backdrop class="asset-lightbox-bg w-screen" {onclose}>
     <div
       class="fixed w-[75%] grid place-items-center p-40 inset-0"
       role="button"
@@ -224,7 +216,7 @@
         assetUrl={assetApi.fileUrl(asset.id)}
       />
     </div>
-  </div>
+  </Backdrop>
 
   <!-- Panel: fixed 25% -->
   <div
@@ -337,23 +329,8 @@
               {:else}
                 <AssetVariantsGrid {asset} {variants} deleteVariant={handleDeleteVariant} />
               {/if}
-
-            {:else if activeVariantTab === 'resize'}
-              <VariantCreateResize {asset} {creating} {handleCreate} />
-            {:else if activeVariantTab === 'watermark'}
-              <VariantCreateWatermark {asset} {creating} {handleCreate} />
-            {:else if activeVariantTab === 'convert'}
-              <VariantCreateConvert {asset} {creating} {handleCreate} />
-            {:else if activeVariantTab === 'crop'}
-              <VariantCreateCrop {asset} {creating} {handleCreate} />
-            {:else if activeVariantTab === 'bg_remove'}
-              <VariantCreateRemoveBackground {asset} {creating} {handleCreate} />
-            {:else if activeVariantTab === 'smart_crop'}
-              <VariantCreateSmartCrop {asset} {creating} {handleCreate} />
-            {:else if activeVariantTab === 'video_transcode'}
-            <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
-            {:else if activeVariantTab === 'video_thumbnail'}
-              <VariantCreateVideoThumbnail {asset} {creating} {handleCreate} />
+            {:else}
+              <VariantsTool {asset} {creating} tool={activeVariantTab} {handleCreate} />
             {/if}
           </div>
         </div>
@@ -402,18 +379,7 @@
                 <Share class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
                 Share…
               </button>
-              <button
-                class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 {linkCopied ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}"
-                onclick={copyShareLink}
-              >
-                {#if linkCopied}
-                  <Copy class="h-4 w-4 shrink-0 text-emerald-500" />
-                  Link copied!
-                {:else}
-                  <Link class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
-                  Copy Share Link
-                {/if}
-              </button>
+              <ButtonCopy copied={linkCopied} onclick={copyShareLink} text="Copy Share Link" />
             </div>
           </div>
 
