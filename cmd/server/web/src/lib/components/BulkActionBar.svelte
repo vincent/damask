@@ -3,6 +3,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { SquareArrowRightExit, Tag, Trash } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import ButtonDelete from './ui/ButtonDelete.svelte'
 
   interface Props {
     selectedIds: Set<string>
@@ -128,14 +129,7 @@
 
       <!-- Delete (owner only) -->
       {#if authStore.role === 'owner'}
-        <button
-          class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-md font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-          disabled={busy}
-          onclick={bulkDelete}
-        >
-          <Trash class="h-4 w-4" />
-          Delete
-        </button>
+        <ButtonDelete title="Bulk Delete variants" onclick={bulkDelete} />
       {/if}
 
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { formatDistanceToNowStrict } from 'date-fns'
-  import { UserPlus, Trash2, X } from '@lucide/svelte'
+  import { UserPlus } from '@lucide/svelte'
   import { workspaceApi } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
@@ -13,6 +13,8 @@
   import Input from '$lib/components/ui/Input.svelte'
   import SectionHeading from '$lib/components/ui/SectionHeading.svelte'
   import Hint from '$lib/components/ui/Hint.svelte'
+  import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
+  import ButtonCancel from '$lib/components/ui/ButtonCancel.svelte'
 
   const currentUserID = $derived(authStore.user?.id)
   const isOwner = $derived(authStore.role === 'owner')
@@ -155,13 +157,7 @@
               <Button onclick={sendInvite} loading={inviting} disabled={!inviteEmail.trim()}>
                 Send
               </Button>
-              <button
-                type="button"
-                onclick={() => { showInviteForm = false }}
-                class="rounded p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-              >
-                <X class="h-4 w-4" />
-              </button>
+              <ButtonCancel x onclick={() => { showInviteForm = false }} />
             </div>
           </div>
         {/if}
@@ -209,31 +205,11 @@
                 {#if confirmRemoveID === member.user_id}
                   <div class="flex items-center gap-1.5">
                     <span class="text-xs text-zinc-500 dark:text-zinc-400">Remove?</span>
-                    <button
-                      type="button"
-                      onclick={() => removeMember(member.user_id)}
-                      disabled={removingID === member.user_id}
-                      class="rounded px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
-                    >
-                      {removingID === member.user_id ? '…' : 'Yes'}
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => { confirmRemoveID = null }}
-                      class="rounded px-2 py-0.5 text-xs text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                    >
-                      Cancel
-                    </button>
+                    <ButtonDelete title="Remove member" onclick={() => removeMember(member.user_id)}>Yes</ButtonDelete>
+                    <ButtonCancel onclick={() => { confirmRemoveID = null }}/>
                   </div>
                 {:else}
-                  <button
-                    type="button"
-                    onclick={() => { confirmRemoveID = member.user_id }}
-                    class="rounded p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
-                    title="Remove member"
-                  >
-                    <Trash2 class="h-3.5 w-3.5" />
-                  </button>
+                  <ButtonDelete title="Remove member" onclick={() => { confirmRemoveID = member.user_id }} />
                 {/if}
               {/if}
             </div>
@@ -262,19 +238,7 @@
                   </div>
                 </div>
                 <Badge variant={invite.role as 'editor' | 'viewer'}>{invite.role}</Badge>
-                <button
-                  type="button"
-                  onclick={() => cancelInvite(invite.id)}
-                  disabled={deletingInviteID === invite.id}
-                  class="rounded p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-40"
-                  title="Cancel invite"
-                >
-                  {#if deletingInviteID === invite.id}
-                    <Spinner size="sm" />
-                  {:else}
-                    <X class="h-3.5 w-3.5" />
-                  {/if}
-                </button>
+                <ButtonDelete x title="Cancel invite" onclick={() => cancelInvite(invite.id)} loading={deletingInviteID === invite.id} />
               </div>
             {/each}
           </div>

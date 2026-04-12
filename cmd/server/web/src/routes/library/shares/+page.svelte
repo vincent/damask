@@ -22,6 +22,9 @@
   } from '@lucide/svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
+  import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
+  import StatusBadge from '$lib/components/ui/StatusBadge.svelte'
+  import ButtonCopy from '$lib/components/ui/ButtonCopy.svelte'
 
   let showCreateModal = $state(false)
   let copied = $state<string | null>(null)
@@ -156,32 +159,14 @@
                 <!-- Actions -->
                 <div class="flex shrink-0 items-center gap-1.5">
                   {#if !share.revoked_at}
-                    <button
-                      type="button"
-                      class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                    <ButtonCopy
                       onclick={() => copyLink(share)}
-                      aria-label="Copy link"
+                      copied={copied === share.id}
                       title="Copy link"
-                    >
-                      {#if copied === share.id}
-                        <CheckCircle class="h-4 w-4 text-green-500" />
-                      {:else}
-                        <Copy class="h-4 w-4" />
-                      {/if}
-                    </button>
-                    <button
-                      type="button"
-                      class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                      onclick={() => sharesStore.revoke(share.id)}
-                      aria-label="Revoke share"
-                      title="Revoke"
-                    >
-                      <Trash2 class="h-4 w-4" />
-                    </button>
+                    />
+                    <ButtonDelete onclick={() => sharesStore.revoke(share.id)} title="Revoke share" />
                   {:else}
-                    <span class="flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-gray-400 dark:text-gray-600">
-                      <AlertCircle class="h-3.5 w-3.5" /> Revoked
-                    </span>
+                    <StatusBadge i status="disabled" text="Revoked" />
                   {/if}
                 </div>
               </div>

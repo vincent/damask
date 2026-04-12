@@ -8,6 +8,8 @@
   import Button from '$lib/components/ui/Button.svelte'
   import GridSkeleton from '../ui/GridSkeleton.svelte'
   import Hint from '../ui/Hint.svelte'
+  import Feedback from '../ui/Feedback.svelte'
+  import ButtonDelete from '../ui/ButtonDelete.svelte'
 
   interface Props {
     source: IngressSource
@@ -136,12 +138,7 @@
     </button>
   </div>
 
-  {#if source.last_error}
-    <div class="flex items-center gap-2 bg-red-50 px-5 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
-      <AlertCircle class="h-4 w-4" />
-      <textarea class="w-full min-h-[100px]">{source.last_error}</textarea>
-    </div>
-  {/if}
+  <Feedback class="bg-transparent" error={source.last_error} />
 
   <!-- Tabs -->
   <div class="flex border-b border-gray-100 dark:border-gray-800">
@@ -257,13 +254,7 @@
                     <span class="font-medium text-indigo-600 dark:text-indigo-400">{rule.action}</span>
                   </p>
                 </div>
-                <button
-                  type="button"
-                  class="shrink-0 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400"
-                  onclick={() => ingressStore.deleteRule(source.id, rule.id)}
-                >
-                  <Trash2 class="h-3.5 w-3.5" />
-                </button>
+                <ButtonDelete title="Delete rule" onclick={() => ingressStore.deleteRule(source.id, rule.id)} />
               </div>
             {/each}
           </div>
@@ -368,9 +359,7 @@
                       </span>
                       <span class="text-xs text-gray-400">{formatDate(entry.imported_at)}</span>
                     </div>
-                    {#if entry.error}
-                      <p class="mt-1 truncate text-xs text-red-500 dark:text-red-400">{entry.error}</p>
-                    {/if}
+                    <Feedback class="mt-1" error={entry.error} />
                   </div>
 
                   <!-- Actions -->
@@ -394,14 +383,7 @@
                         <RotateCcw class="h-3.5 w-3.5" />
                       </button>
                     {/if}
-                    <button
-                      type="button"
-                      class="text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400"
-                      onclick={() => ingressStore.deleteLogEntry(entry.id)}
-                      title="Delete entry"
-                    >
-                      <Trash2 class="h-3.5 w-3.5" />
-                    </button>
+                    <ButtonDelete title="Delete entry" onclick={() => ingressStore.deleteLogEntry(entry.id)} />
                   </div>
                 </div>
               </div>

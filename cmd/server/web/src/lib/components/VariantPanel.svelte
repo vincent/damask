@@ -10,6 +10,8 @@
   import Button from '$lib/components/ui/Button.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import ResolutionOptions from './ResolutionOptions.svelte'
+  import Feedback from './ui/Feedback.svelte'
+  import ButtonDelete from './ui/ButtonDelete.svelte'
 
   interface Props {
     asset: Asset | null
@@ -296,12 +298,7 @@
       {/if}
 
       <!-- Feedback -->
-      {#if createError}
-        <div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-md text-red-700 dark:bg-red-900/30 dark:text-red-300">{createError}</div>
-      {/if}
-      {#if createSuccess}
-        <div class="mb-4 rounded-lg bg-green-50 px-4 py-3 text-md text-green-700 dark:bg-green-900/30 dark:text-green-300">{createSuccess}</div>
-      {/if}
+      <Feedback error={createError} success={createSuccess} />
 
       <!-- List tab -->
       {#if activeTab === 'list'}
@@ -310,7 +307,7 @@
             <Spinner size="md" class="text-gray-400" />
           </div>
         {:else if loadError}
-          <p class="text-md text-red-600">{loadError}</p>
+          <Feedback error={loadError} />
         {:else if variants.length === 0}
           <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
             <Inbox class="h-12 w-12" />
@@ -340,14 +337,7 @@
                   <Download class="h-4 w-4" />
                 </a>
                 {#if authStore.role !== 'viewer'}
-                  <button
-                    type="button"
-                    class="shrink-0 rounded-lg p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
-                    onclick={() => handleDelete(v.id)}
-                    aria-label="Delete variant"
-                  >
-                    <Trash class="h-4 w-4" />
-                  </button>
+                  <ButtonDelete title="Delete variant" onclick={() => handleDelete(v.id)} />
                 {/if}
               </li>
             {/each}

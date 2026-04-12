@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation'
   import { authApi, configApi, ApiError } from '$lib/api'
   import Button from '$lib/components/ui/Button.svelte'
+  import Feedback from '$lib/components/ui/Feedback.svelte'
   import Input from '$lib/components/ui/Input.svelte'
 
   let email = $state('')
@@ -58,9 +59,7 @@
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">
-      {#if error}
-        <p class="text-md text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 p-3 rounded">{error}</p>
-      {/if}
+      <Feedback {error} />
 
       <Input id="email" type="email" label="Email" bind:value={email} required autocomplete="email" />
 

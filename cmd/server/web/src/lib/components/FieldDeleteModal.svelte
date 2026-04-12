@@ -4,6 +4,7 @@
   import Modal from '$lib/components/ui/Modal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import Feedback from './ui/Feedback.svelte'
 
   interface Props {
     open?: boolean
@@ -78,9 +79,7 @@
       </p>
     {/if}
 
-    {#if error}
-      <p class="mt-3 text-md text-red-600 dark:text-red-400">{error}</p>
-    {/if}
+    <Feedback {error} />
 
     <div class="mt-5 flex justify-end gap-2">
       <Button variant="secondary" onclick={onclose}>Cancel</Button>

@@ -4,6 +4,8 @@
   import { Clock, Download, RotateCcw, Trash2, Inbox } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
+  import Feedback from './ui/Feedback.svelte'
+  import ButtonDelete from './ui/ButtonDelete.svelte'
 
   interface Props {
     asset: Asset
@@ -98,7 +100,7 @@
       <Spinner size="md" />
     </div>
   {:else if error}
-    <div class="px-5 py-4 text-md text-red-500 dark:text-red-400">{error}</div>
+    <Feedback {error} />
   {:else if versions.length === 0}
     <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
       <Inbox class="h-10 w-10" />
@@ -196,14 +198,7 @@
               {/if}
 
               {#if !v.is_current && authStore.role === 'owner'}
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-sm text-red-500 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                  onclick={() => { deleteTarget = v; deleteError = '' }}
-                >
-                  <Trash2 class="h-3 w-3" />
-                  Delete
-                </button>
+                <ButtonDelete onclick={() => { deleteTarget = v; deleteError = '' }} />
               {/if}
             </div>
           </div>
@@ -230,9 +225,7 @@
         <p class="text-gray-500 dark:text-gray-400">
           The current version will be kept in history and can be restored again at any time.
         </p>
-        {#if restoreError}
-          <p class="text-red-500 dark:text-red-400">{restoreError}</p>
-        {/if}
+        <Feedback error={restoreError} />
       </div>
       <div class="flex justify-end gap-3 pt-2">
         <button
@@ -265,9 +258,7 @@
       </h3>
       <div class="space-y-2 text-md text-gray-600 dark:text-gray-300">
         <p>This version will be soft-deleted and permanently purged after 7 days.</p>
-        {#if deleteError}
-          <p class="text-red-500 dark:text-red-400">{deleteError}</p>
-        {/if}
+        <Feedback error={deleteError} />
       </div>
       <div class="flex justify-end gap-3 pt-2">
         <button

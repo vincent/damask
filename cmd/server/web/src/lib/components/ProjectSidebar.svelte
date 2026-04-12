@@ -9,6 +9,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
+  import Feedback from './ui/Feedback.svelte'
 
   interface Props {
     selectedAssetIds: Set<string>
@@ -229,7 +230,5 @@
     {/if}
   {/if}
 
-  {#if error}
-    <p class="mt-1 px-2 text-sm text-red-500">{error}</p>
-  {/if}
+  <Feedback {error} />
 </div>

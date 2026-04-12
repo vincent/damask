@@ -6,6 +6,7 @@
   import Input from '$lib/components/ui/Input.svelte'
   import { Type, Hash, Calendar, ToggleLeft, List, Link } from '@lucide/svelte'
   import Feedback from './ui/Feedback.svelte'
+  import ButtonDelete from './ui/ButtonDelete.svelte'
 
   interface Props {
     open?: boolean
@@ -228,13 +229,7 @@
                       dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
                   />
                   {#if optionItems.length > 1}
-                    <button
-                      type="button"
-                      class="shrink-0 text-sm text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                      onclick={() => removeOption(i)}
-                    >
-                      Remove
-                    </button>
+                    <ButtonDelete title="Delete option" onclick={() => removeOption(i)} />
                   {/if}
                 </div>
               {/each}

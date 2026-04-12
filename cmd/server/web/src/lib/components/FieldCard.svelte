@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { FieldDefinition } from '$lib/api/models'
   import { Check, ArrowDownToLine } from '@lucide/svelte'
+  import Feedback from './ui/Feedback.svelte'
 
   type FieldValue = {
     field_id: string
@@ -151,9 +152,7 @@
         />
       {/if}
 
-      {#if saveError}
-        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{saveError}</p>
-      {/if}
+      <Feedback error={saveError} />
 
       <div class="mt-1.5 flex gap-2">
         <button

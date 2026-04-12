@@ -3,10 +3,8 @@
   import { formatDistanceToNowStrict } from 'date-fns'
   import { goto } from '$app/navigation'
   import {
-    Tag,
     Plus,
     Trash2,
-    Pencil,
     Merge,
     AlertTriangle,
     ChevronDown,
@@ -14,7 +12,6 @@
     ArrowUpDown,
     LayoutList,
     Layers,
-    X,
     Check,
   } from '@lucide/svelte'
   import { tagsManagementStore } from '$lib/stores/tagsManagement.svelte'
@@ -25,7 +22,11 @@
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-
+  import Feedback from '$lib/components/ui/Feedback.svelte'
+  import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
+  import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
+  import ButtonCancel from '$lib/components/ui/ButtonCancel.svelte'
+  
   // ── View state ──────────────────────────────────────────────────────────────
   type SortKey = 'name' | 'asset_count' | 'last_used_at'
   type SortDir = 'asc' | 'desc'
@@ -339,28 +340,14 @@ function openMergeForSelected() {
   {#if selected.size > 0}
     <div class="flex items-center gap-3 border-b border-indigo-100 bg-indigo-50 px-6 py-2.5 dark:border-indigo-900 dark:bg-indigo-950/30">
       <span class="text-sm font-medium text-indigo-700 dark:text-indigo-300">{selected.size} tag{selected.size !== 1 ? 's' : ''} selected</span>
-      <button
-        class="flex items-center gap-1.5 rounded px-2.5 py-1 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-        onclick={() => (showBulkDeleteModal = true)}
-      >
-        <Trash2 class="h-3.5 w-3.5" />
-        Delete selected
-      </button>
+      <ButtonDelete onclick={() => (showBulkDeleteModal = true)} />
       {#if selected.size >= 2}
-        <button
-          class="flex items-center gap-1.5 rounded px-2.5 py-1 text-sm text-indigo-700 hover:bg-indigo-100 dark:text-indigo-300 dark:hover:bg-indigo-900/30"
-          onclick={openMergeForSelected}
-        >
-          <Merge class="h-3.5 w-3.5" />
+        <ButtonEdit onclick={openMergeForSelected}>
+          <Merge class="h-3.5 w-3.5 mr-1" />
           Merge selected
-        </button>
+        </ButtonEdit>
       {/if}
-      <button
-        class="ml-auto rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-        onclick={() => (selected = new Set())}
-      >
-        <X class="h-4 w-4" />
-      </button>
+      <ButtonCancel x onclick={() => (selected = new Set())} />
     </div>
   {/if}
 
@@ -472,9 +459,7 @@ function openMergeForSelected() {
       <div class="w-80 shrink-0 overflow-y-auto border-l border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">Possible duplicates</span>
-          <button onclick={() => (showDupPanel = false)} class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-            <X class="h-4 w-4" />
-          </button>
+          <ButtonCancel x title="Close" onclick={() => (showDupPanel = false)} />
         </div>
         <div class="divide-y divide-gray-100 dark:divide-gray-800">
           {#each tagsManagementStore.duplicates as pair (pair.a + pair.b)}
@@ -487,19 +472,16 @@ function openMergeForSelected() {
                 </div>
                 <div class="text-xs text-gray-400 mt-0.5">{Math.round(pair.score * 100)}% different</div>
               </div>
-              <button
-                class="shrink-0 rounded px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-                onclick={() => openMergeForPair(pair.a, pair.b)}
-              >
+              <ButtonEdit
+                title="Merge tags"
+                class="text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                onclick={() => openMergeForPair(pair.a, pair.b)}>
                 Merge
-              </button>
-              <button
-                class="shrink-0 rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                onclick={() => tagsManagementStore.dismissDuplicate(pair.a, pair.b)}
+              </ButtonEdit>
+              <ButtonCancel x
                 title="Dismiss"
-              >
-                <X class="h-3.5 w-3.5" />
-              </button>
+                onclick={() => tagsManagementStore.dismissDuplicate(pair.a, pair.b)}
+              />
             </div>
           {:else}
             <div class="px-4 py-8 text-center text-sm text-gray-400">All duplicates resolved</div>
@@ -581,9 +563,7 @@ function openMergeForSelected() {
             }}
             onblur={() => commitEditName(tag.name)}
           />
-          {#if editNameError}
-            <span class="shrink-0 text-xs text-red-500">{editNameError}</span>
-          {/if}
+          <Feedback error={editNameError} />
         </div>
       {:else}
         <button
@@ -615,12 +595,10 @@ function openMergeForSelected() {
             </button>
           {/each}
           {#if tag.group_name}
-            <button
-              class="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-left text-sm text-gray-400 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800"
+            <ButtonCancel x
+              title="Remove group"
               onclick={() => { handleGroupChange(tag.name, null); groupPickerFor = null }}
-            >
-              <X class="h-3.5 w-3.5" /> Remove group
-            </button>
+            />
           {/if}
           {#if !groupPickerAdding}
             <button
@@ -672,15 +650,8 @@ function openMergeForSelected() {
 
     <!-- Actions -->
     <div class="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-      <button
-        class="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-        onclick={() => startEditName(tag.name)}
-        title="Rename"
-      >
-        <Pencil class="h-3.5 w-3.5" />
-      </button>
-      <button
-        class="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+      <ButtonEdit onclick={() => startEditName(tag.name)} title="Rename" />
+      <ButtonDelete
         onclick={async () => {
           try {
             await tagsManagementStore.bulkDelete([tag.name])
@@ -689,10 +660,7 @@ function openMergeForSelected() {
             toastStore.show('Could not delete tag', 'error')
           }
         }}
-        title="Delete"
-      >
-        <Trash2 class="h-3.5 w-3.5" />
-      </button>
+      />
     </div>
   </div>
 {/snippet}
@@ -712,7 +680,7 @@ function openMergeForSelected() {
           placeholder="tag-name"
           onkeydown={(e) => e.key === 'Enter' && submitNewTag()}
         />
-        {#if newTagError}<p class="mt-1 text-xs text-red-500">{newTagError}</p>{/if}
+        <Feedback error={newTagError} />
       </div>
 
       <div>
@@ -842,18 +810,16 @@ function openMergeForSelected() {
     {/if}
 
     <div class="flex justify-end gap-2">
-      <button
-        class="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-        onclick={() => { showMergeModal = false }}
-      >Cancel</button>
-      <button
-        class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-        onclick={commitMerge}
+      <ButtonCancel onclick={() => { showMergeModal = false }} />
+
+      <ButtonEdit
+        class="bg-indigo-600 px-4 py-2 font-medium text-white dark:text-gray-100 hover:text-white hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
         disabled={!mergeTarget || mergeSaving}
+        onclick={commitMerge}
+        loading={mergeSaving}
       >
-        {#if mergeSaving}<Spinner size="sm" />{/if}
         Merge →
-      </button>
+      </ButtonEdit>
     </div>
   </div>
 </Modal>

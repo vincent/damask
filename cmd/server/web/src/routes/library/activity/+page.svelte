@@ -4,6 +4,7 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import Feedback from '$lib/components/ui/Feedback.svelte'
 
   let events = $state<ActivityEvent[]>([])
   let loading = $state(true)
@@ -119,7 +120,7 @@
       </div>
 
     {:else if error}
-      <p class="px-6 py-8 text-md text-red-500">{error}</p>
+      <Feedback {error} />
 
     {:else if events.length === 0}
       <div class="flex flex-col items-center gap-3 py-16 text-center text-zinc-400 dark:text-zinc-500">

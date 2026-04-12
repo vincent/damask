@@ -1,9 +1,17 @@
 <script lang="ts">
-  import { Play, Pencil, Trash2, ToggleLeft, ToggleRight, AlertCircle, CheckCircle, Clock } from '@lucide/svelte'
+  import { Play, Pencil, Trash2, ToggleLeft, ToggleRight, Clock } from '@lucide/svelte'
   import type { IngressSource } from '$lib/api/models'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import SourceTypeIcon from './SourceTypeIcon.svelte'
+  import Feedback from '../ui/Feedback.svelte'
+  import StatusBadge from '../ui/StatusBadge.svelte'
+  import Hint from '../ui/Hint.svelte'
+  import SectionHeading from '../ui/SectionHeading.svelte'
+  import ButtonDelete from '../ui/ButtonDelete.svelte'
+  import ButtonEdit from '../ui/ButtonEdit.svelte'
+  import ButtonToggle from '../ui/ButtonToggle.svelte'
+  import ButtonStart from '../ui/ButtonStart.svelte'
 
   interface Props {
     source: IngressSource
@@ -56,23 +64,13 @@
     <!-- Meta -->
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-md font-semibold text-gray-900 dark:text-gray-50">{source.label}</span>
-        <span class="text-sm text-gray-400 dark:text-gray-500">{SOURCE_LABELS[source.type] ?? source.type}</span>
-
-        <!-- Status pill -->
-        {#if !source.enabled}
-          <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-            Disabled
-          </span>
-        {:else if source.last_error}
-          <span class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
-            <AlertCircle class="h-3 w-3" /> Error
-          </span>
-        {:else}
-          <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-            <CheckCircle class="h-3 w-3" /> Healthy
-          </span>
-        {/if}
+        <SectionHeading title={source.label} />
+        <Hint>{SOURCE_LABELS[source.type] ?? source.type}</Hint>
+        <StatusBadge status={
+          !source.enabled ? 'disabled' :
+          source.last_error ? 'error' :
+          'healthy'
+        } />
       </div>
 
       <!-- Destination + last polled -->
@@ -87,57 +85,23 @@
         <span>Every {source.poll_interval_min}m</span>
       </div>
 
-      {#if source.last_error}
-        <p class="mt-1.5 truncate text-sm text-red-500 dark:text-red-400">{source.last_error}</p>
-      {/if}
+      <Feedback error={source.last_error} />
     </div>
 
     <!-- Actions -->
     <div class="flex shrink-0 items-center gap-1">
-      <!-- Poll now -->
-      <button
-        type="button"
-        disabled={polling || !source.enabled}
-        class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+      <ButtonStart
         onclick={handlePoll}
+        disabled={polling || !source.enabled}
         title="Poll now"
-      >
-        <Play class="h-4 w-4" />
-      </button>
-
-      <!-- Toggle enable/disable -->
-      <button
-        type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+      />
+      <ButtonToggle
+        enabled={source.enabled}
         onclick={() => ingressStore.toggleSource(source.id, !source.enabled)}
         title={source.enabled ? 'Disable' : 'Enable'}
-      >
-        {#if source.enabled}
-          <ToggleRight class="h-4 w-4 text-indigo-500" />
-        {:else}
-          <ToggleLeft class="h-4 w-4" />
-        {/if}
-      </button>
-
-      <!-- Edit -->
-      <button
-        type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-        onclick={() => onedit(source)}
-        title="Edit"
-      >
-        <Pencil class="h-4 w-4" />
-      </button>
-
-      <!-- Delete -->
-      <button
-        type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-        onclick={() => ondelete(source)}
-        title="Delete"
-      >
-        <Trash2 class="h-4 w-4" />
-      </button>
+      />
+      <ButtonEdit onclick={() => onedit(source)} />
+      <ButtonDelete onclick={() => ondelete(source)} />
     </div>
   </div>
 </div>

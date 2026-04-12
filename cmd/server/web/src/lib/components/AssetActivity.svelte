@@ -2,6 +2,7 @@
   import { activityApi, type Asset, type AuditEvent } from '$lib/api'
   import { Activity, Bot, ChevronDown, Inbox, User } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import Feedback from './ui/Feedback.svelte'
 
   interface Props {
     asset: Asset
@@ -73,7 +74,7 @@
     </div>
 
   {:else if error}
-    <p class="px-5 py-6 text-md text-red-500">{error}</p>
+    <Feedback {error} />
 
   {:else if events.length === 0}
     <div class="flex flex-col items-center gap-3 py-12 text-center text-zinc-400 dark:text-zinc-500">

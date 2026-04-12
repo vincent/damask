@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { GripVertical, Pencil, Trash2, Plus } from '@lucide/svelte'
+  import { GripVertical, Trash2, Plus } from '@lucide/svelte'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import type { FieldDefinition, FieldScope } from '$lib/api/models'
@@ -11,6 +11,8 @@
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
+  import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
 
   let activeScope = $state<FieldScope>('asset')
 
@@ -180,20 +182,8 @@
 
             <!-- Actions -->
             <div class="flex shrink-0 items-center gap-1">
-              <button
-                class="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-                onclick={() => handleEdit(field)}
-                aria-label="Edit {field.name}"
-              >
-                <Pencil class="h-3.5 w-3.5" />
-              </button>
-              <button
-                class="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-                onclick={() => handleDelete(field)}
-                aria-label="Delete {field.name}"
-              >
-                <Trash2 class="h-3.5 w-3.5" />
-              </button>
+              <ButtonEdit title="Edit {field.name}" onclick={() => handleEdit(field)} />
+              <ButtonDelete title="Delete {field.name}" onclick={() => handleDelete(field)} />
             </div>
           </li>
         {/each}

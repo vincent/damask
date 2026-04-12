@@ -2,6 +2,7 @@
     import { formatBytes, variantApi, type Asset, type Variant } from '$lib/api'
     import { authStore } from '$lib/stores/auth.svelte'
     import { Download, Trash } from '@lucide/svelte'
+  import ButtonDelete from './ui/ButtonDelete.svelte'
 
     interface Props {
         asset: Asset
@@ -57,14 +58,11 @@
                     <Download class="h-3.5 w-3.5" />
                 </a>
                 {#if authStore.role !== 'viewer'}
-                    <button
-                        type="button"
-                        class="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-red-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white dark:bg-gray-800/70"
+                    <ButtonDelete
+                        title="Delete variant"
+                        class="dark:hover:bg-transparent hover:bg-transparent"
                         onclick={() => handleDeleteVariant(v.id)}
-                        aria-label="Delete variant"
-                        >
-                        <Trash class="h-3.5 w-3.5" />
-                    </button>
+                    />
                 {/if}
             </div>
             <!-- Info -->

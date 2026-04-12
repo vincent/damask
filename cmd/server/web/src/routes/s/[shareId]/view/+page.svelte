@@ -14,6 +14,7 @@
   import AssetIcon from '$lib/components/AssetIcon.svelte'
   import Close from '$lib/components/ui/Close.svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
+  import Feedback from '$lib/components/ui/Feedback.svelte'
 
   let shareId = $derived(page.params.shareId || '')
 
@@ -283,9 +284,7 @@
                   rows="3"
                   class="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {store.commentBodyError ? 'border-red-400 focus:ring-red-200 dark:border-red-500' : ''}"
                 ></textarea>
-                {#if store.commentBodyError}
-                  <p class="mt-1 text-sm text-red-600 dark:text-red-400">{store.commentBodyError}</p>
-                {/if}
+                <Feedback error={store.commentBodyError} />
               </div>
               <div class="flex justify-end">
                 <Button type="submit" variant="primary" loading={store.postingComment} size="md">

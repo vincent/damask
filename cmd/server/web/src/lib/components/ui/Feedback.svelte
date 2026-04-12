@@ -1,14 +1,22 @@
 <script lang="ts">
-    let { error = undefined, success = undefined }: { success?: string, error?: string } = $props()
+    let {
+        class: extraClass = '',
+        success = undefined,
+        error = undefined,
+    }: {
+        class?: string | null | undefined,
+        success?: string | null | undefined,
+        error?: string | null | undefined
+    } = $props()
 </script>
 
 {#if error}
-    <div class="mx-5 mt-4 rounded-lg bg-red-50 px-4 py-3 text-md text-red-700 dark:bg-red-900/30 dark:text-red-300">
+    <div class="mx-5 mt-4 rounded-lg bg-red-50 px-4 py-3 text-md text-red-700 dark:bg-red-900/30 dark:text-red-300 {extraClass}">
         {error}
     </div>
 {/if}
 {#if success}
-    <div class="mx-5 mt-4 rounded-lg bg-green-50 px-4 py-3 text-md text-green-700 dark:bg-green-900/30 dark:text-green-300">
+    <div class="mx-5 mt-4 rounded-lg bg-green-50 px-4 py-3 text-md text-green-700 dark:bg-green-900/30 dark:text-green-300 {extraClass}">
         {success}
     </div>
 {/if}

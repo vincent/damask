@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
+  import Feedback from './Feedback.svelte'
 
   interface Props {
     value?: string
@@ -29,7 +30,7 @@
     disabled = false,
     required = false,
     autocomplete,
-    id,
+    id = `input-${Math.random().toString(36).slice(2)}`,
     autofocus = false,
     leading,
     trailing,
@@ -79,7 +80,5 @@
       </div>
     {/if}
   </div>
-  {#if error}
-    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
-  {/if}
+  <Feedback {error} />
 </div>

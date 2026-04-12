@@ -9,6 +9,7 @@
   import Input from '$lib/components/ui/Input.svelte'
   import SourceConfigForm from './SourceConfigForm.svelte'
   import Hint from '../ui/Hint.svelte'
+  import Feedback from '../ui/Feedback.svelte'
 
   interface Props {
     open?: boolean
@@ -229,9 +230,7 @@
               <option value={p.id}>{p.name}</option>
             {/each}
           </select>
-          {#if errors.destProjectId}
-            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{errors.destProjectId}</p>
-          {/if}
+          <Feedback error={errors.destProjectId} />
         </div>
 
         <!-- Poll interval (hidden for email_api) -->
@@ -266,13 +265,9 @@
               {:else if testStatus === 'testing'}
                 Testing connection…
               {:else if testStatus === 'ok'}
-                <span class="flex items-center gap-1 text-green-600 dark:text-green-400">
-                  <CheckCircle class="h-4 w-4" /> Connection successful
-                </span>
+                <Feedback class="bg-transparent" success="Connection successful" />
               {:else}
-                <span class="flex items-center gap-1 text-red-600 dark:text-red-400">
-                  <AlertCircle class="h-4 w-4" /> {testError}
-                </span>
+                <Feedback class="bg-transparent" error={testError} />
               {/if}
             </div>
             <Button

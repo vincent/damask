@@ -3,6 +3,7 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import { Upload, X } from '@lucide/svelte'
   import Hint from './ui/Hint.svelte'
+  import Feedback from './ui/Feedback.svelte'
 
   interface Props {
     asset: Asset
@@ -154,9 +155,7 @@
         </div>
       {/if}
 
-      {#if error}
-        <p class="text-md text-red-500 dark:text-red-400">{error}</p>
-      {/if}
+      <Feedback {error} />
     </div>
 
     <!-- Footer -->
