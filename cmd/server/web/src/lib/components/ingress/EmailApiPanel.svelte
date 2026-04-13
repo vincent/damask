@@ -1,38 +1,48 @@
 <script lang="ts">
   import { Copy, CheckCircle, Mail } from '@lucide/svelte'
-  import type { IngressSource } from '$lib/api/models'
+  import type { IngressSource, Folder } from '$lib/api/models'
   import { toastStore } from '$lib/stores/toast.svelte'
   import Hint from '../ui/Hint.svelte'
+  import ButtonCopy from '../ui/ButtonCopy.svelte'
+  import Button from '../ui/Button.svelte'
 
   interface Props {
     source: IngressSource
+    folders?: Folder[]
   }
 
-  let { source }: Props = $props()
+  let { source, folders = [] }: Props = $props()
 
   // The ingest address is the public_token of the email_api source
-  const address = $derived(source.public_token ? `${source.public_token}@damask.studio` : null)
+  const baseAddress = $derived(source.public_token ? `${source.public_token}@ingress.damask.studio` : null)
 
   let copied = $state(false)
+  let copiedFolderId = $state<string | null>(null)
 
-  async function copyAddress() {
-    if (!address) return
+  async function copyAddress(address: string, folderId?: string) {
     try {
       await navigator.clipboard.writeText(address)
-      copied = true
+      if (folderId) {
+        copiedFolderId = folderId
+        setTimeout(() => { copiedFolderId = null }, 2000)
+      } else {
+        copied = true
+        setTimeout(() => { copied = false }, 2000)
+      }
       toastStore.show('Address copied!')
-      setTimeout(() => { copied = false }, 2000)
     } catch {
       toastStore.show('Could not copy', 'error')
     }
   }
 
   function openMailto() {
-    if (!address) return
+    if (!baseAddress) return
     const subject = encodeURIComponent('Damask ingest test')
     const body = encodeURIComponent('Attach a file to this email to test your ingest source.')
-    window.open(`mailto:${address}?subject=${subject}&body=${body}`)
+    window.open(`mailto:${baseAddress}?subject=${subject}&body=${body}`)
   }
+
+  const foldersWithSlug = $derived(folders.filter(f => f.slug))
 </script>
 
 <div class="space-y-5">
@@ -41,22 +51,11 @@
       Your ingest address
     </p>
 
-    {#if address}
+    {#if baseAddress}
       <div class="flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 dark:border-indigo-800 dark:bg-gray-900">
         <Mail class="h-4 w-4 shrink-0 text-indigo-400" />
-        <span class="flex-1 font-mono text-md text-gray-800 dark:text-gray-200 break-all">{address}</span>
-        <button
-          type="button"
-          class="shrink-0 text-gray-400 transition-colors hover:text-indigo-600 dark:hover:text-indigo-400"
-          onclick={copyAddress}
-          title="Copy address"
-        >
-          {#if copied}
-            <CheckCircle class="h-4 w-4 text-green-500" />
-          {:else}
-            <Copy class="h-4 w-4" />
-          {/if}
-        </button>
+        <span class="flex-1 font-mono text-md text-gray-800 dark:text-gray-200 break-all">{baseAddress}</span>
+        <ButtonCopy onclick={() => copyAddress(baseAddress!)} copied={copied} />
       </div>
     {:else}
       <Hint class="italic">Address not yet assigned. Contact your workspace owner.</Hint>
@@ -67,14 +66,34 @@
     </Hint>
   </div>
 
-  {#if address}
-    <button
-      type="button"
-      class="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-md font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-      onclick={openMailto}
-    >
-      <Mail class="h-4 w-4" />
+  {#if baseAddress && foldersWithSlug.length > 0}
+    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/40">
+      <p class="mb-1 text-sm font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+        Folder routing
+      </p>
+      <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+        Add <span class="font-mono">+folder-name</span> to route attachments to a specific folder.
+      </p>
+      <div class="space-y-1.5">
+        {#each foldersWithSlug as folder (folder.id)}
+          {@const folderAddress = `${source.public_token}+${folder.slug}@damask.studio`}
+          <div class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
+            <span class="w-32 shrink-0 truncate text-sm text-gray-500 dark:text-gray-400">{folder.name}</span>
+            <span class="flex-1 font-mono text-sm text-gray-700 dark:text-gray-300 break-all">{folderAddress}</span>
+            <ButtonCopy onclick={() => copyAddress(folderAddress, folder.id)} copied={copiedFolderId === folder.id} />
+          </div>
+        {/each}
+      </div>
+      <Hint class="mt-3 text-sm">
+        Unrecognised tags fall back to your default destination folder.
+      </Hint>
+    </div>
+  {/if}
+
+  {#if baseAddress}
+    <Button variant="outline" size="md" class="w-full justify-center" onclick={openMailto}>
+      <Mail class="h-4 w-4 mr-1" />
       Send a test email
-    </button>
+    </Button>
   {/if}
 </div>

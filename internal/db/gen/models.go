@@ -102,6 +102,7 @@ type Folder struct {
 	ProjectID   string  `json:"project_id"`
 	ParentID    *string `json:"parent_id"`
 	Name        string  `json:"name"`
+	Slug        *string `json:"slug"`
 	Position    int64   `json:"position"`
 	CreatedAt   string  `json:"created_at"`
 }

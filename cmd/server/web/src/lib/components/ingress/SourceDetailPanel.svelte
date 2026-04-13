@@ -3,6 +3,7 @@
   import type { IngressSource } from '$lib/api/models'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
+  import { foldersStore } from '$lib/stores/folders.svelte'
   import SourceConfigForm from './SourceConfigForm.svelte'
   import EmailApiPanel from './EmailApiPanel.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -28,6 +29,19 @@
   let pollIntervalMin = $state(source.poll_interval_min)
   let sourceConfig = $state<Record<string, unknown>>({ ...(source.config as Record<string, unknown>) })
   let saving = $state(false)
+
+  // Load folders for email_api sources so we can show per-folder ingest addresses
+  $effect(() => {
+    if (source.type === 'email_api' && source.dest_project_id) {
+      foldersStore.loadForProject(source.dest_project_id)
+    }
+  })
+
+  const emailApiFolders = $derived(
+    source.type === 'email_api' && source.dest_project_id
+      ? (foldersStore.foldersByProject[source.dest_project_id] ?? [])
+      : []
+  )
 
   const POLL_INTERVALS = [
     { label: '5 minutes', value: 5 },
@@ -163,7 +177,7 @@
     {#if activeTab === 'config'}
       {#if source.type === 'email_api'}
         <div class="p-5">
-          <EmailApiPanel {source} />
+          <EmailApiPanel {source} folders={emailApiFolders} />
         </div>
       {:else}
         <div class="space-y-5 p-5">

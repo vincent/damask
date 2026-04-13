@@ -138,6 +138,7 @@ export interface Folder {
   project_id: string
   parent_id: string | null
   name: string
+  slug: string | null
   position: number
   asset_count: number
   children: Folder[]

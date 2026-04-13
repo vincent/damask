@@ -7,6 +7,7 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/slug"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -18,6 +19,7 @@ type FolderResponse struct {
 	ProjectID   string           `json:"project_id"`
 	ParentID    *string          `json:"parent_id"`
 	Name        string           `json:"name"`
+	Slug        *string          `json:"slug"`
 	Position    int64            `json:"position"`
 	AssetCount  int64            `json:"asset_count"`
 	Children    []FolderResponse `json:"children"`
@@ -31,6 +33,7 @@ func folderToResponse(f dbgen.Folder, assetCount int64) FolderResponse {
 		ProjectID:   f.ProjectID,
 		ParentID:    f.ParentID,
 		Name:        f.Name,
+		Slug:        f.Slug,
 		Position:    f.Position,
 		AssetCount:  assetCount,
 		Children:    []FolderResponse{},
@@ -94,12 +97,14 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 		}
 	}
 
+	slug := slug.ToSlug(body.Name)
 	folder, err := s.db.CreateFolder(c.RequestCtx(), dbgen.CreateFolderParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: claims.WorkspaceID,
 		ProjectID:   projectID,
 		ParentID:    parentID,
 		Name:        body.Name,
+		Slug:        &slug,
 		Position:    body.Position,
 	})
 	if err != nil {
@@ -220,12 +225,17 @@ func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 		return nil
 	}
 
-	folder, err := s.db.UpdateFolder(c.RequestCtx(), dbgen.UpdateFolderParams{
+	params := dbgen.UpdateFolderParams{
 		Name:        body.Name,
 		Position:    body.Position,
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
-	})
+	}
+	if body.Name != nil {
+		slug := slug.ToSlug(*body.Name)
+		params.Slug = &slug
+	}
+	folder, err := s.db.UpdateFolder(c.RequestCtx(), params)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return errRes(c, fiber.StatusConflict, "a folder with that name already exists here")

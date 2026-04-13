@@ -10,9 +10,9 @@ import (
 )
 
 const createFolder = `-- name: CreateFolder :one
-INSERT INTO folders (id, workspace_id, project_id, parent_id, name, position)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, project_id, parent_id, name, position, created_at
+INSERT INTO folders (id, workspace_id, project_id, parent_id, name, slug, position)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, workspace_id, project_id, parent_id, name, slug, position, created_at
 `
 
 type CreateFolderParams struct {
@@ -21,6 +21,7 @@ type CreateFolderParams struct {
 	ProjectID   string  `json:"project_id"`
 	ParentID    *string `json:"parent_id"`
 	Name        string  `json:"name"`
+	Slug        *string `json:"slug"`
 	Position    int64   `json:"position"`
 }
 
@@ -31,6 +32,7 @@ func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Fol
 		arg.ProjectID,
 		arg.ParentID,
 		arg.Name,
+		arg.Slug,
 		arg.Position,
 	)
 	var i Folder
@@ -40,6 +42,7 @@ func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Fol
 		&i.ProjectID,
 		&i.ParentID,
 		&i.Name,
+		&i.Slug,
 		&i.Position,
 		&i.CreatedAt,
 	)
@@ -61,7 +64,7 @@ func (q *Queries) DeleteFolder(ctx context.Context, arg DeleteFolderParams) erro
 }
 
 const getFolderByID = `-- name: GetFolderByID :one
-SELECT id, workspace_id, project_id, parent_id, name, position, created_at FROM folders WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, project_id, parent_id, name, slug, position, created_at FROM folders WHERE id = ? AND workspace_id = ?
 `
 
 type GetFolderByIDParams struct {
@@ -78,6 +81,35 @@ func (q *Queries) GetFolderByID(ctx context.Context, arg GetFolderByIDParams) (F
 		&i.ProjectID,
 		&i.ParentID,
 		&i.Name,
+		&i.Slug,
+		&i.Position,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getFolderBySlug = `-- name: GetFolderBySlug :one
+SELECT id, workspace_id, project_id, parent_id, name, slug, position, created_at FROM folders
+WHERE workspace_id = ? AND slug = ?
+ORDER BY created_at ASC
+LIMIT 1
+`
+
+type GetFolderBySlugParams struct {
+	WorkspaceID string  `json:"workspace_id"`
+	Slug        *string `json:"slug"`
+}
+
+func (q *Queries) GetFolderBySlug(ctx context.Context, arg GetFolderBySlugParams) (Folder, error) {
+	row := q.db.QueryRowContext(ctx, getFolderBySlug, arg.WorkspaceID, arg.Slug)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.ProjectID,
+		&i.ParentID,
+		&i.Name,
+		&i.Slug,
 		&i.Position,
 		&i.CreatedAt,
 	)
@@ -85,7 +117,7 @@ func (q *Queries) GetFolderByID(ctx context.Context, arg GetFolderByIDParams) (F
 }
 
 const getFolderChildren = `-- name: GetFolderChildren :many
-SELECT id, workspace_id, project_id, parent_id, name, position, created_at FROM folders WHERE parent_id = ? AND workspace_id = ? ORDER BY position, name
+SELECT id, workspace_id, project_id, parent_id, name, slug, position, created_at FROM folders WHERE parent_id = ? AND workspace_id = ? ORDER BY position, name
 `
 
 type GetFolderChildrenParams struct {
@@ -108,6 +140,7 @@ func (q *Queries) GetFolderChildren(ctx context.Context, arg GetFolderChildrenPa
 			&i.ProjectID,
 			&i.ParentID,
 			&i.Name,
+			&i.Slug,
 			&i.Position,
 			&i.CreatedAt,
 		); err != nil {
@@ -143,13 +176,15 @@ const updateFolder = `-- name: UpdateFolder :one
 UPDATE folders
 SET
     name     = COALESCE(?1, name),
-    position = COALESCE(?2, position)
-WHERE id = ?3 AND workspace_id = ?4
-RETURNING id, workspace_id, project_id, parent_id, name, position, created_at
+    slug     = COALESCE(?2, slug),
+    position = COALESCE(?3, position)
+WHERE id = ?4 AND workspace_id = ?5
+RETURNING id, workspace_id, project_id, parent_id, name, slug, position, created_at
 `
 
 type UpdateFolderParams struct {
 	Name        *string `json:"name"`
+	Slug        *string `json:"slug"`
 	Position    *int64  `json:"position"`
 	ID          string  `json:"id"`
 	WorkspaceID string  `json:"workspace_id"`
@@ -158,6 +193,7 @@ type UpdateFolderParams struct {
 func (q *Queries) UpdateFolder(ctx context.Context, arg UpdateFolderParams) (Folder, error) {
 	row := q.db.QueryRowContext(ctx, updateFolder,
 		arg.Name,
+		arg.Slug,
 		arg.Position,
 		arg.ID,
 		arg.WorkspaceID,
@@ -169,6 +205,7 @@ func (q *Queries) UpdateFolder(ctx context.Context, arg UpdateFolderParams) (Fol
 		&i.ProjectID,
 		&i.ParentID,
 		&i.Name,
+		&i.Slug,
 		&i.Position,
 		&i.CreatedAt,
 	)

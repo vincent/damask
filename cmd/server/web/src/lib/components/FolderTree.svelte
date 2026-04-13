@@ -7,17 +7,30 @@
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Feedback from './ui/Feedback.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
 
   interface Props {
     folders: Folder[]
     activeFolderId: string | null
     projectId: string
     selectedAssetIds: Set<string>
+    ingestToken?: string | null
     onselect: (folderId: string | null) => void
     onassetsDropped: (assetIds: string[], folderId: string | null) => void
   }
 
-  let { folders, activeFolderId, projectId, selectedAssetIds, onselect, onassetsDropped }: Props = $props()
+  let { folders, activeFolderId, projectId, selectedAssetIds, ingestToken = null, onselect, onassetsDropped }: Props = $props()
+
+  async function copyIngestAddress(folder: Folder) {
+    if (!ingestToken || !folder.slug) return
+    const address = `${ingestToken}+${folder.slug}@ingress.damask.studio`
+    try {
+      await navigator.clipboard.writeText(address)
+      toastStore.show('Ingest address copied')
+    } catch {
+      toastStore.show('Could not copy', 'error')
+    }
+  }
 
   const STORAGE_KEY = 'folder-tree-open'
 
@@ -177,6 +190,7 @@
             items={[
               { label: 'Rename', onclick: () => { editingId = folder.id; editName = folder.name; contextMenuId = null } },
               ...(folder.parent_id == null ? [{ label: 'Add subfolder', onclick: () => { creatingUnder = folder.id; contextMenuId = null; newFolderName = '' } }] : []),
+              ...(ingestToken && folder.slug ? [{ label: 'Copy ingest address', onclick: () => { copyIngestAddress(folder); contextMenuId = null } }] : []),
               ...(authStore.role === 'owner' ? [{ label: 'Delete', onclick: () => deleteFolder(folder.id), danger: true }] : [])
             ]}
             onclose={() => { contextMenuId = null }}
@@ -252,6 +266,7 @@
                 <ContextMenu
                   items={[
                     { label: 'Rename', onclick: () => { editingId = child.id; editName = child.name; contextMenuId = null } },
+                    ...(ingestToken && child.slug ? [{ label: 'Copy ingest address', onclick: () => { copyIngestAddress(child); contextMenuId = null } }] : []),
                     ...(authStore.role === 'owner' ? [{ label: 'Delete', onclick: () => deleteFolder(child.id), danger: true }] : [])
                   ]}
                   onclose={() => { contextMenuId = null }}

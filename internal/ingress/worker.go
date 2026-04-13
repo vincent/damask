@@ -46,12 +46,13 @@ type PollJobPayload struct {
 
 // FetchJobPayload is the JSON payload for a JobTypeIngestFetch job.
 type FetchJobPayload struct {
-	SourceID    string `json:"source_id"`
-	WorkspaceID string `json:"workspace_id"`
-	LogEntryID  string `json:"log_entry_id"`
-	RemoteID    string `json:"remote_id"`
-	Filename    string `json:"filename"`
-	TmpPath     string `json:"tmp_path,omitempty"`
+	SourceID         string `json:"source_id"`
+	WorkspaceID      string `json:"workspace_id"`
+	LogEntryID       string `json:"log_entry_id"`
+	RemoteID         string `json:"remote_id"`
+	Filename         string `json:"filename"`
+	TmpPath          string `json:"tmp_path,omitempty"`
+	OverrideFolderID string `json:"override_folder_id,omitempty"`
 }
 
 // HandlePoll is the queue.HandlerFunc for JobTypeIngestPoll.
@@ -167,9 +168,12 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		return nil
 	}
 
-	// Determine destination: rule overrides source defaults
+	// Determine destination: rules > email subaddress override > source defaults
 	projectID := src.DestProjectID
 	folderID := src.DestFolderID
+	if p.OverrideFolderID != "" {
+		folderID = &p.OverrideFolderID
+	}
 	if ruleResult.ProjectID != nil {
 		projectID = ruleResult.ProjectID
 	}

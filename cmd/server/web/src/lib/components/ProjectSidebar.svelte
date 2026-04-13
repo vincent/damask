@@ -3,6 +3,7 @@
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
+  import { ingressStore } from '$lib/stores/ingress.svelte'
   import { getProjectColor } from '$lib/stores/shared'
   import FolderTree from './FolderTree.svelte'
   import { Box, EllipsisVertical, Plus } from '@lucide/svelte'
@@ -22,6 +23,10 @@
   }
 
   let { selectedAssetIds, creating, onCreatingChange, onSelect, onFolderSelect, onAssetsFolderDropped, onAssetsProjectDropped }: Props = $props()
+
+  const emailIngestToken = $derived(
+    ingressStore.sources.find(s => s.type === 'email_api' && s.enabled)?.public_token ?? null
+  )
 
   let dropTargetProjectId = $state<string | null>(null)
   let creatingFolderForProject = $state<string | null>(null)
@@ -165,6 +170,7 @@
             activeFolderId={navigationStore.activeFolderId}
             projectId={project.id}
             {selectedAssetIds}
+            ingestToken={emailIngestToken}
             onselect={(folderId) => onFolderSelect(project.id, folderId)}
             onassetsDropped={(assetIds, folderId) => onAssetsFolderDropped(assetIds, folderId, project.id)}
           />

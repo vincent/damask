@@ -61,6 +61,7 @@ CREATE TABLE folders (
     project_id   TEXT NOT NULL REFERENCES projects(id),
     parent_id    TEXT REFERENCES folders(id),
     name         TEXT NOT NULL,
+    slug         TEXT,
     position     INTEGER NOT NULL DEFAULT 0,
     created_at   TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(project_id, parent_id, name)

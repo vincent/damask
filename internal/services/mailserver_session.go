@@ -13,6 +13,7 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
+	"damask/server/internal/slug"
 
 	"github.com/DusanKasan/parsemail"
 	"github.com/emersion/go-smtp"
@@ -59,10 +60,15 @@ func (s *Session) Data(r io.Reader) error {
 		}
 	}
 
-	token := strings.TrimSuffix(s.to, "@ingress.damask.studio")
+	parts := strings.Split(s.to, "@")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid recipient address: %s", s.to)
+	}
+	localPart := parts[0]
 
-	if s.db != nil && s.queue != nil && token != s.to {
+	if s.db != nil && s.queue != nil && localPart != s.to {
 		ctx := context.Background()
+		token, tag := slug.ParseSubaddress(localPart)
 		src, err := s.db.GetIngressSourceByPublicToken(ctx, token)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
@@ -71,10 +77,25 @@ func (s *Session) Data(r io.Reader) error {
 			return nil
 		}
 		if src.Enabled == 0 {
+			log.Printf("mailserver: ignore disabled source %q", token)
 			return nil
 		}
+
+		// Resolve folder from +tag subaddress if present
+		var overrideFolderID string
+		if tag != "" {
+			if folder, err := s.db.GetFolderBySlug(ctx, dbgen.GetFolderBySlugParams{
+				WorkspaceID: src.WorkspaceID,
+				Slug:        &tag,
+			}); err == nil {
+				overrideFolderID = folder.ID
+			} else {
+				log.Printf("mailserver: no folder for tag %q in workspace %s (falling back to default)", tag, src.WorkspaceID)
+			}
+		}
+
 		for _, att := range email.Attachments {
-			if err := s.ingestAttachment(ctx, src, att); err != nil {
+			if err := s.ingestAttachment(ctx, src, att, overrideFolderID); err != nil {
 				log.Printf("mailserver: ingest %q for source %s: %v", att.Filename, src.ID, err)
 			}
 		}
@@ -83,7 +104,7 @@ func (s *Session) Data(r io.Reader) error {
 	return nil
 }
 
-func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource, att parsemail.Attachment) error {
+func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource, att parsemail.Attachment, overrideFolderID string) error {
 	tmp, err := os.CreateTemp("", "email-ingest-*")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
@@ -118,19 +139,21 @@ func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource,
 	}
 
 	payload, _ := json.Marshal(struct {
-		SourceID    string `json:"source_id"`
-		WorkspaceID string `json:"workspace_id"`
-		LogEntryID  string `json:"log_entry_id"`
-		RemoteID    string `json:"remote_id"`
-		Filename    string `json:"filename"`
-		TmpPath     string `json:"tmp_path,omitempty"`
+		SourceID         string `json:"source_id"`
+		WorkspaceID      string `json:"workspace_id"`
+		LogEntryID       string `json:"log_entry_id"`
+		RemoteID         string `json:"remote_id"`
+		Filename         string `json:"filename"`
+		TmpPath          string `json:"tmp_path,omitempty"`
+		OverrideFolderID string `json:"override_folder_id,omitempty"`
 	}{
-		SourceID:    src.ID,
-		WorkspaceID: src.WorkspaceID,
-		LogEntryID:  entry.ID,
-		RemoteID:    tmpPath,
-		Filename:    filename,
-		TmpPath:     tmpPath,
+		SourceID:         src.ID,
+		WorkspaceID:      src.WorkspaceID,
+		LogEntryID:       entry.ID,
+		RemoteID:         tmpPath,
+		Filename:         filename,
+		TmpPath:          tmpPath,
+		OverrideFolderID: overrideFolderID,
 	})
 
 	if _, err := s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
