@@ -8,20 +8,23 @@
   import { Share2, Upload } from '@lucide/svelte'
   import Button from './ui/Button.svelte'
   import Title from './ui/Title.svelte'
+  import type { Snippet } from 'svelte'
   import Hint from './ui/Hint.svelte'
 
   type Props = {
+    prefix?: Snippet
     sort: 'mimetype' | 'created_at' | 'size' | 'taken_at'
     asc: boolean
     onShareProject?: () => void
     showShareButton?: boolean
   }
 
-  let { sort = $bindable(), asc = $bindable(), onShareProject, showShareButton = false }: Props = $props()
+  let { sort = $bindable(), asc = $bindable(), onShareProject, showShareButton = false, prefix }: Props = $props()
 </script>
 
 <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
   <div class="flex items-center gap-3">
+    {@render prefix?.()}
     <div>
       <Title>{projectsStore.activeProjectName ?? 'Library'}</Title>
       <Hint>

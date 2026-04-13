@@ -11,6 +11,7 @@
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
   import Feedback from './ui/Feedback.svelte'
+  import { assetApi } from '$lib/api'
 
   interface Props {
     selectedAssetIds: Set<string>
@@ -132,10 +133,18 @@
             onAssetsProjectDropped(assetIds, project.id)
           }}
         >
-          <Box
-            class="h-4 w-4 shrink-0 text-gray-400"
-            style="color: {getProjectColor(project)}"
-          />
+          {#if project.cover_asset_id}
+            <img
+              src={assetApi.thumbUrl(project.cover_asset_id)}
+              class="h-4 w-4 rounded object-cover"
+              alt="Project cover"
+            />
+          {:else}
+            <Box
+              class="h-4 w-4 shrink-0 text-gray-400"
+              style="color: {getProjectColor(project)}"
+            />
+          {/if}
           <span class="min-w-0 flex-1 truncate text-left">{project.name}</span>
           <span class="ml-auto shrink-0 text-sm text-gray-400 p-1">{project.asset_count || ''}</span>
         </button>

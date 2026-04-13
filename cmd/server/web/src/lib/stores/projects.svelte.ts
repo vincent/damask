@@ -28,7 +28,10 @@ export const projectsStore = {
     await projectsStore.load()
   },
 
-  async update(id: string, data: { name: string }) {
+  async update(id: string, data: {
+    name?: string,
+    cover_asset_id?: string,
+  }) {
     await projectApi.update(id, data)
     await projectsStore.load()
   },

@@ -178,6 +178,105 @@ func TestUpdateProject(t *testing.T) {
 	}
 }
 
+func TestUpdateProject_PartialName(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	color := "#aabbcc"
+	description := "original desc"
+	p := th.CreateProject(t, env, owner.Cookie, "Original Name", color)
+	// Set description via full update first
+	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
+		th.JsonBody(api.UpdateProjectRequest{Name: &p.Name, Color: &color, Description: &description}), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("setup update: expected 200, got %d", resp.StatusCode)
+	}
+
+	// Partial update: only name, color and description should be preserved
+	newName := "Updated Name"
+	req = th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
+		th.JsonBody(api.UpdateProjectRequest{Name: &newName}), owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var got api.ProjectResponse
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	if got.Name != "Updated Name" {
+		t.Errorf("name = %q, want Updated Name", got.Name)
+	}
+	if got.Color == nil || *got.Color != color {
+		t.Errorf("color = %v, want %s (should be preserved)", got.Color, color)
+	}
+	if got.Description == nil || *got.Description != description {
+		t.Errorf("description = %v, want %q (should be preserved)", got.Description, description)
+	}
+}
+
+func TestUpdateProject_PartialColor(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	p := th.CreateProject(t, env, owner.Cookie, "My Project", "#aabbcc")
+
+	newColor := "#112233"
+	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
+		th.JsonBody(api.UpdateProjectRequest{Color: &newColor}), owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var got api.ProjectResponse
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	if got.Color == nil || *got.Color != "#112233" {
+		t.Errorf("color = %v, want #112233", got.Color)
+	}
+	if got.Name != "My Project" {
+		t.Errorf("name = %q, want My Project (should be preserved)", got.Name)
+	}
+}
+
+func TestUpdateProject_PartialDescription_PreservesCoverAsset(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	p := th.CreateProject(t, env, owner.Cookie, "My Project", "#aabbcc")
+	assetID := env.UploadTestAsset(t, owner.Cookie)
+
+	// Set cover_asset_id via full update
+	desc := "original"
+	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
+		th.JsonBody(api.UpdateProjectRequest{Name: &p.Name, CoverAssetID: &assetID, Description: &desc}), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("setup update: expected 200, got %d", resp.StatusCode)
+	}
+
+	// Partial update: only description, cover_asset_id should be preserved
+	newDesc := "updated desc"
+	req = th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
+		th.JsonBody(api.UpdateProjectRequest{Description: &newDesc}), owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var got api.ProjectResponse
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	if got.Description == nil || *got.Description != "updated desc" {
+		t.Errorf("description = %v, want updated desc", got.Description)
+	}
+	if got.CoverAssetID == nil || *got.CoverAssetID != assetID {
+		t.Errorf("cover_asset_id = %v, want %s (should be preserved)", got.CoverAssetID, assetID)
+	}
+}
+
 func TestDeleteProject_UnlinksAssets(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	p := th.CreateProject(t, env, owner.Cookie, "Temp", "#000000")

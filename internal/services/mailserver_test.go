@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"path/filepath"
 	"strings"
@@ -68,24 +69,53 @@ func TestMailServerImpl_AddHookAndNewSession(t *testing.T) {
 	}
 }
 
-// rawEmailWithAttachment is a minimal MIME email with one text/plain attachment.
-const rawEmailWithAttachment = "From: sender@example.com\r\n" +
-	"To: abc123@ingress.damask.studio\r\n" +
-	"Subject: Upload\r\n" +
-	"MIME-Version: 1.0\r\n" +
-	"Content-Type: multipart/mixed; boundary=\"boundary42\"\r\n" +
-	"\r\n" +
-	"--boundary42\r\n" +
-	"Content-Type: text/plain; charset=utf-8\r\n" +
-	"\r\n" +
-	"See attached.\r\n" +
-	"--boundary42\r\n" +
-	"Content-Type: application/octet-stream\r\n" +
-	"Content-Disposition: attachment; filename=\"photo.jpg\"\r\n" +
-	"Content-Transfer-Encoding: base64\r\n" +
-	"\r\n" +
-	"aGVsbG8=\r\n" +
-	"--boundary42--\r\n"
+func buildEmailTo(recipient string) string {
+	return "From: sender@example.com\r\n" +
+		"To: " + recipient + "\r\n" +
+		"Subject: Upload\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: multipart/mixed; boundary=\"boundary42\"\r\n" +
+		"\r\n" +
+		"--boundary42\r\n" +
+		"Content-Type: text/plain; charset=utf-8\r\n" +
+		"\r\n" +
+		"See attached.\r\n" +
+		"--boundary42\r\n" +
+		"Content-Type: application/octet-stream\r\n" +
+		"Content-Disposition: attachment; filename=\"photo.jpg\"\r\n" +
+		"Content-Transfer-Encoding: base64\r\n" +
+		"\r\n" +
+		"aGVsbG8=\r\n" +
+		"--boundary42--\r\n"
+}
+
+func setupMailserverDB(t *testing.T) (*dbgen.Queries, *sql.DB) {
+	t.Helper()
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+	queries, sqlDB, err := dbpkg.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	ctx := context.Background()
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO workspaces (id, name, created_at) VALUES ('ws1','Test',datetime('now'))`); err != nil {
+		t.Fatalf("insert workspace: %v", err)
+	}
+	if _, err := queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+		ID: "src1", WorkspaceID: "ws1", CreatedBy: "u1",
+		Type: "email_api", Label: "Mail drop", Config: "{}",
+		PublicToken: "abc123", Enabled: 1, PollIntervalMin: 0,
+	}); err != nil {
+		t.Fatalf("create ingress source: %v", err)
+	}
+	return queries, sqlDB
+}
 
 func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	dir := t.TempDir()
@@ -123,7 +153,7 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	if err := session.Rcpt(token+"@ingress.damask.studio", nil); err != nil {
 		t.Fatalf("Rcpt: %v", err)
 	}
-	if err := session.Data(strings.NewReader(rawEmailWithAttachment)); err != nil {
+	if err := session.Data(strings.NewReader(buildEmailTo("abc123@ingress.damask.studio"))); err != nil {
 		t.Fatalf("Data: %v", err)
 	}
 
@@ -193,6 +223,88 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	}
 	if payload.TmpPath == "" {
 		t.Error("payload tmp_path should not be empty")
+	}
+}
+
+func TestSession_FolderRoutingViaSubaddress(t *testing.T) {
+	queries, sqlDB := setupMailserverDB(t)
+	ctx := context.Background()
+
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO projects (id, workspace_id, name, created_at, updated_at) VALUES ('p1','ws1','Default',datetime('now'),datetime('now'))`); err != nil {
+		t.Fatalf("insert project: %v", err)
+	}
+	// Insert a folder with slug "brand-assets" in ws1
+	if _, err := sqlDB.ExecContext(ctx,
+		`INSERT INTO folders (id, workspace_id, project_id, parent_id, name, slug, position, created_at)
+		 VALUES ('f1','ws1','p1',NULL,'Brand Assets','brand-assets',0,datetime('now'))`); err != nil {
+		t.Fatalf("insert folder: %v", err)
+	}
+
+	q := queue.New(queries, 1)
+	session := &Session{db: queries, queue: q}
+
+	recipient := "abc123+brand-assets@ingress.damask.studio"
+	if err := session.Rcpt(recipient, nil); err != nil {
+		t.Fatalf("Rcpt: %v", err)
+	}
+	if err := session.Data(strings.NewReader(buildEmailTo(recipient))); err != nil {
+		t.Fatalf("Data: %v", err)
+	}
+
+	job, err := queries.ClaimNextJob(ctx)
+	if err != nil {
+		t.Fatalf("claim job: %v", err)
+	}
+
+	var payload struct {
+		OverrideFolderID string `json:"override_folder_id"`
+	}
+	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if payload.OverrideFolderID != "f1" {
+		t.Errorf("override_folder_id = %q, want f1", payload.OverrideFolderID)
+	}
+}
+
+func TestSession_FolderRouting_UnknownTagFallsBack(t *testing.T) {
+	queries, _ := setupMailserverDB(t)
+	ctx := context.Background()
+
+	// No folder inserted — tag won't match anything
+	q := queue.New(queries, 1)
+	session := &Session{db: queries, queue: q}
+
+	recipient := "abc123+nonexistent@ingress.damask.studio"
+	if err := session.Rcpt(recipient, nil); err != nil {
+		t.Fatalf("Rcpt: %v", err)
+	}
+	if err := session.Data(strings.NewReader(buildEmailTo(recipient))); err != nil {
+		t.Fatalf("Data: %v", err)
+	}
+
+	// Job still enqueued despite unknown tag
+	n, err := queries.CountPendingJobs(ctx)
+	if err != nil {
+		t.Fatalf("count pending jobs: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 pending job, got %d", n)
+	}
+
+	job, err := queries.ClaimNextJob(ctx)
+	if err != nil {
+		t.Fatalf("claim job: %v", err)
+	}
+	var payload struct {
+		OverrideFolderID string `json:"override_folder_id"`
+	}
+	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if payload.OverrideFolderID != "" {
+		t.Errorf("override_folder_id = %q, want empty (fallback)", payload.OverrideFolderID)
 	}
 }
 

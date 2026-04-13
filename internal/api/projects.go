@@ -149,6 +149,19 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 		return nil
 	}
 
+	if body.Color == nil {
+		body.Color = before.Color
+	}
+	if body.CoverAssetID == nil {
+		body.CoverAssetID = before.CoverAssetID
+	}
+	if body.Description == nil {
+		body.Description = before.Description
+	}
+	if body.Name == nil {
+		body.Name = &before.Name
+	}
+
 	p, err := s.db.UpdateProject(c.RequestCtx(), dbgen.UpdateProjectParams{
 		Name:         body.Name,
 		Description:  body.Description,

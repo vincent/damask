@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { type Asset, type MenuItem } from '$lib/api'
+  import { assetApi, type Asset, type MenuItem } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
@@ -19,8 +19,9 @@
   import ProjectInfoPanel from '$lib/components/ProjectInfoPanel.svelte'
   import TagFilterBar from '$lib/components/TagFilterBar.svelte'
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
-  import { goto } from '$app/navigation'
   import UploadsTray from '$lib/components/UploadsTray.svelte'
+  import { goto } from '$app/navigation'
+  import { Box } from '@lucide/svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
@@ -31,6 +32,7 @@
   let isDraggingFiles = $state(false)
   let mainEl = $state<HTMLElement | undefined>(undefined)
   let zoomOverlay = $state<{ src: string; vars: string; asset: Asset } | null>(null)
+  let draggingProjectCover = $state(false)
 
   let sort = $state<'mimetype' | 'created_at' | 'size'>('created_at')
   let asc = $state(false)
@@ -144,6 +146,25 @@
     }
   }
 
+  function onDropProjectCover(e: DragEvent) {
+    console.log('drop')
+    e.preventDefault()
+    draggingProjectCover = false
+    const cover_asset_id = e.dataTransfer?.getData('text/plain')
+    if (authStore.role === 'viewer') return;
+    if (!activeProject) return;
+    if (!cover_asset_id) return;
+    projectsStore.update(activeProject.id, { cover_asset_id })
+  }
+  function onDraggingProjectCover(e: DragEvent) {
+    draggingProjectCover = true
+    e.preventDefault()
+  }
+  function onDragLeaveProjectCover(e: DragEvent) {
+    draggingProjectCover = false
+    e.preventDefault()
+  }
+
   onMount(() => {
     seenSplashScreen = localStorage.getItem(`onboard_${authStore.workspace?.id}`) !== null
   })
@@ -164,7 +185,25 @@
   bind:asc
   showShareButton={!!activeProject}
   onShareProject={() => { showProjectShareModal = true }}
-/>
+>
+  {#snippet prefix()}
+    <div role="img" class={`rounded p-2 border-1 transition-colors ${activeProject ? '' : 'hidden'} ${draggingProjectCover ? 'border-green-500' : 'border-transparent'} `}
+      ondragleave={onDragLeaveProjectCover}
+      ondragover={onDraggingProjectCover}
+      ondrop={onDropProjectCover}
+    >
+      {#if activeProject?.cover_asset_id}
+        <img
+          src={assetApi.thumbUrl(activeProject.cover_asset_id)}
+          class="h-10 w-10 rounded object-cover"
+          alt="Project cover"
+        />
+      {:else}
+        <Box class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+      {/if}
+    </div>
+  {/snippet}
+</LibraryHeader>
 
 {#if activeProject}
   <ProjectInfoPanel project={activeProject} />
