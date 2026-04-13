@@ -33,6 +33,7 @@
   import AssetComments from './AssetComments.svelte'
   import Backdrop from './ui/Backdrop.svelte'
   import ButtonCopy from './ui/ButtonCopy.svelte'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
 
   interface Props {
     asset: Asset | null
@@ -97,14 +98,6 @@
   let createSuccess = $state('')
 
   const category = $derived(asset ? mimeCategory(asset.mime_type) : 'document')
-
-  const previewBg: Record<string, string> = {
-    image: 'bg-sky-300 dark:bg-sky-700',
-    video: 'bg-red-300 dark:bg-red-700',
-    audio: 'bg-emerald-300 dark:bg-emerald-700',
-    document: 'bg-blue-200 dark:bg-blue-700',
-  }
-
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
   const isVideo = $derived(asset?.mime_type?.startsWith('video/') ?? false)
 
@@ -227,7 +220,7 @@
     aria-label={asset.original_filename}
   >
     <!-- Preview (h-20) -->
-    <div class="damask-texture damask-texture-strong relative h-20 flex-shrink-0 flex items-center justify-center {previewBg[category]}">
+    <div class="damask-texture damask-texture-strong relative h-20 flex-shrink-0 flex items-center justify-center {ASSET_BACKGROUND_COLORS[category]}">
       {#if renamingAsset}
         <div class="flex items-center gap-1 max-w-[500px]">
           <InlineEditForm
@@ -257,7 +250,7 @@
     </div>
 
     <div class="flex-shrink-0 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-      <AssetMetadataPills {asset} {category} {previewBg} />
+      <AssetMetadataPills {asset} {category} previewBg={ASSET_BACKGROUND_COLORS} />
     </div>
 
     <!-- Animated tab bar -->

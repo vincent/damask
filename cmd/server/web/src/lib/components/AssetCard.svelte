@@ -2,6 +2,7 @@
   import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
   import { File, Loader, Play, TriangleAlert } from '@lucide/svelte'
+  import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/shared'
 
   interface Props {
     asset: Asset
@@ -18,20 +19,6 @@
   const showRequiredNudge = $derived(requiresFields && hasRequiredFields)
   const category = $derived(mimeCategory(asset.mime_type))
   const isProcessing = $derived(!asset.thumbnail_key)
-
-  const cardBg: Record<string, string> = {
-    image: 'bg-violet-300 dark:bg-violet-700',
-    video: 'bg-red-300 dark:bg-red-700',
-    audio: 'bg-emerald-300 dark:bg-emerald-700',
-    document: 'bg-blue-200 dark:bg-blue-700',
-  }
-
-  const dotBg: Record<string, string> = {
-    image: 'bg-violet-200 dark:bg-violet-600',
-    video: 'bg-red-200 dark:bg-red-600',
-    audio: 'bg-emerald-200 dark:bg-emerald-600',
-    document: 'bg-blue-100 dark:bg-blue-600',
-  }
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString()
@@ -50,11 +37,11 @@
 >
   <!-- Thumbnail area -->
   <div
-    class="damask-texture relative w-full overflow-hidden rounded-t-xl {cardBg[category]}"
+    class="damask-texture relative w-full overflow-hidden rounded-t-xl {ASSET_BACKGROUND_COLORS[category]}"
     style="aspect-ratio: 4/3"
   >
     <!-- Status dot -->
-    <div class="absolute left-2.5 top-2.5 h-3 w-3 rounded-full {dotBg[category]}"></div>
+    <div class="absolute left-2.5 top-2.5 h-3 w-3 rounded-full {DOT_COLORS[category]}"></div>
 
     <!-- Required fields nudge -->
     {#if showRequiredNudge}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ASSET_BACKGROUND_COLORS } from "$lib/stores/shared"
     import { File, Image, Music, Play } from "@lucide/svelte"
 
     type Props = {
@@ -7,16 +8,9 @@
     }
 
     let { category, class: extraClass }: Props = $props()
-
-    const cardBg: Record<string, string> = {
-        image: 'bg-amber-300 dark:bg-amber-700',
-        video: 'bg-rose-300 dark:bg-rose-700',
-        audio: 'bg-emerald-300 dark:bg-emerald-700',
-        document: 'bg-blue-200 dark:bg-blue-700',
-    }
 </script>
 
-<div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg {cardBg[category]} {extraClass}">
+<div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg {ASSET_BACKGROUND_COLORS[category]} {extraClass}">
     {#if category === 'image'}
         <Image class="h-5 w-5 text-white" />
     {:else if category === 'video'}
