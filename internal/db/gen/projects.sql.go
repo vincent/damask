@@ -63,6 +63,32 @@ func (q *Queries) DeleteProject(ctx context.Context, arg DeleteProjectParams) er
 	return err
 }
 
+const getProjectByCoverAsset = `-- name: GetProjectByCoverAsset :one
+SELECT id, workspace_id, name, description, color, cover_asset_id, cover_version_id, created_at, updated_at FROM projects WHERE cover_asset_id = ? AND workspace_id = ? LIMIT 1
+`
+
+type GetProjectByCoverAssetParams struct {
+	CoverAssetID *string `json:"cover_asset_id"`
+	WorkspaceID  string  `json:"workspace_id"`
+}
+
+func (q *Queries) GetProjectByCoverAsset(ctx context.Context, arg GetProjectByCoverAssetParams) (Project, error) {
+	row := q.db.QueryRowContext(ctx, getProjectByCoverAsset, arg.CoverAssetID, arg.WorkspaceID)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.Description,
+		&i.Color,
+		&i.CoverAssetID,
+		&i.CoverVersionID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProjectByID = `-- name: GetProjectByID :one
 SELECT id, workspace_id, name, description, color, cover_asset_id, cover_version_id, created_at, updated_at FROM projects WHERE id = ? AND workspace_id = ?
 `

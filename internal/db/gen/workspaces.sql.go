@@ -64,6 +64,35 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 	return i, err
 }
 
+const getWorkspaceByIconAsset = `-- name: GetWorkspaceByIconAsset :one
+SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, created_at, updated_at FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1
+`
+
+type GetWorkspaceByIconAssetParams struct {
+	IconAssetID *string `json:"icon_asset_id"`
+	ID          string  `json:"id"`
+}
+
+func (q *Queries) GetWorkspaceByIconAsset(ctx context.Context, arg GetWorkspaceByIconAssetParams) (Workspace, error) {
+	row := q.db.QueryRowContext(ctx, getWorkspaceByIconAsset, arg.IconAssetID, arg.ID)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IngestToken,
+		&i.VersionRetentionCount,
+		&i.EventLogRetentionDays,
+		&i.DownloadLogRetentionDays,
+		&i.IconAssetID,
+		&i.IconVersionID,
+		&i.ExifKeep,
+		&i.ExifKeepGps,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
 SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
 `

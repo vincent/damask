@@ -1013,3 +1013,112 @@ func TestListAssets_SortByTakenAt(t *testing.T) {
 		t.Errorf("third asset (no date) = %s, want %s", body.Assets[2].ID, a3.ID)
 	}
 }
+
+func TestDeleteAsset_ConflictProjectCover(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	// Upload asset
+	uploadReq := th.BuildUploadRequest(t, "cover.jpg", th.MakeJPEG(10, 10), owner.Cookie)
+	uploadResp, err := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil || uploadResp.StatusCode != http.StatusCreated {
+		t.Fatalf("upload: status %d err %v", uploadResp.StatusCode, err)
+	}
+	var asset api.AssetResponse
+	_ = json.NewDecoder(uploadResp.Body).Decode(&asset)
+
+	// Create project
+	projResp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "Proj"}), owner.Cookie))
+	if err != nil || projResp.StatusCode != http.StatusCreated {
+		t.Fatalf("create project: status %d err %v", projResp.StatusCode, err)
+	}
+	var proj api.ProjectResponse
+	_ = json.NewDecoder(projResp.Body).Decode(&proj)
+
+	// Set asset as project cover
+	updateResp, err := env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/projects/"+proj.ID,
+		th.JsonBody(api.UpdateProjectRequest{CoverAssetID: &asset.ID}), owner.Cookie))
+	if err != nil || updateResp.StatusCode != http.StatusOK {
+		t.Fatalf("update project cover: status %d err %v", updateResp.StatusCode, err)
+	}
+
+	// Delete asset — must be blocked
+	delResp, err := env.App.Test(th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+asset.ID, nil, owner.Cookie))
+	if err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if delResp.StatusCode != http.StatusConflict {
+		t.Errorf("expected 409, got %d", delResp.StatusCode)
+	}
+}
+
+func TestDeleteAsset_ConflictWorkspaceIcon(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	// Upload asset
+	uploadReq := th.BuildUploadRequest(t, "icon.jpg", th.MakeJPEG(10, 10), owner.Cookie)
+	uploadResp, err := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil || uploadResp.StatusCode != http.StatusCreated {
+		t.Fatalf("upload: status %d err %v", uploadResp.StatusCode, err)
+	}
+	var asset api.AssetResponse
+	_ = json.NewDecoder(uploadResp.Body).Decode(&asset)
+
+	// Set asset as workspace icon via direct SQL
+	_, err = env.SqlDB.Exec("UPDATE workspaces SET icon_asset_id = ? WHERE id = ?", asset.ID, owner.WorkspaceID)
+	if err != nil {
+		t.Fatalf("set icon: %v", err)
+	}
+
+	// Delete asset — must be blocked
+	delResp, err := env.App.Test(th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+asset.ID, nil, owner.Cookie))
+	if err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if delResp.StatusCode != http.StatusConflict {
+		t.Errorf("expected 409, got %d", delResp.StatusCode)
+	}
+}
+
+func TestDeleteAsset_OkAfterCoverCleared(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+
+	// Upload asset
+	uploadReq := th.BuildUploadRequest(t, "cover.jpg", th.MakeJPEG(10, 10), owner.Cookie)
+	uploadResp, err := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil || uploadResp.StatusCode != http.StatusCreated {
+		t.Fatalf("upload: status %d err %v", uploadResp.StatusCode, err)
+	}
+	var asset api.AssetResponse
+	_ = json.NewDecoder(uploadResp.Body).Decode(&asset)
+
+	// Create project and set cover
+	projResp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
+		th.JsonBody(api.CreateProjectRequest{Name: "Proj"}), owner.Cookie))
+	if err != nil || projResp.StatusCode != http.StatusCreated {
+		t.Fatalf("create project: %v", err)
+	}
+	var proj api.ProjectResponse
+	_ = json.NewDecoder(projResp.Body).Decode(&proj)
+
+	_, err = env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/projects/"+proj.ID,
+		th.JsonBody(api.UpdateProjectRequest{CoverAssetID: &asset.ID}), owner.Cookie))
+	if err != nil {
+		t.Fatalf("set cover: %v", err)
+	}
+
+	// Clear cover via direct SQL (no API endpoint to null it)
+	_, err = env.SqlDB.Exec("UPDATE projects SET cover_asset_id = NULL WHERE id = ?", proj.ID)
+	if err != nil {
+		t.Fatalf("clear cover: %v", err)
+	}
+
+	// Delete asset — must succeed now
+	delResp, err := env.App.Test(th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+asset.ID, nil, owner.Cookie))
+	if err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if delResp.StatusCode != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", delResp.StatusCode)
+	}
+}

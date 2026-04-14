@@ -793,16 +793,75 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
 
-	_ = s.storage.Delete(asset.StorageKey)
-	if asset.ThumbnailKey != nil {
-		_ = s.storage.Delete(*asset.ThumbnailKey)
+	// Block delete if asset is used as a project cover
+	_, err = s.db.GetProjectByCoverAsset(c.RequestCtx(), dbgen.GetProjectByCoverAssetParams{
+		CoverAssetID: &asset.ID,
+		WorkspaceID:  claims.WorkspaceID,
+	})
+	if err == nil {
+		return errRes(c, fiber.StatusConflict, "asset is used as a project cover")
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return errRes(c, fiber.StatusInternalServerError, "could not check asset usage")
 	}
 
-	if err := s.db.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
+	// Block delete if asset is used as the workspace icon
+	_, err = s.db.GetWorkspaceByIconAsset(c.RequestCtx(), dbgen.GetWorkspaceByIconAssetParams{
+		IconAssetID: &asset.ID,
+		ID:          claims.WorkspaceID,
+	})
+	if err == nil {
+		return errRes(c, fiber.StatusConflict, "asset is used as the workspace icon")
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return errRes(c, fiber.StatusInternalServerError, "could not check asset usage")
+	}
+
+	// Collect all storage keys before deleting, then delete DB rows in a
+	// transaction. Storage cleanup happens after commit so files are never
+	// orphaned by a failed DB delete.
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
+	}
+	defer tx.Rollback()
+	qtx := s.db.WithTx(tx)
+
+	var storageKeys []string
+	storageKeys = append(storageKeys, asset.StorageKey)
+	if asset.ThumbnailKey != nil {
+		storageKeys = append(storageKeys, *asset.ThumbnailKey)
+	}
+
+	versions, err := qtx.ListAllVersions(c.RequestCtx(), asset.ID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list asset versions")
+	}
+	for _, v := range versions {
+		storageKeys = append(storageKeys, v.StorageKey)
+		if v.ThumbnailKey != nil {
+			storageKeys = append(storageKeys, *v.ThumbnailKey)
+		}
+		variants, err := qtx.ListVariantsByVersion(c.RequestCtx(), v.ID)
+		if err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not list variants")
+		}
+		for _, variant := range variants {
+			storageKeys = append(storageKeys, variant.StorageKey)
+		}
+	}
+
+	if err := qtx.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
 		ID:          asset.ID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete asset")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not commit deletion")
+	}
+
+	for _, key := range storageKeys {
+		_ = s.storage.Delete(key)
 	}
 
 	userID := claims.UserID

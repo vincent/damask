@@ -24,6 +24,9 @@ SET name           = COALESCE(sqlc.narg('name'), name),
 WHERE id = sqlc.arg('id') AND workspace_id = sqlc.arg('workspace_id')
 RETURNING *;
 
+-- name: GetProjectByCoverAsset :one
+SELECT * FROM projects WHERE cover_asset_id = ? AND workspace_id = ? LIMIT 1;
+
 -- name: NullifyProjectAssets :exec
 UPDATE assets SET project_id = NULL, updated_at = datetime('now')
 WHERE project_id = ? AND workspace_id = ?;

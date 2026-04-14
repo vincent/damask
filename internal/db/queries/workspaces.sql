@@ -9,6 +9,9 @@ SELECT * FROM workspaces WHERE id = ? LIMIT 1;
 -- name: ListWorkspacesWithRetention :many
 SELECT * FROM workspaces WHERE version_retention_count > 0;
 
+-- name: GetWorkspaceByIconAsset :one
+SELECT * FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1;
+
 -- name: UpdateWorkspaceVersionRetention :exec
 UPDATE workspaces SET version_retention_count = ?, updated_at = datetime('now') WHERE id = ?;
 
