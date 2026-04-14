@@ -5,12 +5,14 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
 	MailServerPort  string
+	MailServerHost  string
 	Port            string
 	DBPath          string
 	StoragePath     string
@@ -73,7 +75,7 @@ func Load() (*Config, error) {
 			UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.studio"),
 			WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
 			ShowBanner:         demoMode && getEnv("DEMO_BANNER", "true") != "false",
-			SignupURL:          getEnv("DEMO_SIGNUP_URL", "https://damask.studio/signup"),
+			SignupURL:          getEnv("DEMO_SIGNUP_URL", "/signup"),
 		},
 	}
 
@@ -90,6 +92,12 @@ func Load() (*Config, error) {
 		return nil, errors.New("BASE_URL env var is required")
 	}
 	cfg.BaseURL = baseURL
+
+	mailHost := strings.TrimSpace(os.Getenv("MAIL_HOST"))
+	if len(mailHost) == 0 {
+		mailHost = "ingress." + baseURL.Host
+	}
+	cfg.MailServerHost = mailHost
 
 	return cfg, nil
 }

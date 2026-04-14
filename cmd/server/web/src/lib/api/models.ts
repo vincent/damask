@@ -1,3 +1,7 @@
+export interface Config {
+  demo: boolean
+  mailHost: string
+}
 
 export interface MenuItem {
   id: string | null

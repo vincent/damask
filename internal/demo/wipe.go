@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 )
 
 // Wipe deletes all demo workspace content but preserves the workspace row,
@@ -68,7 +69,12 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	}
 
 	// Delete ghost users (alice and marc) — they will be recreated on next seed
-	_, err = tx.ExecContext(ctx, `DELETE FROM users WHERE email IN ('alice@demo.damask.studio','marc@demo.damask.studio')`)
+	_, err = tx.ExecContext(
+		ctx,
+		`DELETE FROM users WHERE email IN (?, ?)`,
+		strings.ReplaceAll(s.cfg.UserEmail, "demo", "alice"),
+		strings.ReplaceAll(s.cfg.UserEmail, "demo", "marc"),
+	)
 	if err != nil {
 		return fmt.Errorf("demo: wipe ghost users: %w", err)
 	}

@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse, WorkspaceMember, WorkspaceInvite } from "./models"
+import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse, WorkspaceMember, WorkspaceInvite, Config } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -52,7 +52,14 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, fetch = 
 
 /** Server configuration — fetch public config flags (e.g. demo mode). GET /config (public) */
 export const configApi = {
-  get: () => apiFetch<{ demo: boolean }>('/config'),
+  load: () => apiFetch<Config>('/config')
+    .catch(() => {
+      console.warn('unable to load config')
+      return {
+        demo: false,
+        mailHost: '' 
+      }
+    }),
 }
 
 /** Authentication endpoints — register, login, token refresh. */

@@ -1,6 +1,10 @@
 package api
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"damask/server/internal/auth"
+
+	"github.com/gofiber/fiber/v3"
+)
 
 // handleHealthz returns a basic availability response.
 //
@@ -35,11 +39,15 @@ func (s *Server) handleSSEEvents(c fiber.Ctx) error {
 // @Description Returns public feature flags and configuration values that the frontend needs before authentication. Currently exposes the <code>demo</code> boolean which, when true, puts the server into read-only demonstration mode.
 // @Tags Config
 // @Produce json
-// @Success 200 {object} object{demo=bool}
+// @Success 200 {object} object{demo=bool, mailHost=string}
 // @Router /config [get]
 // GET /config
 func (s *Server) handleConfig(c fiber.Ctx) error {
-	return c.JSON(fiber.Map{
+	out := fiber.Map{
 		"demo": s.cfg.Demo.DemoMode,
-	})
+	}
+	if auth.GetClaims(c) != nil {
+		out["mailHost"] = s.cfg.MailServerHost
+	}
+	return c.JSON(out)
 }

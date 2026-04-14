@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { Copy, CheckCircle, Mail } from '@lucide/svelte'
+  import { Mail } from '@lucide/svelte'
   import type { IngressSource, Folder } from '$lib/api/models'
+  import { configStore } from '$lib/stores/config.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import Hint from '../ui/Hint.svelte'
   import ButtonCopy from '../ui/ButtonCopy.svelte'
   import Button from '../ui/Button.svelte'
+  import { configApi } from '$lib/api'
 
   interface Props {
     source: IngressSource
@@ -14,7 +16,7 @@
   let { source, folders = [] }: Props = $props()
 
   // The ingest address is the public_token of the email_api source
-  const baseAddress = $derived(source.public_token ? `${source.public_token}@ingress.damask.studio` : null)
+  const baseAddress = $derived(source.public_token ? `${source.public_token}@${configStore.state.mailHost}` : null)
 
   let copied = $state(false)
   let copiedFolderId = $state<string | null>(null)
@@ -76,7 +78,7 @@
       </p>
       <div class="space-y-1.5">
         {#each foldersWithSlug as folder (folder.id)}
-          {@const folderAddress = `${source.public_token}+${folder.slug}@damask.studio`}
+          {@const folderAddress = `${source.public_token}+${folder.slug}@${configStore.state.mailHost}`}
           <div class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
             <span class="w-32 shrink-0 truncate text-sm text-gray-500 dark:text-gray-400">{folder.name}</span>
             <span class="flex-1 font-mono text-sm text-gray-700 dark:text-gray-300 break-all">{folderAddress}</span>

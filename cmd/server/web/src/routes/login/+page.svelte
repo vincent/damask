@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
-  import { authApi, configApi, ApiError } from '$lib/api'
+  import { authApi, ApiError } from '$lib/api'
+  import { configStore } from '$lib/stores/config.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Feedback from '$lib/components/ui/Feedback.svelte'
   import Hint from '$lib/components/ui/Hint.svelte'
@@ -12,11 +13,6 @@
   let error = $state('')
   let loading = $state(false)
   let demoLoading = $state(false)
-  let isDemo = $state(false)
-
-  $effect(() => {
-    configApi.get().then(cfg => { isDemo = cfg.demo }).catch(() => {})
-  })
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault()
@@ -67,7 +63,7 @@
       <Button type="submit" {loading} class="w-full">{loading ? 'Signing in…' : 'Sign in'}</Button>
     </form>
 
-    {#if isDemo}
+    {#if configStore.state.demo}
       <div class="text-center">
         <button onclick={handleDemo} disabled={demoLoading} class="text-md text-blue-600 hover:underline disabled:opacity-50">
           {demoLoading ? 'Starting demo…' : 'Try the demo'}

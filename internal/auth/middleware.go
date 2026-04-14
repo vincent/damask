@@ -64,6 +64,20 @@ func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, 
 	}
 }
 
+// OptionalAuth attempts token validation but never rejects the request.
+// If a valid token is present, Claims are stored in c.Locals for downstream handlers.
+func OptionalAuth(maker *Maker) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		tokenStr := extractToken(c)
+		if tokenStr != "" {
+			if claims, err := maker.VerifyToken(tokenStr); err == nil {
+				c.Locals(claimsKey, claims)
+			}
+		}
+		return c.Next()
+	}
+}
+
 func extractToken(c fiber.Ctx) string {
 	// Try Authorization: Bearer <token>
 	if h := c.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {

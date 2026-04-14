@@ -1,13 +1,14 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
-  import type { Folder } from '$lib/api'
-  import { ChevronRight, EllipsisVertical, FolderClosed, FolderOpen } from '@lucide/svelte'
+  import { configApi, type Folder } from '$lib/api'
+  import { ChevronRight, EllipsisVertical } from '@lucide/svelte'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Feedback from './ui/Feedback.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { configStore } from '$lib/stores/config.svelte'
 
   interface Props {
     folders: Folder[]
@@ -23,7 +24,7 @@
 
   async function copyIngestAddress(folder: Folder) {
     if (!ingestToken || !folder.slug) return
-    const address = `${ingestToken}+${folder.slug}@ingress.damask.studio`
+    const address = `${ingestToken}+${folder.slug}@${configStore.state.mailHost}`
     try {
       await navigator.clipboard.writeText(address)
       toastStore.show('Ingest address copied')
