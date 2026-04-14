@@ -364,14 +364,14 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 			"this variant belongs to a previous version and will be cleaned up automatically")
 	}
 
-	_ = s.storage.Delete(variant.StorageKey)
-
 	if err := s.db.DeleteVariant(c.RequestCtx(), dbgen.DeleteVariantParams{
 		ID:          variantID,
 		WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete variant")
 	}
+
+	_ = s.storage.Delete(variant.StorageKey)
 
 	userID := claims.UserID
 	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{

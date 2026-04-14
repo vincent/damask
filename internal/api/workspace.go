@@ -380,7 +380,14 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 		return nil
 	}
 
-	if err := s.db.UpdateWorkspaceVersionRetention(c.RequestCtx(), dbgen.UpdateWorkspaceVersionRetentionParams{
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
+	}
+	defer tx.Rollback()
+	qtx := s.db.WithTx(tx)
+
+	if err := qtx.UpdateWorkspaceVersionRetention(c.RequestCtx(), dbgen.UpdateWorkspaceVersionRetentionParams{
 		VersionRetentionCount: body.VersionRetentionCount,
 		ID:                    claims.WorkspaceID,
 	}); err != nil {
@@ -395,12 +402,16 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 	if body.ExifKeepGPS {
 		exifKeepGPS = 1
 	}
-	if err := s.db.UpdateWorkspaceExifSettings(c.RequestCtx(), dbgen.UpdateWorkspaceExifSettingsParams{
+	if err := qtx.UpdateWorkspaceExifSettings(c.RequestCtx(), dbgen.UpdateWorkspaceExifSettingsParams{
 		ExifKeep:    exifKeep,
 		ExifKeepGps: exifKeepGPS,
 		ID:          claims.WorkspaceID,
 	}); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not update exif settings")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not commit settings update")
 	}
 
 	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), claims.WorkspaceID)

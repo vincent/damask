@@ -387,7 +387,14 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate public token")
 	}
 
-	src, err := s.db.CreateIngressSource(c.Context(), dbgen.CreateIngressSourceParams{
+	tx, err := s.sqlDB.BeginTx(c.Context(), nil)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
+	}
+	defer tx.Rollback()
+	qtx := s.db.WithTx(tx)
+
+	src, err := qtx.CreateIngressSource(c.Context(), dbgen.CreateIngressSourceParams{
 		ID:              uuid.NewString(),
 		WorkspaceID:     claims.WorkspaceID,
 		CreatedBy:       claims.UserID,
@@ -405,7 +412,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	}
 
 	for _, rule := range req.Rules {
-		_, err := s.db.CreateIngressRule(c.Context(), dbgen.CreateIngressRuleParams{
+		if _, err := qtx.CreateIngressRule(c.Context(), dbgen.CreateIngressRuleParams{
 			ID:       uuid.NewString(),
 			SourceID: src.ID,
 			Position: rule.Position,
@@ -413,11 +420,13 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 			Operator: rule.Operator,
 			Value:    rule.Value,
 			Action:   rule.Action,
-		})
-		if err != nil {
-			// Non-fatal: log and continue
-			_ = err
+		}); err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not create rule")
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not commit source creation")
 	}
 
 	resp, err := s.sourceToResponse(src)
