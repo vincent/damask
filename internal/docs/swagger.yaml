@@ -2250,6 +2250,33 @@ paths:
       summary: Bulk tag assets
       tags:
       - Assets
+  /api/v1/events:
+    get:
+      description: Opens a persistent Server-Sent Events (SSE) stream scoped to the
+        authenticated user's workspace. The connection stays open until the client
+        disconnects. A keep-alive comment is sent every 25 seconds to prevent proxy
+        timeouts.<br><br> Each event is delivered as a standard SSE <code>data:</code>
+        line containing a JSON object with at minimum an <code>event</code> field.
+        Current event types:<br><ul><li><strong>thumbnail_ready</strong> — emitted
+        after an image or video thumbnail job completes; payload contains <code>asset_id</code>.</li></ul>
+        Clients should reconnect automatically on disconnect using the browser's native
+        <code>EventSource</code> API or equivalent.
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Subscribe to real-time events
+      tags:
+      - Events
   /api/v1/field-definitions:
     get:
       description: 'Returns all custom field definitions for the workspace filtered
@@ -4273,7 +4300,7 @@ paths:
             type: object
       summary: Get server config
       tags:
-      - health
+      - Config
   /healthz:
     get:
       consumes:
@@ -4289,7 +4316,7 @@ paths:
             type: object
       summary: Show the status of server.
       tags:
-      - Health
+      - Config
   /shared/{id}/access:
     get:
       description: Returns the share's label and whether it requires a password. Use

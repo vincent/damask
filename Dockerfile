@@ -37,6 +37,7 @@ WORKDIR /app
 EXPOSE 8080
 
 ENV PORT=8080 \
+    MAIL_PORT=2525 \
     DB_PATH=/data/damask.db \
     STORAGE_PATH=/data/storage \
     APP_ENV=production

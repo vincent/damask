@@ -83,8 +83,8 @@ func main() {
 
 	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg, demoSeeder, uiFS)
 
-	mail := services.NewMailServer("0.0.0.0:2525", cfg.BaseURL.Host, queries, q)
-	log.Printf("mail server starting on :%s", "2525")
+	mail := services.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
+	log.Printf("mail server starting on :%s", cfg.MailServerPort)
 	go func() {
 		if err := mail.Start(); err != nil {
 			log.Fatalf("mail server: %v", err)

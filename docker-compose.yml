@@ -1,0 +1,25 @@
+version: '3.3'
+
+services:
+  damask:
+    container_name: damask
+    image: ghcr.io/vincent/damask:latest
+    hostname: damask
+    restart: unless-stopped
+    environment:
+      APP_SECRET: change-me-to-a-long-random-secret
+      JWT_SECRET: change-me-to-a-long-random-secret
+      BASE_URL: https://your.own.damask.com
+    expose:
+      - 2525
+    ports:
+      - 80:8080 # web
+      - 25:2525 # to enable email ingress
+    volumes:
+      - /srv/damask/data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

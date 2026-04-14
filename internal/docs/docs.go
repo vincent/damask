@@ -1899,6 +1899,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/events": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Opens a persistent Server-Sent Events (SSE) stream scoped to the authenticated user's workspace. The connection stays open until the client disconnects. A keep-alive comment is sent every 25 seconds to prevent proxy timeouts.\u003cbr\u003e\u003cbr\u003e Each event is delivered as a standard SSE \u003ccode\u003edata:\u003c/code\u003e line containing a JSON object with at minimum an \u003ccode\u003eevent\u003c/code\u003e field. Current event types:\u003cbr\u003e\u003cul\u003e\u003cli\u003e\u003cstrong\u003ethumbnail_ready\u003c/strong\u003e — emitted after an image or video thumbnail job completes; payload contains \u003ccode\u003easset_id\u003c/code\u003e.\u003c/li\u003e\u003c/ul\u003e Clients should reconnect automatically on disconnect using the browser's native \u003ccode\u003eEventSource\u003c/code\u003e API or equivalent.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Subscribe to real-time events",
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/field-definitions": {
             "get": {
                 "security": [
@@ -4816,7 +4847,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "health"
+                    "Config"
                 ],
                 "summary": "Get server config",
                 "responses": {
@@ -4844,7 +4875,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Health"
+                    "Config"
                 ],
                 "summary": "Show the status of server.",
                 "responses": {

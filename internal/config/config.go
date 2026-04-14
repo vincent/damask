@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	MailServerPort  string
 	Port            string
 	DBPath          string
 	StoragePath     string
@@ -56,6 +57,7 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Port:            getEnv("PORT", "8080"),
+		MailServerPort:  getEnv("MAIL_PORT", "2525"),
 		DBPath:          getEnv("DB_PATH", "./damask.db"),
 		StoragePath:     getEnv("STORAGE_PATH", "./storage"),
 		JWTSecret:       os.Getenv("JWT_SECRET"),

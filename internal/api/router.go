@@ -231,7 +231,7 @@ func NewRouter(
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
 
 	// Server-Sent Events (workspace-scoped)
-	api.Get("/events", hub.EventHandler)
+	api.Get("/events", s.handleSSEEvents)
 
 	// Asset event log
 	api.Get("/assets/:id/events", s.handleListAssetEvents)
