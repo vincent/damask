@@ -14,7 +14,7 @@ A project is the top-level container for a body of work. Every asset belongs to 
 
 ### Creating a project
 
-Click **+ New project** in the left sidebar, or use the keyboard shortcut `Cmd+Shift+N`. Each project has:
+Click **+ New project** in the left sidebar. Each project has:
 
 - **Name** - shown in the sidebar and on asset cards
 - **Color** - a dot indicator used in the sidebar and breadcrumbs
