@@ -74,6 +74,21 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 	}
 }
 
+// handleUploadAsset uploads a file and creates a new asset.
+//
+// @Summary Upload an asset
+// @Description Uploads a file as a new asset in the workspace. The request must be a multipart form with a <code>file</code> field. Optional form fields: <ul> <li><strong>project_id</strong> — assign the asset to a project on creation.</li> <li><strong>folder_id</strong> — assign the asset to a folder on creation.</li> </ul> On success a thumbnail generation job is enqueued automatically. An <code>asset_created</code> audit event is written and custom fields are inherited from the project if applicable.
+// @Tags Assets
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "File to upload"
+// @Param project_id formData string false "Project ID"
+// @Param folder_id formData string false "Folder ID"
+// @Success 201 {object} AssetResponse
+// @Failure 400 {object} ErrorResponse "file field is required"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/assets [post]
 func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -126,6 +141,24 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(assetToResponse(*asset, nil))
 }
 
+// handleListAssets lists assets in the workspace with filtering, sorting, and cursor pagination.
+//
+// @Summary List assets
+// @Description Returns a paginated list of assets. The behaviour is controlled by query parameters: <ul> <li><strong>q</strong> — Full-text search across filenames and custom field text values.</li> <li><strong>tags</strong> — Comma-separated tag names. Returns only assets that have ALL listed tags (AND logic).</li> <li><strong>folder_id</strong> — Filter by folder. Use <code>root</code> to list assets with no folder in a project.</li> <li><strong>project_id</strong> — Filter by project (required when folder_id=root).</li> <li><strong>mime</strong> — Filter by MIME type prefix (e.g. <code>image/</code> or <code>video/mp4</code>).</li> <li><strong>sort</strong> — Sort order: <code>created_at_desc</code> (default), <code>created_at_asc</code>, <code>size_asc</code>, <code>size_desc</code>, <code>id_asc</code>, <code>id_desc</code>, <code>taken_at</code>, <code>taken_at_desc</code>.</li> <li><strong>limit</strong> — Page size, 1–100 (default 50).</li> <li><strong>cursor</strong> — Opaque cursor from the previous page's <code>next_cursor</code> field.</li> <li><strong>field[key]</strong> — Filter by custom field value, e.g. <code>field[status]=published</code>.</li> </ul>
+// @Tags Assets
+// @Produce json
+// @Security BearerAuth
+// @Param q query string false "Full-text search query"
+// @Param tags query string false "Comma-separated tag names (AND filter)"
+// @Param folder_id query string false "Folder ID (use 'root' for unfoldered assets in a project)"
+// @Param project_id query string false "Project ID"
+// @Param mime query string false "MIME type prefix filter"
+// @Param sort query string false "Sort order"
+// @Param limit query int false "Page size (1-100, default 50)"
+// @Param cursor query string false "Pagination cursor"
+// @Success 200 {object} AssetListResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/assets [get]
 func (s *Server) handleListAssets(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -543,6 +576,18 @@ func decodeCursor(cursor string) (cursorVal, error) {
 	return cursorVal{Field: parts[0], Value: parts[1], ID: parts[2]}, nil
 }
 
+// handleGetComments returns all share comments on an asset.
+//
+// @Summary Get asset comments
+// @Description Returns all public share comments that have been posted on this asset across all shares.
+// @Tags Assets
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {array} CommentResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/comments [get]
 func (s *Server) handleGetComments(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -566,6 +611,18 @@ func (s *Server) handleGetComments(c fiber.Ctx) error {
 	return c.JSON(comments)
 }
 
+// handleGetAsset returns a single asset by ID.
+//
+// @Summary Get an asset
+// @Description Returns the full asset record including tags, version count, and a flag indicating whether variants are currently being rebuilt.
+// @Tags Assets
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {object} AssetResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id} [get]
 func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -610,6 +667,18 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount, variantsRebuilding))
 }
 
+// handleGetAssetFile streams the current version of an asset file.
+//
+// @Summary Download asset file
+// @Description Streams the raw file bytes of the asset's current version. The response Content-Type matches the asset's MIME type and Content-Disposition is set to <code>inline</code> with the original filename. An <code>asset_downloaded</code> audit event is recorded (browser image prefetch requests are excluded).
+// @Tags Assets
+// @Produce application/octet-stream
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {file} binary
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset or file not found"
+// @Router /api/v1/assets/{id}/file [get]
 func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -655,6 +724,18 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
+// handleGetAssetThumb serves the asset thumbnail as a JPEG image.
+//
+// @Summary Get asset thumbnail
+// @Description Streams the JPEG thumbnail for the asset. Thumbnails are generated asynchronously after upload; returns 404 if generation has not yet completed.
+// @Tags Assets
+// @Produce image/jpeg
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {file} binary
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found or thumbnail not ready"
+// @Router /api/v1/assets/{id}/thumb [get]
 func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -685,6 +766,18 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
+// handleDeleteAsset permanently deletes an asset and its stored files.
+//
+// @Summary Delete an asset
+// @Description Permanently deletes the asset record, its storage file, and its thumbnail. All associated variants, versions, tags, and field values are also removed via cascade. This action cannot be undone.
+// @Tags Assets
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id} [delete]
 func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -726,6 +819,18 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 }
 
 // handleBulkTag adds a tag to multiple assets at once.
+//
+// @Summary Bulk tag assets
+// @Description Adds a single tag to all specified assets. If the tag does not exist in the workspace it is created automatically. Assets not found in the workspace are silently skipped.
+// @Tags Assets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body BulkTagRequest true "Asset IDs and tag name"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/assets/bulk/tag [post]
 func (s *Server) handleBulkTag(c fiber.Ctx) error {
 	body, ok := decodeAndValidate(c, &BulkTagRequest{})
 	if !ok {
@@ -757,7 +862,20 @@ func (s *Server) handleBulkTag(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// handleBulkProject assigns (or unassigns) a project to multiple assets.
+// handleBulkProject assigns or unassigns a project for multiple assets.
+//
+// @Summary Bulk assign assets to a project
+// @Description Assigns all listed assets to the given project. Set <code>project_id</code> to null to remove assets from their current project. Assets not found in the workspace are silently skipped.
+// @Tags Assets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body BulkProjectRequest true "Asset IDs and optional project ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Project not found"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/assets/bulk/project [post]
 func (s *Server) handleBulkProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -859,6 +977,21 @@ func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID str
 	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
 }
 
+// handleUpdateAssetFolder moves an asset to a different folder or project.
+//
+// @Summary Move asset to a folder
+// @Description Updates the asset's <code>folder_id</code> and/or <code>project_id</code>. Set either field to null to remove the assignment. The target folder and project must belong to the same workspace.
+// @Tags Assets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param body body UpdateAssetFolderRequest true "New folder and/or project assignment"
+// @Success 200 {object} AssetResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/assets/{id} [patch]
 func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -931,7 +1064,21 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	return c.JSON(assetToResponse(updated, nil))
 }
 
-// handleRenameAsset updates the original_filename of an asset, preserving its extension.
+// handleRenameAsset updates the display name of an asset.
+//
+// @Summary Rename an asset
+// @Description Updates the asset's <code>original_filename</code>. The new name must include the correct file extension matching the asset's MIME type.
+// @Tags Assets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param body body RenameAssetRequest true "New filename"
+// @Success 200 {object} AssetResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/assets/{id}/rename [put]
 func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -999,7 +1146,19 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 	return c.JSON(assetToResponse(updated, nil))
 }
 
-// handleBulkDelete deletes multiple assets and their storage files.
+// handleBulkDelete permanently deletes multiple assets.
+//
+// @Summary Bulk delete assets
+// @Description Permanently deletes all listed assets, their storage files, thumbnails, variants, and associated data. Assets not found in the workspace are silently skipped. This action cannot be undone.
+// @Tags Assets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body BulkDeleteRequest true "Asset IDs to delete"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/assets/bulk [delete]
 func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 

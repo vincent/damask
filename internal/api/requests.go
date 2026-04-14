@@ -448,7 +448,7 @@ func (r *CreateCommentRequest) Valid(_ context.Context) map[string]string {
 
 type CreateVariantRequest struct {
 	Type   string          `json:"type"`
-	Params json.RawMessage `json:"params"`
+	Params json.RawMessage `json:"params" swaggertype:"object"`
 }
 
 func (r *CreateVariantRequest) Valid(_ context.Context) map[string]string {
@@ -511,8 +511,8 @@ func (r *CreateIngressSourceReq) Valid(_ context.Context) map[string]string {
 type UpdateIngressSourceReq struct {
 	Label           string           `json:"label"`
 	Config          map[string]any   `json:"config"`
-	DestFolderID    *json.RawMessage `json:"dest_folder_id"`
-	DestProjectID   *json.RawMessage `json:"dest_project_id"`
+	DestFolderID    *json.RawMessage `json:"dest_folder_id" swaggertype:"string"`
+	DestProjectID   *json.RawMessage `json:"dest_project_id" swaggertype:"string"`
 	Enabled         *bool            `json:"enabled"`
 	PollIntervalMin int64            `json:"poll_interval_min"`
 }

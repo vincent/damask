@@ -336,6 +336,20 @@ func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 
 // -- Source CRUD
 
+// handleCreateIngressSource creates a new ingress source.
+//
+// @Summary Create an ingress source
+// @Description Creates a new ingress source for automated asset import. The <code>config</code> object is source-type-specific (see type documentation). Sensitive fields (passwords, keys, tokens) are encrypted at rest with AES-256-GCM and redacted (<code>"***"</code>) in all API responses.<br><br> Supported source types: <ul> <li><strong>imap</strong> — Poll an IMAP mailbox for attachments.</li> <li><strong>sftp</strong> — Poll a remote SFTP directory.</li> <li><strong>webdav</strong> — Poll a WebDAV endpoint.</li> <li><strong>s3</strong> — Poll an S3-compatible bucket.</li> <li><strong>email_api</strong> — Receive assets via SMTP push (uses <code>public_token</code>).</li> </ul> Optional <code>rules</code> array in the body bootstraps ingress rules for the source in a single request. Rules can also be managed later via the <code>/rules</code> sub-resource.
+// @Tags Ingress
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateIngressSourceReq true "Source configuration"
+// @Success 201 {object} ingressSourceResponse
+// @Failure 400 {object} ErrorResponse "Invalid config JSON"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/ingress/sources [post]
 // POST /api/v1/ingress/sources
 func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -413,6 +427,16 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(resp)
 }
 
+// handleListIngressSources returns all ingress sources in the workspace.
+//
+// @Summary List ingress sources
+// @Description Returns all ingress sources in the workspace. Sensitive config fields are redacted with <code>"***"</code> in every response.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} ingressSourceResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/ingress/sources [get]
 // GET /api/v1/ingress/sources
 func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -433,6 +457,18 @@ func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// handleGetIngressSource returns a single ingress source by ID.
+//
+// @Summary Get an ingress source
+// @Description Returns the source record including its current enabled state and decrypted (but redacted) config. Sensitive config values are always replaced with <code>"***"</code>.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Success 200 {object} ingressSourceResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Source not found"
+// @Router /api/v1/ingress/sources/{id} [get]
 // GET /api/v1/ingress/sources/:id
 func (s *Server) handleGetIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -455,6 +491,22 @@ func (s *Server) handleGetIngressSource(c fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
+// handleUpdateIngressSource updates an ingress source.
+//
+// @Summary Update an ingress source
+// @Description Updates the source label, config, destination folder/project, enabled state, and poll interval. Omitted fields keep their current values.<br><br> To update the config, supply a full replacement object — partial config merging is not supported. Sensitive fields provided in the new config are encrypted and stored; omitting them removes them. To clear <code>dest_folder_id</code> or <code>dest_project_id</code> pass an explicit <code>null</code> value.
+// @Tags Ingress
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Param body body UpdateIngressSourceReq true "Fields to update"
+// @Success 200 {object} ingressSourceResponse
+// @Failure 400 {object} ErrorResponse "Invalid config JSON"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Source not found"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/ingress/sources/{id} [put]
 // PUT /api/v1/ingress/sources/:id
 func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -538,6 +590,17 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
+// handleDeleteIngressSource permanently deletes an ingress source.
+//
+// @Summary Delete an ingress source
+// @Description Permanently removes the source and all its associated rules. Log entries are retained for auditing. This action is irreversible.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/ingress/sources/{id} [delete]
 // DELETE /api/v1/ingress/sources/:id
 func (s *Server) handleDeleteIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -551,6 +614,19 @@ func (s *Server) handleDeleteIngressSource(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// handleTestIngressSource tests connectivity for an ingress source.
+//
+// @Summary Test an ingress source
+// @Description Validates that the source can successfully connect to the remote system using its current configuration. The check runs with a 10-second timeout. Returns <code>{"ok": true}</code> on success, or a descriptive error message on failure.<br><br> Use this after creating or updating a source to confirm credentials and network access are correct before relying on scheduled polling.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Success 200 {object} object{ok=bool}
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Source not found"
+// @Failure 422 {object} ErrorResponse "Connection test failed — body contains the error message"
+// @Router /api/v1/ingress/sources/{id}/test [post]
 // POST /api/v1/ingress/sources/:id/test
 func (s *Server) handleTestIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -586,6 +662,18 @@ func (s *Server) handleTestIngressSource(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"ok": true})
 }
 
+// handlePollIngressSource manually triggers a poll for an ingress source.
+//
+// @Summary Trigger a poll
+// @Description Immediately enqueues an <code>ingest_poll</code> job for the source, regardless of its scheduled poll interval. Use this to force a check for new assets without waiting for the next scheduled run. Returns the queued job ID for tracking.<br><br> The job runs asynchronously; 202 Accepted means the job was enqueued, not that the poll completed. Monitor the ingress log to see results.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Success 202 {object} object{job_id=string}
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Source not found"
+// @Router /api/v1/ingress/sources/{id}/poll [post]
 // POST /api/v1/ingress/sources/:id/poll
 func (s *Server) handlePollIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -614,6 +702,18 @@ func (s *Server) handlePollIngressSource(c fiber.Ctx) error {
 
 // -- Log API
 
+// handleListIngressSourceLog returns ingress log entries for a specific source.
+//
+// @Summary List source log entries
+// @Description Returns the most recent 50 ingress log entries for the given source. Each entry represents one remote item that the source discovered, with its current ingestion status (<code>pending</code>, <code>fetching</code>, <code>done</code>, <code>error</code>, <code>skipped</code>).<br><br> The <code>(source_id, remote_id)</code> pair is unique — re-encountering the same remote file on a subsequent poll is a no-op unless the log entry is deleted or retried.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Success 200 {array} ingressLogResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Source not found"
+// @Router /api/v1/ingress/sources/{id}/log [get]
 // GET /api/v1/ingress/sources/:id/log
 func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -652,6 +752,17 @@ func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// handleListIngressLog returns workspace-wide ingress log entries.
+//
+// @Summary List workspace ingress log
+// @Description Returns the most recent 50 ingress log entries across all sources in the workspace. Filter by status using the <code>status</code> query parameter to focus on entries that need attention (e.g. <code>error</code> or <code>skipped</code>).
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Filter by status (pending, fetching, done, error, skipped)"
+// @Success 200 {array} ingressLogResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/ingress/log [get]
 // GET /api/v1/ingress/log
 func (s *Server) handleListIngressLog(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -678,6 +789,19 @@ func (s *Server) handleListIngressLog(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// handleDeleteIngressLogEntry deletes an ingress log entry.
+//
+// @Summary Delete a log entry
+// @Description Permanently removes a log entry. Because ingress deduplication is based on <code>(source_id, remote_id)</code>, deleting an entry allows the same remote file to be re-ingested on the next poll. Use this to force a re-import of a previously processed file.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param entry_id path string true "Log entry ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 403 {object} ErrorResponse "Entry belongs to a different workspace"
+// @Failure 404 {object} ErrorResponse "Log entry not found"
+// @Router /api/v1/ingress/log/{entry_id} [delete]
 // DELETE /api/v1/ingress/log/:entry_id
 func (s *Server) handleDeleteIngressLogEntry(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -706,6 +830,20 @@ func (s *Server) handleDeleteIngressLogEntry(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// handleRetryIngressLogEntry retries a failed or skipped ingress log entry.
+//
+// @Summary Retry a log entry
+// @Description Resets the log entry status to <code>pending</code> and enqueues a new <code>ingest_fetch</code> job to re-attempt asset import. Only entries with status <code>error</code> or <code>skipped</code> can be retried; attempting to retry a <code>done</code> or <code>pending</code> entry returns 400.<br><br> Returns the queued job ID. The retry runs asynchronously — poll the log entry to track completion.
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param entry_id path string true "Log entry ID"
+// @Success 202 {object} object{job_id=string}
+// @Failure 400 {object} ErrorResponse "Entry is not in error or skipped state"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 403 {object} ErrorResponse "Entry belongs to a different workspace"
+// @Failure 404 {object} ErrorResponse "Log entry not found"
+// @Router /api/v1/ingress/log/{entry_id}/retry [post]
 // POST /api/v1/ingress/log/:entry_id/retry
 func (s *Server) handleRetryIngressLogEntry(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)

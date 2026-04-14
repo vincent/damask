@@ -26,7 +26,7 @@ type EventResponse struct {
 	ID            string          `json:"id"`
 	EventType     string          `json:"event_type"`
 	Actor         EventActor      `json:"actor"`
-	Payload       json.RawMessage `json:"payload"`
+	Payload       json.RawMessage `json:"payload" swaggertype:"object"`
 	CreatedAt     string          `json:"created_at"`
 	HumanReadable string          `json:"human_readable"`
 }
@@ -57,6 +57,21 @@ func buildEventResponse(id, eventType, createdAt, payload string, userID, userNa
 	}
 }
 
+// handleListAssetEvents returns the audit event log for a single asset.
+//
+// @Summary List asset events
+// @Description Returns paginated audit events for the given asset. Events record every significant lifecycle action — uploads, renames, tagging, sharing, version changes, and more.<br><br> Supported query parameters: <ul> <li><strong>limit</strong> — Number of events to return (1–200, default 50).</li> <li><strong>cursor</strong> — Opaque cursor from the previous page's <code>next_cursor</code> field.</li> <li><strong>types</strong> — Comma-separated list of event types to filter to (e.g. <code>asset_shared,asset_renamed</code>).</li> </ul>
+// @Tags Audit
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param limit query integer false "Page size (1–200, default 50)"
+// @Param cursor query string false "Pagination cursor"
+// @Param types query string false "Comma-separated event type filter"
+// @Success 200 {object} EventListResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/events [get]
 // GET /assets/:id/events
 func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -97,6 +112,21 @@ func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 	return c.JSON(paginateEvents(events, limit))
 }
 
+// handleListProjectEvents returns the audit event log for a single project.
+//
+// @Summary List project events
+// @Description Returns paginated audit events for the given project. Supports the same <code>limit</code>, <code>cursor</code>, and <code>types</code> query parameters as the asset events endpoint.
+// @Tags Audit
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Project ID"
+// @Param limit query integer false "Page size (1–200, default 50)"
+// @Param cursor query string false "Pagination cursor"
+// @Param types query string false "Comma-separated event type filter"
+// @Success 200 {object} EventListResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Project not found"
+// @Router /api/v1/projects/{id}/events [get]
 // GET /projects/:id/events
 func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -137,6 +167,20 @@ func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 	return c.JSON(paginateEvents(events, limit))
 }
 
+// handleListWorkspaceActivity returns a merged workspace-wide activity feed.
+//
+// @Summary List workspace activity
+// @Description Returns a unified, cursor-paginated activity feed combining asset and project events across the entire workspace, sorted newest-first. Useful for building an activity timeline or a notification feed.<br><br> Each event in the response includes an <code>entity_type</code> (<code>asset</code> or <code>project</code>) and <code>entity_id</code> so the caller can link back to the originating resource.<br><br> Supported query parameters: <ul> <li><strong>limit</strong> — Number of events (1–100, default 20).</li> <li><strong>cursor</strong> — Opaque cursor from <code>next_cursor</code> in the previous response.</li> <li><strong>user_id</strong> — Filter to events by a specific user.</li> <li><strong>types</strong> — Comma-separated event type filter.</li> </ul>
+// @Tags Audit
+// @Produce json
+// @Security BearerAuth
+// @Param limit query integer false "Page size (1–100, default 20)"
+// @Param cursor query string false "Pagination cursor"
+// @Param user_id query string false "Filter by actor user ID"
+// @Param types query string false "Comma-separated event type filter"
+// @Success 200 {object} EventListResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/activity [get]
 // GET /activity
 func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -227,6 +271,20 @@ func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 	})
 }
 
+// handleExportActivity exports workspace activity as a CSV file.
+//
+// @Summary Export workspace activity
+// @Description Exports up to 10,000 workspace audit events (both asset and project) as a <code>text/csv</code> download. The response sets <code>Content-Disposition: attachment; filename="activity-export.csv"</code>.<br><br> CSV columns: <code>event_id, event_type, entity_type, entity_id, actor_type, actor_name, payload_summary, created_at</code>.<br><br> Supported query parameters: <ul> <li><strong>since</strong> — Exclude events before this date (inclusive, <code>YYYY-MM-DD</code>).</li> <li><strong>until</strong> — Exclude events after this date (inclusive, <code>YYYY-MM-DD</code>).</li> <li><strong>format</strong> — Currently only <code>csv</code> is supported.</li> </ul>
+// @Tags Audit
+// @Produce text/csv
+// @Security BearerAuth
+// @Param since query string false "Start date filter (YYYY-MM-DD)"
+// @Param until query string false "End date filter (YYYY-MM-DD)"
+// @Param format query string false "Export format (only csv supported)"
+// @Success 200 {file} binary
+// @Failure 400 {object} ErrorResponse "Invalid date format or unsupported format"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/activity/export [get]
 // GET /activity/export
 func (s *Server) handleExportActivity(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)

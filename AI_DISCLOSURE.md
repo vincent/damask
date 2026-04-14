@@ -8,6 +8,7 @@ AI tools were used in the following areas during development
 
 - Sequencing prototype roadmaps.
 - Visual and structural design.
+- Swagger API definitions.
 - Bootstrap the project with a first prototype with go/sqlc/svelte shells. This has been reorganized since.
 - Bootstrap features with page/interface placeholders.
 - Code comments and functions descriptions are occasionally generated.

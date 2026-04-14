@@ -35,7 +35,7 @@ type UserResponse struct {
 type AuthResponse struct {
 	Token     string           `json:"token"`
 	User      UserResponse     `json:"user"`
-	Workspace *dbgen.Workspace `json:"workspace,omitempty"`
+	Workspace *WorkspaceResponse `json:"workspace,omitempty"`
 }
 
 func userToResponse(u dbgen.User) UserResponse {
@@ -47,6 +47,19 @@ func userToResponse(u dbgen.User) UserResponse {
 	}
 }
 
+// handleRegister creates a new user account and a default workspace.
+//
+// @Summary Register a new user
+// @Description Creates a new user account with name, email, and password. A default workspace is automatically created for the new user. The response includes a JWT auth token set as an <code>auth_token</code> httpOnly cookie and also returned in the response body.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body RegisterRequest true "Registration details"
+// @Success 201 {object} AuthResponse
+// @Failure 400 {object} ErrorResponse "Invalid request body"
+// @Failure 409 {object} ErrorResponse "Email already in use"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /auth/register [post]
 func (s *Server) handleRegister(c fiber.Ctx) error {
 	req, ok := decodeAndValidate(c, &RegisterRequest{})
 	if !ok {
@@ -93,19 +106,22 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: workspace})
+	wr := workspaceToResponse(*workspace)
+	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: &wr})
 }
 
-// Login godoc
-// @Summary Login to the application.
-// @Description get auth token.
+// handleLogin authenticates a user and returns a JWT token.
+//
+// @Summary Log in
+// @Description Authenticates the user with email and password. Returns a JWT token in the response body and sets an <code>auth_token</code> httpOnly cookie (7-day expiry). The workspace embedded in the response is the user's first workspace — use <code>POST /api/v1/workspace/switch</code> to change it.
 // @Tags Auth
-// @Accept */*
+// @Accept json
 // @Produce json
-// @Param        email       query     string  false  "Email"
-// @Param        password    query     string  false  "Password"
-// // @Success 200 {object} AuthResponse
-// @Router /login [post]
+// @Param body body LoginRequest true "Login credentials"
+// @Success 200 {object} AuthResponse
+// @Failure 401 {object} ErrorResponse "Invalid credentials"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /auth/login [post]
 func (s *Server) handleLogin(c fiber.Ctx) error {
 	req, ok := decodeAndValidate(c, &LoginRequest{})
 	if !ok {
@@ -138,9 +154,20 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: &workspace})
+	wr := workspaceToResponse(workspace)
+	return c.JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: &wr})
 }
 
+// handleRefresh reissues an auth token for the currently authenticated user.
+//
+// @Summary Refresh auth token
+// @Description Reissues a fresh JWT with a new 7-day expiry for the authenticated user and workspace. The new token is returned in the response body and also set as an updated <code>auth_token</code> cookie. Call this endpoint before the current token expires to maintain a session without re-login.
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string "token"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /auth/refresh [post]
 func (s *Server) handleRefresh(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -153,6 +180,14 @@ func (s *Server) handleRefresh(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"token": token})
 }
 
+// handleLogout clears the auth cookie and ends the session.
+//
+// @Summary Log out
+// @Description Clears the <code>auth_token</code> httpOnly cookie by setting it to an expired value. No server-side session state is maintained, so this is a client-side-only operation.
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} map[string]bool "ok"
+// @Router /auth/logout [post]
 func (s *Server) handleLogout(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",

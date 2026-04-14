@@ -224,6 +224,18 @@ func resolvedToValue(rv *resolvedValue) any {
 
 // -- Handlers -----------------------------------------------------------------
 
+// handleGetAssetFields returns all custom field values for an asset.
+//
+// @Summary Get asset field values
+// @Description Returns all custom field values set on the asset, including fields for which no value has been set yet (those have <code>value: null</code>). Each entry includes the field definition metadata (<code>key</code>, <code>name</code>, <code>field_type</code>) alongside the typed value. The <code>definition_deleted</code> flag indicates the field definition was soft-deleted — the value is still stored but the field is no longer active.
+// @Tags Custom Fields
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {object} GetAssetFieldsResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/fields [get]
 func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -250,6 +262,21 @@ func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
 	return c.JSON(GetAssetFieldsResponse{Fields: items})
 }
 
+// handlePatchAssetFields sets or clears custom field values on an asset.
+//
+// @Summary Update asset field values
+// @Description Sets or clears one or more custom field values on the asset. Each entry in the <code>values</code> array targets a field by <code>field_id</code>. To clear a value, pass <code>null</code> as the value. All values are validated before any writes.<br><br> Value types must match the field definition's <code>field_type</code>: <ul> <li><strong>text / url</strong> — string</li> <li><strong>number</strong> — number</li> <li><strong>date</strong> — string in <code>YYYY-MM-DD</code> format</li> <li><strong>boolean</strong> — boolean</li> <li><strong>select</strong> — string matching one of the field's defined options</li> </ul> Returns the full updated field values for the asset.
+// @Tags Custom Fields
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param body body PatchAssetFieldsRequest true "Field values to set"
+// @Success 200 {object} GetAssetFieldsResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Failure 422 {object} ErrorResponse "Value validation failed"
+// @Router /api/v1/assets/{id}/fields [patch]
 func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -348,6 +375,19 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 	return c.JSON(GetAssetFieldsResponse{Fields: items})
 }
 
+// handleBulkPatchAssetFields applies the same field values to multiple assets.
+//
+// @Summary Bulk update asset field values
+// @Description Applies the same set of field value changes to multiple assets in a single transaction. Assets not belonging to the workspace are silently skipped. Returns the count of assets successfully updated.<br><br> Supports the same value format and null-for-clear semantics as the single-asset PATCH endpoint.
+// @Tags Custom Fields
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body BulkPatchAssetFieldsRequest true "Asset IDs and field values"
+// @Success 200 {object} BulkPatchAssetFieldsResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ErrorResponse "Value validation failed"
+// @Router /api/v1/assets/bulk/fields [patch]
 func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 

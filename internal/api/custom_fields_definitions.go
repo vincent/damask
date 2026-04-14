@@ -57,6 +57,18 @@ func fieldDefToResponse(f dbgen.FieldDefinition) FieldDefinitionResponse {
 	}
 }
 
+// handleListFieldDefinitions returns all field definitions for the workspace.
+//
+// @Summary List field definitions
+// @Description Returns all custom field definitions for the workspace filtered by scope. Field definitions describe the schema for structured metadata that can be attached to assets (<code>scope=asset</code>) or projects (<code>scope=project</code>).<br><br> Supported field types: <code>text</code>, <code>number</code>, <code>date</code>, <code>boolean</code>, <code>select</code>, <code>url</code>.
+// @Tags Custom Fields
+// @Produce json
+// @Security BearerAuth
+// @Param scope query string false "Scope filter: asset (default) or project"
+// @Success 200 {array} FieldDefinitionResponse
+// @Failure 400 {object} ErrorResponse "Invalid scope value"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/field-definitions [get]
 func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	scope := c.Query("scope", "asset")
@@ -79,6 +91,20 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 	return c.JSON(items)
 }
 
+// handleCreateFieldDefinition creates a new custom field definition.
+//
+// @Summary Create a field definition
+// @Description Creates a new custom field definition for assets or projects. The <code>key</code> must be lowercase alphanumeric with underscores and is immutable after creation. A maximum of 50 definitions per scope is enforced.<br><br> For <code>select</code> fields, supply an <code>options</code> array of string choices. The <code>inherit_from_project</code> flag (asset-scope only) causes the field to automatically pre-populate from the assigned project's value.
+// @Tags Custom Fields
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateFieldDefinitionRequest true "Field definition"
+// @Success 201 {object} FieldDefinitionResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 409 {object} ErrorResponse "Key already exists in this scope"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed or 50-field limit reached"
+// @Router /api/v1/field-definitions [post]
 func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -136,6 +162,18 @@ func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fieldDefToResponse(def))
 }
 
+// handleGetFieldDefinition returns a single field definition by ID.
+//
+// @Summary Get a field definition
+// @Description Returns a single custom field definition.
+// @Tags Custom Fields
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Field definition ID"
+// @Success 200 {object} FieldDefinitionResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Field definition not found"
+// @Router /api/v1/field-definitions/{id} [get]
 func (s *Server) handleGetFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -154,6 +192,18 @@ func (s *Server) handleGetFieldDefinition(c fiber.Ctx) error {
 	return c.JSON(fieldDefToResponse(def))
 }
 
+// handleGetFieldDefinitionStats returns usage statistics for a field definition.
+//
+// @Summary Get field definition stats
+// @Description Returns the number of assets and projects that have a value set for this field definition. Useful for understanding the impact of deleting a field.
+// @Tags Custom Fields
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Field definition ID"
+// @Success 200 {object} FieldDefinitionStatsResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Field definition not found"
+// @Router /api/v1/field-definitions/{id}/stats [get]
 func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -184,6 +234,22 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	})
 }
 
+// handleUpdateFieldDefinition updates a field definition.
+//
+// @Summary Update a field definition
+// @Description Updates a custom field definition. The <code>key</code> and <code>field_type</code> are immutable after creation — supplying a different value returns 422. All other fields are optional; omitted fields retain their current values.<br><br> For <code>select</code> fields, <code>options</code> must be a non-empty JSON array of strings.
+// @Tags Custom Fields
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Field definition ID"
+// @Param body body UpdateFieldDefinitionRequest true "Fields to update"
+// @Success 200 {object} FieldDefinitionResponse
+// @Failure 400 {object} ErrorResponse "Invalid options format or empty name"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Field definition not found"
+// @Failure 422 {object} ErrorResponse "Attempt to change immutable key or field_type"
+// @Router /api/v1/field-definitions/{id} [put]
 func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -269,6 +335,18 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	return c.JSON(fieldDefToResponse(updated))
 }
 
+// handleDeleteFieldDefinition soft-deletes a field definition.
+//
+// @Summary Delete a field definition
+// @Description Soft-deletes the field definition. The definition is hidden from the list endpoint but existing field values on assets and projects are preserved. This action is permanent from the API perspective (no undelete endpoint).
+// @Tags Custom Fields
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Field definition ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Field definition not found"
+// @Router /api/v1/field-definitions/{id} [delete]
 func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -293,6 +371,19 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// handleReorderFieldDefinitions reorders field definitions.
+//
+// @Summary Reorder field definitions
+// @Description Updates the <code>position</code> of multiple field definitions in a single request. The request body is a JSON array of <code>{"id": "...", "position": N}</code> objects. Items not belonging to this workspace are silently skipped (best-effort update).
+// @Tags Custom Fields
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body ReorderFieldDefinitionsRequest true "Reorder items"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/field-definitions/reorder [put]
 func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 

@@ -63,6 +63,16 @@ func tagToResponse(t dbgen.Tag, assetCount int64) TagResponse {
 	return r
 }
 
+// handleListTags returns all tags in the workspace with usage counts.
+//
+// @Summary List tags
+// @Description Returns all tags in the workspace, each with <code>asset_count</code>, optional <code>color</code>, <code>group_name</code>, and <code>last_used_at</code>.
+// @Tags Tags
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} TagResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/tags [get]
 // handleListTags handles GET /api/v1/tags
 func (s *Server) handleListTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -79,6 +89,20 @@ func (s *Server) handleListTags(c fiber.Ctx) error {
 	return c.JSON(items)
 }
 
+// handleCreateTag creates a new tag in the workspace.
+//
+// @Summary Create a tag
+// @Description Creates a new tag with an optional color (hex) and group name. Tag names are case-insensitive and must be unique within the workspace.
+// @Tags Tags
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body createTagRequest true "Tag details"
+// @Success 201 {object} TagResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 409 {object} ErrorResponse "Tag already exists"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/tags [post]
 // handleCreateTag handles POST /api/v1/tags
 func (s *Server) handleCreateTag(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -114,6 +138,22 @@ func (s *Server) handleCreateTag(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(tagToResponse(tag, 0))
 }
 
+// handlePatchTag updates a tag's name, color, or group.
+//
+// @Summary Update a tag
+// @Description Updates one or more attributes of an existing tag identified by its name. All fields are optional. Renaming checks for conflicts with existing tag names.
+// @Tags Tags
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param name path string true "Current tag name"
+// @Param body body patchTagRequest true "Fields to update"
+// @Success 200 {object} TagResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Tag not found"
+// @Failure 409 {object} ErrorResponse "Target name already in use"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/tags/{name} [patch]
 // handlePatchTag handles PATCH /api/v1/tags/:name
 func (s *Server) handlePatchTag(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -195,6 +235,19 @@ func (s *Server) handlePatchTag(c fiber.Ctx) error {
 	return errRes(c, fiber.StatusInternalServerError, "could not reload tag")
 }
 
+// handleBulkDeleteTags deletes multiple tags from the workspace.
+//
+// @Summary Bulk delete tags
+// @Description Deletes all listed tags and removes their associations from all assets. Tags not found in the workspace are silently skipped. Returns the count of tags deleted and the total number of asset-tag associations removed.
+// @Tags Tags
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body bulkDeleteTagsRequest true "Tag names to delete"
+// @Success 200 {object} map[string]int "deleted and removed_from_assets counts"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/tags [delete]
 // handleBulkDeleteTags handles DELETE /api/v1/tags
 func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -251,6 +304,19 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 	})
 }
 
+// handleMergeTags merges multiple source tags into a single target tag.
+//
+// @Summary Merge tags
+// @Description Reassigns all asset-tag associations from the listed source tags to the target tag, then deletes the source tags. The target tag is created if it does not already exist. Useful for consolidating duplicate or near-duplicate tags.
+// @Tags Tags
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body mergeTagsRequest true "Source tag names and target tag name"
+// @Success 200 {object} map[string]interface{} "merged_assets count and updated target TagResponse"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/tags/merge [post]
 // handleMergeTags handles POST /api/v1/tags/merge
 func (s *Server) handleMergeTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -336,6 +402,16 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 	})
 }
 
+// handleTagDuplicateSuggestions suggests likely duplicate tags based on edit distance.
+//
+// @Summary Get duplicate tag suggestions
+// @Description Returns pairs of tags whose names are similar (Levenshtein distance &lt; 30% of the longer name) among tags that have at least one associated asset. Up to 20 pairs are returned, sorted by similarity score ascending (most similar first). Use the merge endpoint to consolidate them.
+// @Tags Tags
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} map[string]interface{} "Array of {a, b, score} pairs"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/tags/suggestions/duplicates [get]
 // handleTagDuplicateSuggestions handles GET /api/v1/tags/suggestions/duplicates
 func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -388,6 +464,18 @@ func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 	return c.JSON(pairs)
 }
 
+// handleGetAssetTags returns all tag names applied to an asset.
+//
+// @Summary Get tags for an asset
+// @Description Returns a flat array of tag name strings applied to the specified asset.
+// @Tags Assets
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {array} string
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/tags [get]
 // handleGetAssetTags handles GET /api/v1/assets/:id/tags
 func (s *Server) handleGetAssetTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -415,6 +503,21 @@ func (s *Server) handleGetAssetTags(c fiber.Ctx) error {
 	return c.JSON(names)
 }
 
+// handleAddTagToAsset adds a tag to an asset, creating the tag if it does not exist.
+//
+// @Summary Add tag to an asset
+// @Description Adds a tag to the specified asset. If the tag does not exist in the workspace it is created automatically. Also updates the tag's <code>last_used_at</code> timestamp.
+// @Tags Assets
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param body body AddTagRequest true "Tag name"
+// @Success 201 {object} map[string]string "name of the applied tag"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/assets/{id}/tags [post]
 // handleAddTagToAsset handles POST /api/v1/assets/:id/tags
 func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -470,6 +573,19 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"name": tag.Name})
 }
 
+// handleRemoveTagFromAsset removes a tag from an asset.
+//
+// @Summary Remove tag from an asset
+// @Description Removes the association between the tag and the asset. The tag itself is not deleted from the workspace. Tag name matching is case-insensitive.
+// @Tags Assets
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param name path string true "Tag name"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/tags/{name} [delete]
 // handleRemoveTagFromAsset handles DELETE /api/v1/assets/:id/tags/:name
 func (s *Server) handleRemoveTagFromAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)

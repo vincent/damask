@@ -66,6 +66,20 @@ func shareToResponse(s dbgen.Share, baseURL string) ShareResponse {
 	}
 }
 
+// handleCreateShare creates a public share link for an asset or project.
+//
+// @Summary Create a share
+// @Description Creates a public share link for the given target (asset or project). Options: <ul> <li><strong>password</strong> — Protect the share with a password.</li> <li><strong>expires_in_days</strong> — Automatically expire the share after N days.</li> <li><strong>allow_download</strong> — Whether viewers can download original files (default true).</li> <li><strong>allow_comments</strong> — Whether viewers can post comments (default false).</li> </ul> The response includes a <code>public_url</code> that can be shared directly with external reviewers.
+// @Tags Shares
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateShareRequest true "Share settings"
+// @Success 201 {object} ShareResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Target asset or project not found"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/shares [post]
 // POST /api/v1/shares
 func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -193,6 +207,16 @@ func (s *Server) validateShareTarget(workspaceID, targetType, targetID string) e
 	return nil
 }
 
+// handleListShares returns all shares in the workspace.
+//
+// @Summary List shares
+// @Description Returns all shares created in the workspace, including revoked and expired ones. Use the <code>revoked_at</code> and <code>is_expired</code> fields to filter active shares client-side.
+// @Tags Shares
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} ShareResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/shares [get]
 // GET /api/v1/shares
 func (s *Server) handleListShares(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -209,6 +233,18 @@ func (s *Server) handleListShares(c fiber.Ctx) error {
 	return c.JSON(items)
 }
 
+// handleGetShare returns a single share by ID.
+//
+// @Summary Get a share
+// @Description Returns the share record including its current status (active, revoked, expired).
+// @Tags Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Success 200 {object} ShareResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Router /api/v1/shares/{id} [get]
 // GET /api/v1/shares/:id
 func (s *Server) handleGetShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -228,6 +264,21 @@ func (s *Server) handleGetShare(c fiber.Ctx) error {
 	return c.JSON(shareToResponse(share, s.cfg.BaseURL.String()))
 }
 
+// handleUpdateShare updates share settings.
+//
+// @Summary Update a share
+// @Description Updates the share's label, password, expiry, and permission flags. All fields are optional. To remove an existing password send <code>"clear_password": true</code>. To remove an expiry send <code>"clear_expiry": true</code>.
+// @Tags Shares
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Param body body UpdateShareRequest true "Fields to update"
+// @Success 200 {object} ShareResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/shares/{id} [put]
 // PUT /api/v1/shares/:id
 func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -315,6 +366,18 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 	return c.JSON(shareToResponse(updated, s.cfg.BaseURL.String()))
 }
 
+// handleRevokeShare revokes (soft-deletes) a share.
+//
+// @Summary Revoke a share
+// @Description Sets <code>revoked_at</code> on the share so that all future public access attempts return 404. The share record is retained for audit purposes. Revocation is permanent.
+// @Tags Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Router /api/v1/shares/{id} [delete]
 // DELETE /api/v1/shares/:id  — soft delete via revoked_at
 func (s *Server) handleRevokeShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)

@@ -76,6 +76,18 @@ func (s *Server) isRebuildingVariants(c fiber.Ctx, versionID string) bool {
 
 // ---- Handlers ----
 
+// handleListVariants returns all variants for the asset's current version.
+//
+// @Summary List asset variants
+// @Description Returns all generated variants for the asset's current version, plus a <code>rebuilding</code> flag that is true when a variant rebuild job is in progress (e.g. after a new version upload). Each variant includes a <code>download_url</code> for direct file access.
+// @Tags Variants
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {object} ListVariantsResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/variants [get]
 // handleListVariants handles GET /api/v1/assets/:id/variants
 // Returns variants for the current version only, plus a rebuilding flag.
 func (s *Server) handleListVariants(c fiber.Ctx) error {
@@ -115,6 +127,23 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 	})
 }
 
+// handleCreateVariant enqueues a transform job to produce a new variant.
+//
+// @Summary Create a variant
+// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code></li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"text": "...", "position": "..."}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — requires <code>REMOVEBG_API_KEY</code> env var</li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
+// @Tags Variants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param body body CreateVariantRequest true "Variant type and transform params"
+// @Success 202 {object} CreateVariantResponse
+// @Failure 400 {object} ErrorResponse "Invalid variant type or wrong asset type"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Failure 409 {object} ErrorResponse "Variant rebuild already in progress"
+// @Failure 422 {object} ErrorResponse "Asset has no current version"
+// @Router /api/v1/assets/{id}/variants [post]
 // handleCreateVariant handles POST /api/v1/assets/:id/variants
 // Creates a variant bound to the asset's current version.
 func (s *Server) handleCreateVariant(c fiber.Ctx) error {
@@ -222,6 +251,19 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	})
 }
 
+// handleGetVariantFile streams the variant file bytes.
+//
+// @Summary Download variant file
+// @Description Streams the variant's stored file. Content-Type is derived from the file extension. An <code>asset_variant_downloaded</code> audit event is recorded (browser image prefetch excluded).
+// @Tags Variants
+// @Produce application/octet-stream
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param vid path string true "Variant ID"
+// @Success 200 {file} binary
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset, variant, or file not found"
+// @Router /api/v1/assets/{id}/variants/{vid}/file [get]
 // handleGetVariantFile handles GET /api/v1/assets/:id/variants/:vid/file
 func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -272,6 +314,20 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
+// handleDeleteVariant deletes a variant and its stored file.
+//
+// @Summary Delete a variant
+// @Description Permanently removes the variant record and its stored file. Only variants attached to the <em>current</em> version can be deleted manually — variants on older versions are removed automatically by the retention purge job.
+// @Tags Variants
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param vid path string true "Variant ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset or variant not found"
+// @Failure 422 {object} ErrorResponse "Variant belongs to a previous version"
+// @Router /api/v1/assets/{id}/variants/{vid} [delete]
 // handleDeleteVariant handles DELETE /api/v1/assets/:id/variants/:vid
 // Guards against deleting variants that belong to non-current versions.
 func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
@@ -330,6 +386,22 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// handleUploadManualVariant attaches an externally produced file as a manual variant.
+//
+// @Summary Upload a manual variant
+// @Description Accepts a multipart file upload and stores it as a variant of type <code>manual</code> on the asset's current version. Unlike transform-generated variants, manual variants are <em>not</em> automatically rebuilt when a new version is uploaded — they persist across version changes. Use this to attach pre-processed or third-party exports (e.g. color-corrected TIFF, print-ready PDF).
+// @Tags Variants
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param file formData file true "File to attach as a manual variant"
+// @Success 201 {object} VariantResponse
+// @Failure 400 {object} ErrorResponse "file field is required"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Failure 422 {object} ErrorResponse "Asset has no current version"
+// @Router /api/v1/assets/{id}/variants/upload [post]
 // handleUploadManualVariant handles POST /api/v1/assets/:id/variants/upload
 // Accepts a raw file upload and attaches it as a manual variant of type "manual"
 // on the current version. Manual variants are NOT rebuilt on new version uploads.
@@ -409,6 +481,24 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(variantToResponse(assetID, v))
 }
 
+// handlePreviewTransform applies an in-memory image transform and returns the result.
+//
+// @Summary Preview image transform
+// @Description Applies a resize/format transform to the asset's current version in memory and returns the result directly (never stored). Responses are cached in an LRU cache (100 entries, 5-minute TTL) so repeated identical calls are cheap. <br>Query parameters: <ul> <li><strong>w</strong> — Target width in pixels</li> <li><strong>h</strong> — Target height in pixels</li> <li><strong>fit</strong> — Fit mode: <code>contain</code> (default), <code>cover</code>, <code>fill</code></li> <li><strong>format</strong> — Output format: <code>jpeg</code> (default), <code>png</code>, <code>webp</code></li> <li><strong>q</strong> — JPEG quality 1–100 (default: encoder default)</li> </ul> Only supported for image assets. Returns 400 for video, audio, or PDF assets.
+// @Tags Variants
+// @Produce image/jpeg
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param w query int false "Target width"
+// @Param h query int false "Target height"
+// @Param fit query string false "Fit mode (contain|cover|fill)"
+// @Param format query string false "Output format (jpeg|png|webp)"
+// @Param q query int false "JPEG quality (1-100)"
+// @Success 200 {file} binary
+// @Failure 400 {object} ErrorResponse "Preview only supported for images"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/preview [get]
 // handlePreviewTransform runs a transform in-memory and returns a small image.
 // GET /api/v1/assets/:id/preview?w=&h=&fit=&format=&q=
 func (s *Server) handlePreviewTransform(c fiber.Ctx) error {

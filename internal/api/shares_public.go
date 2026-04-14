@@ -86,6 +86,17 @@ func (s *Server) loadActiveShare(c fiber.Ctx, id string) (dbgen.Share, error) {
 
 // ── S-4 ──────────────────────────────────────────────────────────────────────
 
+// handleShareInfo returns public metadata about a share.
+//
+// @Summary Get share info (public)
+// @Description Returns the share's label and whether it requires a password. Use this as the first call when a visitor lands on a share link — if <code>has_password</code> is true, show a password gate before calling <code>POST /shared/:id/access</code>. Returns 404 if the share does not exist or has been revoked, and 410 if it has expired.
+// @Tags Public Shares
+// @Produce json
+// @Param id path string true "Share ID"
+// @Success 200 {object} ShareInfoResponse
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Failure 410 {object} ErrorResponse "Share has expired"
+// @Router /shared/{id}/access [get]
 // GET /shared/:id/access — unauthenticated.
 // Returns share metadata so the gate page can decide whether to show a password form.
 func (s *Server) handleShareInfo(c fiber.Ctx) error {
@@ -100,6 +111,20 @@ func (s *Server) handleShareInfo(c fiber.Ctx) error {
 	})
 }
 
+// handleShareAccess authenticates access to a share and returns a session token.
+//
+// @Summary Authenticate share access (public)
+// @Description Validates the share (checks password if one is set) and issues a 24-hour share session token. Include this token as <code>Authorization: Bearer &lt;token&gt;</code> in all subsequent requests to <code>/shared/:id/*</code> endpoints. Also increments the share's view count.
+// @Tags Public Shares
+// @Accept json
+// @Produce json
+// @Param id path string true "Share ID"
+// @Param body body ShareAccessRequest false "Password (if required)"
+// @Success 200 {object} ShareAccessResponse
+// @Failure 401 {object} ErrorResponse "Password required or incorrect"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Failure 410 {object} ErrorResponse "Share has expired"
+// @Router /shared/{id}/access [post]
 // POST /shared/:id/access — unauthenticated.
 // Validates the share, checks password if required, issues a share session token.
 func (s *Server) handleShareAccess(c fiber.Ctx) error {
@@ -145,6 +170,19 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 
 // ── S-5 ──────────────────────────────────────────────────────────────────────
 
+// handleShareListAssets returns the assets accessible via this share.
+//
+// @Summary List share assets (public)
+// @Description Returns all assets accessible through the share, along with share metadata (<code>allow_comments</code>, <code>allow_download</code>, etc.). The asset set depends on the share's target type: a single asset for <code>asset</code> shares, all project assets for <code>project</code> shares. Requires a valid share session token.
+// @Tags Public Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Success 200 {object} map[string]interface{} "share metadata and assets array"
+// @Failure 401 {object} ErrorResponse "Not authenticated (share token required)"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Failure 410 {object} ErrorResponse "Share has expired or been revoked"
+// @Router /shared/{id}/assets [get]
 // GET /shared/:id/assets
 // Lists assets belonging to the share's target. Requires valid share session token.
 func (s *Server) handleShareListAssets(c fiber.Ctx) error {
@@ -241,6 +279,19 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 	})
 }
 
+// handleShareGetAsset returns a single asset within a share.
+//
+// @Summary Get share asset (public)
+// @Description Returns a single asset accessible via the share. Returns 404 if the asset is not part of the share's target. Requires a valid share session token.
+// @Tags Public Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Param aid path string true "Asset ID"
+// @Success 200 {object} AssetResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found in this share"
+// @Router /shared/{id}/assets/{aid} [get]
 // GET /shared/:id/assets/:aid
 // Returns a single asset detail. Requires valid share session token.
 func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
@@ -277,6 +328,20 @@ func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 	return c.JSON(assetToResponse(a, []string{}))
 }
 
+// handleShareGetAssetFile streams the original file for a shared asset.
+//
+// @Summary Download shared asset file (public)
+// @Description Streams the original file for an asset accessible via the share. Returns 403 if the share was created with <code>allow_download: false</code>.
+// @Tags Public Shares
+// @Produce application/octet-stream
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Param aid path string true "Asset ID"
+// @Success 200 {file} binary
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 403 {object} ErrorResponse "Download not allowed for this share"
+// @Failure 404 {object} ErrorResponse "Asset or file not found"
+// @Router /shared/{id}/assets/{aid}/file [get]
 // GET /shared/:id/assets/:aid/file
 // Streams the original file. Requires allow_download in share session token.
 func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
@@ -318,6 +383,19 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
+// handleShareGetAssetThumb serves the thumbnail for a shared asset.
+//
+// @Summary Get shared asset thumbnail (public)
+// @Description Streams the JPEG thumbnail for an asset accessible via the share. Thumbnails are always accessible regardless of the <code>allow_download</code> setting, as they are needed for review purposes. Returns 404 if the thumbnail has not yet been generated.
+// @Tags Public Shares
+// @Produce image/jpeg
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Param aid path string true "Asset ID"
+// @Success 200 {file} binary
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found or thumbnail not ready"
+// @Router /shared/{id}/assets/{aid}/thumb [get]
 // GET /shared/:id/assets/:aid/thumb
 // Streams the thumbnail. Always allowed (thumbnails are required for review).
 func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
@@ -357,6 +435,21 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 
 // ── S-6 ──────────────────────────────────────────────────────────────────────
 
+// handleShareCreateComment posts a comment on a shared asset.
+//
+// @Summary Post a comment (public)
+// @Description Posts a comment on an asset within the share. The share must have <code>allow_comments: true</code>. Commenters identify themselves by name; an optional email can be provided. Returns 403 if comments are disabled for this share.
+// @Tags Public Shares
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Param body body CreateCommentRequest true "Comment content and author info"
+// @Success 201 {object} CommentResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 403 {object} ErrorResponse "Comments not allowed for this share"
+// @Failure 404 {object} ErrorResponse "Asset not found in this share"
+// @Router /shared/{id}/comments [post]
 // POST /shared/:id/comments
 func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
@@ -400,6 +493,18 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(commentToResponse(comment))
 }
 
+// handleShareListComments returns all comments on a share, grouped by asset.
+//
+// @Summary List share comments (public)
+// @Description Returns all comments on the share, grouped by <code>asset_id</code>. Useful for rendering a review dashboard showing all feedback at once.
+// @Tags Public Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Success 200 {array} map[string]interface{} "Array of {asset_id, comments[]} groups"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Router /shared/{id}/comments [get]
 // GET /shared/:id/comments — all comments for this share, grouped by asset_id
 func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	shareID := c.Params("id")
@@ -436,6 +541,19 @@ func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// handleShareListAssetComments returns comments for one asset within a share.
+//
+// @Summary List asset comments (public)
+// @Description Returns all comments posted on a specific asset within the share.
+// @Tags Public Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Param aid path string true "Asset ID"
+// @Success 200 {array} CommentResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found in this share"
+// @Router /shared/{id}/assets/{aid}/comments [get]
 // GET /shared/:id/assets/:aid/comments — comments for a specific asset
 func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
@@ -466,6 +584,18 @@ func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 
 // ── S-7 ──────────────────────────────────────────────────────────────────────
 
+// handleOwnerListComments returns all comments on a share for the workspace owner.
+//
+// @Summary List comments on a share (owner)
+// @Description Returns all comments posted through the share, visible to workspace members for moderation. The authenticated user must be a member of the workspace that owns the share.
+// @Tags Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Success 200 {array} CommentResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Router /api/v1/shares/{id}/comments [get]
 // GET /api/v1/shares/:id/comments — owner view of all comments on a share
 func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -494,6 +624,19 @@ func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 	return c.JSON(items)
 }
 
+// handleOwnerDeleteComment deletes a public comment (moderation).
+//
+// @Summary Delete a comment (owner)
+// @Description Permanently deletes a comment posted on the share. Only workspace members can use this endpoint. Use it to moderate inappropriate or spam comments.
+// @Tags Shares
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Param cid path string true "Comment ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Share not found"
+// @Router /api/v1/shares/{id}/comments/{cid} [delete]
 // DELETE /api/v1/shares/:id/comments/:cid — moderation: delete a comment
 func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
