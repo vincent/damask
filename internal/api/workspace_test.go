@@ -472,17 +472,17 @@ func TestUpdateWorkspaceSettings_ExifKeep(t *testing.T) {
 	}
 
 	var ws struct {
-		ExifKeep    int64 `json:"exif_keep"`
-		ExifKeepGps int64 `json:"exif_keep_gps"`
+		ExifKeep    bool `json:"exif_keep"`
+		ExifKeepGps bool `json:"exif_keep_gps"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&ws); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if ws.ExifKeep != 1 {
-		t.Errorf("exif_keep = %d, want 1", ws.ExifKeep)
+	if !ws.ExifKeep {
+		t.Errorf("exif_keep = %v, want true", ws.ExifKeep)
 	}
-	if ws.ExifKeepGps != 0 {
-		t.Errorf("exif_keep_gps = %d, want 0", ws.ExifKeepGps)
+	if ws.ExifKeepGps {
+		t.Errorf("exif_keep_gps = %v, want false", ws.ExifKeepGps)
 	}
 }
 
