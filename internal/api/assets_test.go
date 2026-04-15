@@ -3,6 +3,7 @@ package api_test
 import (
 	"bytes"
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"fmt"
@@ -114,7 +115,7 @@ func TestUploadAsset_Unauthenticated(t *testing.T) {
 
 func TestUploadAsset_ViewerForbidden(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
-	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)

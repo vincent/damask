@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"net/http"
@@ -62,7 +63,7 @@ func TestCreateProject_MissingName(t *testing.T) {
 
 func TestCreateProject_ViewerRejected(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
-	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/projects",
 		th.JsonBody(api.CreateProjectRequest{Name: "My Project"}), viewerToken)

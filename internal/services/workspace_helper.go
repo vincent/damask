@@ -1,8 +1,9 @@
 package services
 
 import (
-	dbgen "damask/server/internal/db/gen"
 	"context"
+	"damask/server/internal/auth"
+	dbgen "damask/server/internal/db/gen"
 
 	"github.com/google/uuid"
 )
@@ -22,7 +23,7 @@ func CreateWorkspaceForUser(ctx context.Context, qtx *dbgen.Queries, name, owner
 	if err := qtx.CreateMember(ctx, dbgen.CreateMemberParams{
 		WorkspaceID: workspaceID,
 		UserID:      ownerID,
-		Role:        "owner",
+		Role:        string(auth.Owner),
 		InvitedBy:   nil,
 	}); err != nil {
 		return nil, err

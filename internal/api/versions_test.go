@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	th "damask/server/internal/tests_helpers"
 
 	"github.com/gofiber/fiber/v3"
@@ -166,7 +167,7 @@ func TestUploadVersion_ViewerForbidden(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	asset := th.UploadAsset(t, env, owner.Cookie)
-	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 
 	req := th.BuildVersionUploadRequest(t, asset.ID, "v2.jpg", th.MakeJPEG(10, 10), "", nil)
 	req.Header.Set("Authorization", "Bearer "+viewerToken)
@@ -370,7 +371,7 @@ func TestDeleteVersion_ViewerForbidden(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 	asset := th.UploadAsset(t, env, owner.Cookie)
-	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 
 	listReq := th.AuthRequest(http.MethodGet, fmt.Sprintf("/api/v1/assets/%s/versions", asset.ID), nil, owner.Cookie)
 	listResp, _ := env.App.Test(listReq)

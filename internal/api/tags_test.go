@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"fmt"
@@ -325,7 +326,7 @@ func TestCreateTag_RequiresEditor(t *testing.T) {
 	)
 	_ = viewerToken
 
-	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 	req := th.BearerRequest(http.MethodPost, "/api/v1/tags", strings.NewReader(`{"name":"x"}`), editorToken)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusForbidden {

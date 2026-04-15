@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"net/http"
@@ -327,7 +328,7 @@ func TestFieldDefinitions_Auth(t *testing.T) {
 	}
 
 	// Viewer cannot create
-	viewerToken := th.MintEditorToken(t, env, u.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, u.WorkspaceID, auth.Viewer)
 	resp, _ = env.App.Test(th.BearerRequest(http.MethodPost, "/api/v1/field-definitions",
 		th.JsonBody(api.CreateFieldDefinitionRequest{Scope: "asset", Name: "X", Key: "x", FieldType: "text"}), viewerToken))
 	if resp.StatusCode != http.StatusForbidden {

@@ -49,7 +49,7 @@ func workspaceToResponse(w dbgen.Workspace) WorkspaceResponse {
 type WorkspaceMeResponse struct {
 	Workspace WorkspaceResponse `json:"workspace"`
 	User      UserResponse      `json:"user"`
-	Role      string            `json:"role"`
+	Role      auth.Role         `json:"role"`
 }
 
 // handleWorkspaceMe returns the current user, their active workspace, and their role.
@@ -90,7 +90,11 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
 
-	return c.JSON(WorkspaceMeResponse{Workspace: workspaceToResponse(workspace), User: userToResponse(user), Role: member.Role})
+	return c.JSON(WorkspaceMeResponse{
+		Workspace: workspaceToResponse(workspace),
+		User:      userToResponse(user),
+		Role:      auth.Role(member.Role),
+	})
 }
 
 // handleCreateWorkspace creates a new workspace for the authenticated user.
@@ -179,7 +183,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		WorkspaceID: claims.WorkspaceID,
 		Email:       req.Email,
 		Token:       uuid.New().String(),
-		Role:        req.Role,
+		Role:        string(req.Role),
 		InvitedBy:   claims.UserID,
 		ExpiresAt:   time.Now().Add(7 * 24 * time.Hour),
 	})
@@ -270,11 +274,11 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 }
 
 type WorkspaceWithRoleResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Role      string `json:"role"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Role      auth.Role `json:"role"`
+	CreatedAt string    `json:"created_at"`
+	UpdatedAt string    `json:"updated_at"`
 }
 
 // handleListWorkspaces lists all workspaces the authenticated user belongs to.
@@ -300,7 +304,7 @@ func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 		result[i] = WorkspaceWithRoleResponse{
 			ID:        r.ID,
 			Name:      r.Name,
-			Role:      r.Role,
+			Role:      auth.Role(r.Role),
 			CreatedAt: r.CreatedAt.Format(time.RFC3339),
 			UpdatedAt: r.UpdatedAt.Format(time.RFC3339),
 		}
@@ -311,7 +315,7 @@ func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 type SwitchWorkspaceResponse struct {
 	Token     string            `json:"token"`
 	Workspace WorkspaceResponse `json:"workspace"`
-	Role      string            `json:"role"`
+	Role      auth.Role         `json:"role"`
 }
 
 // handleSwitchWorkspace issues a new JWT scoped to a different workspace.
@@ -354,7 +358,11 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.JSON(SwitchWorkspaceResponse{Token: token, Workspace: workspaceToResponse(workspace), Role: member.Role})
+	return c.JSON(SwitchWorkspaceResponse{
+		Token:     token,
+		Workspace: workspaceToResponse(workspace),
+		Role:      auth.Role(member.Role),
+	})
 }
 
 // handleUpdateWorkspaceSettings updates workspace-level configuration.
@@ -570,12 +578,12 @@ func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 	}
 	ownerCount := 0
 	for _, m := range members {
-		if m.Role == "owner" {
+		if m.Role == string(auth.Owner) {
 			ownerCount++
 		}
 	}
 	for _, m := range members {
-		if m.UserID == targetUserID && m.Role == "owner" && ownerCount <= 1 {
+		if m.UserID == targetUserID && m.Role == string(auth.Owner) && ownerCount <= 1 {
 			return errRes(c, fiber.StatusBadRequest, "cannot remove the last owner")
 		}
 	}
@@ -614,14 +622,14 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 	}
 
 	// Prevent demoting self if last owner.
-	if targetUserID == claims.UserID && body.Role != "owner" {
+	if targetUserID == claims.UserID && body.Role != auth.Owner {
 		members, err := s.db.ListMembers(c.RequestCtx(), claims.WorkspaceID)
 		if err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not list members")
 		}
 		ownerCount := 0
 		for _, m := range members {
-			if m.Role == "owner" {
+			if m.Role == string(auth.Owner) {
 				ownerCount++
 			}
 		}
@@ -631,7 +639,7 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 	}
 
 	if err := s.db.UpdateMemberRole(c.RequestCtx(), dbgen.UpdateMemberRoleParams{
-		Role:        body.Role,
+		Role:        string(body.Role),
 		WorkspaceID: claims.WorkspaceID,
 		UserID:      targetUserID,
 	}); err != nil {

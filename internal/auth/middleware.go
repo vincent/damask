@@ -7,6 +7,12 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+type Role string
+
+var Owner = Role("owner")
+var Editor = Role("editor")
+var Viewer = Role("viewer")
+
 const claimsKey = "claims"
 
 // RequireAuth validates the token from Authorization header or auth_token cookie.
@@ -36,15 +42,15 @@ func GetClaims(c fiber.Ctx) *Claims {
 }
 
 // roleRank maps role names to an integer for comparison.
-var roleRank = map[string]int{
-	"viewer": 1,
-	"editor": 2,
-	"owner":  3,
+var roleRank = map[Role]int{
+	Viewer: 1,
+	Editor: 2,
+	Owner:  3,
 }
 
 // RequireRole returns a middleware that enforces a minimum role level.
 // It expects a getRoleFn to look up the current user's role in the workspace.
-func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, userID string) (string, error), minRole string) fiber.Handler {
+func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, userID string) (Role, error), minRole Role) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		claims := GetClaims(c)
 		if claims == nil {

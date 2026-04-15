@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	"damask/server/internal/ingress"
 	_ "damask/server/internal/ingress/sources/email_api"
 	th "damask/server/internal/tests_helpers"
@@ -333,7 +334,7 @@ func TestDeleteIngressSource_RequiresOwner(t *testing.T) {
 		`{"type":"imap","label":"Src","config":{}}`)
 	id := created["id"].(string)
 
-	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, "editor")
+	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Editor)
 	req := th.BearerRequest(http.MethodDelete, "/api/v1/ingress/sources/"+id, nil, editorToken)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
@@ -810,7 +811,7 @@ func TestCreateIngressRule_RequiresEditor(t *testing.T) {
 	src := createIngressSource(t, env, owner.Cookie, `{"type":"imap","label":"Inbox","config":{}}`)
 	id := src["id"].(string)
 
-	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 	req := th.BearerRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
 		th.JsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
 		viewerToken)

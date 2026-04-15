@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	th "damask/server/internal/tests_helpers"
 
@@ -418,7 +419,7 @@ func TestCreateVariant_ViewerForbidden(t *testing.T) {
 	var a api.AssetResponse
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
-	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, auth.Viewer)
 	createReq := th.BearerRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
 		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: json.RawMessage(`{"width":100}`)}), viewerToken)
 	createResp, _ := env.App.Test(createReq)
@@ -582,7 +583,7 @@ func TestUploadManualVariant_ViewerForbidden(t *testing.T) {
 	var a api.AssetResponse
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
-	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, auth.Viewer)
 
 	var body bytes.Buffer
 	boundary := "ViewerBoundary"
@@ -611,7 +612,7 @@ func TestVariant_ViewerCannotDelete(t *testing.T) {
 
 	v := insertVariantDirectly(t, env, assetID, a.WorkspaceID)
 
-	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, auth.Viewer)
 	delReq := th.BearerRequest(http.MethodDelete,
 		fmt.Sprintf("/api/v1/assets/%s/variants/%s", assetID, v.ID), nil, viewerToken)
 	delResp, _ := env.App.Test(delReq)

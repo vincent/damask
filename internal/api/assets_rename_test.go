@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	th "damask/server/internal/tests_helpers"
 
 	"github.com/gofiber/fiber/v3"
@@ -123,7 +124,7 @@ func TestRenameAsset_ViewerForbidden(t *testing.T) {
 
 	assetID := uploadTestJPEG(t, env, owner.Cookie, "photo.jpg")
 
-	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, "viewer")
+	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 	req := th.BearerRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
 		th.JsonBody(api.RenameAssetRequest{Name: "new"}), viewerToken)
 	resp, err := env.App.Test(req)

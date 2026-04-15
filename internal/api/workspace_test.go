@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"damask/server/internal/api"
+	"damask/server/internal/auth"
 	th "damask/server/internal/tests_helpers"
 	"encoding/json"
 	"io"
@@ -93,8 +94,8 @@ func TestWorkspaceMe_Authenticated(t *testing.T) {
 	if body.User.Email != "alice@example.com" {
 		t.Errorf("user email = %q, want %q", body.User.Email, "alice@example.com")
 	}
-	if body.Role != "owner" {
-		t.Errorf("role = %q, want %q", body.Role, "owner")
+	if body.Role != auth.Owner {
+		t.Errorf("role = %q, want %q", body.Role, auth.Owner)
 	}
 }
 
@@ -117,7 +118,7 @@ func TestCreateInvite_AsOwner(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), result.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -142,10 +143,10 @@ func TestCreateInvite_AsOwner(t *testing.T) {
 func TestCreateInvite_AsEditor_Forbidden(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, "editor")
+	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Editor)
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "carol@example.com", Role: "viewer"}), editorToken)
+		th.JsonBody(api.CreateInviteRequest{Email: "carol@example.com", Role: auth.Viewer}), editorToken)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -160,7 +161,7 @@ func TestCreateInvite_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}))
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -178,7 +179,7 @@ func TestAcceptInvite_Success(t *testing.T) {
 
 	// Create an invite as owner
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), owner.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), owner.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil {
 		t.Fatalf("create invite request: %v", err)
@@ -247,8 +248,8 @@ func TestListWorkspaces_SingleWorkspace(t *testing.T) {
 	if len(body) != 1 {
 		t.Fatalf("expected 1 workspace, got %d", len(body))
 	}
-	if body[0].Role != "owner" {
-		t.Errorf("role = %q, want %q", body[0].Role, "owner")
+	if body[0].Role != auth.Owner {
+		t.Errorf("role = %q, want %q", body[0].Role, auth.Owner)
 	}
 	if body[0].ID != result.WorkspaceID {
 		t.Errorf("workspace id = %q, want %q", body[0].ID, result.WorkspaceID)
@@ -336,7 +337,7 @@ func TestSwitchWorkspace_Success(t *testing.T) {
 	if switchBody.Workspace.ID != secondID {
 		t.Errorf("workspace id = %q, want %q", switchBody.Workspace.ID, secondID)
 	}
-	if switchBody.Role != "owner" {
+	if switchBody.Role != auth.Owner {
 		t.Errorf("role = %q, want owner", switchBody.Role)
 	}
 
@@ -419,7 +420,7 @@ func TestAcceptInvite_ExpiredInvite(t *testing.T) {
 
 	// Create an invite
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), owner.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), owner.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil {
 		t.Fatalf("create invite request: %v", err)
@@ -489,7 +490,7 @@ func TestUpdateWorkspaceSettings_ExifKeep(t *testing.T) {
 func TestUpdateWorkspaceSettings_ExifKeep_NonOwner(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	body := map[string]any{"version_retention_count": 0, "exif_keep": true}
 	req := th.BearerRequest(http.MethodPut, "/api/v1/workspace/settings", th.JsonBody(body), editorToken)
@@ -573,7 +574,7 @@ func TestTriggerWorkspaceJob_ExtractExif_WithAssets(t *testing.T) {
 func TestTriggerWorkspaceJob_ExtractExif_NonOwner(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/workspace/jobs/extract_exif/trigger", nil, editorToken)
 	resp, err := env.App.Test(req)
@@ -590,7 +591,7 @@ func TestTriggerWorkspaceJob_ExtractExif_NonOwner(t *testing.T) {
 func TestListMembers_Owner(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/workspace/members", nil, result.Cookie)
 	resp, err := env.App.Test(req)
@@ -612,7 +613,7 @@ func TestListMembers_Owner(t *testing.T) {
 func TestListMembers_NonOwner(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	req := th.BearerRequest(http.MethodGet, "/api/v1/workspace/members", nil, editorToken)
 	resp, err := env.App.Test(req)
@@ -627,7 +628,7 @@ func TestListMembers_NonOwner(t *testing.T) {
 func TestRemoveMember_Success(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	// Find the editor's user ID
 	var editorUserID string
@@ -663,7 +664,7 @@ func TestRemoveMember_Self(t *testing.T) {
 func TestRemoveMember_NonOwner(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	req := th.BearerRequest(http.MethodDelete, "/api/v1/workspace/members/"+result.UserID, nil, editorToken)
 	resp, err := env.App.Test(req)
@@ -678,7 +679,7 @@ func TestRemoveMember_NonOwner(t *testing.T) {
 func TestUpdateMemberRole_Success(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	var editorUserID string
 	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
@@ -687,7 +688,7 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 	}
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+editorUserID,
-		th.JsonBody(api.UpdateMemberRoleRequest{Role: "viewer"}), result.Cookie)
+		th.JsonBody(api.UpdateMemberRoleRequest{Role: auth.Viewer}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -700,7 +701,7 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 func TestUpdateMemberRole_InvalidRole(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	var editorUserID string
 	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
@@ -724,7 +725,7 @@ func TestUpdateMemberRole_DemoteLastOwner(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+result.UserID,
-		th.JsonBody(api.UpdateMemberRoleRequest{Role: "editor"}), result.Cookie)
+		th.JsonBody(api.UpdateMemberRoleRequest{Role: auth.Editor}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -742,7 +743,7 @@ func TestListInvites_Owner(t *testing.T) {
 
 	// Create an invite first
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), result.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil || invResp.StatusCode != http.StatusCreated {
 		t.Fatalf("create invite failed: %v / %d", err, invResp.StatusCode)
@@ -773,7 +774,7 @@ func TestDeleteInvite_Success(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: "editor"}), result.Cookie)
+		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil || invResp.StatusCode != http.StatusCreated {
 		t.Fatalf("create invite: %v / %d", err, invResp.StatusCode)
@@ -805,7 +806,7 @@ func TestDeleteInvite_Success(t *testing.T) {
 func TestListInvites_NonOwner(t *testing.T) {
 	env := th.SetupTestApp(t)
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
-	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, "editor")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	req := th.BearerRequest(http.MethodGet, "/api/v1/workspace/invites", nil, editorToken)
 	resp, err := env.App.Test(req)

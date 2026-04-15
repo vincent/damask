@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"damask/server/internal/auth"
 	"encoding/json"
 	"strings"
 )
@@ -64,8 +65,8 @@ func (r *CreateWorkspaceRequest) Valid(_ context.Context) map[string]string {
 }
 
 type CreateInviteRequest struct {
-	Email string `json:"email"`
-	Role  string `json:"role"` // "editor" or "viewer"
+	Email string    `json:"email"`
+	Role  auth.Role `json:"role"` // "editor" or "viewer"
 }
 
 func (r *CreateInviteRequest) Valid(_ context.Context) map[string]string {
@@ -74,21 +75,21 @@ func (r *CreateInviteRequest) Valid(_ context.Context) map[string]string {
 		p["email"] = "required"
 	}
 	if r.Role == "" {
-		r.Role = "editor"
+		r.Role = auth.Editor
 	}
-	if r.Role != "editor" && r.Role != "viewer" {
+	if r.Role != auth.Editor && r.Role != auth.Viewer {
 		p["role"] = "must be editor or viewer"
 	}
 	return p
 }
 
 type UpdateMemberRoleRequest struct {
-	Role string `json:"role"`
+	Role auth.Role `json:"role"`
 }
 
 func (r *UpdateMemberRoleRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
-	if r.Role != "owner" && r.Role != "editor" && r.Role != "viewer" {
+	if r.Role != auth.Owner && r.Role != auth.Editor && r.Role != auth.Viewer {
 		p["role"] = "must be owner, editor, or viewer"
 	}
 	return p
@@ -130,8 +131,8 @@ func (r *SwitchWorkspaceRequest) Valid(_ context.Context) map[string]string {
 
 type UpdateWorkspaceSettingsRequest struct {
 	VersionRetentionCount int64 `json:"version_retention_count"`
-	ExifKeep             bool  `json:"exif_keep"`
-	ExifKeepGPS          bool  `json:"exif_keep_gps"`
+	ExifKeep              bool  `json:"exif_keep"`
+	ExifKeepGPS           bool  `json:"exif_keep_gps"`
 }
 
 func (r *UpdateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {

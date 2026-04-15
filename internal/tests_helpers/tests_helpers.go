@@ -176,9 +176,9 @@ func BearerRequest(method, path string, body io.Reader, token string) *http.Requ
 
 // MintEditorToken inserts a user + member row directly and returns a signed token.
 // Use this to set up non-owner fixture users without going through the invite flow.
-func MintEditorToken(t *testing.T, env *TestEnv, workspaceID, role string) string {
+func MintEditorToken(t *testing.T, env *TestEnv, workspaceID string, role auth.Role) string {
 	t.Helper()
-	userID := "test-editor-" + role + "-id"
+	userID := string("test-editor-" + role + "-id")
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
