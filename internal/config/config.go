@@ -1,6 +1,7 @@
 package config
 
 import (
+	"damask/server/internal/storage"
 	"errors"
 	"net/url"
 	"os"
@@ -17,7 +18,8 @@ type Config struct {
 	DBPath          string
 	StoragePath     string
 	StorageType     string // "local" | "sftp"
-	StorageSFTP     StorageSFTPConfig
+	StorageSFTP     storage.SFTPConfig
+	StorageS3       storage.AferoS3Config
 	JWTSecret       string
 	AppSecret       string
 	AppEnv          string
@@ -28,18 +30,7 @@ type Config struct {
 	EnableScheduler bool
 	Demo            DemoConfig
 	// BodyLimit overrides the default 100 MB upload limit. Zero means use the default.
-	BodyLimit       int
-}
-
-// StorageSFTPConfig holds SFTP backend connection parameters.
-type StorageSFTPConfig struct {
-	Host       string
-	Port       int // default 22
-	User       string
-	AuthMethod string // "password" | "key"
-	Password   string
-	PrivateKey string // PEM-encoded
-	BasePath   string // remote base directory, default "/"
+	BodyLimit int
 }
 
 // DemoConfig holds all demo-mode settings. All fields are zero-valued when
@@ -65,7 +56,7 @@ func Load() (*Config, error) {
 	}
 
 	sftpPort := 22
-	if p := os.Getenv("SFTP_PORT"); p != "" {
+	if p := os.Getenv("STORAGE_SFTP_PORT"); p != "" {
 		if n, err := strconv.Atoi(p); err == nil && n > 0 {
 			sftpPort = n
 		}
@@ -83,16 +74,23 @@ func Load() (*Config, error) {
 		Port:           getEnv("PORT", "8080"),
 		MailServerPort: getEnv("MAIL_PORT", "2525"),
 		DBPath:         getEnv("DB_PATH", "./damask.db"),
-		StoragePath:    getEnv("STORAGE_PATH", "./storage"),
+		StoragePath:    getEnv("STORAGE_LOCAL_PATH", "./storage"),
 		StorageType:    getEnv("STORAGE", "local"),
-		StorageSFTP: StorageSFTPConfig{
-			Host:       os.Getenv("SFTP_HOST"),
+		StorageSFTP: storage.SFTPConfig{
+			Host:       os.Getenv("STORAGE_SFTP_HOST"),
 			Port:       sftpPort,
-			User:       os.Getenv("SFTP_USER"),
-			AuthMethod: getEnv("SFTP_AUTH_METHOD", "password"),
-			Password:   os.Getenv("SFTP_PASSWORD"),
-			PrivateKey: os.Getenv("SFTP_PRIVATE_KEY"),
-			BasePath:   getEnv("SFTP_BASE_PATH", "/"),
+			User:       os.Getenv("STORAGE_SFTP_USER"),
+			AuthMethod: getEnv("STORAGE_SFTP_AUTH_METHOD", "password"),
+			Password:   os.Getenv("STORAGE_SFTP_PASSWORD"),
+			PrivateKey: os.Getenv("STORAGE_SFTP_PRIVATE_KEY"),
+			BasePath:   getEnv("STORAGE_SFTP_BASE_PATH", "/"),
+		},
+		StorageS3: storage.AferoS3Config{
+			Base:      getEnv("STORAGE_S3_BASE_PATH", "/"),
+			Bucket:    os.Getenv("STORAGE_S3_BUCKET"),
+			Region:    os.Getenv("STORAGE_S3_REGION"),
+			AccessKey: os.Getenv("STORAGE_S3_ACCESSKEY"),
+			SecretKey: os.Getenv("STORAGE_S3_SECRETKEY"),
 		},
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		AppSecret:       os.Getenv("APP_SECRET"),

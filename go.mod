@@ -4,6 +4,8 @@ go 1.25.6
 
 require (
 	github.com/DusanKasan/parsemail v1.2.0
+	github.com/agnivade/levenshtein v1.2.1
+	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.98.0
@@ -14,6 +16,7 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/emersion/go-imap/v2 v2.0.0-beta.8
 	github.com/emersion/go-smtp v0.24.0
+	github.com/fclairamb/afero-s3 v0.4.0
 	github.com/gofiber/contrib/v3/swaggo v1.0.1
 	github.com/gofiber/fiber/v3 v3.1.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -21,6 +24,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/sftp v1.13.10
+	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
+	github.com/spf13/afero v1.15.0
 	github.com/studio-b12/gowebdav v0.12.0
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.49.0
@@ -28,10 +33,9 @@ require (
 )
 
 require (
-	github.com/agnivade/levenshtein v1.2.1 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.41.5 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.21 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.20.19 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.6 // indirect
@@ -62,7 +66,6 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 )
 
@@ -95,14 +98,14 @@ require (
 	github.com/swaggo/files/v2 v2.0.2 // indirect
 	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.69.0 // indirect
+	github.com/valyala/fasthttp v1.69.0
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/image v0.38.0
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/text v0.35.0
 	golang.org/x/tools v0.43.0 // indirect
 	modernc.org/libc v1.70.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

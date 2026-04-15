@@ -39,7 +39,7 @@ EXPOSE 8080
 ENV PORT=8080 \
     MAIL_PORT=2525 \
     DB_PATH=/data/damask.db \
-    STORAGE_PATH=/data/storage \
+    STORAGE_LOCAL_PATH=/data/storage \
     APP_ENV=production
 
 # JWT_SECRET must be supplied at runtime via environment variable.

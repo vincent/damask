@@ -72,16 +72,12 @@ func main() {
 	slog.Info("storage", "using", cfg.StorageType)
 	var stor storage.Storage
 	switch cfg.StorageType {
+	case "memory":
+		stor, err = storage.NewAferoMemoryStorage()
+	case "s3":
+		stor, err = storage.NewAferoS3Storage(cfg.StorageS3)
 	case "sftp":
-		stor, err = storage.NewSFTPStorage(storage.SFTPConfig{
-			Host:       cfg.StorageSFTP.Host,
-			Port:       cfg.StorageSFTP.Port,
-			User:       cfg.StorageSFTP.User,
-			AuthMethod: cfg.StorageSFTP.AuthMethod,
-			Password:   cfg.StorageSFTP.Password,
-			PrivateKey: cfg.StorageSFTP.PrivateKey,
-			BasePath:   cfg.StorageSFTP.BasePath,
-		})
+		stor, err = storage.NewSFTPStorage(cfg.StorageSFTP)
 	default: // "local" and anything unrecognized
 		stor, err = storage.NewLocalStorage(cfg.StoragePath)
 	}

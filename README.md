@@ -79,7 +79,7 @@ Web: http://localhost:5173
 | `PORT` | `8080` | API server port |
 | `MAIL_PORT` | `2525` | Bundled SMTP server port |
 | `DB_PATH` | `./damask.db` | SQLite database path |
-| `STORAGE_PATH` | `./storage` | Asset storage directory |
+| `STORAGE_LOCAL_PATH` | `./storage` | Asset storage directory |
 | `BASE_URL` | `http://localhost:5173` | Public URL for share links and email webhooks |
 | `JWT_SECRET` | - | **Required.** HMAC key, >= 32 chars |
 | `APP_SECRET` | - | **Required.** AES-256-GCM key for ingress config encryption, >= 32 chars |

@@ -16,7 +16,7 @@ import (
 // SFTPConfig holds the connection parameters for SFTPStorage.
 type SFTPConfig struct {
 	Host       string
-	Port       int    // default 22
+	Port       int // default 22
 	User       string
 	AuthMethod string // "password" | "key"
 	Password   string
@@ -35,10 +35,10 @@ type SFTPStorage struct {
 // SFTP server does not prevent the application from starting.
 func NewSFTPStorage(cfg SFTPConfig) (Storage, error) {
 	if cfg.Host == "" {
-		return nil, fmt.Errorf("sftp storage: SFTP_HOST is required")
+		return nil, fmt.Errorf("sftp storage: STORAGE_SFTP_HOST is required")
 	}
 	if cfg.User == "" {
-		return nil, fmt.Errorf("sftp storage: SFTP_USER is required")
+		return nil, fmt.Errorf("sftp storage: STORAGE_SFTP_USER is required")
 	}
 	if cfg.Port == 0 {
 		cfg.Port = 22
