@@ -69,11 +69,12 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	}
 
 	// Delete ghost users (alice and marc) — they will be recreated on next seed
+	base := strings.TrimPrefix(s.cfg.UserEmail, "demo") // e.g. "@example.com"
 	_, err = tx.ExecContext(
 		ctx,
 		`DELETE FROM users WHERE email IN (?, ?)`,
-		strings.ReplaceAll(s.cfg.UserEmail, "demo", "alice"),
-		strings.ReplaceAll(s.cfg.UserEmail, "demo", "marc"),
+		"alice"+base,
+		"marc"+base,
 	)
 	if err != nil {
 		return fmt.Errorf("demo: wipe ghost users: %w", err)

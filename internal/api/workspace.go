@@ -19,7 +19,6 @@ import (
 type WorkspaceResponse struct {
 	ID                       string    `json:"id"`
 	Name                     string    `json:"name"`
-	IngestToken              *string   `json:"ingest_token"`
 	VersionRetentionCount    int64     `json:"version_retention_count"`
 	EventLogRetentionDays    int64     `json:"event_log_retention_days"`
 	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`
@@ -35,7 +34,6 @@ func workspaceToResponse(w dbgen.Workspace) WorkspaceResponse {
 	return WorkspaceResponse{
 		ID:                       w.ID,
 		Name:                     w.Name,
-		IngestToken:              w.IngestToken,
 		VersionRetentionCount:    w.VersionRetentionCount,
 		EventLogRetentionDays:    w.EventLogRetentionDays,
 		DownloadLogRetentionDays: w.DownloadLogRetentionDays,

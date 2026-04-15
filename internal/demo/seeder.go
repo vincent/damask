@@ -146,13 +146,14 @@ func (s *Seeder) Seed(ctx context.Context) error {
 	}
 
 	// Create ghost users for the activity log (they may already exist from a previous seed)
-	aliceID, err := s.ensureGhostUser(ctx, strings.ReplaceAll(s.cfg.UserEmail, "demo", "alice"), "Alice")
+	base := strings.TrimPrefix(s.cfg.UserEmail, "demo") // e.g. "@example.com"
+	aliceID, err := s.ensureGhostUser(ctx, "alice"+base, "Alice")
 	if err != nil {
 		return fmt.Errorf("demo: ghost user alice: %w", err)
 	}
 	d.aliceID = aliceID
 
-	marcID, err := s.ensureGhostUser(ctx, strings.ReplaceAll(s.cfg.UserEmail, "demo", "marc"), "Marc")
+	marcID, err := s.ensureGhostUser(ctx, "marc"+base, "Marc")
 	if err != nil {
 		return fmt.Errorf("demo: ghost user marc: %w", err)
 	}

@@ -137,7 +137,10 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 
 	// Parse optional password (errors ignored — body is optional)
 	body := &ShareAccessRequest{}
-	_ = c.Bind().Body(body)
+	err = c.Bind().Body(body)
+	if err != nil {
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	}
 
 	// Check password
 	if share.PasswordHash != nil {

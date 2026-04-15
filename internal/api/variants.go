@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"mime"
 	"path/filepath"
 	"strconv"
@@ -71,6 +72,9 @@ func (s *Server) isRebuildingVariants(c fiber.Ctx, versionID string) bool {
 		   AND status IN ('pending', 'processing')`,
 		versionID,
 	).Scan(&count)
+	if err != nil {
+		log.Println("is_rebuilding_variants:", err)
+	}
 	return err == nil && count > 0
 }
 
@@ -526,7 +530,7 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	fit := c.Query("fit", "contain")
 	format := c.Query("format", "jpeg")
 
-	cacheKey := fmt.Sprintf("%s|w=%d|h=%d|fit=%s|format=%s|q=%d", assetID, w, h, fit, format, q)
+	cacheKey := fmt.Sprintf("%s|%s|w=%d|h=%d|fit=%s|format=%s|q=%d", asset.ID, *asset.CurrentVersionID, w, h, fit, format, q)
 	if cached, ct := s.previewCache.Get(cacheKey); cached != nil {
 		c.Set("Content-Type", ct)
 		c.Set("Cache-Control", "public, max-age=300")
