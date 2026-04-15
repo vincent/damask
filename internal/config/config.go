@@ -16,6 +16,8 @@ type Config struct {
 	Port            string
 	DBPath          string
 	StoragePath     string
+	StorageType     string // "local" | "sftp"
+	StorageSFTP     StorageSFTPConfig
 	JWTSecret       string
 	AppSecret       string
 	AppEnv          string
@@ -25,6 +27,17 @@ type Config struct {
 	FrontendPath    string
 	EnableScheduler bool
 	Demo            DemoConfig
+}
+
+// StorageSFTPConfig holds SFTP backend connection parameters.
+type StorageSFTPConfig struct {
+	Host       string
+	Port       int // default 22
+	User       string
+	AuthMethod string // "password" | "key"
+	Password   string
+	PrivateKey string // PEM-encoded
+	BasePath   string // remote base directory, default "/"
 }
 
 // DemoConfig holds all demo-mode settings. All fields are zero-valued when
@@ -49,6 +62,13 @@ func Load() (*Config, error) {
 		}
 	}
 
+	sftpPort := 22
+	if p := os.Getenv("SFTP_PORT"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil && n > 0 {
+			sftpPort = n
+		}
+	}
+
 	demoMode := getEnv("DEMO_MODE", "false") == "true"
 	demoResetHours := 6
 	if h := os.Getenv("DEMO_RESET_INTERVAL_HOURS"); h != "" {
@@ -58,10 +78,20 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:            getEnv("PORT", "8080"),
-		MailServerPort:  getEnv("MAIL_PORT", "2525"),
-		DBPath:          getEnv("DB_PATH", "./damask.db"),
-		StoragePath:     getEnv("STORAGE_PATH", "./storage"),
+		Port:           getEnv("PORT", "8080"),
+		MailServerPort: getEnv("MAIL_PORT", "2525"),
+		DBPath:         getEnv("DB_PATH", "./damask.db"),
+		StoragePath:    getEnv("STORAGE_PATH", "./storage"),
+		StorageType:    getEnv("STORAGE", "local"),
+		StorageSFTP: StorageSFTPConfig{
+			Host:       os.Getenv("SFTP_HOST"),
+			Port:       sftpPort,
+			User:       os.Getenv("SFTP_USER"),
+			AuthMethod: getEnv("SFTP_AUTH_METHOD", "password"),
+			Password:   os.Getenv("SFTP_PASSWORD"),
+			PrivateKey: os.Getenv("SFTP_PRIVATE_KEY"),
+			BasePath:   getEnv("SFTP_BASE_PATH", "/"),
+		},
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		AppSecret:       os.Getenv("APP_SECRET"),
 		AppEnv:          getEnv("APP_ENV", "development"),

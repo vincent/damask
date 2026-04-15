@@ -69,7 +69,22 @@ func main() {
 
 	eventsHub := events.NewEventHub()
 
-	stor, err := storage.NewLocalStorage(cfg.StoragePath)
+	slog.Info("storage", "using", cfg.StorageType)
+	var stor storage.Storage
+	switch cfg.StorageType {
+	case "sftp":
+		stor, err = storage.NewSFTPStorage(storage.SFTPConfig{
+			Host:       cfg.StorageSFTP.Host,
+			Port:       cfg.StorageSFTP.Port,
+			User:       cfg.StorageSFTP.User,
+			AuthMethod: cfg.StorageSFTP.AuthMethod,
+			Password:   cfg.StorageSFTP.Password,
+			PrivateKey: cfg.StorageSFTP.PrivateKey,
+			BasePath:   cfg.StorageSFTP.BasePath,
+		})
+	default: // "local" and anything unrecognized
+		stor, err = storage.NewLocalStorage(cfg.StoragePath)
+	}
 	if err != nil {
 		slog.Error("storage", "error", err)
 		os.Exit(1)
