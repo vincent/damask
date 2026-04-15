@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 )
 
@@ -87,11 +87,10 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	// Delete storage files after the transaction succeeds
 	if err := s.storage.Delete(fmt.Sprintf("demo/%s", workspaceID)); err != nil {
 		// Non-fatal: log and continue
-		log.Printf("demo: wipe storage delete: %v", err)
+		slog.Warn("demo: wipe storage delete", "error", err)
 	}
 
-	log.Printf("demo: wipe complete assets_deleted=%d versions_deleted=%d storage_files_deleted=%d",
-		assetsDeleted, versionsDeleted, len(storageKeys))
+	slog.Info("demo: wipe complete", "assets_deleted", assetsDeleted, "versions_deleted", versionsDeleted, "storage_files_deleted", len(storageKeys))
 	return nil
 }
 

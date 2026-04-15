@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -35,7 +35,7 @@ func (s Session) AuthPlain(username, password string) error {
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
-	log.Println("Mail from:", from)
+	slog.Debug("mail from", "from", from)
 	s.from = from
 	return nil
 }
@@ -72,12 +72,12 @@ func (s *Session) Data(r io.Reader) error {
 		src, err := s.db.GetIngressSourceByPublicToken(ctx, token)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				log.Printf("mailserver: lookup source token %q: %v", token, err)
+				slog.Error("mailserver: lookup source token", "token_prefix", safePrefix(token), "error", err)
 			}
 			return nil
 		}
 		if src.Enabled == 0 {
-			log.Printf("mailserver: ignore disabled source %q", token)
+			slog.Debug("mailserver: ignore disabled source", "token", token)
 			return nil
 		}
 
@@ -90,18 +90,25 @@ func (s *Session) Data(r io.Reader) error {
 			}); err == nil {
 				overrideFolderID = folder.ID
 			} else {
-				log.Printf("mailserver: no folder for tag %q in workspace %s (falling back to default)", tag, src.WorkspaceID)
+				slog.Warn("mailserver: no folder for tag (falling back to default)", "tag", tag, "workspace_id", src.WorkspaceID)
 			}
 		}
 
 		for _, att := range email.Attachments {
 			if err := s.ingestAttachment(ctx, src, att, overrideFolderID); err != nil {
-				log.Printf("mailserver: ingest %q for source %s: %v", att.Filename, src.ID, err)
+				slog.Error("mailserver: ingest attachment", "filename", att.Filename, "source_id", src.ID, "error", err)
 			}
 		}
 	}
 
 	return nil
+}
+
+func safePrefix(s string) string {
+	if len(s) <= 8 {
+		return "***"
+	}
+	return s[:8] + "..."
 }
 
 func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource, att parsemail.Attachment, overrideFolderID string) error {

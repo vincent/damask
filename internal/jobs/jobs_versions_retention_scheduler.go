@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	dbgen "damask/server/internal/db/gen"
@@ -30,7 +30,7 @@ func (s *JobServer) jobEnforceVersionRetention(ctx context.Context, job dbgen.Jo
 			continue
 		}
 		if err := s.EnforceRetentionForWorkspace(ctx, ws); err != nil {
-			log.Printf("retention: workspace %s: %v", ws.ID, err)
+			slog.Error("retention: workspace failed", "workspace_id", ws.ID, "error", err)
 		}
 	}
 	return nil
@@ -47,7 +47,7 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 	for _, assetID := range assetIDs {
 		count, err := s.db.CountActiveVersions(ctx, assetID)
 		if err != nil {
-			log.Printf("retention: count versions for %s: %v", assetID, err)
+			slog.Error("retention: count versions", "asset_id", assetID, "error", err)
 			continue
 		}
 		if count <= keep {
@@ -61,7 +61,7 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 			Offset:  keep, // skip the `keep` most recent non-current versions
 		})
 		if err != nil {
-			log.Printf("retention: list beyond for %s: %v", assetID, err)
+			slog.Error("retention: list beyond retention", "asset_id", assetID, "error", err)
 			continue
 		}
 
@@ -75,11 +75,11 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 				CoverVersionID: &v.ID,
 				IconVersionID:  &v.ID,
 			}); err == nil && refs > 0 {
-				log.Printf("retention: skipping version %s — in use as cover/icon", v.ID)
+				slog.Debug("retention: skipping version in use as cover/icon", "version_id", v.ID)
 				continue
 			}
 			if err := s.db.SoftDeleteVersion(ctx, v.ID); err != nil {
-				log.Printf("retention: soft-delete version %s: %v", v.ID, err)
+				slog.Error("retention: soft-delete version", "version_id", v.ID, "error", err)
 				continue
 			}
 			// Enqueue physical purge after 7-day grace period.
@@ -88,7 +88,7 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 				WorkspaceID: ws.ID,
 			})
 			if _, err := s.queue.Enqueue(ctx, ws.ID, queue.JobTypePurgeVersionStorage, string(payload)); err != nil {
-				log.Printf("retention: enqueue purge for version %s: %v", v.ID, err)
+				slog.Error("retention: enqueue purge", "version_id", v.ID, "error", err)
 			}
 		}
 	}
@@ -111,13 +111,13 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 
 	// Safety guard: never purge a current version.
 	if ver.IsCurrent == 1 {
-		log.Printf("purge-version-storage: version %s is current — skipping", p.VersionID)
+		slog.Warn("purge-version-storage: version is current — skipping", "version_id", p.VersionID)
 		return nil
 	}
 
 	// Enforce 7-day grace period.
 	if ver.DeletedAt == nil {
-		log.Printf("purge-version-storage: version %s has no deleted_at — skipping", p.VersionID)
+		slog.Error("purge-version-storage: version has no deleted_at — skipping", "version_id", p.VersionID)
 		return nil
 	}
 	deletedAt, err := ParseSQLiteTime(*ver.DeletedAt)
@@ -127,10 +127,10 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 	if time.Since(deletedAt) < 7*24*time.Hour {
 		// Grace period not yet elapsed — re-enqueue so the job is retried rather
 		// than silently dropped. It will check the elapsed time again on next run.
-		log.Printf("purge-version-storage: version %s grace period not elapsed — re-enqueuing", p.VersionID)
+		slog.Info("purge-version-storage: grace period not elapsed — re-enqueuing", "version_id", p.VersionID)
 		payload, _ := json.Marshal(p)
 		if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypePurgeVersionStorage, string(payload)); err != nil {
-			log.Printf("purge-version-storage: re-enqueue version %s: %v", p.VersionID, err)
+			slog.Error("purge-version-storage: re-enqueue", "version_id", p.VersionID, "error", err)
 		}
 		return nil
 	}
@@ -139,21 +139,21 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 	// DB rows are cleaned up by ON DELETE CASCADE when the version row is hard-deleted.
 	variants, varErr := s.db.ListVariantsByVersion(ctx, p.VersionID)
 	if varErr != nil {
-		log.Printf("purge-version-storage: list variants for version %s: %v", p.VersionID, varErr)
+		slog.Error("purge-version-storage: list variants", "version_id", p.VersionID, "error", varErr)
 	}
 	for _, v := range variants {
 		if err := s.storage.Delete(v.StorageKey); err != nil {
-			log.Printf("purge-version-storage: delete variant storage %s: %v", v.StorageKey, err)
+			slog.Error("purge-version-storage: delete variant storage", "storage_key", v.StorageKey, "error", err)
 		}
 	}
 
 	// Delete source + thumbnail storage files.
 	if err := s.storage.Delete(ver.StorageKey); err != nil {
-		log.Printf("purge-version-storage: delete storage %s: %v", ver.StorageKey, err)
+		slog.Error("purge-version-storage: delete storage", "storage_key", ver.StorageKey, "error", err)
 	}
 	if ver.ThumbnailKey != nil {
 		if err := s.storage.Delete(*ver.ThumbnailKey); err != nil {
-			log.Printf("purge-version-storage: delete thumb %s: %v", *ver.ThumbnailKey, err)
+			slog.Error("purge-version-storage: delete thumb", "storage_key", *ver.ThumbnailKey, "error", err)
 		}
 	}
 

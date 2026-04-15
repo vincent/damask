@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"mime"
 	"path/filepath"
 	"strconv"
@@ -73,7 +73,7 @@ func (s *Server) isRebuildingVariants(c fiber.Ctx, versionID string) bool {
 		versionID,
 	).Scan(&count)
 	if err != nil {
-		log.Println("is_rebuilding_variants:", err)
+		slog.Error("is_rebuilding_variants", "error", err)
 	}
 	return err == nil && count > 0
 }

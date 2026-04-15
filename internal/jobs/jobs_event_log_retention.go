@@ -3,7 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	dbgen "damask/server/internal/db/gen"
@@ -23,7 +23,7 @@ func (s *JobServer) jobPurgeAuditLog(ctx context.Context, job dbgen.Job) error {
 
 	for _, ws := range workspaces {
 		if err := s.purgeAuditLogForWorkspace(ctx, ws); err != nil {
-			log.Printf("audit-log retention: workspace %s: %v", ws.ID, err)
+			slog.Error("audit-log retention: workspace failed", "workspace_id", ws.ID, "error", err)
 		}
 	}
 	return nil
@@ -39,9 +39,9 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.List
 			WorkspaceID: ws.ID,
 			Cutoff:      cutoff,
 		}); err != nil {
-			log.Printf("audit-log retention: workspace %s: purge downloads: %v", ws.ID, err)
+			slog.Error("audit-log retention: purge downloads", "workspace_id", ws.ID, "error", err)
 		} else {
-			log.Printf("audit-log retention: workspace %s: purged download events before %s", ws.ID, cutoff)
+			slog.Info("audit-log retention: purged download events", "workspace_id", ws.ID, "cutoff", cutoff)
 		}
 	}
 
@@ -52,17 +52,17 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.List
 			WorkspaceID: ws.ID,
 			Cutoff:      cutoff,
 		}); err != nil {
-			log.Printf("audit-log retention: workspace %s: purge asset events: %v", ws.ID, err)
+			slog.Error("audit-log retention: purge asset events", "workspace_id", ws.ID, "error", err)
 		} else {
-			log.Printf("audit-log retention: workspace %s: purged asset events before %s", ws.ID, cutoff)
+			slog.Info("audit-log retention: purged asset events", "workspace_id", ws.ID, "cutoff", cutoff)
 		}
 		if err := s.db.DeleteProjectEventsOlderThan(ctx, dbgen.DeleteProjectEventsOlderThanParams{
 			WorkspaceID: ws.ID,
 			Cutoff:      cutoff,
 		}); err != nil {
-			log.Printf("audit-log retention: workspace %s: purge project events: %v", ws.ID, err)
+			slog.Error("audit-log retention: purge project events", "workspace_id", ws.ID, "error", err)
 		} else {
-			log.Printf("audit-log retention: workspace %s: purged project events before %s", ws.ID, cutoff)
+			slog.Info("audit-log retention: purged project events", "workspace_id", ws.ID, "cutoff", cutoff)
 		}
 	}
 
@@ -87,9 +87,9 @@ func (r *AuditLogRetentionScheduler) Start(ctx context.Context) {
 				return
 			case <-time.After(time.Until(next)):
 				if _, err := r.queue.Enqueue(ctx, "system", queue.JobTypePurgeAuditLog, "{}"); err != nil {
-					log.Printf("audit-log retention scheduler: enqueue: %v", err)
+					slog.Error("audit-log retention scheduler: enqueue", "error", err)
 				} else {
-					log.Printf("audit-log retention scheduler: enqueued purge_event_log")
+					slog.Info("audit-log retention scheduler: enqueued purge_event_log")
 				}
 			}
 		}

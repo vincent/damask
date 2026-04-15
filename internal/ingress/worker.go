@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -101,7 +101,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 			continue
 		}
 		if err != nil {
-			log.Printf("ingest_poll: insert log entry for %s: %v", item.RemoteID, err)
+			slog.Error("ingest_poll: insert log entry", "remote_id", item.RemoteID, "error", err)
 			continue
 		}
 
@@ -113,7 +113,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 			Filename:    item.Filename,
 		})
 		if _, err := w.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
-			log.Printf("ingest_poll: enqueue fetch for %s: %v", item.RemoteID, err)
+			slog.Error("ingest_poll: enqueue fetch", "remote_id", item.RemoteID, "error", err)
 		}
 	}
 
@@ -157,7 +157,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	// Evaluate rules
 	rules, err := w.db.ListIngressRules(ctx, src.ID)
 	if err != nil {
-		log.Printf("ingest_fetch: list rules for %s: %v (continuing without rules)", src.ID, err)
+		slog.Warn("ingest_fetch: list rules (continuing without rules)", "source_id", src.ID, "error", err)
 	}
 	ruleResult := EvaluateRules(rules, ItemMeta{Filename: entry.Filename})
 	if !ruleResult.Allow {
@@ -240,7 +240,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		AssetID: &assetID,
 		ID:      entry.ID,
 	}); err != nil {
-		log.Printf("ingest_fetch: update log entry %s: %v", entry.ID, err)
+		slog.Error("ingest_fetch: update log entry", "entry_id", entry.ID, "error", err)
 	}
 
 	w.audit.WriteAsset(ctx, audit.AssetEvent{
@@ -258,7 +258,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		Name:        src.Label,
 	})
 	if err != nil {
-		log.Printf("ingest_fetch: could not get or create tag: %v", err)
+		slog.Error("ingest_fetch: could not get or create tag", "error", err)
 	}
 
 	_ = w.db.AddTagToAsset(ctx, dbgen.AddTagToAssetParams{

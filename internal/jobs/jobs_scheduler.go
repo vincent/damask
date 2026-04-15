@@ -2,7 +2,7 @@ package jobs
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"damask/server/internal/queue"
@@ -29,9 +29,9 @@ func (r *RetentionScheduler) Start(ctx context.Context) {
 				return
 			case <-time.After(time.Until(next)):
 				if _, err := r.queue.Enqueue(ctx, "system", queue.JobTypeEnforceVersionRetention, "{}"); err != nil {
-					log.Printf("retention scheduler: enqueue: %v", err)
+					slog.Error("retention scheduler: enqueue", "error", err)
 				} else {
-					log.Printf("retention scheduler: enqueued enforce_version_retention")
+					slog.Info("retention scheduler: enqueued enforce_version_retention")
 				}
 			}
 		}

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -291,7 +291,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 
 	// Atomically promote the new version to current.
 	if err := s.setCurrentVersion(c.RequestCtx(), assetID, newVersion.ID); err != nil {
-		log.Printf("set current version: %v", err)
+		slog.Error("set current version", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not promote version")
 	}
 	newVersion.IsCurrent = 1
@@ -301,7 +301,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		ThumbnailKey: nil, // thumbnail will come from the job
 		ID:           assetID,
 	}); err != nil {
-		log.Printf("clear asset thumbnail: %v", err)
+		slog.Error("clear asset thumbnail", "error", err)
 	}
 
 	// Enqueue thumbnail generation for the new version.
@@ -313,7 +313,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		c.RequestCtx(), s.queue,
 		claims.WorkspaceID, assetID, newVersion.ID, prevVersionID,
 	); err != nil {
-		log.Printf("enqueue rebuild variants for %s/%s: %v", assetID, newVersion.ID, err)
+		slog.Error("enqueue rebuild variants", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
 	}
 
 	// Reload asset to return latest state.
@@ -470,7 +470,7 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 		ThumbnailKey: target.ThumbnailKey,
 		ID:           assetID,
 	}); err != nil {
-		log.Printf("restore: sync thumbnail: %v", err)
+		slog.Error("restore: sync thumbnail", "error", err)
 	}
 
 	updatedAsset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
@@ -713,6 +713,6 @@ func (s *Server) enqueueVersionThumbnail(ctx context.Context, asset dbgen.Asset,
 		MimeType:    version.MimeType,
 	}
 	if err := jobs.EnqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
-		log.Printf("enqueue version thumbnail for %s/%s: %v", asset.ID, version.ID, err)
+		slog.Error("enqueue version thumbnail", "asset_id", asset.ID, "version_id", version.ID, "error", err)
 	}
 }

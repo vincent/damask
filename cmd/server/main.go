@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,34 +25,54 @@ import (
 	_ "damask/server/internal/ingress/sources/imap"
 	_ "damask/server/internal/ingress/sources/s3"
 	_ "damask/server/internal/ingress/sources/sftp"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 var uiFS fs.FS // Populated by ui.go (prod) or ui_dev.go (dev)
 
 func main() {
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("config: %v", err)
+	logLevel := new(slog.LevelVar)
+	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})
+	slog.SetDefault(slog.New(handler))
+	switch os.Getenv("LOG_LEVEL") {
+	case "DEBUG":
+		logLevel.Set(slog.LevelDebug)
+	case "WARN":
+		logLevel.Set(slog.LevelWarn)
+	case "ERROR":
+		logLevel.Set(slog.LevelError)
+	default:
+		logLevel.Set(slog.LevelInfo)
 	}
 
-	log.Println("database:", cfg.DBPath)
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("config", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("database", "path", cfg.DBPath)
 
 	queries, sqlDB, err := db.Open(cfg.DBPath)
 	if err != nil {
-		log.Fatalf("database: %v", err)
+		slog.Error("database", "error", err)
+		os.Exit(1)
 	}
 	defer sqlDB.Close()
 
 	tokenMaker, err := auth.NewMaker(cfg.JWTSecret)
 	if err != nil {
-		log.Fatalf("auth: %v", err)
+		slog.Error("auth", "error", err)
+		os.Exit(1)
 	}
 
 	eventsHub := events.NewEventHub()
 
 	stor, err := storage.NewLocalStorage(cfg.StoragePath)
 	if err != nil {
-		log.Fatalf("storage: %v", err)
+		slog.Error("storage", "error", err)
+		os.Exit(1)
 	}
 
 	q := queue.New(queries, cfg.QueueWorkers)
@@ -68,13 +88,13 @@ func main() {
 
 	if cfg.EnableScheduler {
 		ingress.NewScheduler(queries, q).Start(ctx)
-		log.Printf("ingress scheduler started")
+		slog.Info("ingress scheduler started")
 		jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)
-		log.Printf("field cleanup scheduler started")
+		slog.Info("field cleanup scheduler started")
 		jobs.NewRetentionScheduler(q).Start(ctx)
-		log.Printf("retention scheduler started")
+		slog.Info("retention scheduler started")
 		jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
-		log.Printf("audit-log retention scheduler started")
+		slog.Info("audit-log retention scheduler started")
 	}
 
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.
@@ -84,15 +104,31 @@ func main() {
 	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg, demoSeeder, uiFS)
 
 	mail := services.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
-	log.Printf("mail server starting on :%s", cfg.MailServerPort)
+	slog.Info("mail server starting", "port", cfg.MailServerPort)
+	mailErr := make(chan error, 1)
 	go func() {
 		if err := mail.Start(); err != nil {
-			log.Fatalf("mail server: %v", err)
+			mailErr <- err
 		}
 	}()
 
-	log.Printf("api server starting on :%s (env=%s, workers=%d)", cfg.Port, cfg.AppEnv, cfg.QueueWorkers)
-	if err := app.Listen(":" + cfg.Port); err != nil {
-		log.Fatalf("api server: %v", err)
+	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)
+	appErr := make(chan error, 1)
+	go func() {
+		if err := app.Listen(":"+cfg.Port, fiber.ListenConfig{
+			DisableStartupMessage: true,
+		}); err != nil {
+			appErr <- err
+		}
+	}()
+
+	select {
+	case err := <-mailErr:
+		slog.Error("mail server", "error", err)
+		os.Exit(1)
+	case err := <-appErr:
+		slog.Error("api server", "error", err)
+		os.Exit(1)
+	case <-ctx.Done():
 	}
 }

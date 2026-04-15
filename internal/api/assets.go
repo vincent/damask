@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -278,7 +278,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 
 	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
 	if err != nil {
-		log.Println("could not list assets", err)
+		slog.Error("could not list assets", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 	defer rows.Close()

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -158,7 +158,7 @@ func CreateAsset(
 			meta = m
 		}
 	} else {
-		log.Printf("no handler for MIME type %s, skipping metadata extraction and job enqueueing", mimeType)
+		slog.Debug("no handler for MIME type, skipping metadata extraction and job enqueueing", "mime_type", mimeType)
 	}
 
 	// Save asset
@@ -177,12 +177,12 @@ func CreateAsset(
 		return nil, fiber.NewError(fiber.StatusInternalServerError, "could not save asset")
 	}
 
-	log.Printf("created asset %s with MIME type %s", asset.ID, asset.MimeType)
+	slog.Debug("created asset", "asset_id", asset.ID, "mime_type", asset.MimeType)
 
 	// AV-2.1: create the v1 asset_versions row and set current_version_id.
 	initialVersionID, vErr := createInitialVersion(ctx, db, sqlDB, asset, filePath, storageKey, mimeType, meta, opts.UserID)
 	if vErr != nil {
-		log.Printf("create initial version for %s: %v", asset.ID, vErr)
+		slog.Error("create initial version", "asset_id", asset.ID, "error", vErr)
 		// Non-fatal: the asset row is already committed; versioning can be
 		// back-filled by the data migration. Do not fail the upload.
 	}
@@ -194,7 +194,7 @@ func CreateAsset(
 			ID:          asset.ID,
 			WorkspaceID: workspaceID,
 		}); err != nil {
-			log.Printf("set folder for asset %s: %v", asset.ID, err)
+			slog.Error("set folder for asset", "asset_id", asset.ID, "error", err)
 		} else {
 			asset.FolderID = opts.FolderID
 		}
@@ -216,7 +216,7 @@ func CreateAsset(
 			MimeType:    asset.MimeType,
 		})
 		if _, err := qu.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload)); err != nil {
-			log.Printf("enqueue version thumbnail for %s: %v", asset.ID, err)
+			slog.Error("enqueue version thumbnail", "asset_id", asset.ID, "error", err)
 		}
 	}
 
@@ -228,7 +228,7 @@ func CreateAsset(
 			"user_id":      opts.UserID,
 		})
 		if _, err := qu.Enqueue(ctx, workspaceID, queue.JobTypeExtractExif, string(exifPayload)); err != nil {
-			log.Printf("enqueue extract_exif for %s: %v", asset.ID, err)
+			slog.Error("enqueue extract_exif", "asset_id", asset.ID, "error", err)
 		}
 	}
 

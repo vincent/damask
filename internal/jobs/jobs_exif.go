@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -99,7 +99,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 	// Extract EXIF.
 	result, err := exifextract.Extract(r, keepGPS)
 	if err != nil {
-		log.Printf("exif: extract error asset=%s: %v — writing tombstone", p.AssetID, err)
+		slog.Warn("exif: extract error — writing tombstone", "asset_id", p.AssetID, "error", err)
 	}
 
 	if result == nil {
@@ -114,7 +114,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 		}); uErr != nil {
 			return fmt.Errorf("write tombstone: %w", uErr)
 		}
-		log.Printf("exif: no data asset=%s — tombstone written", p.AssetID)
+		slog.Debug("exif: no data — tombstone written", "asset_id", p.AssetID)
 		return nil
 	}
 
@@ -204,8 +204,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 		}
 	}
 
-	log.Printf("exif: extracted asset=%s make=%v model=%v gps=%v",
-		p.AssetID, ptrStr(result.Make), ptrStr(result.Model), result.GPS != nil)
+	slog.Debug("exif: extracted", "asset_id", p.AssetID, "make", ptrStr(result.Make), "model", ptrStr(result.Model), "gps", result.GPS != nil)
 	return nil
 }
 

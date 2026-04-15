@@ -2,7 +2,7 @@ package api
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	dbgen "damask/server/internal/db/gen"
 
@@ -14,7 +14,7 @@ import (
 func inheritProjectFields(ctx context.Context, db *dbgen.Queries, workspaceID, assetID, projectID, userID string) {
 	defs, err := db.ListInheritableAssetFieldDefinitions(ctx, workspaceID)
 	if err != nil {
-		log.Printf("field inheritance: list defs: %v", err)
+		slog.Error("field inheritance: list defs", "error", err)
 		return
 	}
 	if len(defs) == 0 {
@@ -40,7 +40,7 @@ func inheritProjectFields(ctx context.Context, db *dbgen.Queries, workspaceID, a
 			ValueBoolean: pv.ValueBoolean,
 			CreatedBy:    userID,
 		}); err != nil {
-			log.Printf("field inheritance: upsert asset %s field %s: %v", assetID, def.ID, err)
+			slog.Error("field inheritance: upsert asset field", "asset_id", assetID, "field_id", def.ID, "error", err)
 		}
 	}
 }

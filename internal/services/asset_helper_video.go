@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"strings"
 
 	"damask/server/internal/transform"
@@ -22,7 +22,7 @@ func (h VideoHandler) ExtractMeta(ctx context.Context, filePath string) (FileMet
 		width = &res.Width
 		height = &res.Height
 	} else {
-		log.Printf("video meta extraction failed: %v", err)
+		slog.Warn("video meta extraction failed", "error", err)
 	}
 
 	return FileMeta{

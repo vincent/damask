@@ -7,7 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,7 +48,7 @@ type ProjectEvent struct {
 func (w *EventWriter) WriteAsset(ctx context.Context, e AssetEvent) {
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
-		log.Printf("audit: marshal asset event %s: %v", e.EventType, err)
+		slog.Error("audit: marshal asset event", "event_type", e.EventType, "error", err)
 		return
 	}
 
@@ -60,7 +60,7 @@ func (w *EventWriter) WriteAsset(ctx context.Context, e AssetEvent) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
 	`, uuid.NewString(), e.WorkspaceID, e.AssetID, e.UserID, e.ActorType, e.EventType, string(payload))
 	if err != nil {
-		log.Printf("audit: insert asset event %s for asset %s: %v", e.EventType, e.AssetID, err)
+		slog.Error("audit: insert asset event", "event_type", e.EventType, "asset_id", e.AssetID, "error", err)
 	}
 }
 
@@ -76,7 +76,7 @@ func (w *EventWriter) WriteAssetAsync(e AssetEvent) {
 func (w *EventWriter) WriteProject(ctx context.Context, e ProjectEvent) {
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
-		log.Printf("audit: marshal project event %s: %v", e.EventType, err)
+		slog.Error("audit: marshal project event", "event_type", e.EventType, "error", err)
 		return
 	}
 
@@ -88,6 +88,6 @@ func (w *EventWriter) WriteProject(ctx context.Context, e ProjectEvent) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
 	`, uuid.NewString(), e.WorkspaceID, e.ProjectID, e.UserID, e.ActorType, e.EventType, string(payload))
 	if err != nil {
-		log.Printf("audit: insert project event %s for project %s: %v", e.EventType, e.ProjectID, err)
+		slog.Error("audit: insert project event", "event_type", e.EventType, "project_id", e.ProjectID, "error", err)
 	}
 }

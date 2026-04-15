@@ -16,7 +16,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
-	"log"
+	"log/slog"
 	"math/rand"
 	"mime"
 	"strings"
@@ -130,7 +130,7 @@ func (s *Seeder) SeedIfEmpty(ctx context.Context) error {
 // Call this only after Wipe() or on first boot.
 // The workspace and user rows must already exist (created by EnsureWorkspace).
 func (s *Seeder) Seed(ctx context.Context) error {
-	log.Printf("demo: seed started")
+	slog.Info("demo: seed started")
 	start := time.Now()
 
 	var d ids
@@ -211,11 +211,10 @@ func (s *Seeder) Seed(ctx context.Context) error {
 
 	// Events are best-effort; written outside any transaction
 	if err := s.seedEvents(ctx, &d); err != nil {
-		log.Printf("demo: seed events (non-fatal): %v", err)
+		slog.Warn("demo: seed events (non-fatal)", "error", err)
 	}
 
-	log.Printf("demo: seed complete assets_created=%d duration_ms=%d",
-		len(d.allAssets), time.Since(start).Milliseconds())
+	slog.Info("demo: seed complete", "assets_created", len(d.allAssets), "duration_ms", time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -575,10 +574,10 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 				s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID)
 				s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)
 			} else {
-				log.Printf("demo: store thumbnail failed for %s: %v", sp.name, putErr)
+				slog.Warn("demo: store thumbnail failed", "name", sp.name, "error", putErr)
 			}
 		} else {
-			log.Printf("demo: thumbnail generation failed for %s: %v", sp.name, tErr)
+			slog.Warn("demo: thumbnail generation failed", "name", sp.name, "error", tErr)
 		}
 
 		d.allAssets = append(d.allAssets, assetMeta{id: assetID, name: sp.name, projectID: sp.projectID})
@@ -1039,7 +1038,7 @@ func (s *Seeder) seedEvents(ctx context.Context, d *ids) error {
 		}
 	}
 
-	log.Printf("demo: seed complete events_created=%d", eventCount)
+	slog.Info("demo: seed complete events", "events_created", eventCount)
 	return nil
 }
 

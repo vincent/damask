@@ -4,7 +4,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
+	"os"
 
 	"damask/server/internal/config"
 	"damask/server/internal/demo"
@@ -18,12 +19,13 @@ func initDemoSeeder(ctx context.Context, cfg *config.Config, sqlDB *sql.DB, stor
 	}
 	seeder := demo.New(sqlDB, stor, cfg.Demo)
 	if err := seeder.EnsureWorkspace(ctx); err != nil {
-		log.Fatalf("demo: ensure workspace: %v", err)
+		slog.Error("demo: ensure workspace", "error", err)
+		os.Exit(1)
 	}
 	if err := seeder.SeedIfEmpty(ctx); err != nil {
-		log.Printf("demo: initial seed failed (non-fatal): %v", err)
+		slog.Warn("demo: initial seed failed (non-fatal)", "error", err)
 	}
 	seeder.StartResetLoop(ctx)
-	log.Printf("demo: mode enabled reset_interval=%dh", cfg.Demo.ResetIntervalHours)
+	slog.Info("demo: mode enabled", "reset_interval_hours", cfg.Demo.ResetIntervalHours)
 	return seeder
 }

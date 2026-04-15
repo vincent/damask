@@ -5,7 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -67,7 +68,7 @@ func (q *Queue) Register(jobType string, h HandlerFunc) {
 func (q *Queue) Start(ctx context.Context) {
 	// Re-queue jobs that were 'processing' when the server last crashed.
 	if err := q.db.RequeueStalledJobs(ctx); err != nil {
-		log.Printf("queue: requeue stalled: %v", err)
+		slog.Error("queue: requeue stalled", "error", err)
 	}
 
 	for i := 0; i < q.workers; i++ {
@@ -129,7 +130,7 @@ func (q *Queue) processNext(ctx context.Context) {
 	job, err := q.db.ClaimNextJob(ctx)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			log.Printf("queue: claim job: %v", err)
+			slog.Error("queue: claim job", "error", err)
 		}
 		return
 	}
@@ -148,7 +149,7 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("queue: job %s (%s) panicked: %v", job.ID, job.Type, r)
+			slog.Error("queue: job panicked", "job_id", job.ID, "job_type", job.Type, "panic", r, "stack", string(debug.Stack()))
 			errMsg := fmt.Sprintf("panic: %v", r)
 			_ = q.db.FailJob(ctx, dbgen.FailJobParams{
 				Error: &errMsg,
@@ -159,7 +160,7 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	h, ok := q.handlers[job.Type]
 	if !ok {
-		log.Printf("queue: no handler for job type %q (id=%s)", job.Type, job.ID)
+		slog.Error("queue: no handler for job type", "job_type", job.Type, "job_id", job.ID)
 		errMsg := "no handler registered"
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
 			Error: &errMsg,
@@ -169,7 +170,7 @@ func (q *Queue) processNext(ctx context.Context) {
 	}
 
 	if err := h(ctx, job); err != nil {
-		log.Printf("queue: job %s (%s) failed: %v", job.ID, job.Type, err)
+		slog.Error("queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
 		errMsg := err.Error()
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
 			Error: &errMsg,
@@ -179,7 +180,7 @@ func (q *Queue) processNext(ctx context.Context) {
 	}
 
 	if err := q.db.CompleteJob(ctx, job.ID); err != nil {
-		log.Printf("queue: complete job %s: %v", job.ID, err)
+		slog.Error("queue: complete job", "job_id", job.ID, "error", err)
 	}
 
 	// Signal other workers to check for more work.

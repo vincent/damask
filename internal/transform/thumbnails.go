@@ -4,7 +4,7 @@ import (
 	"context"
 	"damask/server/internal/storage"
 	"io"
-	"log"
+	"log/slog"
 	"path/filepath"
 )
 
@@ -28,7 +28,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		}
 		defer rc.Close()
 		if !FFmpegAvailable() {
-			log.Printf("thumbnail: ffmpeg not available, skipping video %q", storageKey)
+			slog.Debug("thumbnail: ffmpeg not available, skipping video", "storage_key", storageKey)
 			return nil, "", nil
 		}
 		return ThumbnailFromVideo(ctx, rc, mimeType)
@@ -66,7 +66,7 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		return ThumbnailFromFontFile(ctx, rc, mimeType, storageKey)
 
 	default:
-		log.Printf("thumbnail: unsupported MIME type %q, skipping", mimeType)
+		slog.Debug("thumbnail: unsupported MIME type, skipping", "mime_type", mimeType)
 		return nil, "", nil
 	}
 }
@@ -139,7 +139,7 @@ func ThumbnailFromAudio(ctx context.Context, rc io.ReadCloser, mimeType string) 
 		return nil, "", err
 	}
 	if len(data) == 0 {
-		log.Printf("thumbnail: empty waveform for audio %q", mimeType)
+		slog.Warn("thumbnail: empty waveform for audio", "mime_type", mimeType)
 		return nil, "", nil
 	}
 	return data, mimeToExt(contentType), nil

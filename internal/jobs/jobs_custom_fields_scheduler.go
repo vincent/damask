@@ -2,7 +2,7 @@ package jobs
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	dbgen "damask/server/internal/db/gen"
@@ -30,7 +30,7 @@ func (s *FieldCleanupScheduler) Start(ctx context.Context) {
 				return
 			case <-time.After(time.Until(next)):
 				if _, err := s.queue.Enqueue(ctx, "system", queue.JobTypePurgeDeletedFields, "{}"); err != nil {
-					log.Printf("field cleanup scheduler: enqueue purge: %v", err)
+					slog.Error("field cleanup scheduler: enqueue purge", "error", err)
 				}
 			}
 		}
@@ -72,6 +72,6 @@ func (s *JobServer) jobPurgeDeletedFields(ctx context.Context, job dbgen.Job) er
 		return err
 	}
 
-	log.Printf("field cleanup: purged %d expired field definitions", len(ids))
+	slog.Info("field cleanup: purged expired field definitions", "count", len(ids))
 	return nil
 }

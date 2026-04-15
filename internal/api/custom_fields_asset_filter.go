@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -133,7 +133,7 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 
 	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
 	if err != nil {
-		log.Printf("field filter query: %v", err)
+		slog.Error("field filter query", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 	defer rows.Close()
@@ -253,7 +253,7 @@ func (s *Server) refreshAssetFTS(ctx context.Context, assetID string) {
 		SELECT 'delete', rowid, original_filename FROM assets WHERE id = ?
 	`, assetID)
 	if err != nil {
-		log.Printf("fts refresh delete: %v", err)
+		slog.Error("fts refresh delete", "error", err)
 		return
 	}
 	_, err = s.sqlDB.ExecContext(ctx, `
@@ -261,6 +261,6 @@ func (s *Server) refreshAssetFTS(ctx context.Context, assetID string) {
 		SELECT rowid, ? FROM assets WHERE id = ?
 	`, combined, assetID)
 	if err != nil {
-		log.Printf("fts refresh insert: %v", err)
+		slog.Error("fts refresh insert", "error", err)
 	}
 }

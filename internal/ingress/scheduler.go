@@ -3,7 +3,7 @@ package ingress
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	dbgen "damask/server/internal/db/gen"
@@ -44,7 +44,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 func (s *Scheduler) tick(ctx context.Context) {
 	sources, err := s.db.ListDueIngressSources(ctx)
 	if err != nil {
-		log.Printf("ingress scheduler: list due sources: %v", err)
+		slog.Error("ingress scheduler: list due sources", "error", err)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 			WorkspaceID: src.WorkspaceID,
 		})
 		if _, err := s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestPoll, string(payload)); err != nil {
-			log.Printf("ingress scheduler: enqueue poll for source %s: %v", src.ID, err)
+			slog.Error("ingress scheduler: enqueue poll", "source_id", src.ID, "error", err)
 			continue
 		}
 		// Mark as polled immediately to prevent double-scheduling
@@ -63,7 +63,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 			ID:        src.ID,
 			LastError: src.LastError, // preserve existing error until poll succeeds
 		}); err != nil {
-			log.Printf("ingress scheduler: mark polled for source %s: %v", src.ID, err)
+			slog.Error("ingress scheduler: mark polled", "source_id", src.ID, "error", err)
 		}
 	}
 }
