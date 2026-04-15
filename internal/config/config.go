@@ -27,6 +27,8 @@ type Config struct {
 	FrontendPath    string
 	EnableScheduler bool
 	Demo            DemoConfig
+	// BodyLimit overrides the default 100 MB upload limit. Zero means use the default.
+	BodyLimit       int
 }
 
 // StorageSFTPConfig holds SFTP backend connection parameters.

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io/fs"
 
 	"damask/server/internal/audit"
@@ -19,6 +20,8 @@ import (
 
 	_ "damask/server/internal/docs"
 )
+
+const defaultBodyLimitBytes = 100 * 1024 * 1024 // 100 MB
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
@@ -86,9 +89,13 @@ func NewRouter(
 ) *fiber.App {
 	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, cfg, demoSeeder)
 
+	bodyLimit := defaultBodyLimitBytes
+	if cfg.BodyLimit > 0 {
+		bodyLimit = cfg.BodyLimit
+	}
 	app := fiber.New(fiber.Config{
-		ErrorHandler: defaultErrorHandler,
-		BodyLimit:    100 * 1024 * 1024, // 100 MB,
+		ErrorHandler: createDefaultErrorHandler(bodyLimit),
+		BodyLimit:    bodyLimit,
 	})
 
 	app.Use(cors.New(cors.Config{
@@ -305,10 +312,17 @@ func NewRouter(
 	return app
 }
 
-func defaultErrorHandler(c fiber.Ctx, err error) error {
-	code := fiber.StatusInternalServerError
-	if e, ok := err.(*fiber.Error); ok {
-		code = e.Code
+func createDefaultErrorHandler(bodyLimitBytes int) func(c fiber.Ctx, err error) error {
+	bodyLimitMb := fmt.Sprintf("%.2f", float32(bodyLimitBytes)/(1<<20))
+
+	return func(c fiber.Ctx, err error) error {
+		code := fiber.StatusInternalServerError
+		if e, ok := err.(*fiber.Error); ok {
+			code = e.Code
+		}
+		if code == fiber.StatusRequestEntityTooLarge {
+			return c.Status(code).JSON(fiber.Map{"error": "file too large: maximum upload size is " + bodyLimitMb + " MB"})
+		}
+		return c.Status(code).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(code).JSON(fiber.Map{"error": err.Error()})
 }

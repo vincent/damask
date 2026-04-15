@@ -51,7 +51,15 @@ type TestEnv struct {
 
 // SetupTestApp opens a fresh temp-file SQLite DB, runs migrations, and
 // returns a configured Fiber app. The DB is closed via t.Cleanup.
-func SetupTestApp(t *testing.T) *TestEnv {
+// TestOption configures a test environment.
+type TestOption func(*config.Config)
+
+// WithBodyLimit sets a custom BodyLimit on the test app's config.
+func WithBodyLimit(n int) TestOption {
+	return func(cfg *config.Config) { cfg.BodyLimit = n }
+}
+
+func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	t.Helper()
 	u, _ := url.Parse("http://localhost")
 	cfg := &config.Config{
@@ -59,6 +67,9 @@ func SetupTestApp(t *testing.T) *TestEnv {
 		AppSecret: "test-app-secret-for-tests!!",
 		AppEnv:    "development",
 		BaseURL:   u,
+	}
+	for _, o := range opts {
+		o(cfg)
 	}
 
 	dir := t.TempDir()
@@ -374,9 +385,9 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 
 // SetupWithOwner creates a test app and registers one owner user.
 // This is the universal preamble for most test functions.
-func SetupWithOwner(t *testing.T) (*TestEnv, AuthResult) {
+func SetupWithOwner(t *testing.T, opts ...TestOption) (*TestEnv, AuthResult) {
 	t.Helper()
-	env := SetupTestApp(t)
+	env := SetupTestApp(t, opts...)
 	owner := Register(t, env, "Owner", "owner@test.com", "password123")
 	return env, owner
 }

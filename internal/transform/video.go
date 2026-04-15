@@ -56,7 +56,8 @@ func VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResoluti
 		return nil, fmt.Errorf("ffprobe resolution: %w — stderr: %s", err, stderr.String())
 	}
 
-	parts := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("x"))
+	maybeWxH := bytes.Trim(buf.Bytes(), "x \n\n")
+	parts := bytes.Split(maybeWxH, []byte("x"))
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("ffprobe resolution: unexpected output: %s", buf.String())
 	}
