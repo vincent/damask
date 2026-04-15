@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"damask/server/internal/auth"
@@ -364,16 +365,22 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	}
 
 	row := s.sqlDB.QueryRowContext(c.RequestCtx(), `
-		SELECT a.mime_type, a.original_filename, v.storage_key
+		SELECT a.mime_type, a.original_filename, v.storage_key, v.content_hash, v.size, v.created_at
 		FROM assets a
 		JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
 		WHERE a.id = ?`, assetID)
-	var mimeType, filename, storageKey string
-	if err := row.Scan(&mimeType, &filename, &storageKey); err != nil {
+	var mimeType, filename, storageKey, contentHash, versionCreatedAt string
+	var versionSize int64
+	if err := row.Scan(&mimeType, &filename, &storageKey, &contentHash, &versionSize, &versionCreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	}
+
+	lastMod := parseVersionTime(versionCreatedAt)
+	if setCacheHeaders(c, contentHash, lastMod, false) {
+		return nil
 	}
 
 	rc, err := s.storage.Get(storageKey)
@@ -383,6 +390,9 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 
 	c.Set("Content-Type", mimeType)
 	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
+	if versionSize > 0 {
+		c.Set("Content-Length", strconv.FormatInt(versionSize, 10))
+	}
 	return c.SendStream(rc)
 }
 
@@ -414,9 +424,10 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 	}
 
 	row := s.sqlDB.QueryRowContext(c.RequestCtx(), `
-		SELECT thumbnail_key FROM assets WHERE id = ?`, assetID)
+		SELECT thumbnail_key, updated_at FROM assets WHERE id = ?`, assetID)
 	var thumbKey *string
-	if err := row.Scan(&thumbKey); err != nil {
+	var updatedAt time.Time
+	if err := row.Scan(&thumbKey, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
@@ -425,6 +436,11 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 
 	if thumbKey == nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not ready")
+	}
+
+	thumbETag := assetID + "_" + strconv.FormatInt(updatedAt.Unix(), 10)
+	if setCacheHeaders(c, thumbETag, updatedAt, false) {
+		return nil
 	}
 
 	rc, err := s.storage.Get(*thumbKey)

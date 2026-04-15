@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -39,14 +38,13 @@ func (p *pollSource) Fetch(_ context.Context, item IngestItem) (io.ReadCloser, e
 
 func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 	t.Helper()
-	dir := t.TempDir()
-	queries, sqlDB, err := dbpkg.Open(filepath.Join(dir, "test.db"))
+	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
-	stor, err := storage.NewLocalStorage(filepath.Join(dir, "storage"))
+	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {
 		t.Fatalf("storage: %v", err)
 	}

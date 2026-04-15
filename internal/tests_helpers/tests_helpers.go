@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -72,7 +71,6 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		o(cfg)
 	}
 
-	dir := t.TempDir()
 	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -91,7 +89,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		t.Fatalf("auth maker: %v", err)
 	}
 
-	stor, err := storage.NewLocalStorage(filepath.Join(dir, "storage"))
+	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {
 		t.Fatalf("storage: %v", err)
 	}

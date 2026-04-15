@@ -295,6 +295,10 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load variant")
 	}
 
+	if setCacheHeaders(c, variant.ID, variant.CreatedAt, true) {
+		return nil
+	}
+
 	rc, err := s.storage.Get(variant.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "variant file not found")
@@ -315,6 +319,9 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	ext := strings.ToLower(filepath.Ext(variant.StorageKey))
 	c.Set("Content-Type", mime.TypeByExtension(ext))
 	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s_%s%s"`, assetID[:8], variantID[:8], ext))
+	if variant.Size != nil && *variant.Size > 0 {
+		c.Set("Content-Length", strconv.FormatInt(*variant.Size, 10))
+	}
 	return c.SendStream(rc)
 }
 
@@ -531,9 +538,14 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	format := c.Query("format", "jpeg")
 
 	cacheKey := fmt.Sprintf("%s|%s|w=%d|h=%d|fit=%s|format=%s|q=%d", asset.ID, *asset.CurrentVersionID, w, h, fit, format, q)
+
+	// Check conditional request before doing any work (ETag = cacheKey hash).
+	if setCacheHeaders(c, cacheKey, asset.UpdatedAt, false) {
+		return nil
+	}
+
 	if cached, ct := s.previewCache.Get(cacheKey); cached != nil {
 		c.Set("Content-Type", ct)
-		c.Set("Cache-Control", "public, max-age=300")
 		return c.Send(cached)
 	}
 
@@ -556,6 +568,5 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 
 	s.previewCache.Set(cacheKey, data, ct)
 	c.Set("Content-Type", ct)
-	c.Set("Cache-Control", "public, max-age=300")
 	return c.Send(data)
 }

@@ -703,6 +703,11 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load asset version")
 	}
 
+	lastMod := parseVersionTime(version.CreatedAt)
+	if setCacheHeaders(c, version.ContentHash, lastMod, false) {
+		return nil
+	}
+
 	rc, err := s.storage.Get(version.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
@@ -722,6 +727,9 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 
 	c.Set("Content-Type", asset.MimeType)
 	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, asset.OriginalFilename))
+	if version.Size > 0 {
+		c.Set("Content-Length", strconv.FormatInt(version.Size, 10))
+	}
 	return c.SendStream(rc)
 }
 
@@ -757,6 +765,11 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	}
 
 	// log.Println("thumbnail: serve", *asset.ThumbnailKey)
+
+	thumbETag := asset.ID + "_" + strconv.FormatInt(asset.UpdatedAt.Unix(), 10)
+	if setCacheHeaders(c, thumbETag, asset.UpdatedAt, false) {
+		return nil
+	}
 
 	rc, err := s.storage.Get(*asset.ThumbnailKey)
 	if err != nil {

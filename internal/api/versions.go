@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"damask/server/internal/audit"
@@ -634,6 +635,11 @@ func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "version not found")
 	}
 
+	versionLastMod := parseVersionTime(target.CreatedAt)
+	if setCacheHeaders(c, target.ContentHash, versionLastMod, true) {
+		return nil
+	}
+
 	rc, err := s.storage.Get(target.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
@@ -641,6 +647,9 @@ func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 
 	c.Set("Content-Type", target.MimeType)
 	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, asset.OriginalFilename))
+	if target.Size > 0 {
+		c.Set("Content-Length", strconv.FormatInt(target.Size, 10))
+	}
 	return c.SendStream(rc)
 }
 
@@ -688,6 +697,12 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 	}
 	if target.ThumbnailKey == nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not ready")
+	}
+
+	thumbETag := target.ID + "_thumb"
+	thumbLastMod := parseVersionTime(target.CreatedAt)
+	if setCacheHeaders(c, thumbETag, thumbLastMod, true) {
+		return nil
 	}
 
 	rc, err := s.storage.Get(*target.ThumbnailKey)

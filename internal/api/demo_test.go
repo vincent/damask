@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -66,7 +65,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 		t.Fatalf("auth maker: %v", err)
 	}
 
-	stor, err := storage.NewLocalStorage(filepath.Join(t.TempDir(), "storage"))
+	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {
 		t.Fatalf("storage: %v", err)
 	}

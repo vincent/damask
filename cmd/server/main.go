@@ -69,16 +69,19 @@ func main() {
 
 	eventsHub := events.NewEventHub()
 
-	slog.Info("storage", "using", cfg.StorageType)
 	var stor storage.Storage
 	switch cfg.StorageType {
 	case "memory":
+		slog.Info("storage", "using", cfg.StorageType)
 		stor, err = storage.NewAferoMemoryStorage()
 	case "s3":
+		slog.Info("storage", "using", cfg.StorageType, "bucket", cfg.StorageS3.Bucket)
 		stor, err = storage.NewAferoS3Storage(cfg.StorageS3)
 	case "sftp":
+		slog.Info("storage", "using", cfg.StorageType, "host", cfg.StorageSFTP.Host)
 		stor, err = storage.NewSFTPStorage(cfg.StorageSFTP)
 	default: // "local" and anything unrecognized
+		slog.Info("storage", "using", cfg.StorageType, "host", cfg.StoragePath)
 		stor, err = storage.NewLocalStorage(cfg.StoragePath)
 	}
 	if err != nil {
