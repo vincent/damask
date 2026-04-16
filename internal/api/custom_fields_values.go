@@ -38,25 +38,26 @@ type resolvedValue struct {
 }
 
 // validateAndResolve loads the field definition and validates the incoming value.
-// Returns nil resolvedValue when value is null (clear intent).
-func (s *Server) validateAndResolve(c fiber.Ctx, workspaceID string, input fieldValueInput) (*resolvedValue, error) {
+// Returns (nil, nil) when input.Value is nil — the caller must distinguish this
+// "explicit clear" sentinel from an error (err != nil) before writing.
+func (s *Server) validateAndResolve(c fiber.Ctx, workspaceID string, input fieldValueInput) (*resolvedValue, dbgen.FieldDefinition, error) {
 	def, err := s.db.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
 		ID:          input.FieldID,
 		WorkspaceID: workspaceID,
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("field %s not found", input.FieldID)
+			return nil, def, fmt.Errorf("field %s not found", input.FieldID)
 		}
-		return nil, fmt.Errorf("could not load field %s", input.FieldID)
+		return nil, def, fmt.Errorf("could not load field %s", input.FieldID)
 	}
 	if def.DeletedAt != nil {
-		return nil, fmt.Errorf("field %s has been deleted", input.FieldID)
+		return nil, def, fmt.Errorf("field %s has been deleted", input.FieldID)
 	}
 
-	// null value → explicit clear
+	// null value → explicit clear; caller uses (nil, def, nil) to know key/name
 	if input.Value == nil {
-		return nil, nil //nolint:nilnil
+		return nil, def, nil //nolint:nilnil
 	}
 
 	rv := &resolvedValue{fieldID: input.FieldID}
@@ -65,14 +66,14 @@ func (s *Server) validateAndResolve(c fiber.Ctx, workspaceID string, input field
 	case "text", "url":
 		s, ok := input.Value.(string)
 		if !ok {
-			return nil, fmt.Errorf("field %s expects a string value", def.Key)
+			return nil, def, fmt.Errorf("field %s expects a string value", def.Key)
 		}
 		rv.valueText = &s
 
 	case "select":
 		s, ok := input.Value.(string)
 		if !ok {
-			return nil, fmt.Errorf("field %s expects a string value", def.Key)
+			return nil, def, fmt.Errorf("field %s expects a string value", def.Key)
 		}
 		// validate against options
 		if def.Options != nil {
@@ -86,7 +87,7 @@ func (s *Server) validateAndResolve(c fiber.Ctx, workspaceID string, input field
 					}
 				}
 				if !valid {
-					return nil, fmt.Errorf("value '%s' is not a valid option for field %s", s, def.Key)
+					return nil, def, fmt.Errorf("value '%s' is not a valid option for field %s", s, def.Key)
 				}
 			}
 		}
@@ -99,27 +100,27 @@ func (s *Server) validateAndResolve(c fiber.Ctx, workspaceID string, input field
 		case json.Number:
 			f, err := v.Float64()
 			if err != nil {
-				return nil, fmt.Errorf("field %s expects a numeric value", def.Key)
+				return nil, def, fmt.Errorf("field %s expects a numeric value", def.Key)
 			}
 			rv.valueNumber = &f
 		default:
-			return nil, fmt.Errorf("field %s expects a numeric value", def.Key)
+			return nil, def, fmt.Errorf("field %s expects a numeric value", def.Key)
 		}
 
 	case "date":
 		s, ok := input.Value.(string)
 		if !ok || !dateRe.MatchString(s) {
-			return nil, fmt.Errorf("field %s expects a date in YYYY-MM-DD format", def.Key)
+			return nil, def, fmt.Errorf("field %s expects a date in YYYY-MM-DD format", def.Key)
 		}
 		if _, err := time.Parse("2006-01-02", s); err != nil {
-			return nil, fmt.Errorf("field %s: invalid date '%s'", def.Key, s)
+			return nil, def, fmt.Errorf("field %s: invalid date '%s'", def.Key, s)
 		}
 		rv.valueDate = &s
 
 	case "boolean":
 		b, ok := input.Value.(bool)
 		if !ok {
-			return nil, fmt.Errorf("field %s expects a boolean value", def.Key)
+			return nil, def, fmt.Errorf("field %s expects a boolean value", def.Key)
 		}
 		var v int64
 		if b {
@@ -128,7 +129,7 @@ func (s *Server) validateAndResolve(c fiber.Ctx, workspaceID string, input field
 		rv.valueBoolean = &v
 	}
 
-	return rv, nil
+	return rv, def, nil
 }
 
 // -- Asset field values response ----------------------------------------------
@@ -297,34 +298,42 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 	}
 
 	// Snapshot existing values before writing — used for event before/after.
-	existingRows, _ := s.db.GetAssetFieldValues(c.RequestCtx(), id)
+	existingRows, err := s.db.GetAssetFieldValues(c.RequestCtx(), id)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load field values")
+	}
 	existingByFieldID := make(map[string]dbgen.GetAssetFieldValuesRow, len(existingRows))
 	for _, row := range existingRows {
 		existingByFieldID[row.FieldID] = row
 	}
 
-	// Validate all first, then write
-	resolved := make([]*resolvedValue, len(body.Values))
+	// Validate all first, then write.
+	type resolvedEntry struct {
+		rv  *resolvedValue
+		def dbgen.FieldDefinition
+	}
+	entries := make([]resolvedEntry, len(body.Values))
 	for i, input := range body.Values {
-		rv, err := s.validateAndResolve(c, claims.WorkspaceID, input)
+		rv, def, err := s.validateAndResolve(c, claims.WorkspaceID, input)
 		if err != nil {
 			return errRes(c, fiber.StatusUnprocessableEntity, err.Error())
 		}
-		if rv != nil {
-			rv.fieldID = input.FieldID
-		}
-		resolved[i] = rv
+		entries[i] = resolvedEntry{rv: rv, def: def}
 	}
 
 	userID := claims.UserID
-	for i, rv := range resolved {
-		existing := existingByFieldID[body.Values[i].FieldID]
+	for i, e := range entries {
+		input := body.Values[i]
+		existing := existingByFieldID[input.FieldID]
 		beforeVal := fieldRowToValue(existing)
-		if rv == nil {
+		// Use def for key/name so brand-new fields (no prior value) are correct in audit.
+		fieldKey := e.def.Key
+		fieldName := e.def.Name
+		if e.rv == nil {
 			// null value = delete
 			if err := s.db.DeleteAssetFieldValue(c.RequestCtx(), dbgen.DeleteAssetFieldValueParams{
 				AssetID: id,
-				FieldID: body.Values[i].FieldID,
+				FieldID: input.FieldID,
 			}); err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return errRes(c, fiber.StatusInternalServerError, "could not clear field value")
 			}
@@ -334,30 +343,30 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 				UserID:      &userID,
 				ActorType:   audit.ActorTypeUser,
 				EventType:   audit.EventAssetFieldCleared,
-				Payload:     audit.AssetFieldClearedPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal},
+				Payload:     audit.AssetFieldClearedPayload{V: 1, FieldKey: fieldKey, FieldName: fieldName, Before: beforeVal},
 			})
 			continue
 		}
 		if _, err := s.db.UpsertAssetFieldValue(c.RequestCtx(), dbgen.UpsertAssetFieldValueParams{
 			ID:           uuid.NewString(),
 			AssetID:      id,
-			FieldID:      rv.fieldID,
-			ValueText:    rv.valueText,
-			ValueNumber:  rv.valueNumber,
-			ValueDate:    rv.valueDate,
-			ValueBoolean: rv.valueBoolean,
+			FieldID:      e.rv.fieldID,
+			ValueText:    e.rv.valueText,
+			ValueNumber:  e.rv.valueNumber,
+			ValueDate:    e.rv.valueDate,
+			ValueBoolean: e.rv.valueBoolean,
 			CreatedBy:    claims.UserID,
 		}); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not save field value")
 		}
-		afterVal := resolvedToValue(rv)
+		afterVal := resolvedToValue(e.rv)
 		s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
 			WorkspaceID: claims.WorkspaceID,
 			AssetID:     id,
 			UserID:      &userID,
 			ActorType:   audit.ActorTypeUser,
 			EventType:   audit.EventAssetFieldSet,
-			Payload:     audit.AssetFieldSetPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal, After: afterVal},
+			Payload:     audit.AssetFieldSetPayload{V: 1, FieldKey: fieldKey, FieldName: fieldName, Before: beforeVal, After: afterVal},
 		})
 	}
 
@@ -396,15 +405,12 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Validate values once (same fields for all assets)
+	// Validate values once (same fields for all assets).
 	resolved := make([]*resolvedValue, len(body.Values))
 	for i, input := range body.Values {
-		rv, err := s.validateAndResolve(c, claims.WorkspaceID, input)
+		rv, _, err := s.validateAndResolve(c, claims.WorkspaceID, input)
 		if err != nil {
 			return errRes(c, fiber.StatusUnprocessableEntity, err.Error())
-		}
-		if rv != nil {
-			rv.fieldID = input.FieldID
 		}
 		resolved[i] = rv
 	}
@@ -418,7 +424,7 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 
 	updatedCount := 0
 	for _, assetID := range body.AssetIDs {
-		// Verify asset belongs to workspace — use the transaction to avoid read/write lock contention
+		// Verify asset belongs to workspace — use the transaction to avoid read/write lock contention.
 		if _, err := qtx.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 			ID:          assetID,
 			WorkspaceID: claims.WorkspaceID,
@@ -426,12 +432,16 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 			continue
 		}
 
+		assetOK := true
 		for i, rv := range resolved {
 			if rv == nil {
-				_ = qtx.DeleteAssetFieldValue(c.RequestCtx(), dbgen.DeleteAssetFieldValueParams{
+				if err := qtx.DeleteAssetFieldValue(c.RequestCtx(), dbgen.DeleteAssetFieldValueParams{
 					AssetID: assetID,
 					FieldID: body.Values[i].FieldID,
-				})
+				}); err != nil && !errors.Is(err, sql.ErrNoRows) {
+					assetOK = false
+					break
+				}
 				continue
 			}
 			if _, err := qtx.UpsertAssetFieldValue(c.RequestCtx(), dbgen.UpsertAssetFieldValueParams{
@@ -447,16 +457,20 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 				return errRes(c, fiber.StatusInternalServerError, "could not save field value")
 			}
 		}
-		updatedCount++
+		if assetOK {
+			updatedCount++
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
 
-	// Refresh FTS for updated assets (best-effort, use background context)
+	// Refresh FTS for updated assets (best-effort, background). Copy slice to avoid capture of body.
+	assetIDsCopy := make([]string, len(body.AssetIDs))
+	copy(assetIDsCopy, body.AssetIDs)
 	go func() {
-		for _, assetID := range body.AssetIDs {
+		for _, assetID := range assetIDsCopy {
 			s.refreshAssetFTS(context.Background(), assetID)
 		}
 	}()

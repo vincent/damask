@@ -1,7 +1,9 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"sort"
 	"strconv"
 	"strings"
@@ -80,22 +82,20 @@ func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID: assetID, WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
-		return errRes(c, fiber.StatusNotFound, "asset not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "asset not found")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "failed to fetch asset")
 	}
 
 	limit, cursor, typesFilter := parseEventQueryParams(c)
-
-	fetchLimit := limit + 1
-	if len(typesFilter) > 1 {
-		fetchLimit = limit*int64(len(typesFilter)) + 1
-	}
 
 	rows, err := s.db.ListAssetEvents(c.RequestCtx(), dbgen.ListAssetEventsParams{
 		AssetID:     assetID,
 		WorkspaceID: claims.WorkspaceID,
 		Cursor:      cursor,
 		EventType:   singleTypeArg(typesFilter),
-		Limit:       fetchLimit,
+		Limit:       limit + 1,
 	})
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "failed to list events")
@@ -135,22 +135,20 @@ func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
 		ID: projectID, WorkspaceID: claims.WorkspaceID,
 	}); err != nil {
-		return errRes(c, fiber.StatusNotFound, "project not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return errRes(c, fiber.StatusNotFound, "project not found")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "failed to fetch project")
 	}
 
 	limit, cursor, typesFilter := parseEventQueryParams(c)
-
-	fetchLimit := limit + 1
-	if len(typesFilter) > 1 {
-		fetchLimit = limit*int64(len(typesFilter)) + 1
-	}
 
 	rows, err := s.db.ListProjectEvents(c.RequestCtx(), dbgen.ListProjectEventsParams{
 		ProjectID:   projectID,
 		WorkspaceID: claims.WorkspaceID,
 		Cursor:      cursor,
 		EventType:   singleTypeArg(typesFilter),
-		Limit:       fetchLimit,
+		Limit:       limit + 1,
 	})
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "failed to list events")
@@ -310,7 +308,7 @@ func (s *Server) handleExportActivity(c fiber.Ctx) error {
 	// Use until as cursor (events before this timestamp).
 	var cursorArg interface{}
 	if until != "" {
-		cursorArg = until + "T23:59:59"
+		cursorArg = until + " 23:59:59"
 	}
 
 	const maxRows = 10000

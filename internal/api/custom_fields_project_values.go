@@ -172,26 +172,31 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 		existingProjByFieldID[row.FieldID] = row
 	}
 
-	resolved := make([]*resolvedValue, len(body.Values))
+	type projResolvedEntry struct {
+		rv  *resolvedValue
+		def dbgen.FieldDefinition
+	}
+	entries := make([]projResolvedEntry, len(body.Values))
 	for i, input := range body.Values {
-		rv, err := s.validateAndResolve(c, claims.WorkspaceID, input)
+		rv, def, err := s.validateAndResolve(c, claims.WorkspaceID, input)
 		if err != nil {
 			return errRes(c, fiber.StatusUnprocessableEntity, err.Error())
 		}
-		if rv != nil {
-			rv.fieldID = input.FieldID
-		}
-		resolved[i] = rv
+		entries[i] = projResolvedEntry{rv: rv, def: def}
 	}
 
 	userID := claims.UserID
-	for i, rv := range resolved {
-		existing := existingProjByFieldID[body.Values[i].FieldID]
+	for i, e := range entries {
+		input := body.Values[i]
+		existing := existingProjByFieldID[input.FieldID]
 		beforeVal := projectFieldRowToValue(existing)
-		if rv == nil {
+		// Use def for key/name so brand-new fields are correct in audit.
+		fieldKey := e.def.Key
+		fieldName := e.def.Name
+		if e.rv == nil {
 			if err := s.db.DeleteProjectFieldValue(c.RequestCtx(), dbgen.DeleteProjectFieldValueParams{
 				ProjectID: id,
-				FieldID:   body.Values[i].FieldID,
+				FieldID:   input.FieldID,
 			}); err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return errRes(c, fiber.StatusInternalServerError, "could not clear field value")
 			}
@@ -201,30 +206,30 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 				UserID:      &userID,
 				ActorType:   audit.ActorTypeUser,
 				EventType:   audit.EventProjectFieldCleared,
-				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal},
+				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: fieldKey, FieldName: fieldName, Before: beforeVal},
 			})
 			continue
 		}
 		if _, err := s.db.UpsertProjectFieldValue(c.RequestCtx(), dbgen.UpsertProjectFieldValueParams{
 			ID:           uuid.NewString(),
 			ProjectID:    id,
-			FieldID:      rv.fieldID,
-			ValueText:    rv.valueText,
-			ValueNumber:  rv.valueNumber,
-			ValueDate:    rv.valueDate,
-			ValueBoolean: rv.valueBoolean,
+			FieldID:      e.rv.fieldID,
+			ValueText:    e.rv.valueText,
+			ValueNumber:  e.rv.valueNumber,
+			ValueDate:    e.rv.valueDate,
+			ValueBoolean: e.rv.valueBoolean,
 			CreatedBy:    claims.UserID,
 		}); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not save field value")
 		}
-		afterVal := resolvedToValue(rv)
+		afterVal := resolvedToValue(e.rv)
 		s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
 			WorkspaceID: claims.WorkspaceID,
 			ProjectID:   id,
 			UserID:      &userID,
 			ActorType:   audit.ActorTypeUser,
 			EventType:   audit.EventProjectFieldSet,
-			Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: existing.FieldKey, FieldName: existing.FieldName, Before: beforeVal, After: afterVal},
+			Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: fieldKey, FieldName: fieldName, Before: beforeVal, After: afterVal},
 		})
 	}
 

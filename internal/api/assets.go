@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"mime"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -102,7 +103,12 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "file field is required")
 	}
 
-	tmpFile := filepath.Join(os.TempDir(), fh.Filename)
+	tmpF, err := os.CreateTemp("", "damask-upload-*"+filepath.Ext(fh.Filename))
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "cannot create temp file")
+	}
+	tmpFile := tmpF.Name()
+	_ = tmpF.Close()
 	err = c.SaveFile(fh, tmpFile)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "cannot create temp file")
@@ -123,6 +129,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		FolderID:      uploadFolderID,
 		UserID:        claims.UserID,
 		InheritFields: inheritProjectFields,
+		OriginalName:  fh.Filename,
 	})
 	if fErr != nil {
 		slog.Error("cannot create asset", "error", fErr)
@@ -528,11 +535,33 @@ func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortFie
 }
 
 // batchVersionCounts fetches version counts for the given asset IDs in a single
-// pass and returns a map of assetID → count.
+// query and returns a map of assetID → count.
 func (s *Server) batchVersionCounts(ctx context.Context, assets []dbgen.Asset) map[string]int64 {
 	counts := make(map[string]int64, len(assets))
-	for _, a := range assets {
-		counts[a.ID], _ = s.db.CountVersionsForAsset(ctx, a.ID)
+	if len(assets) == 0 {
+		return counts
+	}
+	placeholders := make([]string, len(assets))
+	args := make([]any, len(assets))
+	for i, a := range assets {
+		placeholders[i] = "?"
+		args[i] = a.ID
+	}
+	query := fmt.Sprintf(
+		`SELECT asset_id, COUNT(*) FROM asset_versions WHERE deleted_at IS NULL AND asset_id IN (%s) GROUP BY asset_id`,
+		strings.Join(placeholders, ","),
+	)
+	rows, err := s.sqlDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return counts
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var n int64
+		if err := rows.Scan(&id, &n); err == nil {
+			counts[id] = n
+		}
 	}
 	return counts
 }
@@ -726,7 +755,7 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	}
 
 	c.Set("Content-Type", asset.MimeType)
-	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, asset.OriginalFilename))
+	c.Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": asset.OriginalFilename}))
 	if version.Size > 0 {
 		c.Set("Content-Length", strconv.FormatInt(version.Size, 10))
 	}
@@ -1240,6 +1269,12 @@ func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 		return nil
 	}
 
+	type pendingDelete struct {
+		asset       dbgen.Asset
+		storageKeys []string
+	}
+	var pending []pendingDelete
+
 	for _, assetID := range body.AssetIDs {
 		asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 			ID: assetID, WorkspaceID: claims.WorkspaceID,
@@ -1247,14 +1282,51 @@ func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 		if err != nil {
 			continue
 		}
-		_ = s.storage.Delete(asset.StorageKey)
+		keys := []string{asset.StorageKey}
 		if asset.ThumbnailKey != nil {
-			_ = s.storage.Delete(*asset.ThumbnailKey)
+			keys = append(keys, *asset.ThumbnailKey)
 		}
-		_ = s.db.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
-			ID:          asset.ID,
+		versions, err := s.db.ListAllVersions(c.RequestCtx(), asset.ID)
+		if err == nil {
+			for _, v := range versions {
+				keys = append(keys, v.StorageKey)
+				if v.ThumbnailKey != nil {
+					keys = append(keys, *v.ThumbnailKey)
+				}
+				variants, err := s.db.ListVariantsByVersion(c.RequestCtx(), v.ID)
+				if err == nil {
+					for _, variant := range variants {
+						keys = append(keys, variant.StorageKey)
+					}
+				}
+			}
+		}
+		pending = append(pending, pendingDelete{asset: asset, storageKeys: keys})
+	}
+
+	// Delete all DB rows in a single transaction before touching storage.
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
+	}
+	defer tx.Rollback()
+	qtx := s.db.WithTx(tx)
+	for _, pd := range pending {
+		if err := qtx.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
+			ID:          pd.asset.ID,
 			WorkspaceID: claims.WorkspaceID,
-		})
+		}); err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not delete asset")
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not commit deletion")
+	}
+
+	for _, pd := range pending {
+		for _, key := range pd.storageKeys {
+			_ = s.storage.Delete(key)
+		}
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

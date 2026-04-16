@@ -153,7 +153,7 @@ func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 		InheritFromProject: inheritFromProject,
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if isUniqueConstraintError(err) {
 			return errRes(c, fiber.StatusConflict, "a field with this key already exists in this scope")
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not create field definition")
@@ -208,7 +208,14 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	def, err := s.db.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not start transaction")
+	}
+	defer tx.Rollback()
+	qtx := s.db.WithTx(tx)
+
+	def, err := qtx.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})
@@ -219,11 +226,11 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load field definition")
 	}
 
-	assetCount, err := s.db.CountFieldDefinitionAssetValues(c.RequestCtx(), def.ID)
+	assetCount, err := qtx.CountFieldDefinitionAssetValues(c.RequestCtx(), def.ID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not count asset values")
 	}
-	projectCount, err := s.db.CountFieldDefinitionProjectValues(c.RequestCtx(), def.ID)
+	projectCount, err := qtx.CountFieldDefinitionProjectValues(c.RequestCtx(), def.ID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not count project values")
 	}
@@ -351,21 +358,19 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if _, err := s.db.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "field definition not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load field definition")
-	}
-
-	if err := s.db.SoftDeleteFieldDefinition(c.RequestCtx(), dbgen.SoftDeleteFieldDefinitionParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
+	result, err := s.sqlDB.ExecContext(c.RequestCtx(),
+		`UPDATE field_definitions SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL`,
+		id, claims.WorkspaceID,
+	)
+	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete field definition")
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not delete field definition")
+	}
+	if n == 0 {
+		return errRes(c, fiber.StatusNotFound, "field definition not found")
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

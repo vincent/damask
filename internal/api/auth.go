@@ -12,6 +12,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const sessionDuration = 7 * 24 * time.Hour
+
 // BcryptCost is the work factor used for password hashing.
 // Tests override this to bcrypt.MinCost for speed.
 var BcryptCost = bcrypt.DefaultCost
@@ -88,7 +90,10 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		Name:         req.Name,
 	})
 	if err != nil {
-		return errRes(c, fiber.StatusConflict, "email already in use")
+		if isUniqueConstraintError(err) {
+			return errRes(c, fiber.StatusConflict, "email already in use")
+		}
+		return errRes(c, fiber.StatusInternalServerError, "could not create user")
 	}
 
 	workspace, err := services.CreateWorkspaceForUser(c.RequestCtx(), qtx, req.Name+"'s Workspace", userID)
@@ -100,7 +105,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
 
-	token, err := s.tokenMaker.CreateToken(userID, workspace.ID, 7*24*time.Hour)
+	token, err := s.tokenMaker.CreateToken(userID, workspace.ID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
@@ -138,8 +143,11 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 	}
 
 	memberships, err := s.db.ListWorkspacesByUserID(c.RequestCtx(), user.ID)
-	if err != nil || len(memberships) == 0 {
+	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace membership")
+	}
+	if len(memberships) == 0 {
+		return errRes(c, fiber.StatusInternalServerError, "user has no workspace")
 	}
 
 	first := memberships[0]
@@ -148,7 +156,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
-	token, err := s.tokenMaker.CreateToken(user.ID, first.ID, 7*24*time.Hour)
+	token, err := s.tokenMaker.CreateToken(user.ID, first.ID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
@@ -171,7 +179,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 func (s *Server) handleRefresh(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	token, err := s.tokenMaker.CreateToken(claims.UserID, claims.WorkspaceID, 7*24*time.Hour)
+	token, err := s.tokenMaker.CreateToken(claims.UserID, claims.WorkspaceID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}

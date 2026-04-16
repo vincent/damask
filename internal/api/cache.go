@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -24,8 +25,10 @@ func setCacheHeaders(c fiber.Ctx, etag string, lastMod time.Time, immutable bool
 	c.Set("Last-Modified", lastMod.UTC().Format(http.TimeFormat))
 
 	// ETag check takes precedence over date check.
+	// We intentionally do not treat If-None-Match: * as a cache hit: RFC 7232 §3.2
+	// reserves that wildcard for PUT precondition checks, not GET cache validation.
 	if inm := c.Get("If-None-Match"); inm != "" {
-		if inm == `"`+etag+`"` || inm == "*" {
+		if inm == `"`+etag+`"` {
 			c.Status(fiber.StatusNotModified)
 			return true
 		}
@@ -45,12 +48,14 @@ func setCacheHeaders(c fiber.Ctx, etag string, lastMod time.Time, immutable bool
 }
 
 // parseVersionTime parses an AssetVersion.CreatedAt string (RFC3339 or SQLite
-// datetime format) into a time.Time, falling back to time.Now() on failure.
+// datetime format) into a time.Time. Returns the zero time on failure so the
+// caller skips conditional-cache logic rather than serving a stale 304.
 func parseVersionTime(s string) time.Time {
 	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"} {
 		if t, err := time.Parse(layout, s); err == nil {
 			return t
 		}
 	}
-	return time.Now()
+	slog.Warn("parseVersionTime: unrecognized format", "value", s)
+	return time.Time{}
 }

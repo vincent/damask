@@ -112,6 +112,9 @@ type AssetOptions struct {
 	FolderID      *string
 	UserID        string
 	InheritFields FieldInheritanceFunc
+	// OriginalName overrides the filename derived from filePath (use when the
+	// temp file path does not reflect the user-supplied name).
+	OriginalName string
 }
 
 func CreateAsset(
@@ -137,6 +140,9 @@ func CreateAsset(
 
 	assetID := uuid.New().String()
 	originalFilename := filepath.Base(filePath)
+	if opts.OriginalName != "" {
+		originalFilename = opts.OriginalName
+	}
 	storageKey := fmt.Sprintf("%s/%s/%s", workspaceID, assetID, originalFilename)
 
 	f, err := os.Open(filePath)

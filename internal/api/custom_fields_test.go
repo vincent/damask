@@ -242,7 +242,7 @@ func TestFieldDefinitions_Stats_Asset(t *testing.T) {
 	id := def.ID
 
 	// Create an asset and set a field value to have a count
-	assetID := "test-asset-for-stats"
+	assetID := "stats-asset-" + t.Name()
 	_, err := env.SqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
 		VALUES (?, ?, ?, ?, ?, ?)`, assetID, u.WorkspaceID, "test.jpg", "storage/test.jpg", "image/jpeg", 100)
 	if err != nil {
@@ -320,19 +320,54 @@ func TestFieldDefinitions_Stats_Project(t *testing.T) {
 func TestFieldDefinitions_Auth(t *testing.T) {
 	env := th.SetupTestApp(t)
 	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	def := createFieldDef(t, env, u.Cookie, "asset", "X", "x", "text", nil)
 
-	// Unauthenticated
-	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/field-definitions", nil, nil))
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("unauth list: expected 401, got %d", resp.StatusCode)
+	viewerToken := th.MintEditorToken(t, env, u.WorkspaceID, auth.Viewer)
+
+	// Unauthenticated on every mutating endpoint.
+	for _, tc := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/v1/field-definitions"},
+		{http.MethodPost, "/api/v1/field-definitions"},
+		{http.MethodGet, "/api/v1/field-definitions/" + def.ID},
+		{http.MethodPut, "/api/v1/field-definitions/" + def.ID},
+		{http.MethodDelete, "/api/v1/field-definitions/" + def.ID},
+	} {
+		resp, _ := env.App.Test(th.AuthRequest(tc.method, tc.path, nil, nil))
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("unauth %s %s: expected 401, got %d", tc.method, tc.path, resp.StatusCode)
+		}
 	}
 
-	// Viewer cannot create
-	viewerToken := th.MintEditorToken(t, env, u.WorkspaceID, auth.Viewer)
-	resp, _ = env.App.Test(th.BearerRequest(http.MethodPost, "/api/v1/field-definitions",
-		th.JsonBody(api.CreateFieldDefinitionRequest{Scope: "asset", Name: "X", Key: "x", FieldType: "text"}), viewerToken))
+	// Viewer cannot create, update, or delete.
+	resp, _ := env.App.Test(th.BearerRequest(http.MethodPost, "/api/v1/field-definitions",
+		th.JsonBody(api.CreateFieldDefinitionRequest{Scope: "asset", Name: "Y", Key: "y", FieldType: "text"}), viewerToken))
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("viewer create: expected 403, got %d", resp.StatusCode)
+	}
+
+	nameVal := "Updated"
+	resp, _ = env.App.Test(th.BearerRequest(http.MethodPut, "/api/v1/field-definitions/"+def.ID,
+		th.JsonBody(api.UpdateFieldDefinitionRequest{Name: &nameVal}), viewerToken))
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer update: expected 403, got %d", resp.StatusCode)
+	}
+
+	resp, _ = env.App.Test(th.BearerRequest(http.MethodDelete, "/api/v1/field-definitions/"+def.ID, nil, viewerToken))
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer delete: expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestFieldDefinitions_Stats_NotFound(t *testing.T) {
+	env := th.SetupTestApp(t)
+	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/field-definitions/nonexistent-id/stats", nil, u.Cookie))
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("stats 404: expected 404, got %d", resp.StatusCode)
 	}
 }
 
@@ -596,6 +631,61 @@ func TestAssetFieldFilter_TooManyFilters(t *testing.T) {
 		nil, u.Cookie))
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("too many filters: expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestAssetFieldFilter_NumericGtLt(t *testing.T) {
+	env := th.SetupTestApp(t)
+	u := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	def := createFieldDef(t, env, u.Cookie, "asset", "Price", "price", "number", nil)
+	fieldID := def.ID
+
+	// price=9 and price=10 — lexicographic sort would put "9" > "10", numeric sort must not.
+	for _, row := range []struct{ id, price string }{
+		{"numfilter-cheap", "9"},
+		{"numfilter-mid", "10"},
+		{"numfilter-pricey", "20"},
+	} {
+		_, _ = env.SqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size)
+			VALUES (?, ?, ?, ?, ?, ?)`, row.id, u.WorkspaceID, row.id+".jpg", "s/"+row.id, "image/jpeg", 100)
+
+		var val float64
+		switch row.price {
+		case "9":
+			val = 9
+		case "10":
+			val = 10
+		default:
+			val = 20
+		}
+		req := api.PatchAssetFieldsRequest{
+			Values: []api.FieldValueInput{{FieldID: fieldID, Value: val}},
+		}
+		_, _ = env.App.Test(th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+row.id+"/fields",
+			th.JsonBody(req), u.Cookie))
+	}
+
+	// gt=9 should return price=10 and price=20 (2 assets), not just price=20 as lexicographic would give.
+	resp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/assets?field[price][gt]=9", nil, u.Cookie))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("gt filter: expected 200, got %d", resp.StatusCode)
+	}
+	var result api.AssetListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode gt result: %v", err)
+	}
+	if len(result.Assets) != 2 {
+		t.Fatalf("gt=9: expected 2 assets (price 10 and 20), got %d", len(result.Assets))
+	}
+
+	// lt=10 should return only price=9 (1 asset).
+	resp, _ = env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/assets?field[price][lt]=10", nil, u.Cookie))
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode lt result: %v", err)
+	}
+	if len(result.Assets) != 1 {
+		t.Fatalf("lt=10: expected 1 asset (price 9), got %d", len(result.Assets))
 	}
 }
 

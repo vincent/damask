@@ -327,6 +327,62 @@ func TestExportActivity_InvalidDate(t *testing.T) {
 	}
 }
 
+func TestExportActivity_UntilFilter(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	uploadTestAsset(t, env, owner)
+
+	// Use UTC dates to match what SQLite stores via datetime('now').
+	todayUTC := time.Now().UTC().Format("2006-01-02")
+	tomorrowUTC := time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02")
+	twoDaysAgoUTC := time.Now().UTC().AddDate(0, 0, -2).Format("2006-01-02")
+
+	// until=tomorrow: should include today's events
+	req := th.AuthRequest(http.MethodGet, "/api/v1/activity/export?format=csv&until="+tomorrowUTC, nil, owner.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+	if len(lines) < 2 {
+		t.Errorf("until=%s: expected events in export, got only header", tomorrowUTC)
+	}
+
+	// until=today: events created today (before end-of-day UTC) should be included
+	req2 := th.AuthRequest(http.MethodGet, "/api/v1/activity/export?format=csv&until="+todayUTC, nil, owner.Cookie)
+	resp2, err := env.App.Test(req2)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp2.StatusCode)
+	}
+	body2, _ := io.ReadAll(resp2.Body)
+	lines2 := strings.Split(strings.TrimSpace(string(body2)), "\n")
+	if len(lines2) < 2 {
+		t.Errorf("until=%s: expected today's events in export", todayUTC)
+	}
+
+	// until=two days ago: should exclude today's events (only header row)
+	req3 := th.AuthRequest(http.MethodGet, "/api/v1/activity/export?format=csv&until="+twoDaysAgoUTC, nil, owner.Cookie)
+	resp3, err := env.App.Test(req3)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if resp3.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp3.StatusCode)
+	}
+	body3, _ := io.ReadAll(resp3.Body)
+	lines3 := strings.Split(strings.TrimSpace(string(body3)), "\n")
+	if len(lines3) > 1 {
+		t.Errorf("until=%s: expected no data rows, got %d lines\ncontent:\n%s", twoDaysAgoUTC, len(lines3), string(body3))
+	}
+}
+
 // --- asset file download audit ---
 
 func downloadAssetFile(t *testing.T, env *th.TestEnv, assetID string, cookie *http.Cookie, secFetchDest string) int {

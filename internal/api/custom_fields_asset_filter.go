@@ -86,15 +86,8 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 		)
 		joinArgs = append(joinArgs, workspaceID, f.key)
 
-		// Build per-alias WHERE expression
-		valExpr := fieldFilterSQL(f)
-		// Prefix bare column names with the alias
-		for _, col := range []string{"value_text", "value_number", "value_date", "value_boolean"} {
-			valExpr = strings.ReplaceAll(valExpr, col, alias+"."+col)
-		}
-		// Fix double-alias from CAST(alias.value_number …)
-		whereFilters[i] = valExpr
-		valueArgs = append(valueArgs, fieldFilterValue(f))
+		whereFilters[i] = fieldFilterSQL(f, alias)
+		valueArgs = append(valueArgs, fieldFilterValue(f)...)
 	}
 
 	// Assemble args: joins first, then value comparisons, then cursor, then limit
@@ -158,44 +151,50 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
 }
 
-// fieldFilterSQL returns the SQL comparison snippet (without table alias) for a filter.
-// We look up field_id via a subquery so we never interpolate user-supplied values into SQL.
-// The value comparison uses a single generated column expression that SQLite evaluates correctly.
-func fieldFilterSQL(f fieldFilter) (expr string) {
-	// For all operators, coerce the stored value to a comparable string using SQLite's
-	// loose typing. The expression must not include a table alias — it's used directly
-	// in the JOIN ON clause where the alias is already part of the surrounding context.
-	valueCol := "COALESCE(value_text, CAST(value_number AS TEXT), value_date, CAST(value_boolean AS TEXT))"
+// fieldFilterSQL returns the SQL WHERE expression for a filter using the given table alias.
+// We never interpolate user-supplied values into SQL — only the alias (controlled internally)
+// and operator (validated against an allowlist) appear in the format string.
+func fieldFilterSQL(f fieldFilter, alias string) string {
+	// Text/date/boolean equality: COALESCE all columns to a comparable text value.
+	textCol := fmt.Sprintf("COALESCE(%s.value_text, %s.value_date, CAST(%s.value_boolean AS TEXT))", alias, alias, alias)
+	// Numeric ordering: use the numeric column directly so comparisons are arithmetic, not lexicographic.
+	numCol := fmt.Sprintf("CAST(%s.value_number AS REAL)", alias)
 
 	switch f.operator {
 	case "eq":
-		return fmt.Sprintf("%s = ?", valueCol)
+		return fmt.Sprintf("COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
+			alias, alias, alias, alias)
 	case "lt":
-		return fmt.Sprintf("%s < ?", valueCol)
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s < ? OR %s.value_number IS NULL AND %s < ?)", alias, numCol, alias, textCol)
 	case "lte":
-		return fmt.Sprintf("%s <= ?", valueCol)
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s <= ? OR %s.value_number IS NULL AND %s <= ?)", alias, numCol, alias, textCol)
 	case "gt":
-		return fmt.Sprintf("%s > ?", valueCol)
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s > ? OR %s.value_number IS NULL AND %s > ?)", alias, numCol, alias, textCol)
 	case "gte":
-		return fmt.Sprintf("%s >= ?", valueCol)
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s >= ? OR %s.value_number IS NULL AND %s >= ?)", alias, numCol, alias, textCol)
 	case "contains":
-		return "value_text LIKE ?"
+		return fmt.Sprintf("%s.value_text LIKE ?", alias)
 	case "starts_with":
-		return "value_text LIKE ?"
+		return fmt.Sprintf("%s.value_text LIKE ?", alias)
 	}
-	return fmt.Sprintf("%s = ?", valueCol)
+	return fmt.Sprintf("COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
+		alias, alias, alias, alias)
 }
 
-// fieldFilterValue transforms the user-supplied value for the SQL operator.
-// Boolean fields are stored as INTEGER (1/0) in SQLite, so "true"/"false" must
-// be normalised to "1"/"0" so that the COALESCE comparison works correctly.
-func fieldFilterValue(f fieldFilter) interface{} {
+// fieldFilterValue returns the SQL argument(s) for the operator.
+// lt/lte/gt/gte emit two placeholders (numeric branch + text branch), so two args are returned.
+// Boolean normalisation ("true"→"1") is only applied for eq, where the COALESCE text comparison
+// needs it — ordering operators on boolean fields are meaningless and left as-is.
+func fieldFilterValue(f fieldFilter) []interface{} {
 	switch f.operator {
 	case "contains":
-		return "%" + f.value + "%"
+		return []interface{}{"%" + f.value + "%"}
 	case "starts_with":
-		return f.value + "%"
-	default:
+		return []interface{}{f.value + "%"}
+	case "lt", "lte", "gt", "gte":
+		// Two placeholders: numeric value (REAL), then text fallback.
+		return []interface{}{f.value, f.value}
+	default: // eq
 		v := f.value
 		switch strings.ToLower(v) {
 		case "true":
@@ -203,26 +202,19 @@ func fieldFilterValue(f fieldFilter) interface{} {
 		case "false":
 			v = "0"
 		}
-		return v
+		return []interface{}{v}
 	}
 }
 
 // refreshAssetFTS updates the FTS5 index for a single asset to include its text field values.
 func (s *Server) refreshAssetFTS(ctx context.Context, assetID string) {
-	asset, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
-		ID: assetID,
-		// workspace_id check not needed here — internal call
-		WorkspaceID: "",
-	})
-	if err != nil {
-		// Try without workspace filter via raw query
-		row := s.sqlDB.QueryRowContext(ctx, `SELECT original_filename FROM assets WHERE id = ?`, assetID)
-		var name string
-		if err2 := row.Scan(&name); err2 != nil {
-			return
-		}
-		asset = dbgen.Asset{ID: assetID, OriginalFilename: name}
+	// Use a raw query — GetAssetByID requires workspace_id which is not available here.
+	var originalFilename string
+	row := s.sqlDB.QueryRowContext(ctx, `SELECT original_filename FROM assets WHERE id = ?`, assetID)
+	if err := row.Scan(&originalFilename); err != nil {
+		return
 	}
+	asset := dbgen.Asset{ID: assetID, OriginalFilename: originalFilename}
 
 	// Gather text field values
 	rows, err := s.sqlDB.QueryContext(ctx, `
