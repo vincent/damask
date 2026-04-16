@@ -58,7 +58,7 @@ INSERT INTO ingress_sources (
     id, workspace_id, created_by, type, label, config, public_token,
     dest_folder_id, dest_project_id, enabled, poll_interval_min
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, created_at, updated_at
+RETURNING id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, error_count, created_at, updated_at
 `
 
 type CreateIngressSourceParams struct {
@@ -107,6 +107,7 @@ func (q *Queries) CreateIngressSource(ctx context.Context, arg CreateIngressSour
 		&i.PollIntervalMin,
 		&i.LastPolledAt,
 		&i.LastError,
+		&i.ErrorCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -185,7 +186,7 @@ func (q *Queries) GetIngressRule(ctx context.Context, id string) (IngressRule, e
 }
 
 const getIngressSource = `-- name: GetIngressSource :one
-SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, created_at, updated_at FROM ingress_sources
+SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, error_count, created_at, updated_at FROM ingress_sources
 WHERE id = ? AND workspace_id = ?
 `
 
@@ -211,6 +212,7 @@ func (q *Queries) GetIngressSource(ctx context.Context, arg GetIngressSourcePara
 		&i.PollIntervalMin,
 		&i.LastPolledAt,
 		&i.LastError,
+		&i.ErrorCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -218,7 +220,7 @@ func (q *Queries) GetIngressSource(ctx context.Context, arg GetIngressSourcePara
 }
 
 const getIngressSourceByPublicToken = `-- name: GetIngressSourceByPublicToken :one
-SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, created_at, updated_at FROM ingress_sources WHERE public_token = ?
+SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, error_count, created_at, updated_at FROM ingress_sources WHERE public_token = ?
 `
 
 func (q *Queries) GetIngressSourceByPublicToken(ctx context.Context, publicToken string) (IngressSource, error) {
@@ -238,6 +240,7 @@ func (q *Queries) GetIngressSourceByPublicToken(ctx context.Context, publicToken
 		&i.PollIntervalMin,
 		&i.LastPolledAt,
 		&i.LastError,
+		&i.ErrorCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -307,8 +310,9 @@ func (q *Queries) InsertIngressLogEntry(ctx context.Context, arg InsertIngressLo
 }
 
 const listDueIngressSources = `-- name: ListDueIngressSources :many
-SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, created_at, updated_at FROM ingress_sources
+SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, error_count, created_at, updated_at FROM ingress_sources
 WHERE enabled = 1
+  AND error_count <= 5
   AND (
       last_polled_at IS NULL
       OR datetime(last_polled_at, '+' || poll_interval_min || ' minutes') <= datetime('now')
@@ -340,6 +344,7 @@ func (q *Queries) ListDueIngressSources(ctx context.Context) ([]IngressSource, e
 			&i.PollIntervalMin,
 			&i.LastPolledAt,
 			&i.LastError,
+			&i.ErrorCount,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -439,7 +444,7 @@ func (q *Queries) ListIngressSourceLog(ctx context.Context, arg ListIngressSourc
 }
 
 const listIngressSources = `-- name: ListIngressSources :many
-SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, created_at, updated_at FROM ingress_sources
+SELECT id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, error_count, created_at, updated_at FROM ingress_sources
 WHERE workspace_id = ?
 ORDER BY created_at DESC
 `
@@ -467,6 +472,7 @@ func (q *Queries) ListIngressSources(ctx context.Context, workspaceID string) ([
 			&i.PollIntervalMin,
 			&i.LastPolledAt,
 			&i.LastError,
+			&i.ErrorCount,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -536,21 +542,48 @@ func (q *Queries) ListWorkspaceIngressLog(ctx context.Context, arg ListWorkspace
 	return items, nil
 }
 
-const markIngressSourcePolled = `-- name: MarkIngressSourcePolled :exec
+const markIngressSourceError = `-- name: MarkIngressSourceError :exec
 UPDATE ingress_sources
 SET last_polled_at = datetime('now'),
     last_error     = ?,
+    error_count    = error_count + 1,
     updated_at     = datetime('now')
 WHERE id = ?
 `
 
-type MarkIngressSourcePolledParams struct {
+type MarkIngressSourceErrorParams struct {
 	LastError *string `json:"last_error"`
 	ID        string  `json:"id"`
 }
 
-func (q *Queries) MarkIngressSourcePolled(ctx context.Context, arg MarkIngressSourcePolledParams) error {
-	_, err := q.db.ExecContext(ctx, markIngressSourcePolled, arg.LastError, arg.ID)
+func (q *Queries) MarkIngressSourceError(ctx context.Context, arg MarkIngressSourceErrorParams) error {
+	_, err := q.db.ExecContext(ctx, markIngressSourceError, arg.LastError, arg.ID)
+	return err
+}
+
+const markIngressSourceScheduled = `-- name: MarkIngressSourceScheduled :exec
+UPDATE ingress_sources
+SET last_polled_at = datetime('now'),
+    updated_at     = datetime('now')
+WHERE id = ?
+`
+
+func (q *Queries) MarkIngressSourceScheduled(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, markIngressSourceScheduled, id)
+	return err
+}
+
+const markIngressSourceSuccess = `-- name: MarkIngressSourceSuccess :exec
+UPDATE ingress_sources
+SET last_polled_at = datetime('now'),
+    last_error     = NULL,
+    error_count    = 0,
+    updated_at     = datetime('now')
+WHERE id = ?
+`
+
+func (q *Queries) MarkIngressSourceSuccess(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, markIngressSourceSuccess, id)
 	return err
 }
 
@@ -637,9 +670,10 @@ UPDATE ingress_sources SET
     dest_project_id   = ?,
     enabled           = ?,
     poll_interval_min = ?,
+    error_count       = 0,
     updated_at        = datetime('now')
 WHERE id = ? AND workspace_id = ?
-RETURNING id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, created_at, updated_at
+RETURNING id, workspace_id, created_by, type, label, config, public_token, dest_folder_id, dest_project_id, enabled, poll_interval_min, last_polled_at, last_error, error_count, created_at, updated_at
 `
 
 type UpdateIngressSourceParams struct {
@@ -679,6 +713,7 @@ func (q *Queries) UpdateIngressSource(ctx context.Context, arg UpdateIngressSour
 		&i.PollIntervalMin,
 		&i.LastPolledAt,
 		&i.LastError,
+		&i.ErrorCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

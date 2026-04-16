@@ -218,6 +218,7 @@ CREATE TABLE ingress_sources (
     poll_interval_min INTEGER NOT NULL DEFAULT 15,
     last_polled_at    DATETIME,
     last_error        TEXT,
+    error_count       INTEGER NOT NULL DEFAULT 0,
     created_at        DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at        DATETIME NOT NULL DEFAULT (datetime('now'))
 );

@@ -57,13 +57,10 @@ func (s *Scheduler) tick(ctx context.Context) {
 			slog.Error("ingress scheduler: enqueue poll", "source_id", src.ID, "error", err)
 			continue
 		}
-		// Mark as polled immediately to prevent double-scheduling
-		// (last_error is cleared here; the actual poll worker updates it)
-		if err := s.db.MarkIngressSourcePolled(ctx, dbgen.MarkIngressSourcePolledParams{
-			ID:        src.ID,
-			LastError: src.LastError, // preserve existing error until poll succeeds
-		}); err != nil {
-			slog.Error("ingress scheduler: mark polled", "source_id", src.ID, "error", err)
+		// Mark last_polled_at immediately to prevent double-scheduling.
+		// error_count and last_error are untouched here; the poll worker updates them.
+		if err := s.db.MarkIngressSourceScheduled(ctx, src.ID); err != nil {
+			slog.Error("ingress scheduler: mark scheduled", "source_id", src.ID, "error", err)
 		}
 	}
 }

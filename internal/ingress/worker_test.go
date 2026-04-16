@@ -3,6 +3,7 @@ package ingress
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -546,5 +547,204 @@ func TestHandlePoll_BadPayload_ReturnsError(t *testing.T) {
 	err := w.HandlePoll(ctx, dbgen.Job{Payload: "not-json"})
 	if err == nil {
 		t.Fatal("expected error for invalid JSON payload")
+	}
+}
+
+// errorPollSource always returns an error from Poll.
+type errorPollSource struct{}
+
+func (e *errorPollSource) Type() string                                          { return "error_poll_source" }
+func (e *errorPollSource) Validate(_ context.Context) error                     { return nil }
+func (e *errorPollSource) Poll(_ context.Context) ([]IngestItem, error)         { return nil, errors.New("poll failed") }
+func (e *errorPollSource) Fetch(_ context.Context, _ IngestItem) (io.ReadCloser, error) {
+	return nil, errors.New("not implemented")
+}
+
+// insertErrorPollSource creates a workspace + source backed by errorPollSource.
+func insertErrorPollSource(t *testing.T, queries *dbgen.Queries) (workspaceID, sourceID string) {
+	t.Helper()
+	ctx := context.Background()
+	workspaceID = uuid.NewString()
+	userID := uuid.NewString()
+	sourceID = uuid.NewString()
+
+	_, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: workspaceID, Name: "Err WS"})
+	if err != nil {
+		t.Fatalf("create workspace: %v", err)
+	}
+	_, err = queries.CreateUser(ctx, dbgen.CreateUserParams{
+		ID: userID, Email: "err-" + sourceID + "@example.com", PasswordHash: "x", Name: "Err User",
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	const typ = "error_poll_source"
+	Register(typ, func(_ []byte) (Source, error) { return &errorPollSource{}, nil })
+	configJSON, err := EncryptConfig(testAppSecret, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("encrypt config: %v", err)
+	}
+
+	_, err = queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+		ID: sourceID, WorkspaceID: workspaceID, CreatedBy: userID,
+		Type: typ, Label: "err-source", Config: configJSON,
+		PublicToken: uuid.NewString(), Enabled: 1, PollIntervalMin: 60,
+	})
+	if err != nil {
+		t.Fatalf("create ingress source: %v", err)
+	}
+	return workspaceID, sourceID
+}
+
+func pollSourceN(t *testing.T, w *Worker, queries *dbgen.Queries, workspaceID, sourceID string, n int) {
+	t.Helper()
+	ctx := context.Background()
+	payload, _ := json.Marshal(PollJobPayload{SourceID: sourceID, WorkspaceID: workspaceID})
+	job := dbgen.Job{Payload: string(payload)}
+	for i := 0; i < n; i++ {
+		_ = w.HandlePoll(ctx, job) // errors expected; ignore return value
+	}
+}
+
+func getErrorCount(t *testing.T, queries *dbgen.Queries, workspaceID, sourceID string) int64 {
+	t.Helper()
+	src, err := queries.GetIngressSource(context.Background(), dbgen.GetIngressSourceParams{
+		ID: sourceID, WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		t.Fatalf("get source: %v", err)
+	}
+	return src.ErrorCount
+}
+
+// TestErrorCount_IncreasesOnPollFailure verifies that error_count increments
+// each time HandlePoll fails, and the source still appears in due list at count=5.
+func TestErrorCount_IncreasesOnPollFailure(t *testing.T) {
+	w, queries := setupWorkerTest(t)
+	workspaceID, sourceID := insertErrorPollSource(t, queries)
+
+	pollSourceN(t, w, queries, workspaceID, sourceID, 5)
+
+	if count := getErrorCount(t, queries, workspaceID, sourceID); count != 5 {
+		t.Fatalf("expected error_count=5 after 5 failures, got %d", count)
+	}
+
+	// Source with error_count=5 must still appear in ListDueIngressSources.
+	ctx := context.Background()
+	// Reset last_polled_at so the source is considered due.
+	if _, execErr := w.sqlDB.ExecContext(ctx,
+		"UPDATE ingress_sources SET last_polled_at = datetime('now', '-2 hours') WHERE id = ?", sourceID); execErr != nil {
+		t.Fatalf("reset last_polled_at: %v", execErr)
+	}
+	due, err := queries.ListDueIngressSources(ctx)
+	if err != nil {
+		t.Fatalf("ListDueIngressSources: %v", err)
+	}
+	found := false
+	for _, s := range due {
+		if s.ID == sourceID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("source with error_count=5 must still appear in due list")
+	}
+}
+
+// TestErrorCount_SkipsSourceAfterSixFailures verifies that a source with
+// error_count > 5 is excluded from ListDueIngressSources.
+func TestErrorCount_SkipsSourceAfterSixFailures(t *testing.T) {
+	w, queries := setupWorkerTest(t)
+	workspaceID, sourceID := insertErrorPollSource(t, queries)
+
+	pollSourceN(t, w, queries, workspaceID, sourceID, 6)
+
+	if count := getErrorCount(t, queries, workspaceID, sourceID); count != 6 {
+		t.Fatalf("expected error_count=6 after 6 failures, got %d", count)
+	}
+
+	// Reset last_polled_at so the source would be due if not for error_count.
+	ctx := context.Background()
+	_, execErr := w.sqlDB.ExecContext(ctx,
+		"UPDATE ingress_sources SET last_polled_at = datetime('now', '-2 hours') WHERE id = ?", sourceID)
+	if execErr != nil {
+		t.Fatalf("reset last_polled_at: %v", execErr)
+	}
+
+	due, err := queries.ListDueIngressSources(ctx)
+	if err != nil {
+		t.Fatalf("ListDueIngressSources: %v", err)
+	}
+	for _, s := range due {
+		if s.ID == sourceID {
+			t.Fatal("source with error_count=6 must not appear in due list")
+		}
+	}
+}
+
+// TestErrorCount_ResetsOnSuccess verifies that a successful poll resets error_count to 0.
+func TestErrorCount_ResetsOnSuccess(t *testing.T) {
+	w, queries := setupWorkerTest(t)
+	ctx := context.Background()
+
+	// Use a poll source with items so HandlePoll succeeds.
+	workspaceID, sourceID := insertWorkspaceAndPollSource(t, queries, "reset-label", []IngestItem{
+		{RemoteID: "item1", Filename: "a.jpg"},
+	})
+
+	// Seed error_count=4 directly via SQL.
+	if _, err := w.sqlDB.ExecContext(ctx,
+		"UPDATE ingress_sources SET error_count = 4 WHERE id = ?", sourceID); err != nil {
+		t.Fatalf("seed error_count: %v", err)
+	}
+
+	payload, _ := json.Marshal(PollJobPayload{SourceID: sourceID, WorkspaceID: workspaceID})
+	if err := w.HandlePoll(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
+		t.Fatalf("HandlePoll: %v", err)
+	}
+
+	if count := getErrorCount(t, queries, workspaceID, sourceID); count != 0 {
+		t.Fatalf("expected error_count=0 after successful poll, got %d", count)
+	}
+}
+
+// TestErrorCount_ResetsOnSourceEdit verifies that updating a source resets error_count.
+func TestErrorCount_ResetsOnSourceEdit(t *testing.T) {
+	w, queries := setupWorkerTest(t)
+	ctx := context.Background()
+	workspaceID, sourceID := insertErrorPollSource(t, queries)
+
+	// Seed error_count=6 directly.
+	if _, err := w.sqlDB.ExecContext(ctx,
+		"UPDATE ingress_sources SET error_count = 6 WHERE id = ?", sourceID); err != nil {
+		t.Fatalf("seed error_count: %v", err)
+	}
+
+	src, err := queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+		ID: sourceID, WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		t.Fatalf("get source: %v", err)
+	}
+
+	// Simulate an edit (UpdateIngressSource resets error_count=0).
+	_, err = queries.UpdateIngressSource(ctx, dbgen.UpdateIngressSourceParams{
+		Label:           src.Label,
+		Config:          src.Config,
+		DestFolderID:    src.DestFolderID,
+		DestProjectID:   src.DestProjectID,
+		Enabled:         src.Enabled,
+		PollIntervalMin: src.PollIntervalMin,
+		ID:              src.ID,
+		WorkspaceID:     src.WorkspaceID,
+	})
+	if err != nil {
+		t.Fatalf("UpdateIngressSource: %v", err)
+	}
+
+	if count := getErrorCount(t, queries, workspaceID, sourceID); count != 0 {
+		t.Fatalf("expected error_count=0 after edit, got %d", count)
 	}
 }

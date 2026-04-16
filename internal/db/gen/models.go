@@ -142,6 +142,7 @@ type IngressSource struct {
 	PollIntervalMin int64      `json:"poll_interval_min"`
 	LastPolledAt    *time.Time `json:"last_polled_at"`
 	LastError       *string    `json:"last_error"`
+	ErrorCount      int64      `json:"error_count"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }

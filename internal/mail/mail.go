@@ -28,6 +28,7 @@ type Mailer interface {
 	SendInviteAccepted(ctx context.Context, to, newMemberName, newMemberEmail, role string) error
 	SendIngressSourceAdded(ctx context.Context, to, sourceName string) error
 	SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg string) error
+	SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg string) error
 	SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error
 }
 
@@ -200,6 +201,20 @@ func (m *MailerImpl) SendIngressSourceFailed(ctx context.Context, to, sourceName
 		map[string]string{
 			"Title":      "Ingress source error",
 			"Text":       "The ingress source \"" + sourceName + "\" encountered an error: " + errMsg,
+			"ActionText": "View sources",
+			"ActionUrl":  "/library/ingress",
+		},
+	)
+}
+
+func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"Ingress source disabled: "+sourceName,
+		map[string]string{
+			"Title":      "Ingress source disabled",
+			"Text":       "The ingress source \"" + sourceName + "\" has been disabled after too many consecutive errors. Last error: " + errMsg + "\n\nEdit the source to re-enable polling.",
 			"ActionText": "View sources",
 			"ActionUrl":  "/library/ingress",
 		},

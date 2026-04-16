@@ -26,6 +26,7 @@ UPDATE ingress_sources SET
     dest_project_id   = ?,
     enabled           = ?,
     poll_interval_min = ?,
+    error_count       = 0,
     updated_at        = datetime('now')
 WHERE id = ? AND workspace_id = ?
 RETURNING *;
@@ -33,16 +34,32 @@ RETURNING *;
 -- name: DeleteIngressSource :exec
 DELETE FROM ingress_sources WHERE id = ? AND workspace_id = ?;
 
--- name: MarkIngressSourcePolled :exec
+-- name: MarkIngressSourceScheduled :exec
+UPDATE ingress_sources
+SET last_polled_at = datetime('now'),
+    updated_at     = datetime('now')
+WHERE id = ?;
+
+-- name: MarkIngressSourceSuccess :exec
+UPDATE ingress_sources
+SET last_polled_at = datetime('now'),
+    last_error     = NULL,
+    error_count    = 0,
+    updated_at     = datetime('now')
+WHERE id = ?;
+
+-- name: MarkIngressSourceError :exec
 UPDATE ingress_sources
 SET last_polled_at = datetime('now'),
     last_error     = ?,
+    error_count    = error_count + 1,
     updated_at     = datetime('now')
 WHERE id = ?;
 
 -- name: ListDueIngressSources :many
 SELECT * FROM ingress_sources
 WHERE enabled = 1
+  AND error_count <= 5
   AND (
       last_polled_at IS NULL
       OR datetime(last_polled_at, '+' || poll_interval_min || ' minutes') <= datetime('now')

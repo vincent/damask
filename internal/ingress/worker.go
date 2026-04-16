@@ -120,7 +120,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 		}
 	}
 
-	return w.markPolled(ctx, src.ID, nil)
+	return w.markPolledSuccess(ctx, src.ID)
 }
 
 // HandleFetch is the queue.HandlerFunc for JobTypeIngestFetch.
@@ -144,17 +144,17 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		ID: p.SourceID, WorkspaceID: p.WorkspaceID,
 	})
 	if err != nil {
-		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: get source: %w", err))
+		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: get source: %w", err))
 	}
 
 	configJSON, err := DecryptConfig(w.cfg.AppSecret, src.Config)
 	if err != nil {
-		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: decrypt config: %w", err))
+		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: decrypt config: %w", err))
 	}
 
 	source, err := Build(src.Type, configJSON)
 	if err != nil {
-		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: build source: %w", err))
+		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: build source: %w", err))
 	}
 
 	// Evaluate rules
@@ -190,14 +190,14 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	if p.TmpPath != "" {
 		f, err := os.Open(p.TmpPath)
 		if err != nil {
-			return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: open tmp file: %w", err))
+			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: open tmp file: %w", err))
 		}
 		defer os.Remove(p.TmpPath)
 		rc = f
 	} else {
 		rc, err = source.Fetch(ctx, IngestItem{RemoteID: entry.RemoteID, Filename: entry.Filename})
 		if err != nil {
-			return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: fetch item: %w", err))
+			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: fetch item: %w", err))
 		}
 	}
 	defer rc.Close()
@@ -211,14 +211,14 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 
 	tmp, err := os.CreateTemp("", "ingest-*")
 	if err != nil {
-		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: create temp file: %w", err))
+		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create temp file: %w", err))
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
 
 	if _, err := io.Copy(tmp, io.MultiReader(bytes.NewReader(sniff), rc)); err != nil {
 		_ = tmp.Close()
-		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: write temp file: %w", err))
+		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: write temp file: %w", err))
 	}
 	_ = tmp.Close()
 
@@ -235,7 +235,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	)
 	if fErr != nil {
 		slog.Error("ingest_fetch: cannot create asset", "error", err)
-		return w.failEntry(ctx, entry.ID, src.ID, fmt.Errorf("ingest_fetch: create asset: %s", fErr.Message))
+		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create asset: %s", fErr.Message))
 	}
 
 	assetID := asset.ID
@@ -275,14 +275,19 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 
 func (w *Worker) failSource(ctx context.Context, src dbgen.IngressSource, err error) error {
 	msg := err.Error()
-	_ = w.db.MarkIngressSourcePolled(ctx, dbgen.MarkIngressSourcePolledParams{
+	_ = w.db.MarkIngressSourceError(ctx, dbgen.MarkIngressSourceErrorParams{
 		ID: src.ID, LastError: &msg,
 	})
-	w.notifySourceFailure(ctx, src, msg)
+	// Fetch updated error_count to decide which email to send.
+	updated, dbErr := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+		ID: src.ID, WorkspaceID: src.WorkspaceID,
+	})
+	disabled := dbErr == nil && updated.ErrorCount > 5
+	w.notifySourceFailure(ctx, src, msg, disabled)
 	return err
 }
 
-func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSource, errMsg string) {
+func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSource, errMsg string, disabled bool) {
 	members, dbErr := w.db.ListMembers(ctx, src.WorkspaceID)
 	if dbErr != nil {
 		return
@@ -292,7 +297,13 @@ func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSourc
 		if m.Role == string(auth.Owner) || m.UserID == src.CreatedBy {
 			if !notified[m.Email] {
 				notified[m.Email] = true
-				if mailErr := w.mailer.SendIngressSourceFailed(ctx, m.Email, src.Label, errMsg); mailErr != nil {
+				var mailErr error
+				if disabled {
+					mailErr = w.mailer.SendIngressSourceDisabled(ctx, m.Email, src.Label, errMsg)
+				} else {
+					mailErr = w.mailer.SendIngressSourceFailed(ctx, m.Email, src.Label, errMsg)
+				}
+				if mailErr != nil {
 					slog.ErrorContext(ctx, "failed to send ingress failure mail", "error", mailErr)
 				}
 			}
@@ -300,26 +311,28 @@ func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSourc
 	}
 }
 
-func (w *Worker) markPolled(ctx context.Context, sourceID string, pollErr error) error {
-	var msg *string
-	if pollErr != nil {
-		s := pollErr.Error()
-		msg = &s
-	}
-	return w.db.MarkIngressSourcePolled(ctx, dbgen.MarkIngressSourcePolledParams{
-		ID: sourceID, LastError: msg,
+func (w *Worker) markPolledSuccess(ctx context.Context, sourceID string) error {
+	return w.db.MarkIngressSourceSuccess(ctx, sourceID)
+}
+
+func (w *Worker) markPolledError(ctx context.Context, sourceID, msg string) error {
+	return w.db.MarkIngressSourceError(ctx, dbgen.MarkIngressSourceErrorParams{
+		ID: sourceID, LastError: &msg,
 	})
 }
 
-func (w *Worker) failEntry(ctx context.Context, entryID, sourceID string, err error) error {
+func (w *Worker) failEntry(ctx context.Context, entryID string, src dbgen.IngressSource, err error) error {
 	msg := err.Error()
 	_ = w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status: "error",
 		Error:  &msg,
 		ID:     entryID,
 	})
-	_ = w.db.MarkIngressSourcePolled(ctx, dbgen.MarkIngressSourcePolledParams{
-		ID: sourceID, LastError: &msg,
+	_ = w.markPolledError(ctx, src.ID, msg)
+	updated, dbErr := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+		ID: src.ID, WorkspaceID: src.WorkspaceID,
 	})
+	disabled := dbErr == nil && updated.ErrorCount > 5
+	w.notifySourceFailure(ctx, src, msg, disabled)
 	return err
 }
