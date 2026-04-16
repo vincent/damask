@@ -24,11 +24,11 @@ type MailSenderConfig struct {
 
 type Mailer interface {
 	SendInvite(ctx context.Context, to, role, token string) error
-	SendWelcome(ctx context.Context, to, username string) error
+	SendWelcome(ctx context.Context, to, username, workspaceID string) error
 	SendInviteAccepted(ctx context.Context, to, newMemberName, newMemberEmail, role string) error
-	SendIngressSourceAdded(ctx context.Context, to, sourceName string) error
-	SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg string) error
-	SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg string) error
+	SendIngressSourceAdded(ctx context.Context, to, sourceName, workspaceID string) error
+	SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg, workspaceID string) error
+	SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg, workspaceID string) error
 	SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error
 }
 
@@ -143,26 +143,26 @@ func (m *MailerImpl) SendInvite(ctx context.Context, to, role, token string) err
 	return m.PrepareAndSend(
 		ctx,
 		to,
-		"You have been invited to a Damask workspace",
+		"You've been invited to a Damask workspace",
 		map[string]string{
-			"Title":      "You have been invited to a Damask workspace",
-			"Text":       "You have been invited to join a workspace with role " + role,
-			"ActionText": "Join workspace",
+			"Title":      "You're invited!",
+			"Text":       "Someone thinks you'd be a great fit! you've been invited to collaborate on a Damask workspace as " + role + ". Damask is a self-hosted digital asset manager: upload, organise, tag, and share your files with your team. Click below to create your account and join the workspace.",
+			"ActionText": "Accept invitation",
 			"ActionUrl":  "/invite?token=" + token,
 		},
 	)
 }
 
-func (m *MailerImpl) SendWelcome(ctx context.Context, to, username string) error {
+func (m *MailerImpl) SendWelcome(ctx context.Context, to, username, workspaceID string) error {
 	return m.PrepareAndSend(
 		ctx,
 		to,
-		"Welcome to Damask !",
+		"Welcome to Damask, "+username+"!",
 		map[string]string{
-			"Title":      "Welcome to Damask !",
-			"Text":       "Your workspace is ready",
-			"ActionText": "Get started",
-			"ActionUrl":  "/library",
+			"Title":      "Your workspace is ready, " + username + "!",
+			"Text":       "Welcome to Damask, your home for digital assets. Upload images, videos, PDFs, and more; organise them with folders, projects, and tags; create shareable links with optional passwords and expiry; and set up ingress sources to pull files in automatically.",
+			"ActionText": "Explore your library",
+			"ActionUrl":  "/library?ws=" + workspaceID,
 		},
 	)
 }
@@ -179,7 +179,7 @@ func (m *MailerImpl) SendInviteAccepted(ctx context.Context, to, newMemberName, 
 	)
 }
 
-func (m *MailerImpl) SendIngressSourceAdded(ctx context.Context, to, sourceName string) error {
+func (m *MailerImpl) SendIngressSourceAdded(ctx context.Context, to, sourceName, workspaceID string) error {
 	return m.PrepareAndSend(
 		ctx,
 		to,
@@ -188,12 +188,12 @@ func (m *MailerImpl) SendIngressSourceAdded(ctx context.Context, to, sourceName 
 			"Title":      "Ingress source configured",
 			"Text":       "Your ingress source \"" + sourceName + "\" is set up and will start polling shortly.",
 			"ActionText": "View sources",
-			"ActionUrl":  "/library/ingress",
+			"ActionUrl":  "/library/ingress?ws=" + workspaceID,
 		},
 	)
 }
 
-func (m *MailerImpl) SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg string) error {
+func (m *MailerImpl) SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg, workspaceID string) error {
 	return m.PrepareAndSend(
 		ctx,
 		to,
@@ -202,12 +202,12 @@ func (m *MailerImpl) SendIngressSourceFailed(ctx context.Context, to, sourceName
 			"Title":      "Ingress source error",
 			"Text":       "The ingress source \"" + sourceName + "\" encountered an error: " + errMsg,
 			"ActionText": "View sources",
-			"ActionUrl":  "/library/ingress",
+			"ActionUrl":  "/library/ingress?ws=" + workspaceID,
 		},
 	)
 }
 
-func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg string) error {
+func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg, workspaceID string) error {
 	return m.PrepareAndSend(
 		ctx,
 		to,
@@ -216,7 +216,7 @@ func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceNa
 			"Title":      "Ingress source disabled",
 			"Text":       "The ingress source \"" + sourceName + "\" has been disabled after too many consecutive errors. Last error: " + errMsg + "\n\nEdit the source to re-enable polling.",
 			"ActionText": "View sources",
-			"ActionUrl":  "/library/ingress",
+			"ActionUrl":  "/library/ingress?ws=" + workspaceID,
 		},
 	)
 }

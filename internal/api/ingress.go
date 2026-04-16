@@ -433,7 +433,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	}
 
 	if creator, err := s.db.GetUserByID(c.Context(), claims.UserID); err == nil {
-		if err := s.mailer.SendIngressSourceAdded(c.Context(), creator.Email, src.Label); err != nil {
+		if err := s.mailer.SendIngressSourceAdded(c.Context(), creator.Email, src.Label, claims.WorkspaceID); err != nil {
 			slog.ErrorContext(c.Context(), "failed to send ingress source added mail", "error", err)
 		}
 	}

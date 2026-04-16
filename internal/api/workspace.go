@@ -689,7 +689,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not add workspace member")
 	}
 
-	if err := s.mailer.SendWelcome(c.RequestCtx(), invite.Email, req.Name); err != nil {
+	if err := s.mailer.SendWelcome(c.RequestCtx(), invite.Email, req.Name, invite.WorkspaceID); err != nil {
 		slog.ErrorContext(c.RequestCtx(), "failed to send welcome mail", "error", err)
 	}
 
