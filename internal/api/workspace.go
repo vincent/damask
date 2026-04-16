@@ -620,17 +620,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create invite")
 	}
 
-	if err = s.mailer.PrepareAndSend(
-		c.RequestCtx(),
-		invite.Email,
-		"You have been invited to a Damask workspace",
-		map[string]string{
-			"Title":      "You have been invited to a Damask workspace",
-			"Text":       "You have been invited to join a workspace with role " + string(req.Role),
-			"ActionText": "Join workspace",
-			"ActionURL":  "/api/invite/accept/" + invite.Token,
-		},
-	); err != nil {
+	if err = s.mailer.SendInvite(c.RequestCtx(), invite.Email, string(req.Role), invite.Token); err != nil {
 		slog.ErrorContext(c.RequestCtx(), "failed to send invitation mail", "error", err)
 	}
 
@@ -699,12 +689,22 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not add workspace member")
 	}
 
+	if err := s.mailer.SendWelcome(c.RequestCtx(), invite.Email, req.Name); err != nil {
+		slog.ErrorContext(c.RequestCtx(), "failed to send welcome mail", "error", err)
+	}
+
 	if err := qtx.AcceptInvite(c.RequestCtx(), invite.ID); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not mark invite as accepted")
 	}
 
 	if err := tx.Commit(); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
+	}
+
+	if inviter, err := s.db.GetUserByID(c.RequestCtx(), invite.InvitedBy); err == nil {
+		if err := s.mailer.SendInviteAccepted(c.RequestCtx(), inviter.Email, req.Name, invite.Email, invite.Role); err != nil {
+			slog.ErrorContext(c.RequestCtx(), "failed to send invite accepted mail", "error", err)
+		}
 	}
 
 	token, err := s.tokenMaker.CreateToken(userID, invite.WorkspaceID, 7*24*time.Hour)

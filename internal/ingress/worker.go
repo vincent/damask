@@ -14,8 +14,10 @@ import (
 	"path/filepath"
 
 	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/services"
 	"damask/server/internal/storage"
@@ -31,11 +33,12 @@ type Worker struct {
 	queue   queue.JobQueue
 	cfg     *config.Config
 	audit   *audit.EventWriter
+	mailer  mail.Mailer
 }
 
 // NewWorker creates a Worker.
-func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config, au *audit.EventWriter) *Worker {
-	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg, audit: au}
+func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config, au *audit.EventWriter, mailer mail.Mailer) *Worker {
+	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg, audit: au, mailer: mailer}
 }
 
 // PollJobPayload is the JSON payload for a JobTypeIngestPoll job.
@@ -75,17 +78,17 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 
 	configJSON, err := DecryptConfig(w.cfg.AppSecret, src.Config)
 	if err != nil {
-		return w.failSource(ctx, src.ID, fmt.Errorf("ingest_poll: decrypt config: %w", err))
+		return w.failSource(ctx, src, fmt.Errorf("ingest_poll: decrypt config: %w", err))
 	}
 
 	source, err := Build(src.Type, configJSON)
 	if err != nil {
-		return w.failSource(ctx, src.ID, fmt.Errorf("ingest_poll: build source: %w", err))
+		return w.failSource(ctx, src, fmt.Errorf("ingest_poll: build source: %w", err))
 	}
 
 	items, err := source.Poll(ctx)
 	if err != nil {
-		return w.failSource(ctx, src.ID, fmt.Errorf("ingest_poll: poll: %w", err))
+		return w.failSource(ctx, src, fmt.Errorf("ingest_poll: poll: %w", err))
 	}
 
 	for _, item := range items {
@@ -270,12 +273,31 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	return nil
 }
 
-func (w *Worker) failSource(ctx context.Context, sourceID string, err error) error {
+func (w *Worker) failSource(ctx context.Context, src dbgen.IngressSource, err error) error {
 	msg := err.Error()
 	_ = w.db.MarkIngressSourcePolled(ctx, dbgen.MarkIngressSourcePolledParams{
-		ID: sourceID, LastError: &msg,
+		ID: src.ID, LastError: &msg,
 	})
+	w.notifySourceFailure(ctx, src, msg)
 	return err
+}
+
+func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSource, errMsg string) {
+	members, dbErr := w.db.ListMembers(ctx, src.WorkspaceID)
+	if dbErr != nil {
+		return
+	}
+	notified := map[string]bool{}
+	for _, m := range members {
+		if m.Role == string(auth.Owner) || m.UserID == src.CreatedBy {
+			if !notified[m.Email] {
+				notified[m.Email] = true
+				if mailErr := w.mailer.SendIngressSourceFailed(ctx, m.Email, src.Label, errMsg); mailErr != nil {
+					slog.ErrorContext(ctx, "failed to send ingress failure mail", "error", mailErr)
+				}
+			}
+		}
+	}
 }
 
 func (w *Worker) markPolled(ctx context.Context, sourceID string, pollErr error) error {

@@ -23,10 +23,12 @@ type MailSenderConfig struct {
 }
 
 type Mailer interface {
-	PrepareAndSendWithTemplate(ctx context.Context, templateName string, to, subject string, data map[string]string) error
-	PrepareAndSend(ctx context.Context, to, subject string, data map[string]string) error
-	Prepare(to, subject, body string) (message *mail.Msg, err error)
-	Send(ctx context.Context, message *mail.Msg) error
+	SendInvite(ctx context.Context, to, role, token string) error
+	SendWelcome(ctx context.Context, to, username string) error
+	SendInviteAccepted(ctx context.Context, to, newMemberName, newMemberEmail, role string) error
+	SendIngressSourceAdded(ctx context.Context, to, sourceName string) error
+	SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg string) error
+	SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error
 }
 
 func NewMailer(config *MailSenderConfig) Mailer {
@@ -45,9 +47,9 @@ func NewMailer(config *MailSenderConfig) Mailer {
 		)
 		if err != nil {
 			slog.Error("mailer: failed to create new mail delivery client", "error", err, "host", config.Host, "port", config.Port)
-		} else {
-			mailer.client = client
+			panic("unrecoverable error: mailer config is not usable")
 		}
+		mailer.client = client
 	}
 	return mailer
 }
@@ -79,6 +81,7 @@ func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateNam
 	var buf bytes.Buffer
 	if err := tpl.Execute(&buf, data); err != nil {
 		slog.ErrorContext(ctx, "mailer: failed to execute mail template", "error", err)
+		return err
 	}
 
 	msg, err := m.Prepare(to, subject, buf.String())
@@ -87,10 +90,10 @@ func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateNam
 		return err
 
 	} else {
+		slog.Info("mailer: send mail", "to", to)
 		err = m.Send(ctx, msg)
 		if err != nil {
-			slog.Error("mailer: failed to create new mail delivery client", "error", err, "host", m.config.Host, "port", m.config.Port, "message", msg)
-			slog.ErrorContext(ctx, "failed to send mail", "error", err)
+			slog.ErrorContext(ctx, "mailer: failed to send mail", "error", err, "host", m.config.Host, "port", m.config.Port)
 			return err
 		}
 	}
@@ -127,8 +130,90 @@ func (m *MailerImpl) Send(ctx context.Context, message *mail.Msg) error {
 		}
 	} else {
 		err = message.WriteToSendmailWithContext(ctx, "sendmail")
-		slog.ErrorContext(ctx, "mailer: failed to deliver mail with local sendmail", "error", err)
+		if err != nil {
+			slog.ErrorContext(ctx, "mailer: failed to deliver mail with local sendmail", "error", err)
+		}
 	}
 
 	return err
+}
+
+func (m *MailerImpl) SendInvite(ctx context.Context, to, role, token string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"You have been invited to a Damask workspace",
+		map[string]string{
+			"Title":      "You have been invited to a Damask workspace",
+			"Text":       "You have been invited to join a workspace with role " + role,
+			"ActionText": "Join workspace",
+			"ActionUrl":  "/invite?token=" + token,
+		},
+	)
+}
+
+func (m *MailerImpl) SendWelcome(ctx context.Context, to, username string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"Welcome to Damask !",
+		map[string]string{
+			"Title":      "Welcome to Damask !",
+			"Text":       "Your workspace is ready",
+			"ActionText": "Get started",
+			"ActionUrl":  "/library",
+		},
+	)
+}
+
+func (m *MailerImpl) SendInviteAccepted(ctx context.Context, to, newMemberName, newMemberEmail, role string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"A new member joined your workspace",
+		map[string]string{
+			"Title": "A new member joined your workspace",
+			"Text":  newMemberName + " (" + newMemberEmail + ") accepted your invite and joined as " + role + ".",
+		},
+	)
+}
+
+func (m *MailerImpl) SendIngressSourceAdded(ctx context.Context, to, sourceName string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"Ingress source configured: "+sourceName,
+		map[string]string{
+			"Title":      "Ingress source configured",
+			"Text":       "Your ingress source \"" + sourceName + "\" is set up and will start polling shortly.",
+			"ActionText": "View sources",
+			"ActionUrl":  "/library/ingress",
+		},
+	)
+}
+
+func (m *MailerImpl) SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"Ingress source error: "+sourceName,
+		map[string]string{
+			"Title":      "Ingress source error",
+			"Text":       "The ingress source \"" + sourceName + "\" encountered an error: " + errMsg,
+			"ActionText": "View sources",
+			"ActionUrl":  "/library/ingress",
+		},
+	)
+}
+
+func (m *MailerImpl) SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"New comment on your share: "+shareLabel,
+		map[string]string{
+			"Title": "New comment on \"" + shareLabel + "\"",
+			"Text":  authorName + " wrote: " + commentBody,
+		},
+	)
 }

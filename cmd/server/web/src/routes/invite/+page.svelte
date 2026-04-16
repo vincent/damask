@@ -8,7 +8,7 @@
   import Input from '$lib/components/ui/Input.svelte'
   import Title from '$lib/components/ui/Title.svelte'
 
-  const token = $derived($page.url.searchParams.get('token') ?? '')
+  const token = $page.url.searchParams.get('token') ?? ''
 
   let name = $state('')
   let password = $state('')
@@ -37,7 +37,7 @@
 
 <div class="damask-texture-strong relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
   <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
-    {#if !token}
+    {#if token.trim() === ''}
       <div>
         <Title>Invalid invitation</Title>
         <Hint>This invite link is missing a token. Check that you copied the full URL.</Hint>
@@ -51,7 +51,7 @@
       <form onsubmit={handleSubmit} class="space-y-4">
         <Feedback {error} />
         <Input id="name" type="text" label="Name" bind:value={name} required autocomplete="name" />
-        <Input id="password" type="password" label="Password" bind:value={password} required autocomplete="new-password" />
+        <Input id="password" type="password" label="Password" bind:value={password} required autocomplete="new-password" placeholder="minimum 8 characters" />
         <Button type="submit" {loading} class="w-full">{loading ? 'Joining…' : 'Join workspace'}</Button>
       </form>
     {/if}

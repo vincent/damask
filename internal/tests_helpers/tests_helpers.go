@@ -26,6 +26,7 @@ import (
 	dbpkg "damask/server/internal/db"
 	"damask/server/internal/events"
 	"damask/server/internal/jobs"
+	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/versioning"
@@ -96,9 +97,10 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 
 	q := queue.New(queries, 1)
 
-	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, cfg, nil)
-	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, cfg)
-	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, cfg, nil, nil)
+	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
+	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, cfg, nil)
+	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, cfg)
+	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, cfg, nil, nil)
 	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor}
 }
 

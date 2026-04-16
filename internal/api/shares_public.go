@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -507,6 +508,14 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create comment")
+	}
+
+	if share, err := s.db.GetShareByID(c.RequestCtx(), shareID); err == nil {
+		if owner, err := s.db.GetUserByID(c.RequestCtx(), share.CreatedBy); err == nil {
+			if err := s.mailer.SendCommentPosted(c.RequestCtx(), owner.Email, body.AuthorName, share.Label, body.Body); err != nil {
+				slog.ErrorContext(c.RequestCtx(), "failed to send comment posted mail", "error", err)
+			}
+		}
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(commentToResponse(comment))

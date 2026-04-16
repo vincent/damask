@@ -24,9 +24,12 @@
                 <!-- Body text -->
                 <p style="margin:0 0 30px;font-family:Montserrat,Trebuchet MS,Tahoma,sans-serif;font-size:15px;color:#808389;line-height:1.5">{{.Text}}</p>
                 <!-- CTA button -->
-                <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" style="height:52px;width:189px;v-text-anchor:middle;" arcsize="97%" stroke="false" fillcolor="#615fff"><w:anchorlock/><v:textbox inset="0px,0px,0px,0px"><center style="color:#fff;font-family:Tahoma,sans-serif;font-size:16px;font-weight:bold"><![endif]-->
-                <a href="{{.ActionURL}}" style="display:inline-block;padding:15px 30px;background-color:#615fff;color:#fff;font-family:Montserrat,Trebuchet MS,Tahoma,sans-serif;font-size:16px;font-weight:700;text-decoration:none;border-radius:60px;letter-spacing:normal">{{.ActionText}}</a>
-                <!--[if mso]></center></v:textbox></v:roundrect><![endif]-->
+                {{if .ActionUrl}}
+                    <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" style="height:52px;width:189px;v-text-anchor:middle;" arcsize="97%" stroke="false" fillcolor="#615fff"><w:anchorlock/><v:textbox inset="0px,0px,0px,0px"><center style="color:#fff;font-family:Tahoma,sans-serif;font-size:16px;font-weight:bold"><![endif]-->
+                    <a href="{{.ActionUrl}}" style="display:inline-block;padding:15px 30px;background-color:#615fff;color:#fff;font-family:Montserrat,Trebuchet MS,Tahoma,sans-serif;font-size:16px;font-weight:700;text-decoration:none;border-radius:60px;letter-spacing:normal">{{.ActionText}}</a>
+                    <!--[if mso]></center></v:textbox></v:roundrect><![endif]-->
+                    <div class="text-align: center;"><br><br>or copy this link in your browser<br><pre>{{.ActionUrl}}</pre></div>
+                {{end}}
             </td>
             </tr>
             <tr><td style="height:60px;font-size:1px;line-height:1px"> </td></tr>

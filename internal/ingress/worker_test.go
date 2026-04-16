@@ -12,6 +12,7 @@ import (
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 
@@ -51,7 +52,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 
 	cfg := &config.Config{AppSecret: testAppSecret}
 	q := queue.New(queries, 1)
-	w := NewWorker(queries, sqlDB, stor, q, cfg, audit.New(sqlDB))
+	w := NewWorker(queries, sqlDB, stor, q, cfg, audit.New(sqlDB), mail.NewMailer(&mail.MailSenderConfig{}))
 	return w, queries
 }
 

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -427,6 +428,12 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 
 	if err := tx.Commit(); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit source creation")
+	}
+
+	if creator, err := s.db.GetUserByID(c.Context(), claims.UserID); err == nil {
+		if err := s.mailer.SendIngressSourceAdded(c.Context(), creator.Email, src.Label); err != nil {
+			slog.ErrorContext(c.Context(), "failed to send ingress source added mail", "error", err)
+		}
 	}
 
 	resp, err := s.sourceToResponse(src)
