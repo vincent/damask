@@ -15,6 +15,7 @@ import (
 	"damask/server/internal/events"
 	"damask/server/internal/ingress"
 	"damask/server/internal/jobs"
+	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/services"
 	"damask/server/internal/storage"
@@ -69,6 +70,8 @@ func main() {
 
 	eventsHub := events.NewEventHub()
 
+	mailer := mail.NewMailer(&cfg.MailSenderConfig)
+
 	var stor storage.Storage
 	switch cfg.StorageType {
 	case "memory":
@@ -97,7 +100,7 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, cfg)
+	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, cfg)
 	js.RegisterJobHandlers()
 
 	if cfg.EnableScheduler {
@@ -115,7 +118,7 @@ func main() {
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
 	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor)
 
-	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, cfg, demoSeeder, uiFS)
+	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, cfg, demoSeeder, uiFS)
 
 	mail := services.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
 	slog.Info("mail server starting", "port", cfg.MailServerPort)

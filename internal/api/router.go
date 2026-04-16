@@ -11,6 +11,7 @@ import (
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
+	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 
@@ -30,6 +31,7 @@ type Server struct {
 	tokenMaker   *auth.Maker
 	storage      storage.Storage
 	queue        queue.JobQueue
+	mailer       mail.Mailer
 	hub          events.EventHub
 	previewCache *lruPreviewCache
 	cfg          *config.Config
@@ -44,6 +46,7 @@ func NewHttpServer(
 	stor storage.Storage,
 	hub events.EventHub,
 	q queue.JobQueue,
+	mailer mail.Mailer,
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
 ) *Server {
@@ -53,6 +56,7 @@ func NewHttpServer(
 		tokenMaker:   tokenMaker,
 		storage:      stor,
 		queue:        q,
+		mailer:       mailer,
 		hub:          hub,
 		previewCache: NewLRUPreviewCache(100),
 		cfg:          cfg,
@@ -83,11 +87,12 @@ func NewRouter(
 	stor storage.Storage,
 	hub events.EventHub,
 	q queue.JobQueue,
+	mailer mail.Mailer,
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
 	uiFS fs.FS,
 ) *fiber.App {
-	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, cfg, demoSeeder)
+	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, cfg, demoSeeder)
 
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {

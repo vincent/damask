@@ -1,8 +1,10 @@
 package config
 
 import (
+	"damask/server/internal/mail"
 	"damask/server/internal/storage"
 	"errors"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -12,23 +14,24 @@ import (
 )
 
 type Config struct {
-	MailServerPort  string
-	MailServerHost  string
-	Port            string
-	DBPath          string
-	StoragePath     string
-	StorageType     string // "local" | "sftp"
-	StorageSFTP     storage.SFTPConfig
-	StorageS3       storage.AferoS3Config
-	JWTSecret       string
-	AppSecret       string
-	AppEnv          string
-	BaseURL         *url.URL
-	RemoveBgAPIKey  string
-	QueueWorkers    int
-	FrontendPath    string
-	EnableScheduler bool
-	Demo            DemoConfig
+	MailServerPort   string
+	MailServerHost   string
+	MailSenderConfig mail.MailSenderConfig
+	Port             string
+	DBPath           string
+	StoragePath      string
+	StorageType      string // "local" | "sftp"
+	StorageSFTP      storage.SFTPConfig
+	StorageS3        storage.AferoS3Config
+	JWTSecret        string
+	AppSecret        string
+	AppEnv           string
+	BaseURL          *url.URL
+	RemoveBgAPIKey   string
+	QueueWorkers     int
+	FrontendPath     string
+	EnableScheduler  bool
+	Demo             DemoConfig
 	// BodyLimit overrides the default 100 MB upload limit. Zero means use the default.
 	BodyLimit int
 }
@@ -76,6 +79,13 @@ func Load() (*Config, error) {
 		DBPath:         getEnv("DB_PATH", "./damask.db"),
 		StoragePath:    getEnv("STORAGE_LOCAL_PATH", "./storage"),
 		StorageType:    getEnv("STORAGE", "local"),
+		MailSenderConfig: mail.MailSenderConfig{
+			Host:     os.Getenv("SMTP_HOST"),
+			Port:     getEnvInt("SMTP_PORT", 25),
+			Sender:   os.Getenv("SMTP_SENDER"),
+			User:     os.Getenv("SMTP_USER"),
+			Password: os.Getenv("SMTP_PASS"),
+		},
 		StorageSFTP: storage.SFTPConfig{
 			Host:       os.Getenv("STORAGE_SFTP_HOST"),
 			Port:       sftpPort,
@@ -122,6 +132,7 @@ func Load() (*Config, error) {
 		return nil, errors.New("BASE_URL env var is required")
 	}
 	cfg.BaseURL = baseURL
+	cfg.MailSenderConfig.BaseUrl = baseURL.String()
 
 	mailHost := strings.TrimSpace(os.Getenv("MAIL_HOST"))
 	if len(mailHost) == 0 {
@@ -137,4 +148,15 @@ func getEnv(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+func getEnvInt(key string, defaultVal int) int {
+	var err error
+	i := defaultVal
+	if v := os.Getenv(key); v != "" {
+		if i, err = strconv.Atoi(v); err != nil {
+			slog.Error("failed to parse SMTP port", "port", v)
+		}
+	}
+	return i
 }

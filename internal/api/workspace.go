@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"damask/server/internal/auth"
@@ -145,132 +146,6 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 
 	wr := workspaceToResponse(*workspace)
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Workspace: &wr})
-}
-
-type InviteResponse struct {
-	ID          string    `json:"id"`
-	InviteToken string    `json:"invite_token,omitempty"`
-	Email       string    `json:"email"`
-	Role        string    `json:"role"`
-	ExpiresAt   time.Time `json:"expires_at,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-}
-
-// handleCreateInvite generates a workspace invite for a new member.
-//
-// @Summary Create a workspace invite
-// @Description Generates a time-limited invite token (7-day expiry) for the given email address. The <code>invite_token</code> in the response should be sent to the recipient; they redeem it via <code>POST /auth/invite/accept</code>. Only workspace owners may create invites.
-// @Tags Workspace
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param body body CreateInviteRequest true "Invite details (email and role)"
-// @Success 201 {object} InviteResponse
-// @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Failure 403 {object} ErrorResponse "Insufficient role — owner required"
-// @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/workspace/invites [post]
-func (s *Server) handleCreateInvite(c fiber.Ctx) error {
-	claims := auth.GetClaims(c)
-
-	req, ok := decodeAndValidate(c, &CreateInviteRequest{})
-	if !ok {
-		return nil
-	}
-
-	invite, err := s.db.CreateInvite(c.RequestCtx(), dbgen.CreateInviteParams{
-		ID:          uuid.New().String(),
-		WorkspaceID: claims.WorkspaceID,
-		Email:       req.Email,
-		Token:       uuid.New().String(),
-		Role:        string(req.Role),
-		InvitedBy:   claims.UserID,
-		ExpiresAt:   time.Now().Add(7 * 24 * time.Hour),
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create invite")
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(InviteResponse{
-		ID:          invite.ID,
-		InviteToken: invite.Token,
-		Email:       invite.Email,
-		Role:        invite.Role,
-	})
-}
-
-// handleAcceptInvite redeems a workspace invite and creates the new user account.
-//
-// @Summary Accept a workspace invite
-// @Description Redeems a one-time invite token: creates a new user account (name + password required) and adds them to the workspace at the role encoded in the invite. The invite token is marked as accepted and cannot be reused. Returns a JWT just like <code>POST /auth/register</code>.
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param body body AcceptInviteRequest true "Invite token, name, and password"
-// @Success 201 {object} AuthResponse
-// @Failure 404 {object} ErrorResponse "Invalid or expired invite token"
-// @Failure 409 {object} ErrorResponse "Email already in use"
-// @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /auth/invite/accept [post]
-func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
-	req, ok := decodeAndValidate(c, &AcceptInviteRequest{})
-	if !ok {
-		return nil
-	}
-
-	invite, err := s.db.GetInviteByToken(c.RequestCtx(), req.Token)
-	if err != nil {
-		return errRes(c, fiber.StatusNotFound, "invalid or expired invite token")
-	}
-
-	hash, err := bcryptHash(req.Password)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
-	}
-
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback()
-
-	qtx := s.db.WithTx(tx)
-
-	userID := uuid.New().String()
-	user, err := qtx.CreateUser(c.RequestCtx(), dbgen.CreateUserParams{
-		ID:           userID,
-		Email:        invite.Email,
-		PasswordHash: hash,
-		Name:         req.Name,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusConflict, "email already in use")
-	}
-
-	if err := qtx.CreateMember(c.RequestCtx(), dbgen.CreateMemberParams{
-		WorkspaceID: invite.WorkspaceID,
-		UserID:      userID,
-		Role:        invite.Role,
-		InvitedBy:   &invite.InvitedBy,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not add workspace member")
-	}
-
-	if err := qtx.AcceptInvite(c.RequestCtx(), invite.ID); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not mark invite as accepted")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
-	}
-
-	token, err := s.tokenMaker.CreateToken(userID, invite.WorkspaceID, 7*24*time.Hour)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create token")
-	}
-
-	s.setAuthCookie(c, token)
-	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user)})
 }
 
 type WorkspaceWithRoleResponse struct {
@@ -699,4 +574,144 @@ func (s *Server) handleDeleteInvite(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete invite")
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+type InviteResponse struct {
+	ID          string    `json:"id"`
+	InviteToken string    `json:"invite_token,omitempty"`
+	Email       string    `json:"email"`
+	Role        string    `json:"role"`
+	ExpiresAt   time.Time `json:"expires_at,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+}
+
+// handleCreateInvite generates a workspace invite for a new member.
+//
+// @Summary Create a workspace invite
+// @Description Generates a time-limited invite token (7-day expiry) for the given email address. The <code>invite_token</code> in the response should be sent to the recipient; they redeem it via <code>POST /auth/invite/accept</code>. Only workspace owners may create invites.
+// @Tags Workspace
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateInviteRequest true "Invite details (email and role)"
+// @Success 201 {object} InviteResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 403 {object} ErrorResponse "Insufficient role — owner required"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /api/v1/workspace/invites [post]
+func (s *Server) handleCreateInvite(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+
+	req, ok := decodeAndValidate(c, &CreateInviteRequest{})
+	if !ok {
+		return nil
+	}
+
+	invite, err := s.db.CreateInvite(c.RequestCtx(), dbgen.CreateInviteParams{
+		ID:          uuid.New().String(),
+		WorkspaceID: claims.WorkspaceID,
+		Email:       req.Email,
+		Token:       uuid.New().String(),
+		Role:        string(req.Role),
+		InvitedBy:   claims.UserID,
+		ExpiresAt:   time.Now().Add(7 * 24 * time.Hour),
+	})
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not create invite")
+	}
+
+	if err = s.mailer.PrepareAndSend(
+		c.RequestCtx(),
+		invite.Email,
+		"You have been invited to a Damask workspace",
+		map[string]string{
+			"Title":      "You have been invited to a Damask workspace",
+			"Text":       "You have been invited to join a workspace with role " + string(req.Role),
+			"ActionText": "Join workspace",
+			"ActionURL":  "/api/invite/accept/" + invite.Token,
+		},
+	); err != nil {
+		slog.ErrorContext(c.RequestCtx(), "failed to send invitation mail", "error", err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(InviteResponse{
+		ID:          invite.ID,
+		InviteToken: invite.Token,
+		Email:       invite.Email,
+		Role:        invite.Role,
+	})
+}
+
+// handleAcceptInvite redeems a workspace invite and creates the new user account.
+//
+// @Summary Accept a workspace invite
+// @Description Redeems a one-time invite token: creates a new user account (name + password required) and adds them to the workspace at the role encoded in the invite. The invite token is marked as accepted and cannot be reused. Returns a JWT just like <code>POST /auth/register</code>.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body AcceptInviteRequest true "Invite token, name, and password"
+// @Success 201 {object} AuthResponse
+// @Failure 404 {object} ErrorResponse "Invalid or expired invite token"
+// @Failure 409 {object} ErrorResponse "Email already in use"
+// @Failure 422 {object} ValidationErrorResponse "Validation failed"
+// @Router /auth/invite/accept [post]
+func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
+	req, ok := decodeAndValidate(c, &AcceptInviteRequest{})
+	if !ok {
+		return nil
+	}
+
+	invite, err := s.db.GetInviteByToken(c.RequestCtx(), req.Token)
+	if err != nil {
+		return errRes(c, fiber.StatusNotFound, "invalid or expired invite token")
+	}
+
+	hash, err := bcryptHash(req.Password)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
+	}
+
+	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
+	}
+	defer tx.Rollback()
+
+	qtx := s.db.WithTx(tx)
+
+	userID := uuid.New().String()
+	user, err := qtx.CreateUser(c.RequestCtx(), dbgen.CreateUserParams{
+		ID:           userID,
+		Email:        invite.Email,
+		PasswordHash: hash,
+		Name:         req.Name,
+	})
+	if err != nil {
+		return errRes(c, fiber.StatusConflict, "email already in use")
+	}
+
+	if err := qtx.CreateMember(c.RequestCtx(), dbgen.CreateMemberParams{
+		WorkspaceID: invite.WorkspaceID,
+		UserID:      userID,
+		Role:        invite.Role,
+		InvitedBy:   &invite.InvitedBy,
+	}); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not add workspace member")
+	}
+
+	if err := qtx.AcceptInvite(c.RequestCtx(), invite.ID); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not mark invite as accepted")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
+	}
+
+	token, err := s.tokenMaker.CreateToken(userID, invite.WorkspaceID, 7*24*time.Hour)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not create token")
+	}
+
+	s.setAuthCookie(c, token)
+	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user)})
 }

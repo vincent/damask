@@ -30,6 +30,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.49.0
 	modernc.org/sqlite v1.48.0
+	github.com/wneessen/go-mail v0.7.2
 )
 
 require (

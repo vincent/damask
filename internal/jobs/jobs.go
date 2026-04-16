@@ -7,6 +7,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
 	"damask/server/internal/ingress"
+	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"database/sql"
@@ -23,6 +24,7 @@ type JobServer struct {
 	sqlDB    *sql.DB
 	storage  storage.Storage
 	queue    queue.JobQueue
+	mailer   mail.Mailer
 	hub      events.EventHub
 	cfg      *config.Config
 	audit    *audit.EventWriter
@@ -35,6 +37,7 @@ func NewJobServer(
 	stor storage.Storage,
 	hub events.EventHub,
 	q queue.JobQueue,
+	mailer mail.Mailer,
 	cfg *config.Config,
 ) *JobServer {
 	return &JobServer{
@@ -42,6 +45,7 @@ func NewJobServer(
 		sqlDB:    sqlDB,
 		storage:  stor,
 		queue:    q,
+		mailer:   mailer,
 		hub:      hub,
 		cfg:      cfg,
 		audit:    audit.New(sqlDB),
