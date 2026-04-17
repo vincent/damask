@@ -3,6 +3,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   type RetentionMode = 'unlimited' | 'capped'
 
@@ -38,9 +39,9 @@
       const count = mode === 'unlimited' ? 0 : Math.max(1, Math.min(50, capValue))
       const updated = await workspaceApi.updateSettings({ version_retention_count: count })
       authStore.patchWorkspace({ version_retention_count: updated.version_retention_count })
-      toastStore.show('Version history settings saved')
+      toastStore.show(m.history_settings_saved())
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : 'Failed to save settings', 'error')
+      toastStore.show(e instanceof Error ? e.message : m.history_settings_failed(), 'error')
     } finally {
       saving = false
     }
@@ -48,20 +49,20 @@
 </script>
 
 <svelte:head>
-  <title>Version History — Damask</title>
+  <title>{m.version_history()} — Damask</title>
 </svelte:head>
 
 <div class="flex-1 overflow-y-auto">
   <div class="mx-auto w-full max-w-2xl px-8 py-10 space-y-8">
 
     <div>
-      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Version History</h1>
-      <p class="mt-1 text-md text-gray-500 dark:text-gray-400">Control how many versions are kept per asset. Versions beyond the limit are soft-deleted during the nightly cleanup and permanently purged after 7 days.</p>
+      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{m.version_history()}</h1>
+      <p class="mt-1 text-md text-gray-500 dark:text-gray-400">{m.version_history_page_description()}</p>
     </div>
 
     {#if authStore.role !== 'owner'}
       <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-md text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-        Only workspace owners can change version history settings.
+        {m.version_history_settins_only_owners()}
       </p>
     {/if}
 
@@ -78,8 +79,8 @@
           disabled={authStore.role !== 'owner'}
         />
         <div class="flex-1 space-y-2">
-          <p class="text-md font-medium text-gray-900 dark:text-gray-100">Keep all versions</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400">No limit — every uploaded version is preserved indefinitely.</p>
+          <p class="text-md font-medium text-gray-900 dark:text-gray-100">{m.keep_all_versions()}</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">{m.keep_all_versions_description()}</p>
         </div>
       </label>
 
@@ -94,8 +95,8 @@
           disabled={authStore.role !== 'owner'}
         />
         <div class="flex-1 space-y-2">
-          <p class="text-md font-medium text-gray-900 dark:text-gray-100">Keep last N versions per asset</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400">Versions beyond the limit are removed during the nightly cleanup.</p>
+          <p class="text-md font-medium text-gray-900 dark:text-gray-100">{m.keep_n_versions()}</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">{m.keep_n_versions_description()}</p>
           {#if mode === 'capped'}
             <div class="flex items-center gap-3">
               <input
@@ -106,7 +107,7 @@
                 bind:value={capValue}
                 disabled={authStore.role !== 'owner'}
               />
-              <span class="text-sm text-gray-400">versions (1–50)</span>
+              <span class="text-sm text-gray-400">{m.keep_n_versions_ex()}</span>
             </div>
           {/if}
         </div>
@@ -122,7 +123,7 @@
           onclick={save}
         >
           {#if saving}<Spinner size="sm" />{/if}
-          Save
+          {m.save()}
         </button>
       </div>
     {/if}

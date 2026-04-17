@@ -10,6 +10,7 @@
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
   import { CloudUpload, Inbox, Loader } from '@lucide/svelte'
+  import { m } from '$lib/paraglide/messages'
 
   const fmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
 
@@ -132,7 +133,7 @@
     <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-indigo-50/80 ring-2 ring-inset ring-indigo-400 dark:bg-indigo-950/80">
       <div class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400">
         <CloudUpload class="h-10 w-10" />
-        <p class="text-md font-medium">Drop to upload</p>
+        <p class="text-md font-medium">{m.drop_to_upload()}</p>
       </div>
     </div>
   {/if}
@@ -143,8 +144,8 @@
     <OnboardingScreen onDismiss={onDismissOnboarding} />
   {:else if assetsStore.assets.length === 0}
     <EmptyState
-      title={assetsStore.query ? `No results for "${assetsStore.query}"` : 'No assets yet'}
-      description={assetsStore.query ? 'Try a different search term' : 'Upload files to get started'}
+      title={assetsStore.query ? `No results for "${assetsStore.query}"` : m.no_assets_yet()}
+      description={assetsStore.query ? m.search_try_different() : m.upload_get_started()}
     >
       {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
     </EmptyState>

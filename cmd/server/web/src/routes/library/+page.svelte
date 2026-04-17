@@ -22,6 +22,7 @@
   import UploadsTray from '$lib/components/UploadsTray.svelte'
   import { goto } from '$app/navigation'
   import { Box } from '@lucide/svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
@@ -171,7 +172,7 @@
 </script>
 
 <svelte:head>
-  <title>Library — Damask</title>
+  <title>{m.library()} — Damask</title>
 </svelte:head>
 
 <svelte:window

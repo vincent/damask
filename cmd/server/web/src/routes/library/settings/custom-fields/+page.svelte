@@ -14,6 +14,7 @@
   import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
   import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
   import PageContainer from '$lib/components/ui/PageContainer.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let activeScope = $state<FieldScope>('asset')
 
@@ -44,14 +45,14 @@
 
   function handleSaved(def: FieldDefinition) {
     customFieldsStore.upsertLocal(activeScope, def)
-    toastStore.show(editingField ? 'Field updated' : 'Field created')
+    toastStore.show(editingField ? m.field_updated() : m.field_created())
     editingField = null
     showCreateModal = false
   }
 
   function handleDeleted(id: string) {
     customFieldsStore.removeLocal(activeScope, id)
-    toastStore.show('Field deleted')
+    toastStore.show(m.field_deleted())
     deletingField = null
     showDeleteModal = false
   }
@@ -80,32 +81,32 @@
     try {
       await customFieldsStore.reorder(activeScope, reordered)
     } catch {
-      toastStore.show('Could not save order', 'error')
+      toastStore.show(m.reorder_failed(), 'error')
       await customFieldsStore.load(activeScope)
     }
   }
 
   function fieldTypeBadge(type: string): string {
     const map: Record<string, string> = {
-      text: 'Text', number: 'Number', date: 'Date',
-      boolean: 'Yes/No', select: 'Select', url: 'URL',
+      text: m.f_text(), number: m.f_number(), date: m.f_date(),
+      boolean: m.f_bool(), select: m.f_select(), url: m.f_url(),
     }
     return map[type] ?? type
   }
 </script>
 
 <svelte:head>
-  <title>Custom Fields — Damask</title>
+  <title>{m.custom_fields_title()} — Damask</title>
 </svelte:head>
 
 <PageContainer>
   <PageHeader
-    title="Custom Fields"
-    description="Manage custom metadata fields for your assets and projects."
+    title={m.custom_fields_title()}
+    description={m.custom_fields_desc()}
   >
     <Button variant="primary" onclick={() => { editingField = null; showCreateModal = true }}>
       {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-      Add field
+      {m.add_field()}
     </Button>
   </PageHeader>
 
@@ -120,7 +121,7 @@
             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
         onclick={() => { activeScope = scope }}
       >
-        {scope === 'asset' ? 'Asset fields' : 'Project fields'}
+        {scope === 'asset' ? m.asset_fields() : m.project_fields()}
         {#if activeScope === scope}
           <span class="absolute bottom-0 left-0 right-4 h-0.5 rounded-t bg-indigo-600 dark:bg-indigo-400"></span>
         {/if}
@@ -161,10 +162,10 @@
               <Badge>{fieldTypeBadge(field.field_type)}</Badge>
               <span class="font-mono text-[11px] text-gray-400 dark:text-gray-500">{field.key}</span>
               {#if field.required}
-                <span class="text-[11px] font-medium text-orange-500 dark:text-orange-400">Required</span>
+                <span class="text-[11px] font-medium text-orange-500 dark:text-orange-400">{m.required()}</span>
               {/if}
               {#if field.inherit_from_project && activeScope === 'asset'}
-                <span class="text-[11px] text-gray-400 dark:text-gray-500">auto-fills assets</span>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500">{m.auto_fill_assets()}</span>
               {/if}
             </div>
 
@@ -183,13 +184,13 @@
 
             <!-- Actions -->
             <div class="flex shrink-0 items-center gap-1">
-              <ButtonEdit title="Edit {field.name}" onclick={() => handleEdit(field)} />
-              <ButtonDelete title="Delete {field.name}" onclick={() => handleDelete(field)} />
+              <ButtonEdit title="{m.edit()} {field.name}" onclick={() => handleEdit(field)} />
+              <ButtonDelete title="{m.delete()} {field.name}" onclick={() => handleDelete(field)} />
             </div>
           </li>
         {/each}
       </ul>
-      <p class="mt-3 text-sm text-gray-400 dark:text-gray-600">Drag rows to reorder.</p>
+      <p class="mt-3 text-sm text-gray-400 dark:text-gray-600">{m.drag_row_reorder()}</p>
     {/if}
 
     <div class="flex justify-center items-center">
@@ -198,7 +199,7 @@
         onclick={() => { editingField = null; showCreateModal = true }}
       >
         <Plus class="h-4 w-4" />
-        Add field
+        {m.add_field()}
       </button>
     </div>
   </div>

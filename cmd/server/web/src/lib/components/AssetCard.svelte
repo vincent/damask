@@ -3,6 +3,7 @@
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
   import { File, Loader, Play, TriangleAlert } from '@lucide/svelte'
   import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/shared'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     asset: Asset
@@ -48,7 +49,7 @@
       <div class="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-orange-500 px-1.5 py-0.5 text-white shadow"
            title="Required fields missing">
         <TriangleAlert class="h-3 w-3" />
-        <span class="text-xs font-semibold leading-none">Fields</span>
+        <span class="text-xs font-semibold leading-none">{m.fields()}</span>
       </div>
     {:else if asset.version_count > 1}
       <div class="absolute right-2 top-2 rounded-full bg-black/50 px-1.5 py-0.5 text-white backdrop-blur-sm"
@@ -85,7 +86,7 @@
       <div class="absolute inset-0 flex items-center justify-center bg-black/25">
         <div class="flex flex-col items-center gap-1.5 text-white">
           <Loader class="h-5 w-5 animate-spin" />
-          <span class="text-sm font-medium">Processing</span>
+          <span class="text-sm font-medium">{m.processing()}</span>
         </div>
       </div>
     {/if}

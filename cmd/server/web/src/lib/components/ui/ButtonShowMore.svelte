@@ -1,5 +1,6 @@
 <script lang="ts">
     import { ChevronDown } from "@lucide/svelte"
+    import { m } from "$lib/paraglide/messages"
     import Spinner from "./Spinner.svelte"
 
     let { onclick, loading }: { onclick: () => void; loading: boolean } = $props();
@@ -16,7 +17,7 @@
             <Spinner size="sm" />
         {:else}
             <ChevronDown class="h-4 w-4" />
-            Load more
+            {m.load_more()}
         {/if}
     </button>
 </div>

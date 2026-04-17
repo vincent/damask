@@ -12,6 +12,7 @@
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
   import Feedback from './ui/Feedback.svelte'
   import { assetApi } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     selectedAssetIds: Set<string>
@@ -50,7 +51,7 @@
       newColor = '#6366f1'
       onCreatingChange(false)
     } catch {
-      error = 'Could not create project'
+      error = m.project_create_failed()
     }
   }
 
@@ -60,7 +61,7 @@
       await projectsStore.update(id, { name })
       editingId = null
     } catch {
-      error = 'Could not rename project'
+      error = m.project_rename_failed()
     }
   }
 
@@ -69,7 +70,7 @@
     try {
       await projectsStore.delete(id)
     } catch {
-      error = 'Could not delete project'
+      error = m.delete_project_failed()
     }
   }
 
@@ -81,7 +82,7 @@
       newFolderName = ''
       creatingFolderForProject = null
     } catch {
-      error = 'Could not create folder'
+      error = m.folder_create_failed()
     }
   }
 
@@ -165,7 +166,7 @@
           <ContextMenu
             items={[
               { label: 'Rename', onclick: () => startEdit(project.id, project.name) },
-              ...(authStore.role === 'owner' ? [{ label: 'Delete', onclick: () => deleteProject(project.id), danger: true }] : [])
+              ...(authStore.role === 'owner' ? [{ label: m.delete(), onclick: () => deleteProject(project.id), danger: true }] : [])
             ]}
             onclose={() => { menuOpenId = null }}
           />
@@ -195,12 +196,12 @@
                   class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-100"
                   onblur={() => { if (!newFolderName.trim()) creatingFolderForProject = null }}
                 />
-                <button type="submit" class="shrink-0 text-sm text-indigo-600 hover:text-indigo-800">Add</button>
+                <button type="submit" class="shrink-0 text-sm text-indigo-600 hover:text-indigo-800">{m.add()}</button>
               </form>
             {:else}
               <Button variant="ghost" size="sm" class="mt-0.5 w-full justify-start" onclick={() => { creatingFolderForProject = project.id; newFolderName = '' }}>
                 {#snippet icon()}<Plus class="h-3 w-3" />{/snippet}
-                New folder
+                {m.new_folder()}
               </Button>
             {/if}
           {/if}
@@ -218,7 +219,7 @@
       >
         <input
           bind:value={newName}
-          placeholder="Project name"
+          placeholder={m.project_name()}
           class="rounded border border-gray-300 bg-white px-2 py-1 text-md text-gray-900 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
         />
         <div class="flex flex-wrap gap-1">
@@ -234,13 +235,13 @@
         </div>
         <div class="flex gap-1">
           <Button type="submit" size="sm" class="flex-1">Create</Button>
-          <Button type="button" variant="secondary" size="sm" class="flex-1" onclick={() => onCreatingChange(false)}>Cancel</Button>
+          <Button type="button" variant="secondary" size="sm" class="flex-1" onclick={() => onCreatingChange(false)}>{m.cancel()}</Button>
         </div>
       </form>
     {:else}
       <Button variant="ghost" size="sm" class="mt-1 w-full justify-start" onclick={() => onCreatingChange(true)}>
         {#snippet icon()}<Plus class="h-3.5 w-3.5" />{/snippet}
-        New project
+        {m.new_project()}
       </Button>
     {/if}
   {/if}

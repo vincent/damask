@@ -6,6 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import { Check, Copy, Globe, File, Link, Lock, MessageSquare, Download, Calendar, Trash2, RefreshCw } from '@lucide/svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface TargetOption {
     type: 'asset' | 'project'
@@ -118,7 +119,7 @@
       <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40">
         <Link class="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
       </div>
-      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">Create Share Link</h2>
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">{m.share_create_short()}</h2>
     </div>
 
     {#if createdShare || existingShare}
@@ -126,7 +127,7 @@
       <!-- Success / Existing share view -->
       <div class="space-y-4">
         <p class="text-md text-gray-600 dark:text-gray-400">
-          {createdShare ? 'Your share link is ready.' : 'An active share already exists for this target.'}
+          {createdShare ? m.share_ready() : m.share_already_exists()}
         </p>
 
         <!-- Link copy box -->
@@ -152,26 +153,26 @@
         <div class="flex flex-wrap gap-2 text-sm">
           {#if share.has_password}
             <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              <Lock class="h-3 w-3" /> Password protected
+              <Lock class="h-3 w-3" /> {m.pass_protected()}
             </span>
           {/if}
           {#if share.expires_at}
             <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-              <Calendar class="h-3 w-3" /> Expires {new Date(share.expires_at).toLocaleDateString()}
+              <Calendar class="h-3 w-3" /> {m.expires_on({ date: new Date(share.expires_at).toLocaleDateString() })}
             </span>
           {:else}
             <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-              <Calendar class="h-3 w-3" /> No expiry
+              <Calendar class="h-3 w-3" /> {m.no_expiry()}
             </span>
           {/if}
           {#if share.allow_download}
             <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              <Download class="h-3 w-3" /> Downloads on
+              <Download class="h-3 w-3" /> {m.downloads_enabled()}
             </span>
           {/if}
           {#if share.allow_comments}
             <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-              <MessageSquare class="h-3 w-3" /> Comments on
+              <MessageSquare class="h-3 w-3" /> {m.comments_enabled()}
             </span>
           {/if}
           <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
@@ -201,7 +202,7 @@
         <!-- Target picker -->
         {#if targets.length > 1}
           <div>
-            <p class="mb-2 text-md font-medium text-gray-700 dark:text-gray-300">What do you want to share?</p>
+            <p class="mb-2 text-md font-medium text-gray-700 dark:text-gray-300">{m.what_to_share()}</p>
             <div class="grid grid-cols-2 gap-3">
               {#each targets as t, i}
                 <button

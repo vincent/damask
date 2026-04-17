@@ -34,6 +34,7 @@
   import Backdrop from './ui/Backdrop.svelte'
   import ButtonCopy from './ui/ButtonCopy.svelte'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     asset: Asset | null
@@ -48,12 +49,12 @@
 
   // --- Panel tabs ---
   const panelTabs = {
-    details:  { label: 'Details',  icon: null },
-    variants: { label: 'Variants', icon: null },
-    comments: { label: 'Comments', icon: null },
-    history:  { label: 'History',  icon: null },
-    activity: { label: 'Activity', icon: null },
-    actions:  { label: 'Actions',  icon: null },
+    details:  { label: m.tab_details(),  icon: null },
+    variants: { label: m.tab_variants(), icon: null },
+    comments: { label: m.tab_comments(), icon: null },
+    history:  { label: m.tab_history(),  icon: null },
+    activity: { label: m.tab_activity(), icon: null },
+    actions:  { label: m.tab_actions(),  icon: null },
   }
   type PanelTab = keyof typeof panelTabs
   let activeTab = $state<PanelTab>('details')
@@ -132,7 +133,7 @@
   )
 
   const shareTargets = $derived(
-    asset ? [{ type: 'asset' as const, id: asset.id, label: 'Selected Asset' }] : [],
+    asset ? [{ type: 'asset' as const, id: asset.id, label: m.selected_asset() }] : [],
   )
 
   async function copyShareLink() {
@@ -159,7 +160,7 @@
         createSuccess = ''
       }, 3000)
     } catch (e: unknown) {
-      createError = e instanceof Error ? e.message : 'Failed to create variant'
+      createError = e instanceof Error ? e.message : m.variant_create_failed()
     } finally {
       creating = false
     }
@@ -175,18 +176,18 @@
 
   // Visible variant sub-tabs based on asset type
   const variantSubTabs = $derived([
-    { id: 'all' as VariantTab, label: 'All' },
+    { id: 'all' as VariantTab, label: m.all() },
     ...(isImage ? [
-      { id: 'resize' as VariantTab, label: 'Resize' },
-      { id: 'watermark' as VariantTab, label: 'Watermark' },
-      { id: 'convert' as VariantTab, label: 'Convert' },
-      { id: 'smart_crop' as VariantTab, label: 'Smart Crop' },
-      { id: 'crop' as VariantTab, label: 'Crop' },
-      { id: 'bg_remove' as VariantTab, label: 'Bg Remove' },
+      { id: 'resize' as VariantTab, label: m.resize() },
+      { id: 'watermark' as VariantTab, label: m.watermark() },
+      { id: 'convert' as VariantTab, label: m.convert() },
+      { id: 'smart_crop' as VariantTab, label: m.smart_crop() },
+      { id: 'crop' as VariantTab, label: m.crop() },
+      { id: 'bg_remove' as VariantTab, label: m.bg_remove() },
     ] : []),
     ...(isVideo ? [
-      { id: 'video_transcode' as VariantTab, label: 'Transcode' },
-      { id: 'video_thumbnail' as VariantTab, label: 'Thumbnail' },
+      { id: 'video_transcode' as VariantTab, label: m.transcode() },
+      { id: 'video_thumbnail' as VariantTab, label: m.thumbnail() },
     ] : []),
   ])
 </script>
@@ -201,7 +202,7 @@
       tabindex="-1"
       onclick={onclose}
       onkeydown={(e) => e.key === 'Enter' && onclose()}
-      aria-label="Close lightbox"
+      aria-label={m.close()}
     >
       <SharedAsset
         {asset} {category}
@@ -314,9 +315,9 @@
               {:else if variants.length === 0}
                 <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
                   <Inbox class="h-10 w-10" />
-                  <p class="text-md">No variants yet.</p>
+                  <p class="text-md">{m.no_variants_yet()}</p>
                   {#if authStore.role !== 'viewer' && (isImage || isVideo)}
-                    <p class="text-sm">Use the tabs above to create a variant.</p>
+                    <p class="text-sm">{m.variant_use_tabs()}</p>
                   {/if}
                 </div>
               {:else}
@@ -343,7 +344,7 @@
                 onclick={() => { showUploadVersionModal = true }}
               >
                 <Upload class="h-4 w-4" />
-                Upload new version
+                {m.upload_new_version()}
               </button>
             </div>
           {/if}
@@ -363,14 +364,14 @@
 
           <!-- Quick Actions -->
           <div>
-            <SubSectionTitle>Quick Actions</SubSectionTitle>
+            <SubSectionTitle>{m.quick_actions()}</SubSectionTitle>
             <div class="space-y-2">
               <button
                 class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                 onclick={() => { showShareModal = true }}
               >
                 <Share class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
-                Share…
+                {m.share()}
               </button>
               <ButtonCopy copied={linkCopied} onclick={copyShareLink} text="Copy Share Link" />
             </div>

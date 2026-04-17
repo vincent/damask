@@ -15,6 +15,7 @@
   import Close from '$lib/components/ui/Close.svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import Feedback from '$lib/components/ui/Feedback.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let shareId = $derived(page.params.shareId || '')
 
@@ -64,7 +65,7 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
-  <title>{store.share?.label || 'Shared Gallery'} — Damask</title>
+  <title>{store.share?.label || m.shared_gallery()} — Damask</title>
 </svelte:head>
 
 <div class="damask-texture relative flex min-h-screen flex-col">
@@ -99,7 +100,7 @@
             {#snippet icon()}
               <Download class="h-4 w-4" />
             {/snippet}
-            Download All
+            {m.download_all()}
           </Button>
         {/if}
 
@@ -120,7 +121,7 @@
       </div>
     {:else if store.assets.length === 0}
       <div class="flex flex-col items-center justify-center py-24 text-center">
-        <p class="text-gray-500 dark:text-gray-400">No assets in this share.</p>
+        <p class="text-gray-500 dark:text-gray-400">{m.no_asset_here()}</p>
       </div>
     {:else}
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -222,7 +223,7 @@
               <Spinner size="sm" />
             </div>
           {:else if store.comments.length === 0}
-            <p class="py-4 text-center text-md text-gray-400 dark:text-gray-600">No comments yet. Be the first!</p>
+            <p class="py-4 text-center text-md text-gray-400 dark:text-gray-600">{m.comment_first()}</p>
           {:else}
             <div class="flex flex-col gap-4 pb-4">
               {#each store.comments as comment}
@@ -249,25 +250,25 @@
 
         <!-- Comment form -->
         <div class="border-t border-gray-200 px-4 py-4 dark:border-gray-800">
-          <p class="mb-3 text-md font-medium text-gray-700 dark:text-gray-300">Leave a comment</p>
+          <p class="mb-3 text-md font-medium text-gray-700 dark:text-gray-300">{m.add_comment()}</p>
 
           {#if store.commentPosted}
             <div class="rounded-lg bg-emerald-50 px-3 py-2 text-md text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              Comment posted! Thank you.
+              {m.comment_posted()}
             </div>
           {:else}
             <form onsubmit={(e) => { e.preventDefault(); store.postComment(shareId) }}>
               <div class="mb-2 grid grid-cols-2 gap-2">
                 <Input
-                  placeholder="Your name"
+                  placeholder={m.your_name()}
                   label="Name *"
                   bind:value={store.commentName}
                   error={store.commentNameError}
                   autocomplete="name"
                 />
                 <Input
-                  placeholder="For notifications"
-                  label="Email (optional)"
+                  placeholder={m.for_notifs()}
+                  label={m.email_optional()}
                   type="email"
                   bind:value={store.commentEmail}
                   autocomplete="email"
@@ -275,11 +276,11 @@
               </div>
               <div class="mb-3">
                 <label for="comment-body" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
-                  Message *
+                  {m.message()} *
                 </label>
                 <textarea
                   bind:value={store.commentBody}
-                  placeholder="Add your feedback…"
+                  placeholder={m.add_feedback()}
                   id="comment-body"
                   rows="3"
                   class="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {store.commentBodyError ? 'border-red-400 focus:ring-red-200 dark:border-red-500' : ''}"
@@ -293,7 +294,7 @@
                       <Send class="h-3.5 w-3.5" />
                     {/if}
                   {/snippet}
-                  Post Comment
+                  {m.post_comment()}
                 </Button>
               </div>
             </form>

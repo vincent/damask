@@ -10,6 +10,7 @@
   import Title from './ui/Title.svelte'
   import type { Snippet } from 'svelte'
   import Hint from './ui/Hint.svelte'
+  import { m } from '$lib/paraglide/messages.js';
 
   type Props = {
     prefix?: Snippet
@@ -26,9 +27,9 @@
   <div class="flex items-center gap-3">
     {@render prefix?.()}
     <div>
-      <Title>{projectsStore.activeProjectName ?? 'Library'}</Title>
+      <Title>{projectsStore.activeProjectName ?? m.library()}</Title>
       <Hint>
-        All Assets{#if projectsStore.activeProjectName} / {projectsStore.activeProjectName}{/if}
+        {m.all_assets()}{#if projectsStore.activeProjectName}&nbsp;/&nbsp;{projectsStore.activeProjectName}{/if}
       </Hint>
     </div>
     {#if showShareButton}
@@ -40,7 +41,7 @@
         title="Share this project"
       >
         <Share2 class="h-3.5 w-3.5" />
-        Share
+        {m.share()}
       </Button>
     {/if}
   </div>
@@ -57,13 +58,13 @@
     <SearchInput
       class="w-64"
       value={assetsStore.query}
-      placeholder="Search anything..."
+      placeholder={m.search_anything()}
       onchange={(q) => { assetsStore.search(q) }}
     />
 
     {#if authStore.role !== 'viewer'}
       <label class="flex items-center gap-2 cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-md font-medium text-white hover:bg-indigo-700">
-        Upload
+        {m.upload()}
         <Upload class="h-4 w-4" />
         <input
           type="file"

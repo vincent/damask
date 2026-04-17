@@ -3,6 +3,7 @@
     import { authStore } from '$lib/stores/auth.svelte'
     import { Download, Trash } from '@lucide/svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
+  import { m } from '$lib/paraglide/messages'
 
     interface Props {
         asset: Asset
@@ -34,7 +35,7 @@
     }
 
     function handleDeleteVariant(variantId: string) {
-        if (confirm('Are you sure you want to delete this variant?')) {
+        if (confirm(m.variant_delete_confirm())) {
             deleteVariant(variantId)
         }
     }
@@ -53,7 +54,7 @@
                     href={variantApi.fileUrl(asset.id, v.id)}
                     download
                     class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white dark:bg-gray-800/70 dark:text-gray-300"
-                    aria-label="Download variant"
+                    aria-label={m.download()}
                 >
                     <Download class="h-3.5 w-3.5" />
                 </a>

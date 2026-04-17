@@ -12,6 +12,7 @@
   import ButtonEdit from '../ui/ButtonEdit.svelte'
   import ButtonToggle from '../ui/ButtonToggle.svelte'
   import ButtonStart from '../ui/ButtonStart.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     source: IngressSource
@@ -22,11 +23,11 @@
   let { source, onedit, ondelete }: Props = $props()
 
   const SOURCE_LABELS: Record<string, string> = {
-    email_api: 'Email address',
-    imap: 'IMAP mailbox',
-    sftp: 'SFTP server',
-    dav: 'WebDAV / Nextcloud',
-    s3: 'S3-compatible bucket',
+    email_api: m.ingress_own_mail(),
+    imap: m.ingress_imap(),
+    sftp: m.ingress_sftp(),
+    dav: m.ingress_dav(),
+    s3: m.ingress_s3(),
   }
 
   const destProject = $derived(
@@ -36,10 +37,10 @@
   )
 
   function formatRelative(iso: string | null): string {
-    if (!iso) return 'Never'
+    if (!iso) return m.never()
     const diff = Date.now() - new Date(iso).getTime()
     const mins = Math.floor(diff / 60_000)
-    if (mins < 1) return 'Just now'
+    if (mins < 1) return m.just_now()
     if (mins < 60) return `${mins}m ago`
     const hrs = Math.floor(mins / 60)
     if (hrs < 24) return `${hrs}h ago`
@@ -93,12 +94,12 @@
       <ButtonStart
         onclick={handlePoll}
         disabled={polling || !source.enabled}
-        title="Poll now"
+        title={m.poll_now()}
       />
       <ButtonToggle
         enabled={source.enabled}
         onclick={() => ingressStore.toggleSource(source.id, !source.enabled)}
-        title={source.enabled ? 'Disable' : 'Enable'}
+        title={source.enabled ? m.disable() : m.enable()}
       />
       <ButtonEdit onclick={() => onedit(source)} />
       <ButtonDelete onclick={() => ondelete(source)} />

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Save, RefreshCw, Trash2, RotateCcw, ExternalLink, AlertCircle } from '@lucide/svelte'
+  import { X, Save, RefreshCw, RotateCcw, ExternalLink } from '@lucide/svelte'
   import type { IngressSource } from '$lib/api/models'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
@@ -11,6 +11,7 @@
   import Hint from '../ui/Hint.svelte'
   import Feedback from '../ui/Feedback.svelte'
   import ButtonDelete from '../ui/ButtonDelete.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     source: IngressSource
@@ -194,13 +195,13 @@
 
           <!-- Destination project -->
           <div>
-            <label for="detail-project" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">Destination project</label>
+            <label for="detail-project" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">{m.dest_project()}</label>
             <select
               id="detail-project"
               bind:value={destProjectId}
               class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
-              <option value="">— none —</option>
+              <option value="">{m.none_choice()}</option>
               {#each projectsStore.projects as p (p.id)}
                 <option value={p.id}>{p.name}</option>
               {/each}
@@ -209,7 +210,7 @@
 
           <!-- Poll interval -->
           <div>
-            <label for="detail-interval" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">Poll interval</label>
+            <label for="detail-interval" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">{m.poll_interval()}</label>
             <select
               id="detail-interval"
               bind:value={pollIntervalMin}
@@ -232,7 +233,7 @@
         <div class="border-t border-gray-100 px-5 py-4 dark:border-gray-800">
           <Button variant="primary" size="sm" loading={saving} onclick={saveConfig}>
             {#snippet icon()}<Save class="h-3.5 w-3.5" />{/snippet}
-            Save changes
+            {m.save()}
           </Button>
         </div>
       {/if}
@@ -245,13 +246,13 @@
 
         {:else if ingressStore.rules.length === 0 && !addingRule}
           <div class="py-10 text-center">
-            <Hint>No rules yet. Rules filter or route incoming files.</Hint>
+            <Hint>{m.no_rules_yet()}</Hint>
             <button
               type="button"
               class="mt-3 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
               onclick={() => { addingRule = true }}
             >
-              Add first rule
+              {m.add_first_rule()}
             </button>
           </div>
 
@@ -268,7 +269,7 @@
                     <span class="font-medium text-indigo-600 dark:text-indigo-400">{rule.action}</span>
                   </p>
                 </div>
-                <ButtonDelete title="Delete rule" onclick={() => ingressStore.deleteRule(source.id, rule.id)} />
+                <ButtonDelete title={m.delete_rule()} onclick={() => ingressStore.deleteRule(source.id, rule.id)} />
               </div>
             {/each}
           </div>
@@ -312,8 +313,8 @@
               {/each}
             </select>
             <div class="flex gap-2">
-              <Button variant="primary" size="sm" loading={savingRule} onclick={handleAddRule}>Add rule</Button>
-              <Button variant="ghost" size="sm" onclick={() => { addingRule = false }}>Cancel</Button>
+              <Button variant="primary" size="sm" loading={savingRule} onclick={handleAddRule}>{m.add_rule()}</Button>
+              <Button variant="ghost" size="sm" onclick={() => { addingRule = false }}>{m.cancel()}</Button>
             </div>
           </div>
         {:else}
@@ -322,7 +323,7 @@
             class="mt-4 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
             onclick={() => { addingRule = true }}
           >
-            + Add rule
+            + {m.add_rule()}
           </button>
         {/if}
       </div>
@@ -358,7 +359,7 @@
           <GridSkeleton lines={5} />
 
         {:else if filteredLog.length === 0}
-          <p class="py-10 text-center text-md text-gray-400">No log entries.</p>
+          <p class="py-10 text-center text-md text-gray-400">{m.empty_log()}</p>
 
         {:else}
           <div class="space-y-1.5">
@@ -382,7 +383,7 @@
                       <a
                         href="/library?asset={entry.asset_id}"
                         class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
-                        title="Open in library"
+                        title={m.open_in_library()}
                       >
                         <ExternalLink class="h-3.5 w-3.5" />
                       </a>
@@ -397,7 +398,7 @@
                         <RotateCcw class="h-3.5 w-3.5" />
                       </button>
                     {/if}
-                    <ButtonDelete title="Delete entry" onclick={() => ingressStore.deleteLogEntry(entry.id)} />
+                    <ButtonDelete title={m.delete()} onclick={() => ingressStore.deleteLogEntry(entry.id)} />
                   </div>
                 </div>
               </div>

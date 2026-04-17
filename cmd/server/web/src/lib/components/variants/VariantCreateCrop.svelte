@@ -2,6 +2,7 @@
     import { authStore } from '$lib/stores/auth.svelte'
     import Button from '$lib/components/ui/Button.svelte'
     import { variantApi, type Asset } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
     
     interface Props {
         asset: Asset
@@ -46,7 +47,7 @@
     </div>
 
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Format</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.format()}</label>
         <div class="flex gap-2">
             {#each ['jpeg', 'png'] as fmt}
                 <button type="button"
@@ -60,6 +61,6 @@
     </div>
 
     <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate('crop', { x: cropX, y: cropY, width: cropWidth, height: cropHeight, format: cropFormat, quality: 85 })} class="w-full">
-        {creating ? 'Queuing…' : 'Create Crop Variant'}
+        {creating ? m.queuing_() : m.variant_create_crop()}
     </Button>
 </div>

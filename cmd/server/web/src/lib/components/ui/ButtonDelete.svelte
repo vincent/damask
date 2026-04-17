@@ -2,7 +2,9 @@
     import { Trash2, X } from "@lucide/svelte"
     import Spinner from "./Spinner.svelte"
     import type { Snippet } from "svelte"
-    let { x = false, size = 4, loading = false, onclick, title = 'Delete', class: extraClass, children }: { size?: number, x?: boolean, onclick: () => void; loading?: boolean, title?: string, class?: string, children?: Snippet } = $props()
+    import { m } from "$lib/paraglide/messages"
+    
+    let { x = false, size = 4, loading = false, onclick, title = m.delete(), class: extraClass, children }: { size?: number, x?: boolean, onclick: () => void; loading?: boolean, title?: string, class?: string, children?: Snippet } = $props()
 </script>
 
 <button

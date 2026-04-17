@@ -7,6 +7,7 @@
   import { Type, Hash, Calendar, ToggleLeft, List, Link } from '@lucide/svelte'
   import Feedback from './ui/Feedback.svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     open?: boolean
@@ -71,12 +72,12 @@
   }
 
   const fieldTypes: { type: FieldType; label: string; description: string }[] = [
-    { type: 'text',    label: 'Text',    description: 'Short or long text' },
-    { type: 'number',  label: 'Number',  description: 'Integer or decimal' },
-    { type: 'date',    label: 'Date',    description: 'Calendar date' },
-    { type: 'boolean', label: 'Yes / No', description: 'Boolean toggle' },
-    { type: 'select',  label: 'Select',  description: 'Choose from a list' },
-    { type: 'url',     label: 'URL',     description: 'Web link' },
+    { type: 'text',    label: m.f_text(),      description: m.f_text_desc() },
+    { type: 'number',  label: m.f_number(),  description: m.f_number_desc() },
+    { type: 'date',    label: m.f_date(),      description: m.f_date_desc() },
+    { type: 'boolean', label: m.f_bool(),  description: m.f_bool_desc() },
+    { type: 'select',  label: m.f_select(),  description: m.f_select_desc() },
+    { type: 'url',     label: m.f_url(),        description: m.f_url_desc() },
   ]
 
   function typeIcon(type: FieldType) {
@@ -97,11 +98,11 @@
 
   async function handleSubmit() {
     error = ''
-    if (!name.trim()) { error = 'Name is required'; return }
-    if (!generatedKey) { error = 'Key cannot be empty'; return }
+    if (!name.trim()) { error = m.name_required(); return }
+    if (!generatedKey) { error = m.key_required(); return }
     if (selectedType === 'select') {
       const cleaned = optionItems.filter((o) => o.trim())
-      if (cleaned.length === 0) { error = 'At least one option is required for Select fields'; return }
+      if (cleaned.length === 0) { error = m.select_one_required(); return }
     }
 
     saving = true
@@ -133,7 +134,7 @@
       onsaved(def)
       open = false
     } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Could not save field'
+      error = e instanceof Error ? e.message : m.field_save_failed()
     } finally {
       saving = false
     }
@@ -143,7 +144,7 @@
 <Modal bind:open {onclose}>
   <div class="p-6">
     <h2 class="mb-5 text-base font-semibold text-gray-900 dark:text-gray-100">
-      {editing ? 'Edit field' : step === 'pick-type' ? 'Choose field type' : 'Configure field'}
+      {editing ? 'Edit field' : step === 'pick-type' ? m.field_type_choose() : m.field_config()}
     </h2>
 
     {#if step === 'pick-type'}
@@ -171,16 +172,16 @@
       </div>
 
       <div class="mt-5 flex justify-end gap-2">
-        <Button variant="secondary" onclick={onclose}>Cancel</Button>
-        <Button onclick={() => { step = 'configure' }}>Continue</Button>
+        <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
+        <Button onclick={() => { step = 'configure' }}>{m.continue()}</Button>
       </div>
 
     {:else}
       <!-- Configure form -->
       <div class="space-y-4">
         <Input
-          label="Name"
-          placeholder="e.g. Client Name"
+          label={m.name()}
+          placeholder={m.example_client_name()}
           bind:value={name}
           oninput={handleNameInput}
           autofocus={!editing}
@@ -214,7 +215,7 @@
         <!-- Select options -->
         {#if selectedType === 'select'}
           <div>
-            <label for={generatedKey + "-field-select-value"} class="mb-2 block text-md font-medium text-gray-700 dark:text-gray-300">Options</label>
+            <label for={generatedKey + "-field-select-value"} class="mb-2 block text-md font-medium text-gray-700 dark:text-gray-300">{m.f_options()}</label>
             <div id={generatedKey + "-field-select-value"} class="space-y-2">
               {#each optionItems as opt, i}
                 <div class="flex items-center gap-2">
@@ -229,7 +230,7 @@
                       dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
                   />
                   {#if optionItems.length > 1}
-                    <ButtonDelete title="Delete option" onclick={() => removeOption(i)} />
+                    <ButtonDelete title={m.delete()} onclick={() => removeOption(i)} />
                   {/if}
                 </div>
               {/each}
@@ -239,7 +240,7 @@
               class="mt-2 text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
               onclick={addOption}
             >
-              + Add option
+              + {m.add_option()}
             </button>
           </div>
         {/if}
@@ -251,7 +252,7 @@
             bind:checked={required}
             class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
           />
-          <span class="text-md text-gray-700 dark:text-gray-300">Required</span>
+          <span class="text-md text-gray-700 dark:text-gray-300">{m.required()}</span>
         </label>
 
         <!-- Inherit from project (only for asset scope) -->
@@ -263,8 +264,8 @@
               class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
             />
             <span class="text-md text-gray-700 dark:text-gray-300">
-              Inherit default from project
-              <span class="ml-1 text-sm text-gray-400">— new assets get the project's value</span>
+              {m.f_inherit_default_project()}
+              <span class="ml-1 text-sm text-gray-400">{m.f_inherit_default_project_new()}</span>
             </span>
           </label>
         {/if}
@@ -274,16 +275,16 @@
 
       <div class="mt-5 flex justify-between gap-2">
         {#if !editing}
-          <Button variant="secondary" onclick={() => { step = 'pick-type'; error = '' }}>Back</Button>
+          <Button variant="secondary" onclick={() => { step = 'pick-type'; error = '' }}>{m.back()}</Button>
         {:else}
-          <Button variant="secondary" onclick={onclose}>Cancel</Button>
+          <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
         {/if}
         <div class="flex gap-2">
           {#if editing}<!-- cancel already on left -->{:else}
-            <Button variant="secondary" onclick={onclose}>Cancel</Button>
+            <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
           {/if}
           <Button loading={saving} onclick={handleSubmit}>
-            {editing ? 'Save changes' : 'Create field'}
+            {editing ? m.save() : m.field_create()}
           </Button>
         </div>
       </div>

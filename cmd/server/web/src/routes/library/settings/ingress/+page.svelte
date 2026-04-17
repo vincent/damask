@@ -10,6 +10,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let showAddModal = $state(false)
   let editingSource = $state<IngressSource | null>(null)
@@ -38,7 +39,7 @@
 </script>
 
 <svelte:head>
-  <title>Ingress Sources — Damask</title>
+  <title>{m.ingress_sources()} — Damask</title>
 </svelte:head>
 
 <div class="flex flex-1 overflow-hidden">
@@ -49,8 +50,8 @@
 
     {:else if ingressStore.sources.length === 0}
       <EmptyState
-        title="No sources yet"
-        description="Add your first ingress source to automatically import files from email, SFTP, S3, and more."
+        title={m.no_sources_yet()}
+        description={m.add_source_desc()}
       >
         {#snippet icon()}
           <Rss class="h-10 w-10" />
@@ -58,7 +59,7 @@
         {#snippet action()}
           <Button variant="primary" onclick={() => { showAddModal = true }}>
             {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-            Add your first source
+            {m.add_first_ingress_source()}
           </Button>
         {/snippet}
       </EmptyState>
@@ -82,7 +83,7 @@
       <div class="mt-4 flex justify-center">
         <Button variant="primary" onclick={() => { showAddModal = true }}>
           {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-          Add source
+          {m.add_ingress_source()}
         </Button>
       </div>
     {/if}

@@ -2,6 +2,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { variantApi, type Asset } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
   
   interface Props {
     asset: Asset
@@ -56,12 +57,12 @@
 
     <div class="grid grid-cols-2 gap-4">
         <div>
-            <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Width (px)</label>
+            <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.width()} (px)</label>
             <input id="variant-{kind}-width" type="number" min="1" max="8000" bind:value={resizeWidth} oninput={updatePreview}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
         </div>
         <div>
-            <label for="variant-{kind}-height" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Height <span class="text-gray-400">(0=auto)</span></label>
+            <label for="variant-{kind}-height" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.height()} <span class="text-gray-400">(0=auto)</span></label>
             <input id="variant-{kind}-height" type="number" min="0" max="8000" bind:value={resizeHeight} oninput={updatePreview}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
         </div>
@@ -82,13 +83,13 @@
     </div>
 
     <div>
-        <label for="variant-{kind}-quality" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Quality: {resizeQuality}%</label>
+        <label for="variant-{kind}-quality" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.quality()}: {resizeQuality}%</label>
         <input id="variant-{kind}-quality" type="range" min="1" max="100" bind:value={resizeQuality} oninput={updatePreview}
         class="w-full accent-indigo-500" />
     </div>
 
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Format</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.format()}</label>
         <div class="flex gap-2">
             {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
@@ -102,7 +103,7 @@
     </div>
 
     <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate?.(kind, { width: resizeWidth || undefined, height: resizeHeight || undefined, fit: resizeFit, quality: resizeQuality, format: resizeFormat })} class="w-full">
-        {creating ? 'Queuing…' : 'Create Resized Variant'}
+        {creating ? m.queuing_() : m.variant_create_resize()}
     </Button>
 </div>
 

@@ -6,6 +6,7 @@
   import Hint from '$lib/components/ui/Hint.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import Title from '$lib/components/ui/Title.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let name = $state('')
   let email = $state('')
@@ -22,7 +23,7 @@
       await authApi.register(name, email, password)
       goto('/library')
     } catch (err) {
-      error = err instanceof ApiError ? err.message : 'Registration failed'
+      error = err instanceof ApiError ? err.message : m.register_failed()
     } finally {
       loading = false
     }
@@ -30,27 +31,27 @@
 </script>
 
 <svelte:head>
-  <title>Create account — Damask</title>
+  <title>{m.create_account()} — Damask</title>
 </svelte:head>
 
 <div class="damask-texture-strong relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
   <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
     <div>
-      <Title>Create your account</Title>
+      <Title>{m.create_your_account()}</Title>
       <Hint>
-        Already have an account? <a href="/login" class="text-blue-600 hover:underline">Sign in</a>
+        {m.already_hve_account_question()} <a href="/login" class="text-blue-600 hover:underline">{m.signin()}</a>
       </Hint>
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">
       <Feedback {error} />
-      <Input id="name" type="text" label="Full name" bind:value={name} required autocomplete="name" />
-      <Input id="email" type="email" label="Email" bind:value={email} required autocomplete="email" />
+      <Input id="name" type="text" label={m.fullname()} bind:value={name} required autocomplete="name" />
+      <Input id="email" type="email" label={m.email()} bind:value={email} required autocomplete="email" />
       <div>
         <Input id="password" type="password" label="Password" bind:value={password} required autocomplete="new-password" />
-        <p class="mt-1 text-sm text-gray-500">Minimum 8 characters</p>
+        <p class="mt-1 text-sm text-gray-500">{m.min_8_chars()}</p>
       </div>
-      <Button type="submit" {loading} class="w-full">{loading ? 'Creating account…' : 'Create account'}</Button>
+      <Button type="submit" {loading} class="w-full">{loading ? m.creating_account() : m.create_account()}</Button>
     </form>
   </div>
 </div>

@@ -2,6 +2,7 @@
     import { assetApi, type Asset } from "$lib/api"
     import { Download } from "@lucide/svelte"
   import SubSectionTitle from "./ui/SubSectionTitle.svelte"
+  import { m } from "$lib/paraglide/messages"
 
     type Props = {
         asset: Asset
@@ -11,7 +12,7 @@
 </script>
 
 <div>
-    <SubSectionTitle>Export</SubSectionTitle>
+    <SubSectionTitle>{m.export()}</SubSectionTitle>
     <div class="flex gap-2">
         <select
             bind:value={exportFormat}

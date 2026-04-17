@@ -5,6 +5,7 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import FieldCard from './FieldCard.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     asset: Asset
@@ -47,7 +48,7 @@
 
   function displayValue(fv: AssetFieldValue): string {
     if (fv.value === null || fv.value === undefined) return ''
-    if (fv.field_type === 'boolean') return fv.value ? 'Yes' : 'No'
+    if (fv.field_type === 'boolean') return fv.value ? m.yes() : m.no()
     return String(fv.value)
   }
 
@@ -88,7 +89,7 @@
       saveSuccess = def.id
       setTimeout(() => { if (saveSuccess === def.id) saveSuccess = null }, 2000)
     } catch (e: unknown) {
-      saveError = e instanceof Error ? e.message : 'Could not save'
+      saveError = e instanceof Error ? e.message : m.save_failed()
     } finally {
       savingFieldId = null
     }
@@ -121,14 +122,14 @@
 </script>
 
 <div>
-  <SubSectionTitle>Custom Fields</SubSectionTitle>
+  <SubSectionTitle>{m.custom_fields_title()}</SubSectionTitle>
 
   {#if loading}
     <div class="flex justify-center py-4">
       <Spinner size="sm" />
     </div>
   {:else if activeDefinitions.length === 0 && exifDefinitions.length === 0}
-    <p class="text-sm text-gray-400 dark:text-gray-500">No custom fields defined yet.</p>
+    <p class="text-sm text-gray-400 dark:text-gray-500">{m.no_custom_fields_yet()}</p>
   {:else}
     <div class="space-y-2">
       {#each activeDefinitions as def (def.id)}
@@ -193,7 +194,7 @@
         {:else}
           <ChevronRight class="h-3.5 w-3.5" />
         {/if}
-        Deprecated fields ({orphanedValues.length})
+        {m.fields_deprecated()} ({orphanedValues.length})
       </button>
 
       {#if showDeprecated}

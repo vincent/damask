@@ -5,6 +5,7 @@
   import Chip from '$lib/components/ui/Chip.svelte'
   import FieldFilterInput from '$lib/components/FieldFilterInput.svelte'
   import { ChevronDown, ChevronRight } from '@lucide/svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     activeFilters: FieldFilter[]
@@ -133,7 +134,7 @@
             for (const def of definitions) clearField(def.key)
           }}
         >
-          Clear all
+          {m.clear_all()}
         </button>
       </div>
     {/if}
@@ -149,10 +150,10 @@
         {#if exifDefinitions.length > 0}
             {#if !showExif}
               <button
-                class="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                class="flex items-center gap-1 pb-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 onclick={() => { showExif = !showExif }}
               >
-                EXIF fields
+                {m.exif_fields()}
               </button>
             {:else}
                 {#each exifDefinitions as def}

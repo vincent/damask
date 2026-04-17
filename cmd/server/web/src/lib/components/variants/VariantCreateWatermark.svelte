@@ -2,6 +2,7 @@
     import { authStore } from '$lib/stores/auth.svelte'
     import Button from '$lib/components/ui/Button.svelte'
     import { variantApi, type Asset } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
     
     interface Props {
         asset: Asset
@@ -23,17 +24,17 @@
 <div class="space-y-5">
     <div class="grid grid-cols-2 gap-4">
         <div>
-            <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Opacity ({watermarkOpacity}%)</label>
+            <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.opacity()} ({watermarkOpacity}%)</label>
             <input id="variant-{kind}-width" type="range" min="1" max="100" bind:value={watermarkOpacity} class="w-full accent-indigo-500" />
         </div>
         <div>
-            <label for="variant-{kind}-height" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Quality: {watermarkQuality}%</label>
+            <label for="variant-{kind}-height" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.quality()}: {watermarkQuality}%</label>
             <input id="variant-{kind}-height" type="range" min="1" max="100" bind:value={watermarkQuality} class="w-full accent-indigo-500" />
         </div>
     </div>
 
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Format</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.format()}</label>
         <div class="flex gap-2">
             {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
@@ -47,6 +48,6 @@
     </div>
 
     <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate(kind, { opacity: watermarkOpacity, quality: watermarkQuality, format: watermarkFormat })} class="w-full">
-        {creating ? 'Queuing…' : 'Create Watermark Variant'}
+        {creating ? m.queuing_() : m.variant_create_watermark()}
     </Button>
 </div>

@@ -3,6 +3,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
+  import { m } from '$lib/paraglide/messages'
   
   interface Props {
     asset: Asset | null
@@ -61,7 +62,7 @@
 </script>
 
 <div>
-    <SubSectionTitle>Tags</SubSectionTitle>
+    <SubSectionTitle>{m.tags()}</SubSectionTitle>
     <div class="flex flex-wrap gap-1.5">
         {#each tags as tag}
         <Chip
@@ -101,7 +102,7 @@
                 <button
                     class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-sm text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:border-gray-600 dark:text-gray-500 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
                     onclick={() => { showTagInput = true }}
-                >+ Add Tag</button>
+                >+ {m.tag_new()}</button>
             {/if}
         {/if}
     </div>

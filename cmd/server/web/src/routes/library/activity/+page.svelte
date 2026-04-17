@@ -5,6 +5,7 @@
   import ButtonDownload from '$lib/components/ui/ButtonDownload.svelte'
   import PageContainer from '$lib/components/ui/PageContainer.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let events = $state<ActivityEvent[]>([])
   let loading = $state(true)
@@ -17,9 +18,9 @@
   let typeFilter = $state<'' | 'uploads' | 'changes' | 'shares'>('')
   let typeFFilters: [string, string][] = [
     ['', 'All'],
-    ['uploads', 'Uploads'],
-    ['changes', 'Changes'],
-    ['shares', 'Shares'],
+    ['uploads', m.uploads()],
+    ['changes', m.changes()],
+    ['shares', m.shares()],
   ]
 
   const typesParam: Record<string, string> = {
@@ -49,7 +50,7 @@
       nextCursor = res.next_cursor
       hasMore = res.has_more
     } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to load activity'
+      error = e instanceof Error ? e.message : m.activity_load_failed()
     } finally {
       loading = false
     }
@@ -75,21 +76,24 @@
 </script>
 
 <svelte:head>
-  <title>Activity — Damask</title>
+  <title>{m.activity()} — Damask</title>
 </svelte:head>
 
 <PageContainer>
   <PageHeader
-    title="Workspace activity"
-    description="See all actions taken in this workspace, including uploads, edits, and shares."
+    title={m.workspace_activity_title()}
+    description={m.workspace_activity_description()}
   >
-    <ButtonDownload resourceUrl={csvUrl} text="Export CSV" />
+    <ButtonDownload resourceUrl={csvUrl} text={m.export_csv()} />
   </PageHeader>
 
   <!-- Filter bar -->
   <div class="flex flex-shrink-0 gap-2 border-b border-zinc-100 px-6 py-2 dark:border-zinc-800">
     {#each typeFFilters as [val, label]}
-      <Chip {label} onclick={() => { typeFilter = val as typeof typeFilter }} color={typeFilter === val ? "#6366f1": "#000"} />
+      <Chip
+        {label} onclick={() => { typeFilter = val as typeof typeFilter }}
+        color={typeFilter === val ? "#6366f1": "#000"}
+      />
     {/each}
   </div>
 

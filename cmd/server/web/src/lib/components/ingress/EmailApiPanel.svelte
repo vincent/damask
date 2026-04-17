@@ -7,6 +7,7 @@
   import ButtonCopy from '../ui/ButtonCopy.svelte'
   import Button from '../ui/Button.svelte'
   import { configApi } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     source: IngressSource
@@ -50,7 +51,7 @@
 <div class="space-y-5">
   <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-5 dark:border-indigo-900/40 dark:bg-indigo-900/20">
     <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
-      Your ingest address
+      {m.ingress_mail_yours()}
     </p>
 
     {#if baseAddress}
@@ -60,18 +61,18 @@
         <ButtonCopy onclick={() => copyAddress(baseAddress!)} copied={copied} />
       </div>
     {:else}
-      <Hint class="italic">Address not yet assigned. Contact your workspace owner.</Hint>
+      <Hint class="italic">{m.ingress_mail_not_available()}</Hint>
     {/if}
 
     <Hint class="mt-3 text-sm">
-      Send files as email attachments to this address.<br>Supported formats: images, video, PDF, and common creative files.<br>Max 25 MB per file.
+      {m.ingress_mail_help_attachments()}
     </Hint>
   </div>
 
   {#if baseAddress && foldersWithSlug.length > 0}
     <div class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/40">
       <p class="mb-1 text-sm font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-        Folder routing
+        {m.folder_routing()}
       </p>
       <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
         Add <span class="font-mono">+folder-name</span> to route attachments to a specific folder.
@@ -87,7 +88,7 @@
         {/each}
       </div>
       <Hint class="mt-3 text-sm">
-        Unrecognised tags fall back to your default destination folder.
+        {m.folder_routing_help_default()}
       </Hint>
     </div>
   {/if}
@@ -95,7 +96,7 @@
   {#if baseAddress}
     <Button variant="outline" size="md" class="w-full justify-center" onclick={openMailto}>
       <Mail class="h-4 w-4 mr-1" />
-      Send a test email
+      {m.send_test_email()}
     </Button>
   {/if}
 </div>

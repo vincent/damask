@@ -1,5 +1,6 @@
 <script lang="ts">
   import { type MenuItem, type Project } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
   import { ChevronUp, Search } from '@lucide/svelte'
 
   interface Props {
@@ -15,8 +16,8 @@
   let inputEl = $state<HTMLInputElement | undefined>(undefined)
 
   let items = $derived<MenuItem[]>([
-    { id: null, label: 'All assets', url: '/library' },
-    { id: null, label: 'All shares', url: '/library/shares' },
+    { id: null, label: m.all_assets(), url: '/library' },
+    { id: null, label: m.all_shares(), url: '/library/shares' },
     ...projects
       .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
       .map((p) => ({
@@ -74,7 +75,7 @@
       <input
         bind:this={inputEl}
         bind:value={query}
-        placeholder="Jump to project…"
+        placeholder={m.jump_project()}
         class="flex-1 text-md outline-none placeholder-gray-400"
       />
       <kbd class="rounded border border-gray-200 px-1.5 py-0.5 text-sm text-gray-400">Esc</kbd>
@@ -102,7 +103,7 @@
         </li>
       {/each}
       {#if items.length === 0}
-        <li class="px-4 py-3 text-md text-gray-400">No results</li>
+        <li class="px-4 py-3 text-md text-gray-400">{m.no_results()}</li>
       {/if}
     </ul>
   </div>

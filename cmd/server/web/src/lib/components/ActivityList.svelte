@@ -5,6 +5,7 @@
   import ButtonShowMore from './ui/ButtonShowMore.svelte'
   import Actor from './ui/Actor.svelte'
   import type { AuditEvent } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
 
   let { loading, error, events, hasMore, loadMore, loadingMore, class: extraClass }: { loading: boolean; error: string; events: AuditEvent[]; hasMore: boolean; loadMore: () => void; loadingMore: boolean; class?: string } = $props()
 
@@ -12,7 +13,7 @@
     const date = new Date(isoOrSqlite.replace(' ', 'T') + (isoOrSqlite.includes('T') ? '' : 'Z'))
     const diffMs = Date.now() - date.getTime()
     const diffSec = Math.floor(diffMs / 1000)
-    if (diffSec < 60) return 'just now'
+    if (diffSec < 60) return m.just_now()
     if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
     if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
     if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}d ago`
@@ -32,7 +33,7 @@
   {:else if events.length === 0}
     <div class="flex flex-col items-center gap-3 py-12 text-center text-zinc-400 dark:text-zinc-500">
       <Inbox class="h-10 w-10" />
-      <p class="text-md">No activity yet.</p>
+      <p class="text-md">{m.no_activity_yet()}</p>
     </div>
 
   {:else}
@@ -46,7 +47,7 @@
                 <span class="font-medium">{event.actor.name}</span>
                 {' '}
               {:else if event.actor.type === 'system'}
-                <span class="font-medium italic text-zinc-500 dark:text-zinc-400">System</span>
+                <span class="font-medium italic text-zinc-500 dark:text-zinc-400">{m.system()}</span>
                 {' '}
               {/if}
               <span class="text-zinc-600 dark:text-zinc-400">{event.human_readable}</span>

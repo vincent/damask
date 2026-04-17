@@ -1,5 +1,6 @@
 <script lang="ts">
   import { assetApi, type Asset } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
   import { uploadsStore } from '$lib/stores/uploads.svelte'
   import { Upload } from '@lucide/svelte'
 
@@ -97,7 +98,7 @@
     />
   </svg>
   <p class="text-md {isDragging ? 'text-blue-600' : 'text-gray-500'}">
-    {isDragging ? 'Drop files here' : 'Drag & drop files, or click to browse'}
+    {isDragging ? m.drop_to_upload() : m.upload_drop_or_select()}
   </p>
 
   <input
@@ -124,9 +125,9 @@
               ></div>
             </div>
           {:else if item.status === 'processing'}
-            <p class="text-sm text-amber-600">Processing thumbnail…</p>
+            <p class="text-sm text-amber-600">{m.processing_thumbnail()}</p>
           {:else if item.status === 'done'}
-            <p class="text-sm text-green-600">Done</p>
+            <p class="text-sm text-green-600">{m.upload_done()}</p>
           {:else if item.status === 'error'}
             <p class="truncate text-sm text-red-600">{item.error}</p>
           {/if}

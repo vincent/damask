@@ -1,9 +1,10 @@
 <script lang="ts">
   import { tagApi, assetApi, type Project } from '$lib/api'
-  import { authStore } from '$lib/stores/auth.svelte'
-  import { SquareArrowRightExit, Tag, Trash } from '@lucide/svelte'
+  import { SquareArrowRightExit, Tag } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import { authStore } from '$lib/stores/auth.svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     selectedIds: Set<string>
@@ -72,7 +73,7 @@
           onclick={() => { activePanel = activePanel === 'tags' ? null : 'tags' }}
         >
           {#snippet icon()}<Tag class="h-4 w-4" />{/snippet}
-          Tag
+          {m.tag()}
         </Button>
         {#if activePanel === 'tags'}
           <form
@@ -81,10 +82,10 @@
           >
             <input
               bind:value={tagInput}
-              placeholder="Tag name"
+              placeholder={m.tag_name()}
               class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-md shadow-lg focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
-            <Button type="submit" variant="primary" size="sm" disabled={busy}>Add</Button>
+            <Button type="submit" variant="primary" size="sm" disabled={busy}>{m.add()}</Button>
           </form>
         {/if}
       </div>
@@ -98,7 +99,7 @@
           onclick={() => { activePanel = activePanel === 'projects' ? null : 'projects' }}
         >
           {#snippet icon()}<SquareArrowRightExit class="h-4 w-4" />{/snippet}
-          Project
+          {m.project()}
         </Button>
         {#if activePanel === 'projects'}
           <div class="absolute bottom-full mb-2 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
@@ -107,7 +108,7 @@
               onclick={() => bulkProject(null)}
             >
               <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
-              None
+              {m.none()}
             </button>
             {#each projects as p}
               <button
@@ -129,12 +130,12 @@
 
       <!-- Delete (owner only) -->
       {#if authStore.role === 'owner'}
-        <ButtonDelete title="Bulk Delete variants" onclick={bulkDelete} />
+        <ButtonDelete title={m.bulk_delete_variants()} onclick={bulkDelete} />
       {/if}
 
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
-      <Button variant="ghost" size="sm" onclick={onclear}>Cancel</Button>
+      <Button variant="ghost" size="sm" onclick={onclear}>{m.cancel()}</Button>
     </div>
   </div>
 {/if}

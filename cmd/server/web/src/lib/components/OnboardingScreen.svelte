@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Upload, FolderOpen, Tag, Share2 } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     onDismiss: () => void
@@ -12,30 +13,30 @@
     {
       icon: Upload,
       iconClass: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400',
-      title: 'Upload files',
-      body: 'Drag files anywhere onto this page, or click the upload button in the header.',
-      hint: 'Thumbnails are generated automatically.',
+      title: m.onboard_upload(),
+      body: m.onboard_upload_body(),
+      hint: m.onboard_upload_hint(),
     },
     {
       icon: FolderOpen,
       iconClass: 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400',
-      title: 'Create a project',
-      body: 'Use the sidebar on the left to create a project and group related assets together.',
-      hint: 'Add folders inside projects for deeper structure.',
+      title: m.onboard_project(),
+      body: m.onboard_project_body(),
+      hint: m.onboard_project_hint(),
     },
     {
       icon: Tag,
       iconClass: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
-      title: 'Tag & search',
-      body: 'Add tags to assets to find them across projects. Use the search bar at the top to filter instantly.',
-      hint: 'Select multiple assets with Shift+click to tag in bulk.',
+      title: m.onboard_tags(),
+      body: m.onboard_tags_body(),
+      hint: m.onboard_tags_hint(),
     },
     {
       icon: Share2,
       iconClass: 'bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400',
-      title: 'Share a project',
-      body: 'Generate a read-only share link for any project or asset — no login required for viewers.',
-      hint: 'Find the share button (↗) next to any project name.',
+      title: m.onboard_share(),
+      body: m.onboard_share_body(),
+      hint: m.onboard_share_hint(),
     },
   ]
 </script>
@@ -43,13 +44,13 @@
 <div class="flex flex-col items-center justify-center py-16 px-8 max-w-3xl mx-auto">
   <!-- Header -->
   <p class="text-md font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
-    Your workspace is ready
+    {m.workspace_ready()}
   </p>
   <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
-    Start building your library
+    {m.onboard_start_building()}
   </h1>
   <p class="mt-2 text-lg text-gray-500 dark:text-gray-400 max-w-md text-center">
-    Here's what you can do right now.
+    {m.onboard_what_to_do()}
   </p>
 
   <!-- Feature cards -->
@@ -73,7 +74,7 @@
 
   <!-- Footer -->
   <div class="mt-10 flex items-center gap-4">
-    <Button onclick={onDismiss}>Get started</Button>
+    <Button onclick={onDismiss}>{m.get_started()}</Button>
     <span class="text-md text-gray-400 dark:text-gray-500">
       Tip: press <kbd class="rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 font-mono text-md text-gray-500 dark:text-gray-400">⌘K</kbd> to quickly jump between projects
     </span>

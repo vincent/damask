@@ -7,6 +7,7 @@
   import Hint from '$lib/components/ui/Hint.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import Title from '$lib/components/ui/Title.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let email = $state('')
   let password = $state('')
@@ -23,7 +24,7 @@
       await authApi.login(email, password)
       goto('/library')
     } catch (err) {
-      error = err instanceof ApiError ? err.message : 'Login failed'
+      error = err instanceof ApiError ? err.message : m.login_failed()
     } finally {
       loading = false
     }
@@ -36,7 +37,7 @@
       await authApi.demoSession()
       goto('/library')
     } catch (err) {
-      error = err instanceof ApiError ? err.message : 'Could not start demo session'
+      error = err instanceof ApiError ? err.message : m.cannot_start_demo()
     } finally {
       demoLoading = false
     }
@@ -44,29 +45,29 @@
 </script>
 
 <svelte:head>
-  <title>Sign in — Damask</title>
+  <title>{m.signin()} — Damask</title>
 </svelte:head>
 
 <div class="damask-texture-strong relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
   <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
     <div>
-      <Title>Sign in</Title>
+      <Title>{m.signin()}</Title>
       <Hint>
-        Don't have an account? <a href="/register" class="text-blue-600 hover:underline">Register</a>
+        {m.no_account_question()} <a href="/register" class="text-blue-600 hover:underline">{m.register()}</a>
       </Hint>
     </div>
 
     <form onsubmit={handleSubmit} class="space-y-4">
       <Feedback {error} />
-      <Input id="email" type="email" label="Email" bind:value={email} required autocomplete="email" />
-      <Input id="password" type="password" label="Password" bind:value={password} required autocomplete="current-password" />
-      <Button type="submit" {loading} class="w-full">{loading ? 'Signing in…' : 'Sign in'}</Button>
+      <Input id="email" type="email" label={m.email()} bind:value={email} required autocomplete="email" />
+      <Input id="password" type="password" label={m.password()} bind:value={password} required autocomplete="current-password" />
+      <Button type="submit" {loading} class="w-full">{loading ? m.signin_in() : m.signin()}</Button>
     </form>
 
     {#if configStore.state.demo}
       <div class="text-center">
         <button onclick={handleDemo} disabled={demoLoading} class="text-md text-blue-600 hover:underline disabled:opacity-50">
-          {demoLoading ? 'Starting demo…' : 'Try the demo'}
+          {demoLoading ? m.starting_demo() : m.try_demo()}
         </button>
       </div>
     {/if}

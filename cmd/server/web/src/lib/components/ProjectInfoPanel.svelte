@@ -3,6 +3,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { ChevronDown, ChevronRight, Box } from '@lucide/svelte'
   import ProjectCustomFields from './ProjectCustomFields.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     project: Project
@@ -37,7 +38,7 @@
       {#if authStore.role !== 'viewer'}
         <ProjectCustomFields projectId={project.id} />
       {:else}
-        <p class="text-sm text-gray-400 dark:text-gray-500">Project details</p>
+        <p class="text-sm text-gray-400 dark:text-gray-500">{m.project_details()}</p>
       {/if}
     </div>
   {/if}

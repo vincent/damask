@@ -9,13 +9,15 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { sharesStore } from '$lib/stores/shares.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
-  import { Activity, Book, LogOut, Plus, Share2, Rss, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings } from '@lucide/svelte'
+  import { Activity, Book, LogOut, Plus, Share2, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings } from '@lucide/svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { fly } from 'svelte/transition'
+  import { setLocale } from '$lib/paraglide/runtime'
+  import { m } from '$lib/paraglide/messages'
   
   let { children }: { data: any, children: Snippet } = $props()
 
@@ -42,7 +44,7 @@
       await assetsStore.load(true)
       selectionStore.clear()
     } catch {
-      toastStore.show('Could not move assets', 'error')
+      toastStore.show(m.cannot_move_assets(), 'error')
     }
   }
 
@@ -55,7 +57,7 @@
       await foldersStore.loadForProject(projectId)
       selectionStore.clear()
     } catch {
-      toastStore.show('Could not move assets', 'error')
+      toastStore.show(m.cannot_move_assets(), 'error')
     }
   }
 
@@ -89,7 +91,7 @@
         onclick={() => handleProjectSelect(null)}
       >
         <Book class="h-4 w-4 shrink-0 text-gray-400" />
-        <span class="flex-1 text-left">All Assets</span>
+        <span class="flex-1 text-left">{m.all_assets()}</span>
         {#if projectsStore.totalAssetCount > 0}
           <span class="shrink-0 text-sm text-gray-400">{projectsStore.totalAssetCount}</span>
         {/if}
@@ -106,7 +108,7 @@
             onclick={() => goto('/library/shares')}
           >
             <Share2 class="h-4 w-4 shrink-0 text-gray-400" />
-            <span class="flex-1 text-left">All Shares</span>
+            <span class="flex-1 text-left">{m.all_shares()}</span>
             {#if sharesStore.shares?.length > 0}
               <span class="shrink-0 text-sm text-gray-400">{sharesStore.shares?.length}</span>
             {/if}
@@ -121,7 +123,7 @@
             onclick={() => goto('/library/settings/custom-fields')}
           >
             <Settings2 class="h-4 w-4 shrink-0 text-gray-400" />
-            <span class="flex-1 text-left">Custom Fields</span>
+            <span class="flex-1 text-left">{m.custom_fields_title()}</span>
           </button>
         </div>
 
@@ -133,7 +135,7 @@
             onclick={() => goto('/library/settings/tags')}
           >
             <Tag class="h-4 w-4 shrink-0 text-gray-400" />
-            <span class="flex-1 text-left">Tags</span>
+            <span class="flex-1 text-left">{m.tags()}</span>
           </button>
         </div>
 
@@ -145,7 +147,7 @@
             onclick={() => goto('/library/activity')}
           >
             <Activity class="h-4 w-4 shrink-0 text-gray-400" />
-            <span class="flex-1 text-left">Activity</span>
+            <span class="flex-1 text-left">{m.activity()}</span>
           </button>
         </div>
 
@@ -154,10 +156,10 @@
           <button
             class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
               {(['ingress','versioning','privacy'].some(s => page.route.id?.includes(s))) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-            onclick={() => goto('/library/settings/ingress')}
+            onclick={() => goto('/library/settings/members')}
           >
             <Settings class="h-4 w-4 shrink-0 text-gray-400" />
-            <span class="flex-1 text-left">Settings</span>
+            <span class="flex-1 text-left">{m.settings()}</span>
           </button>
         </div>
 
@@ -180,12 +182,12 @@
     <!-- Projects section -->
     <div class="flex flex-1 flex-col overflow-hidden px-3 pt-4 border-t border-gray-100 dark:border-gray-800">
       <div class="mb-2 flex items-center justify-between px-2">
-        <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Projects</span>
+        <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{m.projects()}</span>
         {#if authStore.role !== 'viewer'}
           <button
             class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             onclick={() => { sidebarCreating = true }}
-            aria-label="New project"
+            aria-label={m.new_project()}
           >
             <Plus class="h-3.5 w-3.5" />
           </button>
@@ -208,15 +210,24 @@
     <div class="flex items-center justify-start border-t border-gray-200 px-4 py-3 dark:border-gray-800">
       <Info class="h-3.5 w-3.5 text-gray-400" />
       <a href="https://docs.damask.studio" target="_blank" class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-        <span class="text-sm">Docs</span>
+        <span class="text-sm">{m.help_docs()}</span>
       </a>
     </div>
     <div class="flex items-center justify-start px-4 py-3">
       <Megaphone class="h-3.5 w-3.5 text-gray-400" />
       <a href="https://github.com/vincent/damask/discussions" target="_blank" class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-        <span class="text-sm">Feedback</span>
+        <span class="text-sm">{m.help_feedback()}</span>
       </a>
     </div>
+
+    <!-- lang selector -->
+    <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800 text-gray-400">
+      <button onclick={() => setLocale('en')}>en</button>
+      <button onclick={() => setLocale('es')}>es</button>
+      <button onclick={() => setLocale('fr')}>fr</button>
+      <button onclick={() => setLocale('cat')}>cat</button>
+    </div>
+
     <!-- Bottom sign out + theme toggle -->
     <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
       <ThemeToggle />

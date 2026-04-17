@@ -6,6 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import PoweredByDamask from '$lib/components/PoweredByDamask.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -14,7 +15,7 @@
   let error = $state('')
   let loading = $state(false)
   let checking = $state(true)
-  let shareLabel = $state('Shared Gallery')
+  let shareLabel = $state(m.shared_gallery())
 
   onMount(async () => {
     // Check if we already have a session token
@@ -29,7 +30,7 @@
       const res = await fetch(`${API_BASE}/shared/${shareId}/access`)
       if (res.ok) {
         const data = await res.json()
-        shareLabel = data.label ?? 'Shared Gallery'
+        shareLabel = data.label ?? m.shared_gallery()
         if (!data.has_password) {
           // No password required — obtain a token and proceed directly to view
           await acquireToken('')
@@ -37,12 +38,12 @@
         }
         // Password required — fall through to show the password form
       } else if (res.status === 404 || res.status === 410) {
-        error = 'This link is invalid or has expired.'
+        error = m.link_expired()
       } else {
-        error = 'Failed to load share.'
+        error = m.load_shared_failed()
       }
     } catch {
-      error = 'Failed to load page. Please check your connection.'
+      error = m.load_page_failed()
     }
     checking = false
   })
@@ -62,16 +63,16 @@
 
   async function handleAccess() {
     if (!password.trim()) {
-      error = 'Please enter the password.'
+      error = m.enter_password()
       return
     }
     loading = true
     error = ''
     try {
       const ok = await acquireToken(password)
-      if (!ok) error = 'Incorrect password. Please try again.'
+      if (!ok) error = m.incorrect_password()
     } catch {
-      error = 'Something went wrong. Please try again.'
+      error = m.try_again()
     }
     loading = false
   }
@@ -88,7 +89,7 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
-      <span class="text-md">Loading…</span>
+      <span class="text-md">{m.loading()}</span>
     </div>
   {:else if error && !password}
     <div class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-8 shadow-sm text-center">
@@ -107,14 +108,14 @@
         {shareLabel}
       </h1>
       <p class="mb-6 text-center text-md text-gray-500 dark:text-gray-400">
-        This shared gallery is password protected. Please enter the password provided by the sender to view the assets.
+        {m.gallery_is_password_protected()}
       </p>
 
       <form onsubmit={(e) => { e.preventDefault(); handleAccess() }}>
         <Input
-          label="Password"
+          label={m.password()}
           type="password"
-          placeholder="Enter password"
+          placeholder={m.password()}
           bind:value={password}
           {error}
           autofocus
@@ -133,7 +134,7 @@
               </svg>
             {/if}
           {/snippet}
-          Access Gallery
+          {m.access_gallery()}
         </Button>
       </form>
     </div>

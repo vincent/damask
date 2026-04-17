@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { m } from "$lib/paraglide/messages"
     import { X } from "@lucide/svelte"
     import type { Snippet } from "svelte"
     let {
         x = false,
-        title = 'Cancel',
+        title = m.cancel(),
         class: extraClass,
         onclick,
         children,
@@ -30,6 +31,6 @@
     {:else if children}
         {@render children()}
     {:else}
-        Cancel
+        {m.cancel()}
     {/if}
 </button>

@@ -3,14 +3,15 @@
   import { goto } from '$app/navigation'
   import type { Snippet } from 'svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let { children }: { children: Snippet } = $props()
 
   const tabs = [
-    { id: 'members',   label: 'Members',          path: '/library/settings/members' },
-    { id: 'ingress',    label: 'Ingress',          path: '/library/settings/ingress' },
-    { id: 'versioning', label: 'Version History',  path: '/library/settings/versioning' },
-    { id: 'privacy',    label: 'EXIF & Privacy',   path: '/library/settings/privacy' },
+    { id: 'members',    label: m.tab_members(),           path: '/library/settings/members' },
+    { id: 'ingress',    label: m.tab_ingress(),           path: '/library/settings/ingress' },
+    { id: 'versioning', label: m.tab_history(),   path: '/library/settings/versioning' },
+    { id: 'privacy',    label: m.tab_exif_privacy(),   path: '/library/settings/privacy' },
   ]
 
   const activeTab = $derived(
@@ -20,7 +21,10 @@
 
 {#if activeTab !== null}
   <div class="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
-    <PageHeader title="Settings" description="Manage workspace configuration and integrations." />
+    <PageHeader
+      title={m.settings()}
+      description={m.workspace_settings_description()}
+    />
 
     <!-- Tab bar -->
     <div class="flex border-b border-gray-100 px-6 dark:border-gray-800">

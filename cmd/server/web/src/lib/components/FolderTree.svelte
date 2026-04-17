@@ -9,6 +9,7 @@
   import Feedback from './ui/Feedback.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { configStore } from '$lib/stores/config.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     folders: Folder[]
@@ -27,9 +28,9 @@
     const address = `${ingestToken}+${folder.slug}@${configStore.state.mailHost}`
     try {
       await navigator.clipboard.writeText(address)
-      toastStore.show('Ingest address copied')
+      toastStore.show(m.address_copied())
     } catch {
-      toastStore.show('Could not copy', 'error')
+      toastStore.show(m.cannot_copy(), 'error')
     }
   }
 
@@ -72,7 +73,7 @@
       await foldersStore.rename(id, projectId, name)
       editingId = null
     } catch {
-      error = 'Could not rename folder'
+      error = m.folder_rename_failed()
     }
   }
 
@@ -81,7 +82,7 @@
     try {
       await foldersStore.delete(id, projectId)
     } catch {
-      error = 'Could not delete folder'
+      error = m.folder_delete_failed()
     }
   }
 
@@ -95,7 +96,7 @@
       newFolderName = ''
       creatingUnder = null
     } catch {
-      error = 'Could not create folder'
+      error = m.folder_create_failed()
     }
   }
 
@@ -189,10 +190,10 @@
         <div class="absolute right-0 top-full z-30 mt-0.5">
           <ContextMenu
             items={[
-              { label: 'Rename', onclick: () => { editingId = folder.id; editName = folder.name; contextMenuId = null } },
-              ...(folder.parent_id == null ? [{ label: 'Add subfolder', onclick: () => { creatingUnder = folder.id; contextMenuId = null; newFolderName = '' } }] : []),
-              ...(ingestToken && folder.slug ? [{ label: 'Copy ingest address', onclick: () => { copyIngestAddress(folder); contextMenuId = null } }] : []),
-              ...(authStore.role === 'owner' ? [{ label: 'Delete', onclick: () => deleteFolder(folder.id), danger: true }] : [])
+              { label: m.rename(), onclick: () => { editingId = folder.id; editName = folder.name; contextMenuId = null } },
+              ...(folder.parent_id == null ? [{ label: m.add_subfolder(), onclick: () => { creatingUnder = folder.id; contextMenuId = null; newFolderName = '' } }] : []),
+              ...(ingestToken && folder.slug ? [{ label: m.copy_address(), onclick: () => { copyIngestAddress(folder); contextMenuId = null } }] : []),
+              ...(authStore.role === 'owner' ? [{ label: m.delete(), onclick: () => deleteFolder(folder.id), danger: true }] : [])
             ]}
             onclose={() => { contextMenuId = null }}
           />
@@ -208,11 +209,11 @@
         >
           <input
             bind:value={newFolderName}
-            placeholder="Folder name"
+            placeholder={m.name()}
             class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-100"
             onblur={() => { if (!newFolderName.trim()) creatingUnder = null }}
           />
-          <Button type="submit" variant="ghost" size="sm" class="shrink-0">Add</Button>
+          <Button type="submit" variant="ghost" size="sm" class="shrink-0">{m.add()}</Button>
         </form>
       </div>
     {/if}
@@ -266,9 +267,9 @@
               <div class="absolute right-0 top-full z-30 mt-0.5">
                 <ContextMenu
                   items={[
-                    { label: 'Rename', onclick: () => { editingId = child.id; editName = child.name; contextMenuId = null } },
-                    ...(ingestToken && child.slug ? [{ label: 'Copy ingest address', onclick: () => { copyIngestAddress(child); contextMenuId = null } }] : []),
-                    ...(authStore.role === 'owner' ? [{ label: 'Delete', onclick: () => deleteFolder(child.id), danger: true }] : [])
+                    { label: m.rename(), onclick: () => { editingId = child.id; editName = child.name; contextMenuId = null } },
+                    ...(ingestToken && child.slug ? [{ label: m.copy_address(), onclick: () => { copyIngestAddress(child); contextMenuId = null } }] : []),
+                    ...(authStore.role === 'owner' ? [{ label: m.delete(), onclick: () => deleteFolder(child.id), danger: true }] : [])
                   ]}
                   onclose={() => { contextMenuId = null }}
                 />

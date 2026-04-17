@@ -15,6 +15,7 @@
   import Hint from '$lib/components/ui/Hint.svelte'
   import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
   import ButtonCancel from '$lib/components/ui/ButtonCancel.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   const currentUserID = $derived(authStore.user?.id)
   const isOwner = $derived(authStore.role === 'owner')
@@ -41,7 +42,7 @@
         workspaceApi.listInvites(),
       ])
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : 'Failed to load members', 'error')
+      toastStore.show(e instanceof Error ? e.message : m.members_load_failed(), 'error')
     } finally {
       loading = false
     }
@@ -53,10 +54,10 @@
     updatingRole = userId
     try {
       await workspaceApi.updateMemberRole(userId, role)
-      members = members.map(m => m.user_id === userId ? { ...m, role } : m)
+      members = members.map(mb => mb.user_id === userId ? { ...mb, role } : mb)
       toastStore.show('Role updated')
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : 'Failed to update role', 'error')
+      toastStore.show(e instanceof Error ? e.message : m.role_update_failed(), 'error')
     } finally {
       updatingRole = null
     }
@@ -66,10 +67,10 @@
     removingID = userId
     try {
       await workspaceApi.removeMember(userId)
-      members = members.filter(m => m.user_id !== userId)
+      members = members.filter(mb => mb.user_id !== userId)
       toastStore.show('Member removed')
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : 'Failed to remove member', 'error')
+      toastStore.show(e instanceof Error ? e.message : m.member_remove_failed(), 'error')
     } finally {
       removingID = null
       confirmRemoveID = null
@@ -83,7 +84,7 @@
       invites = invites.filter(i => i.id !== inviteId)
       toastStore.show('Invite cancelled')
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : 'Failed to cancel invite', 'error')
+      toastStore.show(e instanceof Error ? e.message : m.invite_cancel_failed(), 'error')
     } finally {
       deletingInviteID = null
     }
@@ -100,7 +101,7 @@
       showInviteForm = false
       invites = await workspaceApi.listInvites()
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : 'Failed to send invite', 'error')
+      toastStore.show(e instanceof Error ? e.message : m.invite_sent_failed(), 'error')
     } finally {
       inviting = false
     }
@@ -112,8 +113,8 @@
 
     {#if !isOwner}
       <EmptyState
-        title="Owner access required"
-        description="Only workspace owners can manage members."
+        title={m.owner_access_required()}
+        description={m.members_settings_owner_only()}
       />
     {:else if loading}
       <div class="flex justify-center py-12">
@@ -125,13 +126,13 @@
       <section>
         <div class="flex-1">
           <div class="mb-3 flex items-center justify-between">
-            <SectionHeading titleClass="text-xl" title="Members" count={members.length} />
+            <SectionHeading titleClass="text-xl" title={m.members()} count={members.length} />
             <Button variant="primary" onclick={() => { showInviteForm = !showInviteForm }}>
               <UserPlus class="mr-1.5 h-3.5 w-3.5" />
-              Invite member
+              {m.member_invite()}
             </Button>
           </div>
-          <Hint>Manage your workspace members and their permissions.</Hint>
+          <Hint>{m.member_invite_description()}</Hint>
         </div>
       </section>
 
@@ -141,7 +142,7 @@
             <div class="flex gap-2">
               <Input
                 type="email"
-                placeholder="Email address"
+                placeholder={m.email()}
                 bind:value={inviteEmail}
                 class="flex-1"
               />
@@ -151,11 +152,11 @@
                        focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500
                        dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
               >
-                <option value="editor">Editor</option>
-                <option value="viewer">Viewer</option>
+                <option value="editor">{m.editor()}</option>
+                <option value="viewer">{m.viewer()}</option>
               </select>
               <Button onclick={sendInvite} loading={inviting} disabled={!inviteEmail.trim()}>
-                Send
+                {m.send()}
               </Button>
               <ButtonCancel x onclick={() => { showInviteForm = false }} />
             </div>
@@ -194,9 +195,9 @@
                          focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500
                          dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
                 >
-                  <option value="owner">Owner</option>
-                  <option value="editor">Editor</option>
-                  <option value="viewer">Viewer</option>
+                  <option value="owner">{m.owner()}</option>
+                  <option value="editor">{m.editor()}</option>
+                  <option value="viewer">{m.viewer()}</option>
                 </select>
               {/if}
 
@@ -204,8 +205,8 @@
               {#if member.user_id !== currentUserID}
                 {#if confirmRemoveID === member.user_id}
                   <div class="flex items-center gap-1.5">
-                    <span class="text-xs text-zinc-500 dark:text-zinc-400">Remove?</span>
-                    <ButtonDelete title="Remove member" onclick={() => removeMember(member.user_id)}>Yes</ButtonDelete>
+                    <span class="text-xs text-zinc-500 dark:text-zinc-400">{m.remove()}?</span>
+                    <ButtonDelete title="Remove member" onclick={() => removeMember(member.user_id)}>{m.yes()}</ButtonDelete>
                     <ButtonCancel onclick={() => { confirmRemoveID = null }}/>
                   </div>
                 {:else}
@@ -216,7 +217,7 @@
           {/each}
 
           {#if members.length === 0}
-            <div class="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">No members yet.</div>
+            <div class="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">{m.no_members_yet()}</div>
           {/if}
         </div>
       </section>
@@ -224,8 +225,8 @@
       <!-- Pending invites -->
       {#if invites.length > 0}
         <section>
-          <SectionHeading titleClass="text-xl"  title="Pending invites" count={invites.length} />
-          <Hint>Manage pending member invitations.</Hint>
+          <SectionHeading titleClass="text-xl" title={m.pending_invites()} count={invites.length} />
+          <Hint>{m.pending_invites_description()}</Hint>
         </section>
         <section>
           <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900">
@@ -238,7 +239,7 @@
                   </div>
                 </div>
                 <Badge variant={invite.role as 'editor' | 'viewer'}>{invite.role}</Badge>
-                <ButtonDelete x title="Cancel invite" onclick={() => cancelInvite(invite.id)} loading={deletingInviteID === invite.id} />
+                <ButtonDelete x title={m.cancel()} onclick={() => cancelInvite(invite.id)} loading={deletingInviteID === invite.id} />
               </div>
             {/each}
           </div>

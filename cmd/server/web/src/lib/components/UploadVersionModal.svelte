@@ -7,6 +7,7 @@
   import Button from './ui/Button.svelte'
   import ProgressBar from './ui/ProgressBar.svelte'
   import Backdrop from './ui/Backdrop.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     asset: Asset
@@ -29,9 +30,9 @@
   function checkMimeCategory(f: File) {
     const uploadCat = mimeCategory(f.type)
     if (uploadCat !== assetCategory) {
-      mimeWarning = `Warning: you are replacing a ${assetCategory} with a ${uploadCat}. This is allowed but unusual.`
+      mimeWarning = m.new_version_changes_category({ assetCategory, uploadCat })
     } else if (f.type !== asset.mime_type) {
-      mimeWarning = `Note: format will change from ${asset.mime_type} to ${f.type}.`
+      mimeWarning = m.new_version_changes_type({ from: asset.mime_type, to: f.type })
     } else {
       mimeWarning = ''
     }
@@ -63,7 +64,7 @@
       const res = await versionApi.upload(asset.id, file, comment, (pct) => { progress = pct })
       onuploaded(res.asset)
     } catch (e_) {
-      error = e_ instanceof Error ? e_.message : 'Upload failed'
+      error = e_ instanceof Error ? e_.message : m.upload_failed()
     } finally {
       uploading = false
     }
@@ -80,7 +81,7 @@
   >
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
-      <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Upload new version</h2>
+      <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">{m.upload_new_version()}</h2>
       <ButtonCancel x onclick={onclose} />
     </div>
 
@@ -103,7 +104,7 @@
           </div>
         {:else}
           <Upload class="h-8 w-8 text-gray-300 dark:text-gray-600" />
-          <Hint>Drop a file here or click to browse</Hint>
+          <Hint>{m.upload_drop_or_select()}</Hint>
         {/if}
         <input
           type="file"
@@ -122,7 +123,7 @@
       <!-- Comment -->
       <div>
         <label class="mb-1.5 block text-sm font-medium text-gray-500 dark:text-gray-400" for="version-comment">
-          What changed? <span class="font-normal">(optional)</span>
+          {m.new_version_what_changed()} <span class="font-normal">({m.optional()})</span>
         </label>
         <textarea
           id="version-comment"
@@ -147,7 +148,7 @@
       <ButtonCancel onclick={onclose} disabled={uploading} />
       <Button variant="primary" onclick={handleSubmit} disabled={!file || uploading} loading={uploading}>
         <Upload class="h-4 w-4" />
-        Upload version
+        {m.upload()}
       </Button>
     </div>
   </div>

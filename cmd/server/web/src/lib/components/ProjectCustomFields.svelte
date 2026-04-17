@@ -5,6 +5,7 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import FieldCard from './FieldCard.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     projectId: string
@@ -47,7 +48,7 @@
 
   function displayValue(fv: ProjectFieldValue): string {
     if (fv.value === null || fv.value === undefined) return ''
-    if (fv.field_type === 'boolean') return fv.value ? 'Yes' : 'No'
+    if (fv.field_type === 'boolean') return fv.value ? m.yes() : m.no()
     return String(fv.value)
   }
 
@@ -74,7 +75,7 @@
         parsedValue = null
       } else if (def.field_type === 'number') {
         const n = parseFloat(editValue)
-        if (isNaN(n)) { saveError = 'Must be a number'; savingFieldId = null; return }
+        if (isNaN(n)) { saveError = m.digit_required(); savingFieldId = null; return }
         parsedValue = n
       } else if (def.field_type === 'boolean') {
         parsedValue = editValue === 'true'
@@ -88,7 +89,7 @@
       saveSuccess = def.id
       setTimeout(() => { if (saveSuccess === def.id) saveSuccess = null }, 2000)
     } catch (e: unknown) {
-      saveError = e instanceof Error ? e.message : 'Could not save'
+      saveError = e instanceof Error ? e.message : m.save_failed()
     } finally {
       savingFieldId = null
     }
@@ -126,7 +127,7 @@
       <Spinner size="sm" />
     </div>
   {:else if activeDefinitions.length === 0}
-    <p class="text-sm text-gray-400 dark:text-gray-500">No project fields defined yet.</p>
+    <p class="text-sm text-gray-400 dark:text-gray-500">{m.no_project_fields_yet()}</p>
   {:else}
     <div class="space-y-2">
       {#each activeDefinitions as def (def.id)}
@@ -160,7 +161,7 @@
         {:else}
           <ChevronRight class="h-3.5 w-3.5" />
         {/if}
-        Deprecated fields ({orphanedValues.length})
+        {m.fields_deprecated()} ({orphanedValues.length})
       </button>
 
       {#if showDeprecated}
@@ -168,7 +169,7 @@
           {#each orphanedValues as fv}
             <div class="rounded-lg border border-dashed border-gray-200 px-3 py-2 dark:border-gray-700">
               <p class="text-xs font-semibold uppercase tracking-widest text-gray-300 dark:text-gray-600">
-                {fv.name} <span class="ml-1 normal-case text-gray-300 dark:text-gray-600">(deleted)</span>
+                {fv.name} <span class="ml-1 normal-case text-gray-300 dark:text-gray-600">({m.deleted()})</span>
               </p>
               <p class="mt-0.5 text-md text-gray-400 dark:text-gray-500">{displayValue(fv)}</p>
             </div>

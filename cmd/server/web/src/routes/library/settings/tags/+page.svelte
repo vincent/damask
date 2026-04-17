@@ -30,6 +30,7 @@
   import type { Tag } from '$lib/api'
   import TagsBulkActionBar from '$lib/components/TagsBulkActionBar.svelte'
   import { SvelteSet } from 'svelte/reactivity'
+  import { m } from '$lib/paraglide/messages'
   
   // ── View state ──────────────────────────────────────────────────────────────
   type SortKey = 'name' | 'asset_count' | 'last_used_at'
@@ -119,10 +120,10 @@
     if (!trimmed || trimmed === original) { editingName = null; return }
     try {
       await tagsManagementStore.patchTag(original, { name: trimmed })
-      toastStore.show('Tag renamed')
+      toastStore.show(m.tag_renamed())
     } catch (e: any) {
-      if (e?.status === 409) editNameError = 'A tag with this name already exists'
-      else toastStore.show('Could not rename tag', 'error')
+      if (e?.status === 409) editNameError = m.tag_already_exists()
+      else toastStore.show(m.tag_rename_failed(), 'error')
       return
     }
     editingName = null
@@ -132,7 +133,7 @@
     try {
       await tagsManagementStore.patchTag(name, { color })
     } catch {
-      toastStore.show('Could not update color', 'error')
+      toastStore.show(m.color_update_failed(), 'error')
     }
   }
 
@@ -140,7 +141,7 @@
     try {
       await tagsManagementStore.patchTag(name, { group_name: groupName })
     } catch {
-      toastStore.show('Could not update group', 'error')
+      toastStore.show(m.group_update_failed(), 'error')
     }
   }
 
@@ -174,7 +175,7 @@
   async function submitNewTag() {
     newTagError = ''
     const name = newTagName.trim().toLowerCase()
-    if (!name) { newTagError = 'Name is required'; return }
+    if (!name) { newTagError = m.name_required(); return }
     newTagSaving = true
     try {
       await tagsManagementStore.createTag(name, newTagColor, newTagGroup)
@@ -182,7 +183,7 @@
       showNewTagModal = false
       newTagName = ''; newTagColor = null; newTagGroup = null
     } catch (e: any) {
-      newTagError = e?.status === 409 ? 'A tag with this name already exists' : 'Could not create tag'
+      newTagError = e?.status === 409 ? m.tag_already_exists() : m.tag_create_failed()
     } finally {
       newTagSaving = false
     }
@@ -198,7 +199,7 @@
       toastStore.show(`Deleted ${res.deleted} unused tag${res.deleted !== 1 ? 's' : ''}`)
       showPurgeModal = false
     } catch {
-      toastStore.show('Could not purge tags', 'error')
+      toastStore.show(m.purge_tags_failed(), 'error')
     }
   }
 
@@ -213,7 +214,7 @@
       resetSelection()
       showBulkDeleteModal = false
     } catch {
-      toastStore.show('Could not delete tags', 'error')
+      toastStore.show(m.delete_tags_failed(), 'error')
     }
   }
 
@@ -256,7 +257,7 @@ function openMergeForSelected() {
       resetSelection()
       showMergeModal = false
     } catch {
-      toastStore.show('Could not merge tags', 'error')
+      toastStore.show(m.tag_merge_failed(), 'error')
     } finally {
       mergeSaving = false
     }
@@ -308,7 +309,7 @@ function openMergeForSelected() {
 </script>
 
 <svelte:head>
-  <title>Tags — Damask</title>
+  <title>{m.tags()} — Damask</title>
 </svelte:head>
 
 <!-- Close popovers on outside click -->
@@ -322,19 +323,19 @@ function openMergeForSelected() {
 
 <PageContainer>
   <PageHeader
-    title="Tags"
-    description="Manage tags for your assets. Click a tag to edit its name, color, or group. Drag and drop one tag onto another to merge them."
+    title={m.tags()}
+    description={m.tags_page_description()}
     >
     <div class="space-x-2">
       {#if unusedTags.length > 0}
         <Button variant="primary" onclick={() => (showPurgeModal = true)}>
           {#snippet icon()}<Trash2 class="h-3.5 w-3.5" />{/snippet}
-          Purge unused ({unusedTags.length})
+          {m.tags_purge_unused()} ({unusedTags.length})
         </Button>
       {/if}
       <Button variant="primary" onclick={() => { showNewTagModal = true; newTagName = ''; newTagColor = null; newTagGroup = null; newTagError = '' }}>
         {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-        New tag
+        {m.tag_new()}
       </Button>
     </div>
   </PageHeader>
@@ -342,7 +343,7 @@ function openMergeForSelected() {
   <!-- Toolbar -->
   <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-3 dark:border-gray-800">
     <div class="flex-1">
-      <SearchInput bind:value={search} placeholder="Search tags…" />
+      <SearchInput bind:value={search} placeholder={m.tags_search()} />
     </div>
 
     <!-- Duplicate banner -->
@@ -394,14 +395,14 @@ function openMergeForSelected() {
             <span></span>
             <span></span>
             <button class="flex items-center gap-1 text-left hover:text-gray-600 dark:hover:text-gray-300" onclick={() => toggleSort('name')}>
-              Name {#if sortKey === 'name'}<ArrowUpDown class="h-3 w-3" />{/if}
+              {m.name()} {#if sortKey === 'name'}<ArrowUpDown class="h-3 w-3" />{/if}
             </button>
             <span>Group</span>
             <button class="flex items-center gap-1 text-right hover:text-gray-600 dark:hover:text-gray-300" onclick={() => toggleSort('asset_count')}>
-              Assets {#if sortKey === 'asset_count'}<ArrowUpDown class="h-3 w-3" />{/if}
+              {m.assets()} {#if sortKey === 'asset_count'}<ArrowUpDown class="h-3 w-3" />{/if}
             </button>
             <button class="flex items-center gap-1 hover:text-gray-600 dark:hover:text-gray-300" onclick={() => toggleSort('last_used_at')}>
-              Last used {#if sortKey === 'last_used_at'}<ArrowUpDown class="h-3 w-3" />{/if}
+              {m.last_used()} {#if sortKey === 'last_used_at'}<ArrowUpDown class="h-3 w-3" />{/if}
             </button>
             <span></span>
           </div>
@@ -446,7 +447,7 @@ function openMergeForSelected() {
     {#if showDupPanel}
       <div class="w-80 shrink-0 overflow-y-auto border-l border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-          <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">Possible duplicates</span>
+          <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">{m.tags_possible_duplicates()}</span>
           <ButtonCancel x title="Close" onclick={() => (showDupPanel = false)} />
         </div>
         <div class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -461,18 +462,18 @@ function openMergeForSelected() {
                 <div class="text-xs text-gray-400 mt-0.5">{Math.round(pair.score * 100)}% different</div>
               </div>
               <ButtonEdit
-                title="Merge tags"
+                title={m.merge()}
                 class="text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
                 onclick={() => openMergeForPair(pair.a, pair.b)}>
-                Merge
+                {m.merge()}
               </ButtonEdit>
               <ButtonCancel x
-                title="Dismiss"
+                title={m.dismiss()}
                 onclick={() => tagsManagementStore.dismissDuplicate(pair.a, pair.b)}
               />
             </div>
           {:else}
-            <div class="px-4 py-8 text-center text-sm text-gray-400">All duplicates resolved</div>
+            <div class="px-4 py-8 text-center text-sm text-gray-400">{m.tags_duplicates_resolved()}</div>
           {/each}
         </div>
       </div>
@@ -514,7 +515,7 @@ function openMergeForSelected() {
         class="h-4 w-4 rounded-full border border-gray-200 dark:border-gray-700 transition-transform hover:scale-120"
         style="background-color: {tag.color ?? '#e5e7eb'}"
         onclick={(e) => { e.stopPropagation(); colorPickerFor = colorPickerFor === tag.name ? null : tag.name }}
-        title="Change color"
+        title={m.change_color()}
       ></button>
 
       {#if colorPickerFor === tag.name}
@@ -564,7 +565,7 @@ function openMergeForSelected() {
         <button
           class="truncate text-left text-sm font-medium text-gray-900 hover:text-indigo-600 dark:text-gray-100 dark:hover:text-indigo-400"
           onclick={() => startEditName(tag.name)}
-          title="Click to rename"
+          title={m.rename()}
         >
           {tag.name}
         </button>
@@ -600,14 +601,14 @@ function openMergeForSelected() {
               class="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-left text-sm text-gray-400 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800"
               onclick={() => { groupPickerAdding = true; groupPickerValue = '' }}
             >
-              <Plus class="h-3.5 w-3.5" /> Add group…
+              <Plus class="h-3.5 w-3.5" /> {m.add_group()}
             </button>
           {:else}
             <div class="border-t border-gray-100 px-3 py-2 dark:border-gray-800">
               <input
                 class="w-full rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-indigo-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                 bind:value={groupPickerValue}
-                placeholder="Group name…"
+                placeholder={m.name()}
                 onkeydown={(e) => {
                   if (e.key === 'Enter' && groupPickerValue.trim()) {
                     handleGroupChange(tag.name, groupPickerValue.trim())
@@ -634,7 +635,7 @@ function openMergeForSelected() {
       <button
         class="rounded px-1.5 py-0.5 text-sm tabular-nums text-gray-600 hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-indigo-400"
         onclick={() => goto(`/library?tag=${encodeURIComponent(tag.name)}`)}
-        title="View assets with this tag"
+        title={m.open_in_library()}
       >
         {tag.asset_count}
       </button>
@@ -645,14 +646,14 @@ function openMergeForSelected() {
 
     <!-- Actions -->
     <div class="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-      <ButtonEdit onclick={() => startEditName(tag.name)} title="Rename" />
+      <ButtonEdit onclick={() => startEditName(tag.name)} title={m.rename()} />
       <ButtonDelete
         onclick={async () => {
           try {
             await tagsManagementStore.bulkDelete([tag.name])
-            toastStore.show('Tag deleted')
+            toastStore.show(m.tag_deleted())
           } catch {
-            toastStore.show('Could not delete tag', 'error')
+            toastStore.show(m.tag_delete_failed(), 'error')
           }
         }}
       />
@@ -666,7 +667,7 @@ function openMergeForSelected() {
     <h2 class="mb-4 text-base font-semibold text-gray-900 dark:text-gray-100">New tag</h2>
     <div class="space-y-4">
       <div>
-        <label for="new-tag-name" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Name <span class="text-red-500">*</span></label>
+        <label for="new-tag-name" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{m.name()} <span class="text-red-500">*</span></label>
         <input
           id="new-tag-name"
           class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100
@@ -719,14 +720,14 @@ function openMergeForSelected() {
       <button
         class="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
         onclick={() => (showNewTagModal = false)}
-      >Cancel</button>
+      >{m.cancel()}</button>
       <button
         class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
         onclick={submitNewTag}
         disabled={newTagSaving}
       >
         {#if newTagSaving}<Spinner size="sm" />{/if}
-        Create
+        {m.create()}
       </button>
     </div>
   </div>
@@ -738,7 +739,7 @@ function openMergeForSelected() {
     <div class="mb-4 flex items-start gap-3">
       <AlertTriangle class="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
       <div>
-        <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Purge unused tags</h2>
+        <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">{m.tags_purge_title()}</h2>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
           The following {unusedTags.length} tag{unusedTags.length !== 1 ? 's' : ''} will be permanently deleted:
         </p>
@@ -753,7 +754,7 @@ function openMergeForSelected() {
       <button
         class="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
         onclick={() => (showPurgeModal = false)}
-      >Cancel</button>
+      >{m.cancel()}</button>
       <button
         class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
         onclick={purgeUnused}
@@ -766,16 +767,16 @@ function openMergeForSelected() {
 <Modal bind:open={showBulkDeleteModal} onclose={() => (showBulkDeleteModal = false)}>
   <div class="w-full rounded-2xl bg-white p-6 dark:bg-gray-900">
     <h2 class="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">Delete {selected.size} tag{selected.size !== 1 ? 's' : ''}?</h2>
-    <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">This will remove these tags from all assets they are assigned to.</p>
+    <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">{m.tags_bulk_delete_description()}</p>
     <div class="flex justify-end gap-2">
       <button
         class="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
         onclick={() => (showBulkDeleteModal = false)}
-      >Cancel</button>
+      >{m.cancel()}</button>
       <button
         class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
         onclick={bulkDeleteSelected}
-      >Delete</button>
+      >{m.delete()}</button>
     </div>
   </div>
 </Modal>
@@ -783,8 +784,8 @@ function openMergeForSelected() {
 <!-- ── Merge modal ────────────────────────────────────────────────────────── -->
 <Modal bind:open={showMergeModal} onclose={() => { showMergeModal = false }}>
   <div class="w-full rounded-2xl bg-white p-6 dark:bg-gray-900">
-    <h2 class="mb-1 text-base font-semibold text-gray-900 dark:text-gray-100">Merge tags</h2>
-    <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">Select the target tag to merge into. Source tags will be deleted.</p>
+    <h2 class="mb-1 text-base font-semibold text-gray-900 dark:text-gray-100">{m.tags_merge_title()}</h2>
+    <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">{m.tags_merge_description()}</p>
 
     <div class="mb-4 space-y-1">
       {#each mergeSources as name}
@@ -800,7 +801,7 @@ function openMergeForSelected() {
 
     {#if mergeTarget}
       <p class="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-        "{mergeSources.filter((s) => s !== mergeTarget).join('", "')}" will be deleted after merge.
+        {m.tags_will_be_deleted({ ids: mergeSources.filter((s) => s !== mergeTarget).map(t => `"${t}"`).join(', ') })}.
       </p>
     {/if}
 
@@ -813,7 +814,7 @@ function openMergeForSelected() {
         onclick={commitMerge}
         loading={mergeSaving}
       >
-        Merge →
+        {m.merge().toLowerCase()} →
       </ButtonEdit>
     </div>
   </div>

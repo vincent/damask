@@ -1,5 +1,6 @@
 <script lang="ts">
   import { activityApi, type Asset, type AuditEvent } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
   import ActivityList from './ActivityList.svelte'
 
   interface Props {
@@ -33,7 +34,7 @@
       nextCursor = res.next_cursor
       hasMore = res.has_more
     } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to load activity'
+      error = e instanceof Error ? e.message : m.activity_load_failed()
     } finally {
       loading = false
     }

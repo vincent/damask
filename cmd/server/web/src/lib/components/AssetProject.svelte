@@ -3,6 +3,7 @@
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import ColorDot from './ui/ColorDot.svelte'
+  import { m } from '$lib/paraglide/messages'
   
   interface Props {
     asset: Asset
@@ -27,13 +28,13 @@
 
 <div>
     <div class="mb-3 flex items-center justify-between">
-    <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Project</p>
+    <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{m.project()}</p>
     {#if authStore.role !== 'viewer'}
         <button
         class="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
         onclick={() => { showProjectPicker = !showProjectPicker }}
         >
-        {activeProject ? 'Change' : 'Assign'}
+        {activeProject ? m.change() : m.assign()}
         </button>
     {/if}
     </div>
@@ -47,7 +48,7 @@
                 {activeProject.name}
             </span>
         {:else}
-            <span class="text-sm text-gray-400 dark:text-gray-500">Not assigned</span>
+            <span class="text-sm text-gray-400 dark:text-gray-500">{m.not_assigned()}</span>
         {/if}
 
         {#if showProjectPicker}
@@ -57,7 +58,7 @@
                     onclick={() => assignProject(null)}
                 >
                     <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
-                    None
+                    {m.none()}
                 </button>
                 {#each projectsStore.projects as p}
                     <button

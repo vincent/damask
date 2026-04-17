@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { m } from "$lib/paraglide/messages"
+
   interface Props {
     value?: string
     placeholder?: string
@@ -8,7 +10,7 @@
 
   let {
     value = $bindable(''),
-    placeholder = 'Search…',
+    placeholder = m.search_(),
     onchange,
     class: extraClass = '',
   }: Props = $props()

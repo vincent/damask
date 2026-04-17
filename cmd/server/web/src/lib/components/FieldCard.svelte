@@ -2,6 +2,7 @@
   import type { FieldDefinition } from '$lib/api/models'
   import { Check, ArrowDownToLine } from '@lucide/svelte'
   import Feedback from './ui/Feedback.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   type FieldValue = {
     field_id: string
@@ -50,7 +51,7 @@
 
   function displayValue(fv: FieldValue): string {
     if (fv.value === null || fv.value === undefined) return ''
-    if (fv.field_type === 'boolean') return fv.value ? 'Yes' : 'No'
+    if (fv.field_type === 'boolean') return fv.value ? m.yes() : m.no()
     return String(fv.value)
   }
 </script>
@@ -67,10 +68,10 @@
       {#if def.inherit_from_project}
         <span
           class="inline-flex items-center gap-0.5 rounded bg-indigo-50 px-1 py-0.5 text-[9px] font-medium text-indigo-500 dark:bg-indigo-950/40 dark:text-indigo-400"
-          title="New assets added to this project will inherit this value"
+          title={m.auto_fill_assets_desc()}
         >
           <ArrowDownToLine class="h-2.5 w-2.5" />
-          auto-fills assets
+          {m.auto_fill_assets()}
         </span>
       {/if}
     </div>
@@ -84,14 +85,14 @@
       {#if def.field_type === 'boolean'}
         <div class="flex gap-3">
           <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-            <input type="radio" checked={editValue === 'true'} onchange={() => onEditValueChange('true')} class="text-indigo-600" /> Yes
+            <input type="radio" checked={editValue === 'true'} onchange={() => onEditValueChange('true')} class="text-indigo-600" /> {m.yes()}
           </label>
           <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-            <input type="radio" checked={editValue === 'false'} onchange={() => onEditValueChange('false')} class="text-indigo-600" /> No
+            <input type="radio" checked={editValue === 'false'} onchange={() => onEditValueChange('false')} class="text-indigo-600" /> {m.no()}
           </label>
           {#if showUnset}
             <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-              <input type="radio" checked={editValue === ''} onchange={() => onEditValueChange('')} disabled class="text-indigo-600" /> Unset
+              <input type="radio" checked={editValue === ''} onchange={() => onEditValueChange('')} disabled class="text-indigo-600" /> {m.unset()}
             </label>
           {/if}
         </div>
@@ -160,13 +161,13 @@
           disabled={isSaving}
           onclick={onSave}
         >
-          {isSaving ? 'Saving…' : 'Save'}
+          {isSaving ? m.saving() : m.save()}
         </button>
         <button
           class="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           onclick={onCancel}
         >
-          Cancel
+          {m.cancel()}
         </button>
       </div>
     </div>
@@ -180,7 +181,7 @@
       <span class="h-4 w-7 rounded-full transition-colors {fv.value ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'} relative">
         <span class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform {fv.value ? 'left-3.5' : 'left-0.5'}"></span>
       </span>
-      {fv.value ? 'Yes' : 'No'}
+      {fv.value ? m.yes : m.no()}
     </button>
 
   {:else if fv && fv.value !== null && fv.value !== undefined}
@@ -191,7 +192,7 @@
       <span class="text-md font-semibold text-gray-900 dark:text-gray-100 {def.field_type === 'url' ? 'truncate text-indigo-600 dark:text-indigo-400' : ''}">
         {displayValue(fv)}
       </span>
-      <span class="shrink-0 text-sm text-gray-400 opacity-0 transition-opacity hover:opacity-100">Edit</span>
+      <span class="shrink-0 text-sm text-gray-400 opacity-0 transition-opacity hover:opacity-100">{m.edit()}</span>
     </button>
 
   {:else}
@@ -199,7 +200,7 @@
       class="mt-1 text-sm text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
       onclick={onStartEdit}
     >
-      Add value
+      {m.add_value()}
     </button>
   {/if}
 </div>

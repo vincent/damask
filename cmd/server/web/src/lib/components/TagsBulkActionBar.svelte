@@ -5,6 +5,7 @@
   import ButtonDelete from './ui/ButtonDelete.svelte'
   import ButtonCancel from './ui/ButtonCancel.svelte'
   import type { SvelteSet } from 'svelte/reactivity'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     selected: SvelteSet<string>
@@ -20,14 +21,14 @@
 {#if selected.size > 0}
   <div class="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
     <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-      <span class="text-md font-medium text-gray-700 dark:text-gray-300">{selected.size} selected</span>
+      <span class="text-md font-medium text-gray-700 dark:text-gray-300">{selected.size} {m.selected()}</span>
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
 
       {#if selected.size >= 2}
         <ButtonEdit onclick={onmerge}>
           <Merge class="h-3.5 w-3.5 mr-1" />
-          Merge selected
+          {m.merge_selected()}
         </ButtonEdit>
 
         <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>

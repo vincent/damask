@@ -4,6 +4,7 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   const ws = $derived(authStore.workspace)
   const isOwner = $derived(authStore.role === 'owner')
@@ -37,9 +38,9 @@
         exif_keep: !!updated.exif_keep,
         exif_keep_gps: !!updated.exif_keep_gps,
       })
-      toastStore.show('Privacy settings saved')
+      toastStore.show(m.privacy_settings_saved())
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : 'Failed to save settings', 'error')
+      toastStore.show(e instanceof Error ? e.message : m.privacy_settings_failed(), 'error')
     } finally {
       saving = false
     }
@@ -64,20 +65,20 @@
 </script>
 
 <svelte:head>
-  <title>EXIF & Privacy — Damask</title>
+  <title>{m.tab_exif_privacy()} — Damask</title>
 </svelte:head>
 
 <div class="flex-1 overflow-y-auto">
   <div class="mx-auto w-full max-w-2xl px-8 py-10 space-y-8">
 
     <div>
-      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">EXIF & Privacy</h1>
-      <p class="mt-1 text-md text-gray-500 dark:text-gray-400">Control how photo metadata is extracted and stored. Changes apply to future uploads; use the backfill button to process existing assets.</p>
+      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{m.tab_exif_privacy()}</h1>
+      <p class="mt-1 text-md text-gray-500 dark:text-gray-400">{m.tab_exif_privacy_description()}</p>
     </div>
 
     {#if !isOwner}
       <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-md text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-        Only workspace owners can change these settings.
+        {m.version_history_settins_only_owners()}
       </p>
     {/if}
 
@@ -86,14 +87,14 @@
       <!-- EXIF extraction toggle -->
       <div class="flex items-start justify-between gap-4">
         <div class="flex-1">
-          <p class="text-md font-medium text-gray-900 dark:text-gray-100">Extract photo metadata</p>
-          <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Automatically extract camera model, shutter speed, ISO, and other technical metadata from uploaded photos. Stored as custom fields on each asset.</p>
+          <p class="text-md font-medium text-gray-900 dark:text-gray-100">{m.extract_exif()}</p>
+          <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{m.extract_exif_description()}</p>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={exifKeep}
-          aria-label="Extract photo metadata"
+          aria-label={m.extract_exif()}
           disabled={!isOwner}
           onclick={() => { if (isOwner) exifKeep = !exifKeep }}
           class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
@@ -108,14 +109,14 @@
       {#if exifKeep}
         <div class="flex items-start justify-between gap-4 border-t border-gray-100 pt-6 dark:border-gray-800">
           <div class="flex-1">
-            <p class="text-md font-medium text-gray-900 dark:text-gray-100">Retain GPS coordinates</p>
-            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">By default, GPS location data is stripped to protect privacy. Enable only if your workflow requires location-tagged assets. Applies to future ingests; use backfill to re-extract existing assets.</p>
+            <p class="text-md font-medium text-gray-900 dark:text-gray-100">{m.keep_gps()}</p>
+            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{m.keep_gps_description()}</p>
           </div>
           <button
             type="button"
             role="switch"
             aria-checked={exifKeepGPS}
-            aria-label="Retain GPS coordinates"
+            aria-label={m.keep_gps()}
             disabled={!isOwner}
             onclick={() => { if (isOwner) exifKeepGPS = !exifKeepGPS }}
             class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
@@ -136,10 +137,10 @@
           disabled={backfilling || !exifKeep}
           onclick={() => showBackfillConfirm = true}
           class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-md font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-          title={!exifKeep ? 'Enable EXIF extraction first' : undefined}
+          title={!exifKeep ? m.extract_exif_first() : undefined}
         >
           {#if backfilling}<Spinner size="sm" />{/if}
-          Re-extract EXIF from all assets
+          {m.extract_exif_again()}
         </button>
 
         <button
@@ -149,7 +150,7 @@
           class="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-md font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {#if saving}<Spinner size="sm" />{/if}
-          Save
+          {m.save()}
         </button>
       </div>
     {/if}
@@ -159,10 +160,9 @@
 
 {#if showBackfillConfirm}
   <Modal onclose={() => showBackfillConfirm = false}>
-    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Re-extract EXIF from all assets?</h2>
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">{m.extract_exif_again()}?</h2>
     <p class="text-md text-gray-600 dark:text-gray-400">
-      This will queue a background job for every image asset that hasn't had EXIF extracted yet.
-      The process runs in the background and may take a few minutes for large libraries.
+      {m.extract_exif_again_description()}
     </p>
     <div class="mt-6 flex justify-end gap-3">
       <button
@@ -170,14 +170,14 @@
         onclick={() => showBackfillConfirm = false}
         class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-md font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
       >
-        Cancel
+        {m.cancel()}
       </button>
       <button
         type="button"
         onclick={triggerBackfill}
         class="rounded-xl bg-indigo-600 px-4 py-2 text-md font-medium text-white hover:bg-indigo-700"
       >
-        Re-extract
+        {m.reextract()}
       </button>
     </div>
   </Modal>

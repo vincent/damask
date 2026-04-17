@@ -1,8 +1,10 @@
 <script lang="ts">
     import { Pencil } from "@lucide/svelte"
-  import type { Snippet } from "svelte"
-  import Spinner from "./Spinner.svelte"
-    let { disabled = false, loading = false, title = 'Edit', class: extraClass, onclick, children }: { onclick: () => void, disabled?: boolean, loading?: boolean, title?: string, class?: string, children?: Snippet } = $props()
+    import type { Snippet } from "svelte"
+    import Spinner from "./Spinner.svelte"
+    import { m } from "$lib/paraglide/messages"
+
+    let { disabled = false, loading = false, title = m.edit(), class: extraClass, onclick, children }: { onclick: () => void, disabled?: boolean, loading?: boolean, title?: string, class?: string, children?: Snippet } = $props()
 </script>
 
 <button

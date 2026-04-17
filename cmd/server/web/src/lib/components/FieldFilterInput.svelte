@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { FieldDefinition } from '$lib/api/models'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     def: FieldDefinition
@@ -20,7 +21,7 @@
     <input
       id="field-{def.key}"
       type="text"
-      placeholder="contains…"
+      placeholder={m.field_contains_ph()}
       value={local[def.key] as string}
       oninput={(e) => { local[def.key] = (e.target as HTMLInputElement).value; ondebouncedchange() }}
       class="w-36 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900
@@ -79,7 +80,7 @@
   {:else if def.field_type === 'boolean'}
     {@const bv = local[def.key] as string}
     <div class="flex gap-2">
-      {#each [['', 'Any'], ['true', 'Yes'], ['false', 'No']] as [val, label]}
+      {#each [['', m.any()], ['true', m.yes()], ['false', m.no()]] as [val, label]}
         <button
           type="button"
           class="rounded-full border px-2.5 py-1 text-sm transition-colors

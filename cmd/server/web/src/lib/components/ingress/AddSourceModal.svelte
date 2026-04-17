@@ -10,6 +10,7 @@
   import SourceConfigForm from './SourceConfigForm.svelte'
   import Hint from '../ui/Hint.svelte'
   import Feedback from '../ui/Feedback.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     open?: boolean
@@ -22,11 +23,11 @@
   type Step = 'pick' | 'configure'
 
   const SOURCE_TYPES: { type: IngressSourceType; label: string; desc: string; icon: typeof Mail }[] = [
-    { type: 'email_api', label: 'Own email address', desc: 'Zero config — get a unique ingest address', icon: Mail },
-    { type: 'imap', label: 'IMAP mailbox', desc: 'Pull attachments from any IMAP mailbox', icon: Inbox },
-    { type: 'sftp', label: 'SFTP server', desc: 'Watch a remote directory for new files', icon: Server },
-    { type: 'dav', label: 'WebDAV / Nextcloud', desc: 'Watch a WebDAV collection', icon: HardDrive },
-    { type: 's3', label: 'S3-compatible bucket', desc: 'AWS S3, R2, MinIO, Backblaze B2…', icon: Cloud },
+    { type: 'email_api', label: m.ingress_own_mail(), desc: m.ingress_own_mail_desc(), icon: Mail },
+    { type: 'imap', label: m.ingress_imap(), desc: m.ingress_imap_desc(), icon: Inbox },
+    { type: 'sftp', label: m.ingress_sftp(), desc: m.ingress_sftp_desc(), icon: Server },
+    { type: 'dav', label: m.ingress_dav(), desc: m.ingress_dav_desc(), icon: HardDrive },
+    { type: 's3', label: m.ingress_s3(), desc: m.ingress_s3_desc(), icon: Cloud },
   ]
 
   const POLL_INTERVALS = [
@@ -78,8 +79,8 @@
 
   function validate(): boolean {
     const e: Record<string, string> = {}
-    if (!label.trim()) e.label = 'Label is required'
-    if (!destProjectId) e.destProjectId = 'Destination project is required'
+    if (!label.trim()) e.label = m.label_required()
+    if (!destProjectId) e.destProjectId = m.dest_project_required()
     errors = e
     return Object.keys(e).length === 0
   }
@@ -117,7 +118,7 @@
       testStatus = 'ok'
     } catch (e: unknown) {
       testStatus = 'error'
-      testError = e instanceof Error ? e.message : 'Connection test failed'
+      testError = e instanceof Error ? e.message : m.test_connection_failed()
     }
   }
 
@@ -161,8 +162,8 @@
   {#if step === 'pick'}
     <!-- Step 1: Type picker -->
     <div class="px-6 py-5">
-      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">Add ingress source</h2>
-      <Hint>Choose where files will come from.</Hint>
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">{m.add_ingress_source()}</h2>
+      <Hint>{m.add_ingress_subtitle()}</Hint>
     </div>
 
     <div class="grid grid-cols-1 gap-3 px-6 pb-6 sm:grid-cols-2">
@@ -208,7 +209,7 @@
       <Input
         id="source-label"
         label="Label"
-        placeholder="e.g. Client uploads inbox"
+        placeholder={m.example_client_uploads()}
         bind:value={label}
         error={errors.label}
         required
@@ -218,14 +219,14 @@
         <!-- Destination project -->
         <div>
           <label for="dest-project" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
-            Destination project
+            {m.dest_project()}
           </label>
           <select
             id="dest-project"
             bind:value={destProjectId}
             class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
           >
-            <option value="">— none —</option>
+            <option value="">{m.none_choice()}</option>
             {#each projectsStore.projects as p (p.id)}
               <option value={p.id}>{p.name}</option>
             {/each}
@@ -237,7 +238,7 @@
         {#if selectedType !== 'email_api'}
           <div>
             <label for="poll-interval" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
-              Poll interval
+              {m.poll_interval()}
             </label>
             <select
               id="poll-interval"
@@ -261,9 +262,9 @@
           <div class="flex items-center justify-between gap-3">
             <div class="text-md text-gray-600 dark:text-gray-300">
               {#if testStatus === 'idle'}
-                Test the connection before saving.
+                {m.test_connection_before()}
               {:else if testStatus === 'testing'}
-                Testing connection…
+                {m.testing_connection()}
               {:else if testStatus === 'ok'}
                 <Feedback class="bg-transparent" success="Connection successful" />
               {:else}
@@ -276,7 +277,7 @@
               loading={testStatus === 'testing'}
               onclick={testConnection}
             >
-              Test connection
+              {m.test_connection()}
             </Button>
           </div>
         </div>
@@ -285,13 +286,13 @@
 
     <!-- Footer actions -->
     <div class="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
-      <Button variant="secondary" onclick={onclose}>Cancel</Button>
+      <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
       <Button
         variant="primary"
         loading={saving}
         onclick={handleSave}
       >
-        Save source
+        {m.save()}
       </Button>
     </div>
   {/if}

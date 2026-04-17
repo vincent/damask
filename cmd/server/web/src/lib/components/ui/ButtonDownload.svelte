@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { m } from "$lib/paraglide/messages"
   import { Download } from "@lucide/svelte"
 
-    let { resourceUrl, text = 'Download' }: { resourceUrl: string, text: string } = $props()
+    let { resourceUrl, text = m.download() }: { resourceUrl: string, text: string } = $props()
 </script>
 
 <a

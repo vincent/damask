@@ -2,6 +2,7 @@
     import { authStore } from '$lib/stores/auth.svelte'
     import Button from '$lib/components/ui/Button.svelte'
     import { type Asset } from '$lib/api'
+  import { m } from '$lib/paraglide/messages'
 
     interface Props {
         asset: Asset
@@ -26,19 +27,19 @@
 
     <div class="grid grid-cols-2 gap-4">
         <div>
-            <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Width (px)</label>
+            <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.width()} (px)</label>
             <input id="variant-{kind}-width" type="number" min="1" max="8000" bind:value={width}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
         </div>
         <div>
-            <label for="variant-{kind}-height" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Height (px)</label>
+            <label for="variant-{kind}-height" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.height()} (px)</label>
             <input id="variant-{kind}-height" type="number" min="1" max="8000" bind:value={height}
                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100" />
         </div>
     </div>
 
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Format</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.for_notifs()}</label>
         <div class="flex gap-2">
             {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
@@ -52,12 +53,12 @@
     </div>
 
     <div>
-        <label for="variant-{kind}-quality" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Quality: {quality}%</label>
+        <label for="variant-{kind}-quality" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.quality()}: {quality}%</label>
         <input id="variant-{kind}-quality" type="range" min="1" max="100" bind:value={quality}
             class="w-full accent-indigo-500" />
     </div>
 
     <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate(kind, { width, height, format, quality })} class="w-full">
-        {creating ? 'Queuing…' : 'Create Smart Crop Variant'}
+        {creating ? m.queuing_() : m.variant_create_smartcrop()}
     </Button>
 </div>

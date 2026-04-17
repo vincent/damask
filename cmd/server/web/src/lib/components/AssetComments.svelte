@@ -3,15 +3,16 @@
     import Spinner from "./ui/Spinner.svelte"
     import type { Asset } from "$lib/api"
   import { onMount } from "svelte"
+  import { m } from "$lib/paraglide/messages"
 
     let { asset }: { asset: Asset } = $props()
 
     function formatDateTime(iso: string) {
         return new Date(iso).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
         })
     }
 
@@ -47,7 +48,7 @@
             <Spinner size="sm" />
         </div>
     {:else if assetCommentsStore.comments.length === 0}
-        <p class="py-4 text-center text-md text-gray-400 dark:text-gray-600">No comments yet.</p>
+        <p class="py-4 text-center text-md text-gray-400 dark:text-gray-600">{m.no_comments()}</p>
     {:else}
     <div class="flex flex-col gap-4 py-4">
         {#each assetCommentsStore.comments as comment}

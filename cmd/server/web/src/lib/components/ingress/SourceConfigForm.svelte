@@ -2,6 +2,7 @@
   import { Eye, EyeOff } from '@lucide/svelte'
   import type { IngressSourceType } from '$lib/api/models'
   import Input from '$lib/components/ui/Input.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     type: IngressSourceType
@@ -98,7 +99,7 @@
       >
         <option value="mark_read">Mark as read</option>
         <option value="move_to">Move to mailbox</option>
-        <option value="delete">Delete</option>
+        <option value="delete">{m.delete()}</option>
       </select>
     </div>
     {#if field('after_import') === 'move_to'}
@@ -193,7 +194,7 @@
       >
         <option value="leave">Leave in place</option>
         <option value="move_to">Move to path</option>
-        <option value="delete">Delete</option>
+        <option value="delete">{m.delete()}</option>
       </select>
     </div>
     {#if field('after_import') === 'move_to'}
@@ -250,7 +251,7 @@
       >
         <option value="leave">Leave in place</option>
         <option value="move_to">Move to URL</option>
-        <option value="delete">Delete</option>
+        <option value="delete">{m.delete()}</option>
       </select>
     </div>
     {#if field('after_import') === 'move_to'}
@@ -324,7 +325,7 @@
       >
         <option value="leave">Leave in place</option>
         <option value="move_to">Move to prefix</option>
-        <option value="delete">Delete</option>
+        <option value="delete">{m.delete()}</option>
       </select>
     </div>
     {#if field('after_import') === 'move_to'}

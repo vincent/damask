@@ -1,7 +1,8 @@
 <script lang="ts">
     import { authStore } from '$lib/stores/auth.svelte'
     import Button from '$lib/components/ui/Button.svelte'
-    import { variantApi, type Asset } from '$lib/api'
+    import { m } from '$lib/paraglide/messages'
+    import { type Asset } from '$lib/api'
     
     interface Props {
         asset: Asset
@@ -21,7 +22,7 @@
 
 <div class="space-y-5">
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Output Format</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.output_format()}</label>
         <div class="flex gap-2">
         {#each ['jpeg', 'png', 'tiff'] as fmt}
             <button type="button"
@@ -36,12 +37,12 @@
 
     {#if convertFormat === 'jpeg'}
         <div>
-            <label for="variant-{kind}-quality" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">Quality: {convertQuality}%</label>
+            <label for="variant-{kind}-quality" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.quality()}: {convertQuality}%</label>
             <input id="variant-{kind}-quality" type="range" min="1" max="100" bind:value={convertQuality} class="w-full accent-indigo-500" />
         </div>
     {/if}
 
     <Button disabled={creating || authStore.role === 'viewer'} onclick={() => handleCreate(kind, { format: convertFormat, quality: convertQuality })} class="w-full">
-        {creating ? 'Queuing…' : `Convert to ${convertFormat.toUpperCase()}`}
+        {creating ? m.queuing_() :  m.convert_to_format({ format: convertFormat.toUpperCase() }) }
     </Button>
 </div>

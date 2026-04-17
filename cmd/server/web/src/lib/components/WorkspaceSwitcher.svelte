@@ -2,6 +2,7 @@
   import { Check, ChevronDown, Plus } from '@lucide/svelte'
   import { workspaceApi, type WorkspaceWithRole } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let open = $state(false)
   let workspaces = $state<WorkspaceWithRole[]>([])
@@ -49,7 +50,7 @@
   }
 
   async function createNew() {
-    const name = prompt('Workspace name')
+    const name = prompt(m.workspace_prompt_name())
     if (!name?.trim()) return
     try {
       await workspaceApi.createWorkspace(name.trim())
@@ -87,7 +88,7 @@
       role="menu"
     >
       <p class="px-3 pb-1 pt-0.5 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-        Workspaces
+        {m.workspaces()}
       </p>
 
       {#each workspaces as ws (ws.id)}
@@ -120,7 +121,7 @@
         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
           <Plus class="h-3.5 w-3.5" />
         </div>
-        <span>Create New Workspace</span>
+        <span>{m.add_new_workspace()}</span>
       </button>
     </div>
   {/if}

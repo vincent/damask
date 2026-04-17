@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { m } from '$lib/paraglide/messages'
   import { Moon, Sun } from '@lucide/svelte'
 
   const STORAGE_KEY = 'theme'
@@ -24,14 +25,14 @@
 
 <button
   onclick={toggle}
-  aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+  aria-label={dark ? m.theme_switch_light() : m.theme_switch_dark()}
   class="flex items-center gap-2 rounded-lg text-sm text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
 >
   {#if dark}
     <Sun class="h-3.5 w-3.5" />
-    <span>Light mode</span>
+    <span>{m.theme_light()}</span>
   {:else}
     <Moon class="h-3.5 w-3.5" />
-    <span>Dark mode</span>
+    <span>{m.theme_dark()}</span>
   {/if}
 </button>

@@ -5,6 +5,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import Feedback from './ui/Feedback.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     open?: boolean
@@ -44,7 +45,7 @@
       ondeleted(field.id)
       open = false
     } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Could not delete field'
+      error = e instanceof Error ? e.message : m.field_delete_failed()
     } finally {
       deleting = false
     }
@@ -54,7 +55,7 @@
 <Modal bind:open {onclose}>
   <div class="p-6">
     <h2 class="mb-2 text-base font-semibold text-gray-900 dark:text-gray-100">
-      Delete "{field?.name}"?
+      {m.delete_id({ id: `"${field?.name}"` })} ?
     </h2>
 
     {#if statsLoading}
@@ -72,9 +73,9 @@
           {#if stats.project_count > 0}
             <strong class="text-gray-900 dark:text-gray-100">{stats.project_count} project{stats.project_count !== 1 ? 's' : ''}</strong>
           {/if}.
-          The values will be kept for 30 days and then permanently deleted.
+          {m.field_values_grace_period()}
         {:else}
-          This field has no values set. It will be soft-deleted and permanently removed after 30 days.
+          {m.field_values_soft_delete()}
         {/if}
       </p>
     {/if}
@@ -82,8 +83,8 @@
     <Feedback {error} />
 
     <div class="mt-5 flex justify-end gap-2">
-      <Button variant="secondary" onclick={onclose}>Cancel</Button>
-      <Button variant="danger" loading={deleting} onclick={handleDelete}>Delete field</Button>
+      <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
+      <Button variant="danger" loading={deleting} onclick={handleDelete}>{m.delete_field()}</Button>
     </div>
   </div>
 </Modal>

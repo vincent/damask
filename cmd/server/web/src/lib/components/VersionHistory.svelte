@@ -6,6 +6,7 @@
   import Modal from '$lib/components/ui/Modal.svelte'
   import Feedback from './ui/Feedback.svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     asset: Asset
@@ -40,7 +41,7 @@
     try {
       versions = await versionApi.list(asset.id)
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load versions'
+      error = e instanceof Error ? e.message : m.versions_load_failed()
     } finally {
       loading = false
     }
@@ -56,7 +57,7 @@
       onversionchanged(res.asset)
       restoreTarget = null
     } catch (e) {
-      restoreError = e instanceof Error ? e.message : 'Failed to restore version'
+      restoreError = e instanceof Error ? e.message : m.version_restore_failed()
     } finally {
       restoring = false
     }
@@ -71,7 +72,7 @@
       versions = versions.filter(v => v.id !== deleteTarget!.id)
       deleteTarget = null
     } catch (e) {
-      deleteError = e instanceof Error ? e.message : 'Failed to delete version'
+      deleteError = e instanceof Error ? e.message : m.version_delete_failed()
     } finally {
       deleting = false
     }
@@ -104,7 +105,7 @@
   {:else if versions.length === 0}
     <div class="flex flex-col items-center gap-3 py-12 text-center text-gray-400">
       <Inbox class="h-10 w-10" />
-      <p class="text-md">No version history yet.</p>
+      <p class="text-md">{m.no_versions_yet()}</p>
     </div>
   {:else}
     <ol class="relative mx-5 mt-4 mb-2 border-l border-gray-200 dark:border-gray-700">
@@ -128,7 +129,7 @@
                 </span>
                 {#if v.is_current}
                   <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                    Current
+                    {m.current_version()}
                   </span>
                 {/if}
               </div>
@@ -170,7 +171,7 @@
                   <p class="text-sm italic text-gray-500 dark:text-gray-400 line-clamp-2">"{v.comment}"</p>
                 {/if}
                 <p class="text-[11px] text-gray-400 dark:text-gray-500">
-                  by {v?.created_by?.name || 'Unknown'} · {formatDate(v.created_at)}
+                  {m.by_name({ name: v?.created_by?.name || 'Unknown' })} · {formatDate(v.created_at)}
                 </p>
               </div>
             </div>
@@ -183,7 +184,7 @@
                 class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 <Download class="h-3 w-3" />
-                Download
+                {m.download()}
               </a>
 
               {#if !v.is_current && authStore.role !== 'viewer'}
@@ -193,7 +194,7 @@
                   onclick={() => { restoreTarget = v; restoreError = '' }}
                 >
                   <RotateCcw class="h-3 w-3" />
-                  Restore
+                  {m.restore()}
                 </button>
               {/if}
 
@@ -213,17 +214,20 @@
   {#if restoreTarget}
     <div class="p-6 space-y-4">
       <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-        Restore version {restoreTarget.version_num}?
+        {m.version_restore_id({ id: restoreTarget.version_num })}
       </h3>
       <div class="space-y-2 text-md text-gray-600 dark:text-gray-300">
         <p>
-          Uploaded by <strong>{restoreTarget?.created_by?.name || 'Unknown'}</strong> on {formatDate(restoreTarget.created_at)}.
+          {m.uploaded_by_on({
+            name: restoreTarget?.created_by?.name || 'Unknown',
+            date: formatDate(restoreTarget.created_at)
+          })}
         </p>
         {#if restoreTarget.comment}
           <p class="italic">"{restoreTarget.comment}"</p>
         {/if}
         <p class="text-gray-500 dark:text-gray-400">
-          The current version will be kept in history and can be restored again at any time.
+          {m.current_version_kept_in_history()}
         </p>
         <Feedback error={restoreError} />
       </div>
@@ -233,7 +237,7 @@
           class="rounded-lg border border-gray-200 px-4 py-2 text-md text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           onclick={() => { restoreTarget = null; restoreError = '' }}
         >
-          Cancel
+          {m.cancel()}
         </button>
         <button
           type="button"
@@ -242,7 +246,7 @@
           onclick={confirmRestore}
         >
           {#if restoring}<Spinner size="sm" />{/if}
-          Restore version {restoreTarget.version_num}
+          {m.version_restore_id({ id: restoreTarget.version_num })}
         </button>
       </div>
     </div>
@@ -254,10 +258,10 @@
   {#if deleteTarget}
     <div class="p-6 space-y-4">
       <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-        Delete version {deleteTarget.version_num}?
+        {m.version_delete_id({ id: deleteTarget.version_num })}
       </h3>
       <div class="space-y-2 text-md text-gray-600 dark:text-gray-300">
-        <p>This version will be soft-deleted and permanently purged after 7 days.</p>
+        <p>{m.version_delete_grace_period()}</p>
         <Feedback error={deleteError} />
       </div>
       <div class="flex justify-end gap-3 pt-2">
@@ -266,7 +270,7 @@
           class="rounded-lg border border-gray-200 px-4 py-2 text-md text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           onclick={() => { deleteTarget = null; deleteError = '' }}
         >
-          Cancel
+          {m.cancel()}
         </button>
         <button
           type="button"
@@ -275,7 +279,7 @@
           onclick={confirmDelete}
         >
           {#if deleting}<Spinner size="sm" />{/if}
-          Delete
+          {m.delete()}
         </button>
       </div>
     </div>
