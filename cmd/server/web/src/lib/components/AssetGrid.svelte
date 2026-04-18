@@ -110,12 +110,12 @@
   onmousedown={onMouseDown}
 >
   {#snippet assetCardGrid(assets: Asset[])}
-    <div class="grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
+    <div class="pt-1 grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
         <div class="relative" data-asset-id={asset.id}>
           {#if selectionStore.selectedIds.has(asset.id)}
-            <div class="pointer-events-none absolute inset-0 z-5 rounded-xl ring-2 ring-indigo-500">
+            <div class="pointer-events-none absolute inset-0 z-5 rounded-lg ring-2 ring-indigo-500">
               <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
                 <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />

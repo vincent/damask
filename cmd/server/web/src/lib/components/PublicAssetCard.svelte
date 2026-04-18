@@ -15,12 +15,12 @@
     {@const category = mimeCategory(asset.mime_type)}
     <button
         type="button"
-        class="group flex w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800"
+        class="group flex w-full flex-col overflow-hidden rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800"
         onclick={() => openAsset?.()}
     >
         <!-- Thumbnail -->
         <div
-        class="relative w-full overflow-hidden rounded-t-xl {TYPES_BACKGROUNDS[category]}"
+        class="relative w-full overflow-hidden rounded-t-lg {TYPES_BACKGROUNDS[category]}"
         style="aspect-ratio: 4/3"
         >
         <!-- Category badge -->
@@ -41,7 +41,7 @@
             />
         {:else}
             <div class="flex h-full items-center justify-center">
-            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/25">
+            <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-white/25">
                 {#if category === 'video'}
                     <Play class="h-7 w-7 text-white" />
                 {:else if category === 'audio'}

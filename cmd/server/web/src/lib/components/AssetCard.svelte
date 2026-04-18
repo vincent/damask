@@ -29,7 +29,7 @@
 <button
   type="button"
   draggable="true"
-  class="asset-card group flex w-full flex-col overflow-hidden rounded-xl bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800 dark:shadow-none dark:hover:shadow-none dark:ring-inset dark:focus-visible:ring-indigo-500"
+  class="asset-card group flex w-full flex-col overflow-hidden rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800 dark:shadow-none dark:hover:shadow-none dark:ring-inset dark:focus-visible:ring-indigo-500"
   onclick={(e) => onclick(e)}
   ondragstart={(e) => {
     e.dataTransfer?.setData('text/plain', asset.id)
@@ -38,7 +38,7 @@
 >
   <!-- Thumbnail area -->
   <div
-    class="damask-texture relative w-full overflow-hidden rounded-t-xl {ASSET_BACKGROUND_COLORS[category]}"
+    class="damask-texture relative w-full overflow-hidden rounded-t-lg {ASSET_BACKGROUND_COLORS[category]}"
     style="aspect-ratio: 4/3"
   >
     <!-- Status dot -->
@@ -72,7 +72,7 @@
     {:else}
       <!-- Centered icon -->
       <div class="flex h-full items-center justify-center">
-        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/25">
+        <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-white/25">
           {#if category === 'video' || category === 'audio'}
             <Play class="h-7 w-7 text-white" />
           {:else}
