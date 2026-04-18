@@ -19,7 +19,7 @@
 </script>
 
 {#if selected.size > 0}
-  <div class="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
+  <div class="fixed bottom-10 left-1/2 z-30 -translate-x-1/2">
     <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
       <span class="text-md font-medium text-gray-700 dark:text-gray-300">{selected.size} {m.selected()}</span>
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>

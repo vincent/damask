@@ -15,7 +15,7 @@
   import AssetBulkActionBar from '$lib/components/AssetBulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
-  import LibraryStatusBar from '$lib/components/LibraryStatusBar.svelte'
+  import LibraryStatusBar from '$lib/components/BottomStatusBar.svelte'
   import ProjectInfoPanel from '$lib/components/ProjectInfoPanel.svelte'
   import TagFilterBar from '$lib/components/TagFilterBar.svelte'
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
@@ -23,13 +23,12 @@
   import { goto } from '$app/navigation'
   import { Box } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
+  import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
   let showProjectShareModal = $state(false)
   let seenSplashScreen = $state(false)
-  let zoom = $state(10)
-  const maxZoom = 20
   let isDraggingFiles = $state(false)
   let mainEl = $state<HTMLElement | undefined>(undefined)
   let zoomOverlay = $state<{ src: string; vars: string; asset: Asset } | null>(null)
@@ -227,8 +226,6 @@
 <AssetGrid
   bind:mainEl
   {sort}
-  {zoom}
-  {maxZoom}
   {isDraggingFiles}
   {seenSplashScreen}
   onCardClick={handleCardClick}
@@ -241,8 +238,6 @@
   onDrop={handleMainDrop}
   onMouseDown={(e) => rb.onMouseDown(e)}
 />
-
-<LibraryStatusBar bind:zoom max={maxZoom - 1} />
 
 {#if rb.band && rb.band.w > 2 && rb.band.h > 2}
   <div

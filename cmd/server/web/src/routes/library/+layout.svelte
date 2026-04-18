@@ -10,14 +10,14 @@
   import { sharesStore } from '$lib/stores/shares.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import { Activity, Book, LogOut, Plus, Share2, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings } from '@lucide/svelte'
-  import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { fly } from 'svelte/transition'
-  import { setLocale } from '$lib/paraglide/runtime'
   import { m } from '$lib/paraglide/messages'
+  import BottomStatusBar from '$lib/components/BottomStatusBar.svelte'
+  import Hint from '$lib/components/ui/Hint.svelte'
   
   let { children }: { data: any, children: Snippet } = $props()
 
@@ -220,19 +220,11 @@
       </a>
     </div>
 
-    <!-- lang selector -->
-    <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800 text-gray-400">
-      <button onclick={() => setLocale('en')}>en</button>
-      <button onclick={() => setLocale('es')}>es</button>
-      <button onclick={() => setLocale('fr')}>fr</button>
-      <button onclick={() => setLocale('cat')}>cat</button>
-    </div>
-
     <!-- Bottom sign out + theme toggle -->
     <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
-      <ThemeToggle />
-      <a href="/logout" class="flex items-center gap-2 rounded-lg px-2 text-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+      <a href="/logout" class="flex items-center gap-2 rounded-lg text-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
         <LogOut class="h-3.5 w-3.5" />
+        <Hint class="text-sm">{m.logout()}</Hint>
       </a>
     </div>
   </aside>
@@ -240,5 +232,7 @@
   <!-- Main -->
   <div class="relative flex flex-1 flex-col overflow-hidden">
     {@render children?.()}
+
+    <BottomStatusBar />
   </div>
 </div>

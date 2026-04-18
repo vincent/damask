@@ -11,6 +11,8 @@
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
   import { CloudUpload, Inbox, Loader } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
+  import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
+  import { onDestroy, onMount } from 'svelte'
 
   const fmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
 
@@ -52,8 +54,6 @@
   })
 
   type Props = {
-    zoom: number
-    maxZoom: number
     seenSplashScreen: boolean
     sort: 'mimetype' | 'created_at' | 'size' | 'taken_at'
     isDraggingFiles: boolean
@@ -67,8 +67,6 @@
   }
 
   let {
-    zoom,
-    maxZoom,
     seenSplashScreen,
     sort,
     isDraggingFiles,
@@ -82,6 +80,9 @@
   }: Props = $props()
 
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
+
+  let zoom = $derived(statusBarStore.zoom)
+  let maxZoom = $derived(statusBarStore.maxZoom)
 
   $effect(() => {
     void assetsStore.resetDone  // re-create observer after each reset so it fires immediately if sentinel is already visible
@@ -97,6 +98,23 @@
     )
     observer.observe(el)
     return () => observer.disconnect()
+  })
+
+  $effect(() => {
+      if (selectionStore.selectedIds.size > 0) {
+          statusBarStore.slot1 = `${selectionStore.selectedIds.size} selected assets`
+      } else {
+          statusBarStore.slot1 = `${assetsStore.assets.length} assets`
+      }
+  })
+
+  onMount(() => {
+    statusBarStore.showZoom = true
+  })
+
+  onDestroy(() => {
+    statusBarStore.showZoom = false
+    statusBarStore.slot1 = null
   })
 </script>
 

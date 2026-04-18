@@ -176,7 +176,6 @@
   "rename": "Haz clic para renombrar",
   "add_group": "Añadir grupo…",
   "tag_deleted": "Etiqueta eliminada",
-  "tag_delete_failed": "No se pudo eliminar la etiqueta",
   "create": "Crear",
   "tags_purge_title": "Purgar etiquetas no usadas",
   "tags_merge_title": "Combinar etiquetas",
@@ -300,7 +299,6 @@
   "not_assigned": "No asignado",
   "change": "Cambiar",
   "assign": "Asignar",
-  "variant_delete_confirm": "¿Estás seguro de que quieres eliminar esta variante?",
   "download": "Descargar",
   "all_assets": "Todos los archivos",
   "all_shares": "Todos los compartidos",
@@ -373,8 +371,6 @@
   "what_to_share": "¿Qué quieres compartir?",
   "merge_selected": "Combinar seleccionados",
   "selected": "seleccionado",
-  "theme_switch_light": "Cambiar a modo claro",
-  "theme_switch_dark": "Cambiar a modo oscuro",
   "theme_light": "Modo claro",
   "theme_dark": "Modo oscuro",
   "upload_done": "Hecho",
@@ -422,5 +418,10 @@
   "strip_audio": "Eliminar pista de audio",
   "variant_create_watermark": "Crear variante con marca de agua",
   "opacity": "Opacidad",
-  "extract_exif_description": "Extrae automáticamente el modelo de cámara, velocidad de obturación, ISO y otros metadatos técnicos de las fotos subidas. Se almacenan como campos personalizados en cada archivo."
+  "extract_exif_description": "Extrae automáticamente el modelo de cámara, velocidad de obturación, ISO y otros metadatos técnicos de las fotos subidas. Se almacenan como campos personalizados en cada archivo.",
+  "tag_delete_failed": "No se pudo eliminar la etiqueta",
+  "variant_delete_confirm": "¿Estás seguro de que quieres eliminar esta variante?",
+  "theme_switch_light": "Cambiar a modo claro",
+  "theme_switch_dark": "Cambiar a modo oscuro",
+  "logout": "Cerrar sesión"
 }

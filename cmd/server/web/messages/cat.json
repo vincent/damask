@@ -176,7 +176,6 @@
   "rename": "Fes clic per reanomenar",
   "add_group": "Afegir grup…",
   "tag_deleted": "Etiqueta eliminada",
-  "tag_delete_failed": "No s'ha pogut eliminar l'etiqueta",
   "create": "Crear",
   "tags_purge_title": "Purgar etiquetes no usades",
   "tags_merge_title": "Combinar etiquetes",
@@ -300,7 +299,6 @@
   "not_assigned": "No assignat",
   "change": "Canviar",
   "assign": "Assignar",
-  "variant_delete_confirm": "Estàs segur que vols eliminar aquesta variant?",
   "download": "Descarregar",
   "all_assets": "Tots els arxius",
   "all_shares": "Tots els compartits",
@@ -373,8 +371,6 @@
   "what_to_share": "Què vols compartir?",
   "merge_selected": "Combinar seleccionats",
   "selected": "seleccionat",
-  "theme_switch_light": "Canviar a mode clar",
-  "theme_switch_dark": "Canviar a mode fosc",
   "theme_light": "Mode clar",
   "theme_dark": "Mode fosc",
   "upload_done": "Fet",
@@ -422,5 +418,10 @@
   "strip_audio": "Eliminar pista d'àudio",
   "variant_create_watermark": "Crear variant amb marca d'aigua",
   "opacity": "Opacitat",
-  "extract_exif_description": "Extreu automàticament el model de càmera, velocitat d'obturador, ISO i altres metadades tècniques de les fotos pujades. S'emmagatzemen com a camps personalitzats a cada arxiu."
+  "extract_exif_description": "Extreu automàticament el model de càmera, velocitat d'obturador, ISO i altres metadades tècniques de les fotos pujades. S'emmagatzemen com a camps personalitzats a cada arxiu.",
+  "tag_delete_failed": "No s'ha pogut eliminar l'etiqueta",
+  "variant_delete_confirm": "Estàs segur que vols eliminar aquesta variant?",
+  "theme_switch_light": "Canviar a mode clar",
+  "theme_switch_dark": "Canviar a mode fosc",
+  "logout": "Tancar la sessió"
 }

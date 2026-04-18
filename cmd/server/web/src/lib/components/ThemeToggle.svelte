@@ -29,10 +29,10 @@
   class="flex items-center gap-2 rounded-lg text-sm text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
 >
   {#if dark}
-    <Sun class="h-3.5 w-3.5" />
     <span>{m.theme_light()}</span>
+    <Sun class="h-3.5 w-3.5" />
   {:else}
-    <Moon class="h-3.5 w-3.5" />
     <span>{m.theme_dark()}</span>
+    <Moon class="h-3.5 w-3.5" />
   {/if}
 </button>
