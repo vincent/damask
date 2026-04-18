@@ -147,8 +147,9 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 		return errRes(c, fiber.StatusInternalServerError, "query failed")
 	}
 
-	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
+	versionCounts := s.batchVersionCounts(c.RequestCtx(), assets)
+	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", versionCounts, variantCounts))
 }
 
 // fieldFilterSQL returns the SQL WHERE expression for a filter using the given table alias.

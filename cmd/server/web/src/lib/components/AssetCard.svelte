@@ -29,13 +29,17 @@
 <button
   type="button"
   draggable="true"
-  class="asset-card group flex w-full flex-col overflow-hidden rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800 dark:shadow-none dark:hover:shadow-none dark:ring-inset dark:focus-visible:ring-indigo-500"
+  class="asset-card group flex w-full flex-col rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800 dark:shadow-none dark:hover:shadow-none dark:ring-inset dark:focus-visible:ring-indigo-500"
   onclick={(e) => onclick(e)}
   ondragstart={(e) => {
     e.dataTransfer?.setData('text/plain', asset.id)
     e.dataTransfer?.setData('application/json', JSON.stringify({ assetId: asset.id }))
   }}
 >
+  <!-- stack effect -->
+  <div class="card-shadow {asset.variant_count > 0 ? 'block' : 'hidden'} absolute right-[-3px] top-[-3px] z-0 h-full w-full rounded-lg border-r-2 border-t-2 border-gray-300 dark:border-gray-700 rounded-br-lg [transition:top_150ms_ease,right_150ms_ease]"></div>
+  <div class="card-shadow {asset.variant_count > 2 ? 'block' : 'hidden'} absolute right-[-3px] top-[-3px] z-0 h-full w-full rounded-lg border-r-2 border-t-2 border-gray-300 dark:border-gray-700 rounded-br-lg [transition:top_150ms_ease,right_150ms_ease]"></div>
+
   <!-- Thumbnail area -->
   <div
     class="damask-texture relative w-full overflow-hidden rounded-t-lg {ASSET_BACKGROUND_COLORS[category]}"
@@ -110,3 +114,19 @@
     {/if}
   </div>
 </button>
+
+
+<style>
+  .card-shadow + .card-shadow {
+    top: -6px;
+    right: -6px;
+  }
+  .asset-card:hover .card-shadow {
+    top: -4px;
+    right: -4px;
+  }
+  .asset-card:hover .card-shadow + .card-shadow {
+    top: -8px;
+    right: -8px;
+  }
+</style>

@@ -37,6 +37,7 @@ type AssetResponse struct {
 	Metadata           *string   `json:"metadata"`
 	Tags               []string  `json:"tags"`
 	VersionCount       int64     `json:"version_count"`
+	VariantCount       int64     `json:"variant_count"`
 	VariantsRebuilding bool      `json:"variants_rebuilding"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
@@ -48,10 +49,10 @@ type AssetListResponse struct {
 }
 
 func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
-	return assetToResponseWithCount(a, tags, 0, false)
+	return assetToResponseWithCount(a, tags, 0, 0, false)
 }
 
-func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, variantsRebuilding bool) AssetResponse {
+func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, variantCount int64, variantsRebuilding bool) AssetResponse {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -69,6 +70,7 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 		Metadata:           a.Metadata,
 		Tags:               tags,
 		VersionCount:       versionCount,
+		VariantCount:       variantCount,
 		VariantsRebuilding: variantsRebuilding,
 		CreatedAt:          a.CreatedAt,
 		UpdatedAt:          a.UpdatedAt,
@@ -307,8 +309,9 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
-	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, sortField, counts))
+	versionCounts := s.batchVersionCounts(c.RequestCtx(), assets)
+	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, sortField, versionCounts, variantCounts))
 }
 
 // handleListAssetsSortByTakenAt sorts assets by _exif_taken_at field value (ASC, NULLs last).
@@ -384,8 +387,9 @@ func (s *Server) handleListAssetsSortByTakenAt(c fiber.Ctx, workspaceID string, 
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
-	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
+	versionCounts := s.batchVersionCounts(c.RequestCtx(), assets)
+	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", versionCounts, variantCounts))
 }
 
 func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagNames []string, limit int64) error {
@@ -450,7 +454,8 @@ func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagName
 	}
 
 	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
+	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts, variantCounts))
 }
 
 func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit int64) error {
@@ -500,17 +505,21 @@ func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit in
 	}
 
 	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
+	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts, variantCounts))
 }
 
-func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortField string, counts map[string]int64) AssetListResponse {
+func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortField string, versionCounts map[string]int64, variantCounts map[string]int64) AssetListResponse {
 	items := make([]AssetResponse, len(assets))
 	for i, a := range assets {
-		var vc int64
-		if counts != nil {
-			vc = counts[a.ID]
+		var vc, nVariants int64
+		if versionCounts != nil {
+			vc = versionCounts[a.ID]
 		}
-		items[i] = assetToResponseWithCount(a, nil, vc, false)
+		if variantCounts != nil {
+			nVariants = variantCounts[a.ID]
+		}
+		items[i] = assetToResponseWithCount(a, nil, vc, nVariants, false)
 	}
 	var nextCursor *string
 	if int64(len(assets)) == limit && len(assets) > 0 {
@@ -548,7 +557,47 @@ func (s *Server) batchVersionCounts(ctx context.Context, assets []dbgen.Asset) m
 		args[i] = a.ID
 	}
 	query := fmt.Sprintf(
-		`SELECT asset_id, COUNT(*) FROM asset_versions WHERE deleted_at IS NULL AND asset_id IN (%s) GROUP BY asset_id`,
+		`SELECT asset_id, COUNT(*) 
+		   FROM asset_versions 
+		  WHERE deleted_at IS NULL 
+		    AND asset_id IN (%s) 
+		  GROUP BY asset_id`,
+		strings.Join(placeholders, ","),
+	)
+	rows, err := s.sqlDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return counts
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var n int64
+		if err := rows.Scan(&id, &n); err == nil {
+			counts[id] = n
+		}
+	}
+	return counts
+}
+
+// batchVariantCounts fetches variant counts (on current version) for the given asset IDs.
+func (s *Server) batchVariantCounts(ctx context.Context, assets []dbgen.Asset) map[string]int64 {
+	counts := make(map[string]int64, len(assets))
+	if len(assets) == 0 {
+		return counts
+	}
+	placeholders := make([]string, len(assets))
+	args := make([]any, len(assets))
+	for i, a := range assets {
+		placeholders[i] = "?"
+		args[i] = a.ID
+	}
+	query := fmt.Sprintf(
+		`SELECT av.asset_id, COUNT(v.id)
+		   FROM asset_versions av
+		   JOIN variants v ON v.asset_version_id = av.id
+		  WHERE av.is_current = 1 
+		    AND av.asset_id IN (%s)
+		  GROUP BY av.asset_id`,
 		strings.Join(placeholders, ","),
 	)
 	rows, err := s.sqlDB.QueryContext(ctx, query, args...)
@@ -694,7 +743,14 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount, variantsRebuilding))
+	variantCount, _ := s.db.CountVariantsByVersion(c.RequestCtx(), func() string {
+		if asset.CurrentVersionID != nil {
+			return *asset.CurrentVersionID
+		}
+		return ""
+	}())
+
+	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount, variantCount, variantsRebuilding))
 }
 
 // handleGetAssetFile streams the current version of an asset file.
@@ -1076,7 +1132,8 @@ func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID str
 	}
 
 	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts))
+	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
+	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts, variantCounts))
 }
 
 // handleUpdateAssetFolder moves an asset to a different folder or project.

@@ -1123,3 +1123,65 @@ func TestDeleteAsset_OkAfterCoverCleared(t *testing.T) {
 		t.Errorf("expected 204, got %d", delResp.StatusCode)
 	}
 }
+
+func TestGetAsset_VariantCount(t *testing.T) {
+	env, _ := th.SetupWithOwner(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, err := env.App.Test(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("get asset: %v %d", err, resp.StatusCode)
+	}
+	var asset api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&asset)
+	if asset.VariantCount != 0 {
+		t.Errorf("expected variant_count=0, got %d", asset.VariantCount)
+	}
+
+	// Insert a variant directly and re-fetch.
+	var ws struct{ WorkspaceID string }
+	_ = env.SqlDB.QueryRow("SELECT workspace_id FROM assets WHERE id = ?", assetID).Scan(&ws.WorkspaceID)
+	insertVariantDirectly(t, env, assetID, ws.WorkspaceID)
+
+	resp2, err := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie))
+	if err != nil || resp2.StatusCode != http.StatusOK {
+		t.Fatalf("get asset after variant: %v %d", err, resp2.StatusCode)
+	}
+	var asset2 api.AssetResponse
+	_ = json.NewDecoder(resp2.Body).Decode(&asset2)
+	if asset2.VariantCount != 1 {
+		t.Errorf("expected variant_count=1, got %d", asset2.VariantCount)
+	}
+}
+
+func TestListAssets_VariantCount(t *testing.T) {
+	env, _ := th.SetupWithOwner(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	var workspaceID string
+	_ = env.SqlDB.QueryRow("SELECT workspace_id FROM assets WHERE id = ?", assetID).Scan(&workspaceID)
+	insertVariantDirectly(t, env, assetID, workspaceID)
+
+	resp, err := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/assets", nil, cookie))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("list assets: %v %d", err, resp.StatusCode)
+	}
+	var list api.AssetListResponse
+	_ = json.NewDecoder(resp.Body).Decode(&list)
+	if len(list.Assets) == 0 {
+		t.Fatal("expected at least one asset")
+	}
+	found := false
+	for _, a := range list.Assets {
+		if a.ID == assetID {
+			found = true
+			if a.VariantCount != 1 {
+				t.Errorf("expected variant_count=1, got %d", a.VariantCount)
+			}
+		}
+	}
+	if !found {
+		t.Error("asset not found in list")
+	}
+}

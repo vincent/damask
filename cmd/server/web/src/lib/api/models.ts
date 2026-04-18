@@ -58,6 +58,7 @@ export interface Asset {
   metadata: string | null
   tags: string[]
   version_count: number
+  variant_count: number
   variants_rebuilding: boolean
   created_at: string
   updated_at: string

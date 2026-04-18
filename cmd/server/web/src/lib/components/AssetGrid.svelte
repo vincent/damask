@@ -110,7 +110,7 @@
   onmousedown={onMouseDown}
 >
   {#snippet assetCardGrid(assets: Asset[])}
-    <div class="pt-1 grid gap-3 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
+    <div class="pt-2 grid gap-4 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
         <div class="relative" data-asset-id={asset.id}>
