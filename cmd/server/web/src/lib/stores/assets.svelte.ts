@@ -158,6 +158,7 @@ export const assetsStore = {
         project_id: navigationStore.activeProjectId ?? undefined,
         tags: activeTags.length > 0 ? activeTags : undefined,
         folder_id: navigationStore.activeFolderId ?? undefined,
+        collection_id: navigationStore.activeCollectionId ?? undefined,
         fieldFilters: fieldFilters.length > 0 ? fieldFilters : undefined,
         limit: 20,
       })

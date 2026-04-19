@@ -2,6 +2,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
+  import { collectionsStore } from '$lib/stores/collections.svelte'
   import SortButtons from '$lib/components/SortButtons.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
@@ -21,6 +22,12 @@
   }
 
   let { sort = $bindable(), asc = $bindable(), onShareProject, showShareButton = false, prefix }: Props = $props()
+
+  const activeCollection = $derived(
+    navigationStore.activeCollectionId
+      ? collectionsStore.collections.find(c => c.id === navigationStore.activeCollectionId) ?? null
+      : null
+  )
 </script>
 
 <header class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
@@ -29,7 +36,7 @@
     <div>
       <Title>{projectsStore.activeProjectName ?? m.library()}</Title>
       <Hint>
-        {m.all_assets()}{#if projectsStore.activeProjectName}&nbsp;/&nbsp;{projectsStore.activeProjectName}{/if}
+        {#if activeCollection}{m.collection_id({ id: activeCollection.name })}{:else if projectsStore.activeProjectName}{m.project_id({ name: projectsStore.activeProjectName })}{:else}{m.all_assets()}{/if}
       </Hint>
     </div>
     {#if showShareButton}

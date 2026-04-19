@@ -731,7 +731,6 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 		storageKey string
 	}
 	var entries []entry
-	var missingNames []string
 	usedNames := map[string]int{}
 
 	var query string
@@ -798,11 +797,10 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 	c.Set("Content-Type", "application/zip")
 	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename + ".zip"}))
 
-	preMissing := append([]string(nil), missingNames...)
 	pr, pw := io.Pipe()
 	go func() {
 		zw := zip.NewWriter(pw)
-		missing := preMissing
+		var missing []string
 		for _, e := range entries {
 			rc, err := s.storage.Get(e.storageKey)
 			if err != nil {

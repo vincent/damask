@@ -24,6 +24,7 @@
   import AssetExportImage from './AssetExportImage.svelte'
   import AssetDeleteButton from './AssetDeleteButton.svelte'
   import AssetCustomFields from './AssetCustomFields.svelte'
+  import AssetCollections from './AssetCollections.svelte'
   import VersionHistory from './VersionHistory.svelte'
   import UploadVersionModal from './UploadVersionModal.svelte'
   import AssetActivity from './AssetActivity.svelte'
@@ -285,6 +286,7 @@
         <div class="px-5 py-5 space-y-6">
           <AssetMetadata {asset} />
           <AssetTags {asset} {ontagschanged} />
+          <AssetCollections {asset} />
 
           {#if authStore.role !== 'viewer' || activeProject}
             <AssetProject {asset} {activeProject} {onprojectchanged} />

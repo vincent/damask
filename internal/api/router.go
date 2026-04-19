@@ -232,6 +232,9 @@ func NewRouter(
 	api.Get("/assets/:id/fields", s.handleGetAssetFields)
 	api.Patch("/assets/:id/fields", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePatchAssetFields)
 
+	// Asset collections membership
+	api.Get("/assets/:id/collections", s.handleListAssetCollections)
+
 	// Asset tags
 	api.Get("/assets/:id/tags", s.handleGetAssetTags)
 	api.Post("/assets/:id/tags", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAddTagToAsset)

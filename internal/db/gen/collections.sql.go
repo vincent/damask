@@ -214,6 +214,64 @@ func (q *Queries) ListCollections(ctx context.Context, workspaceID string) ([]Li
 	return items, nil
 }
 
+const listCollectionsForAsset = `-- name: ListCollectionsForAsset :many
+SELECT c.id, c.workspace_id, c.name, c.description, c.created_by, c.created_at, c.updated_at, COUNT(ca2.asset_id) AS asset_count
+FROM collections c
+JOIN collection_assets ca ON ca.collection_id = c.id AND ca.asset_id = ?
+LEFT JOIN collection_assets ca2 ON ca2.collection_id = c.id
+WHERE c.workspace_id = ?
+GROUP BY c.id
+ORDER BY c.created_at DESC
+`
+
+type ListCollectionsForAssetParams struct {
+	AssetID     string `json:"asset_id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+type ListCollectionsForAssetRow struct {
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspace_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedBy   string    `json:"created_by"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	AssetCount  int64     `json:"asset_count"`
+}
+
+func (q *Queries) ListCollectionsForAsset(ctx context.Context, arg ListCollectionsForAssetParams) ([]ListCollectionsForAssetRow, error) {
+	rows, err := q.db.QueryContext(ctx, listCollectionsForAsset, arg.AssetID, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCollectionsForAssetRow{}
+	for rows.Next() {
+		var i ListCollectionsForAssetRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Name,
+			&i.Description,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AssetCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeCollectionAsset = `-- name: RemoveCollectionAsset :exec
 DELETE FROM collection_assets WHERE collection_id = ? AND asset_id = ?
 `

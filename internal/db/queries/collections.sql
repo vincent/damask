@@ -39,3 +39,12 @@ ORDER BY ca.position ASC, ca.added_at ASC;
 
 -- name: CollectionBelongsToWorkspace :one
 SELECT COUNT(*) FROM collections WHERE id = ? AND workspace_id = ?;
+
+-- name: ListCollectionsForAsset :many
+SELECT c.*, COUNT(ca2.asset_id) AS asset_count
+FROM collections c
+JOIN collection_assets ca ON ca.collection_id = c.id AND ca.asset_id = ?
+LEFT JOIN collection_assets ca2 ON ca2.collection_id = c.id
+WHERE c.workspace_id = ?
+GROUP BY c.id
+ORDER BY c.created_at DESC;

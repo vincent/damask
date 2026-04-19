@@ -21,8 +21,9 @@
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
   import UploadsTray from '$lib/components/UploadsTray.svelte'
   import { goto } from '$app/navigation'
-  import { Box } from '@lucide/svelte'
+  import { Book, Box, LibraryBig, X } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
+  import { collectionsStore } from '$lib/stores/collections.svelte'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
   import { useShortcuts, setShortcutContext } from '$lib/shortcuts'
 
@@ -41,6 +42,12 @@
   const activeProject = $derived(
     navigationStore.activeProjectId
       ? projectsStore.projects.find((p) => p.id === navigationStore.activeProjectId) ?? null
+      : null,
+  )
+
+  const activeCollection = $derived(
+    navigationStore.activeCollectionId
+      ? collectionsStore.collections.find((c) => c.id === navigationStore.activeCollectionId) ?? null
       : null,
   )
 
@@ -161,7 +168,7 @@
     const current = selectionStore.lastSelectedIndex
     const next = current < 0 ? 0 : current + delta
     selectionStore.moveSelectionTo(next, assets)
-    const id = selectionStore.selectedIds.entries().next().value?.[1]
+    const id = selectionStore.selectedIds.values().next().value
     document.querySelector<HTMLElement>(`[data-asset-id="${id}"]`)?.scrollIntoView({ block: 'nearest' })
   }
 
@@ -248,26 +255,48 @@
   onShareProject={() => { showProjectShareModal = true }}
 >
   {#snippet prefix()}
-    <div role="img" class={`rounded p-2 border-1 transition-colors ${activeProject ? '' : 'hidden'} ${draggingProjectCover ? 'border-green-500' : 'border-transparent'} `}
-      ondragleave={onDragLeaveProjectCover}
-      ondragover={onDraggingProjectCover}
-      ondrop={onDropProjectCover}
-    >
-      {#if activeProject?.cover_asset_id}
-        <img
-          src={assetApi.thumbUrl(activeProject.cover_asset_id)}
-          class="h-10 w-10 rounded object-cover"
-          alt="Project cover"
-        />
-      {:else}
-        <Box class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
-      {/if}
-    </div>
+    {#if activeProject}
+      <div role="img" class={`rounded border-1 transition-colors ${draggingProjectCover ? 'border-green-500' : 'border-transparent'} `}
+        ondragleave={onDragLeaveProjectCover}
+        ondragover={onDraggingProjectCover}
+        ondrop={onDropProjectCover}
+      >
+        {#if activeProject?.cover_asset_id}
+          <img
+            src={assetApi.thumbUrl(activeProject.cover_asset_id)}
+            class="h-10 w-10 rounded object-cover"
+            alt="Project cover"
+          />
+        {:else}
+          <Box class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+        {/if}
+      </div>
+    {:else if activeCollection}
+      <Book class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+    {:else}
+      <LibraryBig class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+    {/if}
   {/snippet}
 </LibraryHeader>
 
 {#if activeProject}
   <ProjectInfoPanel project={activeProject} />
+{/if}
+
+{#if activeCollection}
+  <div class="flex items-center gap-2 border-t border-gray-100 bg-white px-6 py-2 dark:border-gray-800 dark:bg-gray-900">
+    <LibraryBig class="h-4 w-4 text-indigo-500" />
+    <span class="text-sm font-medium text-indigo-700 dark:text-indigo-300">{activeCollection.name}</span>
+    <span class="text-xs text-gray-400">{m.assets_count({ count: activeCollection.asset_count })}</span>
+    <button
+      type="button"
+      onclick={() => { navigationStore.selectCollection(null); assetsStore.load(true) }}
+      class="ml-1 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+      aria-label="Clear collection filter"
+    >
+      <X class="h-3.5 w-3.5" />
+    </button>
+  </div>
 {/if}
 
 <TagFilterBar

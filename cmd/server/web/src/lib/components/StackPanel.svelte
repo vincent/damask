@@ -3,7 +3,8 @@
   import { stackApi, collectionApi, shareApi, projectApi } from '$lib/api'
   import { sseEvents } from '$lib/stores/assets.svelte'
   import type { Project } from '$lib/api'
-  import { X, Layers, Trash2, Tag, Download, FolderInput, Save, Loader, Share2, Copy, Check } from '@lucide/svelte'
+  import { X, Layers, Trash2, Tag, Download, FolderInput, Save, Loader, Share2, Copy, Check, LibraryBig } from '@lucide/svelte'
+  import type { Collection } from '$lib/api'
   import { fly } from 'svelte/transition'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
@@ -28,6 +29,37 @@
   let copied = $state(false)
   let showShareNameForm = $state(false)
   let shareNameInput = $state('')
+
+  // Add to existing collection
+  let showAddToCollection = $state(false)
+  let existingCollections = $state<Collection[]>([])
+  let loadingCollections = $state(false)
+  let addingToCollection = $state<string | null>(null)
+
+  async function handleOpenAddToCollection() {
+    showAddToCollection = true
+    loadingCollections = true
+    try {
+      existingCollections = await collectionApi.list()
+    } catch {
+      existingCollections = []
+    } finally {
+      loadingCollections = false
+    }
+  }
+
+  async function handleAddToCollection(col: Collection) {
+    addingToCollection = col.id
+    try {
+      await Promise.all(stackStore.ids.map(id => collectionApi.addAsset(col.id, id)))
+      toastStore.show(m.added_to_collection({ name: col.name }), 'success')
+      showAddToCollection = false
+    } catch (e: any) {
+      toastStore.show(e?.message ?? m.save_failed(), 'error')
+    } finally {
+      addingToCollection = null
+    }
+  }
 
   // Move to project
   let movingToProject = $state(false)
@@ -313,6 +345,52 @@
         >
           <Save class="h-4 w-4" />
           {m.collection_save_as()}
+        </button>
+      {/if}
+
+      <!-- Add to existing collection -->
+      {#if showAddToCollection}
+        <div class="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+          {#if loadingCollections}
+            <div class="flex justify-center py-2">
+              <Loader class="h-4 w-4 animate-spin text-gray-400" />
+            </div>
+          {:else if existingCollections.length === 0}
+            <p class="py-2 text-center text-xs text-gray-400">{m.no_collections()}</p>
+          {:else}
+            <div class="max-h-40 overflow-y-auto">
+              {#each existingCollections as col (col.id)}
+                <button
+                  type="button"
+                  disabled={addingToCollection === col.id}
+                  onclick={() => handleAddToCollection(col)}
+                  class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {#if addingToCollection === col.id}
+                    <Loader class="h-3.5 w-3.5 shrink-0 animate-spin text-gray-400" />
+                  {:else}
+                    <LibraryBig class="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                  {/if}
+                  <span class="flex-1 truncate text-left">{col.name}</span>
+                  <span class="text-xs text-gray-400">{col.asset_count}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+          <ButtonCancel onclick={() => { showAddToCollection = false }} />
+        </div>
+      {:else}
+        <button
+          type="button"
+          disabled={stackStore.count === 0}
+          onclick={handleOpenAddToCollection}
+          class="flex w-full items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm transition-colors
+            {stackStore.count === 0
+              ? 'cursor-not-allowed text-gray-400 opacity-50 dark:border-gray-700'
+              : 'text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800'}"
+        >
+          <LibraryBig class="h-4 w-4" />
+          {m.add_to_collection()}
         </button>
       {/if}
 

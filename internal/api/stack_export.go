@@ -89,14 +89,10 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 	c.Set("Content-Type", "application/zip")
 	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename + ".zip"}))
 
-	// missingNames captured by value via closure over a local copy.
-	preMissing := append([]string(nil), missingNames...)
-
 	pr, pw := io.Pipe()
 	go func() {
 		zw := zip.NewWriter(pw)
-		// goroutine-local missing list; starts with pre-missing entries.
-		missing := preMissing
+		missing := missingNames
 
 		for _, e := range entries {
 			rc, err := s.storage.Get(e.storageKey)

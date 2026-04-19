@@ -116,7 +116,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		OriginalName: filename + outExt,
 	})
 	if ferr != nil {
-		return fmt.Errorf("create asset: %s", ferr.Message)
+		return fmt.Errorf("create asset: %w", ferr)
 	}
 
 	resultBytes, _ := json.Marshal(map[string]string{"asset_id": asset.ID})

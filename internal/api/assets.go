@@ -241,6 +241,10 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		whereClauses = append(whereClauses, "project_id = ?")
 		args = append(args, pid)
 	}
+	if cid := c.Query("collection_id"); cid != "" {
+		whereClauses = append(whereClauses, "id IN (SELECT asset_id FROM collection_assets WHERE collection_id = ?)")
+		args = append(args, cid)
+	}
 	if mime := c.Query("mime"); mime != "" {
 		whereClauses = append(whereClauses, "mime_type LIKE ?")
 		args = append(args, mime+"%")

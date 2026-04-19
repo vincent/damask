@@ -9,7 +9,9 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { sharesStore } from '$lib/stores/shares.svelte'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
-  import { Activity, Book, LogOut, Plus, Share2, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings } from '@lucide/svelte'
+  import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
+  import { collectionsStore } from '$lib/stores/collections.svelte'
+  import { Activity, Book, LogOut, Plus, Share2, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings, LibraryBig } from '@lucide/svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
@@ -75,9 +77,16 @@
     }
   }
 
+  async function handleCollectionSelect(id: string) {
+    navigationStore.selectCollection(id)
+    await assetsStore.load(true)
+    goto('/library')
+  }
+
   onMount(() => {
     projectsStore.load()
     assetsStore.load(true)
+    collectionsStore.load()
 
     setTimeout(() => {
       sharesStore.load()
@@ -107,7 +116,7 @@
             {(page.route.id === '/library' && navigationStore.activeProjectId === null) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
           onclick={() => handleProjectSelect(null)}
         >
-          <Book class="h-4 w-4 shrink-0 text-gray-400" />
+          <LibraryBig class="h-4 w-4 shrink-0 text-gray-400" />
           <span class="flex-1 text-left">{m.all_assets()}</span>
           {#if projectsStore.totalAssetCount > 0}
             <span class="shrink-0 text-sm text-gray-400">{projectsStore.totalAssetCount}</span>
@@ -224,7 +233,17 @@
         </nav>
       </div>
 
-      <div class="flex items-center justify-start border-t border-gray-200 px-4 py-3 dark:border-gray-800">
+      <!-- Collections section -->
+      {#if collectionsStore.collections.length > 0}
+        <div class="flex flex-col overflow-hidden pt-4 border-t-2 border-gray-100 dark:border-gray-800">
+          <div class="mb-2 flex items-center gap-2 px-4">
+            <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{m.collections()}</span>
+          </div>
+          <CollectionsSidebar onSelect={handleCollectionSelect} />
+        </div>
+      {/if}
+
+      <div class="flex items-center justify-start border-t-2 border-gray-200 px-4 py-3 dark:border-gray-800">
         <Info class="h-3.5 w-3.5 text-gray-400" />
         <a href="https://docs.damask.studio" target="_blank" class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           <span class="text-sm">{m.help_docs()}</span>

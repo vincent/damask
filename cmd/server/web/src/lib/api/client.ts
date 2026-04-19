@@ -340,6 +340,7 @@ export const assetApi = {
     mime?: string
     tags?: string[]
     folder_id?: string
+    collection_id?: string
     fieldFilters?: FieldFilter[]
   } = {}): Promise<AssetListResponse> {
     const qs = new URLSearchParams()
@@ -351,6 +352,7 @@ export const assetApi = {
     if (params.mime) qs.set('mime', params.mime)
     if (params.tags && params.tags.length > 0) qs.set('tags', params.tags.join(','))
     if (params.folder_id) qs.set('folder_id', params.folder_id)
+    if (params.collection_id) qs.set('collection_id', params.collection_id)
     if (params.fieldFilters) {
       for (const f of params.fieldFilters) {
         const paramKey = f.op === 'eq' ? `field[${f.key}]` : `field[${f.key}][${f.op}]`
@@ -835,6 +837,8 @@ export const collectionApi = {
     apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, { method: 'POST' }),
   removeAsset: (collectionId: string, assetId: string): Promise<void> =>
     apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, { method: 'DELETE' }),
+  forAsset: (assetId: string): Promise<Collection[]> =>
+    apiFetch(`/api/v1/assets/${assetId}/collections`),
 }
 
 
