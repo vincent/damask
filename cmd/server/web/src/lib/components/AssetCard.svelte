@@ -1,11 +1,10 @@
 <script lang="ts">
   import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
-  import { File, Loader, Play, TriangleAlert, Layers } from '@lucide/svelte'
+  import { File, Loader, Play, TriangleAlert } from '@lucide/svelte'
   import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
-  import { stackStore, assetToStack } from '$lib/stores/stack.svelte'
-
+  
   interface Props {
     asset: Asset
     class?: string,
@@ -16,10 +15,6 @@
   }
 
   let { asset, class: extraClass = '', zoom = 5, onclick, requiresFields = false }: Props = $props()
-
-  const isInStack = $derived(stackStore.inStack(asset.id))
-  const stackActive = $derived(stackStore.active)
-  const thumbUrl = $derived(assetApi.thumbUrl(asset.id))
 
   const hasRequiredFields = $derived(customFieldsStore.assetFields.some((f) => f.required))
   const showRequiredNudge = $derived(requiresFields && hasRequiredFields)
@@ -52,33 +47,6 @@
   >
     <!-- Status dot -->
     <div class="absolute left-2.5 top-2.5 h-3 w-3 rounded-full {DOT_COLORS[category]}"></div>
-
-    <!-- Stack indicator (stack mode) OR hover-toggle (normal mode) — never both -->
-    {#if stackActive}
-      {#if isInStack}
-        <div
-          role="button"
-          tabindex="0"
-          class="absolute left-2 bottom-2 flex items-center justify-center rounded-md p-1 transition-all cursor-pointer bg-amber-400 text-white opacity-100 shadow"
-          onclick={(e) => { e.stopPropagation(); stackStore.toggle(assetToStack(asset, thumbUrl)) }}
-          onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); stackStore.toggle(assetToStack(asset, thumbUrl)) } }}
-          title="Remove from stack"
-        >
-          <Layers class="h-3.5 w-3.5" />
-        </div>
-      {:else}
-        <div
-          role="button"
-          tabindex="0"
-          class="absolute left-2 bottom-2 flex items-center justify-center rounded-md p-1 transition-all cursor-pointer bg-black/40 text-white opacity-0 group-hover:opacity-100"
-          onclick={(e) => { e.stopPropagation(); stackStore.toggle(assetToStack(asset, thumbUrl)) }}
-          onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); stackStore.toggle(assetToStack(asset, thumbUrl)) } }}
-          title="Add to stack"
-        >
-          <Layers class="h-3.5 w-3.5" />
-        </div>
-      {/if}
-    {/if}
 
     <!-- Required fields nudge -->
     {#if showRequiredNudge}

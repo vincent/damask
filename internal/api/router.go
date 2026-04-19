@@ -212,9 +212,6 @@ func NewRouter(
 	api.Post("/collections/:id/assets/:aid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAddCollectionAsset)
 	api.Delete("/collections/:id/assets/:aid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRemoveCollectionAsset)
 
-	// Jobs — status polling (for async merge results)
-	api.Get("/jobs/:id", auth.RequireAuth(tokenMaker), s.handleGetJob)
-
 	// Assets — bulk routes must be registered before /:id to avoid conflict
 	api.Post("/assets/bulk/tag", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkTag)
 	api.Post("/assets/bulk/project", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkProject)

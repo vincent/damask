@@ -1,4 +1,4 @@
-import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse, WorkspaceMember, WorkspaceInvite, Config } from "./models"
+import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse, WorkspaceMember, WorkspaceInvite, Config, Collection } from "./models"
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -814,17 +814,6 @@ export const stackApi = {
   },
 }
 
-export interface Collection {
-  id: string
-  workspace_id: string
-  name: string
-  description: string
-  created_by: string
-  asset_count: number
-  created_at: string
-  updated_at: string
-}
-
 export const collectionApi = {
   list: (): Promise<Collection[]> => apiFetch('/api/v1/collections'),
   create: (name: string, description = '', assetIds: string[] = []): Promise<Collection> =>
@@ -848,19 +837,6 @@ export const collectionApi = {
     apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, { method: 'DELETE' }),
 }
 
-export interface JobStatus {
-  id: string
-  type: string
-  status: 'pending' | 'processing' | 'done' | 'failed'
-  error?: string
-  result?: string
-  created_at: string
-  updated_at: string
-}
-
-export const jobApi = {
-  get: (id: string): Promise<JobStatus> => apiFetch(`/api/v1/jobs/${id}`),
-}
 
 /**
  * Maps a MIME type string to a broad asset category.

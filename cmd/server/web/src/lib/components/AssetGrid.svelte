@@ -14,6 +14,8 @@
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
   import { onDestroy, onMount } from 'svelte'
+  import AssetStateSelected from './AssetStateSelected.svelte'
+  import AssetStateStackable from './AssetStateStackable.svelte'
 
   const fmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
 
@@ -102,11 +104,11 @@
   })
 
   $effect(() => {
-      if (selectionStore.selectedIds.size > 0) {
-          statusBarStore.slot1 = `${selectionStore.selectedIds.size} selected assets`
-      } else {
-          statusBarStore.slot1 = `${assetsStore.assets.length} assets`
-      }
+    if (selectionStore.selectedIds.size > 0) {
+      statusBarStore.slot1 = m.selected_assets({ count: selectionStore.selectedIds.size })
+    } else {
+      statusBarStore.slot1 = m.assets_count({ count: assetsStore.assets.length })
+    }
   })
 
   onMount(() => {
@@ -132,17 +134,15 @@
     <div class="pt-2 grid gap-4 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
-        <div class="relative" data-asset-id={asset.id}>
-          {#if !stackStore.active && selectionStore.selectedIds.has(asset.id)}
-            <div class="pointer-events-none absolute inset-0 z-5 rounded-lg ring-2 ring-indigo-500">
-              <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
-                <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            </div>
-          {/if}
+        <div class="relative group" data-asset-id={asset.id}>
           <AssetCard {asset} {zoom} requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)} />
+
+          <!-- Stack/Selection indicator -->
+          {#if stackStore.active}
+            <AssetStateStackable {asset} />
+          {:else if selectionStore.selectedIds.has(asset.id)}
+            <AssetStateSelected/>
+          {/if}
         </div>
       {/each}
     </div>

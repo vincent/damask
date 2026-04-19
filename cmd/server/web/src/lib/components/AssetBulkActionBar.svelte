@@ -148,7 +148,7 @@
 
       <Button variant="ghost" size="sm" disabled={busy || stackStore.active} onclick={promoteToStack}>
         {#snippet icon()}<Layers class="h-4 w-4" />{/snippet}
-        Create stack ({selectedIds.size}) →
+        {m.stack_create()} ({selectedIds.size}) →
       </Button>
 
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>

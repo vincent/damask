@@ -1,13 +1,9 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
-	"time"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 
 	"github.com/gofiber/fiber/v3"
@@ -22,30 +18,8 @@ type stackMergePayload struct {
 	GifFrameMs     int      `json:"gif_frame_ms"`
 }
 
-type JobStatusResponse struct {
-	ID          string     `json:"id"`
-	Type        string     `json:"type"`
-	Status      string     `json:"status"`
-	Error       *string    `json:"error,omitempty"`
-	Result      *string    `json:"result,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-}
-
-func jobToStatusResponse(j dbgen.Job) JobStatusResponse {
-	return JobStatusResponse{
-		ID:        j.ID,
-		Type:      j.Type,
-		Status:    j.Status,
-		Error:     j.Error,
-		Result:    j.Result,
-		CreatedAt: j.CreatedAt,
-		UpdatedAt: j.UpdatedAt,
-	}
-}
-
 // @Summary Merge stack assets into GIF or PDF
-// @Description Enqueues an async job that merges the given assets into a single animated GIF or PDF contact sheet. All assets must belong to the authenticated workspace. Returns 202 immediately with a <code>job_id</code>; poll <code>GET /api/v1/jobs/:id</code> to check completion. On success the job result contains the new asset ID.
+// @Description Enqueues an async job that merges the given assets into a single animated GIF or PDF contact sheet. All assets must belong to the authenticated workspace. Returns 202 immediately with a <code>job_id</code>; listen for event <code>stack_merge_done</code> to check completion. On success the job result contains the new asset ID.
 // @Tags Stack
 // @Accept json
 // @Produce json
@@ -93,35 +67,4 @@ func (s *Server) handleStackMerge(c fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"job_id": job.ID})
-}
-
-// @Summary Get job status
-// @Description Returns the current status of an async job (pending, processing, done, failed). When <code>status</code> is <code>done</code> the <code>result</code> field contains the output asset ID for <code>stack_merge</code> jobs.
-// @Tags Stack
-// @Produce json
-// @Security BearerAuth
-// @Param id path string true "Job ID"
-// @Success 200 {object} JobStatusResponse
-// @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Failure 404 {object} ErrorResponse "Job not found"
-// @Router /api/v1/jobs/{id} [get]
-// handleGetJob returns the status of a job by ID.
-func (s *Server) handleGetJob(c fiber.Ctx) error {
-	claims := auth.GetClaims(c)
-	id := c.Params("id")
-
-	job, err := s.db.GetJobByID(c.RequestCtx(), id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "job not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not get job")
-	}
-
-	// Ensure job belongs to the caller's workspace.
-	if job.WorkspaceID != claims.WorkspaceID {
-		return errRes(c, fiber.StatusNotFound, "job not found")
-	}
-
-	return c.JSON(jobToStatusResponse(job))
 }

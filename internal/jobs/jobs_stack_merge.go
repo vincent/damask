@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/events"
 	"damask/server/internal/services"
 
 	pdfcpuapi "github.com/pdfcpu/pdfcpu/pkg/api"
@@ -126,6 +127,12 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	}); err != nil {
 		slog.Warn("stack_merge: could not persist result", "err", err)
 	}
+
+	s.hub.Publish(p.WorkspaceID, events.Event{
+		Type:    "stack_merge_done",
+		AssetID: asset.ID,
+		JobID:   job.ID,
+	})
 
 	return nil
 }

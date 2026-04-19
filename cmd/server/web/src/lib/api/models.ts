@@ -451,3 +451,14 @@ export interface WorkspaceInvite {
   expires_at: string
   created_at: string
 }
+
+export interface Collection {
+  id: string
+  workspace_id: string
+  name: string
+  description: string
+  created_by: string
+  asset_count: number
+  created_at: string
+  updated_at: string
+}

@@ -27,8 +27,14 @@ let searchTimer: ReturnType<typeof setTimeout>
 
 // ---- SSE state ----
 let sseSource: EventSource | null = null
+let sseReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let sseReconnectDelay = 1000
+let sseReconnectAttempts = 0
+const SSE_MAX_ATTEMPTS = 10
 // Maps assetId -> uploadId for in-flight thumbnail waits
 const pendingThumbnails = new Map<string, string>()
+
+export const sseEvents = $state<{ last: { type: string; asset_id: string; thumbnail_key: string; job_id?: string } | null }>({ last: null })
 
 function patchAsset(assetId: string, patch: Partial<Asset>) {
   assets = assets.map((a) => (a.id === assetId ? { ...a, ...patch } : a))
@@ -63,13 +69,17 @@ function reloadAssetResources(assetId: string) {
   }
 }
 
-function ensureSSE() {
+function connectSSE() {
   if (sseSource && sseSource.readyState !== EventSource.CLOSED) return
   sseSource = openThumbnailEvents()
 
   sseSource.addEventListener('message', (e: MessageEvent) => {
     try {
-      const event = JSON.parse(e.data) as { type: string; asset_id: string; thumbnail_key: string }
+      const event = JSON.parse(e.data) as { type: string; asset_id: string; thumbnail_key: string; job_id?: string }
+      sseEvents.last = event
+      sseReconnectDelay = 1000
+      sseReconnectAttempts = 0
+
       if (event.type !== 'thumbnail_ready') return
 
       reloadAssetResources(event.asset_id)
@@ -80,25 +90,22 @@ function ensureSSE() {
       pendingThumbnails.delete(event.asset_id)
       patchAsset(event.asset_id, { thumbnail_key: event.thumbnail_key })
       uploadsStore.update(uploadId, { status: 'done' })
-
-      if (pendingThumbnails.size === 0) {
-        sseSource?.close()
-        sseSource = null
-      }
     } catch {
       // ignore malformed events
     }
   })
 
   sseSource.onerror = () => {
-    // SSE connection failed; fall back to polling for all pending assets
-    const pending = new Map(pendingThumbnails)
-    pendingThumbnails.clear()
     sseSource?.close()
     sseSource = null
-    for (const [assetId, uploadId] of pending) {
-      pollThumbnail(assetId, uploadId)
-    }
+    if (sseReconnectAttempts >= SSE_MAX_ATTEMPTS) return
+    sseReconnectAttempts++
+    if (sseReconnectTimer) clearTimeout(sseReconnectTimer)
+    sseReconnectTimer = setTimeout(() => {
+      sseReconnectTimer = null
+      sseReconnectDelay = Math.min(sseReconnectDelay * 2, 30000)
+      connectSSE()
+    }, sseReconnectDelay)
   }
 }
 
@@ -119,6 +126,8 @@ async function pollThumbnail(assetId: string, uploadId: string, retries = 5) {
   // Exhausted retries — mark done so the spinner doesn't stay forever
   uploadsStore.update(uploadId, { status: 'done' })
 }
+
+connectSSE()
 
 export const assetsStore = {
   get assets() { return assets },
@@ -217,16 +226,11 @@ export const assetsStore = {
 
           // Register for SSE notification
           pendingThumbnails.set(asset.id, id)
-          ensureSSE()
 
           // 30s timeout: fall back to polling if SSE hasn't delivered
           setTimeout(() => {
             if (pendingThumbnails.has(asset.id)) {
               pendingThumbnails.delete(asset.id)
-              if (pendingThumbnails.size === 0) {
-                sseSource?.close()
-                sseSource = null
-              }
               pollThumbnail(asset.id, id)
             }
           }, 30_000)

@@ -16,6 +16,7 @@ type Event struct {
 	Type         string `json:"type"`
 	AssetID      string `json:"asset_id"`
 	ThumbnailKey string `json:"thumbnail_key"`
+	JobID        string `json:"job_id,omitempty"`
 }
 
 type EventHub interface {

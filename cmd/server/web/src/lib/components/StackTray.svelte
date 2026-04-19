@@ -3,6 +3,7 @@
   import { Layers, X } from '@lucide/svelte'
   import { slide } from 'svelte/transition'
   import StackPanel from './StackPanel.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   const MAX_THUMBS = 5
 
@@ -22,7 +23,7 @@
 {#if stackStore.count > 0}
   <div
     transition:slide={{ duration: 200, axis: 'y' }}
-    class="fixed bottom-0 left-64 right-0 z-40 flex h-14 items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 shadow-lg dark:border-amber-800 dark:bg-amber-950"
+    class="fixed bottom-10 left-64 right-0 z-40 flex h-14 items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 shadow-lg dark:border-amber-800 dark:bg-amber-950 opacity-[92%]"
   >
     <!-- Thumbnail strip -->
     <div class="flex items-center -space-x-2">
@@ -51,7 +52,7 @@
       onclick={() => stackStore.togglePanel()}
     >
       <Layers class="h-4 w-4" />
-      {stackStore.label ?? 'Stack'} ({stackStore.count})
+      {stackStore.label ?? m.stack()} ({stackStore.count})
     </button>
 
     <!-- Spacer -->
@@ -67,7 +68,7 @@
       onclick={handleClear}
     >
       <X class="h-4 w-4" />
-      {confirmClear ? `Clear ${stackStore.count} items?` : 'Clear'}
+      {confirmClear ? m.clear_items({ count: stackStore.count }) : m.clear_all()}
     </button>
   </div>
 {/if}

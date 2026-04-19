@@ -1,10 +1,17 @@
 <script lang="ts">
   import { stackStore } from '$lib/stores/stack.svelte'
-  import { stackApi, collectionApi, shareApi, jobApi, projectApi } from '$lib/api'
+  import { stackApi, collectionApi, shareApi, projectApi } from '$lib/api'
+  import { sseEvents } from '$lib/stores/assets.svelte'
   import type { Project } from '$lib/api'
   import { X, Layers, Trash2, Tag, Download, FolderInput, Save, Loader, Share2, Copy, Check } from '@lucide/svelte'
   import { fly } from 'svelte/transition'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { m } from '$lib/paraglide/messages'
+  import ButtonCancel from './ui/ButtonCancel.svelte'
+  import Hint from './ui/Hint.svelte'
+  import Button from './ui/Button.svelte'
+  import ButtonCopy from './ui/ButtonCopy.svelte'
+  import ButtonDelete from './ui/ButtonDelete.svelte'
 
   let labelInput = $state(stackStore.label ?? '')
   $effect(() => { labelInput = stackStore.label ?? '' })
@@ -38,10 +45,24 @@
   let mergeType = $state<'gif' | 'pdf'>('gif')
   let mergeStatus = $state<string | null>(null)
   let showMergeForm = $state(false)
-  let pollAborted = $state(false)
+  let pendingMergeJobId = $state<string | null>(null)
+  let mergeTimeout: ReturnType<typeof setTimeout> | null = null
 
   $effect(() => {
-    return () => { pollAborted = true }
+    const ev = sseEvents.last
+    if (ev?.type === 'stack_merge_done' && ev.job_id === pendingMergeJobId) {
+      if (mergeTimeout) { clearTimeout(mergeTimeout); mergeTimeout = null }
+      pendingMergeJobId = null
+      merging = false
+      mergeStatus = null
+      toastStore.show(m.merge_complete_asset_created(), 'success')
+    }
+  })
+
+  $effect(() => {
+    return () => {
+      if (mergeTimeout) clearTimeout(mergeTimeout)
+    }
   })
 
   function handleLabelBlur() {
@@ -53,7 +74,7 @@
     try {
       await stackApi.exportZip(stackStore.ids, stackStore.label ?? 'stack-export')
     } catch (e: any) {
-      toastStore.show(e?.message ?? 'Download failed', 'error')
+      toastStore.show(e?.message ?? m.download_failed(), 'error')
     } finally {
       downloading = false
     }
@@ -64,11 +85,11 @@
     savingCollection = true
     try {
       await collectionApi.create(collectionName.trim(), '', stackStore.ids)
-      toastStore.show('Collection saved', 'success')
+      toastStore.show(m.collection_saved(), 'success')
       showCollectionForm = false
       collectionName = ''
     } catch (e: any) {
-      toastStore.show(e?.message ?? 'Save failed', 'error')
+      toastStore.show(e?.message ?? m.save_failed(), 'error')
     } finally {
       savingCollection = false
     }
@@ -100,7 +121,7 @@
       })
       shareUrl = share.public_url
     } catch (e: any) {
-      toastStore.show(e?.message ?? 'Share failed', 'error')
+      toastStore.show(e?.message ?? m.share_failed(), 'error')
     } finally {
       sharing = false
     }
@@ -136,9 +157,9 @@
         credentials: 'include',
         body: JSON.stringify({ asset_ids: stackStore.ids, project_id: project.id }),
       })
-      toastStore.show(`${stackStore.count} asset${stackStore.count === 1 ? '' : 's'} moved to ${project.name}`, 'success')
+      toastStore.show(m.assets_moved_to({ count: stackStore.count, name: project.name }), 'success')
     } catch (e: any) {
-      toastStore.show(e?.message ?? 'Move failed', 'error')
+      toastStore.show(e?.message ?? (m.move_failed()), 'error')
     } finally {
       movingToProject = false
     }
@@ -150,36 +171,19 @@
     try {
       const jobId = await stackApi.merge(stackStore.ids, mergeType, stackStore.label ?? 'stack-merge')
       showMergeForm = false
-      pollMergeJob(jobId)
+      pendingMergeJobId = jobId
+      mergeTimeout = setTimeout(() => {
+        if (pendingMergeJobId === jobId) {
+          pendingMergeJobId = null
+          merging = false
+          mergeStatus = null
+          toastStore.show(m.merge_timed_out(), 'error')
+        }
+      }, 30000)
     } catch (e: any) {
-      toastStore.show(e?.message ?? 'Merge failed', 'error')
+      toastStore.show(e?.message ?? m.merge_failed(), 'error')
       merging = false
       mergeStatus = null
-    }
-  }
-
-  async function pollMergeJob(jobId: string) {
-    let delay = 2000
-    while (!pollAborted) {
-      await new Promise(r => setTimeout(r, delay))
-      if (pollAborted) break
-      try {
-        const job = await jobApi.get(jobId)
-        mergeStatus = job.status
-        if (job.status === 'done') {
-          merging = false
-          toastStore.show('Merge complete — asset created', 'success')
-          return
-        }
-        if (job.status === 'failed') {
-          merging = false
-          toastStore.show('Merge failed: ' + (job.error ?? 'unknown error'), 'error')
-          return
-        }
-      } catch {
-        // Ignore poll errors, keep trying
-      }
-      delay = Math.min(delay * 2, 10000)
     }
   }
 </script>
@@ -189,7 +193,7 @@
   type="button"
   class="fixed inset-0 z-40 bg-black/20 dark:bg-black/40"
   onclick={() => stackStore.closePanel()}
-  aria-label="Close stack panel"
+  aria-label={m.close()}
 ></button>
 
 <!-- Panel -->
@@ -202,24 +206,18 @@
     <div class="flex items-center gap-2">
       <Layers class="h-5 w-5 text-amber-500" />
       <span class="text-base font-semibold text-gray-900 dark:text-gray-100">
-        Working Stack
+        {m.working_stack()}
         <span class="ml-1 text-sm font-normal text-gray-400">({stackStore.count})</span>
       </span>
     </div>
-    <button
-      type="button"
-      class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
-      onclick={() => stackStore.closePanel()}
-    >
-      <X class="h-4 w-4" />
-    </button>
+    <ButtonCancel x onclick={() => stackStore.closePanel()} />
   </div>
 
   <!-- Label input -->
   <div class="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
     <input
       type="text"
-      placeholder="Label this stack…"
+      placeholder={m.stack_label()}
       bind:value={labelInput}
       onblur={handleLabelBlur}
       class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
@@ -231,7 +229,7 @@
     {#if stackStore.count === 0}
       <div class="flex flex-col items-center justify-center gap-2 py-16 text-gray-400">
         <Layers class="h-10 w-10 opacity-30" />
-        <p class="text-sm">Stack is empty</p>
+        <Hint>{m.stack_is_empty()}</Hint>
       </div>
     {:else}
       <div class="flex flex-col gap-1">
@@ -249,14 +247,10 @@
             <p class="flex-1 truncate text-sm text-gray-800 dark:text-gray-200" title={asset.name}>
               {asset.name}
             </p>
-            <button
-              type="button"
-              class="shrink-0 rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-gray-700 dark:text-gray-600 dark:hover:text-gray-400"
+            <ButtonCancel x
               onclick={() => stackStore.remove(asset.id)}
-              title="Remove from stack"
-            >
-              <X class="h-3.5 w-3.5" />
-            </button>
+              title={m.remove_from_stack()}
+            />
           </div>
         {/each}
       </div>
@@ -281,7 +275,7 @@
         {:else}
           <Download class="h-4 w-4" />
         {/if}
-        {downloading ? 'Downloading…' : 'Download as ZIP'}
+        {downloading ? m.downloading() : m.download_zip()}
       </button>
 
       <!-- Save as Collection -->
@@ -289,7 +283,7 @@
         <div class="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
           <input
             type="text"
-            placeholder="Collection name…"
+            placeholder={m.collection_name()}
             bind:value={collectionName}
             class="w-full rounded border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           />
@@ -300,15 +294,11 @@
               onclick={handleSaveCollection}
               class="flex-1 rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {savingCollection ? 'Saving…' : 'Save'}
+              {savingCollection ? m.saving() : m.save()}
             </button>
-            <button
-              type="button"
+            <ButtonCancel
               onclick={() => { showCollectionForm = false; collectionName = '' }}
-              class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </button>
+            />
           </div>
         </div>
       {:else}
@@ -322,14 +312,14 @@
               : 'text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800'}"
         >
           <Save class="h-4 w-4" />
-          Save as Collection
+          {m.collection_save_as()}
         </button>
       {/if}
 
       <!-- Share stack — WS-5 -->
       {#if shareUrl}
         <div class="flex flex-col gap-1.5 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-          <p class="text-xs font-medium text-green-700 dark:text-green-300">Share link ready</p>
+          <p class="text-xs font-medium text-green-700 dark:text-green-300">{m.share_link_ready()}</p>
           <div class="flex gap-2">
             <input
               type="text"
@@ -337,30 +327,19 @@
               value={shareUrl}
               class="min-w-0 flex-1 rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
             />
-            <button
-              type="button"
+            <ButtonCopy
+              {copied}
               onclick={handleCopyLink}
-              class="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              {#if copied}
-                <Check class="h-3.5 w-3.5 text-green-500" />
-              {:else}
-                <Copy class="h-3.5 w-3.5" />
-              {/if}
-            </button>
+            />
           </div>
-          <button
-            type="button"
-            onclick={() => { shareUrl = null }}
-            class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-left"
-          >Dismiss</button>
+          <ButtonCancel onclick={() => { shareUrl = null }}>{m.dismiss()}</ButtonCancel>
         </div>
       {:else if showShareNameForm}
         <div class="flex flex-col gap-1.5 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-          <p class="text-xs font-medium text-green-700 dark:text-green-300">Name this collection to share it</p>
+          <p class="text-xs font-medium text-green-700 dark:text-green-300">{m.collection_name_to_share()}</p>
           <input
             type="text"
-            placeholder="Collection name…"
+            placeholder={m.collection_name()}
             bind:value={shareNameInput}
             class="w-full rounded border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-green-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           />
@@ -371,13 +350,12 @@
               onclick={() => doShare(shareNameInput.trim())}
               class="flex-1 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {sharing ? 'Sharing…' : 'Share'}
+              {sharing ? m.sharing() : m.share()}
             </button>
-            <button
-              type="button"
+            <ButtonCancel
               onclick={() => { showShareNameForm = false }}
               class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-            >Cancel</button>
+            />
           </div>
         </div>
       {:else}
@@ -392,10 +370,10 @@
         >
           {#if sharing}
             <Loader class="h-4 w-4 animate-spin" />
-            Sharing…
+            {m.sharing()}
           {:else}
             <Share2 class="h-4 w-4" />
-            Share as Collection
+            {m.share_as_collection()}
           {/if}
         </button>
       {/if}
@@ -414,7 +392,7 @@
               <Loader class="h-4 w-4 animate-spin text-gray-400" />
             </div>
           {:else if filteredProjects.length === 0}
-            <p class="py-2 text-center text-xs text-gray-400">No projects found</p>
+            <p class="py-2 text-center text-xs text-gray-400">{m.no_projects()}</p>
           {:else}
             <div class="max-h-40 overflow-y-auto">
               {#each filteredProjects as project (project.id)}
@@ -429,11 +407,9 @@
               {/each}
             </div>
           {/if}
-          <button
-            type="button"
+          <ButtonCancel
             onclick={() => { showProjectPicker = false }}
-            class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-left"
-          >Cancel</button>
+          />
         </div>
       {:else}
         <button
@@ -447,10 +423,10 @@
         >
           {#if movingToProject}
             <Loader class="h-4 w-4 animate-spin" />
-            Moving…
+            {m.moving()}
           {:else}
             <FolderInput class="h-4 w-4" />
-            Move to Project
+            {m.move_to_project()}
           {/if}
         </button>
       {/if}
@@ -479,15 +455,11 @@
               onclick={handleMerge}
               class="flex-1 rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {merging ? 'Merging…' : 'Merge'}
+              {merging ? m.merging({ status: mergeStatus ?? '' }) : m.merge()}
             </button>
-            <button
-              type="button"
+            <ButtonCancel
               onclick={() => showMergeForm = false}
-              class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </button>
+            />
           </div>
         </div>
       {:else}
@@ -502,10 +474,10 @@
         >
           {#if merging}
             <Loader class="h-4 w-4 animate-spin" />
-            Merging ({mergeStatus})…
+            {m.merging({ status: mergeStatus ?? '' })}
           {:else}
             <Tag class="h-4 w-4" />
-            Merge as GIF / PDF
+            {m.merge_to_common()}
           {/if}
         </button>
       {/if}
@@ -518,7 +490,7 @@
       onclick={() => { stackStore.clear(); stackStore.closePanel() }}
     >
       <Trash2 class="h-4 w-4" />
-      Clear stack
+      {m.clear_all()}
     </button>
   </div>
 </div>
