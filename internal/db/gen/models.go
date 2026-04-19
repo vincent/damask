@@ -79,6 +79,23 @@ type AssetsFt struct {
 	OriginalFilename string `json:"original_filename"`
 }
 
+type Collection struct {
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspace_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedBy   string    `json:"created_by"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type CollectionAsset struct {
+	CollectionID string    `json:"collection_id"`
+	AssetID      string    `json:"asset_id"`
+	Position     int64     `json:"position"`
+	AddedAt      time.Time `json:"added_at"`
+}
+
 type FieldDefinition struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`
@@ -155,6 +172,7 @@ type Job struct {
 	Status      string    `json:"status"`
 	Attempts    int64     `json:"attempts"`
 	Error       *string   `json:"error"`
+	Result      *string   `json:"result"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

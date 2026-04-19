@@ -780,6 +780,88 @@ export const activityApi = {
   },
 }
 
+/** Stack endpoints — export as ZIP. */
+export const stackApi = {
+  /** POST /api/v1/stack/export — download stacked assets as a ZIP file. */
+  exportZip: async (assetIds: string[], filename = 'stack-export'): Promise<void> => {
+    const res = await fetch(`${API_BASE}/api/v1/stack/export`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asset_ids: assetIds, filename }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(body.error ?? res.statusText)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${filename}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  /** POST /api/v1/stack/merge — enqueue a GIF or PDF merge job. Returns job_id. */
+  merge: async (assetIds: string[], outputType: 'gif' | 'pdf', filename = 'stack-merge', gifFrameMs = 500): Promise<string> => {
+    const res = await apiFetch<{ job_id: string }>('/api/v1/stack/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asset_ids: assetIds, output_type: outputType, filename, gif_frame_ms: gifFrameMs }),
+    })
+    return res.job_id
+  },
+}
+
+export interface Collection {
+  id: string
+  workspace_id: string
+  name: string
+  description: string
+  created_by: string
+  asset_count: number
+  created_at: string
+  updated_at: string
+}
+
+export const collectionApi = {
+  list: (): Promise<Collection[]> => apiFetch('/api/v1/collections'),
+  create: (name: string, description = '', assetIds: string[] = []): Promise<Collection> =>
+    apiFetch('/api/v1/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, asset_ids: assetIds }),
+    }),
+  get: (id: string): Promise<Collection & { assets: import('./models').Asset[] }> =>
+    apiFetch(`/api/v1/collections/${id}`),
+  update: (id: string, name: string, description = ''): Promise<Collection> =>
+    apiFetch(`/api/v1/collections/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description }),
+    }),
+  delete: (id: string): Promise<void> => apiFetch(`/api/v1/collections/${id}`, { method: 'DELETE' }),
+  addAsset: (collectionId: string, assetId: string): Promise<void> =>
+    apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, { method: 'POST' }),
+  removeAsset: (collectionId: string, assetId: string): Promise<void> =>
+    apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, { method: 'DELETE' }),
+}
+
+export interface JobStatus {
+  id: string
+  type: string
+  status: 'pending' | 'processing' | 'done' | 'failed'
+  error?: string
+  result?: string
+  created_at: string
+  updated_at: string
+}
+
+export const jobApi = {
+  get: (id: string): Promise<JobStatus> => apiFetch(`/api/v1/jobs/${id}`),
+}
+
 /**
  * Maps a MIME type string to a broad asset category.
  * @param mimeType MIME type string (e.g., "image/jpeg")

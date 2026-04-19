@@ -3,6 +3,7 @@
   import { assetApi, type Asset, type MenuItem } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
+  import { stackStore } from '$lib/stores/stack.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
@@ -52,7 +53,8 @@
   const rb = createRubberBand(() => mainEl)
 
   function handleCardClick(asset: Asset, index: number, event: MouseEvent) {
-    const handled = selectionStore.handleCardClick(
+    // In stack mode, shift-click selection is disabled — plain click falls through to lightbox
+    const handled = !stackStore.active && selectionStore.handleCardClick(
       asset,
       index,
       assetsStore.assets,

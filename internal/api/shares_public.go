@@ -1,11 +1,15 @@
 package api
 
 import (
+	"archive/zip"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime"
 	"strconv"
+	"strings"
 	"time"
 
 	"damask/server/internal/auth"
@@ -247,8 +251,11 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 		}
 
 	case "collection":
-		// Collections not yet implemented — return empty list
-		assets = []dbgen.Asset{}
+		colAssets, err := s.db.ListCollectionAssets(c.RequestCtx(), sc.TargetID)
+		if err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "could not list collection assets")
+		}
+		assets = colAssets
 	}
 
 	items := make([]AssetResponse, len(assets))
@@ -692,6 +699,144 @@ func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// ── WS-5: anonymous ZIP export for shared collections ────────────────────────
+
+// @Summary Download shared assets as ZIP (public)
+// @Description Streams a ZIP archive of all assets accessible via the share. Works for <code>asset</code>, <code>project</code>, and <code>collection</code> target types. Requires the share to have <code>allow_download: true</code> and a valid share session token. The ZIP is scoped strictly to the share's target — it cannot expose assets outside it.
+// @Tags Public Shares
+// @Produce application/zip
+// @Security BearerAuth
+// @Param id path string true "Share ID"
+// @Success 200 {file} binary "ZIP archive"
+// @Failure 401 {object} ErrorResponse "Not authenticated (share token required)"
+// @Failure 403 {object} ErrorResponse "Download not allowed for this share"
+// @Failure 404 {object} ErrorResponse "Share not found or expired"
+// @Router /shared/{id}/export [get]
+// GET /shared/:id/export — requires a valid share session token and allow_download.
+func (s *Server) handleShareExport(c fiber.Ctx) error {
+	sc := auth.GetShareClaims(c)
+	shareID := c.Params("id")
+
+	if !sc.AllowDownload {
+		return errRes(c, fiber.StatusForbidden, "download not allowed for this share")
+	}
+
+	if err := s.reCheckShare(c, shareID); err != nil {
+		return err
+	}
+
+	// Collect asset storage keys scoped strictly to this share's target.
+	type entry struct {
+		name       string
+		storageKey string
+	}
+	var entries []entry
+	var missingNames []string
+	usedNames := map[string]int{}
+
+	var query string
+	var arg interface{}
+	switch sc.TargetType {
+	case "asset":
+		query = `SELECT a.original_filename, v.storage_key
+			FROM assets a
+			JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
+			WHERE a.id = ?`
+		arg = sc.TargetID
+	case "project":
+		query = `SELECT a.original_filename, v.storage_key
+			FROM assets a
+			JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
+			WHERE a.project_id = ?`
+		arg = sc.TargetID
+	case "collection":
+		query = `SELECT a.original_filename, v.storage_key
+			FROM assets a
+			JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
+			JOIN collection_assets ca ON ca.asset_id = a.id
+			WHERE ca.collection_id = ?
+			ORDER BY ca.position ASC, ca.added_at ASC`
+		arg = sc.TargetID
+	default:
+		return errRes(c, fiber.StatusBadRequest, "unsupported share target type")
+	}
+
+	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, arg)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var origName, storageKey string
+		if err := rows.Scan(&origName, &storageKey); err != nil {
+			return errRes(c, fiber.StatusInternalServerError, "scan failed")
+		}
+		base := origName
+		usedNames[base]++
+		name := base
+		if usedNames[base] > 1 {
+			ext := ""
+			stem := base
+			if dot := strings.LastIndex(base, "."); dot >= 0 {
+				stem = base[:dot]
+				ext = base[dot:]
+			}
+			name = fmt.Sprintf("%s_%d%s", stem, usedNames[base], ext)
+		}
+		entries = append(entries, entry{name: name, storageKey: storageKey})
+	}
+
+	share, err := s.db.GetShareByID(c.RequestCtx(), shareID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load share")
+	}
+	filename := sanitiseFilename(share.Label)
+	if filename == "" {
+		filename = "collection-export"
+	}
+
+	c.Set("Content-Type", "application/zip")
+	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename + ".zip"}))
+
+	preMissing := append([]string(nil), missingNames...)
+	pr, pw := io.Pipe()
+	go func() {
+		zw := zip.NewWriter(pw)
+		missing := preMissing
+		for _, e := range entries {
+			rc, err := s.storage.Get(e.storageKey)
+			if err != nil {
+				missing = append(missing, e.name)
+				continue
+			}
+			fw, err := zw.Create(e.name)
+			if err != nil {
+				_ = rc.Close()
+				missing = append(missing, e.name)
+				continue
+			}
+			if _, err := io.Copy(fw, rc); err != nil {
+				slog.Warn("share zip copy error", "name", e.name, "err", err)
+			}
+			_ = rc.Close()
+		}
+		if len(missing) > 0 {
+			if fw, err := zw.Create("_missing_files.txt"); err == nil {
+				for _, n := range missing {
+					_, _ = fmt.Fprintln(fw, n)
+				}
+			}
+		}
+		if err := zw.Close(); err != nil {
+			_ = pw.CloseWithError(err)
+		} else {
+			_ = pw.Close()
+		}
+	}()
+
+	return c.SendStream(pr)
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 // reCheckShare re-validates that the share is still active (not revoked, not expired).
@@ -729,8 +874,12 @@ func (s *Server) assertAssetInShare(c fiber.Ctx, sc *auth.ShareClaims, assetID s
 			return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
 		}
 	case "collection":
-		// Collections not yet implemented — reject all
-		return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
+		row := s.sqlDB.QueryRowContext(c.RequestCtx(),
+			`SELECT COUNT(1) FROM collection_assets WHERE collection_id = ? AND asset_id = ?`, sc.TargetID, assetID)
+		var count int
+		if err := row.Scan(&count); err != nil || count == 0 {
+			return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
+		}
 	}
 	return nil
 }

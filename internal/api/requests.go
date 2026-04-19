@@ -647,6 +647,83 @@ func (r *BulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string
 	return p
 }
 
+// -- stack_export.go ----------------------------------------------------------
+
+type stackExportRequest struct {
+	AssetIDs []string `json:"asset_ids"`
+	Filename string   `json:"filename"`
+}
+
+func (r *stackExportRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Filename = strings.TrimSpace(r.Filename)
+	if r.Filename == "" {
+		r.Filename = "stack-export"
+	}
+	if len(r.AssetIDs) == 0 {
+		p["asset_ids"] = "required"
+	}
+	return p
+}
+
+// -- stack_merge.go -----------------------------------------------------------
+
+type stackMergeRequest struct {
+	AssetIDs   []string `json:"asset_ids"`
+	OutputType string   `json:"output_type"`
+	Filename   string   `json:"filename"`
+	GifFrameMs int      `json:"gif_frame_ms"`
+}
+
+func (r *stackMergeRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if len(r.AssetIDs) < 2 {
+		p["asset_ids"] = "at least 2 assets required"
+	}
+	if r.OutputType != "gif" && r.OutputType != "pdf" {
+		p["output_type"] = "must be gif or pdf"
+	}
+	r.Filename = strings.TrimSpace(r.Filename)
+	if r.Filename == "" {
+		r.Filename = "stack-merge"
+	}
+	if r.GifFrameMs <= 0 {
+		r.GifFrameMs = 500
+	}
+	return p
+}
+
+// -- collections.go -----------------------------------------------------------
+
+type createCollectionRequest struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	AssetIDs    []string `json:"asset_ids"`
+}
+
+func (r *createCollectionRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Name = strings.TrimSpace(r.Name)
+	if r.Name == "" {
+		p["name"] = "required"
+	}
+	return p
+}
+
+type updateCollectionRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func (r *updateCollectionRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Name = strings.TrimSpace(r.Name)
+	if r.Name == "" {
+		p["name"] = "required"
+	}
+	return p
+}
+
 // -- custom_fields_project_values.go ------------------------------------------
 
 type PatchProjectFieldsRequest struct {

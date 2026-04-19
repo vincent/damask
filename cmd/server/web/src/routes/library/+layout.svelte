@@ -18,6 +18,7 @@
   import { m } from '$lib/paraglide/messages'
   import BottomStatusBar from '$lib/components/BottomStatusBar.svelte'
   import Hint from '$lib/components/ui/Hint.svelte'
+  import StackTray from '$lib/components/StackTray.svelte'
   
   let { children }: { data: any, children: Snippet } = $props()
 
@@ -234,5 +235,6 @@
     {@render children?.()}
 
     <BottomStatusBar />
+    <StackTray />
   </div>
 </div>

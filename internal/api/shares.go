@@ -197,8 +197,14 @@ func (s *Server) validateShareTarget(workspaceID, targetType, targetID string) e
 			return err
 		}
 	case "collection":
-		// Collections are not yet implemented; accept any non-empty id.
-		return nil
+		count, err := s.db.CollectionBelongsToWorkspace(bgCtx, dbgen.CollectionBelongsToWorkspaceParams{
+			ID:          targetID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			return err
+		}
+		notFound = count == 0
 	}
 
 	if notFound {

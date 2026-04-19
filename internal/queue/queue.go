@@ -214,6 +214,9 @@ const (
 	// EXIF extraction.
 	JobTypeExtractExif = "extract_exif"
 
+	// Stack merge jobs.
+	JobTypeStackMerge = "stack_merge"
+
 	// Maintenance jobs.
 	JobTypePurgeDeletedFields      = "purge_deleted_fields"
 	JobTypeEnforceVersionRetention = "enforce_version_retention"

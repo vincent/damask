@@ -1,10 +1,12 @@
 <script lang="ts">
   import { tagApi, assetApi, type Project } from '$lib/api'
-  import { SquareArrowRightExit, Tag } from '@lucide/svelte'
+  import { Layers, SquareArrowRightExit, Tag } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { stackStore, assetToStack } from '$lib/stores/stack.svelte'
+  import { assetsStore } from '$lib/stores/assets.svelte'
 
   interface Props {
     selectedIds: Set<string>
@@ -14,6 +16,15 @@
   }
 
   let { selectedIds, projects, ondone, onclear }: Props = $props()
+
+  function promoteToStack() {
+    const resolved = [...selectedIds].map(id => assetsStore.assets.find(a => a.id === id))
+    const missing = resolved.filter(a => a == null).length
+    if (missing > 0) console.warn(`promoteToStack: ${missing} selected asset(s) not in loaded list — skipped`)
+    const stackAssets = resolved.filter(a => a != null).map(a => assetToStack(a, assetApi.thumbUrl(a.id)))
+    stackStore.fromSelection(stackAssets)
+    onclear()
+  }
 
   let tagInput = $state('')
   let busy = $state(false)
@@ -132,6 +143,13 @@
       {#if authStore.role === 'owner'}
         <ButtonDelete title={m.bulk_delete_variants()} onclick={bulkDelete} />
       {/if}
+
+      <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
+
+      <Button variant="ghost" size="sm" disabled={busy || stackStore.active} onclick={promoteToStack}>
+        {#snippet icon()}<Layers class="h-4 w-4" />{/snippet}
+        Create stack ({selectedIds.size}) →
+      </Button>
 
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 

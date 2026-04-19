@@ -1,0 +1,77 @@
+<script lang="ts">
+  import { stackStore } from '$lib/stores/stack.svelte'
+  import { Layers, X } from '@lucide/svelte'
+  import { slide } from 'svelte/transition'
+  import StackPanel from './StackPanel.svelte'
+
+  const MAX_THUMBS = 5
+
+  let confirmClear = $state(false)
+
+  function handleClear() {
+    if (confirmClear) {
+      stackStore.clear()
+      confirmClear = false
+    } else {
+      confirmClear = true
+      setTimeout(() => { confirmClear = false }, 2500)
+    }
+  }
+</script>
+
+{#if stackStore.count > 0}
+  <div
+    transition:slide={{ duration: 200, axis: 'y' }}
+    class="fixed bottom-0 left-64 right-0 z-40 flex h-14 items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 shadow-lg dark:border-amber-800 dark:bg-amber-950"
+  >
+    <!-- Thumbnail strip -->
+    <div class="flex items-center -space-x-2">
+      {#each stackStore.assets.slice(0, MAX_THUMBS) as asset (asset.id)}
+        <div class="h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 border-amber-100 dark:border-amber-900" title={asset.name}>
+          {#if asset.thumbnailUrl}
+            <img src={asset.thumbnailUrl} alt={asset.name} class="h-full w-full object-cover" />
+          {:else}
+            <div class="flex h-full w-full items-center justify-center bg-amber-200 dark:bg-amber-800">
+              <Layers class="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+          {/if}
+        </div>
+      {/each}
+      {#if stackStore.count > MAX_THUMBS}
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-2 border-amber-100 bg-amber-200 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-800 dark:text-amber-300">
+          +{stackStore.count - MAX_THUMBS}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Stack label / count -->
+    <button
+      type="button"
+      class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900"
+      onclick={() => stackStore.togglePanel()}
+    >
+      <Layers class="h-4 w-4" />
+      {stackStore.label ?? 'Stack'} ({stackStore.count})
+    </button>
+
+    <!-- Spacer -->
+    <div class="flex-1"></div>
+
+    <!-- Clear button -->
+    <button
+      type="button"
+      class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-medium transition-colors
+        {confirmClear
+          ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'
+          : 'text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900'}"
+      onclick={handleClear}
+    >
+      <X class="h-4 w-4" />
+      {confirmClear ? `Clear ${stackStore.count} items?` : 'Clear'}
+    </button>
+  </div>
+{/if}
+
+{#if stackStore.panelOpen}
+  <StackPanel />
+{/if}

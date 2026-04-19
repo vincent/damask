@@ -15,7 +15,7 @@ SET status = 'processing', attempts = attempts + 1, updated_at = datetime('now')
 WHERE id = (
     SELECT id FROM jobs WHERE status = 'pending' ORDER BY created_at ASC LIMIT 1
 )
-RETURNING id, workspace_id, type, payload, status, attempts, error, created_at, updated_at
+RETURNING id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at
 `
 
 func (q *Queries) ClaimNextJob(ctx context.Context) (Job, error) {
@@ -29,6 +29,7 @@ func (q *Queries) ClaimNextJob(ctx context.Context) (Job, error) {
 		&i.Status,
 		&i.Attempts,
 		&i.Error,
+		&i.Result,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -41,6 +42,20 @@ UPDATE jobs SET status = 'done', updated_at = datetime('now') WHERE id = ?
 
 func (q *Queries) CompleteJob(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, completeJob, id)
+	return err
+}
+
+const completeJobWithResult = `-- name: CompleteJobWithResult :exec
+UPDATE jobs SET status = 'done', result = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type CompleteJobWithResultParams struct {
+	Result *string `json:"result"`
+	ID     string  `json:"id"`
+}
+
+func (q *Queries) CompleteJobWithResult(ctx context.Context, arg CompleteJobWithResultParams) error {
+	_, err := q.db.ExecContext(ctx, completeJobWithResult, arg.Result, arg.ID)
 	return err
 }
 
@@ -58,7 +73,7 @@ func (q *Queries) CountPendingJobs(ctx context.Context) (int64, error) {
 const createJob = `-- name: CreateJob :one
 INSERT INTO jobs (id, workspace_id, type, payload, status)
 VALUES (?, ?, ?, ?, 'pending')
-RETURNING id, workspace_id, type, payload, status, attempts, error, created_at, updated_at
+RETURNING id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at
 `
 
 type CreateJobParams struct {
@@ -84,6 +99,43 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 		&i.Status,
 		&i.Attempts,
 		&i.Error,
+		&i.Result,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createJobForWorkspace = `-- name: CreateJobForWorkspace :one
+INSERT INTO jobs (id, workspace_id, type, payload, status)
+VALUES (?, ?, ?, ?, 'pending')
+RETURNING id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at
+`
+
+type CreateJobForWorkspaceParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Type        string `json:"type"`
+	Payload     string `json:"payload"`
+}
+
+func (q *Queries) CreateJobForWorkspace(ctx context.Context, arg CreateJobForWorkspaceParams) (Job, error) {
+	row := q.db.QueryRowContext(ctx, createJobForWorkspace,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.Type,
+		arg.Payload,
+	)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Type,
+		&i.Payload,
+		&i.Status,
+		&i.Attempts,
+		&i.Error,
+		&i.Result,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -102,6 +154,28 @@ type FailJobParams struct {
 func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) error {
 	_, err := q.db.ExecContext(ctx, failJob, arg.Error, arg.ID)
 	return err
+}
+
+const getJobByID = `-- name: GetJobByID :one
+SELECT id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at FROM jobs WHERE id = ?
+`
+
+func (q *Queries) GetJobByID(ctx context.Context, id string) (Job, error) {
+	row := q.db.QueryRowContext(ctx, getJobByID, id)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Type,
+		&i.Payload,
+		&i.Status,
+		&i.Attempts,
+		&i.Error,
+		&i.Result,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const requeueStalledJobs = `-- name: RequeueStalledJobs :exec

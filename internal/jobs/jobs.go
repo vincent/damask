@@ -101,6 +101,9 @@ func (s *JobServer) RegisterJobHandlers() {
 	// EXIF extraction.
 	reg(queue.JobTypeExtractExif, s.jobExtractExif)
 
+	// Stack merge jobs.
+	reg(queue.JobTypeStackMerge, s.jobStackMerge)
+
 	// Maintenance jobs.
 	reg(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
 	reg(queue.JobTypeEnforceVersionRetention, s.jobEnforceVersionRetention)

@@ -9,6 +9,7 @@
   import AssetIcon from '$lib/components/AssetIcon.svelte'
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import { CATEGORY_BORDER, CATEGORY_ICON_BG, CATEGORY_LABELS, CATEGORY_ORDER } from '$lib/stores/shared'
+  import { stackStore } from '$lib/stores/stack.svelte'
   import { CloudUpload, Inbox, Loader } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
@@ -121,7 +122,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main
   bind:this={mainEl}
-  class="library-content relative flex-1 overflow-y-auto px-6 py-6"
+  class="library-content relative flex-1 overflow-y-auto px-6 py-6 {stackStore.count > 0 ? 'pb-20' : ''}"
   ondragover={onDragOver}
   ondragleave={onDragLeave}
   ondrop={onDrop}
@@ -132,7 +133,7 @@
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
         <div class="relative" data-asset-id={asset.id}>
-          {#if selectionStore.selectedIds.has(asset.id)}
+          {#if !stackStore.active && selectionStore.selectedIds.has(asset.id)}
             <div class="pointer-events-none absolute inset-0 z-5 rounded-lg ring-2 ring-indigo-500">
               <div class="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
                 <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

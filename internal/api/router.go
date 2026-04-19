@@ -199,6 +199,22 @@ func NewRouter(
 	api.Put("/folders/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateFolder)
 	api.Delete("/folders/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteFolder)
 
+	// Stack — export and merge
+	api.Post("/stack/export", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleStackExport)
+	api.Post("/stack/merge", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleStackMerge)
+
+	// Collections
+	api.Get("/collections", s.handleListCollections)
+	api.Post("/collections", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateCollection)
+	api.Get("/collections/:id", s.handleGetCollection)
+	api.Put("/collections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateCollection)
+	api.Delete("/collections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteCollection)
+	api.Post("/collections/:id/assets/:aid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAddCollectionAsset)
+	api.Delete("/collections/:id/assets/:aid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRemoveCollectionAsset)
+
+	// Jobs — status polling (for async merge results)
+	api.Get("/jobs/:id", auth.RequireAuth(tokenMaker), s.handleGetJob)
+
 	// Assets — bulk routes must be registered before /:id to avoid conflict
 	api.Post("/assets/bulk/tag", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkTag)
 	api.Post("/assets/bulk/project", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkProject)
@@ -294,6 +310,7 @@ func NewRouter(
 
 	// S-5 + S-6: content and comment endpoints require a valid share session token
 	shareGroup := app.Group("/shared/:id", auth.RequireShareSession(tokenMaker))
+	shareGroup.Get("/export", s.handleShareExport)
 	shareGroup.Get("/assets", s.handleShareListAssets)
 	shareGroup.Get("/assets/:aid", s.handleShareGetAsset)
 	shareGroup.Get("/assets/:aid/file", s.handleShareGetAssetFile)
