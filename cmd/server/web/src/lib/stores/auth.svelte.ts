@@ -5,6 +5,7 @@ export interface AuthState {
   workspace: Workspace | null
   role: string | null
   isAuthenticated: boolean
+  totalAssetCount: number
 }
 
 const state = $state<AuthState>({
@@ -12,6 +13,7 @@ const state = $state<AuthState>({
   workspace: null,
   role: null,
   isAuthenticated: false,
+  totalAssetCount: 0,
 })
 
 export const authStore = {
@@ -19,12 +21,18 @@ export const authStore = {
   get workspace() { return state.workspace },
   get role() { return state.role },
   get isAuthenticated() { return state.isAuthenticated },
+  get totalAssetCount() { return state.totalAssetCount },
 
-  login(user: User, workspace: Workspace, role: string) {
+  login(user: User, workspace: Workspace, role: string, totalAssetCount = 0) {
     state.user = user
     state.workspace = workspace
     state.role = role
     state.isAuthenticated = true
+    state.totalAssetCount = totalAssetCount
+  },
+
+  setTotalAssetCount(count: number) {
+    state.totalAssetCount = count
   },
 
   switchWorkspace(workspace: Workspace, role: string) {

@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countWorkspaceAssets = `-- name: CountWorkspaceAssets :one
+SELECT COUNT(*) FROM assets WHERE workspace_id = ?
+`
+
+func (q *Queries) CountWorkspaceAssets(ctx context.Context, workspaceID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countWorkspaceAssets, workspaceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (id, name, created_at, updated_at)
 VALUES (?, ?, datetime('now'), datetime('now'))

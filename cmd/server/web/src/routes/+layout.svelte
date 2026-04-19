@@ -14,7 +14,7 @@
 
   $effect.pre(() => {
     if (data?.user && data?.workspace && data?.role) {
-      authStore.login(data.user, data.workspace, data.role)
+      authStore.login(data.user, data.workspace, data.role, data.totalAssetCount ?? 0)
     }
     configStore.load()
   })

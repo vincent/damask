@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestCreateWorkspace_Success(t *testing.T) {
@@ -96,6 +98,36 @@ func TestWorkspaceMe_Authenticated(t *testing.T) {
 	}
 	if body.Role != auth.Owner {
 		t.Errorf("role = %q, want %q", body.Role, auth.Owner)
+	}
+}
+
+func TestWorkspaceMe_TotalAssetCount(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+
+	// No assets yet — count should be 0.
+	req := th.AuthRequest(http.MethodGet, "/api/v1/workspace/me", nil, result.Cookie)
+	resp, _ := env.App.Test(req)
+	var body api.WorkspaceMeResponse
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body.TotalAssetCount != 0 {
+		t.Errorf("expected 0 assets before upload, got %d", body.TotalAssetCount)
+	}
+
+	// Upload two assets (no project assigned).
+	for range 2 {
+		uploadReq := th.BuildUploadRequest(t, "file.jpg", th.MakeJPEG(10, 10), result.Cookie)
+		uploadResp, err := env.App.Test(uploadReq, fiber.TestConfig{Timeout: 5000})
+		if err != nil || uploadResp.StatusCode != http.StatusCreated {
+			t.Fatalf("upload failed: status=%d err=%v", uploadResp.StatusCode, err)
+		}
+	}
+
+	req = th.AuthRequest(http.MethodGet, "/api/v1/workspace/me", nil, result.Cookie)
+	resp, _ = env.App.Test(req)
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body.TotalAssetCount != 2 {
+		t.Errorf("expected 2 after upload, got %d", body.TotalAssetCount)
 	}
 }
 

@@ -13,6 +13,7 @@ export const load: LayoutLoad = async ({ url, fetch }): Promise<{
   user?: User
   workspace?: Workspace
   role?: string
+  totalAssetCount?: number
 }> => {
   if (!browser) return {}
 
@@ -22,9 +23,10 @@ export const load: LayoutLoad = async ({ url, fetch }): Promise<{
 
   workspaceApi.useFetch(fetch)
 
-  let result: { user?: User; workspace?: Workspace; role?: string } = {}
+  let result: { user?: User; workspace?: Workspace; role?: string; totalAssetCount?: number } = {}
   try {
-    result = await workspaceApi.me()
+    const me = await workspaceApi.me()
+    result = { user: me.user, workspace: me.workspace, role: me.role, totalAssetCount: me.total_asset_count }
   } catch {
     redirect(303, '/login')
   }
@@ -33,7 +35,7 @@ export const load: LayoutLoad = async ({ url, fetch }): Promise<{
   if (wsParam && wsParam !== result.workspace?.id) {
     try {
       const switched = await workspaceApi.switch(wsParam)
-      result = { user: result.user, workspace: switched.workspace, role: switched.role }
+      result = { user: result.user, workspace: switched.workspace, role: switched.role, totalAssetCount: result.totalAssetCount }
       const clean = new URL(url)
       clean.searchParams.delete('ws')
       replaceState(clean.pathname + clean.search, {})

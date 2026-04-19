@@ -48,9 +48,10 @@ func workspaceToResponse(w dbgen.Workspace) WorkspaceResponse {
 }
 
 type WorkspaceMeResponse struct {
-	Workspace WorkspaceResponse `json:"workspace"`
-	User      UserResponse      `json:"user"`
-	Role      auth.Role         `json:"role"`
+	Workspace       WorkspaceResponse `json:"workspace"`
+	User            UserResponse      `json:"user"`
+	Role            auth.Role         `json:"role"`
+	TotalAssetCount int64             `json:"total_asset_count"`
 }
 
 // handleWorkspaceMe returns the current user, their active workspace, and their role.
@@ -91,10 +92,16 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
 
+	totalAssetCount, err := s.db.CountWorkspaceAssets(c.RequestCtx(), claims.WorkspaceID)
+	if err != nil {
+		slog.ErrorContext(c.RequestCtx(), "could not count workspace assets", "error", err)
+	}
+
 	return c.JSON(WorkspaceMeResponse{
-		Workspace: workspaceToResponse(workspace),
-		User:      userToResponse(user),
-		Role:      auth.Role(member.Role),
+		Workspace:       workspaceToResponse(workspace),
+		User:            userToResponse(user),
+		Role:            auth.Role(member.Role),
+		TotalAssetCount: totalAssetCount,
 	})
 }
 

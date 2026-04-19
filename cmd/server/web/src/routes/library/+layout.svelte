@@ -118,8 +118,8 @@
         >
           <LibraryBig class="h-4 w-4 shrink-0 text-gray-400" />
           <span class="flex-1 text-left">{m.all_assets()}</span>
-          {#if projectsStore.totalAssetCount > 0}
-            <span class="shrink-0 text-sm text-gray-400">{projectsStore.totalAssetCount}</span>
+          {#if authStore.totalAssetCount > 0}
+            <span class="shrink-0 text-sm text-gray-400">{authStore.totalAssetCount}</span>
           {/if}
         </button>
       </div>

@@ -41,6 +41,7 @@ export interface WorkspaceMeResponse {
   workspace: Workspace
   user: User
   role: string
+  total_asset_count: number
 }
 
 // ---- Assets ----

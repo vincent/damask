@@ -3,7 +3,7 @@ import { navigationStore } from './navigation.svelte'
 
 let projects = $state<Project[]>([])
 
-const totalAssetCount = $derived(projects.reduce((sum, p) => sum + p.asset_count, 0))
+const projectAssetCount = $derived(projects.reduce((sum, p) => sum + p.asset_count, 0))
 const activeProjectName = $derived(
   navigationStore.activeProjectId
     ? (projects.find((p) => p.id === navigationStore.activeProjectId)?.name ?? 'Project')
@@ -12,7 +12,7 @@ const activeProjectName = $derived(
 
 export const projectsStore = {
   get projects() { return projects },
-  get totalAssetCount() { return totalAssetCount },
+  get projectAssetCount() { return projectAssetCount },
   get activeProjectName() { return activeProjectName },
 
   async load() {
