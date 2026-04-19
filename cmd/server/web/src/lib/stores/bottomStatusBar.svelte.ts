@@ -3,9 +3,10 @@ let slot1 = $state<string | null>(null)
 let slot2 = $state<string | null>(null)
 let slot3 = $state<string | null>(null)
 
+const ZOOM_DEFAULT = 10
 let showZoom = $state(false)
 let maxZoom = $state(20)
-let zoom = $state(10)
+let zoom = $state(ZOOM_DEFAULT)
 
 let lang = $state('en')
 
@@ -24,6 +25,15 @@ export const statusBarStore = {
     get sliderMax() { return maxZoom - 1; },
     get zoom(){ return zoom },
     set zoom(z){ zoom = z },
+    zoomReset() {
+        zoom = ZOOM_DEFAULT
+    },
+    zoomDecrease() {
+        zoom = Math.min(statusBarStore.sliderMax, zoom - 2)
+    },
+    zoomIncrease() {
+        zoom = Math.min(statusBarStore.sliderMax, zoom + 2)
+    },
 
     get lang(){ return lang },
     set lang(z){ lang = z },

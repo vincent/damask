@@ -32,6 +32,7 @@
   </svg>
   <input
     type="search"
+    data-search
     {placeholder}
     bind:value
     oninput={(e) => {

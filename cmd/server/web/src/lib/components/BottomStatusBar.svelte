@@ -3,14 +3,28 @@
     import { setLocale, getLocale, locales } from "$lib/paraglide/runtime"
     import { statusBarStore as s } from "$lib/stores/bottomStatusBar.svelte"
     import Hint from "./ui/Hint.svelte"
-     import ThemeToggle from "./ThemeToggle.svelte"
+    import ThemeToggle from "./ThemeToggle.svelte"
+    import { gModeActive } from "$lib/shortcuts/sequence"
+    import { fade } from "svelte/transition"
 
     let langOpen = $state(false)
     let currentLocale = $derived(getLocale())
 </script>
 
 <div class="absolute z-10 bottom-0 right-0 left-0 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 opacity-[92%]">
-    {#if s.slot1}
+    {#if $gModeActive}
+      <div transition:fade={{ duration: 100 }} class="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <kbd class="rounded border border-zinc-300 bg-zinc-100 px-1 py-px font-mono dark:border-zinc-600 dark:bg-zinc-800">g</kbd>
+        <span>→</span>
+        <span><kbd class="font-mono">l</kbd>ibrary</span>
+        <span class="text-zinc-300 dark:text-zinc-600">·</span>
+        <span><kbd class="font-mono">p</kbd>rojects</span>
+        <span class="text-zinc-300 dark:text-zinc-600">·</span>
+        <span><kbd class="font-mono">t</kbd>ags</span>
+        <span class="text-zinc-300 dark:text-zinc-600">·</span>
+        <span><kbd class="font-mono">s</kbd>ettings</span>
+      </div>
+    {:else if s.slot1}
         <Hint class="text-sm">
             {s.slot1}
         </Hint>
@@ -20,9 +34,9 @@
 
     {#if s.showZoom}
         <div class="flex ml-auto mr-5 items-center gap-2 text-md text-gray-500 dark:text-gray-400">
-            <ZoomOut class="h-4 w-4 cursor-pointer" onclick={() => s.zoom = Math.max(0, s.zoom - 2)} />
+            <ZoomOut class="h-4 w-4 cursor-pointer" onclick={() => s.zoomDecrease()} />
             <input class="w-full accent-blue-500"  type="range" min="0" max={s.sliderMax} bind:value={s.zoom} />
-            <ZoomIn class="h-4 w-4 cursor-pointer" onclick={() => s.zoom = Math.min(s.sliderMax, s.zoom + 2)} />
+            <ZoomIn class="h-4 w-4 cursor-pointer" onclick={() => s.zoomIncrease()} />
         </div>
     {/if}
 

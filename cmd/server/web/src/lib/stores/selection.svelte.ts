@@ -57,4 +57,18 @@ export const selectionStore = {
     selectedIds = new Set()
     lastSelectedIndex = -1
   },
+
+  selectAll(assets: Asset[]) {
+    selectedIds = new Set(assets.map((a) => a.id))
+    lastSelectedIndex = assets.length - 1
+  },
+
+  invertSelection(assets: Asset[]) {
+    const next = new Set<string>()
+    for (const a of assets) {
+      if (!selectedIds.has(a.id)) next.add(a.id)
+    }
+    selectedIds = next
+    lastSelectedIndex = -1
+  },
 }

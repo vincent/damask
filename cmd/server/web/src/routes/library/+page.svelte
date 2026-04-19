@@ -25,6 +25,7 @@
   import { Box } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
+  import { useShortcuts } from '$lib/shortcuts'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
@@ -130,23 +131,6 @@
     assetsStore.upload(Array.from(e.dataTransfer.files), activeProject?.id ?? null, navigationStore.activeFolderId ?? null)
   }
 
-  function handleWindowKeydown(e: KeyboardEvent) {
-    if (e.target instanceof HTMLInputElement 
-      || e.target instanceof HTMLTextAreaElement) return;
-
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault()
-      showPalette = !showPalette
-    }
-    if (e.key === 'Escape' && !showPalette) selectionStore.clear()
-    if (selectedAsset && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-      e.preventDefault()
-      const assets = assetsStore.assets
-      const idx = assets.findIndex((a) => a.id === selectedAsset!.id)
-      if (e.key === 'ArrowLeft' && idx > 0) selectedAsset = assets[idx - 1]
-      if (e.key === 'ArrowRight' && idx < assets.length - 1) selectedAsset = assets[idx + 1]
-    }
-  }
 
   function onDropProjectCover(e: DragEvent) {
     console.log('drop')
@@ -170,6 +154,64 @@
   onMount(() => {
     seenSplashScreen = localStorage.getItem(`onboard_${authStore.workspace?.id}`) !== null
   })
+
+  useShortcuts({
+    'palette.open':       () => { showPalette = !showPalette },
+    'selection.all':      () => selectionStore.selectAll(assetsStore.assets),
+    'selection.clear':    () => { selectionStore.clear(); selectedAsset = null },
+    'selection.invert':   () => selectionStore.invertSelection(assetsStore.assets),
+    'asset.open-detail':  () => {
+      if (selectionStore.selectedIds.size === 1) {
+        const id = selectionStore.selectedIds.values().next().value
+        selectedAsset = assetsStore.assets.find((a) => a.id === id) ?? null
+      }
+    },
+    'asset.delete': async () => {
+      if (selectionStore.selectedIds.size === 0) return
+      const ids = [...selectionStore.selectedIds]
+      if (!confirm(`Delete ${ids.length} asset${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return
+      await assetApi.bulkDelete(ids)
+      await handleBulkDone()
+    },
+    'asset.download': () => {
+      const asset = selectedAsset ?? (
+        selectionStore.selectedIds.size === 1
+          ? assetsStore.assets.find((a) => selectionStore.selectedIds.has(a.id)) ?? null
+          : null
+      )
+      if (!asset) return
+      const a = document.createElement('a')
+      a.href = assetApi.fileUrl(asset.id)
+      a.download = asset.original_filename
+      a.click()
+    },
+    'view.toggle-layout': () => { /* stub — layout toggle not yet implemented */ },
+    'view.zoom-in':       () => { statusBarStore.zoomIncrease() },
+    'view.zoom-out':      () => { statusBarStore.zoomDecrease() },
+    'view.zoom-reset':    () => { statusBarStore.zoomReset() },
+    'lightbox.close':     () => { selectedAsset = null },
+    'lightbox.next':      () => {
+      if (!selectedAsset) return
+      const assets = assetsStore.assets
+      const idx = assets.findIndex((a) => a.id === selectedAsset!.id)
+      if (idx < assets.length - 1) selectedAsset = assets[idx + 1]
+    },
+    'lightbox.prev':   () => {
+      if (!selectedAsset) return
+      const assets = assetsStore.assets
+      const idx = assets.findIndex((a) => a.id === selectedAsset!.id)
+      if (idx > 0) selectedAsset = assets[idx - 1]
+    },
+    'lightbox.download': () => {
+      if (!selectedAsset) return
+      const a = document.createElement('a')
+      a.href = assetApi.fileUrl(selectedAsset.id)
+      a.download = selectedAsset.original_filename
+      a.click()
+    },
+    'lightbox.zoom-in':  () => { /* stub */ },
+    'lightbox.zoom-out': () => { /* stub */ },
+  })
 </script>
 
 <svelte:head>
@@ -177,7 +219,6 @@
 </svelte:head>
 
 <svelte:window
-  onkeydown={handleWindowKeydown}
   onmousemove={(e) => rb.onMouseMove(e)}
   onmouseup={() => rb.onMouseUp((ids) => selectionStore.selectByIds(ids))}
 />

@@ -454,5 +454,7 @@
   "move_to_project": "Moure al projecte",
   "merging": "Fusionant {status}…",
   "merge_to_common": "Fusionar com a GIF / PDF",
-  "stack_create": "Crear pila"
+  "stack_create": "Crear pila",
+  "keyboard_shortcuts": "Dreceres de teclat",
+  "shortcuts_contextual_hint": "Les dreceres contextuals només funcionen en panells específics."
 }

@@ -51,9 +51,6 @@
     if (f) { file = f; checkMimeCategory(f) }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onclose()
-  }
 
   async function handleSubmit() {
     if (!file) return
@@ -70,8 +67,6 @@
     }
   }
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 <Backdrop {onclose}>
   <div

@@ -454,5 +454,7 @@
   "move_to_project": "Déplacer vers le projet",
   "merging": "Fusion en cours {status}…",
   "merge_to_common": "Fusionner en GIF / PDF",
-  "stack_create": "Créer une pile"
+  "stack_create": "Créer une pile",
+  "keyboard_shortcuts": "Raccourcis clavier",
+  "shortcuts_contextual_hint": "Les raccourcis contextuels ne fonctionnent que dans des panneaux spécifiques."
 }

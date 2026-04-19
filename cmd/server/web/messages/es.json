@@ -454,5 +454,7 @@
   "move_to_project": "Mover al proyecto",
   "merging": "Fusionando {status}…",
   "merge_to_common": "Fusionar como GIF / PDF",
-  "stack_create": "Crear pila"
+  "stack_create": "Crear pila",
+  "keyboard_shortcuts": "Atajos de teclado",
+  "shortcuts_contextual_hint": "Los atajos contextuales solo funcionan en paneles específicos."
 }

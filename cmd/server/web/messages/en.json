@@ -455,5 +455,7 @@
   "move_to_project": "Move to Project",
   "merging": "Merging {status}…",
   "merge_to_common": "Merge as GIF / PDF",
-  "stack_create": "Create stack"
+  "stack_create": "Create stack",
+  "keyboard_shortcuts": "Keyboard shortcuts",
+  "shortcuts_contextual_hint": "Contextual shortcuts only work in specific panels."
 }

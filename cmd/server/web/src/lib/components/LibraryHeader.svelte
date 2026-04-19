@@ -69,6 +69,7 @@
         <input
           type="file"
           multiple
+          data-upload-trigger
           class="hidden"
           onchange={(e) => {
             const files = Array.from((e.target as HTMLInputElement).files ?? [])

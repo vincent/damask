@@ -122,9 +122,6 @@
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onclose()
-  }
 
   const activeProject = $derived(
     asset?.project_id
@@ -191,8 +188,6 @@
     ] : []),
   ])
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 {#if asset}
   <Backdrop class="asset-lightbox-bg w-screen" {onclose}>
