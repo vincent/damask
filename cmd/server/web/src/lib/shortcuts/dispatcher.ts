@@ -1,10 +1,16 @@
 // @ts-expect-error — tinykeys ships types under a non-standard exports path
 import { tinykeys } from 'tinykeys';
 import type { KeyMap, ShortcutAction } from './types';
-import { DEFAULT_KEYMAP } from './registry';
+import { ACTION_CONTEXT, DEFAULT_KEYMAP } from './registry';
 import { activateGMode } from './sequence';
 
 const ACTION_EVENT = 'damask:shortcut';
+
+let activeContext = 'grid';
+
+export function setShortcutContext(ctx: string): void {
+  activeContext = ctx;
+}
 
 function shouldIgnore(e: KeyboardEvent): boolean {
   const target = e.target as HTMLElement;
@@ -39,14 +45,21 @@ export function initDispatcher(keymap: KeyMap = DEFAULT_KEYMAP): void {
   // g-mode visual indicator: fire when bare 'g' is pressed (sequence preamble)
   bindings['g'] = guarded(() => activateGMode());
 
+  const comboActions: Record<string, ShortcutAction[]> = {};
   for (const [actionStr, combos] of Object.entries(keymap)) {
     const action = actionStr as ShortcutAction;
     for (const combo of combos) {
-      bindings[combo] = guarded((e) => {
-        e.preventDefault();
-        dispatch(action);
-      });
+      (comboActions[combo] ??= []).push(action);
     }
+  }
+  for (const [combo, actions] of Object.entries(comboActions)) {
+    bindings[combo] = guarded((e) => {
+      e.preventDefault();
+      const specific = actions.find(a => ACTION_CONTEXT[a]?.context === activeContext);
+      const global   = actions.find(a => !ACTION_CONTEXT[a]?.context);
+      const action   = specific ?? global;
+      if (action) dispatch(action);
+    });
   }
 
   unbind = tinykeys(window, bindings);
@@ -62,6 +75,12 @@ export function onAction(
   }
   document.addEventListener(ACTION_EVENT, listener);
   return () => document.removeEventListener(ACTION_EVENT, listener);
+}
+
+export function triggerAction(action: ShortcutAction): void {
+  const meta = ACTION_CONTEXT[action];
+  if (meta?.context && meta.context !== activeContext) return;
+  dispatch(action);
 }
 
 export function onActions(

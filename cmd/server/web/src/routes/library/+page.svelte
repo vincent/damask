@@ -16,7 +16,6 @@
   import AssetBulkActionBar from '$lib/components/AssetBulkActionBar.svelte'
   import CommandPalette from '$lib/components/CommandPalette.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
-  import LibraryStatusBar from '$lib/components/BottomStatusBar.svelte'
   import ProjectInfoPanel from '$lib/components/ProjectInfoPanel.svelte'
   import TagFilterBar from '$lib/components/TagFilterBar.svelte'
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
@@ -25,7 +24,7 @@
   import { Box } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
-  import { useShortcuts } from '$lib/shortcuts'
+  import { useShortcuts, setShortcutContext } from '$lib/shortcuts'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
@@ -131,7 +130,6 @@
     assetsStore.upload(Array.from(e.dataTransfer.files), activeProject?.id ?? null, navigationStore.activeFolderId ?? null)
   }
 
-
   function onDropProjectCover(e: DragEvent) {
     console.log('drop')
     e.preventDefault()
@@ -149,6 +147,22 @@
   function onDragLeaveProjectCover(e: DragEvent) {
     draggingProjectCover = false
     e.preventDefault()
+  }
+
+  const cols = $derived(1 + statusBarStore.maxZoom - Math.floor(statusBarStore.zoom))
+
+  $effect(() => {
+    setShortcutContext(selectedAsset ? 'lightbox' : 'grid')
+  })
+
+  function moveSelection(delta: number) {
+    const assets = assetsStore.assets
+    if (!assets.length) return
+    const current = selectionStore.lastSelectedIndex
+    const next = current < 0 ? 0 : current + delta
+    selectionStore.moveSelectionTo(next, assets)
+    const id = selectionStore.selectedIds.entries().next().value?.[1]
+    document.querySelector<HTMLElement>(`[data-asset-id="${id}"]`)?.scrollIntoView({ block: 'nearest' })
   }
 
   onMount(() => {
@@ -209,8 +223,12 @@
       a.download = selectedAsset.original_filename
       a.click()
     },
-    'lightbox.zoom-in':  () => { /* stub */ },
-    'lightbox.zoom-out': () => { /* stub */ },
+    'lightbox.zoom-in':       () => { /* stub */ },
+    'lightbox.zoom-out':      () => { /* stub */ },
+    'selection.move-right':   () => moveSelection(+1),
+    'selection.move-left':    () => moveSelection(-1),
+    'selection.move-up':      () => moveSelection(-cols),
+    'selection.move-down':    () => moveSelection(+cols),
   })
 </script>
 

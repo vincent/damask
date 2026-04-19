@@ -71,4 +71,10 @@ export const selectionStore = {
     selectedIds = next
     lastSelectedIndex = -1
   },
+
+  moveSelectionTo(index: number, assets: Asset[]) {
+    const clamped = Math.max(0, Math.min(assets.length - 1, index))
+    selectedIds = new Set([assets[clamped].id])
+    lastSelectedIndex = clamped
+  },
 }

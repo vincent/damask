@@ -32,7 +32,7 @@
             {#each group.actions as item}
               {@const combos = getKeys(item.action)}
               {#if combos.length > 0}
-                <li class="flex items-center justify-between gap-4 {item.contextual ? 'italic text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}">
+                <li class="flex items-center justify-between gap-4 text-zinc-700 dark:text-zinc-300">
                   <span class="text-sm">{item.label}</span>
                   <span class="flex shrink-0 items-center gap-1">
                     {#each combos.slice(0, 2) as combo, i}

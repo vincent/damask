@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { ZoomIn, ZoomOut, Languages } from "@lucide/svelte"
+    import { ZoomIn, ZoomOut, Languages, KeySquare, Keyboard } from "@lucide/svelte"
     import { setLocale, getLocale, locales } from "$lib/paraglide/runtime"
     import { statusBarStore as s } from "$lib/stores/bottomStatusBar.svelte"
     import Hint from "./ui/Hint.svelte"
     import ThemeToggle from "./ThemeToggle.svelte"
     import { gModeActive } from "$lib/shortcuts/sequence"
+    import { triggerAction } from "$lib/shortcuts"
     import { fade } from "svelte/transition"
 
     let langOpen = $state(false)
@@ -62,6 +63,11 @@
                 </div>
             {/if}
         </div>
+
+        <Keyboard
+            class="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" 
+            onclick={() => triggerAction('help.toggle')}
+        />
 
         <ThemeToggle />
     </div>

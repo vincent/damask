@@ -33,7 +33,6 @@
     'upload.open':       () => document.querySelector<HTMLInputElement>('[data-upload-trigger]')?.click(),
     'sidebar.toggle':    () => { sidebarVisible = !sidebarVisible },
     'navigate.library':  () => { clearGMode(); goto('/library') },
-    'navigate.projects': () => { clearGMode(); goto('/library') },
     'navigate.tags':     () => { clearGMode(); goto('/library/settings/tags') },
     'navigate.settings': () => { clearGMode(); goto('/library/settings/members') },
     'navigate.shares':   () => { clearGMode(); goto('/library/shares') },

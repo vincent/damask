@@ -21,14 +21,23 @@ export type ShortcutAction =
   | 'lightbox.zoom-in'
   | 'lightbox.zoom-out'
   | 'navigate.library'
-  | 'navigate.projects'
   | 'navigate.tags'
   | 'navigate.settings'
   | 'navigate.shares'
   | 'help.toggle'
-  | 'sidebar.toggle';
+  | 'sidebar.toggle'
+  | 'selection.move-right'
+  | 'selection.move-left'
+  | 'selection.move-up'
+  | 'selection.move-down';
 
 export type KeyMap = Record<ShortcutAction, string[]>;
+
+export interface ActionMeta {
+  context?: string;
+}
+
+export type ActionMetaMap = Partial<Record<ShortcutAction, ActionMeta>>;
 
 export type ShortcutHandler = (action: ShortcutAction) => boolean | void;
 
