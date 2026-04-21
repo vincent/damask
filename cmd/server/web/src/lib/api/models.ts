@@ -50,6 +50,7 @@ export interface Asset {
   id: string
   workspace_id: string
   project_id: string | null
+  folder_id: string | null
   original_filename: string
   mime_type: string
   size: number

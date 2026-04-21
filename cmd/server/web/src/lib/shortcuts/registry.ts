@@ -33,6 +33,8 @@ export const DEFAULT_KEYMAP: KeyMap = {
   'selection.move-left':      ['ArrowLeft'],
   'selection.move-up':        ['ArrowUp'],
   'selection.move-down':      ['ArrowDown'],
+  'history.undo':             ['$mod+z'],
+  'history.redo':             ['$mod+y', '$mod+Shift+z'],
 };
 
 export const ACTION_CONTEXT: ActionMetaMap = {
@@ -57,6 +59,8 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { action: 'upload.open',       label: m.kb_upload_assets() },
       { action: 'sidebar.toggle',    label: m.kb_toggle_sidebar() },
       { action: 'help.toggle',       label: m.kb_show_keybindings() },
+      { action: 'history.undo',      label: m.kb_undo() },
+      { action: 'history.redo',      label: m.kb_redo() },
     ],
   },
   {

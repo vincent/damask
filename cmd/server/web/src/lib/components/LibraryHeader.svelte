@@ -7,11 +7,12 @@
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import { Share2, Upload } from '@lucide/svelte'
+  import { m } from '$lib/paraglide/messages.js'
+  import UndoRedo from './UndoRedo.svelte'
   import Button from './ui/Button.svelte'
   import Title from './ui/Title.svelte'
   import type { Snippet } from 'svelte'
   import Hint from './ui/Hint.svelte'
-  import { m } from '$lib/paraglide/messages.js';
 
   type Props = {
     prefix?: Snippet
@@ -62,6 +63,8 @@
   </div>
 
   <div class="flex items-center gap-2">
+    <UndoRedo />
+
     <SearchInput
       class="w-64"
       value={assetsStore.query}

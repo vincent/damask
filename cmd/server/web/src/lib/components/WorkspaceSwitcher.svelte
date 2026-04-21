@@ -3,6 +3,7 @@
   import { workspaceApi, type WorkspaceWithRole } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { undoStore } from '$lib/stores/undo.svelte'
 
   let open = $state(false)
   let workspaces = $state<WorkspaceWithRole[]>([])
@@ -42,6 +43,7 @@
     try {
       const res = await workspaceApi.switch(ws.id)
       authStore.switchWorkspace(res.workspace, res.role)
+      undoStore.clear()
       open = false
       window.location.reload()
     } catch {

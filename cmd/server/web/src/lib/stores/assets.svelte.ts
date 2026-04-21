@@ -7,6 +7,7 @@ let assets = $state<Asset[]>([])
 let nextCursor = $state<string | null>(null)
 let loading = $state(false)
 let initialLoad = $state(true)
+let stale = $state(false)
 let query = $state('')
 let activeTags = $state<string[]>([])
 
@@ -129,11 +130,46 @@ async function pollThumbnail(assetId: string, uploadId: string, retries = 5) {
 
 connectSSE()
 
+async function load(reset = false) {
+  if (!reset && loading) return
+  if (reset) {
+    generation++
+    nextCursor = null
+    stale = false
+  }
+  const myGen = generation
+  loading = true
+  try {
+    const result = await assetApi.list({
+      cursor: nextCursor ?? undefined,
+      sortKey: sortKey || undefined,
+      sortAsc: !!sortAsc,
+      q: query || undefined,
+      project_id: navigationStore.activeProjectId ?? undefined,
+      tags: activeTags.length > 0 ? activeTags : undefined,
+      folder_id: navigationStore.activeFolderId ?? undefined,
+      collection_id: navigationStore.activeCollectionId ?? undefined,
+      fieldFilters: fieldFilters.length > 0 ? fieldFilters : undefined,
+      limit: 20,
+    })
+    if (myGen !== generation) return
+    assets = reset ? result.assets : [...assets, ...result.assets]
+    nextCursor = result.next_cursor
+    if (reset) resetDone++
+  } catch {
+    // 401 redirect handled by api client
+  } finally {
+    if (myGen === generation) loading = false
+    initialLoad = false
+  }
+}
+
 export const assetsStore = {
   get assets() { return assets },
   get nextCursor() { return nextCursor },
   get loading() { return loading },
   get initialLoad() { return initialLoad },
+  get stale() { return stale },
   get query() { return query },
   set query(v: string) { query = v },
   get activeTags() { return activeTags },
@@ -141,43 +177,14 @@ export const assetsStore = {
   get assetsByCategory() { return assetsByCategory },
   get resetDone() { return resetDone },
 
-  async load(reset = false) {
-    if (!reset && loading) return
-    if (reset) {
-      generation++
-      nextCursor = null
-    }
-    const myGen = generation
-    loading = true
-    try {
-      const result = await assetApi.list({
-        cursor: nextCursor ?? undefined,
-        sortKey: sortKey || undefined,
-        sortAsc: !!sortAsc,
-        q: query || undefined,
-        project_id: navigationStore.activeProjectId ?? undefined,
-        tags: activeTags.length > 0 ? activeTags : undefined,
-        folder_id: navigationStore.activeFolderId ?? undefined,
-        collection_id: navigationStore.activeCollectionId ?? undefined,
-        fieldFilters: fieldFilters.length > 0 ? fieldFilters : undefined,
-        limit: 20,
-      })
-      if (myGen !== generation) return
-      assets = reset ? result.assets : [...assets, ...result.assets]
-      nextCursor = result.next_cursor
-      if (reset) resetDone++
-    } catch {
-      // 401 redirect handled by api client
-    } finally {
-      if (myGen === generation) loading = false
-      initialLoad = false
-    }
-  },
+  invalidate() { load(true) },
+
+  load,
 
   sort(key: string, asc: boolean) {
     sortKey = key
     sortAsc = asc
-    this.load(true)
+    load(true)
   },
 
   search(query: string) {
@@ -185,20 +192,20 @@ export const assetsStore = {
     clearTimeout(searchTimer)
     nextCursor = null
     searchTimer = setTimeout(() => {
-      assetsStore.load(true)
+      load(true)
     }, 300)
   },
 
   setActiveTags(tags: string[]) {
     activeTags = tags
     nextCursor = null
-    assetsStore.load(true)
+    load(true)
   },
 
   setFieldFilters(filters: FieldFilter[]) {
     fieldFilters = filters
     nextCursor = null
-    assetsStore.load(true)
+    load(true)
   },
 
   prepend(asset: Asset) {
@@ -240,13 +247,9 @@ export const assetsStore = {
     }
   },
 
-  patch(assetId: string, update: Partial<Asset>) {
-    patchAsset(assetId, update)
-  },
+  patchAsset,
 
-  reloadResources(assetId: string) {
-    reloadAssetResources(assetId)
-  },
+  reloadAssetResources,
 
   bulkProject: async (assetIds: string[], projectId: string | null) => {
     await assetApi.bulkProject(assetIds, projectId)
@@ -254,5 +257,17 @@ export const assetsStore = {
 
   bulkDelete: async (assetIds: string[]) => {
     await assetApi.bulkDelete(assetIds)
-  }
+  },
+
+  addTag(assetId: string, tag: string) {
+    assets = assets.map(a => a.id === assetId
+      ? { ...a, tags: [...(a.tags ?? []), tag] }
+      : a)
+  },
+
+  removeTag(assetId: string, tag: string) {
+    assets = assets.map(a => a.id === assetId
+      ? { ...a, tags: (a.tags ?? []).filter(t => t !== tag) }
+      : a)
+  },
 }

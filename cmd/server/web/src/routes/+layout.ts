@@ -35,7 +35,8 @@ export const load: LayoutLoad = async ({ url, fetch }): Promise<{
   if (wsParam && wsParam !== result.workspace?.id) {
     try {
       const switched = await workspaceApi.switch(wsParam)
-      result = { user: result.user, workspace: switched.workspace, role: switched.role, totalAssetCount: result.totalAssetCount }
+      const refreshed = await workspaceApi.me().catch(() => null)
+      result = { user: result.user, workspace: switched.workspace, role: switched.role, totalAssetCount: refreshed?.total_asset_count ?? result.totalAssetCount }
       const clean = new URL(url)
       clean.searchParams.delete('ws')
       replaceState(clean.pathname + clean.search, {})

@@ -3,6 +3,8 @@
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { RenameCollection } from '$lib/commands/RenameCollection'
   import { LibraryBig, EllipsisVertical } from '@lucide/svelte'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
@@ -27,9 +29,12 @@
   const hiddenCount = $derived(collectionsStore.collections.length - MAX_VISIBLE)
 
   async function handleRename(id: string, name: string) {
-    if (!name.trim()) { editingId = null; return }
+    const trimmed = name.trim()
+    if (!trimmed) { editingId = null; return }
+    const col = collectionsStore.collections.find(c => c.id === id)
+    if (!col || trimmed === col.name) { editingId = null; return }
     try {
-      await collectionsStore.rename(id, name.trim())
+      await undoStore.execute(new RenameCollection(id, col.name, trimmed))
     } catch {
       toastStore.show(m.collection_rename_failed(), 'error')
     } finally {

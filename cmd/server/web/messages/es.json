@@ -495,5 +495,22 @@
   "removed_from_collection": "Eliminado de la colección",
   "add_to_collection": "Añadir a colección",
   "no_collections": "Sin colecciones",
-  "show_more_collections": "+ {count} mas…"
+  "show_more_collections": "+ {count} mas…",
+  "kb_undo": "Deshacer",
+  "kb_redo": "Rehacer",
+  "cmd_rename_asset": "Renombrar a {name}",
+  "cmd_set_field": "Establecer {field} a {value}",
+  "cmd_move_folder": "Mover a {to}",
+  "cmd_assign_project": "Asignar a {project}",
+  "cmd_unassign_project": "Quitar del proyecto",
+  "cmd_tag_add": "Añadir etiqueta {tag}",
+  "cmd_tag_remove": "Eliminar etiqueta {tag}",
+  "cmd_bulk_tag": "Etiquetar {count} archivos con {tag}",
+  "cmd_rename_tag": "Renombrar etiqueta a {name}",
+  "cmd_rename_collection": "Renombrar colección a {name}",
+  "undo_failed": "No se pudo deshacer — el elemento puede haber cambiado.",
+  "redo_failed": "No se pudo rehacer — el elemento puede haber cambiado.",
+  "undo_conflict": "No se pudo deshacer — este elemento fue modificado por otra persona.",
+  "undo": "Deshacer",
+  "redo": "Rehacer"
 }

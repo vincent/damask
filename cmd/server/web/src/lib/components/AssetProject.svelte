@@ -1,26 +1,34 @@
 <script lang="ts">
-  import { assetApi, type Asset, type Project } from '$lib/api'
+  import { type Asset, type Project } from '$lib/api'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import ColorDot from './ui/ColorDot.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { AssignAssetToProject } from '$lib/commands/AssignAssetToProject'
   
   interface Props {
     asset: Asset
     activeProject: Project | null
-    onprojectchanged: () => void
   }
 
-  let { asset, activeProject, onprojectchanged }: Props = $props()
+  let { asset, activeProject }: Props = $props()
 
   let showProjectPicker = $state(false)
 
   async function assignProject(projectId: string | null) {
     if (!asset) return
+    if (projectId === asset.project_id) { showProjectPicker = false; return }
+    const afterProject = projectsStore.projects.find(p => p.id === projectId) ?? null
     try {
-      await assetApi.bulkProject([asset.id], projectId)
+      await undoStore.execute(new AssignAssetToProject(
+        asset.id,
+        asset.project_id ?? null,
+        activeProject?.name ?? null,
+        projectId,
+        afterProject?.name ?? null,
+      ))
       showProjectPicker = false
-      onprojectchanged()
     } catch { /* silently ignore */ }
   }
 

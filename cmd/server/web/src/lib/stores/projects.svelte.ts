@@ -2,6 +2,7 @@ import { projectApi, type Project } from '$lib/api'
 import { navigationStore } from './navigation.svelte'
 
 let projects = $state<Project[]>([])
+let stale = $state(false)
 
 const projectAssetCount = $derived(projects.reduce((sum, p) => sum + p.asset_count, 0))
 const activeProjectName = $derived(
@@ -14,8 +15,12 @@ export const projectsStore = {
   get projects() { return projects },
   get projectAssetCount() { return projectAssetCount },
   get activeProjectName() { return activeProjectName },
+  get stale() { return stale },
+
+  invalidate() { stale = true },
 
   async load() {
+    stale = false
     try {
       projects = await projectApi.list()
     } catch {

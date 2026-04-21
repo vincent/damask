@@ -1,10 +1,31 @@
 import { fieldDefinitionApi } from '$lib/api/client'
-import type { FieldDefinition, FieldScope } from '$lib/api/models'
+import type { AssetFieldValue, FieldDefinition, FieldScope } from '$lib/api/models'
 
 class CustomFieldsStore {
   assetFields = $state<FieldDefinition[]>([])
   projectFields = $state<FieldDefinition[]>([])
   loading = $state(false)
+  /** Per-asset field value cache: assetId → AssetFieldValue[]. Updated by patchField/clearField. */
+  private fieldValues = $state<Map<string, AssetFieldValue[]>>(new Map())
+
+  getFieldValues(assetId: string): AssetFieldValue[] | undefined {
+    return this.fieldValues.get(assetId)
+  }
+
+  patchField(assetId: string, fieldId: string, value: string | number | boolean | null) {
+    const current = this.fieldValues.get(assetId)
+    if (!current) return
+    const updated = current.map((v) => v.field_id === fieldId ? { ...v, value } : v)
+    this.fieldValues = new Map(this.fieldValues).set(assetId, updated)
+  }
+
+  clearField(assetId: string, fieldId: string) {
+    this.patchField(assetId, fieldId, null)
+  }
+
+  setFieldValues(assetId: string, values: AssetFieldValue[]) {
+    this.fieldValues = new Map(this.fieldValues).set(assetId, values)
+  }
 
   async load(scope: FieldScope) {
     this.loading = true

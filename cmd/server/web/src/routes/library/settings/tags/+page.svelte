@@ -5,7 +5,6 @@
   import {
     Plus,
     Trash2,
-    Merge,
     AlertTriangle,
     ChevronDown,
     ChevronRight,
@@ -16,6 +15,8 @@
   } from '@lucide/svelte'
   import { tagsManagementStore } from '$lib/stores/tagsManagement.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { RenameTag } from '$lib/commands/RenameTag'
   import Modal from '$lib/components/ui/Modal.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
@@ -42,6 +43,10 @@
   let sortDir = $state<SortDir>('desc')
   let viewMode = $state<ViewMode>('flat')
   let collapsedGroups = $state<Set<string>>(new Set())
+
+  $effect(() => {
+    if (tagsManagementStore.stale) tagsManagementStore.load()
+  })
 
   // Restore preferences
   onMount(() => {
@@ -119,8 +124,7 @@
     const trimmed = editingValue.trim().toLowerCase()
     if (!trimmed || trimmed === original) { editingName = null; return }
     try {
-      await tagsManagementStore.patchTag(original, { name: trimmed })
-      toastStore.show(m.tag_renamed())
+      await undoStore.execute(new RenameTag(original, trimmed))
     } catch (e: any) {
       if (e?.status === 409) editNameError = m.tag_already_exists()
       else toastStore.show(m.tag_rename_failed(), 'error')

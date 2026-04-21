@@ -3,16 +3,16 @@
   import { stackApi, collectionApi, shareApi, projectApi } from '$lib/api'
   import { sseEvents } from '$lib/stores/assets.svelte'
   import type { Project } from '$lib/api'
-  import { X, Layers, Trash2, Tag, Download, FolderInput, Save, Loader, Share2, Copy, Check, LibraryBig } from '@lucide/svelte'
+  import { Layers, Trash2, Tag, Download, FolderInput, Save, Loader, Share2, LibraryBig } from '@lucide/svelte'
   import type { Collection } from '$lib/api'
   import { fly } from 'svelte/transition'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
   import ButtonCancel from './ui/ButtonCancel.svelte'
   import Hint from './ui/Hint.svelte'
-  import Button from './ui/Button.svelte'
   import ButtonCopy from './ui/ButtonCopy.svelte'
-  import ButtonDelete from './ui/ButtonDelete.svelte'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { AddAssetsToCollection } from '$lib/commands/AddAssetsToCollection'
 
   let labelInput = $state(stackStore.label ?? '')
   $effect(() => { labelInput = stackStore.label ?? '' })
@@ -51,8 +51,7 @@
   async function handleAddToCollection(col: Collection) {
     addingToCollection = col.id
     try {
-      await Promise.all(stackStore.ids.map(id => collectionApi.addAsset(col.id, id)))
-      toastStore.show(m.added_to_collection({ name: col.name }), 'success')
+      await undoStore.execute(new AddAssetsToCollection(stackStore.ids, col.id, col.name))
       showAddToCollection = false
     } catch (e: any) {
       toastStore.show(e?.message ?? m.save_failed(), 'error')

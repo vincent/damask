@@ -29,7 +29,9 @@ export type ShortcutAction =
   | 'selection.move-right'
   | 'selection.move-left'
   | 'selection.move-up'
-  | 'selection.move-down';
+  | 'selection.move-down'
+  | 'history.undo'
+  | 'history.redo';
 
 export type KeyMap = Record<ShortcutAction, string[]>;
 

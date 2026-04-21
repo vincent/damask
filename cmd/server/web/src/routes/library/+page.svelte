@@ -100,13 +100,12 @@
   async function handleProjectSelect(item: MenuItem | null) {
     navigationStore.selectProject(item?.id ?? null)
     if (item?.id) await foldersStore.loadForProject(item.id)
-    if (item?.url) return goto(item.url)
-    await assetsStore.load(true)
+    if (item?.url) goto(item.url)
   }
 
-  async function handleBulkDone() {
+  function handleBulkDone() {
     selectionStore.clear()
-    await Promise.all([projectsStore.load(), assetsStore.load(true)])
+    assetsStore.invalidate()
   }
 
   function handleDeleted(id: string) {
@@ -192,7 +191,7 @@
       const ids = [...selectionStore.selectedIds]
       if (!confirm(`Delete ${ids.length} asset${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return
       await assetApi.bulkDelete(ids)
-      await handleBulkDone()
+      handleBulkDone()
     },
     'asset.download': () => {
       const asset = selectedAsset ?? (
@@ -290,7 +289,7 @@
     <span class="text-xs text-gray-400">{m.assets_count({ count: activeCollection.asset_count })}</span>
     <button
       type="button"
-      onclick={() => { navigationStore.selectCollection(null); assetsStore.load(true) }}
+      onclick={() => { navigationStore.selectCollection(null); assetsStore.invalidate() }}
       class="ml-1 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
       aria-label="Clear collection filter"
     >
@@ -340,12 +339,10 @@
   asset={selectedAsset}
   onclose={() => (selectedAsset = null)}
   ondeleted={handleDeleted}
-  ontagschanged={() => assetsStore.load(true)}
-  onprojectchanged={() => { projectsStore.load(); assetsStore.load(true) }}
   onassetupdated={(updated) => {
     selectedAsset = updated
-    assetsStore.patch(updated.id, updated)
-    assetsStore.reloadResources(updated.id)
+    assetsStore.patchAsset(updated.id, updated)
+    assetsStore.reloadAssetResources(updated.id)
   }}
 />
 

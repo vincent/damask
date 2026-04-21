@@ -4,6 +4,7 @@ import type { DuplicateTagPair, Tag } from '$lib/api/models'
 function createTagsManagementStore() {
   let tags = $state<Tag[]>([])
   let loading = $state(false)
+  let stale = $state(false)
   let duplicates = $state<DuplicateTagPair[]>([])
   let dismissedPairs = $state<Set<string>>(new Set())
 
@@ -12,6 +13,7 @@ function createTagsManagementStore() {
   }
 
   async function load() {
+    stale = false
     loading = true
     try {
       tags = await tagApi.list()
@@ -19,6 +21,8 @@ function createTagsManagementStore() {
       loading = false
     }
   }
+
+  function invalidate() { stale = true }
 
   async function loadDuplicates() {
     try {
@@ -96,6 +100,7 @@ function createTagsManagementStore() {
   return {
     get tags() { return tags },
     get loading() { return loading },
+    get stale() { return stale },
     get duplicates() { return visibleDuplicates },
     get allGroups() {
       const groups = new Set<string>()
@@ -103,6 +108,7 @@ function createTagsManagementStore() {
       return [...groups].sort()
     },
     load,
+    invalidate,
     loadDuplicates,
     createTag,
     patchTag,

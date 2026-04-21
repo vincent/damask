@@ -6,6 +6,9 @@
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import FieldCard from './FieldCard.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { SetAssetField } from '$lib/commands/SetField'
+  import { customFieldsStore } from '$lib/stores/customFields.svelte'
 
   interface Props {
     asset: Asset
@@ -37,6 +40,7 @@
       ])
       definitions = defs
       values = vals.fields
+      customFieldsStore.setFieldValues(asset.id, vals.fields)
     } finally {
       loading = false
     }
@@ -83,8 +87,17 @@
         parsedValue = editValue
       }
 
-      const result = await assetFieldApi.patch(asset.id, [{ field_id: def.id, value: parsedValue }])
-      values = result.fields
+      const before = valueFor(def.id)?.value ?? null
+      if (parsedValue === null) {
+        const result = await assetFieldApi.patch(asset.id, [{ field_id: def.id, value: null }])
+        values = result.fields
+        customFieldsStore.setFieldValues(asset.id, result.fields)
+      } else if (parsedValue !== before) {
+        await undoStore.execute(new SetAssetField(asset.id, def.id, def.name, before, parsedValue))
+        const cached = customFieldsStore.getFieldValues(asset.id)
+        if (cached) values = cached
+      }
+
       editingFieldId = null
       saveSuccess = def.id
       setTimeout(() => { if (saveSuccess === def.id) saveSuccess = null }, 2000)

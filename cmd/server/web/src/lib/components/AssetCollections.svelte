@@ -1,12 +1,13 @@
 <script lang="ts">
   import { collectionApi, type Collection, type Asset } from '$lib/api'
-  import { collectionsStore } from '$lib/stores/collections.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { LibraryBig, X } from '@lucide/svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import { goto } from '$app/navigation'
   import { m } from '$lib/paraglide/messages'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { RemoveAssetFromCollection } from '$lib/commands/RemoveAssetFromCollection'
 
   interface Props {
     asset: Asset
@@ -36,8 +37,7 @@
     // Optimistic remove
     memberships = memberships.filter(c => c.id !== col.id)
     try {
-      await collectionApi.removeAsset(col.id, asset.id)
-      collectionsStore.invalidate()
+      await undoStore.execute(new RemoveAssetFromCollection(asset.id, col.id, col.name))
     } catch {
       memberships = [...memberships, col]
       toastStore.show(m.save_failed(), 'error')

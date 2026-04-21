@@ -7,6 +7,7 @@
     type Variant,
   } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
+  import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
   import { Inbox, Share, Upload } from '@lucide/svelte'
@@ -28,6 +29,8 @@
   import VersionHistory from './VersionHistory.svelte'
   import UploadVersionModal from './UploadVersionModal.svelte'
   import AssetActivity from './AssetActivity.svelte'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { RenameAsset } from '$lib/commands/RenameAsset'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import { fly } from 'svelte/transition'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
@@ -41,12 +44,10 @@
     asset: Asset | null
     onclose: () => void
     ondeleted: (id: string) => void
-    ontagschanged: () => void
-    onprojectchanged: () => void
     onassetupdated?: (updated: Asset) => void
   }
 
-  let { asset = $bindable(), onclose, ondeleted, ontagschanged, onprojectchanged, onassetupdated }: Props = $props()
+  let { asset = $bindable(), onclose, ondeleted, onassetupdated }: Props = $props()
 
   // --- Panel tabs ---
   const panelTabs = {
@@ -81,9 +82,12 @@
 
   async function submitRename(stem: string) {
     if (!asset) return
+    if (stem === stemOf(asset.original_filename)) { renamingAsset = false; return }
     renameBusy = true
     try {
-      const updated = await assetApi.rename(asset.id, stem)
+      const before = asset.original_filename
+      await undoStore.execute(new RenameAsset(asset.id, before, stem))
+      const updated = { ...asset, original_filename: assetsStore.assets.find(a => a.id === asset!.id)?.original_filename ?? asset.original_filename }
       asset = updated
       onassetupdated?.(updated)
     } finally {
@@ -285,11 +289,11 @@
       {#if activeTab === 'details'}
         <div class="px-5 py-5 space-y-6">
           <AssetMetadata {asset} />
-          <AssetTags {asset} {ontagschanged} />
+          <AssetTags {asset} />
           <AssetCollections {asset} />
 
           {#if authStore.role !== 'viewer' || activeProject}
-            <AssetProject {asset} {activeProject} {onprojectchanged} />
+            <AssetProject {asset} {activeProject} />
           {/if}
 
           <AssetCustomFields {asset} />

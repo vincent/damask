@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { tagApi, assetApi, type Project } from '$lib/api'
+  import { assetApi, type Project } from '$lib/api'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { BulkTagAsset } from '$lib/commands/BulkTagAsset'
+  import { BulkAssignAssetToProject } from '$lib/commands/BulkAssignAssetToProject'
   import { Layers, SquareArrowRightExit, Tag } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
@@ -35,7 +38,7 @@
     if (!name || selectedIds.size === 0) return
     busy = true
     try {
-      await tagApi.bulkTag([...selectedIds], name)
+      await undoStore.execute(new BulkTagAsset([...selectedIds], name))
       tagInput = ''
       ondone()
     } finally {
@@ -48,7 +51,12 @@
     if (selectedIds.size === 0) return
     busy = true
     try {
-      await assetApi.bulkProject([...selectedIds], projectId)
+      const ids = [...selectedIds]
+      const beforeProjectIds = new Map(
+        ids.map(id => [id, assetsStore.assets.find(a => a.id === id)?.project_id ?? null])
+      )
+      const afterProject = projects.find(p => p.id === projectId) ?? null
+      await undoStore.execute(new BulkAssignAssetToProject(ids, beforeProjectIds, projectId ?? '', afterProject?.name ?? null))
       ondone()
     } finally {
       activePanel = null
@@ -58,7 +66,7 @@
 
   async function bulkDelete() {
     if (selectedIds.size === 0) return
-    if (!confirm(`Delete ${selectedIds.size} asset${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    if (!confirm(m.delete_assets({ count: selectedIds.size }))) return
     busy = true
     try {
       await assetApi.bulkDelete([...selectedIds])

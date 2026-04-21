@@ -495,5 +495,22 @@
   "kb_go_shares": "Anar als recursos compartits",
   "kb_go_settings": "Anar a la configuració",
   "collection_delete_failed": "No s'ha pogut eliminar la col·lecció",
-  "collection_rename_failed": "No s'ha pogut reanomenar la col·lecció"
+  "collection_rename_failed": "No s'ha pogut reanomenar la col·lecció",
+  "kb_undo": "Desfer",
+  "kb_redo": "Refer",
+  "cmd_rename_asset": "Reanomenar a {name}",
+  "cmd_set_field": "Establir {field} a {value}",
+  "cmd_move_folder": "Moure a {to}",
+  "cmd_assign_project": "Assignar a {project}",
+  "cmd_unassign_project": "Treure del projecte",
+  "cmd_tag_add": "Afegir etiqueta {tag}",
+  "cmd_tag_remove": "Eliminar etiqueta {tag}",
+  "cmd_bulk_tag": "Etiquetar {count} arxius amb {tag}",
+  "cmd_rename_tag": "Reanomenar etiqueta a {name}",
+  "cmd_rename_collection": "Reanomenar col·lecció a {name}",
+  "undo_failed": "No s'ha pogut desfer — l'element pot haver canviat.",
+  "redo_failed": "No s'ha pogut refer — l'element pot haver canviat.",
+  "undo_conflict": "No s'ha pogut desfer — aquest element va ser modificat per una altra persona.",
+  "undo": "Desfer",
+  "redo": "Refer"
 }

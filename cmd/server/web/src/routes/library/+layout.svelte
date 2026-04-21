@@ -11,7 +11,7 @@
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
-  import { Activity, Book, LogOut, Plus, Share2, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings, LibraryBig } from '@lucide/svelte'
+  import { Activity, LogOut, Plus, Share2, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings, LibraryBig } from '@lucide/svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
@@ -23,6 +23,9 @@
   import StackTray from '$lib/components/StackTray.svelte'
   import { useShortcuts } from '$lib/shortcuts'
   import { clearGMode } from '$lib/shortcuts/sequence'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { BulkAssignAssetToProject } from '$lib/commands/BulkAssignAssetToProject'
+  import { BulkAssignAssetToFolder } from '$lib/commands/BulkAssignAssetToFolder'
 
   let { children }: { data: any, children: Snippet } = $props()
 
@@ -43,21 +46,23 @@
   async function handleProjectSelect(id: string | null) {
     navigationStore.selectProject(id)
     if (id) await foldersStore.loadForProject(id)
-    await assetsStore.load(true)
     goto('/library')
   }
 
   async function handleFolderSelect(_projectId: string, folderId: string | null) {
     navigationStore.selectFolder(folderId)
-    await assetsStore.load(true)
     goto('/library')
   }
 
   async function handleAssetsDropped(assetIds: string[], folderId: string | null, projectId: string) {
     try {
-      await foldersStore.moveAssets(assetIds, folderId, projectId)
-      toastStore.show(`Moved ${assetIds.length} asset${assetIds.length > 1 ? 's' : ''}`)
-      await assetsStore.load(true)
+      const folder = foldersStore.foldersForActiveProject.find(f => f.id === folderId) ?? null
+      await undoStore.execute(new BulkAssignAssetToFolder(
+        assetsStore.assets.filter(sa => assetIds.includes(sa.id)),
+        folderId ?? null,
+        folder?.name ?? null,
+        projectId,
+      ))
       selectionStore.clear()
     } catch {
       toastStore.show(m.cannot_move_assets(), 'error')
@@ -65,27 +70,49 @@
   }
 
   async function handleAssetsProjectDropped(assetIds: string[], projectId: string) {
+    const beforeProjectIds = new Map(
+      assetIds.map(id => [id, assetsStore.assets.find(a => a.id === id)?.project_id ?? null])
+    )
+    const projectName = projectsStore.projects.find(p => p.id === projectId)?.name ?? null
     try {
-      await assetsStore.bulkProject(assetIds, projectId)
-      toastStore.show(`Moved ${assetIds.length} asset${assetIds.length > 1 ? 's' : ''}`)
-      await assetsStore.load(true)
-      await projectsStore.load()
-      await foldersStore.loadForProject(projectId)
+      await undoStore.execute(new BulkAssignAssetToProject(assetIds, beforeProjectIds, projectId, projectName))
       selectionStore.clear()
     } catch {
       toastStore.show(m.cannot_move_assets(), 'error')
     }
   }
 
-  async function handleCollectionSelect(id: string) {
+  function handleCollectionSelect(id: string) {
     navigationStore.selectCollection(id)
-    await assetsStore.load(true)
     goto('/library')
   }
 
+  let prevNavKey: string | null = null
+
+  $effect(() => {
+    const key = [
+      navigationStore.activeProjectId,
+      navigationStore.activeFolderId,
+      navigationStore.activeCollectionId,
+    ].join('|')
+    if (key === prevNavKey) return
+    prevNavKey = key
+    assetsStore.load(true)
+  })
+
+  $effect(() => {
+    if (projectsStore.stale) projectsStore.load()
+  })
+
+  $effect(() => {
+    const activeId = navigationStore.activeProjectId
+    if (activeId && foldersStore.staleProjects.has(activeId)) {
+      foldersStore.loadForProject(activeId)
+    }
+  })
+
   onMount(() => {
     projectsStore.load()
-    assetsStore.load(true)
     collectionsStore.load()
 
     setTimeout(() => {

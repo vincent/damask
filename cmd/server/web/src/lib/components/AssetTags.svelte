@@ -4,20 +4,25 @@
   import Chip from '$lib/components/ui/Chip.svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { TagAsset } from '$lib/commands/TagAsset'
+  import { assetsStore } from '$lib/stores/assets.svelte'
   
   interface Props {
     asset: Asset | null
-    ontagschanged: () => void
   }
 
-  let { asset, ontagschanged }: Props = $props()
+  let { asset }: Props = $props()
 
   // --- Asset state ---
-  let tags = $state<string[]>([])
   let tagInput = $state('')
   let tagSuggestions = $state<string[]>([])
   let showTagInput = $state(false)
   let allTags = $state<{ id: string; name: string; asset_count: number }[]>([])
+
+  const tags = $derived(
+    (asset ? assetsStore.assets.find(a => a.id === asset.id) : null)?.tags ?? asset?.tags ?? []
+  )
 
   function updateSuggestions() {
     const q = tagInput.trim().toLowerCase()
@@ -28,35 +33,26 @@
       .slice(0, 5)
   }
 
-
   async function addTag(name: string) {
     if (!asset || !name.trim()) return
     const n = name.trim().toLowerCase()
     if (tags.includes(n)) return
     try {
-      await tagApi.addToAsset(asset.id, n)
-      tags = [...tags, n]
+      await undoStore.execute(new TagAsset(asset.id, n, 'add'))
       tagInput = ''
       showTagInput = false
-      ontagschanged()
     } catch { /* silently ignore */ }
   }
 
   async function removeTag(name: string) {
     if (!asset) return
     try {
-      await tagApi.removeFromAsset(asset.id, name)
-      tags = tags.filter((t) => t !== name)
-      ontagschanged()
+      await undoStore.execute(new TagAsset(asset.id, name, 'remove'))
     } catch { /* silently ignore */ }
   }
 
   $effect(() => {
-    if (!asset) {
-      tags = []
-      return
-    }
-    tagApi.getForAsset(asset.id).then((t) => { tags = t }).catch(() => {})
+    if (!asset) return
     tagApi.list().then((t) => { allTags = t }).catch(() => {})
   })
 </script>
