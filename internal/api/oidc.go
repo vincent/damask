@@ -432,7 +432,7 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 
 	token, err := s.validateOAuthCallback(c, s.canvaOAuth2Config())
 	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
+		return c.Redirect().To("/login?error=oidc_exchange&error_step=validate_token")
 	}
 
 	// Fetch user profile from Canva.
@@ -442,11 +442,11 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
+		return c.Redirect().To("/login?error=oidc_exchange&error_step=user_profile")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return c.Redirect().To("/login?error=oidc_exchange")
+		return c.Redirect().To("/login?error=oidc_exchange&error_step=user_profile_response")
 	}
 
 	var me struct {
@@ -457,17 +457,17 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 		} `json:"profile"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&me); err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
+		return c.Redirect().To("/login?error=oidc_exchange&error_step=user_profile_decode")
 	}
 
 	user, workspaceID, err := s.upsertCanvaUser(c, me.Profile.UserID, me.Profile.Email, me.Profile.DisplayName, "")
 	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
+		return c.Redirect().To("/login?error=oidc_exchange&error_step=upsert_user")
 	}
 
 	jwtToken, err := s.tokenMaker.CreateToken(user.ID, workspaceID, sessionDuration)
 	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
+		return c.Redirect().To("/login?error=oidc_exchange&error_step=create_token")
 	}
 	s.setAuthCookie(c, jwtToken)
 	return c.Redirect().To("/")
