@@ -83,6 +83,29 @@ export const authApi = {
 
   /** POST /demo/session (demo build only) — create a demo session. */
   demoSession: () => apiFetch<{ token: string; workspace_id: string; user_id: string; is_demo: boolean }>('/demo/session', { method: 'POST' }),
+
+  /** GET /auth/me — current user profile + linked identities. */
+  me: () => apiFetch<MeResponse>('/auth/me'),
+
+  /** DELETE /auth/oidc/link — unlink OIDC identity. */
+  unlinkOIDC: () => apiFetch('/auth/oidc/link', { method: 'DELETE' }),
+
+  /** DELETE /auth/google/link — unlink Google identity. */
+  unlinkGoogle: () => apiFetch('/auth/google/link', { method: 'DELETE' }),
+
+  /** DELETE /auth/canva/link — unlink Canva identity. */
+  unlinkCanva: () => apiFetch('/auth/canva/link', { method: 'DELETE' }),
+}
+
+export interface MeResponse {
+  id: string
+  name: string
+  email: string
+  avatar_url?: string
+  auth_methods: string
+  oidc_linked: boolean
+  google_linked: boolean
+  canva_linked: boolean
 }
 
 /** Workspace with role information. */
@@ -841,6 +864,20 @@ export const collectionApi = {
     apiFetch(`/api/v1/assets/${assetId}/collections`),
 }
 
+
+export interface OAuthConnection {
+  id: string
+  provider: string
+  provider_email?: string
+  scopes: string[]
+  connected_at: string
+}
+
+export const integrationsApi = {
+  list: (): Promise<OAuthConnection[]> => apiFetch('/integrations/connections'),
+  disconnect: (id: string): Promise<void> =>
+    apiFetch(`/integrations/connections/${id}`, { method: 'DELETE' }),
+}
 
 /**
  * Maps a MIME type string to a broad asset category.

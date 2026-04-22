@@ -8,10 +8,12 @@
   let { children }: { children: Snippet } = $props()
 
   const tabs = [
-    { id: 'members',    label: m.tab_members(),           path: '/library/settings/members' },
-    { id: 'ingress',    label: m.tab_ingress(),           path: '/library/settings/ingress' },
-    { id: 'versioning', label: m.tab_history(),   path: '/library/settings/versioning' },
-    { id: 'privacy',    label: m.tab_exif_privacy(),   path: '/library/settings/privacy' },
+    { id: 'members',      label: m.tab_members(),           path: '/library/settings/members' },
+    { id: 'ingress',      label: m.tab_ingress(),           path: '/library/settings/ingress' },
+    { id: 'integrations', label: m.integrations_title(),    path: '/library/settings/integrations' },
+    { id: 'versioning',   label: m.tab_history(),           path: '/library/settings/versioning' },
+    { id: 'privacy',      label: m.tab_exif_privacy(),      path: '/library/settings/privacy' },
+    { id: 'account',      label: m.settings_auth_title(),   path: '/library/settings/account' },
   ]
 
   const activeTab = $derived(

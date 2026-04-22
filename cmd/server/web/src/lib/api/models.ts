@@ -277,7 +277,7 @@ export interface UpdateShareParams {
 
 // ---- Ingress ----
 
-export type IngressSourceType = 'email_api' | 'imap' | 'sftp' | 'dav' | 's3'
+export type IngressSourceType = 'email_api' | 'imap' | 'sftp' | 'dav' | 's3' | 'gdrive' | 'canva'
 
 export interface IngressSource {
   id: string

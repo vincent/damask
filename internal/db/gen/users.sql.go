@@ -12,7 +12,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
 VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-RETURNING id, email, password_hash, name, created_at, updated_at
+RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
 `
 
 type CreateUserParams struct {
@@ -37,12 +37,170 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const createUserWithCanva = `-- name: CreateUserWithCanva :one
+INSERT INTO users (id, email, password_hash, name, canva_user_id, avatar_url, auth_methods, created_at, updated_at)
+VALUES (?, ?, '', ?, ?, ?, ?, datetime('now'), datetime('now'))
+RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type CreateUserWithCanvaParams struct {
+	ID          string  `json:"id"`
+	Email       string  `json:"email"`
+	Name        string  `json:"name"`
+	CanvaUserID *string `json:"canva_user_id"`
+	AvatarUrl   *string `json:"avatar_url"`
+	AuthMethods string  `json:"auth_methods"`
+}
+
+func (q *Queries) CreateUserWithCanva(ctx context.Context, arg CreateUserWithCanvaParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUserWithCanva,
+		arg.ID,
+		arg.Email,
+		arg.Name,
+		arg.CanvaUserID,
+		arg.AvatarUrl,
+		arg.AuthMethods,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const createUserWithGoogle = `-- name: CreateUserWithGoogle :one
+INSERT INTO users (id, email, password_hash, name, google_user_id, avatar_url, auth_methods, created_at, updated_at)
+VALUES (?, ?, '', ?, ?, ?, ?, datetime('now'), datetime('now'))
+RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type CreateUserWithGoogleParams struct {
+	ID           string  `json:"id"`
+	Email        string  `json:"email"`
+	Name         string  `json:"name"`
+	GoogleUserID *string `json:"google_user_id"`
+	AvatarUrl    *string `json:"avatar_url"`
+	AuthMethods  string  `json:"auth_methods"`
+}
+
+func (q *Queries) CreateUserWithGoogle(ctx context.Context, arg CreateUserWithGoogleParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUserWithGoogle,
+		arg.ID,
+		arg.Email,
+		arg.Name,
+		arg.GoogleUserID,
+		arg.AvatarUrl,
+		arg.AuthMethods,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const createUserWithOIDC = `-- name: CreateUserWithOIDC :one
+INSERT INTO users (id, email, password_hash, name, oidc_issuer, oidc_sub, avatar_url, auth_methods, created_at, updated_at)
+VALUES (?, ?, '', ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type CreateUserWithOIDCParams struct {
+	ID          string  `json:"id"`
+	Email       string  `json:"email"`
+	Name        string  `json:"name"`
+	OidcIssuer  *string `json:"oidc_issuer"`
+	OidcSub     *string `json:"oidc_sub"`
+	AvatarUrl   *string `json:"avatar_url"`
+	AuthMethods string  `json:"auth_methods"`
+}
+
+func (q *Queries) CreateUserWithOIDC(ctx context.Context, arg CreateUserWithOIDCParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUserWithOIDC,
+		arg.ID,
+		arg.Email,
+		arg.Name,
+		arg.OidcIssuer,
+		arg.OidcSub,
+		arg.AvatarUrl,
+		arg.AuthMethods,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const getUserByCanvaID = `-- name: GetUserByCanvaID :one
+SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods FROM users WHERE canva_user_id = ? LIMIT 1
+`
+
+func (q *Queries) GetUserByCanvaID(ctx context.Context, canvaUserID *string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByCanvaID, canvaUserID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, created_at, updated_at FROM users WHERE email = ? LIMIT 1
+SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods FROM users WHERE email = ? LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -55,12 +213,42 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const getUserByGoogleID = `-- name: GetUserByGoogleID :one
+SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods FROM users WHERE google_user_id = ? LIMIT 1
+`
+
+func (q *Queries) GetUserByGoogleID(ctx context.Context, googleUserID *string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByGoogleID, googleUserID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, name, created_at, updated_at FROM users WHERE id = ? LIMIT 1
+SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods FROM users WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -73,6 +261,250 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const getUserByOIDC = `-- name: GetUserByOIDC :one
+SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods FROM users WHERE oidc_issuer = ? AND oidc_sub = ? LIMIT 1
+`
+
+type GetUserByOIDCParams struct {
+	OidcIssuer *string `json:"oidc_issuer"`
+	OidcSub    *string `json:"oidc_sub"`
+}
+
+func (q *Queries) GetUserByOIDC(ctx context.Context, arg GetUserByOIDCParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByOIDC, arg.OidcIssuer, arg.OidcSub)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const linkCanva = `-- name: LinkCanva :one
+UPDATE users SET canva_user_id = ?, avatar_url = COALESCE(?, avatar_url),
+    auth_methods = ?, updated_at = datetime('now')
+WHERE id = ? RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type LinkCanvaParams struct {
+	CanvaUserID *string `json:"canva_user_id"`
+	AvatarUrl   *string `json:"avatar_url"`
+	AuthMethods string  `json:"auth_methods"`
+	ID          string  `json:"id"`
+}
+
+func (q *Queries) LinkCanva(ctx context.Context, arg LinkCanvaParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, linkCanva,
+		arg.CanvaUserID,
+		arg.AvatarUrl,
+		arg.AuthMethods,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const linkGoogle = `-- name: LinkGoogle :one
+UPDATE users SET google_user_id = ?, avatar_url = COALESCE(?, avatar_url),
+    auth_methods = ?, updated_at = datetime('now')
+WHERE id = ? RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type LinkGoogleParams struct {
+	GoogleUserID *string `json:"google_user_id"`
+	AvatarUrl    *string `json:"avatar_url"`
+	AuthMethods  string  `json:"auth_methods"`
+	ID           string  `json:"id"`
+}
+
+func (q *Queries) LinkGoogle(ctx context.Context, arg LinkGoogleParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, linkGoogle,
+		arg.GoogleUserID,
+		arg.AvatarUrl,
+		arg.AuthMethods,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const linkOIDC = `-- name: LinkOIDC :one
+UPDATE users SET oidc_issuer = ?, oidc_sub = ?, avatar_url = COALESCE(?, avatar_url),
+    auth_methods = ?, updated_at = datetime('now')
+WHERE id = ? RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type LinkOIDCParams struct {
+	OidcIssuer  *string `json:"oidc_issuer"`
+	OidcSub     *string `json:"oidc_sub"`
+	AvatarUrl   *string `json:"avatar_url"`
+	AuthMethods string  `json:"auth_methods"`
+	ID          string  `json:"id"`
+}
+
+func (q *Queries) LinkOIDC(ctx context.Context, arg LinkOIDCParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, linkOIDC,
+		arg.OidcIssuer,
+		arg.OidcSub,
+		arg.AvatarUrl,
+		arg.AuthMethods,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const unlinkCanva = `-- name: UnlinkCanva :one
+UPDATE users SET canva_user_id = NULL,
+    auth_methods = ?, updated_at = datetime('now')
+WHERE id = ? RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type UnlinkCanvaParams struct {
+	AuthMethods string `json:"auth_methods"`
+	ID          string `json:"id"`
+}
+
+func (q *Queries) UnlinkCanva(ctx context.Context, arg UnlinkCanvaParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, unlinkCanva, arg.AuthMethods, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const unlinkGoogle = `-- name: UnlinkGoogle :one
+UPDATE users SET google_user_id = NULL,
+    auth_methods = ?, updated_at = datetime('now')
+WHERE id = ? RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type UnlinkGoogleParams struct {
+	AuthMethods string `json:"auth_methods"`
+	ID          string `json:"id"`
+}
+
+func (q *Queries) UnlinkGoogle(ctx context.Context, arg UnlinkGoogleParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, unlinkGoogle, arg.AuthMethods, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
+	)
+	return i, err
+}
+
+const unlinkOIDC = `-- name: UnlinkOIDC :one
+UPDATE users SET oidc_issuer = NULL, oidc_sub = NULL,
+    auth_methods = ?, updated_at = datetime('now')
+WHERE id = ? RETURNING id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods
+`
+
+type UnlinkOIDCParams struct {
+	AuthMethods string `json:"auth_methods"`
+	ID          string `json:"id"`
+}
+
+func (q *Queries) UnlinkOIDC(ctx context.Context, arg UnlinkOIDCParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, unlinkOIDC, arg.AuthMethods, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OidcSub,
+		&i.OidcIssuer,
+		&i.CanvaUserID,
+		&i.GoogleUserID,
+		&i.AvatarUrl,
+		&i.AuthMethods,
 	)
 	return i, err
 }

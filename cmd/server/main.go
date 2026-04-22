@@ -21,13 +21,18 @@ import (
 	"damask/server/internal/storage"
 
 	// Side-effect imports to register ingress source types
+	canvasrc "damask/server/internal/ingress/sources/canva"
 	_ "damask/server/internal/ingress/sources/dav"
 	_ "damask/server/internal/ingress/sources/email_api"
+	gdrivesrc "damask/server/internal/ingress/sources/gdrive"
 	_ "damask/server/internal/ingress/sources/imap"
 	_ "damask/server/internal/ingress/sources/s3"
 	_ "damask/server/internal/ingress/sources/sftp"
+	oauthpkg "damask/server/internal/oauth"
 
 	"github.com/gofiber/fiber/v3"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 var uiFS fs.FS // Populated by ui.go (prod) or ui_dev.go (dev)
@@ -128,6 +133,36 @@ func main() {
 			mailErr <- err
 		}
 	}()
+
+	config.InitOIDCProviders(cfg)
+
+	// Wire TokenRefresher into OAuth-backed ingress sources.
+	refresher := oauthpkg.NewTokenRefresher(queries, cfg.AppSecret)
+	if cfg.Google.ClientID != "" {
+		slog.Info("register Google tokens refresher")
+		refresher.RegisterProvider("google", &oauth2.Config{
+			ClientID:     cfg.Google.ClientID,
+			ClientSecret: cfg.Google.ClientSecret,
+			Endpoint:     google.Endpoint,
+			RedirectURL:  cfg.BaseURL.String() + "/integrations/callback/google",
+			Scopes:       []string{"openid", "email", "profile", "https://www.googleapis.com/auth/drive.readonly"},
+		})
+	}
+	if cfg.Canva.ClientID != "" {
+		slog.Info("register Canva tokens refresher")
+		refresher.RegisterProvider("canva", &oauth2.Config{
+			ClientID:     cfg.Canva.ClientID,
+			ClientSecret: cfg.Canva.ClientSecret,
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://www.canva.com/api/oauth/code",
+				TokenURL: "https://api.canva.com/rest/v1/oauth/token",
+			},
+			RedirectURL: cfg.BaseURL.String() + "/integrations/callback/canva",
+			Scopes:      []string{"profile:read", "design:content:read"},
+		})
+	}
+	gdrivesrc.SetRefresher(refresher)
+	canvasrc.SetRefresher(refresher)
 
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)
 	appErr := make(chan error, 1)

@@ -1,0 +1,204 @@
+// Package gdrive implements an ingress Source backed by Google Drive.
+package gdrive
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"sync"
+
+	"damask/server/internal/ingress"
+	"damask/server/internal/oauth"
+
+	"golang.org/x/oauth2"
+	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/option"
+)
+
+// Config is the decrypted JSON config stored in ingress_sources.config.
+type Config struct {
+	ConnectionID      string `json:"connection_id"`
+	WorkspaceID       string `json:"workspace_id"`
+	FolderID          string `json:"folder_id"`
+	FolderName        string `json:"folder_name"`
+	IncludeSubfolders bool   `json:"include_subfolders"`
+	ExportGoogleDocs  bool   `json:"export_google_docs"`
+	AfterImport       string `json:"after_import"` // "leave" | "move_to_trash"
+}
+
+// globalRefresher is set at server startup via SetRefresher.
+var (
+	refresherMu     sync.RWMutex
+	globalRefresher *oauth.TokenRefresher
+)
+
+// SetRefresher injects the TokenRefresher. Call once at server startup.
+func SetRefresher(r *oauth.TokenRefresher) {
+	refresherMu.Lock()
+	defer refresherMu.Unlock()
+	globalRefresher = r
+}
+
+func init() {
+	ingress.Register("gdrive", New)
+}
+
+// New builds a GDriveSource from decrypted config JSON.
+func New(configJSON []byte) (ingress.Source, error) {
+	var cfg Config
+	if err := json.Unmarshal(configJSON, &cfg); err != nil {
+		return nil, fmt.Errorf("gdrive: parse config: %w", err)
+	}
+	if cfg.ConnectionID == "" {
+		return nil, fmt.Errorf("gdrive: connection_id is required")
+	}
+	if cfg.FolderID == "" {
+		return nil, fmt.Errorf("gdrive: folder_id is required")
+	}
+	return &GDriveSource{cfg: cfg}, nil
+}
+
+// GDriveSource polls a Google Drive folder for new files.
+type GDriveSource struct {
+	cfg Config
+}
+
+func (s *GDriveSource) Type() string { return "gdrive" }
+
+func (s *GDriveSource) driveService(ctx context.Context) (*drive.Service, error) {
+	refresherMu.RLock()
+	r := globalRefresher
+	refresherMu.RUnlock()
+	if r == nil {
+		return nil, fmt.Errorf("gdrive: token refresher not initialised")
+	}
+	token, err := r.EnsureFreshToken(ctx, s.cfg.WorkspaceID, s.cfg.ConnectionID)
+	if err != nil {
+		return nil, fmt.Errorf("gdrive: refresh token: %w", err)
+	}
+	svc, err := drive.NewService(ctx, option.WithTokenSource(
+		oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}),
+	))
+	if err != nil {
+		return nil, fmt.Errorf("gdrive: new drive service: %w", err)
+	}
+	return svc, nil
+}
+
+func (s *GDriveSource) Validate(ctx context.Context) error {
+	svc, err := s.driveService(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = svc.Files.Get(s.cfg.FolderID).Fields("id,name").Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("gdrive: validate folder %s: %w", s.cfg.FolderID, err)
+	}
+	return nil
+}
+
+func (s *GDriveSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
+	svc, err := s.driveService(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := fmt.Sprintf("'%s' in parents and trashed = false", s.cfg.FolderID)
+	var items []ingress.IngestItem
+	pageToken := ""
+	for {
+		call := svc.Files.List().
+			Q(query).
+			Fields("nextPageToken, files(id,name,mimeType,size,modifiedTime,md5Checksum)").
+			PageSize(100).
+			Context(ctx)
+		if pageToken != "" {
+			call = call.PageToken(pageToken)
+		}
+		result, err := call.Do()
+		if err != nil {
+			return nil, fmt.Errorf("gdrive: list files: %w", err)
+		}
+		for _, f := range result.Files {
+			// Skip Google Workspace files if export is disabled.
+			if isGoogleWorkspaceType(f.MimeType) && !s.cfg.ExportGoogleDocs {
+				continue
+			}
+			remoteID := f.Id + "#" + f.ModifiedTime
+			if f.Md5Checksum != "" {
+				remoteID = f.Id + "#" + f.Md5Checksum
+			}
+			items = append(items, ingress.IngestItem{
+				RemoteID: remoteID,
+				Filename: exportFilename(f.Name, f.MimeType),
+				Size:     f.Size,
+				Meta: map[string]string{
+					"file_id":   f.Id,
+					"mime_type": f.MimeType,
+				},
+			})
+		}
+		if result.NextPageToken == "" {
+			break
+		}
+		pageToken = result.NextPageToken
+	}
+	return items, nil
+}
+
+func (s *GDriveSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
+	svc, err := s.driveService(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	fileID := item.Meta["file_id"]
+	mimeType := item.Meta["mime_type"]
+
+	if isGoogleWorkspaceType(mimeType) {
+		exportMIME := exportMIMEType(mimeType)
+		resp, err := svc.Files.Export(fileID, exportMIME).Context(ctx).Download()
+		if err != nil {
+			return nil, fmt.Errorf("gdrive: export %s as %s: %w", fileID, exportMIME, err)
+		}
+		return resp.Body, nil
+	}
+
+	resp, err := svc.Files.Get(fileID).Context(ctx).Download()
+	if err != nil {
+		return nil, fmt.Errorf("gdrive: download %s: %w", fileID, err)
+	}
+	return resp.Body, nil
+}
+
+var googleWorkspaceMIMEs = map[string]string{
+	"application/vnd.google-apps.document":     "application/pdf",
+	"application/vnd.google-apps.spreadsheet":  "application/pdf",
+	"application/vnd.google-apps.presentation": "application/pdf",
+	"application/vnd.google-apps.drawing":      "image/png",
+}
+
+func isGoogleWorkspaceType(mimeType string) bool {
+	_, ok := googleWorkspaceMIMEs[mimeType]
+	return ok
+}
+
+func exportMIMEType(mimeType string) string {
+	if m, ok := googleWorkspaceMIMEs[mimeType]; ok {
+		return m
+	}
+	return "application/pdf"
+}
+
+func exportFilename(name, mimeType string) string {
+	switch mimeType {
+	case "application/vnd.google-apps.document",
+		"application/vnd.google-apps.spreadsheet",
+		"application/vnd.google-apps.presentation":
+		return name + ".pdf"
+	case "application/vnd.google-apps.drawing":
+		return name + ".png"
+	}
+	return name
+}

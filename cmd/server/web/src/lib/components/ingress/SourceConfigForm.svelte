@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Eye, EyeOff } from '@lucide/svelte'
   import type { IngressSourceType } from '$lib/api/models'
+  import { integrationsApi, type OAuthConnection } from '$lib/api'
   import Input from '$lib/components/ui/Input.svelte'
   import { m } from '$lib/paraglide/messages'
 
@@ -25,6 +26,18 @@
   // Password visibility toggles
   let showPassword = $state(false)
   let showSecretKey = $state(false)
+
+  // OAuth connections for gdrive/canva
+  let connections = $state<OAuthConnection[]>([])
+  $effect(() => {
+    if (type === 'gdrive' || type === 'canva') {
+      integrationsApi.list().then(c => { connections = c }).catch(() => {})
+    }
+  })
+
+  function connectionsFor(provider: string) {
+    return connections.filter(c => c.provider === provider)
+  }
 </script>
 
 {#if type === 'email_api'}
@@ -347,6 +360,173 @@
       <label for="s3-path-style" class="text-md text-gray-700 dark:text-gray-300">
         Use path-style URLs (required for MinIO)
       </label>
+    </div>
+  </div>
+
+{:else if type === 'gdrive'}
+  {@const googleConns = connectionsFor('google')}
+  <div class="space-y-4">
+    <div>
+      <label for="gdrive-connection" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+        {m.ingress_gdrive_connection()}
+      </label>
+      {#if googleConns.length === 0}
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">
+          {m.ingress_gdrive_connection_empty()}
+          <a href="/library/settings/integrations" class="text-blue-600 dark:text-blue-400 hover:underline">
+            {m.ingress_gdrive_connect_link()}
+          </a>
+        </p>
+      {:else}
+        <select
+          id="gdrive-connection"
+          value={field('connection_id')}
+          onchange={(e) => setField('connection_id', (e.target as HTMLSelectElement).value)}
+          class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        >
+          <option value="">—</option>
+          {#each googleConns as conn (conn.id)}
+            <option value={conn.id}>{conn.provider_email ?? conn.id}</option>
+          {/each}
+        </select>
+      {/if}
+    </div>
+    <div>
+      <Input
+        label={m.ingress_gdrive_folder_id()}
+        placeholder="1BxiMVs0XRA5nFMd…"
+        value={field('folder_id')}
+        oninput={(e) => setField('folder_id', (e.target as HTMLInputElement).value)}
+      />
+      <p class="mt-1 text-sm text-zinc-400 dark:text-zinc-500">{m.ingress_gdrive_folder_id_hint()}</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <input
+        id="gdrive-subfolders"
+        type="checkbox"
+        checked={boolField('include_subfolders', false)}
+        onchange={(e) => setField('include_subfolders', (e.target as HTMLInputElement).checked)}
+        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+      <label for="gdrive-subfolders" class="text-md text-gray-700 dark:text-gray-300">
+        {m.ingress_gdrive_include_subfolders()}
+      </label>
+    </div>
+    <div class="flex items-center gap-2">
+      <input
+        id="gdrive-export-docs"
+        type="checkbox"
+        checked={boolField('export_google_docs', true)}
+        onchange={(e) => setField('export_google_docs', (e.target as HTMLInputElement).checked)}
+        class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+      <label for="gdrive-export-docs" class="text-md text-gray-700 dark:text-gray-300">
+        {m.ingress_gdrive_export_google_docs()}
+      </label>
+    </div>
+    <div>
+      <p class="mb-2 text-md font-medium text-gray-700 dark:text-gray-300">After import</p>
+      <div class="space-y-2">
+        <label class="flex items-center gap-2 text-md text-gray-700 dark:text-gray-300">
+          <input
+            type="radio"
+            name="gdrive-after"
+            value="leave"
+            checked={field('after_import') !== 'move_to_trash'}
+            onchange={() => setField('after_import', 'leave')}
+            class="text-indigo-600 focus:ring-indigo-500"
+          />
+          {m.ingress_gdrive_after_leave()}
+        </label>
+        <label class="flex items-center gap-2 text-md text-gray-700 dark:text-gray-300">
+          <input
+            type="radio"
+            name="gdrive-after"
+            value="move_to_trash"
+            checked={field('after_import') === 'move_to_trash'}
+            onchange={() => setField('after_import', 'move_to_trash')}
+            class="text-indigo-600 focus:ring-indigo-500"
+          />
+          {m.ingress_gdrive_after_trash()}
+        </label>
+      </div>
+    </div>
+  </div>
+
+{:else if type === 'canva'}
+  {@const canvaConns = connectionsFor('canva')}
+  <div class="space-y-4">
+    <div>
+      <label for="canva-connection" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+        {m.ingress_canva_connection()}
+      </label>
+      {#if canvaConns.length === 0}
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">
+          {m.ingress_canva_connection_empty()}
+          <a href="/library/settings/integrations" class="text-blue-600 dark:text-blue-400 hover:underline">
+            {m.ingress_canva_connect_link()}
+          </a>
+        </p>
+      {:else}
+        <select
+          id="canva-connection"
+          value={field('connection_id')}
+          onchange={(e) => setField('connection_id', (e.target as HTMLSelectElement).value)}
+          class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        >
+          <option value="">—</option>
+          {#each canvaConns as conn (conn.id)}
+            <option value={conn.id}>{conn.provider_email ?? conn.id}</option>
+          {/each}
+        </select>
+      {/if}
+    </div>
+    <div>
+      <label for="canva-format" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+        {m.ingress_canva_export_format()}
+      </label>
+      <select
+        id="canva-format"
+        value={field('export_format') || 'pdf'}
+        onchange={(e) => setField('export_format', (e.target as HTMLSelectElement).value)}
+        class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+      >
+        <option value="pdf">{m.ingress_canva_format_pdf()}</option>
+        <option value="png">{m.ingress_canva_format_png()}</option>
+        <option value="jpg">{m.ingress_canva_format_jpg()}</option>
+      </select>
+    </div>
+    <div>
+      <p class="mb-2 text-md font-medium text-gray-700 dark:text-gray-300">
+        {m.ingress_canva_ownership()}
+      </p>
+      <div class="space-y-2">
+        {#each [
+          { value: 'owned', label: m.ingress_canva_ownership_owned() },
+          { value: 'shared', label: m.ingress_canva_ownership_shared() },
+          { value: 'any', label: m.ingress_canva_ownership_any() },
+        ] as opt (opt.value)}
+          <label class="flex items-center gap-2 text-md text-gray-700 dark:text-gray-300">
+            <input
+              type="radio"
+              name="canva-ownership"
+              value={opt.value}
+              checked={(field('ownership') || 'owned') === opt.value}
+              onchange={() => setField('ownership', opt.value)}
+              class="text-indigo-600 focus:ring-indigo-500"
+            />
+            {opt.label}
+          </label>
+        {/each}
+      </div>
+    </div>
+    <div>
+      <Input
+        label={m.ingress_canva_name_filter()}
+        placeholder={m.ingress_canva_name_filter_hint()}
+        value={field('name_filter')}
+        oninput={(e) => setField('name_filter', (e.target as HTMLInputElement).value)}
+      />
     </div>
   </div>
 {/if}

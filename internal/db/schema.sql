@@ -372,3 +372,30 @@ CREATE TABLE collection_assets (
 
 CREATE INDEX idx_collections_workspace ON collections(workspace_id);
 CREATE INDEX idx_collection_assets_collection ON collection_assets(collection_id, position);
+
+-- Migration 023: oauth_connections
+CREATE TABLE oauth_connections (
+  id               TEXT PRIMARY KEY,
+  workspace_id     TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  created_by       TEXT NOT NULL REFERENCES users(id),
+  provider         TEXT NOT NULL,
+  provider_user_id TEXT,
+  provider_email   TEXT,
+  scopes           TEXT NOT NULL DEFAULT '[]',
+  access_token     TEXT NOT NULL,
+  refresh_token    TEXT,
+  expires_at       TEXT,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(workspace_id, provider, provider_user_id)
+);
+
+CREATE INDEX idx_oauth_connections_workspace ON oauth_connections(workspace_id);
+
+-- Migration 024: users OIDC columns
+ALTER TABLE users ADD COLUMN oidc_sub       TEXT;
+ALTER TABLE users ADD COLUMN oidc_issuer    TEXT;
+ALTER TABLE users ADD COLUMN canva_user_id  TEXT;
+ALTER TABLE users ADD COLUMN google_user_id TEXT;
+ALTER TABLE users ADD COLUMN avatar_url     TEXT;
+ALTER TABLE users ADD COLUMN auth_methods   TEXT NOT NULL DEFAULT '["password"]';

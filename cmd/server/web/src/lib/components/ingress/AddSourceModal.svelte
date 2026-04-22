@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Mail, Server, HardDrive, Cloud, Inbox, ChevronLeft, CheckCircle, AlertCircle } from '@lucide/svelte'
+  import { Mail, Server, HardDrive, Cloud, Inbox, ChevronLeft, FolderOpen, Palette } from '@lucide/svelte'
   import type { IngressSource, IngressSourceType } from '$lib/api/models'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
@@ -28,6 +28,8 @@
     { type: 'sftp', label: m.ingress_sftp(), desc: m.ingress_sftp_desc(), icon: Server },
     { type: 'dav', label: m.ingress_dav(), desc: m.ingress_dav_desc(), icon: HardDrive },
     { type: 's3', label: m.ingress_s3(), desc: m.ingress_s3_desc(), icon: Cloud },
+    { type: 'gdrive', label: m.ingress_gdrive_label(), desc: m.ingress_gdrive_folder_id_hint(), icon: FolderOpen },
+    { type: 'canva', label: m.ingress_canva_label(), desc: m.ingress_canva_export_format(), icon: Palette },
   ]
 
   const POLL_INTERVALS = [

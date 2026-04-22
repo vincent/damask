@@ -13,6 +13,27 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// OIDCConfig holds config for a generic OIDC provider (selfhosted IDP).
+// Provider and Verifier are populated at startup via OIDC discovery.
+type OIDCConfig struct {
+	IssuerURL    string
+	ClientID     string
+	ClientSecret string
+	Label        string // display label on the login page
+}
+
+// GoogleOIDCConfig holds config for Google OIDC login.
+type GoogleOIDCConfig struct {
+	ClientID     string
+	ClientSecret string
+}
+
+// CanvaConfig holds config for Canva OAuth login and import.
+type CanvaConfig struct {
+	ClientID     string
+	ClientSecret string
+}
+
 type Config struct {
 	MailServerPort   string
 	MailServerHost   string
@@ -34,6 +55,10 @@ type Config struct {
 	Demo             DemoConfig
 	// BodyLimit overrides the default 100 MB upload limit. Zero means use the default.
 	BodyLimit int
+
+	OIDC   OIDCConfig
+	Google GoogleOIDCConfig
+	Canva  CanvaConfig
 }
 
 // DemoConfig holds all demo-mode settings. All fields are zero-valued when
@@ -117,6 +142,21 @@ func Load() (*Config, error) {
 			ShowBanner:         demoMode && getEnv("DEMO_BANNER", "true") != "false",
 			SignupURL:          getEnv("DEMO_SIGNUP_URL", "/signup"),
 		},
+	}
+
+	cfg.OIDC = OIDCConfig{
+		IssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
+		ClientID:     os.Getenv("OIDC_CLIENT_ID"),
+		ClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
+		Label:        getEnv("OIDC_LABEL", "Sign in with SSO"),
+	}
+	cfg.Google = GoogleOIDCConfig{
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	}
+	cfg.Canva = CanvaConfig{
+		ClientID:     os.Getenv("CANVA_CLIENT_ID"),
+		ClientSecret: os.Getenv("CANVA_CLIENT_SECRET"),
 	}
 
 	if cfg.JWTSecret == "" {

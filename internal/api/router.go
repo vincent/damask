@@ -115,6 +115,7 @@ func NewRouter(
 
 	// Public server config (demo flag, etc.)
 	app.Get("/config", auth.OptionalAuth(s.tokenMaker), s.handleConfig)
+	app.Get("/config/auth", s.handleAuthConfig)
 
 	// Demo routes — only compiled and registered with -tags=demo
 	s.registerDemoRoutes(app, cfg)
@@ -164,6 +165,31 @@ func NewRouter(
 
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)
+
+	// OIDC / Google / Canva login flows (public)
+	authGroup.Get("/oidc/login", s.handleOIDCLogin)
+	authGroup.Get("/oidc/callback", s.handleOIDCCallback)
+	authGroup.Get("/google/login", s.handleGoogleLogin)
+	authGroup.Get("/google/callback", s.handleGoogleCallback)
+	authGroup.Get("/canva/login", s.handleCanvaLogin)
+	authGroup.Get("/canva/callback", s.handleCanvaCallback)
+
+	// Current user profile + linked identities
+	authGroup.Get("/me", auth.RequireAuth(tokenMaker), s.handleGetMe)
+
+	// Unlink identity providers (authenticated)
+	authGroup.Delete("/oidc/link", auth.RequireAuth(tokenMaker), s.handleUnlinkOIDC)
+	authGroup.Delete("/google/link", auth.RequireAuth(tokenMaker), s.handleUnlinkGoogle)
+	authGroup.Delete("/canva/link", auth.RequireAuth(tokenMaker), s.handleUnlinkCanva)
+
+	// OAuth workspace connections (authenticated)
+	intGroup := app.Group("/integrations", auth.RequireAuth(tokenMaker))
+	intGroup.Get("/connections", s.handleListConnections)
+	intGroup.Delete("/connections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteConnection)
+	intGroup.Get("/connect/google", s.handleConnectGoogle)
+	intGroup.Get("/callback/google", s.handleCallbackGoogle)
+	intGroup.Get("/connect/canva", s.handleConnectCanva)
+	intGroup.Get("/callback/canva", s.handleCallbackCanva)
 
 	// Field definitions — reorder must be registered before /:id to avoid conflict
 	api.Get("/field-definitions", s.handleListFieldDefinitions)

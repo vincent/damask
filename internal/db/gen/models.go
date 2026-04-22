@@ -177,6 +177,21 @@ type Job struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type OauthConnection struct {
+	ID             string  `json:"id"`
+	WorkspaceID    string  `json:"workspace_id"`
+	CreatedBy      string  `json:"created_by"`
+	Provider       string  `json:"provider"`
+	ProviderUserID *string `json:"provider_user_id"`
+	ProviderEmail  *string `json:"provider_email"`
+	Scopes         string  `json:"scopes"`
+	AccessToken    string  `json:"access_token"`
+	RefreshToken   *string `json:"refresh_token"`
+	ExpiresAt      *string `json:"expires_at"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
+}
+
 type Project struct {
 	ID             string    `json:"id"`
 	WorkspaceID    string    `json:"workspace_id"`
@@ -256,6 +271,12 @@ type User struct {
 	Name         string    `json:"name"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	OidcSub      *string   `json:"oidc_sub"`
+	OidcIssuer   *string   `json:"oidc_issuer"`
+	CanvaUserID  *string   `json:"canva_user_id"`
+	GoogleUserID *string   `json:"google_user_id"`
+	AvatarUrl    *string   `json:"avatar_url"`
+	AuthMethods  string    `json:"auth_methods"`
 }
 
 type Variant struct {

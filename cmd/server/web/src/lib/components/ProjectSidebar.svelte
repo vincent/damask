@@ -165,7 +165,7 @@
         <div class="absolute right-2 top-full z-20 mt-0.5">
           <ContextMenu
             items={[
-              { label: 'Rename', onclick: () => startEdit(project.id, project.name) },
+              { label: m.rename(), onclick: () => startEdit(project.id, project.name) },
               ...(authStore.role === 'owner' ? [{ label: m.delete(), onclick: () => deleteProject(project.id), danger: true }] : [])
             ]}
             onclose={() => { menuOpenId = null }}

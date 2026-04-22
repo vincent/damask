@@ -2,6 +2,7 @@ package api
 
 import (
 	"damask/server/internal/auth"
+	"damask/server/internal/config"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -50,4 +51,17 @@ func (s *Server) handleConfig(c fiber.Ctx) error {
 		out["mailHost"] = s.cfg.MailServerHost
 	}
 	return c.JSON(out)
+}
+
+// handleAuthConfig returns which login methods are enabled. Public, reads only config.
+func (s *Server) handleAuthConfig(c fiber.Ctx) error {
+	oidcRT := config.GetOIDCRuntime()
+	googleRT := config.GetGoogleRuntime()
+	return c.JSON(fiber.Map{
+		"password_auth": true,
+		"oidc_enabled":  oidcRT != nil,
+		"oidc_label":    s.cfg.OIDC.Label,
+		"google_enabled": googleRT != nil,
+		"canva_enabled": s.cfg.Canva.ClientID != "",
+	})
 }
