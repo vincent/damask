@@ -54,8 +54,9 @@ type FetchJobPayload struct {
 	LogEntryID       string `json:"log_entry_id"`
 	RemoteID         string `json:"remote_id"`
 	Filename         string `json:"filename"`
-	TmpPath          string `json:"tmp_path,omitempty"`
-	OverrideFolderID string `json:"override_folder_id,omitempty"`
+	TmpPath          string            `json:"tmp_path,omitempty"`
+	OverrideFolderID string            `json:"override_folder_id,omitempty"`
+	Meta             map[string]string `json:"meta,omitempty"`
 }
 
 // HandlePoll is the queue.HandlerFunc for JobTypeIngestPoll.
@@ -114,6 +115,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 			LogEntryID:  entry.ID,
 			RemoteID:    item.RemoteID,
 			Filename:    item.Filename,
+			Meta:        item.Meta,
 		})
 		if _, err := w.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
 			slog.Error("ingest_poll: enqueue fetch", "remote_id", item.RemoteID, "error", err)
@@ -195,7 +197,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		defer os.Remove(p.TmpPath)
 		rc = f
 	} else {
-		rc, err = source.Fetch(ctx, IngestItem{RemoteID: entry.RemoteID, Filename: entry.Filename})
+		rc, err = source.Fetch(ctx, IngestItem{RemoteID: entry.RemoteID, Filename: entry.Filename, Meta: p.Meta})
 		if err != nil {
 			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: fetch item: %w", err))
 		}

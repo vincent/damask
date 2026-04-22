@@ -135,7 +135,7 @@
 
     {#if configStore.state.demo}
       <div class="text-center">
-        <button onclick={handleDemo} disabled={demoLoading} class="text-md text-blue-600 hover:underline disabled:opacity-50">
+        <button onclick={handleDemo} disabled={demoLoading} class="text-md text-blue-600 dark:text-gray-50 hover:underline disabled:opacity-50">
           {demoLoading ? m.starting_demo() : m.try_demo()}
         </button>
       </div>

@@ -367,6 +367,12 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		interval = 15
 	}
 
+	// Stamp workspace_id so source constructors can use it without trusting the client to supply it.
+	if req.Config == nil {
+		req.Config = map[string]any{}
+	}
+	req.Config["workspace_id"] = claims.WorkspaceID
+
 	mutatedConfig, err := ingress.RunOnCreateHook(req.Type, req.Config)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not prepare config")
@@ -554,6 +560,7 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 	// Re-encrypt config if provided, otherwise keep existing
 	encryptedConfig := existing.Config
 	if req.Config != nil {
+		req.Config["workspace_id"] = claims.WorkspaceID
 		configBytes, err := json.Marshal(req.Config)
 		if err != nil {
 			return errRes(c, fiber.StatusBadRequest, "invalid config")

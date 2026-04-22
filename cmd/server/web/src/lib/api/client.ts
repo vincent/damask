@@ -874,9 +874,9 @@ export interface OAuthConnection {
 }
 
 export const integrationsApi = {
-  list: (): Promise<OAuthConnection[]> => apiFetch('/integrations/connections'),
+  list: (): Promise<OAuthConnection[]> => apiFetch('/api/v1/integrations/connections'),
   disconnect: (id: string): Promise<void> =>
-    apiFetch(`/integrations/connections/${id}`, { method: 'DELETE' }),
+    apiFetch(`/api/v1/integrations/connections/${id}`, { method: 'DELETE' }),
 }
 
 /**

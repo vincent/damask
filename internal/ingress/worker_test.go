@@ -410,6 +410,83 @@ func TestHandleFetch_PullSource_FetchesViaSource(t *testing.T) {
 	}
 }
 
+// captureSource records the IngestItem passed to Fetch so tests can inspect it.
+type captureSource struct {
+	typ          string
+	items        []IngestItem
+	capturedItem *IngestItem
+}
+
+func (s *captureSource) Type() string                     { return s.typ }
+func (s *captureSource) Validate(_ context.Context) error { return nil }
+func (s *captureSource) Poll(_ context.Context) ([]IngestItem, error) {
+	return s.items, nil
+}
+func (s *captureSource) Fetch(_ context.Context, item IngestItem) (io.ReadCloser, error) {
+	*s.capturedItem = item
+	return io.NopCloser(strings.NewReader("data")), nil
+}
+
+func TestHandleFetch_MetaPassedToSource(t *testing.T) {
+	w, queries := setupWorkerTest(t)
+	ctx := context.Background()
+
+	var captured IngestItem
+	typ := "meta_capture_" + uuid.NewString()
+	src := &captureSource{
+		typ: typ,
+		items: []IngestItem{{
+			RemoteID: "r1",
+			Filename: "file.jpg",
+			Meta:     map[string]string{"file_id": "abc123", "mime_type": "image/jpeg"},
+		}},
+		capturedItem: &captured,
+	}
+	Register(typ, func(_ []byte) (Source, error) { return src, nil })
+
+	userID := uuid.NewString()
+	workspaceID := uuid.NewString()
+	sourceID := uuid.NewString()
+	_, _ = queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: workspaceID, Name: "WS"})
+	_, _ = queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "meta@example.com", PasswordHash: "x", Name: "Meta"})
+	configJSON, _ := EncryptConfig(testAppSecret, []byte(`{}`))
+	_, _ = queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+		ID:              sourceID,
+		WorkspaceID:     workspaceID,
+		CreatedBy:       userID,
+		Type:            typ,
+		Label:           "meta-label",
+		Config:          configJSON,
+		PublicToken:     uuid.NewString(),
+		Enabled:         1,
+		PollIntervalMin: 60,
+	})
+
+	pollPayload, _ := json.Marshal(PollJobPayload{SourceID: sourceID, WorkspaceID: workspaceID})
+	if err := w.HandlePoll(ctx, dbgen.Job{Payload: string(pollPayload)}); err != nil {
+		t.Fatalf("HandlePoll: %v", err)
+	}
+
+	fetchJob, err := queries.ClaimNextJob(ctx)
+	if err != nil {
+		t.Fatalf("ClaimNextJob: %v", err)
+	}
+	if fetchJob.Type != queue.JobTypeIngestFetch {
+		t.Fatalf("expected job type %q, got %q", queue.JobTypeIngestFetch, fetchJob.Type)
+	}
+
+	if err := w.HandleFetch(ctx, fetchJob); err != nil {
+		t.Fatalf("HandleFetch: %v", err)
+	}
+
+	if captured.Meta["file_id"] != "abc123" {
+		t.Errorf("Meta[file_id] = %q, want %q", captured.Meta["file_id"], "abc123")
+	}
+	if captured.Meta["mime_type"] != "image/jpeg" {
+		t.Errorf("Meta[mime_type] = %q, want %q", captured.Meta["mime_type"], "image/jpeg")
+	}
+}
+
 func TestHandleFetch_BadPayload_ReturnsError(t *testing.T) {
 	w, _ := setupWorkerTest(t)
 	ctx := context.Background()

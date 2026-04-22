@@ -183,9 +183,9 @@ func NewRouter(
 	authGroup.Delete("/canva/link", auth.RequireAuth(tokenMaker), s.handleUnlinkCanva)
 
 	// OAuth workspace connections (authenticated)
+	api.Get("/integrations/connections", s.handleListConnections)
+	api.Delete("/integrations/connections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteConnection)
 	intGroup := app.Group("/integrations", auth.RequireAuth(tokenMaker))
-	intGroup.Get("/connections", s.handleListConnections)
-	intGroup.Delete("/connections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteConnection)
 	intGroup.Get("/connect/google", s.handleConnectGoogle)
 	intGroup.Get("/callback/google", s.handleCallbackGoogle)
 	intGroup.Get("/connect/canva", s.handleConnectCanva)

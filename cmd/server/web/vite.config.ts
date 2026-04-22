@@ -19,6 +19,7 @@ export default defineConfig({
       '/auth': 'http://localhost:8080',
       '/config': 'http://localhost:8080',
       '/demo': 'http://localhost:8080',
+      '/integrations': 'http://localhost:8080',
     },
   },
 })

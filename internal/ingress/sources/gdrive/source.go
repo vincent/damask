@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"sync"
 
 	"damask/server/internal/ingress"
@@ -49,6 +50,9 @@ func New(configJSON []byte) (ingress.Source, error) {
 	var cfg Config
 	if err := json.Unmarshal(configJSON, &cfg); err != nil {
 		return nil, fmt.Errorf("gdrive: parse config: %w", err)
+	}
+	if cfg.WorkspaceID == "" {
+		return nil, fmt.Errorf("gdrive: workspace_id is required")
 	}
 	if cfg.ConnectionID == "" {
 		return nil, fmt.Errorf("gdrive: connection_id is required")
@@ -129,7 +133,7 @@ func (s *GDriveSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 			if f.Md5Checksum != "" {
 				remoteID = f.Id + "#" + f.Md5Checksum
 			}
-			items = append(items, ingress.IngestItem{
+			item := ingress.IngestItem{
 				RemoteID: remoteID,
 				Filename: exportFilename(f.Name, f.MimeType),
 				Size:     f.Size,
@@ -137,7 +141,8 @@ func (s *GDriveSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 					"file_id":   f.Id,
 					"mime_type": f.MimeType,
 				},
-			})
+			}
+			items = append(items, item)
 		}
 		if result.NextPageToken == "" {
 			break
@@ -167,7 +172,8 @@ func (s *GDriveSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.R
 
 	resp, err := svc.Files.Get(fileID).Context(ctx).Download()
 	if err != nil {
-		return nil, fmt.Errorf("gdrive: download %s: %w", fileID, err)
+		slog.Error("gdrive: cannot download item", "item", item, "error", err)
+		return nil, fmt.Errorf("gdrive: download [%s]: %w", fileID, err)
 	}
 	return resp.Body, nil
 }
