@@ -39,10 +39,10 @@
     <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{m.project()}</p>
     {#if authStore.role !== 'viewer'}
         <button
-        class="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-        onclick={() => { showProjectPicker = !showProjectPicker }}
+            class="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+            onclick={() => { showProjectPicker = !showProjectPicker }}
         >
-        {activeProject ? m.change() : m.assign()}
+            {activeProject ? m.change() : m.assign()}
         </button>
     {/if}
     </div>

@@ -154,7 +154,7 @@ func main() {
 			ClientID:     cfg.Canva.ClientID,
 			ClientSecret: cfg.Canva.ClientSecret,
 			Endpoint: oauth2.Endpoint{
-				AuthURL:  "https://www.canva.com/api/oauth/code",
+				AuthURL:  "https://www.canva.com/api/oauth/authorize",
 				TokenURL: "https://api.canva.com/rest/v1/oauth/token",
 			},
 			RedirectURL: cfg.BaseURL.String() + "/integrations/callback/canva",

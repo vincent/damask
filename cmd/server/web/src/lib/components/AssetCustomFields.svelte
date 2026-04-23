@@ -20,6 +20,7 @@
   let values = $state<AssetFieldValue[]>([])
   let loading = $state(true)
   let showDeprecated = $state(false)
+  let showAllExif = $state(false)
 
   let editingFieldId = $state<string | null>(null)
   let editValue = $state<string>('')
@@ -166,29 +167,37 @@
 
     {#if exifDefinitions.length > 0}
       <div class="mt-5">
-        <div class="mb-2 flex items-center gap-1.5">
+        <div class="flex items-center justify-between gap-1.5 mb-2">
           <Camera class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
           <span class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">EXIF</span>
+          <button
+              class="ml-auto text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+              onclick={() => { showAllExif = !showAllExif }}
+          >
+              {m.all()}
+          </button>
         </div>
         <div class="space-y-2">
           {#each exifDefinitions as def (def.id)}
-            <FieldCard
-              {def}
-              fv={valueFor(def.id)}
-              displayName={def.name.replace(/^_exif_/, '')}
-              showUnset
-              isEditing={editingFieldId === def.id}
-              isSaving={savingFieldId === def.id}
-              didSave={saveSuccess === def.id}
-              {editValue}
-              {saveError}
-              onStartEdit={() => startEdit(def)}
-              onSave={() => saveField(def)}
-              onCancel={cancelEdit}
-              onKeydown={(e) => handleKeydown(e, def)}
-              onToggle={() => toggleBoolean(def)}
-              onEditValueChange={(v) => { editValue = v }}
-            />
+            {#if valueFor(def.id)?.value || showAllExif}
+              <FieldCard
+                {def}
+                fv={valueFor(def.id)}
+                displayName={def.name.replace(/^_exif_/, '')}
+                showUnset
+                isEditing={editingFieldId === def.id}
+                isSaving={savingFieldId === def.id}
+                didSave={saveSuccess === def.id}
+                {editValue}
+                {saveError}
+                onStartEdit={() => startEdit(def)}
+                onSave={() => saveField(def)}
+                onCancel={cancelEdit}
+                onKeydown={(e) => handleKeydown(e, def)}
+                onToggle={() => toggleBoolean(def)}
+                onEditValueChange={(v) => { editValue = v }}
+              />
+            {/if}
           {/each}
         </div>
       </div>
