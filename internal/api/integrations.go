@@ -22,11 +22,11 @@ import (
 
 // connectionResponse is the safe public shape — tokens are never included.
 type connectionResponse struct {
-	ID            string `json:"id"`
-	Provider      string `json:"provider"`
-	ProviderEmail string `json:"provider_email,omitempty"`
+	ID            string   `json:"id"`
+	Provider      string   `json:"provider"`
+	ProviderEmail string   `json:"provider_email,omitempty"`
 	Scopes        []string `json:"scopes"`
-	ConnectedAt   string `json:"connected_at"`
+	ConnectedAt   string   `json:"connected_at"`
 }
 
 func toConnectionResponse(c dbgen.OauthConnection) connectionResponse {
@@ -189,8 +189,17 @@ func (s *Server) handleConnectCanva(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate state")
 	}
 
+	verifier, err := generateRandom(64)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not generate pkce verifier")
+	}
+	s.setPKCECookie(c, verifier)
+
 	cfg := s.canvaImportOAuth2Config()
-	url := cfg.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	url := cfg.AuthCodeURL(state,
+		oauth2.SetAuthURLParam("code_challenge", pkceChallenge(verifier)),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+	)
 	return c.Redirect().To(url)
 }
 
@@ -205,8 +214,16 @@ func (s *Server) handleCallbackCanva(c fiber.Ctx) error {
 		return c.Redirect().To("/library/settings/integrations?error=provider_error")
 	}
 
+	verifier := c.Cookies(oidcPKCECookie)
+	if verifier == "" {
+		return c.Redirect().To("/library/settings/integrations?error=pkce_error")
+	}
+	c.Cookie(&fiber.Cookie{Name: oidcPKCECookie, Value: "", MaxAge: -1, Path: "/"})
+
 	cfg := s.canvaImportOAuth2Config()
-	token, err := cfg.Exchange(c.Context(), c.Query("code"))
+	token, err := cfg.Exchange(c.Context(), c.Query("code"),
+		oauth2.SetAuthURLParam("code_verifier", verifier),
+	)
 	if err != nil {
 		return c.Redirect().To("/library/settings/integrations?error=exchange_failed")
 	}
