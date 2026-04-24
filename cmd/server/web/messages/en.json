@@ -239,7 +239,6 @@
   "f_inherit_default_project": "Inherit default from project",
   "f_inherit_default_project_new": "new assets get the project's value",
   "back": "Back",
-  "back_to_library": "Back to Library",
   "field_create": "Create field",
   "no": "No",
   "auto_fill_assets": "auto-fills assets",
@@ -569,5 +568,9 @@
   "ingress_canva_ownership_shared": "Shared with me",
   "ingress_canva_ownership_any": "All accessible designs",
   "ingress_canva_name_filter": "Filter by name (optional)",
-  "ingress_canva_name_filter_hint": "Only import designs whose title contains this text"
+  "ingress_canva_name_filter_hint": "Only import designs whose title contains this text",
+  "back_to_library": "Back to Library",
+  "user_profile": "User profile",
+  "privacy_audit_logs": "Privacy & audit logs",
+  "ingress_description": "Connect sources to automatically import assets from"
 }

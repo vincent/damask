@@ -11,7 +11,7 @@
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
-  import { Activity, LogOut, Plus, Share2, Settings2, ChevronDown, ChevronUp, Tag, Megaphone, Info, Settings, LibraryBig } from '@lucide/svelte'
+  import { Activity, LogOut, Plus, Settings2, Tag, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft } from '@lucide/svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
@@ -30,8 +30,30 @@
   let { children }: { data: any, children: Snippet } = $props()
 
   let sidebarCreating = $state(false)
-  let sidebarDetails = $state(false)
   let sidebarVisible = $state(true)
+
+  const profileSections = [
+    { id: 'account',       label: () => m.settings_auth_title(), path: '/library/settings/account',     icon: User },
+  ]
+
+  const settingsSections = [
+    { id: 'members',       label: () => m.tab_members(),                 path: '/library/settings/members',       icon: Users },
+    { id: 'ingress',       label: () => m.tab_ingress(),                 path: '/library/settings/ingress',       icon: Download },
+    { id: 'integrations',  label: () => m.integrations_title(),     path: '/library/settings/integrations',  icon: Plug },
+    { id: 'versioning',    label: () => m.tab_history(),                 path: '/library/settings/versioning',    icon: History },
+    { id: 'custom-fields', label: () => m.custom_fields_title(),   path: '/library/settings/custom-fields', icon: Settings2 },
+    { id: 'tags',          label: () => m.tags(),                           path: '/library/settings/tags',          icon: Tag },
+  ]
+  
+  const securitySections = [
+    { id: 'privacy',       label: () => m.tab_exif_privacy(),     path: '/library/settings/privacy',       icon: Shield },
+    { id: 'activity',      label: () => m.activity(),                   path: '/library/settings/activity',               icon: Activity },
+  ]
+
+  const isSettings = $derived(page.url.pathname.startsWith('/library/settings'))
+  const activeSettingsSection = $derived(
+    [...profileSections, ...settingsSections, ...securitySections].find(s => page.url.pathname.startsWith(s.path))?.id ?? null
+  )
 
   useShortcuts({
     'search.focus':      () => document.querySelector<HTMLInputElement>('[data-search]')?.focus(),
@@ -128,9 +150,96 @@
 
 <div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
-  {#if sidebarVisible && !page.url.pathname.startsWith('/library/settings')}
-    <aside 
-      transition:fly={{ x: -200, duration: 100 }}
+  {#if sidebarVisible && isSettings}
+    <aside
+      in:fly={{ x: -256, duration: 150, delay: 150 }}
+      out:fly={{ x: -256, duration: 150 }}
+      class="damask-texture flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+    >
+      <WorkspaceSwitcher class="px-3 py-3" />
+
+      <div class="px-3 pb-3">
+        <a
+          href="/library"
+          class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+        >
+          <ArrowLeft class="h-4 w-4 shrink-0" />
+          <span>{m.back_to_library()}</span>
+        </a>
+      </div>
+
+      <div class="px-3 pb-2 pt-1 border-t border-gray-100 dark:border-gray-800">
+        <span class="px-3 text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          {m.user_profile()}
+        </span>
+      </div>
+
+      <nav class="flex flex-col gap-0.5 px-3 pb-4">
+        {#each profileSections as section}
+          {@const Icon = section.icon}
+          <a
+            href={section.path}
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {activeSettingsSection === section.id
+                ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
+                : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+          >
+            <Icon class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">{section.label()}</span>
+          </a>
+        {/each}
+      </nav>
+
+      <div class="px-3 pb-2 pt-1 border-t border-gray-100 dark:border-gray-800">
+        <span class="px-3 text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          {m.settings()}
+        </span>
+      </div>
+
+      <nav class="flex flex-col gap-0.5 px-3 pb-4">
+        {#each settingsSections as section}
+          {@const Icon = section.icon}
+          <a
+            href={section.path}
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {activeSettingsSection === section.id
+                ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
+                : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+          >
+            <Icon class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">{section.label()}</span>
+          </a>
+        {/each}
+      </nav>
+
+
+      <div class="px-3 pb-2 pt-1 border-t border-gray-100 dark:border-gray-800">
+        <span class="px-3 text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          {m.privacy_audit_logs()}
+        </span>
+      </div>
+
+      <nav class="flex flex-col gap-0.5 px-3 pb-4">
+        {#each securitySections as section}
+          {@const Icon = section.icon}
+          <a
+            href={section.path}
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+              {activeSettingsSection === section.id
+                ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
+                : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+          >
+            <Icon class="h-4 w-4 shrink-0 text-gray-400" />
+            <span class="flex-1 text-left">{section.label()}</span>
+          </a>
+        {/each}
+      </nav>
+
+    </aside>
+  {:else if sidebarVisible}
+    <aside
+      in:fly={{ x: -256, duration: 150, delay: 150 }}
+      out:fly={{ x: -256, duration: 150 }}
       class="damask-texture flex relative w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
     >
       <!-- Workspace switcher -->
@@ -150,87 +259,6 @@
           {/if}
         </button>
       </div>
-
-      {#if sidebarDetails}
-        <div transition:fly={{ y: '-50%', duration: 50 }}>
-          <!-- All Shares button -->
-          <div class="px-3 pb-2">
-            <button
-              class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-                {(page.route.id?.match('shares')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-              onclick={() => goto('/library/shares')}
-            >
-              <Share2 class="h-4 w-4 shrink-0 text-gray-400" />
-              <span class="flex-1 text-left">{m.all_shares()}</span>
-              {#if sharesStore.shares?.length > 0}
-                <span class="shrink-0 text-sm text-gray-400">{sharesStore.shares?.length}</span>
-              {/if}
-            </button>
-          </div>
-
-          <!-- Custom Fields settings button -->
-          <div class="px-3 pb-2">
-            <button
-              class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-                {(page.route.id?.match('custom-fields')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-              onclick={() => goto('/library/settings/custom-fields')}
-            >
-              <Settings2 class="h-4 w-4 shrink-0 text-gray-400" />
-              <span class="flex-1 text-left">{m.custom_fields_title()}</span>
-            </button>
-          </div>
-
-          <!-- Tags settings button -->
-          <div class="px-3 pb-2">
-            <button
-              class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-                {(page.route.id?.match('settings/tags')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-              onclick={() => goto('/library/settings/tags')}
-            >
-              <Tag class="h-4 w-4 shrink-0 text-gray-400" />
-              <span class="flex-1 text-left">{m.tags()}</span>
-            </button>
-          </div>
-
-          <!-- Activity feed button -->
-          <div class="px-3 pb-2">
-            <button
-              class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-                {(page.route.id?.match('activity')) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-              onclick={() => goto('/library/activity')}
-            >
-              <Activity class="h-4 w-4 shrink-0 text-gray-400" />
-              <span class="flex-1 text-left">{m.activity()}</span>
-            </button>
-          </div>
-
-          <!-- Settings button (Ingress, Version History, EXIF & Privacy) -->
-          <div class="px-3 pb-2">
-            <button
-              class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-                {(['ingress','versioning','privacy'].some(s => page.route.id?.includes(s))) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-              onclick={() => goto('/library/settings/members')}
-            >
-              <Settings class="h-4 w-4 shrink-0 text-gray-400" />
-              <span class="flex-1 text-left">{m.settings()}</span>
-            </button>
-          </div>
-
-          <!-- svelte-ignore a11y_unknown_role -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div role="expand" onclick={() => (sidebarDetails = false)} class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
-            <button type="button"><ChevronUp class="h-4 w-4" /></button>
-          </div>
-        </div>
-      {:else}
-          <!-- svelte-ignore a11y_unknown_role -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div role="expand" onclick={() => (sidebarDetails = true)}  class="px-2 pe-5 py-1 flex justify-center cursor-pointer text-gray-400 dark:text-gray-500 hover:text-gray-800 hover:dark:text-gray-100">
-          <button type="button"><ChevronDown class="h-4 w-4" /></button>
-        </div>
-      {/if}
 
       <!-- Projects section -->
       <div class="flex flex-1 flex-col overflow-hidden px-3 pt-4 border-t border-gray-100 dark:border-gray-800">

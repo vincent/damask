@@ -2,7 +2,7 @@
     import Hint from "./Hint.svelte"
     import Title from "./Title.svelte"
 
-    let { title, description, children = undefined } = $props();
+    let { title, description = undefined, children = undefined } = $props();
 </script>
 
 <!-- Header -->

@@ -238,7 +238,6 @@
   "f_inherit_default_project": "Hériter de la valeur par défaut du projet",
   "f_inherit_default_project_new": "les nouveaux fichiers obtiennent la valeur du projet",
   "back": "Retour",
-  "back_to_library": "Retour à la bibliothèque",
   "field_create": "Créer un champ",
   "no": "Non",
   "auto_fill_assets": "remplissage automatique des fichiers",
@@ -563,5 +562,6 @@
   "ingress_canva_ownership_shared": "Partagés avec moi",
   "ingress_canva_ownership_any": "Tous les designs accessibles",
   "ingress_canva_name_filter": "Filtrer par nom (optionnel)",
-  "ingress_canva_name_filter_hint": "Importer uniquement les designs dont le titre contient ce texte"
+  "ingress_canva_name_filter_hint": "Importer uniquement les designs dont le titre contient ce texte",
+  "back_to_library": "Retour à la bibliothèque"
 }

@@ -16,6 +16,7 @@
   import { onDestroy, onMount } from 'svelte'
   import AssetStateSelected from './AssetStateSelected.svelte'
   import AssetStateStackable from './AssetStateStackable.svelte'
+  import { scale } from 'svelte/transition'
 
   const fmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
 
@@ -134,8 +135,11 @@
     <div class="pt-2 grid gap-4 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
-        <div class="relative group" data-asset-id={asset.id}>
-          <AssetCard {asset} {zoom} requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)} />
+        <div in:scale={{ start: .5, duration: 30 }} class="relative group" data-asset-id={asset.id}>
+          <AssetCard
+            {asset} {zoom}
+            requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)}
+          />
 
           <!-- Stack/Selection indicator -->
           {#if stackStore.active}

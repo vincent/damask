@@ -1,6 +1,7 @@
 <script lang="ts">
   import { authApi, type MeResponse, ApiError } from '$lib/api'
   import LinkedIdentityRow from '$lib/components/LinkedIdentityRow.svelte'
+  import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import { m } from '$lib/paraglide/messages'
 
   let me = $state<MeResponse | null>(null)
@@ -32,10 +33,9 @@
   <title>{m.settings_auth_title()} — Damask</title>
 </svelte:head>
 
-<div class="max-w-2xl mx-auto py-10 px-4 space-y-8">
-  <div>
-    <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{m.settings_auth_title()}</h1>
-  </div>
+<div class="flex-1 overflow-y-auto">
+  <PageHeader title={m.settings_auth_title()} />
+  <div class="mx-auto w-full max-w-3xl px-8 py-10 space-y-8">
 
   {#if loading}
     <div class="text-sm text-zinc-400 dark:text-zinc-500">Loading…</div>
@@ -75,4 +75,5 @@
       />
     </div>
   {/if}
+  </div>
 </div>

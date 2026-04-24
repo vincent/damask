@@ -12,6 +12,7 @@
   import Feedback from '../ui/Feedback.svelte'
   import ButtonDelete from '../ui/ButtonDelete.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { fly } from 'svelte/transition'
 
   interface Props {
     source: IngressSource
@@ -137,7 +138,11 @@
   })
 </script>
 
-<aside class="flex w-2xl shrink-0 flex-col border-l border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+<aside 
+  in:fly={{ x: 250, duration: 150, delay: 150 }}
+  out:fly={{ x: 250, duration: 150 }}
+  class="flex w-2xl shrink-0 flex-col border-l border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+>
   <!-- Panel header -->
   <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
     <div class="min-w-0">

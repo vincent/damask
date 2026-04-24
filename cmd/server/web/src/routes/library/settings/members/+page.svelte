@@ -6,6 +6,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import type { WorkspaceMember, WorkspaceInvite } from '$lib/api/models'
+  import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -108,8 +109,13 @@
   }
 </script>
 
+<svelte:head>
+  <title>{m.tab_members()} — Damask</title>
+</svelte:head>
+
 <div class="flex-1 overflow-y-auto">
-  <div class="mx-auto w-full max-w-2xl px-8 py-10 space-y-8">
+  <PageHeader title={m.tab_members()} />
+  <div class="mx-auto w-full max-w-3xl px-8 py-10 space-y-8">
 
     {#if !isOwner}
       <EmptyState

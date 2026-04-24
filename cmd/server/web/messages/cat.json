@@ -238,7 +238,6 @@
   "f_inherit_default_project": "Heretar el valor predeterminat del projecte",
   "f_inherit_default_project_new": "els nous arxius obtenen el valor del projecte",
   "back": "Enrere",
-  "back_to_library": "Tornar a la biblioteca",
   "field_create": "Crear camp",
   "no": "No",
   "auto_fill_assets": "omple automàticament els arxius",
@@ -562,5 +561,6 @@
   "ingress_canva_ownership_shared": "Compartits amb mi",
   "ingress_canva_ownership_any": "Tots els dissenys accessibles",
   "ingress_canva_name_filter": "Filtra per nom (opcional)",
-  "ingress_canva_name_filter_hint": "Importa només els dissenys el títol dels quals contingui aquest text"
+  "ingress_canva_name_filter_hint": "Importa només els dissenys el títol dels quals contingui aquest text",
+  "back_to_library": "Tornar a la biblioteca"
 }

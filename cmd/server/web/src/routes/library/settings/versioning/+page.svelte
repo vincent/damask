@@ -3,6 +3,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import { m } from '$lib/paraglide/messages'
 
   type RetentionMode = 'unlimited' | 'capped'
@@ -53,12 +54,8 @@
 </svelte:head>
 
 <div class="flex-1 overflow-y-auto">
-  <div class="mx-auto w-full max-w-2xl px-8 py-10 space-y-8">
-
-    <div>
-      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{m.version_history()}</h1>
-      <p class="mt-1 text-md text-gray-500 dark:text-gray-400">{m.version_history_page_description()}</p>
-    </div>
+  <PageHeader title={m.version_history()} description={m.version_history_page_description()} />
+  <div class="mx-auto w-full max-w-3xl px-8 py-10 space-y-8">
 
     {#if authStore.role !== 'owner'}
       <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-md text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
