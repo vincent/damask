@@ -174,7 +174,7 @@
       {/if}
 
       {#if navigationStore.activeProjectId === project.id && foldersStore.foldersByProject[project.id]}
-        <div class="pl-5 pt-0.5">
+        <div class="pl-3 pt-0.5">
           <FolderTree
             folders={foldersStore.foldersByProject[project.id]}
             activeFolderId={navigationStore.activeFolderId}
@@ -200,7 +200,7 @@
               </form>
             {:else}
               <Button variant="ghost" size="sm" class="mt-0.5 w-full justify-start" onclick={() => { creatingFolderForProject = project.id; newFolderName = '' }}>
-                {#snippet icon()}<Plus class="h-3 w-3" />{/snippet}
+                {#snippet icon()}<Plus class="h-3 w-3" style="color: {getProjectColor(project)};" />{/snippet}
                 {m.new_folder()}
               </Button>
             {/if}

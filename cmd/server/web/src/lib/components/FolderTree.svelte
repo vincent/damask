@@ -2,7 +2,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { configApi, type Folder } from '$lib/api'
-  import { ChevronRight, EllipsisVertical } from '@lucide/svelte'
+  import { ChevronRight, Dot, EllipsisVertical } from '@lucide/svelte'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -10,6 +10,8 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { configStore } from '$lib/stores/config.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { getProjectColor } from '$lib/stores/shared'
+  import { projectsStore } from '$lib/stores/projects.svelte'
 
   interface Props {
     folders: Folder[]
@@ -22,6 +24,8 @@
   }
 
   let { folders, activeFolderId, projectId, selectedAssetIds, ingestToken = null, onselect, onassetsDropped }: Props = $props()
+
+  let project = $derived(projectsStore.projects.find(p => p.id === projectId))
 
   async function copyIngestAddress(folder: Folder) {
     if (!ingestToken || !folder.slug) return
@@ -139,6 +143,7 @@
         {activeFolderId === folder.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''}
         {dropTargetId === folder.id ? 'bg-blue-100 ring-1 ring-blue-400 dark:bg-blue-900/40' : ''}
       "
+      style="{ (activeFolderId === folder.id) ? `background-color: ${getProjectColor(project, '22')};` : '' }"
       ondragover={(e) => handleDragOver(e, folder.id)}
       ondragleave={handleDragLeave}
       ondrop={(e) => handleDrop(e, folder.id)}
@@ -149,10 +154,13 @@
           onclick={(e) => toggleOpen(folder.id, e)}
           aria-label="Toggle folder"
         >
-          <ChevronRight class="h-3 w-3 transition-transform {openFolderIds.has(folder.id) ? 'rotate-90' : ''}" />
+          <ChevronRight
+            class="h-4 w-4 transition-transform {openFolderIds.has(folder.id) ? 'rotate-90' : ''}"
+            color={getProjectColor(project)}
+          />
         </button>
       {:else}
-        <span class="w-5 shrink-0"></span>
+        <Dot class="h-4 w-6 shrink-0" style="color: {getProjectColor(project)};" />
       {/if}
 
       {#if editingId === folder.id}
@@ -169,16 +177,19 @@
           class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-3 text-left text-md {activeFolderId === folder.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
           onclick={() => onselect(folder.id)}
         >
-          <span class="min-w-0 flex-1 truncate text-sm">{folder.name}</span>
+          <span class="min-w-0 flex-1 truncate text-md"
+                style="{ (activeFolderId === folder.id) ? `color: ${getProjectColor(project)}` : '' }"
+
+          >{folder.name}</span>
           {#if folder.asset_count > 0}
-            <span class="shrink-0 text-sm text-gray-400">{folder.asset_count}</span>
+            <span class="shrink-0 text-md text-gray-400">{folder.asset_count}</span>
           {/if}
         </button>
       {/if}
 
       {#if authStore.role !== 'viewer'}
         <button
-          class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+          class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
           onclick={(e) => { e.stopPropagation(); contextMenuId = contextMenuId === folder.id ? null : folder.id }}
           aria-label="Folder menu"
         >
@@ -210,7 +221,7 @@
           <input
             bind:value={newFolderName}
             placeholder={m.name()}
-            class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-100"
+            class="min-w-0 flex-1 bg-transparent text-md text-gray-900 outline-none dark:text-gray-100"
             onblur={() => { if (!newFolderName.trim()) creatingUnder = null }}
           />
           <Button type="submit" variant="ghost" size="sm" class="shrink-0">{m.add()}</Button>
@@ -219,7 +230,10 @@
     {/if}
 
     {#if openFolderIds.has(folder.id) && folder.children && folder.children.length > 0}
-      <div class="ml-4 border-l border-gray-100 pl-1">
+      <div
+        class="ml-4 border-l border-gray-100 dark:border-gray-600 pl-1"
+        style="border-color: {getProjectColor(project)}"
+      >
         {#each folder.children as child (child.id)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
@@ -231,7 +245,7 @@
             ondragleave={handleDragLeave}
             ondrop={(e) => handleDrop(e, child.id)}
           >
-            <span class="w-5 shrink-0"></span>
+            <span class="w-3 shrink-0"></span>
             {#if editingId === child.id}
               <div class="flex-1 pr-1">
                 <InlineEditForm
@@ -243,19 +257,19 @@
               </div>
             {:else}
               <button
-                class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 text-left {activeFolderId === child.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
+                class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-3.5 text-left {activeFolderId === child.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
                 onclick={() => onselect(child.id)}
               >
-                <span class="min-w-0 flex-1 truncate text-sm">{child.name}</span>
+                <span class="min-w-0 flex-1 truncate text-md">{child.name}</span>
                 {#if child.asset_count > 0}
-                  <span class="shrink-0 text-sm text-gray-400">{child.asset_count}</span>
+                  <span class="shrink-0 text-md text-gray-400">{child.asset_count}</span>
                 {/if}
               </button>
             {/if}
 
             {#if authStore.role !== 'viewer'}
               <button
-                class="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                 onclick={(e) => { e.stopPropagation(); contextMenuId = contextMenuId === child.id ? null : child.id }}
                 aria-label="Folder menu"
               >

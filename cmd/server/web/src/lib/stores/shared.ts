@@ -44,6 +44,6 @@ export const CATEGORY_BORDER: Record<CategoryKey, string> = {
     document: `border-${base.document}-200 dark:border-${base.document}-700`,
 }
 
-export function getProjectColor(project?: { color?: string | null } | null): string {
-    return project?.color ?? `#9ca3af`
+export function getProjectColor(project?: { color?: string | null } | null, opacity = 'ff'): string {
+    return `${project?.color ?? '#9ca3af'}${opacity}`
 }

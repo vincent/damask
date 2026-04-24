@@ -12,6 +12,7 @@
     children?: Snippet
     icon?: Snippet
     class?: string
+    style?: string
   }
 
   let {
@@ -25,6 +26,7 @@
     children,
     icon,
     class: extraClass = '',
+    style = '',
   }: Props = $props()
 
   const base =
@@ -55,6 +57,7 @@
   {title}
   disabled={disabled || loading}
   {onclick}
+  {style}
   class="{base} {variants[variant]} {sizes[size]} {extraClass}"
 >
   {#if loading}
