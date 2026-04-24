@@ -9,8 +9,9 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/queue"
 	services "damask/server/internal/fileproc"
+	"damask/server/internal/queue"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -31,6 +32,8 @@ type WorkspaceResponse struct {
 	UpdatedAt                time.Time `json:"updated_at"`
 }
 
+// workspaceToResponse converts the raw dbgen.Workspace (used in auth.go which still
+// calls s.db directly) to the API response type.
 func workspaceToResponse(w dbgen.Workspace) WorkspaceResponse {
 	return WorkspaceResponse{
 		ID:                       w.ID,
@@ -42,6 +45,22 @@ func workspaceToResponse(w dbgen.Workspace) WorkspaceResponse {
 		IconVersionID:            w.IconVersionID,
 		ExifKeep:                 w.ExifKeep != 0,
 		ExifKeepGps:              w.ExifKeepGps != 0,
+		CreatedAt:                w.CreatedAt,
+		UpdatedAt:                w.UpdatedAt,
+	}
+}
+
+func workspaceDTOToResponse(w *service.WorkspaceDTO) WorkspaceResponse {
+	return WorkspaceResponse{
+		ID:                       w.ID,
+		Name:                     w.Name,
+		VersionRetentionCount:    w.VersionRetentionCount,
+		EventLogRetentionDays:    w.EventLogRetentionDays,
+		DownloadLogRetentionDays: w.DownloadLogRetentionDays,
+		IconAssetID:              w.IconAssetID,
+		IconVersionID:            w.IconVersionID,
+		ExifKeep:                 w.ExifKeep,
+		ExifKeepGps:              w.ExifKeepGps,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
@@ -68,40 +87,20 @@ type WorkspaceMeResponse struct {
 func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), claims.WorkspaceID)
+	me, err := s.workspace.Me(c.RequestCtx(), claims.WorkspaceID, claims.UserID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "workspace not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
-	}
-
-	user, err := s.db.GetUserByID(c.RequestCtx(), claims.UserID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "user not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load user")
-	}
-
-	member, err := s.db.GetMember(c.RequestCtx(), dbgen.GetMemberParams{
-		WorkspaceID: claims.WorkspaceID,
-		UserID:      claims.UserID,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
-	}
-
-	totalAssetCount, err := s.db.CountWorkspaceAssets(c.RequestCtx(), claims.WorkspaceID)
-	if err != nil {
-		slog.ErrorContext(c.RequestCtx(), "could not count workspace assets", "error", err)
+		return Respond(c, err)
 	}
 
 	return c.JSON(WorkspaceMeResponse{
-		Workspace:       workspaceToResponse(workspace),
-		User:            userToResponse(user),
-		Role:            auth.Role(member.Role),
-		TotalAssetCount: totalAssetCount,
+		Workspace: workspaceDTOToResponse(me.Workspace),
+		User: UserResponse{
+			ID:    me.UserID,
+			Email: me.UserEmail,
+			Name:  me.UserName,
+		},
+		Role:            auth.Role(me.Role),
+		TotalAssetCount: me.TotalAssetCount,
 	})
 }
 
@@ -123,10 +122,7 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 
 	user, err := s.db.GetUserByID(c.RequestCtx(), claims.UserID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "user not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load user")
+		return errRes(c, fiber.StatusNotFound, "user not found")
 	}
 
 	req, ok := decodeAndValidate(c, &CreateWorkspaceRequest{})
@@ -151,24 +147,28 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
 	}
 
-	wr := workspaceToResponse(*workspace)
+	ws, err := s.workspace.Get(c.RequestCtx(), workspace.ID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
+	}
+	wr := workspaceDTOToResponse(ws)
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Workspace: &wr})
 }
 
 type WorkspaceWithRoleResponse struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Role        auth.Role `json:"role"`
-	MemberCount int64     `json:"member_count"`
-	AssetCount  int64     `json:"asset_count"`
-	CreatedAt   string    `json:"created_at"`
-	UpdatedAt   string    `json:"updated_at"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Role        string `json:"role"`
+	MemberCount int64  `json:"member_count"`
+	AssetCount  int64  `json:"asset_count"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 // handleListWorkspaces lists all workspaces the authenticated user belongs to.
 //
 // @Summary List workspaces
-// @Description Returns every workspace the authenticated user is a member of, along with their role in each. Use this to populate a workspace-switcher UI.
+// @Description Returns every workspace the authenticated user is a member of, along with their role in each.
 // @Tags Workspace
 // @Produce json
 // @Security BearerAuth
@@ -178,27 +178,19 @@ type WorkspaceWithRoleResponse struct {
 func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rows, err := s.db.ListWorkspacesByUserID(c.RequestCtx(), claims.UserID)
+	rows, err := s.workspace.ListForUser(c.RequestCtx(), claims.UserID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list workspaces")
+		return Respond(c, err)
 	}
 
 	result := make([]WorkspaceWithRoleResponse, len(rows))
 	for i, r := range rows {
-		memberCount, err := s.db.CountWorkspaceMembers(c.RequestCtx(), r.ID)
-		if err != nil {
-			slog.ErrorContext(c.RequestCtx(), "could not count members", "workspace_id", r.ID, "error", err)
-		}
-		assetCount, err := s.db.CountWorkspaceAssets(c.RequestCtx(), r.ID)
-		if err != nil {
-			slog.ErrorContext(c.RequestCtx(), "could not count assets", "workspace_id", r.ID, "error", err)
-		}
 		result[i] = WorkspaceWithRoleResponse{
 			ID:          r.ID,
 			Name:        r.Name,
-			Role:        auth.Role(r.Role),
-			MemberCount: memberCount,
-			AssetCount:  assetCount,
+			Role:        r.Role,
+			MemberCount: r.MemberCount,
+			AssetCount:  r.AssetCount,
 			CreatedAt:   r.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   r.UpdatedAt.Format(time.RFC3339),
 		}
@@ -233,15 +225,12 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 		return nil
 	}
 
-	member, err := s.db.GetMember(c.RequestCtx(), dbgen.GetMemberParams{
-		WorkspaceID: req.WorkspaceID,
-		UserID:      claims.UserID,
-	})
+	member, err := s.workspace.GetMember(c.RequestCtx(), req.WorkspaceID, claims.UserID)
 	if err != nil {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
 
-	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), req.WorkspaceID)
+	ws, err := s.workspace.Get(c.RequestCtx(), req.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
@@ -254,7 +243,7 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 	s.setAuthCookie(c, token)
 	return c.JSON(SwitchWorkspaceResponse{
 		Token:     token,
-		Workspace: workspaceToResponse(workspace),
+		Workspace: workspaceDTOToResponse(ws),
 		Role:      auth.Role(member.Role),
 	})
 }
@@ -280,45 +269,15 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 		return nil
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	ws, err := s.workspace.Update(c.RequestCtx(), claims.WorkspaceID, service.UpdateWorkspaceParams{
+		VersionRetentionCount: &body.VersionRetentionCount,
+		ExifKeep:              &body.ExifKeep,
+		ExifKeepGps:           &body.ExifKeepGPS,
+	})
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
+		return Respond(c, err)
 	}
-	defer tx.Rollback()
-	qtx := s.db.WithTx(tx)
-
-	if err := qtx.UpdateWorkspaceVersionRetention(c.RequestCtx(), dbgen.UpdateWorkspaceVersionRetentionParams{
-		VersionRetentionCount: body.VersionRetentionCount,
-		ID:                    claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not update settings")
-	}
-
-	exifKeep := int64(0)
-	if body.ExifKeep {
-		exifKeep = 1
-	}
-	exifKeepGPS := int64(0)
-	if body.ExifKeepGPS {
-		exifKeepGPS = 1
-	}
-	if err := qtx.UpdateWorkspaceExifSettings(c.RequestCtx(), dbgen.UpdateWorkspaceExifSettingsParams{
-		ExifKeep:    exifKeep,
-		ExifKeepGps: exifKeepGPS,
-		ID:          claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not update exif settings")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit settings update")
-	}
-
-	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), claims.WorkspaceID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not reload workspace")
-	}
-	return c.JSON(workspaceToResponse(workspace))
+	return c.JSON(workspaceDTOToResponse(ws))
 }
 
 // triggerableJobs is the allowlist of job types that can be triggered via the
@@ -357,8 +316,6 @@ func (s *Server) handleTriggerWorkspaceJob(c fiber.Ctx) error {
 }
 
 func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID string) error {
-	// Find the _exif_make field definition to use as tombstone marker.
-	// If it doesn't exist yet, every image asset is pending.
 	var pendingIDs []string
 
 	tombstoneDef, err := s.db.GetFieldDefinitionByKey(c.RequestCtx(), dbgen.GetFieldDefinitionByKeyParams{
@@ -370,7 +327,6 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 	}
 
 	if errors.Is(err, sql.ErrNoRows) {
-		// No field definitions yet — every image asset is pending.
 		ids, qErr := s.db.ListImageAssetIDs(c.RequestCtx(), workspaceID)
 		if qErr != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not list assets")
@@ -406,8 +362,6 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": len(pendingIDs)})
 }
 
-// fiber:context-methods migrated
-
 type MemberResponse struct {
 	UserID   string    `json:"user_id"`
 	Name     string    `json:"name"`
@@ -428,18 +382,20 @@ type MemberResponse struct {
 // @Router /api/v1/workspace/members [get]
 func (s *Server) handleListMembers(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	rows, err := s.db.ListMembers(c.RequestCtx(), claims.WorkspaceID)
+
+	members, err := s.workspace.ListMembers(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list members")
+		return Respond(c, err)
 	}
-	result := make([]MemberResponse, len(rows))
-	for i, row := range rows {
+
+	result := make([]MemberResponse, len(members))
+	for i, m := range members {
 		result[i] = MemberResponse{
-			UserID:   row.UserID,
-			Name:     row.Name,
-			Email:    row.Email,
-			Role:     row.Role,
-			JoinedAt: row.CreatedAt,
+			UserID:   m.UserID,
+			Name:     m.Name,
+			Email:    m.Email,
+			Role:     m.Role,
+			JoinedAt: m.JoinedAt,
 		}
 	}
 	return c.JSON(result)
@@ -461,32 +417,11 @@ func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	targetUserID := c.Params("userId")
 
-	if targetUserID == claims.UserID {
-		return errRes(c, fiber.StatusBadRequest, "cannot remove yourself")
-	}
-
-	// Prevent removing the last owner.
-	members, err := s.db.ListMembers(c.RequestCtx(), claims.WorkspaceID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list members")
-	}
-	ownerCount := 0
-	for _, m := range members {
-		if m.Role == string(auth.Owner) {
-			ownerCount++
+	if err := s.workspace.RemoveMember(c.RequestCtx(), claims.WorkspaceID, claims.UserID, targetUserID); err != nil {
+		if isInvalidInput(err) {
+			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
 		}
-	}
-	for _, m := range members {
-		if m.UserID == targetUserID && m.Role == string(auth.Owner) && ownerCount <= 1 {
-			return errRes(c, fiber.StatusBadRequest, "cannot remove the last owner")
-		}
-	}
-
-	if err := s.db.DeleteMember(c.RequestCtx(), dbgen.DeleteMemberParams{
-		WorkspaceID: claims.WorkspaceID,
-		UserID:      targetUserID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not remove member")
+		return Respond(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -515,34 +450,25 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Prevent demoting self if last owner.
-	if targetUserID == claims.UserID && body.Role != auth.Owner {
-		members, err := s.db.ListMembers(c.RequestCtx(), claims.WorkspaceID)
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not list members")
+	if err := s.workspace.UpdateMemberRole(c.RequestCtx(), claims.WorkspaceID, claims.UserID, targetUserID, string(body.Role)); err != nil {
+		if isInvalidInput(err) {
+			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
 		}
-		ownerCount := 0
-		for _, m := range members {
-			if m.Role == string(auth.Owner) {
-				ownerCount++
-			}
-		}
-		if ownerCount <= 1 {
-			return errRes(c, fiber.StatusBadRequest, "cannot demote the last owner")
-		}
-	}
-
-	if err := s.db.UpdateMemberRole(c.RequestCtx(), dbgen.UpdateMemberRoleParams{
-		Role:        string(body.Role),
-		WorkspaceID: claims.WorkspaceID,
-		UserID:      targetUserID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not update member role")
+		return Respond(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// handleListInvites lists all pending (unredeemed) invites for the workspace.
+type InviteResponse struct {
+	ID          string    `json:"id"`
+	InviteToken string    `json:"invite_token,omitempty"`
+	Email       string    `json:"email"`
+	Role        string    `json:"role"`
+	ExpiresAt   time.Time `json:"expires_at,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+}
+
+// handleListInvites lists all pending invites for the workspace.
 //
 // @Summary List pending invites
 // @Description Returns all workspace invites that have not yet been accepted and have not expired. The <code>invite_token</code> field is omitted from list responses for security — it is only returned once, when the invite is created.
@@ -554,10 +480,12 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 // @Router /api/v1/workspace/invites [get]
 func (s *Server) handleListInvites(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	invites, err := s.db.ListPendingInvites(c.RequestCtx(), claims.WorkspaceID)
+
+	invites, err := s.workspace.ListInvites(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list invites")
+		return Respond(c, err)
 	}
+
 	result := make([]InviteResponse, len(invites))
 	for i, inv := range invites {
 		result[i] = InviteResponse{
@@ -586,22 +514,10 @@ func (s *Server) handleDeleteInvite(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	inviteID := c.Params("inviteId")
 
-	if err := s.db.DeleteInvite(c.RequestCtx(), dbgen.DeleteInviteParams{
-		ID:          inviteID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete invite")
+	if err := s.workspace.DeleteInvite(c.RequestCtx(), claims.WorkspaceID, inviteID); err != nil {
+		return Respond(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
-}
-
-type InviteResponse struct {
-	ID          string    `json:"id"`
-	InviteToken string    `json:"invite_token,omitempty"`
-	Email       string    `json:"email"`
-	Role        string    `json:"role"`
-	ExpiresAt   time.Time `json:"expires_at,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
 }
 
 // handleCreateInvite generates a workspace invite for a new member.
@@ -626,28 +542,23 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		return nil
 	}
 
-	invite, err := s.db.CreateInvite(c.RequestCtx(), dbgen.CreateInviteParams{
-		ID:          uuid.New().String(),
-		WorkspaceID: claims.WorkspaceID,
-		Email:       req.Email,
-		Token:       uuid.New().String(),
-		Role:        string(req.Role),
-		InvitedBy:   claims.UserID,
-		ExpiresAt:   time.Now().Add(7 * 24 * time.Hour),
+	inv, err := s.workspace.CreateInvite(c.RequestCtx(), claims.WorkspaceID, claims.UserID, service.CreateInviteParams{
+		Email: req.Email,
+		Role:  req.Role,
 	})
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create invite")
+		return Respond(c, err)
 	}
 
-	if err = s.mailer.SendInvite(c.RequestCtx(), invite.Email, string(req.Role), invite.Token); err != nil {
+	if err = s.mailer.SendInvite(c.RequestCtx(), inv.Email, inv.Role, inv.InviteToken); err != nil {
 		slog.ErrorContext(c.RequestCtx(), "failed to send invitation mail", "error", err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(InviteResponse{
-		ID:          invite.ID,
-		InviteToken: invite.Token,
-		Email:       invite.Email,
-		Role:        invite.Role,
+		ID:          inv.ID,
+		InviteToken: inv.InviteToken,
+		Email:       inv.Email,
+		Role:        inv.Role,
 	})
 }
 
@@ -670,65 +581,40 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		return nil
 	}
 
-	invite, err := s.db.GetInviteByToken(c.RequestCtx(), req.Token)
-	if err != nil {
-		return errRes(c, fiber.StatusNotFound, "invalid or expired invite token")
-	}
-
 	hash, err := bcryptHash(req.Password)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback()
-
-	qtx := s.db.WithTx(tx)
-
 	userID := uuid.New().String()
-	user, err := qtx.CreateUser(c.RequestCtx(), dbgen.CreateUserParams{
-		ID:           userID,
-		Email:        invite.Email,
-		PasswordHash: hash,
+	result, err := s.workspace.AcceptInvite(c.RequestCtx(), service.AcceptInviteParams{
+		Token:        req.Token,
 		Name:         req.Name,
+		PasswordHash: hash,
+		UserID:       userID,
 	})
 	if err != nil {
-		return errRes(c, fiber.StatusConflict, "email already in use")
+		return Respond(c, err)
 	}
 
-	if err := qtx.CreateMember(c.RequestCtx(), dbgen.CreateMemberParams{
-		WorkspaceID: invite.WorkspaceID,
-		UserID:      userID,
-		Role:        invite.Role,
-		InvitedBy:   &invite.InvitedBy,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not add workspace member")
-	}
-
-	if err := s.mailer.SendWelcome(c.RequestCtx(), invite.Email, req.Name, invite.WorkspaceID); err != nil {
+	if err := s.mailer.SendWelcome(c.RequestCtx(), result.UserEmail, result.UserName, result.WorkspaceID); err != nil {
 		slog.ErrorContext(c.RequestCtx(), "failed to send welcome mail", "error", err)
 	}
 
-	if err := qtx.AcceptInvite(c.RequestCtx(), invite.ID); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not mark invite as accepted")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
-	}
-
-	if inviter, err := s.db.GetUserByID(c.RequestCtx(), invite.InvitedBy); err == nil {
-		if err := s.mailer.SendInviteAccepted(c.RequestCtx(), inviter.Email, req.Name, invite.Email, invite.Role); err != nil {
+	if inviter, err := s.db.GetUserByID(c.RequestCtx(), result.InviterID); err == nil {
+		if err := s.mailer.SendInviteAccepted(c.RequestCtx(), inviter.Email, result.UserName, result.UserEmail, result.InviteRole); err != nil {
 			slog.ErrorContext(c.RequestCtx(), "failed to send invite accepted mail", "error", err)
 		}
 	}
 
-	token, err := s.tokenMaker.CreateToken(userID, invite.WorkspaceID, 7*24*time.Hour)
+	token, err := s.tokenMaker.CreateToken(result.UserID, result.WorkspaceID, 7*24*time.Hour)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
+	}
+
+	user, err := s.db.GetUserByID(c.RequestCtx(), result.UserID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not load user")
 	}
 
 	s.setAuthCookie(c, token)

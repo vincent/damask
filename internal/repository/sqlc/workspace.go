@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 type workspaceRepo struct {
@@ -30,9 +33,7 @@ func (r *workspaceRepo) GetByID(ctx context.Context, id string) (repository.Work
 	return toWorkspace(row), nil
 }
 
-// Update applies exif + version-retention settings. Other workspace fields (name, icon)
-// are updated via separate targeted sqlc queries in the handlers until those handlers
-// are fully migrated to a service.
+// Update applies exif + version-retention settings.
 func (r *workspaceRepo) Update(ctx context.Context, w repository.Workspace) (repository.Workspace, error) {
 	if err := r.q.UpdateWorkspaceExifSettings(ctx, dbgen.UpdateWorkspaceExifSettingsParams{
 		ID:          w.ID,
@@ -50,6 +51,153 @@ func (r *workspaceRepo) Update(ctx context.Context, w repository.Workspace) (rep
 	return r.GetByID(ctx, w.ID)
 }
 
+func (r *workspaceRepo) CountAssets(ctx context.Context, workspaceID string) (int64, error) {
+	return r.q.CountWorkspaceAssets(ctx, workspaceID)
+}
+
+func (r *workspaceRepo) GetMember(ctx context.Context, workspaceID, userID string) (repository.Member, error) {
+	row, err := r.q.GetMember(ctx, dbgen.GetMemberParams{WorkspaceID: workspaceID, UserID: userID})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Member{}, apperr.ErrNotFound
+		}
+		return repository.Member{}, err
+	}
+	user, err := r.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return repository.Member{}, err
+	}
+	return repository.Member{
+		WorkspaceID: row.WorkspaceID,
+		UserID:      row.UserID,
+		Email:       user.Email,
+		Name:        user.Name,
+		Role:        row.Role,
+		InvitedBy:   row.InvitedBy,
+		JoinedAt:    row.CreatedAt,
+	}, nil
+}
+
+func (r *workspaceRepo) ListMembers(ctx context.Context, workspaceID string) ([]repository.Member, error) {
+	rows, err := r.q.ListMembers(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.Member, len(rows))
+	for i, row := range rows {
+		out[i] = repository.Member{
+			WorkspaceID: row.WorkspaceID,
+			UserID:      row.UserID,
+			Email:       row.Email,
+			Name:        row.Name,
+			Role:        row.Role,
+			JoinedAt:    row.CreatedAt,
+		}
+	}
+	return out, nil
+}
+
+func (r *workspaceRepo) CountMembers(ctx context.Context, workspaceID string) (int64, error) {
+	return r.q.CountWorkspaceMembers(ctx, workspaceID)
+}
+
+func (r *workspaceRepo) CreateMember(ctx context.Context, m repository.Member) error {
+	return r.q.CreateMember(ctx, dbgen.CreateMemberParams{
+		WorkspaceID: m.WorkspaceID,
+		UserID:      m.UserID,
+		Role:        m.Role,
+		InvitedBy:   m.InvitedBy,
+	})
+}
+
+func (r *workspaceRepo) DeleteMember(ctx context.Context, workspaceID, userID string) error {
+	return r.q.DeleteMember(ctx, dbgen.DeleteMemberParams{WorkspaceID: workspaceID, UserID: userID})
+}
+
+func (r *workspaceRepo) UpdateMemberRole(ctx context.Context, workspaceID, userID, role string) error {
+	return r.q.UpdateMemberRole(ctx, dbgen.UpdateMemberRoleParams{
+		WorkspaceID: workspaceID,
+		UserID:      userID,
+		Role:        role,
+	})
+}
+
+func (r *workspaceRepo) CreateInvite(ctx context.Context, inv repository.Invite) (repository.Invite, error) {
+	if inv.ID == "" {
+		inv.ID = uuid.New().String()
+	}
+	if inv.Token == "" {
+		inv.Token = uuid.New().String()
+	}
+	if inv.ExpiresAt.IsZero() {
+		inv.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
+	}
+	row, err := r.q.CreateInvite(ctx, dbgen.CreateInviteParams{
+		ID:          inv.ID,
+		WorkspaceID: inv.WorkspaceID,
+		Email:       inv.Email,
+		Token:       inv.Token,
+		Role:        inv.Role,
+		InvitedBy:   inv.InvitedBy,
+		ExpiresAt:   inv.ExpiresAt,
+	})
+	if err != nil {
+		return repository.Invite{}, err
+	}
+	return toInvite(row), nil
+}
+
+func (r *workspaceRepo) ListPendingInvites(ctx context.Context, workspaceID string) ([]repository.Invite, error) {
+	rows, err := r.q.ListPendingInvites(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.Invite, len(rows))
+	for i, row := range rows {
+		out[i] = toInvite(row)
+	}
+	return out, nil
+}
+
+func (r *workspaceRepo) GetInviteByToken(ctx context.Context, token string) (repository.Invite, error) {
+	row, err := r.q.GetInviteByToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Invite{}, apperr.ErrNotFound
+		}
+		return repository.Invite{}, err
+	}
+	return toInvite(row), nil
+}
+
+func (r *workspaceRepo) DeleteInvite(ctx context.Context, workspaceID, inviteID string) error {
+	return r.q.DeleteInvite(ctx, dbgen.DeleteInviteParams{WorkspaceID: workspaceID, ID: inviteID})
+}
+
+func (r *workspaceRepo) AcceptInvite(ctx context.Context, inviteID string) error {
+	return r.q.AcceptInvite(ctx, inviteID)
+}
+
+func (r *workspaceRepo) ListByUserID(ctx context.Context, userID string) ([]repository.WorkspaceWithRole, error) {
+	rows, err := r.q.ListWorkspacesByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.WorkspaceWithRole, len(rows))
+	for i, row := range rows {
+		out[i] = repository.WorkspaceWithRole{
+			Workspace: repository.Workspace{
+				ID:        row.ID,
+				Name:      row.Name,
+				CreatedAt: row.CreatedAt,
+				UpdatedAt: row.UpdatedAt,
+			},
+			Role: row.Role,
+		}
+	}
+	return out, nil
+}
+
 func toWorkspace(w dbgen.Workspace) repository.Workspace {
 	return repository.Workspace{
 		ID:                       w.ID,
@@ -64,5 +212,19 @@ func toWorkspace(w dbgen.Workspace) repository.Workspace {
 		ExifKeepGps:              w.ExifKeepGps != 0,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
+	}
+}
+
+func toInvite(i dbgen.WorkspaceInvite) repository.Invite {
+	return repository.Invite{
+		ID:          i.ID,
+		WorkspaceID: i.WorkspaceID,
+		Email:       i.Email,
+		Token:       i.Token,
+		Role:        i.Role,
+		InvitedBy:   i.InvitedBy,
+		ExpiresAt:   i.ExpiresAt,
+		AcceptedAt:  i.AcceptedAt,
+		CreatedAt:   i.CreatedAt,
 	}
 }

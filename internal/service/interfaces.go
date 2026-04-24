@@ -21,10 +21,23 @@ type VariantService interface {
 	Delete(ctx context.Context, workspaceID, assetID, variantID string) error
 }
 
-// WorkspaceService handles business logic for workspace settings.
+// WorkspaceService handles business logic for workspace settings, members, and invites.
 type WorkspaceService interface {
 	Get(ctx context.Context, workspaceID string) (*WorkspaceDTO, error)
 	Update(ctx context.Context, workspaceID string, p UpdateWorkspaceParams) (*WorkspaceDTO, error)
+	Me(ctx context.Context, workspaceID, userID string) (*WorkspaceMeDTO, error)
+	ListForUser(ctx context.Context, userID string) ([]WorkspaceWithRoleDTO, error)
+	CountAssets(ctx context.Context, workspaceID string) (int64, error)
+	// Members
+	GetMember(ctx context.Context, workspaceID, userID string) (*MemberDTO, error)
+	ListMembers(ctx context.Context, workspaceID string) ([]MemberDTO, error)
+	RemoveMember(ctx context.Context, workspaceID, callerID, targetUserID string) error
+	UpdateMemberRole(ctx context.Context, workspaceID, callerID, targetUserID string, role string) error
+	// Invites
+	CreateInvite(ctx context.Context, workspaceID, callerID string, p CreateInviteParams) (*InviteDTO, error)
+	ListInvites(ctx context.Context, workspaceID string) ([]InviteDTO, error)
+	DeleteInvite(ctx context.Context, workspaceID, inviteID string) error
+	AcceptInvite(ctx context.Context, p AcceptInviteParams) (*AcceptInviteResult, error)
 }
 
 // VersionService handles business logic for asset version records.

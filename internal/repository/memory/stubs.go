@@ -163,6 +163,31 @@ func (r *WorkspaceRepo) GetByID(_ context.Context, _ string) (repository.Workspa
 func (r *WorkspaceRepo) Update(_ context.Context, w repository.Workspace) (repository.Workspace, error) {
 	return w, nil
 }
+func (r *WorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *WorkspaceRepo) GetMember(_ context.Context, _, _ string) (repository.Member, error) {
+	return repository.Member{}, nil
+}
+func (r *WorkspaceRepo) ListMembers(_ context.Context, _ string) ([]repository.Member, error) {
+	return nil, nil
+}
+func (r *WorkspaceRepo) CountMembers(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *WorkspaceRepo) CreateMember(_ context.Context, _ repository.Member) error { return nil }
+func (r *WorkspaceRepo) DeleteMember(_ context.Context, _, _ string) error         { return nil }
+func (r *WorkspaceRepo) UpdateMemberRole(_ context.Context, _, _, _ string) error  { return nil }
+func (r *WorkspaceRepo) CreateInvite(_ context.Context, inv repository.Invite) (repository.Invite, error) {
+	return inv, nil
+}
+func (r *WorkspaceRepo) ListPendingInvites(_ context.Context, _ string) ([]repository.Invite, error) {
+	return nil, nil
+}
+func (r *WorkspaceRepo) GetInviteByToken(_ context.Context, _ string) (repository.Invite, error) {
+	return repository.Invite{}, nil
+}
+func (r *WorkspaceRepo) DeleteInvite(_ context.Context, _, _ string) error  { return nil }
+func (r *WorkspaceRepo) AcceptInvite(_ context.Context, _ string) error     { return nil }
+func (r *WorkspaceRepo) ListByUserID(_ context.Context, _ string) ([]repository.WorkspaceWithRole, error) {
+	return nil, nil
+}
 
 // UserRepo -----------------------------------------------------------------
 

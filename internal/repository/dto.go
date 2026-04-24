@@ -142,6 +142,36 @@ type Workspace struct {
 	UpdatedAt                time.Time
 }
 
+// WorkspaceWithRole is a Workspace enriched with the requesting user's role.
+type WorkspaceWithRole struct {
+	Workspace
+	Role string
+}
+
+// Member is the domain representation of a workspace member.
+type Member struct {
+	WorkspaceID string
+	UserID      string
+	Email       string
+	Name        string
+	Role        string
+	InvitedBy   *string
+	JoinedAt    time.Time
+}
+
+// Invite is the domain representation of a workspace invite.
+type Invite struct {
+	ID          string
+	WorkspaceID string
+	Email       string
+	Token       string
+	Role        string
+	InvitedBy   string
+	ExpiresAt   time.Time
+	AcceptedAt  *time.Time
+	CreatedAt   time.Time
+}
+
 // User is the domain representation of a user.
 type User struct {
 	ID           string

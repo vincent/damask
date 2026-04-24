@@ -119,6 +119,22 @@ type VariantRepository interface {
 type WorkspaceRepository interface {
 	GetByID(ctx context.Context, id string) (Workspace, error)
 	Update(ctx context.Context, w Workspace) (Workspace, error)
+	CountAssets(ctx context.Context, workspaceID string) (int64, error)
+	// Member methods
+	GetMember(ctx context.Context, workspaceID, userID string) (Member, error)
+	ListMembers(ctx context.Context, workspaceID string) ([]Member, error)
+	CountMembers(ctx context.Context, workspaceID string) (int64, error)
+	CreateMember(ctx context.Context, m Member) error
+	DeleteMember(ctx context.Context, workspaceID, userID string) error
+	UpdateMemberRole(ctx context.Context, workspaceID, userID, role string) error
+	// Invite methods
+	CreateInvite(ctx context.Context, inv Invite) (Invite, error)
+	ListPendingInvites(ctx context.Context, workspaceID string) ([]Invite, error)
+	GetInviteByToken(ctx context.Context, token string) (Invite, error)
+	DeleteInvite(ctx context.Context, workspaceID, inviteID string) error
+	AcceptInvite(ctx context.Context, inviteID string) error
+	// Workspace list for user
+	ListByUserID(ctx context.Context, userID string) ([]WorkspaceWithRole, error)
 }
 
 // UserRepository handles persistence for User records.

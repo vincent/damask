@@ -32,6 +32,15 @@ func isInvalidInput(err error) bool {
 	return errors.Is(err, apperr.ErrInvalidInput)
 }
 
+// unwrapMessage returns the first non-sentinel error message in the chain.
+func unwrapMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	// Walk the chain; return the outermost message (the fmt.Errorf wrapping).
+	return err.Error()
+}
+
 // Respond maps a service-layer error to the appropriate HTTP response.
 // ErrNotFound -> 404, ErrForbidden -> 403, ErrConflict -> 409,
 // ErrInvalidInput -> 422, anything else -> 500.

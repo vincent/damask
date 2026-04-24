@@ -280,7 +280,7 @@ func TestListWorkspaces_SingleWorkspace(t *testing.T) {
 	if len(body) != 1 {
 		t.Fatalf("expected 1 workspace, got %d", len(body))
 	}
-	if body[0].Role != auth.Owner {
+	if body[0].Role != string(auth.Owner) {
 		t.Errorf("role = %q, want %q", body[0].Role, auth.Owner)
 	}
 	if body[0].ID != result.WorkspaceID {

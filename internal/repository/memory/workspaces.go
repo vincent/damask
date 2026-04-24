@@ -4,19 +4,30 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 // RealWorkspaceRepo is a map-backed WorkspaceRepository for unit tests.
 type RealWorkspaceRepo struct {
 	mu         sync.RWMutex
 	workspaces map[string]repository.Workspace
+	members    map[string]repository.Member // key: workspaceID+":"+userID
+	invites    map[string]repository.Invite // key: invite ID
+	userWS     map[string][]string          // userID -> []workspaceID
 }
 
 func NewRealWorkspaceRepo() *RealWorkspaceRepo {
-	return &RealWorkspaceRepo{workspaces: make(map[string]repository.Workspace)}
+	return &RealWorkspaceRepo{
+		workspaces: make(map[string]repository.Workspace),
+		members:    make(map[string]repository.Member),
+		invites:    make(map[string]repository.Invite),
+		userWS:     make(map[string][]string),
+	}
 }
 
 func (r *RealWorkspaceRepo) Seed(workspaces ...repository.Workspace) {
@@ -45,4 +56,143 @@ func (r *RealWorkspaceRepo) Update(_ context.Context, ws repository.Workspace) (
 	}
 	r.workspaces[ws.ID] = ws
 	return ws, nil
+}
+
+func (r *RealWorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) {
+	return 0, nil
+}
+
+func (r *RealWorkspaceRepo) GetMember(_ context.Context, workspaceID, userID string) (repository.Member, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	m, ok := r.members[workspaceID+":"+userID]
+	if !ok {
+		return repository.Member{}, fmt.Errorf("member not found: %w", apperr.ErrNotFound)
+	}
+	return m, nil
+}
+
+func (r *RealWorkspaceRepo) ListMembers(_ context.Context, workspaceID string) ([]repository.Member, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.Member
+	for _, m := range r.members {
+		if m.WorkspaceID == workspaceID {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
+
+func (r *RealWorkspaceRepo) CountMembers(ctx context.Context, workspaceID string) (int64, error) {
+	members, err := r.ListMembers(ctx, workspaceID)
+	return int64(len(members)), err
+}
+
+func (r *RealWorkspaceRepo) CreateMember(_ context.Context, m repository.Member) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if m.JoinedAt.IsZero() {
+		m.JoinedAt = time.Now()
+	}
+	r.members[m.WorkspaceID+":"+m.UserID] = m
+	r.userWS[m.UserID] = append(r.userWS[m.UserID], m.WorkspaceID)
+	return nil
+}
+
+func (r *RealWorkspaceRepo) DeleteMember(_ context.Context, workspaceID, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.members, workspaceID+":"+userID)
+	return nil
+}
+
+func (r *RealWorkspaceRepo) UpdateMemberRole(_ context.Context, workspaceID, userID, role string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := workspaceID + ":" + userID
+	m, ok := r.members[key]
+	if !ok {
+		return fmt.Errorf("member not found: %w", apperr.ErrNotFound)
+	}
+	m.Role = role
+	r.members[key] = m
+	return nil
+}
+
+func (r *RealWorkspaceRepo) CreateInvite(_ context.Context, inv repository.Invite) (repository.Invite, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if inv.ID == "" {
+		inv.ID = uuid.New().String()
+	}
+	if inv.Token == "" {
+		inv.Token = uuid.New().String()
+	}
+	if inv.ExpiresAt.IsZero() {
+		inv.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
+	}
+	inv.CreatedAt = time.Now()
+	r.invites[inv.ID] = inv
+	return inv, nil
+}
+
+func (r *RealWorkspaceRepo) ListPendingInvites(_ context.Context, workspaceID string) ([]repository.Invite, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.Invite
+	now := time.Now()
+	for _, inv := range r.invites {
+		if inv.WorkspaceID == workspaceID && inv.AcceptedAt == nil && inv.ExpiresAt.After(now) {
+			out = append(out, inv)
+		}
+	}
+	return out, nil
+}
+
+func (r *RealWorkspaceRepo) GetInviteByToken(_ context.Context, token string) (repository.Invite, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	now := time.Now()
+	for _, inv := range r.invites {
+		if inv.Token == token && inv.AcceptedAt == nil && inv.ExpiresAt.After(now) {
+			return inv, nil
+		}
+	}
+	return repository.Invite{}, fmt.Errorf("invite not found: %w", apperr.ErrNotFound)
+}
+
+func (r *RealWorkspaceRepo) DeleteInvite(_ context.Context, workspaceID, inviteID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.invites, inviteID)
+	_ = workspaceID
+	return nil
+}
+
+func (r *RealWorkspaceRepo) AcceptInvite(_ context.Context, inviteID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	inv, ok := r.invites[inviteID]
+	if !ok {
+		return fmt.Errorf("invite not found: %w", apperr.ErrNotFound)
+	}
+	now := time.Now()
+	inv.AcceptedAt = &now
+	r.invites[inviteID] = inv
+	return nil
+}
+
+func (r *RealWorkspaceRepo) ListByUserID(_ context.Context, userID string) ([]repository.WorkspaceWithRole, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.WorkspaceWithRole
+	for _, m := range r.members {
+		if m.UserID == userID {
+			if ws, ok := r.workspaces[m.WorkspaceID]; ok {
+				out = append(out, repository.WorkspaceWithRole{Workspace: ws, Role: m.Role})
+			}
+		}
+	}
+	return out, nil
 }
