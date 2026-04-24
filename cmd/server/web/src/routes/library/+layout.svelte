@@ -262,8 +262,8 @@
 
       <!-- Collections section -->
       {#if collectionsStore.collections.length > 0}
-        <div class="flex flex-col overflow-hidden pt-4 border-t-2 border-gray-100 dark:border-gray-800">
-          <div class="mb-2 flex items-center gap-2 px-4">
+        <div class="flex flex-col overflow-hidden px-3 pt-4 border-t-2 border-gray-100 dark:border-gray-800">
+          <div class="mb-2 flex items-center gap-2 px-2">
             <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{m.collections()}</span>
           </div>
           <CollectionsSidebar onSelect={handleCollectionSelect} />

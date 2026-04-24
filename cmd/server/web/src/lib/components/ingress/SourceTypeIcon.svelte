@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Mail, Server, HardDrive, Cloud, Inbox } from '@lucide/svelte'
   import type { IngressSourceType } from '$lib/api/models'
+  import GoogleIcon from '../ui/GoogleIcon.svelte'
 
   interface Props {
     type: IngressSourceType
@@ -20,4 +21,8 @@
   <HardDrive class={cls} />
 {:else if type === 's3'}
   <Cloud class={cls} />
+{:else if type === 'gdrive'}
+  <GoogleIcon class={cls} />
+{:else if type === 'canva'}
+  <img class={cls} src="/canva.logo.svg" width="20" alt="canva logo" />
 {/if}
