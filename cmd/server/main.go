@@ -17,7 +17,7 @@ import (
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
-	"damask/server/internal/services"
+	services "damask/server/internal/fileproc"
 	"damask/server/internal/storage"
 
 	// Side-effect imports to register ingress source types

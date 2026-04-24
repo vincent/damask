@@ -18,7 +18,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/services"
+	services "damask/server/internal/fileproc"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"

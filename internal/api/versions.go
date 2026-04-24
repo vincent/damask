@@ -16,7 +16,7 @@ import (
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
-	"damask/server/internal/services"
+	services "damask/server/internal/fileproc"
 	"damask/server/internal/versioning"
 
 	"github.com/gofiber/fiber/v3"

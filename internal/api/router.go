@@ -13,6 +13,8 @@ import (
 	"damask/server/internal/events"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
+	"damask/server/internal/repository/sqlc"
+	"damask/server/internal/service"
 	"damask/server/internal/storage"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
@@ -37,6 +39,7 @@ type Server struct {
 	cfg          *config.Config
 	audit        *audit.EventWriter
 	demo         DemoSeeder // nil when demo build tag is not set
+	assets       service.AssetService
 }
 
 func NewHttpServer(
@@ -62,6 +65,7 @@ func NewHttpServer(
 		cfg:          cfg,
 		audit:        audit.New(sqlDB),
 		demo:         demoSeeder,
+		assets:       service.NewAssetService(reposqlc.NewAssetRepo(db)),
 	}
 }
 

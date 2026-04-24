@@ -19,7 +19,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
-	"damask/server/internal/services"
+	services "damask/server/internal/fileproc"
 	"damask/server/internal/storage"
 
 	"github.com/google/uuid"

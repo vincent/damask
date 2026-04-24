@@ -1,7 +1,10 @@
 package api
 
 import (
+	"errors"
 	"strings"
+
+	"damask/server/internal/apperr"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -23,4 +26,22 @@ func errRes(c fiber.Ctx, status int, msg string) error {
 
 func isUniqueConstraintError(err error) bool {
 	return strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
+
+// Respond maps a service-layer error to the appropriate HTTP response.
+// ErrNotFound -> 404, ErrForbidden -> 403, ErrConflict -> 409,
+// ErrInvalidInput -> 422, anything else -> 500.
+func Respond(c fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, apperr.ErrNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, apperr.ErrForbidden):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, apperr.ErrConflict):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, apperr.ErrInvalidInput):
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+	default:
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error"})
+	}
 }

@@ -1,4 +1,4 @@
-package services
+package fileproc
 
 import (
 	dbgen "damask/server/internal/db/gen"

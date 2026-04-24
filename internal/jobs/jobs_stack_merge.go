@@ -16,7 +16,7 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
-	"damask/server/internal/services"
+	services "damask/server/internal/fileproc"
 
 	pdfcpuapi "github.com/pdfcpu/pdfcpu/pkg/api"
 	pdftypes "github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"

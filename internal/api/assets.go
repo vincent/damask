@@ -17,7 +17,8 @@ import (
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/services"
+	services "damask/server/internal/fileproc"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -74,6 +75,28 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 		VariantsRebuilding: variantsRebuilding,
 		CreatedAt:          a.CreatedAt,
 		UpdatedAt:          a.UpdatedAt,
+	}
+}
+
+// dtoToDBAsset converts a service.AssetDTO back to a dbgen.Asset for use
+// with response builders that have not yet been migrated to the service layer.
+func dtoToDBAsset(d *service.AssetDTO) dbgen.Asset {
+	return dbgen.Asset{
+		ID:               d.ID,
+		WorkspaceID:      d.WorkspaceID,
+		ProjectID:        d.ProjectID,
+		FolderID:         d.FolderID,
+		OriginalFilename: d.OriginalFilename,
+		StorageKey:       d.StorageKey,
+		MimeType:         d.MimeType,
+		Size:             d.Size,
+		Width:            d.Width,
+		Height:           d.Height,
+		ThumbnailKey:     d.ThumbnailKey,
+		Metadata:         d.Metadata,
+		CurrentVersionID: d.CurrentVersionID,
+		CreatedAt:        d.CreatedAt,
+		UpdatedAt:        d.UpdatedAt,
 	}
 }
 
@@ -710,21 +733,12 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	dto, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
-	tagRows, err := s.db.GetTagsForAsset(c.RequestCtx(), id)
-	if err != nil {
-		tagRows = nil
-	}
+	tagRows, _ := s.db.GetTagsForAsset(c.RequestCtx(), id)
 	tagNames := make([]string, len(tagRows))
 	for i, t := range tagRows {
 		tagNames[i] = t.Name
@@ -734,26 +748,27 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	// Check if a variant rebuild job is in flight for the current version.
 	variantsRebuilding := false
-	if asset.CurrentVersionID != nil {
+	if dto.CurrentVersionID != nil {
 		var rebuildCount int64
 		if err := s.sqlDB.QueryRowContext(c.RequestCtx(),
 			`SELECT COUNT(*) FROM jobs
 			 WHERE type = 'rebuild_variants'
 			   AND JSON_EXTRACT(payload, '$.new_version_id') = ?
 			   AND status IN ('pending', 'processing')`,
-			*asset.CurrentVersionID,
+			*dto.CurrentVersionID,
 		).Scan(&rebuildCount); err == nil {
 			variantsRebuilding = rebuildCount > 0
 		}
 	}
 
-	variantCount, _ := s.db.CountVariantsByVersion(c.RequestCtx(), func() string {
-		if asset.CurrentVersionID != nil {
-			return *asset.CurrentVersionID
-		}
-		return ""
-	}())
+	currentVersionID := ""
+	if dto.CurrentVersionID != nil {
+		currentVersionID = *dto.CurrentVersionID
+	}
+	variantCount, _ := s.db.CountVariantsByVersion(c.RequestCtx(), currentVersionID)
 
+	// Reconstruct a dbgen.Asset from the DTO to reuse the existing response builder.
+	asset := dtoToDBAsset(dto)
 	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount, variantCount, variantsRebuilding))
 }
 

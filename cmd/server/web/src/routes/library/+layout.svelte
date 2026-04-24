@@ -26,11 +26,12 @@
   import { undoStore } from '$lib/stores/undo.svelte'
   import { BulkAssignAssetToProject } from '$lib/commands/BulkAssignAssetToProject'
   import { BulkAssignAssetToFolder } from '$lib/commands/BulkAssignAssetToFolder'
+  import { detectSmallDevice, onSmallDevice } from '$lib/stores/browserDetect.svelte'
 
   let { children }: { data: any, children: Snippet } = $props()
 
   let sidebarCreating = $state(false)
-  let sidebarVisible = $state(true)
+  let sidebarVisible = $state(onSmallDevice())
 
   const profileSections = [
     { id: 'account',       label: () => m.settings_auth_title(), path: '/library/settings/account',     icon: User },
@@ -134,6 +135,8 @@
   })
 
   onMount(() => {
+    detectSmallDevice()
+
     projectsStore.load()
     collectionsStore.load()
 
