@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
@@ -144,6 +145,37 @@ func (r *fieldRepo) UpdatePosition(ctx context.Context, workspaceID, id string, 
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
+}
+
+func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error {
+	defs, err := r.q.ListInheritableAssetFieldDefinitions(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+	for _, def := range defs {
+		pv, err := r.q.GetProjectFieldValue(ctx, dbgen.GetProjectFieldValueParams{
+			ProjectID: projectID,
+			FieldID:   def.ID,
+		})
+		if err != nil {
+			continue // no value set on project for this field — skip
+		}
+		if _, err := r.q.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+			ID:           uuid.NewString(),
+			AssetID:      assetID,
+			FieldID:      def.ID,
+			ValueText:    pv.ValueText,
+			ValueNumber:  pv.ValueNumber,
+			ValueDate:    pv.ValueDate,
+			ValueBoolean: pv.ValueBoolean,
+			CreatedBy:    userID,
+		}); err != nil {
+			slog.Error("field inheritance: upsert asset field",
+				"workspace_id", workspaceID, "asset_id", assetID,
+				"project_id", projectID, "field_id", def.ID, "error", err)
+		}
+	}
+	return nil
 }
 
 // -- AssetFieldRepository -----------------------------------------------------

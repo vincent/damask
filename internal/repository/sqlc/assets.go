@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
+	"strings"
 
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
@@ -183,6 +186,173 @@ func (r *assetRepo) CountByIDs(ctx context.Context, workspaceID string, ids []st
 	)
 	var count int64
 	return count, row.Scan(&count)
+}
+
+func (r *assetRepo) RefreshFTS(ctx context.Context, assetID string) error {
+	var originalFilename string
+	row := r.sqlDB.QueryRowContext(ctx, `SELECT original_filename FROM assets WHERE id = ?`, assetID)
+	if err := row.Scan(&originalFilename); err != nil {
+		return nil // asset not found — no-op
+	}
+
+	rows, err := r.sqlDB.QueryContext(ctx, `
+		SELECT v.value_text
+		FROM asset_field_values v
+		JOIN field_definitions f ON f.id = v.field_id
+		WHERE v.asset_id = ? AND f.field_type IN ('text', 'url', 'select') AND f.deleted_at IS NULL AND v.value_text IS NOT NULL
+	`, assetID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	parts := []string{originalFilename}
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err == nil {
+			parts = append(parts, t)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	combined := strings.Join(parts, " ")
+	if _, err := r.sqlDB.ExecContext(ctx, `
+		INSERT INTO assets_fts(assets_fts, rowid, original_filename)
+		SELECT 'delete', rowid, original_filename FROM assets WHERE id = ?
+	`, assetID); err != nil {
+		slog.Error("fts refresh delete", "asset_id", assetID, "error", err)
+		return err
+	}
+	if _, err := r.sqlDB.ExecContext(ctx, `
+		INSERT INTO assets_fts(rowid, original_filename)
+		SELECT rowid, ? FROM assets WHERE id = ?
+	`, combined, assetID); err != nil {
+		slog.Error("fts refresh insert", "asset_id", assetID, "error", err)
+		return err
+	}
+	return nil
+}
+
+func (r *assetRepo) ListByFields(ctx context.Context, params repository.ListAssetsByFieldsParams) ([]repository.Asset, error) {
+	filters := params.FieldFilters
+	if len(filters) == 0 {
+		return nil, nil
+	}
+
+	joins := make([]string, len(filters))
+	whereFilters := make([]string, len(filters))
+	var joinArgs []interface{}
+	var valueArgs []interface{}
+
+	for i, f := range filters {
+		alias := fmt.Sprintf("v%d", i+1)
+		joins[i] = fmt.Sprintf(
+			`JOIN asset_field_values %s ON %s.asset_id = a.id AND %s.field_id = (SELECT id FROM field_definitions WHERE workspace_id = ? AND key = ? AND deleted_at IS NULL LIMIT 1)`,
+			alias, alias, alias,
+		)
+		joinArgs = append(joinArgs, params.WorkspaceID, f.Key)
+		whereFilters[i] = fieldFilterSQL(f, alias)
+		valueArgs = append(valueArgs, fieldFilterArgs(f)...)
+	}
+
+	var args []interface{}
+	args = append(args, joinArgs...)
+	args = append(args, params.WorkspaceID)
+	args = append(args, valueArgs...)
+
+	var cursorClause string
+	if params.CursorAt != nil && params.CursorID != nil {
+		cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
+		args = append(args, *params.CursorAt, *params.CursorAt, *params.CursorID)
+	}
+	args = append(args, params.Limit)
+
+	filterClauses := ""
+	if len(whereFilters) > 0 {
+		filterClauses = "AND " + strings.Join(whereFilters, " AND ")
+	}
+
+	query := fmt.Sprintf(`
+		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
+		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
+		       a.created_at, a.updated_at
+		FROM assets a
+		%s
+		WHERE a.workspace_id = ?
+		  %s
+		  %s
+		ORDER BY a.created_at DESC, a.id DESC
+		LIMIT ?
+	`, strings.Join(joins, "\n"), filterClauses, cursorClause)
+
+	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("ListByFields: %w", err)
+	}
+	defer rows.Close()
+
+	var out []repository.Asset
+	for rows.Next() {
+		var a dbgen.Asset
+		if err := rows.Scan(
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
+			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
+			&a.CreatedAt, &a.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("ListByFields scan: %w", err)
+		}
+		out = append(out, toAsset(a))
+	}
+	return out, rows.Err()
+}
+
+// fieldFilterSQL returns the SQL WHERE clause for one filter using the given table alias.
+// Only the alias (internally controlled) and operator (validated allowlist) appear in the format string.
+func fieldFilterSQL(f repository.FieldFilter, alias string) string {
+	textCol := fmt.Sprintf("COALESCE(%s.value_text, %s.value_date, CAST(%s.value_boolean AS TEXT))", alias, alias, alias)
+	numCol := fmt.Sprintf("CAST(%s.value_number AS REAL)", alias)
+	switch f.Operator {
+	case "eq":
+		return fmt.Sprintf("COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
+			alias, alias, alias, alias)
+	case "lt":
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s < ? OR %s.value_number IS NULL AND %s < ?)", alias, numCol, alias, textCol)
+	case "lte":
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s <= ? OR %s.value_number IS NULL AND %s <= ?)", alias, numCol, alias, textCol)
+	case "gt":
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s > ? OR %s.value_number IS NULL AND %s > ?)", alias, numCol, alias, textCol)
+	case "gte":
+		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s >= ? OR %s.value_number IS NULL AND %s >= ?)", alias, numCol, alias, textCol)
+	case "contains":
+		return fmt.Sprintf("%s.value_text LIKE ?", alias)
+	case "starts_with":
+		return fmt.Sprintf("%s.value_text LIKE ?", alias)
+	}
+	return fmt.Sprintf("COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
+		alias, alias, alias, alias)
+}
+
+// fieldFilterArgs returns the SQL argument(s) for the filter operator.
+func fieldFilterArgs(f repository.FieldFilter) []interface{} {
+	switch f.Operator {
+	case "contains":
+		return []interface{}{"%" + f.Value + "%"}
+	case "starts_with":
+		return []interface{}{f.Value + "%"}
+	case "lt", "lte", "gt", "gte":
+		return []interface{}{f.Value, f.Value}
+	default: // eq
+		v := f.Value
+		switch strings.ToLower(v) {
+		case "true":
+			v = "1"
+		case "false":
+			v = "0"
+		}
+		return []interface{}{v}
+	}
 }
 
 func toAsset(a dbgen.Asset) repository.Asset {

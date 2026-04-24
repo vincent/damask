@@ -228,6 +228,10 @@ func (s *fieldService) Reorder(ctx context.Context, workspaceID string, items []
 	return nil
 }
 
+func (s *fieldService) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error {
+	return s.fields.InheritProjectFields(ctx, workspaceID, assetID, projectID, userID)
+}
+
 func toFieldDTO(f repository.FieldDefinition) *FieldDefinitionDTO {
 	return &FieldDefinitionDTO{
 		ID:                 f.ID,

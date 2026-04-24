@@ -56,10 +56,174 @@ func (r *userRepo) Create(ctx context.Context, u repository.User) (repository.Us
 }
 
 func (r *userRepo) Update(ctx context.Context, u repository.User) (repository.User, error) {
-	// No generic UpdateUser query exists in sqlc today; targeted link/unlink queries
-	// handle OIDC/OAuth updates. This method is a placeholder for when auth migration
-	// reaches the workspace service.
 	return r.GetByID(ctx, u.ID)
+}
+
+func (r *userRepo) GetByGoogleID(ctx context.Context, googleUserID string) (repository.User, error) {
+	row, err := r.q.GetUserByGoogleID(ctx, &googleUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.User{}, apperr.ErrNotFound
+		}
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) GetByCanvaID(ctx context.Context, canvaUserID string) (repository.User, error) {
+	row, err := r.q.GetUserByCanvaID(ctx, &canvaUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.User{}, apperr.ErrNotFound
+		}
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) GetByOIDC(ctx context.Context, issuer, sub string) (repository.User, error) {
+	row, err := r.q.GetUserByOIDC(ctx, dbgen.GetUserByOIDCParams{
+		OidcIssuer: &issuer,
+		OidcSub:    &sub,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.User{}, apperr.ErrNotFound
+		}
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) CreateWithGoogle(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.CreateUserWithGoogle(ctx, dbgen.CreateUserWithGoogleParams{
+		ID:           u.ID,
+		Email:        u.Email,
+		Name:         u.Name,
+		GoogleUserID: u.GoogleUserID,
+		AvatarUrl:    u.AvatarUrl,
+		AuthMethods:  u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) CreateWithOIDC(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.CreateUserWithOIDC(ctx, dbgen.CreateUserWithOIDCParams{
+		ID:         u.ID,
+		Email:      u.Email,
+		Name:       u.Name,
+		OidcIssuer: u.OidcIssuer,
+		OidcSub:    u.OidcSub,
+		AvatarUrl:  u.AvatarUrl,
+		AuthMethods: u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) CreateWithCanva(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.CreateUserWithCanva(ctx, dbgen.CreateUserWithCanvaParams{
+		ID:          u.ID,
+		Email:       u.Email,
+		Name:        u.Name,
+		CanvaUserID: u.CanvaUserID,
+		AvatarUrl:   u.AvatarUrl,
+		AuthMethods: u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) LinkGoogle(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.LinkGoogle(ctx, dbgen.LinkGoogleParams{
+		ID:           u.ID,
+		GoogleUserID: u.GoogleUserID,
+		AvatarUrl:    u.AvatarUrl,
+		AuthMethods:  u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) LinkOIDC(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.LinkOIDC(ctx, dbgen.LinkOIDCParams{
+		ID:          u.ID,
+		OidcIssuer:  u.OidcIssuer,
+		OidcSub:     u.OidcSub,
+		AvatarUrl:   u.AvatarUrl,
+		AuthMethods: u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) LinkCanva(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.LinkCanva(ctx, dbgen.LinkCanvaParams{
+		ID:          u.ID,
+		CanvaUserID: u.CanvaUserID,
+		AvatarUrl:   u.AvatarUrl,
+		AuthMethods: u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) UnlinkGoogle(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.UnlinkGoogle(ctx, dbgen.UnlinkGoogleParams{
+		ID:          u.ID,
+		AuthMethods: u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) UnlinkOIDC(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.UnlinkOIDC(ctx, dbgen.UnlinkOIDCParams{
+		ID:          u.ID,
+		AuthMethods: u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) UnlinkCanva(ctx context.Context, u repository.User) (repository.User, error) {
+	row, err := r.q.UnlinkCanva(ctx, dbgen.UnlinkCanvaParams{
+		ID:          u.ID,
+		AuthMethods: u.AuthMethods,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+	return toUser(row), nil
+}
+
+func (r *userRepo) ListWorkspaceIDs(ctx context.Context, userID string) ([]string, error) {
+	rows, err := r.q.ListWorkspacesByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(rows))
+	for i, w := range rows {
+		ids[i] = w.ID
+	}
+	return ids, nil
 }
 
 func (r *userRepo) RunInTx(ctx context.Context, fn func(repository.UserRepository) error) error {
@@ -84,6 +248,8 @@ func toUser(u dbgen.User) repository.User {
 		UpdatedAt:    u.UpdatedAt,
 		OidcSub:      u.OidcSub,
 		OidcIssuer:   u.OidcIssuer,
+		GoogleUserID: u.GoogleUserID,
+		CanvaUserID:  u.CanvaUserID,
 		AvatarUrl:    u.AvatarUrl,
 		AuthMethods:  u.AuthMethods,
 	}

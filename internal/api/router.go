@@ -44,8 +44,10 @@ type Server struct {
 	folders      service.FolderService
 	tags         service.TagService
 	collections  service.CollectionService
-	shares       service.ShareService
+	shares        service.ShareService
+	sharePublic   service.SharePublicService
 	fields        service.FieldService
+	integrations  service.IntegrationService
 	assetFields   service.AssetFieldService
 	projectFields service.ProjectFieldService
 	versions      service.VersionService
@@ -85,7 +87,9 @@ func NewHttpServer(
 		folders:      service.NewFolderService(reposqlc.NewFolderRepo(db, sqlDB)),
 		tags:         service.NewTagService(reposqlc.NewTagRepo(db, sqlDB)),
 		collections:  service.NewCollectionService(reposqlc.NewCollectionRepo(db, sqlDB), reposqlc.NewAssetRepo(db, sqlDB)),
-		shares:       service.NewShareService(reposqlc.NewShareRepo(db)),
+		shares:       service.NewShareService(reposqlc.NewShareRepo(db, sqlDB)),
+		sharePublic:  service.NewSharePublicService(reposqlc.NewShareRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB), mailer),
+		integrations: service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
 		fields:        service.NewFieldService(reposqlc.NewFieldRepo(db)),
 		assetFields:   service.NewAssetFieldService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewFieldRepo(db), reposqlc.NewAssetFieldRepo(db, sqlDB)),
 		projectFields: service.NewProjectFieldService(reposqlc.NewProjectRepo(db), reposqlc.NewFieldRepo(db), reposqlc.NewProjectFieldRepo(db)),

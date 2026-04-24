@@ -104,6 +104,32 @@ func (s *assetService) CountByIDs(ctx context.Context, workspaceID string, ids [
 	return s.assets.CountByIDs(ctx, workspaceID, ids)
 }
 
+func (s *assetService) RefreshFTS(ctx context.Context, assetID string) error {
+	return s.assets.RefreshFTS(ctx, assetID)
+}
+
+func (s *assetService) ListByFields(ctx context.Context, params ListAssetsByFieldsParams) ([]*AssetDTO, error) {
+	repoFilters := make([]repository.FieldFilter, len(params.FieldFilters))
+	for i, f := range params.FieldFilters {
+		repoFilters[i] = repository.FieldFilter{Key: f.Key, Operator: f.Operator, Value: f.Value}
+	}
+	rows, err := s.assets.ListByFields(ctx, repository.ListAssetsByFieldsParams{
+		WorkspaceID:  params.WorkspaceID,
+		FieldFilters: repoFilters,
+		CursorAt:     params.CursorAt,
+		CursorID:     params.CursorID,
+		Limit:        params.Limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*AssetDTO, len(rows))
+	for i, r := range rows {
+		out[i] = toAssetDTO(r)
+	}
+	return out, nil
+}
+
 func (s *assetService) Delete(ctx context.Context, workspaceID, assetID string) error {
 	isCover, err := s.assets.IsProjectCover(ctx, workspaceID, assetID)
 	if err != nil {

@@ -118,6 +118,12 @@ func (r *AssetRepo) SoftDelete(ctx context.Context, workspaceID, id string) erro
 func (r *AssetRepo) IsProjectCover(_ context.Context, _, _ string) (bool, error) { return false, nil }
 func (r *AssetRepo) IsWorkspaceIcon(_ context.Context, _, _ string) (bool, error) { return false, nil }
 
+func (r *AssetRepo) RefreshFTS(_ context.Context, _ string) error { return nil }
+
+func (r *AssetRepo) ListByFields(_ context.Context, params repository.ListAssetsByFieldsParams) ([]repository.Asset, error) {
+	return nil, nil
+}
+
 func (r *AssetRepo) CountByIDs(_ context.Context, workspaceID string, ids []string) (int64, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

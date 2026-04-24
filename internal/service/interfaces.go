@@ -13,6 +13,10 @@ type AssetService interface {
 	Rename(ctx context.Context, workspaceID, assetID, newStem string) (*AssetDTO, error)
 	Delete(ctx context.Context, workspaceID, assetID string) error
 	CountByIDs(ctx context.Context, workspaceID string, ids []string) (int64, error)
+	// RefreshFTS rebuilds the FTS5 index for the asset to include text field values.
+	RefreshFTS(ctx context.Context, assetID string) error
+	// ListByFields returns assets matching field-value filters (field[key][op]=value style).
+	ListByFields(ctx context.Context, params ListAssetsByFieldsParams) ([]*AssetDTO, error)
 }
 
 // CreateVariantParams is the input for VariantService.Create.
@@ -96,6 +100,8 @@ type FieldService interface {
 	Delete(ctx context.Context, workspaceID, id string) error
 	GetStats(ctx context.Context, workspaceID, id string) (FieldStatsDTO, error)
 	Reorder(ctx context.Context, workspaceID string, items []ReorderFieldItem) error
+	// InheritProjectFields copies inheritable project field values to a newly created asset.
+	InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error
 }
 
 // FieldStatsDTO holds usage counts for a field definition.
@@ -221,6 +227,40 @@ type UserService interface {
 	GetByID(ctx context.Context, userID string) (*UserDTO, error)
 	// CreateWorkspace creates a new workspace owned by userID inside a transaction.
 	CreateWorkspace(ctx context.Context, userID, name string) (*WorkspaceDTO, error)
+	// GetProfile returns the full user profile including auth methods and provider links.
+	GetProfile(ctx context.Context, userID string) (*OIDCUserDTO, error)
+	// UpsertOIDCUser finds or creates a user from OIDC/Google claims; returns (user, workspaceID).
+	UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams) (*OIDCUserDTO, error)
+	// UpsertCanvaUser finds or creates a user from Canva claims; returns (user, workspaceID).
+	UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserParams) (*OIDCUserDTO, error)
+	// UnlinkProvider removes the given provider (oidc/google/canva) from the user.
+	UnlinkProvider(ctx context.Context, userID, provider string) (*OIDCUserDTO, error)
+}
+
+// SharePublicService handles business logic for public (unauthenticated) share access.
+type SharePublicService interface {
+	// GetActive returns the share if it exists, is not revoked, and is not expired.
+	// Returns ErrNotFound for missing/revoked shares and ErrGone for expired shares.
+	GetActive(ctx context.Context, shareID string) (*ShareDTO, error)
+	IncrementViewCount(ctx context.Context, shareID string) error
+	ListAssets(ctx context.Context, targetType, targetID string) ([]*PublicAssetDTO, error)
+	GetAsset(ctx context.Context, assetID string) (*PublicAssetDTO, error)
+	GetAssetFile(ctx context.Context, assetID string) (*PublicAssetFileDTO, error)
+	GetAssetThumb(ctx context.Context, assetID string) (*PublicAssetThumbDTO, error)
+	IsAssetInTarget(ctx context.Context, targetType, targetID, assetID string) (bool, error)
+	CreateComment(ctx context.Context, p CreateShareCommentParams) (*ShareCommentDTO, error)
+	ListCommentsByShare(ctx context.Context, shareID string) ([]*ShareCommentDTO, error)
+	ListCommentsByShareAndAsset(ctx context.Context, shareID, assetID string) ([]*ShareCommentDTO, error)
+	DeleteComment(ctx context.Context, shareID, commentID string) error
+	// GetOwnerShare returns a share verified to belong to the workspace (for owner moderation).
+	GetOwnerShare(ctx context.Context, workspaceID, shareID string) (*ShareDTO, error)
+}
+
+// IntegrationService handles OAuth connection management.
+type IntegrationService interface {
+	ListConnections(ctx context.Context, workspaceID string) ([]*ConnectionDTO, error)
+	DeleteConnection(ctx context.Context, workspaceID, id string) error
+	UpsertConnection(ctx context.Context, p UpsertConnectionParams) error
 }
 
 // StackService handles business logic for stack export and merge.

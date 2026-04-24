@@ -72,3 +72,59 @@ func (r *RealShareRepo) Revoke(_ context.Context, workspaceID, id string) error 
 	r.shares[id] = sh
 	return nil
 }
+
+func (r *RealShareRepo) GetPublic(_ context.Context, id string) (repository.Share, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	sh, ok := r.shares[id]
+	if !ok {
+		return repository.Share{}, fmt.Errorf("share %q: %w", id, apperr.ErrNotFound)
+	}
+	return sh, nil
+}
+
+func (r *RealShareRepo) GetByIDAndWorkspace(_ context.Context, workspaceID, id string) (repository.Share, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	sh, ok := r.shares[id]
+	if !ok || sh.WorkspaceID != workspaceID {
+		return repository.Share{}, fmt.Errorf("share %q: %w", id, apperr.ErrNotFound)
+	}
+	return sh, nil
+}
+
+func (r *RealShareRepo) IncrementViewCount(_ context.Context, _ string) error { return nil }
+
+func (r *RealShareRepo) ListAssetsByTarget(_ context.Context, _, _ string) ([]repository.PublicAsset, error) {
+	return nil, nil
+}
+
+func (r *RealShareRepo) GetPublicAsset(_ context.Context, _ string) (repository.PublicAsset, error) {
+	return repository.PublicAsset{}, fmt.Errorf("%w", apperr.ErrNotFound)
+}
+
+func (r *RealShareRepo) GetPublicAssetFile(_ context.Context, _ string) (repository.PublicAssetFile, error) {
+	return repository.PublicAssetFile{}, fmt.Errorf("%w", apperr.ErrNotFound)
+}
+
+func (r *RealShareRepo) GetPublicAssetThumb(_ context.Context, _ string) (*string, time.Time, error) {
+	return nil, time.Time{}, fmt.Errorf("%w", apperr.ErrNotFound)
+}
+
+func (r *RealShareRepo) IsAssetInTarget(_ context.Context, _, _, _ string) (bool, error) {
+	return false, nil
+}
+
+func (r *RealShareRepo) CreateComment(_ context.Context, c repository.ShareComment) (repository.ShareComment, error) {
+	return c, nil
+}
+
+func (r *RealShareRepo) ListCommentsByShare(_ context.Context, _ string) ([]repository.ShareComment, error) {
+	return nil, nil
+}
+
+func (r *RealShareRepo) ListCommentsByShareAndAsset(_ context.Context, _, _ string) ([]repository.ShareComment, error) {
+	return nil, nil
+}
+
+func (r *RealShareRepo) DeleteComment(_ context.Context, _, _ string) error { return nil }

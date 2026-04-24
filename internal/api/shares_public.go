@@ -2,7 +2,6 @@ package api
 
 import (
 	"archive/zip"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -13,10 +12,9 @@ import (
 	"time"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -42,7 +40,7 @@ type CommentResponse struct {
 	CreatedAt   string  `json:"created_at"`
 }
 
-func commentToResponse(c dbgen.ShareComment) CommentResponse {
+func commentDTOToResponse(c *service.ShareCommentDTO) CommentResponse {
 	return CommentResponse{
 		ID:          c.ID,
 		ShareID:     c.ShareID,
@@ -54,43 +52,37 @@ func commentToResponse(c dbgen.ShareComment) CommentResponse {
 	}
 }
 
-// isShareExpired returns true if the share's expires_at is in the past.
-func isShareExpired(share dbgen.Share) bool {
-	if share.ExpiresAt == nil {
-		return false
+func publicAssetDTOToResponse(a *service.PublicAssetDTO) AssetResponse {
+	return AssetResponse{
+		ID:               a.ID,
+		WorkspaceID:      a.WorkspaceID,
+		ProjectID:        a.ProjectID,
+		FolderID:         a.FolderID,
+		OriginalFilename: a.OriginalFilename,
+		MimeType:         a.MimeType,
+		Size:             a.Size,
+		Width:            a.Width,
+		Height:           a.Height,
+		ThumbnailKey:     a.ThumbnailKey,
+		Metadata:         a.Metadata,
+		Tags:             []string{},
+		CreatedAt:        a.CreatedAt,
+		UpdatedAt:        a.UpdatedAt,
 	}
-	t, err := time.Parse("2006-01-02T15:04:05Z", *share.ExpiresAt)
-	if err != nil {
-		t, err = time.Parse("2006-01-02 15:04:05", *share.ExpiresAt)
-	}
-	return err == nil && time.Now().After(t)
 }
 
-// loadActiveShare loads a share by ID and validates it is not revoked or expired.
-// Returns 404 if not found or revoked (preserves audit trail behaviour).
-// Returns 410 Gone if expired.
-// Uses fiber.NewError so callers receive a non-nil error on failure.
-func (s *Server) loadActiveShare(c fiber.Ctx, id string) (dbgen.Share, error) {
-	share, err := s.db.GetShareByID(c.RequestCtx(), id)
+// loadActiveShareDTO loads and validates a share via the service layer.
+// Returns 404 for missing/revoked and 410 Gone for expired.
+func (s *Server) loadActiveShareDTO(c fiber.Ctx, id string) (*service.ShareDTO, error) {
+	sh, err := s.sharePublic.GetActive(c.RequestCtx(), id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return dbgen.Share{}, fiber.NewError(fiber.StatusNotFound, "share not found")
+		if errors.Is(err, service.ErrGone) {
+			return nil, fiber.NewError(fiber.StatusGone, "share has expired")
 		}
-		return dbgen.Share{}, fiber.NewError(fiber.StatusInternalServerError, "could not load share")
+		return nil, fiber.NewError(fiber.StatusNotFound, "share not found")
 	}
-
-	if share.RevokedAt != nil {
-		return dbgen.Share{}, fiber.NewError(fiber.StatusNotFound, "share not found")
-	}
-
-	if isShareExpired(share) {
-		return dbgen.Share{}, fiber.NewError(fiber.StatusGone, "share has expired")
-	}
-
-	return share, nil
+	return sh, nil
 }
-
-// ── S-4 ──────────────────────────────────────────────────────────────────────
 
 // handleShareInfo returns public metadata about a share.
 //
@@ -103,17 +95,15 @@ func (s *Server) loadActiveShare(c fiber.Ctx, id string) (dbgen.Share, error) {
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired"
 // @Router /shared/{id}/access [get]
-// GET /shared/:id/access — unauthenticated.
-// Returns share metadata so the gate page can decide whether to show a password form.
 func (s *Server) handleShareInfo(c fiber.Ctx) error {
 	id := c.Params("id")
-	share, err := s.loadActiveShare(c, id)
+	sh, err := s.loadActiveShareDTO(c, id)
 	if err != nil {
 		return err
 	}
 	return c.JSON(ShareInfoResponse{
-		Label:       share.Label,
-		HasPassword: share.PasswordHash != nil,
+		Label:       sh.Label,
+		HasPassword: sh.PasswordHash != nil,
 	})
 }
 
@@ -131,43 +121,36 @@ func (s *Server) handleShareInfo(c fiber.Ctx) error {
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired"
 // @Router /shared/{id}/access [post]
-// POST /shared/:id/access — unauthenticated.
-// Validates the share, checks password if required, issues a share session token.
 func (s *Server) handleShareAccess(c fiber.Ctx) error {
 	id := c.Params("id")
 
-	share, err := s.loadActiveShare(c, id)
+	sh, err := s.loadActiveShareDTO(c, id)
 	if err != nil {
 		return err
 	}
 
-	// Parse optional password (errors ignored — body is optional)
 	body := &ShareAccessRequest{}
-	err = c.Bind().Body(body)
-	if err != nil {
+	if err := c.Bind().Body(body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
-	// Check password
-	if share.PasswordHash != nil {
+	if sh.PasswordHash != nil {
 		if body.Password == "" {
 			return errRes(c, fiber.StatusUnauthorized, "password required")
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(*share.PasswordHash), []byte(body.Password)); err != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(*sh.PasswordHash), []byte(body.Password)); err != nil {
 			return errRes(c, fiber.StatusUnauthorized, "incorrect password")
 		}
 	}
 
-	// Increment view count (best-effort — do not fail the request on error)
-	_ = s.db.IncrementShareViewCount(c.RequestCtx(), share.ID)
+	_ = s.sharePublic.IncrementViewCount(c.RequestCtx(), id)
 
-	// Issue 24-hour share session token
 	token, err := s.tokenMaker.CreateShareToken(
-		share.ID,
-		share.TargetType,
-		share.TargetID,
-		share.AllowComments == 1,
-		share.AllowDownload == 1,
+		sh.ID,
+		sh.TargetType,
+		sh.TargetID,
+		sh.AllowComments,
+		sh.AllowDownload,
 		24*time.Hour,
 	)
 	if err != nil {
@@ -176,8 +159,6 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 
 	return c.JSON(ShareAccessResponse{Token: token})
 }
-
-// ── S-5 ──────────────────────────────────────────────────────────────────────
 
 // handleShareListAssets returns the assets accessible via this share.
 //
@@ -192,78 +173,25 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired or been revoked"
 // @Router /shared/{id}/assets [get]
-// GET /shared/:id/assets
-// Lists assets belonging to the share's target. Requires valid share session token.
 func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
 
-	// Re-check expiry/revocation on every request
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
 		return err
 	}
 
-	var assets []dbgen.Asset
-
-	switch sc.TargetType {
-	case "asset":
-		// Single-asset share — return just that asset
-		asset, err := s.sqlDB.QueryContext(c.RequestCtx(), `
-			SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key,
-			       mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at
-			FROM assets WHERE id = ?`, sc.TargetID)
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not load asset")
-		}
-		defer asset.Close()
-		for asset.Next() {
-			var a dbgen.Asset
-			if err := asset.Scan(
-				&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-				&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-				&a.CreatedAt, &a.UpdatedAt,
-			); err != nil {
-				return errRes(c, fiber.StatusInternalServerError, "scan failed")
-			}
-			assets = append(assets, a)
-		}
-
-	case "project":
-		rows, err := s.sqlDB.QueryContext(c.RequestCtx(), `
-			SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key,
-			       mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at
-			FROM assets WHERE project_id = ?
-			ORDER BY created_at DESC, id DESC`, sc.TargetID)
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var a dbgen.Asset
-			if err := rows.Scan(
-				&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-				&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-				&a.CreatedAt, &a.UpdatedAt,
-			); err != nil {
-				return errRes(c, fiber.StatusInternalServerError, "scan failed")
-			}
-			assets = append(assets, a)
-		}
-
-	case "collection":
-		colAssets, err := s.db.ListCollectionAssets(c.RequestCtx(), sc.TargetID)
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not list collection assets")
-		}
-		assets = colAssets
+	dtos, err := s.sharePublic.ListAssets(c.RequestCtx(), sc.TargetType, sc.TargetID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
-	items := make([]AssetResponse, len(assets))
-	for i, a := range assets {
-		items[i] = assetToResponse(a, []string{})
+	items := make([]AssetResponse, len(dtos))
+	for i, d := range dtos {
+		items[i] = publicAssetDTOToResponse(d)
 	}
 
-	share, err := s.db.GetShareByID(c.RequestCtx(), shareID)
+	sh, err := s.sharePublic.GetActive(c.RequestCtx(), shareID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load share")
 	}
@@ -277,12 +205,12 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 		HasPassword   bool    `json:"has_password"`
 	}
 	sv := shareView{
-		ID:            share.ID,
-		Label:         share.Label,
-		AllowComments: share.AllowComments == 1,
-		AllowDownload: share.AllowDownload == 1,
-		HasPassword:   share.PasswordHash != nil,
-		ExpiresAt:     share.ExpiresAt,
+		ID:            sh.ID,
+		Label:         sh.Label,
+		AllowComments: sh.AllowComments,
+		AllowDownload: sh.AllowDownload,
+		HasPassword:   sh.PasswordHash != nil,
+		ExpiresAt:     sh.ExpiresAt,
 	}
 
 	return c.JSON(fiber.Map{
@@ -304,40 +232,23 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found in this share"
 // @Router /shared/{id}/assets/{aid} [get]
-// GET /shared/:id/assets/:aid
-// Returns a single asset detail. Requires valid share session token.
 func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
 	assetID := c.Params("aid")
 
-	// Re-check share liveness
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
+		return err
+	}
+	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
 		return err
 	}
 
-	// Confirm asset is part of this share
-	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
-		return err
+	a, err := s.sharePublic.GetAsset(c.RequestCtx(), assetID)
+	if err != nil {
+		return Respond(c, err)
 	}
-
-	row := s.sqlDB.QueryRowContext(c.RequestCtx(), `
-		SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key,
-		       mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at
-		FROM assets WHERE id = ?`, assetID)
-	var a dbgen.Asset
-	if err := row.Scan(
-		&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-		&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-		&a.CreatedAt, &a.UpdatedAt,
-	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
-	}
-
-	return c.JSON(assetToResponse(a, []string{}))
+	return c.JSON(publicAssetDTOToResponse(a))
 }
 
 // handleShareGetAssetFile streams the original file for a shared asset.
@@ -354,8 +265,6 @@ func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 // @Failure 403 {object} ErrorResponse "Download not allowed for this share"
 // @Failure 404 {object} ErrorResponse "Asset or file not found"
 // @Router /shared/{id}/assets/{aid}/file [get]
-// GET /shared/:id/assets/:aid/file
-// Streams the original file. Requires allow_download in share session token.
 func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -364,42 +273,32 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	if !sc.AllowDownload {
 		return errRes(c, fiber.StatusForbidden, "download not allowed for this share")
 	}
-
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
 		return err
 	}
-	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
+	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
 		return err
 	}
 
-	row := s.sqlDB.QueryRowContext(c.RequestCtx(), `
-		SELECT a.mime_type, a.original_filename, v.storage_key, v.content_hash, v.size, v.created_at
-		FROM assets a
-		JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
-		WHERE a.id = ?`, assetID)
-	var mimeType, filename, storageKey, contentHash, versionCreatedAt string
-	var versionSize int64
-	if err := row.Scan(&mimeType, &filename, &storageKey, &contentHash, &versionSize, &versionCreatedAt); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	f, err := s.sharePublic.GetAssetFile(c.RequestCtx(), assetID)
+	if err != nil {
+		return Respond(c, err)
 	}
 
-	lastMod := parseVersionTime(versionCreatedAt)
-	if setCacheHeaders(c, contentHash, lastMod, false) {
+	lastMod := parseVersionTime(f.VersionCreatedAt)
+	if setCacheHeaders(c, f.ContentHash, lastMod, false) {
 		return nil
 	}
 
-	rc, err := s.storage.Get(storageKey)
+	rc, err := s.storage.Get(f.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
 
-	c.Set("Content-Type", mimeType)
-	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
-	if versionSize > 0 {
-		c.Set("Content-Length", strconv.FormatInt(versionSize, 10))
+	c.Set("Content-Type", f.MimeType)
+	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, f.OriginalFilename))
+	if f.Size > 0 {
+		c.Set("Content-Length", strconv.FormatInt(f.Size, 10))
 	}
 	return c.SendStream(rc)
 }
@@ -417,41 +316,29 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found or thumbnail not ready"
 // @Router /shared/{id}/assets/{aid}/thumb [get]
-// GET /shared/:id/assets/:aid/thumb
-// Streams the thumbnail. Always allowed (thumbnails are required for review).
 func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
 	assetID := c.Params("aid")
 
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
 		return err
 	}
-	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
+	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
 		return err
 	}
 
-	row := s.sqlDB.QueryRowContext(c.RequestCtx(), `
-		SELECT thumbnail_key, updated_at FROM assets WHERE id = ?`, assetID)
-	var thumbKey *string
-	var updatedAt time.Time
-	if err := row.Scan(&thumbKey, &updatedAt); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	thumb, err := s.sharePublic.GetAssetThumb(c.RequestCtx(), assetID)
+	if err != nil {
+		return Respond(c, err)
 	}
 
-	if thumbKey == nil {
-		return errRes(c, fiber.StatusNotFound, "thumbnail not ready")
-	}
-
-	thumbETag := assetID + "_" + strconv.FormatInt(updatedAt.Unix(), 10)
-	if setCacheHeaders(c, thumbETag, updatedAt, false) {
+	thumbETag := assetID + "_" + strconv.FormatInt(thumb.UpdatedAt.Unix(), 10)
+	if setCacheHeaders(c, thumbETag, thumb.UpdatedAt, false) {
 		return nil
 	}
 
-	rc, err := s.storage.Get(*thumbKey)
+	rc, err := s.storage.Get(thumb.ThumbnailKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
@@ -459,8 +346,6 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 	c.Set("Content-Type", "image/jpeg")
 	return c.SendStream(rc)
 }
-
-// ── S-6 ──────────────────────────────────────────────────────────────────────
 
 // handleShareCreateComment posts a comment on a shared asset.
 //
@@ -477,7 +362,6 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 // @Failure 403 {object} ErrorResponse "Comments not allowed for this share"
 // @Failure 404 {object} ErrorResponse "Asset not found in this share"
 // @Router /shared/{id}/comments [post]
-// POST /shared/:id/comments
 func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -485,8 +369,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	if !sc.AllowComments {
 		return errRes(c, fiber.StatusForbidden, "comments not allowed for this share")
 	}
-
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
 		return err
 	}
 
@@ -494,9 +377,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	if !ok {
 		return nil
 	}
-
-	// Confirm asset belongs to the share
-	if err := s.assertAssetInShare(c, sc, body.AssetID); err != nil {
+	if err := s.assertAssetInShareSvc(c, sc, body.AssetID); err != nil {
 		return err
 	}
 
@@ -505,8 +386,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 		authorEmail = body.AuthorEmail
 	}
 
-	comment, err := s.db.CreateComment(c.RequestCtx(), dbgen.CreateCommentParams{
-		ID:          uuid.NewString(),
+	comment, err := s.sharePublic.CreateComment(c.RequestCtx(), service.CreateShareCommentParams{
 		ShareID:     shareID,
 		AssetID:     body.AssetID,
 		AuthorName:  body.AuthorName,
@@ -514,18 +394,11 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 		Body:        body.Body,
 	})
 	if err != nil {
+		slog.ErrorContext(c.RequestCtx(), "failed to create comment", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not create comment")
 	}
 
-	if share, err := s.db.GetShareByID(c.RequestCtx(), shareID); err == nil {
-		if owner, err := s.db.GetUserByID(c.RequestCtx(), share.CreatedBy); err == nil {
-			if err := s.mailer.SendCommentPosted(c.RequestCtx(), owner.Email, body.AuthorName, share.Label, body.Body); err != nil {
-				slog.ErrorContext(c.RequestCtx(), "failed to send comment posted mail", "error", err)
-			}
-		}
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(commentToResponse(comment))
+	return c.Status(fiber.StatusCreated).JSON(commentDTOToResponse(comment))
 }
 
 // handleShareListComments returns all comments on a share, grouped by asset.
@@ -540,28 +413,26 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Router /shared/{id}/comments [get]
-// GET /shared/:id/comments — all comments for this share, grouped by asset_id
 func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	shareID := c.Params("id")
 
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
 		return err
 	}
 
-	comments, err := s.db.ListCommentsByShare(c.RequestCtx(), shareID)
+	dtos, err := s.sharePublic.ListCommentsByShare(c.RequestCtx(), shareID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list comments")
 	}
 
-	// Group by asset_id
 	grouped := make(map[string][]CommentResponse)
 	order := []string{}
-	for _, cm := range comments {
+	for _, cm := range dtos {
 		if _, exists := grouped[cm.AssetID]; !exists {
 			order = append(order, cm.AssetID)
 			grouped[cm.AssetID] = []CommentResponse{}
 		}
-		grouped[cm.AssetID] = append(grouped[cm.AssetID], commentToResponse(cm))
+		grouped[cm.AssetID] = append(grouped[cm.AssetID], commentDTOToResponse(cm))
 	}
 
 	type group struct {
@@ -589,35 +460,29 @@ func (s *Server) handleShareListComments(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found in this share"
 // @Router /shared/{id}/assets/{aid}/comments [get]
-// GET /shared/:id/assets/:aid/comments — comments for a specific asset
 func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
 	assetID := c.Params("aid")
 
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
 		return err
 	}
-	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
+	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
 		return err
 	}
 
-	comments, err := s.db.ListCommentsByShareAndAsset(c.RequestCtx(), dbgen.ListCommentsByShareAndAssetParams{
-		ShareID: shareID,
-		AssetID: assetID,
-	})
+	dtos, err := s.sharePublic.ListCommentsByShareAndAsset(c.RequestCtx(), shareID, assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list comments")
 	}
 
-	items := make([]CommentResponse, len(comments))
-	for i, cm := range comments {
-		items[i] = commentToResponse(cm)
+	items := make([]CommentResponse, len(dtos))
+	for i, cm := range dtos {
+		items[i] = commentDTOToResponse(cm)
 	}
 	return c.JSON(items)
 }
-
-// ── S-7 ──────────────────────────────────────────────────────────────────────
 
 // handleOwnerListComments returns all comments on a share for the workspace owner.
 //
@@ -631,30 +496,22 @@ func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Router /api/v1/shares/{id}/comments [get]
-// GET /api/v1/shares/:id/comments — owner view of all comments on a share
 func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	shareID := c.Params("id")
 
-	// Verify share belongs to the workspace
-	if _, err := s.db.GetShareByIDAndWorkspace(c.RequestCtx(), dbgen.GetShareByIDAndWorkspaceParams{
-		ID:          shareID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "share not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load share")
+	if _, err := s.sharePublic.GetOwnerShare(c.RequestCtx(), claims.WorkspaceID, shareID); err != nil {
+		return Respond(c, err)
 	}
 
-	comments, err := s.db.ListCommentsByShare(c.RequestCtx(), shareID)
+	dtos, err := s.sharePublic.ListCommentsByShare(c.RequestCtx(), shareID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list comments")
 	}
 
-	items := make([]CommentResponse, len(comments))
-	for i, cm := range comments {
-		items[i] = commentToResponse(cm)
+	items := make([]CommentResponse, len(dtos))
+	for i, cm := range dtos {
+		items[i] = commentDTOToResponse(cm)
 	}
 	return c.JSON(items)
 }
@@ -672,27 +529,16 @@ func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Router /api/v1/shares/{id}/comments/{cid} [delete]
-// DELETE /api/v1/shares/:id/comments/:cid — moderation: delete a comment
 func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	shareID := c.Params("id")
 	commentID := c.Params("cid")
 
-	// Verify share belongs to the workspace
-	if _, err := s.db.GetShareByIDAndWorkspace(c.RequestCtx(), dbgen.GetShareByIDAndWorkspaceParams{
-		ID:          shareID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "share not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load share")
+	if _, err := s.sharePublic.GetOwnerShare(c.RequestCtx(), claims.WorkspaceID, shareID); err != nil {
+		return Respond(c, err)
 	}
 
-	if err := s.db.DeleteComment(c.RequestCtx(), dbgen.DeleteCommentParams{
-		ID:      commentID,
-		ShareID: shareID,
-	}); err != nil {
+	if err := s.sharePublic.DeleteComment(c.RequestCtx(), shareID, commentID); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not delete comment")
 	}
 
@@ -712,7 +558,6 @@ func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 // @Failure 403 {object} ErrorResponse "Download not allowed for this share"
 // @Failure 404 {object} ErrorResponse "Share not found or expired"
 // @Router /shared/{id}/export [get]
-// GET /shared/:id/export — requires a valid share session token and allow_download.
 func (s *Server) handleShareExport(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -720,57 +565,23 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 	if !sc.AllowDownload {
 		return errRes(c, fiber.StatusForbidden, "download not allowed for this share")
 	}
-
-	if err := s.reCheckShare(c, shareID); err != nil {
+	if err := s.reCheckShareSvc(c, shareID); err != nil {
 		return err
 	}
 
-	// Collect asset storage keys scoped strictly to this share's target.
+	dtos, err := s.sharePublic.ListAssets(c.RequestCtx(), sc.TargetType, sc.TargetID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
+	}
+
 	type entry struct {
 		name       string
 		storageKey string
 	}
 	var entries []entry
 	usedNames := map[string]int{}
-
-	var query string
-	var arg interface{}
-	switch sc.TargetType {
-	case "asset":
-		query = `SELECT a.original_filename, v.storage_key
-			FROM assets a
-			JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
-			WHERE a.id = ?`
-		arg = sc.TargetID
-	case "project":
-		query = `SELECT a.original_filename, v.storage_key
-			FROM assets a
-			JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
-			WHERE a.project_id = ?`
-		arg = sc.TargetID
-	case "collection":
-		query = `SELECT a.original_filename, v.storage_key
-			FROM assets a
-			JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
-			JOIN collection_assets ca ON ca.asset_id = a.id
-			WHERE ca.collection_id = ?
-			ORDER BY ca.position ASC, ca.added_at ASC`
-		arg = sc.TargetID
-	default:
-		return errRes(c, fiber.StatusBadRequest, "unsupported share target type")
-	}
-
-	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, arg)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var origName, storageKey string
-		if err := rows.Scan(&origName, &storageKey); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "scan failed")
-		}
-		base := origName
+	for _, d := range dtos {
+		base := d.OriginalFilename
 		usedNames[base]++
 		name := base
 		if usedNames[base] > 1 {
@@ -782,14 +593,14 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 			}
 			name = fmt.Sprintf("%s_%d%s", stem, usedNames[base], ext)
 		}
-		entries = append(entries, entry{name: name, storageKey: storageKey})
+		entries = append(entries, entry{name: name, storageKey: d.StorageKey})
 	}
 
-	share, err := s.db.GetShareByID(c.RequestCtx(), shareID)
+	sh, err := s.sharePublic.GetActive(c.RequestCtx(), shareID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load share")
 	}
-	filename := sanitiseFilename(share.Label)
+	filename := sanitiseFilename(sh.Label)
 	if filename == "" {
 		filename = "collection-export"
 	}
@@ -837,47 +648,18 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-// reCheckShare re-validates that the share is still active (not revoked, not expired).
-// Uses fiber.NewError so callers receive a non-nil error on failure.
-func (s *Server) reCheckShare(c fiber.Ctx, shareID string) error {
-	share, err := s.db.GetShareByID(c.RequestCtx(), shareID)
+func (s *Server) reCheckShareSvc(c fiber.Ctx, shareID string) error {
+	_, err := s.sharePublic.GetActive(c.RequestCtx(), shareID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fiber.NewError(fiber.StatusNotFound, "share not found")
-		}
-		return fiber.NewError(fiber.StatusInternalServerError, "could not load share")
-	}
-	if share.RevokedAt != nil {
-		return fiber.NewError(fiber.StatusGone, "share has been revoked")
-	}
-	if isShareExpired(share) {
-		return fiber.NewError(fiber.StatusGone, "share has expired")
+		return fiber.NewError(fiber.StatusGone, "share has been revoked or expired")
 	}
 	return nil
 }
 
-// assertAssetInShare verifies that the given assetID is accessible via the share's target.
-// Uses fiber.NewError so callers receive a non-nil error on failure.
-func (s *Server) assertAssetInShare(c fiber.Ctx, sc *auth.ShareClaims, assetID string) error {
-	switch sc.TargetType {
-	case "asset":
-		if assetID != sc.TargetID {
-			return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
-		}
-	case "project":
-		row := s.sqlDB.QueryRowContext(c.RequestCtx(),
-			`SELECT COUNT(1) FROM assets WHERE id = ? AND project_id = ?`, assetID, sc.TargetID)
-		var count int
-		if err := row.Scan(&count); err != nil || count == 0 {
-			return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
-		}
-	case "collection":
-		row := s.sqlDB.QueryRowContext(c.RequestCtx(),
-			`SELECT COUNT(1) FROM collection_assets WHERE collection_id = ? AND asset_id = ?`, sc.TargetID, assetID)
-		var count int
-		if err := row.Scan(&count); err != nil || count == 0 {
-			return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
-		}
+func (s *Server) assertAssetInShareSvc(c fiber.Ctx, sc *auth.ShareClaims, assetID string) error {
+	ok, err := s.sharePublic.IsAssetInTarget(c.RequestCtx(), sc.TargetType, sc.TargetID, assetID)
+	if err != nil || !ok {
+		return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
 	}
 	return nil
 }

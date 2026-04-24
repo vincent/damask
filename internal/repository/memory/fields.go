@@ -109,3 +109,7 @@ func (r *RealFieldRepo) UpdatePosition(_ context.Context, workspaceID, id string
 	r.fields[id] = f
 	return nil
 }
+
+func (r *RealFieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error {
+	return nil
+}

@@ -2,20 +2,16 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
 	oauthpkg "damask/server/internal/oauth"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -29,26 +25,20 @@ type connectionResponse struct {
 	ConnectedAt   string   `json:"connected_at"`
 }
 
-func toConnectionResponse(c dbgen.OauthConnection) connectionResponse {
-	var scopes []string
-	_ = json.Unmarshal([]byte(c.Scopes), &scopes)
-	email := ""
-	if c.ProviderEmail != nil {
-		email = *c.ProviderEmail
-	}
+func toConnectionResponse(dto *service.ConnectionDTO) connectionResponse {
 	return connectionResponse{
-		ID:            c.ID,
-		Provider:      c.Provider,
-		ProviderEmail: email,
-		Scopes:        scopes,
-		ConnectedAt:   c.CreatedAt,
+		ID:            dto.ID,
+		Provider:      dto.Provider,
+		ProviderEmail: dto.ProviderEmail,
+		Scopes:        dto.Scopes,
+		ConnectedAt:   dto.ConnectedAt,
 	}
 }
 
 // GET /integrations/connections
 func (s *Server) handleListConnections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	conns, err := s.db.ListOAuthConnectionsByWorkspace(c.Context(), claims.WorkspaceID)
+	conns, err := s.integrations.ListConnections(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list connections")
 	}
@@ -63,18 +53,8 @@ func (s *Server) handleListConnections(c fiber.Ctx) error {
 func (s *Server) handleDeleteConnection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
-	_, err := s.db.GetOAuthConnectionByID(c.Context(), dbgen.GetOAuthConnectionByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusNotFound, "connection not found")
-	}
-	if err := s.db.DeleteOAuthConnection(c.Context(), dbgen.DeleteOAuthConnectionParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete connection")
+	if err := s.integrations.DeleteConnection(c.Context(), claims.WorkspaceID, id); err != nil {
+		return Respond(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -152,13 +132,24 @@ func (s *Server) handleCallbackGoogle(c fiber.Ctx) error {
 		return c.Redirect().To("/library/settings/integrations?error=exchange_failed")
 	}
 
-	// Get Google user info to label the connection.
 	sub, email, err := googleUserInfo(c.Context(), token.AccessToken)
 	if err != nil {
 		return c.Redirect().To("/library/settings/integrations?error=userinfo_failed")
 	}
 
-	if err := s.upsertConnection(c.Context(), st.WorkspaceID, st.UserID, "google", sub, email, token, cfg.Scopes); err != nil {
+	encryptFn := func(plain string) (string, error) {
+		return oauthpkg.EncryptToken(s.cfg.AppSecret, plain)
+	}
+	if err := s.integrations.UpsertConnection(c.Context(), service.UpsertConnectionParams{
+		WorkspaceID:    st.WorkspaceID,
+		UserID:         st.UserID,
+		Provider:       "google",
+		ProviderUserID: sub,
+		ProviderEmail:  email,
+		Token:          token,
+		Scopes:         cfg.Scopes,
+		EncryptToken:   encryptFn,
+	}); err != nil {
 		return c.Redirect().To("/library/settings/integrations?error=save_failed")
 	}
 
@@ -228,13 +219,24 @@ func (s *Server) handleCallbackCanva(c fiber.Ctx) error {
 		return c.Redirect().To("/library/settings/integrations?error=exchange_failed")
 	}
 
-	// Get Canva user info.
 	canvaID, email, err := canvaUserInfo(c.Context(), token.AccessToken)
 	if err != nil {
 		return c.Redirect().To("/library/settings/integrations?error=userinfo_failed")
 	}
 
-	if err := s.upsertConnection(c.Context(), st.WorkspaceID, st.UserID, "canva", canvaID, email, token, cfg.Scopes); err != nil {
+	encryptFn := func(plain string) (string, error) {
+		return oauthpkg.EncryptToken(s.cfg.AppSecret, plain)
+	}
+	if err := s.integrations.UpsertConnection(c.Context(), service.UpsertConnectionParams{
+		WorkspaceID:    st.WorkspaceID,
+		UserID:         st.UserID,
+		Provider:       "canva",
+		ProviderUserID: canvaID,
+		ProviderEmail:  email,
+		Token:          token,
+		Scopes:         cfg.Scopes,
+		EncryptToken:   encryptFn,
+	}); err != nil {
 		return c.Redirect().To("/library/settings/integrations?error=save_failed")
 	}
 
@@ -243,62 +245,6 @@ func (s *Server) handleCallbackCanva(c fiber.Ctx) error {
 		redirect = "/library/settings/integrations?connected=canva"
 	}
 	return c.Redirect().To(redirect)
-}
-
-// upsertConnection creates or updates an oauth_connections row.
-func (s *Server) upsertConnection(ctx context.Context, workspaceID, userID, provider, providerUserID, providerEmail string, token *oauth2.Token, scopes []string) error {
-	encAccess, err := oauthpkg.EncryptToken(s.cfg.AppSecret, token.AccessToken)
-	if err != nil {
-		return err
-	}
-	var encRefresh *string
-	if token.RefreshToken != "" {
-		enc, err := oauthpkg.EncryptToken(s.cfg.AppSecret, token.RefreshToken)
-		if err != nil {
-			return err
-		}
-		encRefresh = &enc
-	}
-	var expiresAt *string
-	if !token.Expiry.IsZero() {
-		s := token.Expiry.UTC().Format(time.RFC3339)
-		expiresAt = &s
-	}
-	scopesJSON, _ := json.Marshal(scopes)
-
-	// Try to update existing connection for same workspace+provider+account.
-	existing, err := s.db.GetOAuthConnectionByProviderUserID(ctx, dbgen.GetOAuthConnectionByProviderUserIDParams{
-		WorkspaceID:    workspaceID,
-		Provider:       provider,
-		ProviderUserID: &providerUserID,
-	})
-	if err == nil {
-		_, err = s.db.UpdateOAuthConnectionTokens(ctx, dbgen.UpdateOAuthConnectionTokensParams{
-			AccessToken:  encAccess,
-			RefreshToken: encRefresh,
-			ExpiresAt:    expiresAt,
-			ID:           existing.ID,
-		})
-		return err
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-
-	email := nilIfEmpty(providerEmail)
-	_, err = s.db.CreateOAuthConnection(ctx, dbgen.CreateOAuthConnectionParams{
-		ID:             uuid.New().String(),
-		WorkspaceID:    workspaceID,
-		CreatedBy:      userID,
-		Provider:       provider,
-		ProviderUserID: &providerUserID,
-		ProviderEmail:  email,
-		Scopes:         string(scopesJSON),
-		AccessToken:    encAccess,
-		RefreshToken:   encRefresh,
-		ExpiresAt:      expiresAt,
-	})
-	return err
 }
 
 // googleUserInfo calls the Google userinfo endpoint, returns (sub, email, error).

@@ -188,8 +188,65 @@ type User struct {
 	UpdatedAt    time.Time
 	OidcSub      *string
 	OidcIssuer   *string
+	GoogleUserID *string
+	CanvaUserID  *string
 	AvatarUrl    *string
 	AuthMethods  string
+}
+
+// ShareComment is the domain representation of a public share comment.
+type ShareComment struct {
+	ID          string
+	ShareID     string
+	AssetID     string
+	AuthorName  string
+	AuthorEmail *string
+	Body        string
+	CreatedAt   string
+}
+
+// PublicAsset is a minimal asset view used by public share endpoints (no workspace isolation needed).
+type PublicAsset struct {
+	ID               string
+	WorkspaceID      string
+	ProjectID        *string
+	FolderID         *string
+	OriginalFilename string
+	StorageKey       string
+	MimeType         string
+	Size             int64
+	Width            *int64
+	Height           *int64
+	ThumbnailKey     *string
+	Metadata         *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+// PublicAssetFile holds the file-serving data for a shared asset.
+type PublicAssetFile struct {
+	MimeType         string
+	OriginalFilename string
+	StorageKey       string
+	ContentHash      string
+	Size             int64
+	VersionCreatedAt string
+}
+
+// OAuthConnection is the domain representation of a stored OAuth connection.
+type OAuthConnection struct {
+	ID             string
+	WorkspaceID    string
+	CreatedBy      string
+	Provider       string
+	ProviderUserID *string
+	ProviderEmail  *string
+	Scopes         string
+	AccessToken    string
+	RefreshToken   *string
+	ExpiresAt      *string
+	CreatedAt      string
+	UpdatedAt      string
 }
 
 // Variant is the domain representation of an asset variant (transformed version).
@@ -234,16 +291,33 @@ type SetFieldValueParams struct {
 	CreatedBy    string
 }
 
+// FieldFilter represents a parsed field[key][op]=value query filter for asset listing.
+type FieldFilter struct {
+	Key      string // field key slug (e.g. "client_name")
+	Operator string // eq | lt | lte | gt | gte | contains | starts_with
+	Value    string
+}
+
 // ListAssetsParams holds filters for listing assets.
 // ProjectID and MimePrefix accept nil to mean "all".
 // CursorAt and CursorID implement keyset pagination (created_at + id).
 type ListAssetsParams struct {
-	WorkspaceID string
-	ProjectID   interface{} // *string or nil
-	MimePrefix  interface{} // *string or nil
-	CursorAt    interface{} // *time.Time or nil
-	CursorID    *string
-	Limit       int64
+	WorkspaceID  string
+	ProjectID    interface{} // *string or nil
+	MimePrefix   interface{} // *string or nil
+	CursorAt     interface{} // *time.Time or nil
+	CursorID     *string
+	Limit        int64
+	FieldFilters []FieldFilter // dynamic field value filters
+}
+
+// ListAssetsByFieldsParams holds the parameters for field-filter-based asset listing.
+type ListAssetsByFieldsParams struct {
+	WorkspaceID  string
+	FieldFilters []FieldFilter
+	CursorAt     *string // raw cursor value (created_at string)
+	CursorID     *string
+	Limit        int64
 }
 
 // CreateAssetParams holds the fields needed to insert a new asset row.

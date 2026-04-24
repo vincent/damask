@@ -73,6 +73,45 @@ func (r *RealUserRepo) Update(_ context.Context, u repository.User) (repository.
 	return u, nil
 }
 
+func (r *RealUserRepo) GetByGoogleID(_ context.Context, _ string) (repository.User, error) {
+	return repository.User{}, apperr.ErrNotFound
+}
+func (r *RealUserRepo) GetByCanvaID(_ context.Context, _ string) (repository.User, error) {
+	return repository.User{}, apperr.ErrNotFound
+}
+func (r *RealUserRepo) GetByOIDC(_ context.Context, _, _ string) (repository.User, error) {
+	return repository.User{}, apperr.ErrNotFound
+}
+func (r *RealUserRepo) CreateWithGoogle(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Create(context.Background(), u)
+}
+func (r *RealUserRepo) CreateWithOIDC(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Create(context.Background(), u)
+}
+func (r *RealUserRepo) CreateWithCanva(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Create(context.Background(), u)
+}
+func (r *RealUserRepo) LinkGoogle(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Update(context.Background(), u)
+}
+func (r *RealUserRepo) LinkOIDC(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Update(context.Background(), u)
+}
+func (r *RealUserRepo) LinkCanva(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Update(context.Background(), u)
+}
+func (r *RealUserRepo) UnlinkGoogle(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Update(context.Background(), u)
+}
+func (r *RealUserRepo) UnlinkOIDC(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Update(context.Background(), u)
+}
+func (r *RealUserRepo) UnlinkCanva(_ context.Context, u repository.User) (repository.User, error) {
+	return r.Update(context.Background(), u)
+}
+func (r *RealUserRepo) ListWorkspaceIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
 func (r *RealUserRepo) RunInTx(_ context.Context, fn func(repository.UserRepository) error) error {
 	return fn(r)
 }

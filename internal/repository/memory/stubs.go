@@ -6,7 +6,9 @@ package memory
 
 import (
 	"context"
+	"time"
 
+	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
 )
 
@@ -100,6 +102,12 @@ func NewShareRepo() *ShareRepo { return &ShareRepo{} }
 func (r *ShareRepo) GetByID(_ context.Context, _, _ string) (repository.Share, error) {
 	return repository.Share{}, nil
 }
+func (r *ShareRepo) GetPublic(_ context.Context, _ string) (repository.Share, error) {
+	return repository.Share{}, nil
+}
+func (r *ShareRepo) GetByIDAndWorkspace(_ context.Context, _, _ string) (repository.Share, error) {
+	return repository.Share{}, nil
+}
 func (r *ShareRepo) List(_ context.Context, _ string) ([]repository.Share, error) { return nil, nil }
 func (r *ShareRepo) Create(_ context.Context, s repository.Share) (repository.Share, error) {
 	return s, nil
@@ -107,7 +115,33 @@ func (r *ShareRepo) Create(_ context.Context, s repository.Share) (repository.Sh
 func (r *ShareRepo) Update(_ context.Context, s repository.Share) (repository.Share, error) {
 	return s, nil
 }
-func (r *ShareRepo) Revoke(_ context.Context, _, _ string) error { return nil }
+func (r *ShareRepo) Revoke(_ context.Context, _, _ string) error     { return nil }
+func (r *ShareRepo) IncrementViewCount(_ context.Context, _ string) error { return nil }
+func (r *ShareRepo) ListAssetsByTarget(_ context.Context, _, _ string) ([]repository.PublicAsset, error) {
+	return nil, nil
+}
+func (r *ShareRepo) GetPublicAsset(_ context.Context, _ string) (repository.PublicAsset, error) {
+	return repository.PublicAsset{}, nil
+}
+func (r *ShareRepo) GetPublicAssetFile(_ context.Context, _ string) (repository.PublicAssetFile, error) {
+	return repository.PublicAssetFile{}, nil
+}
+func (r *ShareRepo) GetPublicAssetThumb(_ context.Context, _ string) (*string, time.Time, error) {
+	return nil, time.Time{}, nil
+}
+func (r *ShareRepo) IsAssetInTarget(_ context.Context, _, _, _ string) (bool, error) {
+	return true, nil
+}
+func (r *ShareRepo) CreateComment(_ context.Context, c repository.ShareComment) (repository.ShareComment, error) {
+	return c, nil
+}
+func (r *ShareRepo) ListCommentsByShare(_ context.Context, _ string) ([]repository.ShareComment, error) {
+	return nil, nil
+}
+func (r *ShareRepo) ListCommentsByShareAndAsset(_ context.Context, _, _ string) ([]repository.ShareComment, error) {
+	return nil, nil
+}
+func (r *ShareRepo) DeleteComment(_ context.Context, _, _ string) error { return nil }
 
 // VersionRepo --------------------------------------------------------------
 
@@ -136,6 +170,15 @@ func (r *VersionRepo) CountByAsset(_ context.Context, _ string) (int64, error)  
 func (r *VersionRepo) IsReferencedAsCover(_ context.Context, _ string) (bool, error) {
 	return false, nil
 }
+func (r *VersionRepo) GetByHash(_ context.Context, _, _ string) (repository.AssetVersion, error) {
+	return repository.AssetVersion{}, apperr.ErrNotFound
+}
+func (r *VersionRepo) NextVersionNum(_ context.Context, _ string) (int64, error) { return 1, nil }
+func (r *VersionRepo) SetCurrent(_ context.Context, _, _ string) error           { return nil }
+func (r *VersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *string) error { return nil }
+func (r *VersionRepo) ListWithVariantCount(_ context.Context, _ string) ([]repository.AssetVersionWithCount, error) {
+	return nil, nil
+}
 
 // FieldRepo ----------------------------------------------------------------
 
@@ -158,6 +201,12 @@ func (r *FieldRepo) Update(_ context.Context, f repository.FieldDefinition) (rep
 func (r *FieldRepo) SoftDelete(_ context.Context, _, _ string) error { return nil }
 func (r *FieldRepo) CountByWorkspaceAndScope(_ context.Context, _, _ string) (int64, error) {
 	return 0, nil
+}
+func (r *FieldRepo) CountAssetValues(_ context.Context, _ string) (int64, error)  { return 0, nil }
+func (r *FieldRepo) CountProjectValues(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *FieldRepo) UpdatePosition(_ context.Context, _, _ string, _ int64) error  { return nil }
+func (r *FieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error {
+	return nil
 }
 
 // WorkspaceRepo ------------------------------------------------------------
@@ -225,6 +274,66 @@ func (r *UserRepo) Create(_ context.Context, u repository.User) (repository.User
 func (r *UserRepo) Update(_ context.Context, u repository.User) (repository.User, error) {
 	return u, nil
 }
+func (r *UserRepo) GetByGoogleID(_ context.Context, _ string) (repository.User, error) {
+	return repository.User{}, apperr.ErrNotFound
+}
+func (r *UserRepo) GetByCanvaID(_ context.Context, _ string) (repository.User, error) {
+	return repository.User{}, apperr.ErrNotFound
+}
+func (r *UserRepo) GetByOIDC(_ context.Context, _, _ string) (repository.User, error) {
+	return repository.User{}, apperr.ErrNotFound
+}
+func (r *UserRepo) CreateWithGoogle(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) CreateWithOIDC(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) CreateWithCanva(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) LinkGoogle(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) LinkOIDC(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) LinkCanva(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) UnlinkGoogle(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) UnlinkOIDC(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) UnlinkCanva(_ context.Context, u repository.User) (repository.User, error) {
+	return u, nil
+}
+func (r *UserRepo) ListWorkspaceIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
 func (r *UserRepo) RunInTx(_ context.Context, fn func(repository.UserRepository) error) error {
 	return fn(r)
 }
+
+// OAuthRepo ----------------------------------------------------------------
+
+type OAuthRepo struct{}
+
+func NewOAuthRepo() *OAuthRepo { return &OAuthRepo{} }
+
+func (r *OAuthRepo) List(_ context.Context, _ string) ([]repository.OAuthConnection, error) {
+	return nil, nil
+}
+func (r *OAuthRepo) GetByID(_ context.Context, _, _ string) (repository.OAuthConnection, error) {
+	return repository.OAuthConnection{}, apperr.ErrNotFound
+}
+func (r *OAuthRepo) GetByProviderUserID(_ context.Context, _, _, _ string) (repository.OAuthConnection, error) {
+	return repository.OAuthConnection{}, apperr.ErrNotFound
+}
+func (r *OAuthRepo) Create(_ context.Context, _ repository.OAuthConnection) error { return nil }
+func (r *OAuthRepo) UpdateTokens(_ context.Context, _, _ string, _ *string, _ *string) error {
+	return nil
+}
+func (r *OAuthRepo) Delete(_ context.Context, _, _ string) error { return nil }

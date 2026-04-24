@@ -5,10 +5,8 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,11 +15,9 @@ import (
 
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
-	dbgen "damask/server/internal/db/gen"
-	services "damask/server/internal/fileproc"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -98,7 +94,7 @@ func (s *Server) initiateOAuth(c fiber.Ctx, oauth2Cfg oauth2.Config, extraOpts .
 	return c.Redirect().To(oauth2Cfg.AuthCodeURL(state, opts...))
 }
 
-// validateOAuthCallback validates state + exchanges code. Returns (token, pkceVerifier, error).
+// validateOAuthCallback validates state + exchanges code. Returns (token, error).
 func (s *Server) validateOAuthCallback(c fiber.Ctx, oauth2Cfg oauth2.Config) (*oauth2.Token, error) {
 	stateParam := c.Query("state")
 	stateCookie := c.Cookies(oidcStateCookie)
@@ -121,160 +117,6 @@ func (s *Server) validateOAuthCallback(c fiber.Ctx, oauth2Cfg oauth2.Config) (*o
 		return nil, fmt.Errorf("code exchange failed: %w", err)
 	}
 	return token, nil
-}
-
-// --- upsert helpers ---
-
-// upsertOIDCUser finds or creates a user from OIDC claims. Returns (user, workspaceID, error).
-func (s *Server) upsertOIDCUser(c fiber.Ctx, issuer, sub, email, name, avatarURL string, isGoogle bool) (dbgen.User, string, error) {
-	ctx := c.Context()
-
-	// 1. Look up by provider identity.
-	var user dbgen.User
-	var lookupErr error
-	if isGoogle {
-		user, lookupErr = s.db.GetUserByGoogleID(ctx, &sub)
-	} else {
-		user, lookupErr = s.db.GetUserByOIDC(ctx, dbgen.GetUserByOIDCParams{OidcIssuer: &issuer, OidcSub: &sub})
-	}
-
-	if lookupErr != nil && !errors.Is(lookupErr, sql.ErrNoRows) {
-		return dbgen.User{}, "", fmt.Errorf("db lookup: %w", lookupErr)
-	}
-
-	if lookupErr == nil {
-		// Found — update avatar.
-		methods := user.AuthMethods
-		if isGoogle {
-			u, err := s.db.LinkGoogle(ctx, dbgen.LinkGoogleParams{
-				GoogleUserID: &sub,
-				AvatarUrl:    nilIfEmpty(avatarURL),
-				AuthMethods:  methods,
-				ID:           user.ID,
-			})
-			if err != nil {
-				return dbgen.User{}, "", err
-			}
-			user = u
-		} else {
-			u, err := s.db.LinkOIDC(ctx, dbgen.LinkOIDCParams{
-				OidcIssuer:  &issuer,
-				OidcSub:     &sub,
-				AvatarUrl:   nilIfEmpty(avatarURL),
-				AuthMethods: methods,
-				ID:          user.ID,
-			})
-			if err != nil {
-				return dbgen.User{}, "", err
-			}
-			user = u
-		}
-		wsID, err := s.firstWorkspaceID(ctx, user.ID)
-		if err != nil {
-			return dbgen.User{}, "", err
-		}
-		return user, wsID, nil
-	}
-
-	// 2. Look up by email — link to existing account.
-	existing, err := s.db.GetUserByEmail(ctx, email)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return dbgen.User{}, "", err
-	}
-	if err == nil {
-		methods := addAuthMethod(existing.AuthMethods, methodName(isGoogle))
-		if isGoogle {
-			existing, err = s.db.LinkGoogle(ctx, dbgen.LinkGoogleParams{
-				GoogleUserID: &sub,
-				AvatarUrl:    nilIfEmpty(avatarURL),
-				AuthMethods:  methods,
-				ID:           existing.ID,
-			})
-		} else {
-			existing, err = s.db.LinkOIDC(ctx, dbgen.LinkOIDCParams{
-				OidcIssuer:  &issuer,
-				OidcSub:     &sub,
-				AvatarUrl:   nilIfEmpty(avatarURL),
-				AuthMethods: methods,
-				ID:          existing.ID,
-			})
-		}
-		if err != nil {
-			return dbgen.User{}, "", err
-		}
-		wsID, err := s.firstWorkspaceID(ctx, existing.ID)
-		if err != nil {
-			return dbgen.User{}, "", err
-		}
-		return existing, wsID, nil
-	}
-
-	// 3. New user — create with workspace.
-	tx, err := s.sqlDB.BeginTx(ctx, nil)
-	if err != nil {
-		return dbgen.User{}, "", err
-	}
-	defer tx.Rollback()
-	qtx := s.db.WithTx(tx)
-
-	userID := uuid.New().String()
-	initMethodsB, _ := json.Marshal([]string{methodName(isGoogle)})
-	initMethods := string(initMethodsB)
-	if isGoogle {
-		user, err = qtx.CreateUserWithGoogle(ctx, dbgen.CreateUserWithGoogleParams{
-			ID: userID, Email: email, Name: name,
-			GoogleUserID: &sub, AvatarUrl: nilIfEmpty(avatarURL), AuthMethods: initMethods,
-		})
-	} else {
-		user, err = qtx.CreateUserWithOIDC(ctx, dbgen.CreateUserWithOIDCParams{
-			ID: userID, Email: email, Name: name,
-			OidcIssuer: &issuer, OidcSub: &sub, AvatarUrl: nilIfEmpty(avatarURL), AuthMethods: initMethods,
-		})
-	}
-	if err != nil {
-		return dbgen.User{}, "", err
-	}
-	ws, err := services.CreateWorkspaceForUser(ctx, qtx, name+"'s Workspace", userID)
-	if err != nil {
-		return dbgen.User{}, "", err
-	}
-	if err := tx.Commit(); err != nil {
-		return dbgen.User{}, "", err
-	}
-	return user, ws.ID, nil
-}
-
-func methodName(isGoogle bool) string {
-	if isGoogle {
-		return "google"
-	}
-	return "oidc"
-}
-
-func addAuthMethod(current, method string) string {
-	var methods []string
-	_ = json.Unmarshal([]byte(current), &methods)
-	for _, m := range methods {
-		if m == method {
-			return current
-		}
-	}
-	methods = append(methods, method)
-	b, _ := json.Marshal(methods)
-	return string(b)
-}
-
-func removeAuthMethod(current, method string) string {
-	var methods []string
-	_ = json.Unmarshal([]byte(current), &methods)
-	out := methods[:0]
-	for _, m := range methods {
-		if m != method {
-			out = append(out, m)
-		}
-	}
-	b, _ := json.Marshal(out)
-	return string(b)
 }
 
 // --- OIDC handlers ---
@@ -323,12 +165,19 @@ func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 		return c.Redirect().To("/login?error=email_not_verified")
 	}
 
-	user, workspaceID, err := s.upsertOIDCUser(c, idToken.Issuer, claims.Sub, claims.Email, claims.Name, claims.Picture, false)
+	dto, err := s.users.UpsertOIDCUser(c.Context(), service.UpsertOIDCUserParams{
+		Issuer:    idToken.Issuer,
+		Sub:       claims.Sub,
+		Email:     claims.Email,
+		Name:      claims.Name,
+		AvatarURL: claims.Picture,
+		IsGoogle:  false,
+	})
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
 
-	jwtToken, err := s.tokenMaker.CreateToken(user.ID, workspaceID, sessionDuration)
+	jwtToken, err := s.tokenMaker.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
@@ -384,12 +233,19 @@ func (s *Server) handleGoogleCallback(c fiber.Ctx) error {
 		return c.Redirect().To("/login?error=email_not_verified")
 	}
 
-	user, workspaceID, err := s.upsertOIDCUser(c, idToken.Issuer, claims.Sub, claims.Email, claims.Name, claims.Picture, true)
+	dto, err := s.users.UpsertOIDCUser(c.Context(), service.UpsertOIDCUserParams{
+		Issuer:    idToken.Issuer,
+		Sub:       claims.Sub,
+		Email:     claims.Email,
+		Name:      claims.Name,
+		AvatarURL: claims.Picture,
+		IsGoogle:  true,
+	})
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
 
-	jwtToken, err := s.tokenMaker.CreateToken(user.ID, workspaceID, sessionDuration)
+	jwtToken, err := s.tokenMaker.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
@@ -460,95 +316,22 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 		return c.Redirect().To("/login?error=oidc_exchange&error_step=user_profile_decode")
 	}
 
-	user, workspaceID, err := s.upsertCanvaUser(c, me.Profile.UserID, me.Profile.Email, me.Profile.DisplayName, "")
+	dto, err := s.users.UpsertCanvaUser(c.Context(), service.UpsertCanvaUserParams{
+		CanvaID:   me.Profile.UserID,
+		Email:     me.Profile.Email,
+		Name:      me.Profile.DisplayName,
+		AvatarURL: "",
+	})
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange&error_step=upsert_user")
 	}
 
-	jwtToken, err := s.tokenMaker.CreateToken(user.ID, workspaceID, sessionDuration)
+	jwtToken, err := s.tokenMaker.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange&error_step=create_token")
 	}
 	s.setAuthCookie(c, jwtToken)
 	return c.Redirect().To("/")
-}
-
-func (s *Server) upsertCanvaUser(c fiber.Ctx, canvaID, email, name, avatarURL string) (dbgen.User, string, error) {
-	ctx := c.Context()
-
-	user, err := s.db.GetUserByCanvaID(ctx, &canvaID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return dbgen.User{}, "", err
-	}
-	if err == nil {
-		methods := addAuthMethod(user.AuthMethods, "canva")
-		u, err := s.db.LinkCanva(ctx, dbgen.LinkCanvaParams{
-			CanvaUserID: &canvaID,
-			AvatarUrl:   nilIfEmpty(avatarURL),
-			AuthMethods: methods,
-			ID:          user.ID,
-		})
-		if err != nil {
-			return dbgen.User{}, "", err
-		}
-		wsID, err := s.firstWorkspaceID(ctx, u.ID)
-		if err != nil {
-			return dbgen.User{}, "", err
-		}
-		return u, wsID, nil
-	}
-
-	if email != "" {
-		existing, err := s.db.GetUserByEmail(ctx, email)
-		if err == nil {
-			methods := addAuthMethod(existing.AuthMethods, "canva")
-			existing, err = s.db.LinkCanva(ctx, dbgen.LinkCanvaParams{
-				CanvaUserID: &canvaID,
-				AvatarUrl:   nilIfEmpty(avatarURL),
-				AuthMethods: methods,
-				ID:          existing.ID,
-			})
-			if err != nil {
-				return dbgen.User{}, "", err
-			}
-			wsID, err := s.firstWorkspaceID(ctx, existing.ID)
-			if err != nil {
-				return dbgen.User{}, "", err
-			}
-			return existing, wsID, nil
-		}
-	}
-
-	tx, err := s.sqlDB.BeginTx(ctx, nil)
-	if err != nil {
-		return dbgen.User{}, "", err
-	}
-	defer tx.Rollback()
-	qtx := s.db.WithTx(tx)
-
-	if name == "" {
-		name = "Canva User"
-	}
-	syntheticEmail := "canva+" + canvaID + "@canva.local"
-	if email != "" {
-		syntheticEmail = email
-	}
-	userID := uuid.New().String()
-	newUser, err := qtx.CreateUserWithCanva(ctx, dbgen.CreateUserWithCanvaParams{
-		ID: userID, Email: syntheticEmail, Name: name,
-		CanvaUserID: &canvaID, AvatarUrl: nilIfEmpty(avatarURL), AuthMethods: `["canva"]`,
-	})
-	if err != nil {
-		return dbgen.User{}, "", err
-	}
-	ws, err := services.CreateWorkspaceForUser(ctx, qtx, name+"'s Workspace", userID)
-	if err != nil {
-		return dbgen.User{}, "", err
-	}
-	if err := tx.Commit(); err != nil {
-		return dbgen.User{}, "", err
-	}
-	return newUser, ws.ID, nil
 }
 
 // --- me handler ---
@@ -567,19 +350,19 @@ type meResponse struct {
 // GET /auth/me
 func (s *Server) handleGetMe(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	user, err := s.db.GetUserByID(c.Context(), claims.UserID)
+	dto, err := s.users.GetProfile(c.Context(), claims.UserID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load user")
 	}
 	return c.JSON(meResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		AvatarURL:    user.AvatarUrl,
-		AuthMethods:  user.AuthMethods,
-		OIDCLinked:   user.OidcSub != nil,
-		GoogleLinked: user.GoogleUserID != nil,
-		CanvaLinked:  user.CanvaUserID != nil,
+		ID:           dto.ID,
+		Name:         dto.Name,
+		Email:        dto.Email,
+		AvatarURL:    dto.AvatarURL,
+		AuthMethods:  dto.AuthMethods,
+		OIDCLinked:   dto.OIDCLinked,
+		GoogleLinked: dto.GoogleLinked,
+		CanvaLinked:  dto.CanvaLinked,
 	})
 }
 
@@ -588,58 +371,41 @@ func (s *Server) handleGetMe(c fiber.Ctx) error {
 // DELETE /auth/oidc/link
 func (s *Server) handleUnlinkOIDC(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	user, err := s.db.GetUserByID(c.Context(), claims.UserID)
+	dto, err := s.users.UnlinkProvider(c.Context(), claims.UserID, "oidc")
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load user")
+		return oidcUnlinkErr(c, err)
 	}
-	if hasOnlyMethod(user.AuthMethods, "oidc") {
-		return errRes(c, fiber.StatusUnprocessableEntity, "set a password before removing your last sign-in method")
-	}
-	methods := removeAuthMethod(user.AuthMethods, "oidc")
-	if _, err := s.db.UnlinkOIDC(c.Context(), dbgen.UnlinkOIDCParams{
-		AuthMethods: methods, ID: user.ID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not unlink")
-	}
+	_ = dto
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // DELETE /auth/google/link
 func (s *Server) handleUnlinkGoogle(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	user, err := s.db.GetUserByID(c.Context(), claims.UserID)
+	dto, err := s.users.UnlinkProvider(c.Context(), claims.UserID, "google")
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load user")
+		return oidcUnlinkErr(c, err)
 	}
-	if hasOnlyMethod(user.AuthMethods, "google") {
-		return errRes(c, fiber.StatusUnprocessableEntity, "set a password before removing your last sign-in method")
-	}
-	methods := removeAuthMethod(user.AuthMethods, "google")
-	if _, err := s.db.UnlinkGoogle(c.Context(), dbgen.UnlinkGoogleParams{
-		AuthMethods: methods, ID: user.ID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not unlink")
-	}
+	_ = dto
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // DELETE /auth/canva/link
 func (s *Server) handleUnlinkCanva(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	user, err := s.db.GetUserByID(c.Context(), claims.UserID)
+	dto, err := s.users.UnlinkProvider(c.Context(), claims.UserID, "canva")
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load user")
+		return oidcUnlinkErr(c, err)
 	}
-	if hasOnlyMethod(user.AuthMethods, "canva") {
-		return errRes(c, fiber.StatusUnprocessableEntity, "set a password before removing your last sign-in method")
-	}
-	methods := removeAuthMethod(user.AuthMethods, "canva")
-	if _, err := s.db.UnlinkCanva(c.Context(), dbgen.UnlinkCanvaParams{
-		AuthMethods: methods, ID: user.ID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not unlink")
-	}
+	_ = dto
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func oidcUnlinkErr(c fiber.Ctx, err error) error {
+	if isInvalidInput(err) {
+		return errRes(c, fiber.StatusUnprocessableEntity, err.Error())
+	}
+	return errRes(c, fiber.StatusInternalServerError, "could not unlink")
 }
 
 // --- signed state helpers for /integrations OAuth ---
@@ -685,26 +451,9 @@ func verifyState(raw, secret string) (oauthState, error) {
 	return s, nil
 }
 
-// --- util ---
-
-func hasOnlyMethod(authMethods, method string) bool {
-	var methods []string
-	_ = json.Unmarshal([]byte(authMethods), &methods)
-	return len(methods) == 1 && methods[0] == method
-}
-
 func nilIfEmpty(s string) *string {
 	if s == "" {
 		return nil
 	}
 	return &s
-}
-
-// firstWorkspaceID returns the first workspace ID for the given user.
-func (s *Server) firstWorkspaceID(ctx context.Context, userID string) (string, error) {
-	workspaces, err := s.db.ListWorkspacesByUserID(ctx, userID)
-	if err != nil || len(workspaces) == 0 {
-		return "", fmt.Errorf("no workspace found for user")
-	}
-	return workspaces[0].ID, nil
 }

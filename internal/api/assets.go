@@ -153,7 +153,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		ProjectID:     uploadProjectID,
 		FolderID:      uploadFolderID,
 		UserID:        claims.UserID,
-		InheritFields: inheritProjectFields,
+		InheritFields: s.newInheritProjectFieldsFunc(),
 		OriginalName:  fh.Filename,
 	})
 	if fErr != nil {
@@ -563,6 +563,41 @@ func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortFie
 		default:
 			cv.Field = "created_at"
 			cv.Value = last.CreatedAt.UTC().Format("2006-01-02 15:04:05")
+		}
+		encoded := encodeCursor(cv)
+		nextCursor = &encoded
+	}
+	return AssetListResponse{Assets: items, NextCursor: nextCursor}
+}
+
+// buildAssetListResponseFromDTOs builds an AssetListResponse from service.AssetDTO slice.
+// Used by handleListAssetsByFields which returns service DTOs instead of dbgen rows.
+func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64) AssetListResponse {
+	items := make([]AssetResponse, len(assets))
+	for i, a := range assets {
+		items[i] = AssetResponse{
+			ID:               a.ID,
+			WorkspaceID:      a.WorkspaceID,
+			ProjectID:        a.ProjectID,
+			FolderID:         a.FolderID,
+			OriginalFilename: a.OriginalFilename,
+			MimeType:         a.MimeType,
+			Size:             a.Size,
+			Width:            a.Width,
+			Height:           a.Height,
+			ThumbnailKey:     a.ThumbnailKey,
+			CreatedAt:        a.CreatedAt,
+			UpdatedAt:        a.UpdatedAt,
+			Tags:             []string{},
+		}
+	}
+	var nextCursor *string
+	if int64(len(assets)) == limit && len(assets) > 0 {
+		last := assets[len(assets)-1]
+		cv := cursorVal{
+			Field: "created_at",
+			Value: last.CreatedAt.UTC().Format("2006-01-02 15:04:05"),
+			ID:    last.ID,
 		}
 		encoded := encodeCursor(cv)
 		nextCursor = &encoded
@@ -1297,7 +1332,7 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 	}
 
 	// Refresh FTS index so search reflects the new name.
-	s.refreshAssetFTS(c.RequestCtx(), id)
+	_ = s.assets.RefreshFTS(c.RequestCtx(), id)
 
 	updated, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
 		ID:          id,

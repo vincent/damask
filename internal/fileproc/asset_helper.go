@@ -104,7 +104,7 @@ func ExtractMeta(ctx context.Context, filePath, mimeType string) (FileMeta, erro
 
 // FieldInheritanceFunc is called after asset creation to copy project field values.
 // It is injected at the API layer to avoid a circular import.
-type FieldInheritanceFunc func(ctx context.Context, db *dbgen.Queries, workspaceID, assetID string, projectID string, userID string)
+type FieldInheritanceFunc func(ctx context.Context, workspaceID, assetID, projectID, userID string)
 
 // AssetOptions holds optional destination fields for CreateAsset.
 type AssetOptions struct {
@@ -208,7 +208,7 @@ func CreateAsset(
 
 	// Inherit field values from the destination project (CF-3.3)
 	if opts.InheritFields != nil && opts.ProjectID != nil && opts.UserID != "" {
-		opts.InheritFields(ctx, db, workspaceID, asset.ID, *opts.ProjectID, opts.UserID)
+		opts.InheritFields(ctx, workspaceID, asset.ID, *opts.ProjectID, opts.UserID)
 	}
 
 	// Enqueue version thumbnail job (updates both asset_versions.thumbnail_key and

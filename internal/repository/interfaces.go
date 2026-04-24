@@ -1,6 +1,9 @@
 package repository
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // AssetRepository handles persistence for Asset records.
 type AssetRepository interface {
@@ -15,6 +18,10 @@ type AssetRepository interface {
 	IsWorkspaceIcon(ctx context.Context, workspaceID, assetID string) (bool, error)
 	// CountByIDs returns how many of the given IDs belong to the workspace.
 	CountByIDs(ctx context.Context, workspaceID string, ids []string) (int64, error)
+	// RefreshFTS rebuilds the FTS5 index entry for the asset, including its text field values.
+	RefreshFTS(ctx context.Context, assetID string) error
+	// ListByFields returns assets matching the given field filters (JOIN-per-filter pattern).
+	ListByFields(ctx context.Context, params ListAssetsByFieldsParams) ([]Asset, error)
 }
 
 // ProjectRepository handles persistence for Project records.
@@ -86,10 +93,27 @@ type CollectionRepository interface {
 // ShareRepository handles persistence for Share records.
 type ShareRepository interface {
 	GetByID(ctx context.Context, workspaceID, id string) (Share, error)
+	// GetPublic returns a share by ID without workspace scoping (for public endpoints).
+	GetPublic(ctx context.Context, id string) (Share, error)
+	// GetByIDAndWorkspace returns a share only when it belongs to the workspace.
+	GetByIDAndWorkspace(ctx context.Context, workspaceID, id string) (Share, error)
 	List(ctx context.Context, workspaceID string) ([]Share, error)
 	Create(ctx context.Context, s Share) (Share, error)
 	Update(ctx context.Context, s Share) (Share, error)
 	Revoke(ctx context.Context, workspaceID, id string) error
+	IncrementViewCount(ctx context.Context, id string) error
+	// Asset listing for public share endpoints (no workspace auth required).
+	ListAssetsByTarget(ctx context.Context, targetType, targetID string) ([]PublicAsset, error)
+	GetPublicAsset(ctx context.Context, assetID string) (PublicAsset, error)
+	GetPublicAssetFile(ctx context.Context, assetID string) (PublicAssetFile, error)
+	GetPublicAssetThumb(ctx context.Context, assetID string) (*string, time.Time, error)
+	// IsAssetInTarget verifies the asset belongs to the share target.
+	IsAssetInTarget(ctx context.Context, targetType, targetID, assetID string) (bool, error)
+	// Comment methods.
+	CreateComment(ctx context.Context, c ShareComment) (ShareComment, error)
+	ListCommentsByShare(ctx context.Context, shareID string) ([]ShareComment, error)
+	ListCommentsByShareAndAsset(ctx context.Context, shareID, assetID string) ([]ShareComment, error)
+	DeleteComment(ctx context.Context, shareID, commentID string) error
 }
 
 // VersionRepository handles persistence for AssetVersion records.
@@ -131,6 +155,9 @@ type FieldRepository interface {
 	CountAssetValues(ctx context.Context, fieldID string) (int64, error)
 	CountProjectValues(ctx context.Context, fieldID string) (int64, error)
 	UpdatePosition(ctx context.Context, workspaceID, id string, position int64) error
+	// InheritProjectFields copies inheritable project field values to a newly created asset.
+	// It is a no-op when there are no inheritable definitions or the project has no values set.
+	InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error
 }
 
 // AssetFieldRepository handles persistence for asset field values.
@@ -191,6 +218,42 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (User, error)
 	Create(ctx context.Context, u User) (User, error)
 	Update(ctx context.Context, u User) (User, error)
+	// GetByGoogleID returns the user linked to this Google sub ID.
+	GetByGoogleID(ctx context.Context, googleUserID string) (User, error)
+	// GetByCanvaID returns the user linked to this Canva user ID.
+	GetByCanvaID(ctx context.Context, canvaUserID string) (User, error)
+	// GetByOIDC returns the user linked to this OIDC issuer+sub pair.
+	GetByOIDC(ctx context.Context, issuer, sub string) (User, error)
+	// CreateWithGoogle creates a new user with a Google identity in one query.
+	CreateWithGoogle(ctx context.Context, u User) (User, error)
+	// CreateWithOIDC creates a new user with an OIDC identity in one query.
+	CreateWithOIDC(ctx context.Context, u User) (User, error)
+	// CreateWithCanva creates a new user with a Canva identity in one query.
+	CreateWithCanva(ctx context.Context, u User) (User, error)
+	// LinkGoogle sets google_user_id + avatar_url + auth_methods on an existing user.
+	LinkGoogle(ctx context.Context, u User) (User, error)
+	// LinkOIDC sets oidc_issuer + oidc_sub + avatar_url + auth_methods on an existing user.
+	LinkOIDC(ctx context.Context, u User) (User, error)
+	// LinkCanva sets canva_user_id + avatar_url + auth_methods on an existing user.
+	LinkCanva(ctx context.Context, u User) (User, error)
+	// UnlinkGoogle clears google_user_id and updates auth_methods.
+	UnlinkGoogle(ctx context.Context, u User) (User, error)
+	// UnlinkOIDC clears oidc_sub/oidc_issuer and updates auth_methods.
+	UnlinkOIDC(ctx context.Context, u User) (User, error)
+	// UnlinkCanva clears canva_user_id and updates auth_methods.
+	UnlinkCanva(ctx context.Context, u User) (User, error)
+	// ListWorkspaceIDs returns the workspace IDs the user belongs to (ordered by join date).
+	ListWorkspaceIDs(ctx context.Context, userID string) ([]string, error)
 	// RunInTx executes fn inside a single database transaction.
 	RunInTx(ctx context.Context, fn func(tx UserRepository) error) error
+}
+
+// OAuthConnectionRepository handles persistence for oauth_connections rows.
+type OAuthConnectionRepository interface {
+	List(ctx context.Context, workspaceID string) ([]OAuthConnection, error)
+	GetByID(ctx context.Context, workspaceID, id string) (OAuthConnection, error)
+	GetByProviderUserID(ctx context.Context, workspaceID, provider, providerUserID string) (OAuthConnection, error)
+	Create(ctx context.Context, c OAuthConnection) error
+	UpdateTokens(ctx context.Context, id, accessToken string, refreshToken *string, expiresAt *string) error
+	Delete(ctx context.Context, workspaceID, id string) error
 }
