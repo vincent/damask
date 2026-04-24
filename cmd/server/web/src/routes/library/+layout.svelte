@@ -128,7 +128,7 @@
 
 <div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
-  {#if sidebarVisible}
+  {#if sidebarVisible && !page.url.pathname.startsWith('/library/settings')}
     <aside 
       transition:fly={{ x: -200, duration: 100 }}
       class="damask-texture flex relative w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"

@@ -238,6 +238,7 @@
   "f_inherit_default_project": "Heredar valor predeterminado del proyecto",
   "f_inherit_default_project_new": "los nuevos archivos obtienen el valor del proyecto",
   "back": "Atrás",
+  "back_to_library": "Volver a la biblioteca",
   "field_create": "Crear campo",
   "no": "No",
   "auto_fill_assets": "rellena automáticamente los archivos",

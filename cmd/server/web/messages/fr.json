@@ -238,6 +238,7 @@
   "f_inherit_default_project": "Hériter de la valeur par défaut du projet",
   "f_inherit_default_project_new": "les nouveaux fichiers obtiennent la valeur du projet",
   "back": "Retour",
+  "back_to_library": "Retour à la bibliothèque",
   "field_create": "Créer un champ",
   "no": "Non",
   "auto_fill_assets": "remplissage automatique des fichiers",

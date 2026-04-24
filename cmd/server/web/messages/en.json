@@ -239,6 +239,7 @@
   "f_inherit_default_project": "Inherit default from project",
   "f_inherit_default_project_new": "new assets get the project's value",
   "back": "Back",
+  "back_to_library": "Back to Library",
   "field_create": "Create field",
   "no": "No",
   "auto_fill_assets": "auto-fills assets",

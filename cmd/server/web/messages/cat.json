@@ -238,6 +238,7 @@
   "f_inherit_default_project": "Heretar el valor predeterminat del projecte",
   "f_inherit_default_project_new": "els nous arxius obtenen el valor del projecte",
   "back": "Enrere",
+  "back_to_library": "Tornar a la biblioteca",
   "field_create": "Crear camp",
   "no": "No",
   "auto_fill_assets": "omple automàticament els arxius",
