@@ -103,7 +103,7 @@ func (s *Server) canvaImportOAuth2Config() oauth2.Config {
 			AuthURL:  canvaAuthURL,
 			TokenURL: canvaTokenURL,
 		},
-		Scopes: []string{"profile:read", "design:content:read"},
+		Scopes: []string{"profile:read", "asset:read", "brandtemplate:content:read", "brandtemplate:meta:read", "design:content:read", "design:meta:read"},
 	}
 }
 

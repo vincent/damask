@@ -268,9 +268,9 @@
               {:else if testStatus === 'testing'}
                 {m.testing_connection()}
               {:else if testStatus === 'ok'}
-                <Feedback class="bg-transparent" success="Connection successful" />
+                <Feedback class="mt-0 bg-transparent" success="Connection successful" />
               {:else}
-                <Feedback class="bg-transparent" error={testError} />
+                <Feedback class="mt-0 bg-transparent" error={testError} />
               {/if}
             </div>
             <Button

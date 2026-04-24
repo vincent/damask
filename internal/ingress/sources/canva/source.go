@@ -120,10 +120,10 @@ func (s *CanvaSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 
 		var page struct {
 			Items []struct {
-				ID          string `json:"id"`
-				Title       string `json:"title"`
-				UpdatedAt   int64  `json:"updated_at"`
-				Thumbnail   struct {
+				ID        string `json:"id"`
+				Title     string `json:"title"`
+				UpdatedAt int64  `json:"updated_at"`
+				Thumbnail struct {
 					URL string `json:"url"`
 				} `json:"thumbnail"`
 			} `json:"items"`
@@ -161,10 +161,11 @@ func (s *CanvaSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 }
 
 func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
-	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
+	// Separate timeout for export creation + polling only — does not apply to the download stream.
+	pollCtx, pollCancel := context.WithTimeout(ctx, 90*time.Second)
+	defer pollCancel()
 
-	token, err := s.accessToken(ctx)
+	token, err := s.accessToken(pollCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +177,7 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 		"design_id": designID,
 		"format":    map[string]string{"type": s.cfg.ExportFormat},
 	})
-	resp, err := s.doPost(ctx, token, canvaAPIBase+"/exports", exportBody)
+	resp, err := s.doPost(pollCtx, token, canvaAPIBase+"/exports", exportBody)
 	if err != nil {
 		return nil, fmt.Errorf("canva: create export: %w", err)
 	}
@@ -195,17 +196,15 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 	// Step 2: poll until done.
 	var downloadURL string
 	for attempt := 0; attempt < exportPollMax; attempt++ {
-		body, err := s.doGet(ctx, token, canvaAPIBase+"/exports/"+jobID)
+		body, err := s.doGet(pollCtx, token, canvaAPIBase+"/exports/"+jobID)
 		if err != nil {
 			return nil, fmt.Errorf("canva: poll export: %w", err)
 		}
 
 		var status struct {
 			Job struct {
-				Status string `json:"status"`
-				Urls   []struct {
-					URL string `json:"url"`
-				} `json:"urls"`
+				Status string   `json:"status"`
+				Urls   []string `json:"urls"`
 			} `json:"job"`
 		}
 		if err := json.Unmarshal(body, &status); err != nil {
@@ -217,7 +216,7 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 			if len(status.Job.Urls) == 0 {
 				return nil, fmt.Errorf("canva: export succeeded but no download URLs")
 			}
-			downloadURL = status.Job.Urls[0].URL
+			downloadURL = status.Job.Urls[0]
 		case "failed":
 			return nil, fmt.Errorf("canva: export job failed for design %s", designID)
 		}
@@ -231,13 +230,28 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 		return nil, fmt.Errorf("canva: export timed out for design %s", designID)
 	}
 
-	// Step 3: download.
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	// Step 3: download with a fresh context so the response body isn't cancelled when
+	// pollCtx's defer fires upon returning from this function.
+	dlCtx, dlCancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	req, _ := http.NewRequestWithContext(dlCtx, http.MethodGet, downloadURL, nil)
 	dlResp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		dlCancel()
 		return nil, fmt.Errorf("canva: download export: %w", err)
 	}
-	return dlResp.Body, nil
+	return &cancelOnClose{ReadCloser: dlResp.Body, cancel: dlCancel}, nil
+}
+
+// cancelOnClose wraps an io.ReadCloser and calls a cancel func on Close,
+// ensuring the download context is released when the caller is done streaming.
+type cancelOnClose struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (c *cancelOnClose) Close() error {
+	c.cancel()
+	return c.ReadCloser.Close()
 }
 
 func (s *CanvaSource) doGet(ctx context.Context, token, url string) ([]byte, error) {
@@ -248,6 +262,7 @@ func (s *CanvaSource) doGet(ctx context.Context, token, url string) ([]byte, err
 		return nil, err
 	}
 	defer resp.Body.Close()
+	// slog.Info("get canva", "url", url, "token", token)
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("canva API %s: status %d", url, resp.StatusCode)
 	}
@@ -263,9 +278,9 @@ func (s *CanvaSource) doPost(ctx context.Context, token, url string, body []byte
 		return nil, err
 	}
 	defer resp.Body.Close()
+	// slog.Info("post canva", "url", url, "token", token, "body", string(body))
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("canva API %s: status %d", url, resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
 }
-
