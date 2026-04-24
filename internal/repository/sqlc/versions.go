@@ -66,8 +66,48 @@ func (r *versionRepo) Create(ctx context.Context, v repository.AssetVersion) (re
 	return toVersion(row), nil
 }
 
+func (r *versionRepo) GetCurrentByAsset(ctx context.Context, assetID string) (repository.AssetVersion, error) {
+	row, err := r.q.GetCurrentVersion(ctx, assetID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.AssetVersion{}, apperr.ErrNotFound
+		}
+		return repository.AssetVersion{}, err
+	}
+	return toVersion(row), nil
+}
+
+func (r *versionRepo) GetByIDForWorkspace(ctx context.Context, workspaceID, id string) (repository.AssetVersion, error) {
+	row, err := r.q.GetVersionByID(ctx, dbgen.GetVersionByIDParams{
+		ID:          id,
+		WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.AssetVersion{}, apperr.ErrNotFound
+		}
+		return repository.AssetVersion{}, err
+	}
+	return toVersion(row), nil
+}
+
+func (r *versionRepo) SoftDelete(ctx context.Context, id string) error {
+	return r.q.SoftDeleteVersion(ctx, id)
+}
+
 func (r *versionRepo) Delete(ctx context.Context, id string) error {
 	return r.q.HardDeleteVersion(ctx, id)
+}
+
+func (r *versionRepo) IsReferencedAsCover(ctx context.Context, versionID string) (bool, error) {
+	count, err := r.q.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
+		CoverVersionID: &versionID,
+		IconVersionID:  &versionID,
+	})
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (r *versionRepo) CountByAsset(ctx context.Context, assetID string) (int64, error) {

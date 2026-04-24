@@ -1,0 +1,138 @@
+package service_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"damask/server/internal/apperr"
+	"damask/server/internal/repository/memory"
+	"damask/server/internal/service"
+)
+
+func newCollectionSvc(t *testing.T) (service.CollectionService, *memory.RealCollectionRepo) {
+	t.Helper()
+	repo := memory.NewRealCollectionRepo()
+	return service.NewCollectionService(repo), repo
+}
+
+// --- Create ---
+
+func TestCollectionService_Create_OK(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	dto, err := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{
+		Name:      "Favorites",
+		CreatedBy: "user_1",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.Name != "Favorites" || dto.WorkspaceID != "ws_1" {
+		t.Errorf("unexpected dto: %+v", dto)
+	}
+	if dto.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+}
+
+func TestCollectionService_Create_EmptyName(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	_, err := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "  "})
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+// --- Get ---
+
+func TestCollectionService_Get_NotFound(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	_, err := svc.Get(context.Background(), "ws_1", "nope")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- Update ---
+
+func TestCollectionService_Update_OK(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "Old"})
+	newName := "New"
+	updated, err := svc.Update(context.Background(), "ws_1", dto.ID, service.UpdateCollectionParams{Name: &newName})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.Name != "New" {
+		t.Errorf("Name: got %q, want %q", updated.Name, "New")
+	}
+}
+
+func TestCollectionService_Update_EmptyName(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "X"})
+	empty := ""
+	_, err := svc.Update(context.Background(), "ws_1", dto.ID, service.UpdateCollectionParams{Name: &empty})
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestCollectionService_Update_NotFound(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	name := "x"
+	_, err := svc.Update(context.Background(), "ws_1", "nope", service.UpdateCollectionParams{Name: &name})
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- Delete ---
+
+func TestCollectionService_Delete_OK(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "ToDelete"})
+	if err := svc.Delete(context.Background(), "ws_1", dto.ID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := svc.Get(context.Background(), "ws_1", dto.ID); !errors.Is(err, apperr.ErrNotFound) {
+		t.Error("expected ErrNotFound after delete")
+	}
+}
+
+func TestCollectionService_Delete_NotFound(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	if err := svc.Delete(context.Background(), "ws_1", "nope"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- AddAsset / RemoveAsset ---
+
+func TestCollectionService_AddAsset_Idempotent(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "C"})
+	if err := svc.AddAsset(context.Background(), "ws_1", dto.ID, "ast_1"); err != nil {
+		t.Fatalf("first add: %v", err)
+	}
+	if err := svc.AddAsset(context.Background(), "ws_1", dto.ID, "ast_1"); err != nil {
+		t.Fatalf("second add (should be idempotent): %v", err)
+	}
+}
+
+func TestCollectionService_RemoveAsset_OK(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "C"})
+	svc.AddAsset(context.Background(), "ws_1", dto.ID, "ast_1") //nolint
+	if err := svc.RemoveAsset(context.Background(), "ws_1", dto.ID, "ast_1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCollectionService_AddAsset_CollectionNotFound(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	err := svc.AddAsset(context.Background(), "ws_1", "nope", "ast_1")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}

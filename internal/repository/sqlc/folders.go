@@ -90,6 +90,28 @@ func (r *folderRepo) Delete(ctx context.Context, workspaceID, id string) error {
 	})
 }
 
+func (r *folderRepo) GetChildren(ctx context.Context, workspaceID, parentID string) ([]repository.Folder, error) {
+	rows, err := r.q.GetFolderChildren(ctx, dbgen.GetFolderChildrenParams{
+		ParentID:    &parentID,
+		WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.Folder, len(rows))
+	for i, row := range rows {
+		out[i] = toFolder(row)
+	}
+	return out, nil
+}
+
+func (r *folderRepo) NullifyAssets(ctx context.Context, workspaceID, folderID string) error {
+	return r.q.NullifyFolderAssets(ctx, dbgen.NullifyFolderAssetsParams{
+		FolderID:    &folderID,
+		WorkspaceID: workspaceID,
+	})
+}
+
 func toFolder(f dbgen.Folder) repository.Folder {
 	return repository.Folder{
 		ID:          f.ID,

@@ -139,6 +139,34 @@ func (r *assetRepo) SoftDelete(ctx context.Context, workspaceID, id string) erro
 	})
 }
 
+func (r *assetRepo) IsProjectCover(ctx context.Context, workspaceID, assetID string) (bool, error) {
+	_, err := r.q.GetProjectByCoverAsset(ctx, dbgen.GetProjectByCoverAssetParams{
+		CoverAssetID: &assetID,
+		WorkspaceID:  workspaceID,
+	})
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return false, err
+}
+
+func (r *assetRepo) IsWorkspaceIcon(ctx context.Context, workspaceID, assetID string) (bool, error) {
+	_, err := r.q.GetWorkspaceByIconAsset(ctx, dbgen.GetWorkspaceByIconAssetParams{
+		IconAssetID: &assetID,
+		ID:          workspaceID,
+	})
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return false, err
+}
+
 func toAsset(a dbgen.Asset) repository.Asset {
 	return repository.Asset{
 		ID:               a.ID,

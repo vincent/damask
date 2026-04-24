@@ -33,23 +33,26 @@ func (r *projectRepo) GetByID(ctx context.Context, workspaceID, id string) (repo
 	return toProject(row), nil
 }
 
-func (r *projectRepo) List(ctx context.Context, workspaceID string) ([]repository.Project, error) {
+func (r *projectRepo) List(ctx context.Context, workspaceID string) ([]repository.ProjectWithCount, error) {
 	rows, err := r.q.ListProjectsWithCount(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]repository.Project, len(rows))
+	out := make([]repository.ProjectWithCount, len(rows))
 	for i, row := range rows {
-		out[i] = repository.Project{
-			ID:             row.ID,
-			WorkspaceID:    row.WorkspaceID,
-			Name:           row.Name,
-			Description:    row.Description,
-			Color:          row.Color,
-			CoverAssetID:   row.CoverAssetID,
-			CoverVersionID: row.CoverVersionID,
-			CreatedAt:      row.CreatedAt,
-			UpdatedAt:      row.UpdatedAt,
+		out[i] = repository.ProjectWithCount{
+			Project: repository.Project{
+				ID:             row.ID,
+				WorkspaceID:    row.WorkspaceID,
+				Name:           row.Name,
+				Description:    row.Description,
+				Color:          row.Color,
+				CoverAssetID:   row.CoverAssetID,
+				CoverVersionID: row.CoverVersionID,
+				CreatedAt:      row.CreatedAt,
+				UpdatedAt:      row.UpdatedAt,
+			},
+			AssetCount: row.AssetCount,
 		}
 	}
 	return out, nil
@@ -91,6 +94,13 @@ func (r *projectRepo) Update(ctx context.Context, p repository.Project) (reposit
 func (r *projectRepo) Delete(ctx context.Context, workspaceID, id string) error {
 	return r.q.DeleteProject(ctx, dbgen.DeleteProjectParams{
 		ID:          id,
+		WorkspaceID: workspaceID,
+	})
+}
+
+func (r *projectRepo) NullifyAssets(ctx context.Context, workspaceID, projectID string) error {
+	return r.q.NullifyProjectAssets(ctx, dbgen.NullifyProjectAssetsParams{
+		ProjectID:   &projectID,
 		WorkspaceID: workspaceID,
 	})
 }

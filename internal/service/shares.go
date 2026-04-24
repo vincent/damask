@@ -1,0 +1,205 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"damask/server/internal/apperr"
+	"damask/server/internal/repository"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+)
+
+// ShareDTO is the output of ShareService methods.
+type ShareDTO struct {
+	ID            string
+	WorkspaceID   string
+	CreatedBy     string
+	Label         string
+	TargetType    string
+	TargetID      string
+	PasswordHash  *string
+	ExpiresAt     *string
+	AllowComments bool
+	AllowDownload bool
+	ViewCount     int64
+	CreatedAt     time.Time
+	RevokedAt     *string
+}
+
+// CreateShareParams is the input for ShareService.Create.
+type CreateShareParams struct {
+	CreatedBy     string
+	Label         string
+	TargetType    string
+	TargetID      string
+	Password      *string
+	ExpiresInDays *int
+	AllowComments bool
+	AllowDownload bool
+}
+
+func (p *CreateShareParams) Validate() error {
+	p.Label = strings.TrimSpace(p.Label)
+	validTargets := map[string]bool{"asset": true, "project": true, "collection": true}
+	if !validTargets[p.TargetType] {
+		return fmt.Errorf("target_type must be asset, project, or collection: %w", apperr.ErrInvalidInput)
+	}
+	if p.TargetID == "" {
+		return fmt.Errorf("target_id is required: %w", apperr.ErrInvalidInput)
+	}
+	return nil
+}
+
+// UpdateShareParams is the input for ShareService.Update.
+type UpdateShareParams struct {
+	Label         *string
+	Password      *string
+	ClearPassword bool
+	ExpiresAt     *string
+	ClearExpiry   bool
+	AllowComments *bool
+	AllowDownload *bool
+}
+
+// BcryptCost is the cost used for password hashing. Overridden to MinCost in tests.
+var ShareBcryptCost = bcrypt.DefaultCost
+
+type shareService struct {
+	shares repository.ShareRepository
+}
+
+// NewShareService returns a ShareService.
+func NewShareService(shares repository.ShareRepository) ShareService {
+	return &shareService{shares: shares}
+}
+
+func (s *shareService) List(ctx context.Context, workspaceID string) ([]*ShareDTO, error) {
+	rows, err := s.shares.List(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*ShareDTO, len(rows))
+	for i, r := range rows {
+		out[i] = toShareDTO(r)
+	}
+	return out, nil
+}
+
+func (s *shareService) Get(ctx context.Context, workspaceID, id string) (*ShareDTO, error) {
+	sh, err := s.shares.GetByID(ctx, workspaceID, id)
+	if err != nil {
+		return nil, err
+	}
+	return toShareDTO(sh), nil
+}
+
+func (s *shareService) Create(ctx context.Context, workspaceID string, p CreateShareParams) (*ShareDTO, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+
+	var passwordHash *string
+	if p.Password != nil && *p.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(*p.Password), ShareBcryptCost)
+		if err != nil {
+			return nil, err
+		}
+		h := string(hash)
+		passwordHash = &h
+	}
+
+	var expiresAt *string
+	if p.ExpiresInDays != nil && *p.ExpiresInDays > 0 {
+		t := time.Now().UTC().Add(time.Duration(*p.ExpiresInDays) * 24 * time.Hour)
+		formatted := t.Format("2006-01-02 15:04:05")
+		expiresAt = &formatted
+	}
+
+	sh, err := s.shares.Create(ctx, repository.Share{
+		ID:            uuid.NewString(),
+		WorkspaceID:   workspaceID,
+		CreatedBy:     p.CreatedBy,
+		Label:         p.Label,
+		TargetType:    p.TargetType,
+		TargetID:      p.TargetID,
+		PasswordHash:  passwordHash,
+		ExpiresAt:     expiresAt,
+		AllowComments: p.AllowComments,
+		AllowDownload: p.AllowDownload,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toShareDTO(sh), nil
+}
+
+func (s *shareService) Update(ctx context.Context, workspaceID, id string, p UpdateShareParams) (*ShareDTO, error) {
+	existing, err := s.shares.GetByID(ctx, workspaceID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if p.Label != nil {
+		existing.Label = *p.Label
+	}
+	if p.ClearPassword {
+		existing.PasswordHash = nil
+	} else if p.Password != nil {
+		if *p.Password == "" {
+			existing.PasswordHash = nil
+		} else {
+			hash, err := bcrypt.GenerateFromPassword([]byte(*p.Password), ShareBcryptCost)
+			if err != nil {
+				return nil, err
+			}
+			h := string(hash)
+			existing.PasswordHash = &h
+		}
+	}
+	if p.ClearExpiry {
+		existing.ExpiresAt = nil
+	} else if p.ExpiresAt != nil {
+		existing.ExpiresAt = p.ExpiresAt
+	}
+	if p.AllowComments != nil {
+		existing.AllowComments = *p.AllowComments
+	}
+	if p.AllowDownload != nil {
+		existing.AllowDownload = *p.AllowDownload
+	}
+
+	updated, err := s.shares.Update(ctx, existing)
+	if err != nil {
+		return nil, err
+	}
+	return toShareDTO(updated), nil
+}
+
+func (s *shareService) Revoke(ctx context.Context, workspaceID, id string) error {
+	if _, err := s.shares.GetByID(ctx, workspaceID, id); err != nil {
+		return err
+	}
+	return s.shares.Revoke(ctx, workspaceID, id)
+}
+
+func toShareDTO(sh repository.Share) *ShareDTO {
+	return &ShareDTO{
+		ID:            sh.ID,
+		WorkspaceID:   sh.WorkspaceID,
+		CreatedBy:     sh.CreatedBy,
+		Label:         sh.Label,
+		TargetType:    sh.TargetType,
+		TargetID:      sh.TargetID,
+		PasswordHash:  sh.PasswordHash,
+		ExpiresAt:     sh.ExpiresAt,
+		AllowComments: sh.AllowComments,
+		AllowDownload: sh.AllowDownload,
+		ViewCount:     sh.ViewCount,
+		CreatedAt:     sh.CreatedAt,
+		RevokedAt:     sh.RevokedAt,
+	}
+}

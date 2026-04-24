@@ -1,0 +1,144 @@
+package memory
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"damask/server/internal/apperr"
+	"damask/server/internal/repository"
+
+	"github.com/google/uuid"
+)
+
+// RealTagRepo is a map-backed TagRepository for unit tests.
+// The stub TagRepo in stubs.go remains for cases that just need the interface.
+type RealTagRepo struct {
+	mu        sync.RWMutex
+	tags      map[string]repository.Tag   // key: id
+	assetTags map[string][]string         // key: assetID -> []tagID
+}
+
+func NewRealTagRepo() *RealTagRepo {
+	return &RealTagRepo{
+		tags:      make(map[string]repository.Tag),
+		assetTags: make(map[string][]string),
+	}
+}
+
+func (r *RealTagRepo) GetByName(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, t := range r.tags {
+		if t.WorkspaceID == workspaceID && t.Name == name {
+			return t, nil
+		}
+	}
+	return repository.Tag{}, fmt.Errorf("tag %q: %w", name, apperr.ErrNotFound)
+}
+
+func (r *RealTagRepo) List(ctx context.Context, workspaceID string) ([]repository.Tag, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.Tag
+	for _, t := range r.tags {
+		if t.WorkspaceID == workspaceID {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+func (r *RealTagRepo) Upsert(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, t := range r.tags {
+		if t.WorkspaceID == workspaceID && t.Name == name {
+			return t, nil
+		}
+	}
+	t := repository.Tag{
+		ID:          uuid.NewString(),
+		WorkspaceID: workspaceID,
+		Name:        name,
+	}
+	r.tags[t.ID] = t
+	return t, nil
+}
+
+func (r *RealTagRepo) Rename(ctx context.Context, workspaceID, oldName, newName string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, t := range r.tags {
+		if t.WorkspaceID == workspaceID && t.Name == oldName {
+			t.Name = newName
+			r.tags[id] = t
+			return nil
+		}
+	}
+	return fmt.Errorf("tag %q: %w", oldName, apperr.ErrNotFound)
+}
+
+func (r *RealTagRepo) Delete(ctx context.Context, workspaceID string, names []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	nameSet := make(map[string]bool, len(names))
+	for _, n := range names {
+		nameSet[n] = true
+	}
+	for id, t := range r.tags {
+		if t.WorkspaceID == workspaceID && nameSet[t.Name] {
+			delete(r.tags, id)
+		}
+	}
+	return nil
+}
+
+func (r *RealTagRepo) ListForAsset(ctx context.Context, assetID string) ([]repository.Tag, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ids := r.assetTags[assetID]
+	out := make([]repository.Tag, 0, len(ids))
+	for _, id := range ids {
+		if t, ok := r.tags[id]; ok {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+func (r *RealTagRepo) AddToAsset(ctx context.Context, assetID, tagID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, id := range r.assetTags[assetID] {
+		if id == tagID {
+			return nil // idempotent
+		}
+	}
+	r.assetTags[assetID] = append(r.assetTags[assetID], tagID)
+	return nil
+}
+
+func (r *RealTagRepo) RemoveFromAsset(ctx context.Context, assetID, tagName string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var tagID string
+	for _, t := range r.tags {
+		if t.Name == tagName {
+			tagID = t.ID
+			break
+		}
+	}
+	if tagID == "" {
+		return nil
+	}
+	ids := r.assetTags[assetID]
+	filtered := ids[:0]
+	for _, id := range ids {
+		if id != tagID {
+			filtered = append(filtered, id)
+		}
+	}
+	r.assetTags[assetID] = filtered
+	return nil
+}

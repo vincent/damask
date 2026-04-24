@@ -154,6 +154,24 @@ type User struct {
 	AuthMethods  string
 }
 
+// Variant is the domain representation of an asset variant (transformed version).
+type Variant struct {
+	ID              string
+	WorkspaceID     string
+	AssetVersionID  string
+	Type            string
+	StorageKey      string
+	TransformParams *string
+	Size            *int64
+	CreatedAt       time.Time
+}
+
+// ProjectWithCount is a Project enriched with its asset count.
+type ProjectWithCount struct {
+	Project
+	AssetCount int64
+}
+
 // ListAssetsParams holds filters for listing assets.
 // ProjectID and MimePrefix accept nil to mean "all".
 // CursorAt and CursorID implement keyset pagination (created_at + id).

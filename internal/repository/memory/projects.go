@@ -36,17 +36,19 @@ func (r *ProjectRepo) GetByID(ctx context.Context, workspaceID, id string) (repo
 	return p, nil
 }
 
-func (r *ProjectRepo) List(ctx context.Context, workspaceID string) ([]repository.Project, error) {
+func (r *ProjectRepo) List(ctx context.Context, workspaceID string) ([]repository.ProjectWithCount, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	var out []repository.Project
+	var out []repository.ProjectWithCount
 	for _, p := range r.projects {
 		if p.WorkspaceID == workspaceID {
-			out = append(out, p)
+			out = append(out, repository.ProjectWithCount{Project: p})
 		}
 	}
 	return out, nil
 }
+
+func (r *ProjectRepo) NullifyAssets(_ context.Context, _, _ string) error { return nil }
 
 func (r *ProjectRepo) Create(ctx context.Context, p repository.Project) (repository.Project, error) {
 	r.mu.Lock()

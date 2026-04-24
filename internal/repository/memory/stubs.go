@@ -28,7 +28,11 @@ func (r *FolderRepo) Create(_ context.Context, f repository.Folder) (repository.
 func (r *FolderRepo) Update(_ context.Context, f repository.Folder) (repository.Folder, error) {
 	return f, nil
 }
-func (r *FolderRepo) Delete(_ context.Context, _, _ string) error { return nil }
+func (r *FolderRepo) Delete(_ context.Context, _, _ string) error           { return nil }
+func (r *FolderRepo) GetChildren(_ context.Context, _, _ string) ([]repository.Folder, error) {
+	return nil, nil
+}
+func (r *FolderRepo) NullifyAssets(_ context.Context, _, _ string) error { return nil }
 
 // TagRepo ------------------------------------------------------------------
 
@@ -100,14 +104,24 @@ func NewVersionRepo() *VersionRepo { return &VersionRepo{} }
 func (r *VersionRepo) GetByID(_ context.Context, _ string) (repository.AssetVersion, error) {
 	return repository.AssetVersion{}, nil
 }
+func (r *VersionRepo) GetByIDForWorkspace(_ context.Context, _, _ string) (repository.AssetVersion, error) {
+	return repository.AssetVersion{}, nil
+}
+func (r *VersionRepo) GetCurrentByAsset(_ context.Context, _ string) (repository.AssetVersion, error) {
+	return repository.AssetVersion{}, nil
+}
 func (r *VersionRepo) ListByAsset(_ context.Context, _ string) ([]repository.AssetVersion, error) {
 	return nil, nil
 }
 func (r *VersionRepo) Create(_ context.Context, v repository.AssetVersion) (repository.AssetVersion, error) {
 	return v, nil
 }
-func (r *VersionRepo) Delete(_ context.Context, _ string) error          { return nil }
-func (r *VersionRepo) CountByAsset(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *VersionRepo) SoftDelete(_ context.Context, _ string) error             { return nil }
+func (r *VersionRepo) Delete(_ context.Context, _ string) error                 { return nil }
+func (r *VersionRepo) CountByAsset(_ context.Context, _ string) (int64, error)  { return 0, nil }
+func (r *VersionRepo) IsReferencedAsCover(_ context.Context, _ string) (bool, error) {
+	return false, nil
+}
 
 // FieldRepo ----------------------------------------------------------------
 

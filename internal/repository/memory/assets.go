@@ -114,3 +114,6 @@ func (r *AssetRepo) SoftDelete(ctx context.Context, workspaceID, id string) erro
 	delete(r.assets, id)
 	return nil
 }
+
+func (r *AssetRepo) IsProjectCover(_ context.Context, _, _ string) (bool, error) { return false, nil }
+func (r *AssetRepo) IsWorkspaceIcon(_ context.Context, _, _ string) (bool, error) { return false, nil }

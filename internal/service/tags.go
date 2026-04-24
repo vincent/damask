@@ -1,0 +1,197 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"damask/server/internal/apperr"
+	"damask/server/internal/repository"
+
+	"github.com/google/uuid"
+)
+
+// TagDTO is the output of TagService methods.
+type TagDTO struct {
+	ID        string
+	WorkspaceID string
+	Name      string
+	Color     *string
+	GroupName *string
+}
+
+// CreateTagParams is the input for TagService.Create.
+type CreateTagParams struct {
+	Name      string
+	Color     *string
+	GroupName *string
+}
+
+func (p *CreateTagParams) Validate() error {
+	p.Name = strings.ToLower(strings.TrimSpace(p.Name))
+	if p.Name == "" {
+		return fmt.Errorf("name is required: %w", apperr.ErrInvalidInput)
+	}
+	return nil
+}
+
+// PatchTagParams is the input for TagService.Patch.
+// Nil fields mean "keep existing value".
+type PatchTagParams struct {
+	Name      *string
+	Color     *string
+	GroupName *string
+}
+
+func (p *PatchTagParams) Validate() error {
+	if p.Name != nil {
+		*p.Name = strings.ToLower(strings.TrimSpace(*p.Name))
+		if *p.Name == "" {
+			return fmt.Errorf("name cannot be empty: %w", apperr.ErrInvalidInput)
+		}
+	}
+	return nil
+}
+
+type tagService struct {
+	tags repository.TagRepository
+}
+
+// NewTagService returns a TagService.
+func NewTagService(tags repository.TagRepository) TagService {
+	return &tagService{tags: tags}
+}
+
+func (s *tagService) List(ctx context.Context, workspaceID string) ([]*TagDTO, error) {
+	rows, err := s.tags.List(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*TagDTO, len(rows))
+	for i, r := range rows {
+		out[i] = toTagDTO(r)
+	}
+	return out, nil
+}
+
+func (s *tagService) Create(ctx context.Context, workspaceID string, p CreateTagParams) (*TagDTO, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	_, err := s.tags.GetByName(ctx, workspaceID, p.Name)
+	if err == nil {
+		return nil, fmt.Errorf("tag %q already exists: %w", p.Name, apperr.ErrConflict)
+	}
+	if !isNotFound(err) {
+		return nil, err
+	}
+	tag, err := s.tags.Upsert(ctx, workspaceID, p.Name)
+	if err != nil {
+		return nil, err
+	}
+	return toTagDTO(tag), nil
+}
+
+func (s *tagService) Patch(ctx context.Context, workspaceID, currentName string, p PatchTagParams) (*TagDTO, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	currentName = strings.ToLower(strings.TrimSpace(currentName))
+	existing, err := s.tags.GetByName(ctx, workspaceID, currentName)
+	if err != nil {
+		return nil, err
+	}
+
+	finalName := existing.Name
+	if p.Name != nil && *p.Name != existing.Name {
+		_, err := s.tags.GetByName(ctx, workspaceID, *p.Name)
+		if err == nil {
+			return nil, fmt.Errorf("tag %q already exists: %w", *p.Name, apperr.ErrConflict)
+		}
+		if !isNotFound(err) {
+			return nil, err
+		}
+		if err := s.tags.Rename(ctx, workspaceID, existing.Name, *p.Name); err != nil {
+			return nil, err
+		}
+		finalName = *p.Name
+	}
+
+	updated, err := s.tags.GetByName(ctx, workspaceID, finalName)
+	if err != nil {
+		return nil, err
+	}
+	return toTagDTO(updated), nil
+}
+
+func (s *tagService) Delete(ctx context.Context, workspaceID string, names []string) error {
+	return s.tags.Delete(ctx, workspaceID, names)
+}
+
+func (s *tagService) ListForAsset(ctx context.Context, assetID string) ([]*TagDTO, error) {
+	rows, err := s.tags.ListForAsset(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*TagDTO, len(rows))
+	for i, r := range rows {
+		out[i] = toTagDTO(r)
+	}
+	return out, nil
+}
+
+func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagName string) (*TagDTO, error) {
+	tagName = strings.ToLower(strings.TrimSpace(tagName))
+	if tagName == "" {
+		return nil, fmt.Errorf("tag name is required: %w", apperr.ErrInvalidInput)
+	}
+	tag, err := s.tags.Upsert(ctx, workspaceID, tagName)
+	if err != nil {
+		return nil, err
+	}
+	// AddToAsset is idempotent: duplicate links are silently ignored at the repo level.
+	if err := s.tags.AddToAsset(ctx, assetID, tag.ID); err != nil {
+		return nil, err
+	}
+	return toTagDTO(tag), nil
+}
+
+func (s *tagService) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error {
+	tagName = strings.ToLower(strings.TrimSpace(tagName))
+	if _, err := s.tags.GetByName(ctx, workspaceID, tagName); err != nil {
+		return err
+	}
+	return s.tags.RemoveFromAsset(ctx, assetID, tagName)
+}
+
+// UpsertForAsset upserts the tag by name and links it to the asset.
+// Used by bulk-tag operations. Returns the tag without error if already linked.
+func (s *tagService) UpsertForAsset(ctx context.Context, workspaceID, assetID, tagName string) error {
+	tagName = strings.ToLower(strings.TrimSpace(tagName))
+	if tagName == "" {
+		return fmt.Errorf("tag name is required: %w", apperr.ErrInvalidInput)
+	}
+	tag, err := s.tags.Upsert(ctx, workspaceID, tagName)
+	if err != nil {
+		return err
+	}
+	return s.tags.AddToAsset(ctx, assetID, tag.ID)
+}
+
+func toTagDTO(t repository.Tag) *TagDTO {
+	return &TagDTO{
+		ID:          t.ID,
+		WorkspaceID: t.WorkspaceID,
+		Name:        t.Name,
+		Color:       t.Color,
+		GroupName:   t.GroupName,
+	}
+}
+
+func isNotFound(err error) bool {
+	return errors.Is(err, apperr.ErrNotFound)
+}
+
+// ensure uuid import is used
+var _ = uuid.NewString
