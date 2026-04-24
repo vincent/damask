@@ -34,3 +34,6 @@ DELETE FROM workspace_members WHERE workspace_id = ? AND user_id = ?;
 -- name: UpdateMemberRole :exec
 UPDATE workspace_members SET role = ? WHERE workspace_id = ? AND user_id = ?;
 
+-- name: CountWorkspaceMembers :one
+SELECT COUNT(*) FROM workspace_members WHERE workspace_id = ?;
+

@@ -111,6 +111,8 @@ export interface MeResponse {
 /** Workspace with role information. */
 export interface WorkspaceWithRole extends Workspace {
   role: string
+  member_count: number
+  asset_count: number
 }
 
 /** Response from workspace switch endpoint. */

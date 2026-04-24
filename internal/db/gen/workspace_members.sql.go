@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+const countWorkspaceMembers = `-- name: CountWorkspaceMembers :one
+SELECT COUNT(*) FROM workspace_members WHERE workspace_id = ?
+`
+
+func (q *Queries) CountWorkspaceMembers(ctx context.Context, workspaceID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countWorkspaceMembers, workspaceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createMember = `-- name: CreateMember :exec
 INSERT INTO workspace_members (workspace_id, user_id, role, invited_by, created_at)
 VALUES (?, ?, ?, ?, datetime('now'))

@@ -156,11 +156,13 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 }
 
 type WorkspaceWithRoleResponse struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Role      auth.Role `json:"role"`
-	CreatedAt string    `json:"created_at"`
-	UpdatedAt string    `json:"updated_at"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Role        auth.Role `json:"role"`
+	MemberCount int64     `json:"member_count"`
+	AssetCount  int64     `json:"asset_count"`
+	CreatedAt   string    `json:"created_at"`
+	UpdatedAt   string    `json:"updated_at"`
 }
 
 // handleListWorkspaces lists all workspaces the authenticated user belongs to.
@@ -183,12 +185,22 @@ func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 
 	result := make([]WorkspaceWithRoleResponse, len(rows))
 	for i, r := range rows {
+		memberCount, err := s.db.CountWorkspaceMembers(c.RequestCtx(), r.ID)
+		if err != nil {
+			slog.ErrorContext(c.RequestCtx(), "could not count members", "workspace_id", r.ID, "error", err)
+		}
+		assetCount, err := s.db.CountWorkspaceAssets(c.RequestCtx(), r.ID)
+		if err != nil {
+			slog.ErrorContext(c.RequestCtx(), "could not count assets", "workspace_id", r.ID, "error", err)
+		}
 		result[i] = WorkspaceWithRoleResponse{
-			ID:        r.ID,
-			Name:      r.Name,
-			Role:      auth.Role(r.Role),
-			CreatedAt: r.CreatedAt.Format(time.RFC3339),
-			UpdatedAt: r.UpdatedAt.Format(time.RFC3339),
+			ID:          r.ID,
+			Name:        r.Name,
+			Role:        auth.Role(r.Role),
+			MemberCount: memberCount,
+			AssetCount:  assetCount,
+			CreatedAt:   r.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:   r.UpdatedAt.Format(time.RFC3339),
 		}
 	}
 	return c.JSON(result)
