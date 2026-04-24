@@ -19,6 +19,7 @@ type CollectionDTO struct {
 	Name        string
 	Description string
 	CreatedBy   string
+	AssetCount  int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -28,6 +29,7 @@ type CreateCollectionParams struct {
 	Name        string
 	Description string
 	CreatedBy   string
+	AssetIDs    []string
 }
 
 func (p *CreateCollectionParams) Validate() error {
@@ -97,6 +99,12 @@ func (s *collectionService) Create(ctx context.Context, workspaceID string, p Cr
 	if err != nil {
 		return nil, err
 	}
+	for _, assetID := range p.AssetIDs {
+		if err := s.collections.AddAsset(ctx, col.ID, assetID); err != nil {
+			return nil, err
+		}
+	}
+	col.AssetCount = int64(len(p.AssetIDs))
 	return toCollectionDTO(col), nil
 }
 
@@ -142,6 +150,18 @@ func (s *collectionService) RemoveAsset(ctx context.Context, workspaceID, collec
 	return s.collections.RemoveAsset(ctx, collectionID, assetID)
 }
 
+func (s *collectionService) ListForAsset(ctx context.Context, workspaceID, assetID string) ([]*CollectionDTO, error) {
+	rows, err := s.collections.ListForAsset(ctx, workspaceID, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*CollectionDTO, len(rows))
+	for i, r := range rows {
+		out[i] = toCollectionDTO(r)
+	}
+	return out, nil
+}
+
 func toCollectionDTO(c repository.Collection) *CollectionDTO {
 	return &CollectionDTO{
 		ID:          c.ID,
@@ -149,6 +169,7 @@ func toCollectionDTO(c repository.Collection) *CollectionDTO {
 		Name:        c.Name,
 		Description: c.Description,
 		CreatedBy:   c.CreatedBy,
+		AssetCount:  c.AssetCount,
 		CreatedAt:   c.CreatedAt,
 		UpdatedAt:   c.UpdatedAt,
 	}

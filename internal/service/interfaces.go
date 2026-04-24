@@ -61,6 +61,7 @@ type CollectionService interface {
 	Delete(ctx context.Context, workspaceID, id string) error
 	AddAsset(ctx context.Context, workspaceID, collectionID, assetID string) error
 	RemoveAsset(ctx context.Context, workspaceID, collectionID, assetID string) error
+	ListForAsset(ctx context.Context, workspaceID, assetID string) ([]*CollectionDTO, error)
 }
 
 // FolderService handles business logic for folder records.

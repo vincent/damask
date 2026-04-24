@@ -75,8 +75,12 @@ func (r *CollectionRepo) Update(_ context.Context, c repository.Collection) (rep
 	return c, nil
 }
 func (r *CollectionRepo) Delete(_ context.Context, _, _ string) error   { return nil }
-func (r *CollectionRepo) AddAsset(_ context.Context, _, _ string) error  { return nil }
-func (r *CollectionRepo) RemoveAsset(_ context.Context, _, _ string) error { return nil }
+func (r *CollectionRepo) AddAsset(_ context.Context, _, _ string) error        { return nil }
+func (r *CollectionRepo) RemoveAsset(_ context.Context, _, _ string) error     { return nil }
+func (r *CollectionRepo) ListForAsset(_ context.Context, _, _ string) ([]repository.Collection, error) {
+	return nil, nil
+}
+func (r *CollectionRepo) CountAssets(_ context.Context, _ string) (int64, error) { return 0, nil }
 
 // ShareRepo ----------------------------------------------------------------
 

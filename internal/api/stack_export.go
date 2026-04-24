@@ -1,15 +1,13 @@
 package api
 
 import (
-	"archive/zip"
-	"fmt"
+	"context"
 	"io"
-	"log/slog"
 	"mime"
 	"strings"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -26,7 +24,6 @@ import (
 // @Failure 403 {object} ErrorResponse "One or more assets not in workspace"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
 // @Router /api/v1/stack/export [post]
-// POST /api/v1/stack/export
 func (s *Server) handleStackExport(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -35,93 +32,28 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 		return nil
 	}
 
-	filename := sanitiseFilename(body.Filename)
-	if filename == "" {
-		filename = "stack-export"
-	}
-
-	// Verify all IDs belong to this workspace in one query before fetching details.
+	// Verify all assets belong to this workspace before sending any headers.
 	if ok, err := s.allAssetsInWorkspace(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not verify assets")
 	} else if !ok {
 		return errRes(c, fiber.StatusForbidden, "one or more assets not found in workspace")
 	}
 
-	type entry struct {
-		name       string
-		storageKey string
-	}
-	var entries []entry
-	var missingNames []string
-	usedNames := map[string]int{}
-
-	for _, id := range body.AssetIDs {
-		asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-			ID:          id,
-			WorkspaceID: claims.WorkspaceID,
-		})
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not load asset")
-		}
-
-		version, err := s.db.GetCurrentVersion(c.RequestCtx(), asset.ID)
-		if err != nil {
-			missingNames = append(missingNames, asset.OriginalFilename)
-			continue
-		}
-
-		base := asset.OriginalFilename
-		usedNames[base]++
-		name := base
-		if usedNames[base] > 1 {
-			ext := ""
-			stem := base
-			if dot := strings.LastIndex(base, "."); dot >= 0 {
-				stem = base[:dot]
-				ext = base[dot:]
-			}
-			name = fmt.Sprintf("%s_%d%s", stem, usedNames[base], ext)
-		}
-
-		entries = append(entries, entry{name: name, storageKey: version.StorageKey})
+	filename := sanitiseFilename(body.Filename)
+	if filename == "" {
+		filename = "stack-export"
 	}
 
 	c.Set("Content-Type", "application/zip")
 	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename + ".zip"}))
 
+	workspaceID := claims.WorkspaceID
+	params := service.ExportZipParams{AssetIDs: body.AssetIDs, Filename: body.Filename}
+
 	pr, pw := io.Pipe()
 	go func() {
-		zw := zip.NewWriter(pw)
-		missing := missingNames
-
-		for _, e := range entries {
-			rc, err := s.storage.Get(e.storageKey)
-			if err != nil {
-				missing = append(missing, e.name)
-				continue
-			}
-			fw, err := zw.Create(e.name)
-			if err != nil {
-				_ = rc.Close()
-				missing = append(missing, e.name)
-				continue
-			}
-			if _, err := io.Copy(fw, rc); err != nil {
-				slog.Warn("zip copy error", "name", e.name, "err", err)
-			}
-			_ = rc.Close()
-		}
-
-		if len(missing) > 0 {
-			fw, err := zw.Create("_missing_files.txt")
-			if err == nil {
-				for _, n := range missing {
-					_, _ = fmt.Fprintln(fw, n)
-				}
-			}
-		}
-
-		if err := zw.Close(); err != nil {
+		err := s.stack.ExportZip(context.Background(), workspaceID, params, pw)
+		if err != nil {
 			_ = pw.CloseWithError(err)
 		} else {
 			_ = pw.Close()

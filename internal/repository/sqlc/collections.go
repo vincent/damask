@@ -11,12 +11,13 @@ import (
 )
 
 type collectionRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB
 }
 
 // NewCollectionRepo returns a repository.CollectionRepository backed by sqlc-generated queries.
-func NewCollectionRepo(q *dbgen.Queries) repository.CollectionRepository {
-	return &collectionRepo{q: q}
+func NewCollectionRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.CollectionRepository {
+	return &collectionRepo{q: q, sqlDB: sqlDB}
 }
 
 func (r *collectionRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Collection, error) {
@@ -30,7 +31,13 @@ func (r *collectionRepo) GetByID(ctx context.Context, workspaceID, id string) (r
 		}
 		return repository.Collection{}, err
 	}
-	return toCollection(row), nil
+	col := toCollection(row)
+	count, err := r.CountAssets(ctx, id)
+	if err != nil {
+		return repository.Collection{}, err
+	}
+	col.AssetCount = count
+	return col, nil
 }
 
 func (r *collectionRepo) List(ctx context.Context, workspaceID string) ([]repository.Collection, error) {
@@ -46,6 +53,7 @@ func (r *collectionRepo) List(ctx context.Context, workspaceID string) ([]reposi
 			Name:        row.Name,
 			Description: row.Description,
 			CreatedBy:   row.CreatedBy,
+			AssetCount:  row.AssetCount,
 			CreatedAt:   row.CreatedAt,
 			UpdatedAt:   row.UpdatedAt,
 		}
@@ -80,7 +88,13 @@ func (r *collectionRepo) Update(ctx context.Context, c repository.Collection) (r
 		}
 		return repository.Collection{}, err
 	}
-	return toCollection(row), nil
+	col := toCollection(row)
+	count, err := r.CountAssets(ctx, c.ID)
+	if err != nil {
+		return repository.Collection{}, err
+	}
+	col.AssetCount = count
+	return col, nil
 }
 
 func (r *collectionRepo) Delete(ctx context.Context, workspaceID, id string) error {
@@ -103,6 +117,42 @@ func (r *collectionRepo) RemoveAsset(ctx context.Context, collectionID, assetID 
 		CollectionID: collectionID,
 		AssetID:      assetID,
 	})
+}
+
+func (r *collectionRepo) ListForAsset(ctx context.Context, workspaceID, assetID string) ([]repository.Collection, error) {
+	rows, err := r.q.ListCollectionsForAsset(ctx, dbgen.ListCollectionsForAssetParams{
+		AssetID:     assetID,
+		WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.Collection, len(rows))
+	for i, row := range rows {
+		out[i] = repository.Collection{
+			ID:          row.ID,
+			WorkspaceID: row.WorkspaceID,
+			Name:        row.Name,
+			Description: row.Description,
+			CreatedBy:   row.CreatedBy,
+			AssetCount:  row.AssetCount,
+			CreatedAt:   row.CreatedAt,
+			UpdatedAt:   row.UpdatedAt,
+		}
+	}
+	return out, nil
+}
+
+func (r *collectionRepo) CountAssets(ctx context.Context, collectionID string) (int64, error) {
+	row := r.sqlDB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM collection_assets WHERE collection_id = ?`,
+		collectionID,
+	)
+	var count int64
+	if err := row.Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func toCollection(c dbgen.Collection) repository.Collection {

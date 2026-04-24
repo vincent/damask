@@ -2,20 +2,16 @@ package api
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"time"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 // allAssetsInWorkspace returns true iff every ID in assetIDs belongs to workspaceID.
-// Uses a single COUNT query with json_each to avoid N round-trips.
 func (s *Server) allAssetsInWorkspace(ctx context.Context, workspaceID string, assetIDs []string) (bool, error) {
 	if len(assetIDs) == 0 {
 		return true, nil
@@ -46,29 +42,16 @@ type CollectionResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func collectionRowToResponse(r dbgen.ListCollectionsRow) CollectionResponse {
+func collectionDTOToResponse(d *service.CollectionDTO) CollectionResponse {
 	return CollectionResponse{
-		ID:          r.ID,
-		WorkspaceID: r.WorkspaceID,
-		Name:        r.Name,
-		Description: r.Description,
-		CreatedBy:   r.CreatedBy,
-		AssetCount:  r.AssetCount,
-		CreatedAt:   r.CreatedAt,
-		UpdatedAt:   r.UpdatedAt,
-	}
-}
-
-func collectionToResponse(c dbgen.Collection, assetCount int64) CollectionResponse {
-	return CollectionResponse{
-		ID:          c.ID,
-		WorkspaceID: c.WorkspaceID,
-		Name:        c.Name,
-		Description: c.Description,
-		CreatedBy:   c.CreatedBy,
-		AssetCount:  assetCount,
-		CreatedAt:   c.CreatedAt,
-		UpdatedAt:   c.UpdatedAt,
+		ID:          d.ID,
+		WorkspaceID: d.WorkspaceID,
+		Name:        d.Name,
+		Description: d.Description,
+		CreatedBy:   d.CreatedBy,
+		AssetCount:  d.AssetCount,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
 	}
 }
 
@@ -92,7 +75,6 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Verify all provided asset IDs belong to this workspace before inserting.
 	if len(body.AssetIDs) > 0 {
 		ok, err := s.allAssetsInWorkspace(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs)
 		if err != nil {
@@ -103,41 +85,17 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 		}
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create collection")
-	}
-	defer tx.Rollback()
-	qtx := s.db.WithTx(tx)
-
-	col, err := qtx.CreateCollection(c.RequestCtx(), dbgen.CreateCollectionParams{
-		ID:          uuid.NewString(),
-		WorkspaceID: claims.WorkspaceID,
+	col, err := s.collections.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateCollectionParams{
 		Name:        body.Name,
 		Description: body.Description,
 		CreatedBy:   claims.UserID,
+		AssetIDs:    body.AssetIDs,
 	})
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create collection")
+		return Respond(c, err)
 	}
 
-	// If asset IDs were provided (e.g. "save stack as collection"), add them now.
-	// INSERT OR IGNORE makes this idempotent; any other error is unexpected.
-	for _, aid := range body.AssetIDs {
-		if err := qtx.AddCollectionAsset(c.RequestCtx(), dbgen.AddCollectionAssetParams{
-			CollectionID:   col.ID,
-			AssetID:        aid,
-			CollectionID_2: col.ID,
-		}); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not add asset to collection")
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create collection")
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(collectionToResponse(col, int64(len(body.AssetIDs))))
+	return c.Status(fiber.StatusCreated).JSON(collectionDTOToResponse(col))
 }
 
 // @Summary List collections
@@ -151,14 +109,14 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 func (s *Server) handleListCollections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rows, err := s.db.ListCollections(c.RequestCtx(), claims.WorkspaceID)
+	cols, err := s.collections.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list collections")
+		return Respond(c, err)
 	}
 
-	out := make([]CollectionResponse, len(rows))
-	for i, r := range rows {
-		out[i] = collectionRowToResponse(r)
+	out := make([]CollectionResponse, len(cols))
+	for i, col := range cols {
+		out[i] = collectionDTOToResponse(col)
 	}
 	return c.JSON(out)
 }
@@ -177,15 +135,9 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	col, err := s.db.GetCollection(c.RequestCtx(), dbgen.GetCollectionParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	col, err := s.collections.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "collection not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not get collection")
+		return Respond(c, err)
 	}
 
 	assets, err := s.db.ListCollectionAssets(c.RequestCtx(), id)
@@ -204,7 +156,7 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 	}
 
 	return c.JSON(collectionDetailResponse{
-		CollectionResponse: collectionToResponse(col, int64(len(assets))),
+		CollectionResponse: collectionDTOToResponse(col),
 		Assets:             assetResponses,
 	})
 }
@@ -232,24 +184,15 @@ func (s *Server) handleUpdateCollection(c fiber.Ctx) error {
 		return nil
 	}
 
-	col, err := s.db.UpdateCollection(c.RequestCtx(), dbgen.UpdateCollectionParams{
-		Name:        body.Name,
-		Description: body.Description,
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
+	col, err := s.collections.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateCollectionParams{
+		Name:        &body.Name,
+		Description: &body.Description,
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "collection not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not update collection")
+		return Respond(c, err)
 	}
 
-	assets, err := s.db.ListCollectionAssets(c.RequestCtx(), id)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not get collection asset count")
-	}
-	return c.JSON(collectionToResponse(col, int64(len(assets))))
+	return c.JSON(collectionDTOToResponse(col))
 }
 
 // @Summary Delete a collection
@@ -267,22 +210,8 @@ func (s *Server) handleDeleteCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	_, err := s.db.GetCollection(c.RequestCtx(), dbgen.GetCollectionParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "collection not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not get collection")
-	}
-
-	if err := s.db.DeleteCollection(c.RequestCtx(), dbgen.DeleteCollectionParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete collection")
+	if err := s.collections.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+		return Respond(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -305,36 +234,12 @@ func (s *Server) handleAddCollectionAsset(c fiber.Ctx) error {
 	id := c.Params("id")
 	assetID := c.Params("aid")
 
-	// Verify collection belongs to workspace.
-	count, err := s.db.CollectionBelongsToWorkspace(c.RequestCtx(), dbgen.CollectionBelongsToWorkspaceParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not verify collection")
-	}
-	if count == 0 {
-		return errRes(c, fiber.StatusNotFound, "collection not found")
+	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+		return Respond(c, err)
 	}
 
-	// Verify asset belongs to workspace.
-	_, err = s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not get asset")
-	}
-
-	if err := s.db.AddCollectionAsset(c.RequestCtx(), dbgen.AddCollectionAssetParams{
-		CollectionID:   id,
-		AssetID:        assetID,
-		CollectionID_2: id,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not add asset to collection")
+	if err := s.collections.AddAsset(c.RequestCtx(), claims.WorkspaceID, id, assetID); err != nil {
+		return Respond(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -357,22 +262,8 @@ func (s *Server) handleRemoveCollectionAsset(c fiber.Ctx) error {
 	id := c.Params("id")
 	assetID := c.Params("aid")
 
-	count, err := s.db.CollectionBelongsToWorkspace(c.RequestCtx(), dbgen.CollectionBelongsToWorkspaceParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not verify collection")
-	}
-	if count == 0 {
-		return errRes(c, fiber.StatusNotFound, "collection not found")
-	}
-
-	if err := s.db.RemoveCollectionAsset(c.RequestCtx(), dbgen.RemoveCollectionAssetParams{
-		CollectionID: id,
-		AssetID:      assetID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not remove asset from collection")
+	if err := s.collections.RemoveAsset(c.RequestCtx(), claims.WorkspaceID, id, assetID); err != nil {
+		return Respond(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -392,38 +283,19 @@ func (s *Server) handleListAssetCollections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	// Verify asset belongs to workspace.
-	_, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not get asset")
+	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+		return Respond(c, err)
 	}
 
-	rows, err := s.db.ListCollectionsForAsset(c.RequestCtx(), dbgen.ListCollectionsForAssetParams{
-		AssetID:     assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	cols, err := s.collections.ListForAsset(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list collections")
+		return Respond(c, err)
 	}
 
-	out := make([]CollectionResponse, len(rows))
-	for i, r := range rows {
-		out[i] = CollectionResponse{
-			ID:          r.ID,
-			WorkspaceID: r.WorkspaceID,
-			Name:        r.Name,
-			Description: r.Description,
-			CreatedBy:   r.CreatedBy,
-			AssetCount:  r.AssetCount,
-			CreatedAt:   r.CreatedAt,
-			UpdatedAt:   r.UpdatedAt,
-		}
+	out := make([]CollectionResponse, len(cols))
+	for i, col := range cols {
+		out[i] = collectionDTOToResponse(col)
 	}
 	return c.JSON(out)
 }
+

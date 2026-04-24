@@ -65,6 +65,7 @@ type Collection struct {
 	Name        string
 	Description string
 	CreatedBy   string
+	AssetCount  int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

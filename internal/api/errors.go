@@ -28,6 +28,10 @@ func isUniqueConstraintError(err error) bool {
 	return strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
+func isInvalidInput(err error) bool {
+	return errors.Is(err, apperr.ErrInvalidInput)
+}
+
 // Respond maps a service-layer error to the appropriate HTTP response.
 // ErrNotFound -> 404, ErrForbidden -> 403, ErrConflict -> 409,
 // ErrInvalidInput -> 422, anything else -> 500.

@@ -65,6 +65,10 @@ type CollectionRepository interface {
 	Delete(ctx context.Context, workspaceID, id string) error
 	AddAsset(ctx context.Context, collectionID, assetID string) error
 	RemoveAsset(ctx context.Context, collectionID, assetID string) error
+	// ListForAsset returns all collections (with asset counts) that contain the asset.
+	ListForAsset(ctx context.Context, workspaceID, assetID string) ([]Collection, error)
+	// CountAssets returns the number of assets in the collection.
+	CountAssets(ctx context.Context, collectionID string) (int64, error)
 }
 
 // ShareRepository handles persistence for Share records.

@@ -1,17 +1,16 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"regexp"
 	"strings"
+	"time"
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 var keyRegexp = regexp.MustCompile(`^[a-z0-9_]+$`)
@@ -39,7 +38,7 @@ type FieldDefinitionStatsResponse struct {
 	ProjectCount int64 `json:"project_count"`
 }
 
-func fieldDefToResponse(f dbgen.FieldDefinition) FieldDefinitionResponse {
+func fieldDTOToResponse(f *service.FieldDefinitionDTO) FieldDefinitionResponse {
 	return FieldDefinitionResponse{
 		ID:                 f.ID,
 		WorkspaceID:        f.WorkspaceID,
@@ -48,19 +47,17 @@ func fieldDefToResponse(f dbgen.FieldDefinition) FieldDefinitionResponse {
 		Key:                f.Key,
 		FieldType:          f.FieldType,
 		Options:            f.Options,
-		Required:           f.Required != 0,
+		Required:           f.Required,
 		Position:           f.Position,
-		InheritFromProject: f.InheritFromProject != 0,
-		CreatedAt:          f.CreatedAt,
-		UpdatedAt:          f.UpdatedAt,
+		InheritFromProject: f.InheritFromProject,
+		CreatedAt:          f.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:          f.UpdatedAt.Format(time.RFC3339),
 		DeletedAt:          f.DeletedAt,
 	}
 }
 
-// handleListFieldDefinitions returns all field definitions for the workspace.
-//
 // @Summary List field definitions
-// @Description Returns all custom field definitions for the workspace filtered by scope. Field definitions describe the schema for structured metadata that can be attached to assets (<code>scope=asset</code>) or projects (<code>scope=project</code>).<br><br> Supported field types: <code>text</code>, <code>number</code>, <code>date</code>, <code>boolean</code>, <code>select</code>, <code>url</code>.
+// @Description Returns all custom field definitions for the workspace filtered by scope.
 // @Tags Custom Fields
 // @Produce json
 // @Security BearerAuth
@@ -76,25 +73,20 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "scope must be 'asset' or 'project'")
 	}
 
-	defs, err := s.db.ListFieldDefinitions(c.RequestCtx(), dbgen.ListFieldDefinitionsParams{
-		WorkspaceID: claims.WorkspaceID,
-		Scope:       scope,
-	})
+	defs, err := s.fields.List(c.RequestCtx(), claims.WorkspaceID, scope)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list field definitions")
+		return Respond(c, err)
 	}
 
 	items := make([]FieldDefinitionResponse, len(defs))
 	for i, d := range defs {
-		items[i] = fieldDefToResponse(d)
+		items[i] = fieldDTOToResponse(d)
 	}
 	return c.JSON(items)
 }
 
-// handleCreateFieldDefinition creates a new custom field definition.
-//
 // @Summary Create a field definition
-// @Description Creates a new custom field definition for assets or projects. The <code>key</code> must be lowercase alphanumeric with underscores and is immutable after creation. A maximum of 50 definitions per scope is enforced.<br><br> For <code>select</code> fields, supply an <code>options</code> array of string choices. The <code>inherit_from_project</code> flag (asset-scope only) causes the field to automatically pre-populate from the assigned project's value.
+// @Description Creates a new custom field definition for assets or projects.
 // @Tags Custom Fields
 // @Accept json
 // @Produce json
@@ -113,57 +105,24 @@ func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Clear options for non-select types
-	if body.FieldType != "select" {
-		body.Options = nil
-	}
-
-	// Enforce max 50 fields per (workspace, scope)
-	count, err := s.db.CountFieldDefinitions(c.RequestCtx(), dbgen.CountFieldDefinitionsParams{
-		WorkspaceID: claims.WorkspaceID,
-		Scope:       body.Scope,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not count field definitions")
-	}
-	if count >= maxFieldDefinitionsPerScope {
-		return errRes(c, fiber.StatusUnprocessableEntity, "maximum of 50 field definitions per scope reached")
-	}
-
-	var required int64
-	if body.Required {
-		required = 1
-	}
-	var inheritFromProject int64
-	if body.InheritFromProject {
-		inheritFromProject = 1
-	}
-
-	def, err := s.db.CreateFieldDefinition(c.RequestCtx(), dbgen.CreateFieldDefinitionParams{
-		ID:                 uuid.NewString(),
-		WorkspaceID:        claims.WorkspaceID,
+	def, err := s.fields.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateFieldDefinitionParams{
 		CreatedBy:          claims.UserID,
 		Scope:              body.Scope,
 		Name:               body.Name,
 		Key:                body.Key,
 		FieldType:          body.FieldType,
 		Options:            body.Options,
-		Required:           required,
+		Required:           body.Required,
 		Position:           body.Position,
-		InheritFromProject: inheritFromProject,
+		InheritFromProject: body.InheritFromProject,
 	})
 	if err != nil {
-		if isUniqueConstraintError(err) {
-			return errRes(c, fiber.StatusConflict, "a field with this key already exists in this scope")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not create field definition")
+		return Respond(c, err)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fieldDefToResponse(def))
+	return c.Status(fiber.StatusCreated).JSON(fieldDTOToResponse(def))
 }
 
-// handleGetFieldDefinition returns a single field definition by ID.
-//
 // @Summary Get a field definition
 // @Description Returns a single custom field definition.
 // @Tags Custom Fields
@@ -178,24 +137,16 @@ func (s *Server) handleGetFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	def, err := s.db.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	def, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "field definition not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load field definition")
+		return Respond(c, err)
 	}
 
-	return c.JSON(fieldDefToResponse(def))
+	return c.JSON(fieldDTOToResponse(def))
 }
 
-// handleGetFieldDefinitionStats returns usage statistics for a field definition.
-//
 // @Summary Get field definition stats
-// @Description Returns the number of assets and projects that have a value set for this field definition. Useful for understanding the impact of deleting a field.
+// @Description Returns the number of assets and projects that have a value set for this field definition.
 // @Tags Custom Fields
 // @Produce json
 // @Security BearerAuth
@@ -208,29 +159,15 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not start transaction")
-	}
-	defer tx.Rollback()
-	qtx := s.db.WithTx(tx)
-
-	def, err := qtx.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "field definition not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load field definition")
+	if _, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+		return Respond(c, err)
 	}
 
-	assetCount, err := qtx.CountFieldDefinitionAssetValues(c.RequestCtx(), def.ID)
+	assetCount, err := s.db.CountFieldDefinitionAssetValues(c.RequestCtx(), id)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not count asset values")
 	}
-	projectCount, err := qtx.CountFieldDefinitionProjectValues(c.RequestCtx(), def.ID)
+	projectCount, err := s.db.CountFieldDefinitionProjectValues(c.RequestCtx(), id)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not count project values")
 	}
@@ -241,10 +178,8 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	})
 }
 
-// handleUpdateFieldDefinition updates a field definition.
-//
 // @Summary Update a field definition
-// @Description Updates a custom field definition. The <code>key</code> and <code>field_type</code> are immutable after creation — supplying a different value returns 422. All other fields are optional; omitted fields retain their current values.<br><br> For <code>select</code> fields, <code>options</code> must be a non-empty JSON array of strings.
+// @Description Updates a custom field definition. The key and field_type are immutable after creation.
 // @Tags Custom Fields
 // @Accept json
 // @Produce json
@@ -266,26 +201,20 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 		return nil
 	}
 
-	existing, err := s.db.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "field definition not found")
+	// Validate options format if provided
+	if body.Options != nil {
+		existing, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id)
+		if err != nil {
+			return Respond(c, err)
 		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load field definition")
-	}
-	if existing.DeletedAt != nil {
-		return errRes(c, fiber.StatusNotFound, "field definition not found")
-	}
-
-	// key and field_type are immutable
-	if body.Key != nil && *body.Key != existing.Key {
-		return errRes(c, fiber.StatusUnprocessableEntity, "key cannot be changed after creation")
-	}
-	if body.FieldType != nil && *body.FieldType != existing.FieldType {
-		return errRes(c, fiber.StatusUnprocessableEntity, "field_type cannot be changed after creation")
+		if existing.FieldType == "select" {
+			var opts []string
+			if err := json.Unmarshal([]byte(*body.Options), &opts); err != nil || len(opts) == 0 {
+				return errRes(c, fiber.StatusBadRequest, "options must be a non-empty JSON array of strings")
+			}
+		} else {
+			return errRes(c, fiber.StatusBadRequest, "options can only be set for select fields")
+		}
 	}
 
 	if body.Name != nil {
@@ -296,56 +225,24 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 		body.Name = &trimmed
 	}
 
-	// Validate options if provided or if field_type is select
-	if body.Options != nil && existing.FieldType == "select" {
-		var opts []string
-		if err := json.Unmarshal([]byte(*body.Options), &opts); err != nil || len(opts) == 0 {
-			return errRes(c, fiber.StatusBadRequest, "options must be a non-empty JSON array of strings")
-		}
-	} else if body.Options != nil && existing.FieldType != "select" {
-		return errRes(c, fiber.StatusBadRequest, "options can only be set for select fields")
-	}
-
-	var required *int64
-	if body.Required != nil {
-		v := int64(0)
-		if *body.Required {
-			v = 1
-		}
-		required = &v
-	}
-	var inheritFromProject *int64
-	if body.InheritFromProject != nil {
-		v := int64(0)
-		if *body.InheritFromProject {
-			v = 1
-		}
-		inheritFromProject = &v
-	}
-
-	updated, err := s.db.UpdateFieldDefinition(c.RequestCtx(), dbgen.UpdateFieldDefinitionParams{
+	updated, err := s.fields.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateFieldDefinitionParams{
 		Name:               body.Name,
+		Key:                body.Key,
+		FieldType:          body.FieldType,
 		Options:            body.Options,
-		Required:           required,
+		Required:           body.Required,
 		Position:           body.Position,
-		InheritFromProject: inheritFromProject,
-		ID:                 id,
-		WorkspaceID:        claims.WorkspaceID,
+		InheritFromProject: body.InheritFromProject,
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "field definition not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not update field definition")
+		return Respond(c, err)
 	}
 
-	return c.JSON(fieldDefToResponse(updated))
+	return c.JSON(fieldDTOToResponse(updated))
 }
 
-// handleDeleteFieldDefinition soft-deletes a field definition.
-//
 // @Summary Delete a field definition
-// @Description Soft-deletes the field definition. The definition is hidden from the list endpoint but existing field values on assets and projects are preserved. This action is permanent from the API perspective (no undelete endpoint).
+// @Description Soft-deletes the field definition.
 // @Tags Custom Fields
 // @Produce json
 // @Security BearerAuth
@@ -358,28 +255,15 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	result, err := s.sqlDB.ExecContext(c.RequestCtx(),
-		`UPDATE field_definitions SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL`,
-		id, claims.WorkspaceID,
-	)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete field definition")
-	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete field definition")
-	}
-	if n == 0 {
-		return errRes(c, fiber.StatusNotFound, "field definition not found")
+	if err := s.fields.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+		return Respond(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// handleReorderFieldDefinitions reorders field definitions.
-//
 // @Summary Reorder field definitions
-// @Description Updates the <code>position</code> of multiple field definitions in a single request. The request body is a JSON array of <code>{"id": "...", "position": N}</code> objects. Items not belonging to this workspace are silently skipped (best-effort update).
+// @Description Updates the position of multiple field definitions in a single request.
 // @Tags Custom Fields
 // @Accept json
 // @Produce json
@@ -398,7 +282,6 @@ func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 	}
 
 	for _, item := range body.Items {
-		// Best-effort — skip items not in this workspace
 		_ = s.db.UpdateFieldDefinitionPosition(c.RequestCtx(), dbgen.UpdateFieldDefinitionPositionParams{
 			Position:    item.Position,
 			ID:          item.ID,

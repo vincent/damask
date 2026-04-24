@@ -100,3 +100,26 @@ func (r *RealCollectionRepo) RemoveAsset(_ context.Context, collectionID, assetI
 	r.assets[collectionID] = filtered
 	return nil
 }
+
+func (r *RealCollectionRepo) ListForAsset(_ context.Context, workspaceID, assetID string) ([]repository.Collection, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.Collection
+	for collID, assetIDs := range r.assets {
+		for _, aid := range assetIDs {
+			if aid == assetID {
+				if c, ok := r.collections[collID]; ok && c.WorkspaceID == workspaceID {
+					out = append(out, c)
+				}
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+func (r *RealCollectionRepo) CountAssets(_ context.Context, collectionID string) (int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return int64(len(r.assets[collectionID])), nil
+}
