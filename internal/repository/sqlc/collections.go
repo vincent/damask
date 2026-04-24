@@ -155,6 +155,18 @@ func (r *collectionRepo) CountAssets(ctx context.Context, collectionID string) (
 	return count, nil
 }
 
+func (r *collectionRepo) ListAssetIDs(ctx context.Context, collectionID string) ([]string, error) {
+	rows, err := r.q.ListCollectionAssets(ctx, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(rows))
+	for i, a := range rows {
+		out[i] = a.ID
+	}
+	return out, nil
+}
+
 func toCollection(c dbgen.Collection) repository.Collection {
 	return repository.Collection{
 		ID:          c.ID,

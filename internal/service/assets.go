@@ -100,6 +100,10 @@ func (s *assetService) Rename(ctx context.Context, workspaceID, assetID, newStem
 	return toAssetDTO(updated), nil
 }
 
+func (s *assetService) CountByIDs(ctx context.Context, workspaceID string, ids []string) (int64, error) {
+	return s.assets.CountByIDs(ctx, workspaceID, ids)
+}
+
 func (s *assetService) Delete(ctx context.Context, workspaceID, assetID string) error {
 	isCover, err := s.assets.IsProjectCover(ctx, workspaceID, assetID)
 	if err != nil {

@@ -1,15 +1,11 @@
 package api
 
 import (
-	"database/sql"
-	"errors"
-
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 type projectFieldValueResponse struct {
@@ -25,55 +21,15 @@ type GetProjectFieldsResponse struct {
 	Fields []projectFieldValueResponse `json:"fields"`
 }
 
-func projectFieldRowToValue(row dbgen.GetProjectFieldValuesRow) any {
-	switch row.FieldType {
-	case "text", "url", "select":
-		if row.ValueText != nil {
-			return *row.ValueText
-		}
-	case "number":
-		if row.ValueNumber != nil {
-			return *row.ValueNumber
-		}
-	case "date":
-		if row.ValueDate != nil {
-			return *row.ValueDate
-		}
-	case "boolean":
-		if row.ValueBoolean != nil {
-			return *row.ValueBoolean != 0
-		}
+func projectFieldValueDTOToResponse(dto *service.FieldValueDTO) projectFieldValueResponse {
+	return projectFieldValueResponse{
+		FieldID:           dto.FieldID,
+		Key:               dto.FieldKey,
+		Name:              dto.FieldName,
+		FieldType:         dto.FieldType,
+		Value:             dto.Value,
+		DefinitionDeleted: dto.DefinitionDeleted,
 	}
-	return nil
-}
-
-func rowToProjectFieldValueResponse(row dbgen.GetProjectFieldValuesRow) projectFieldValueResponse {
-	r := projectFieldValueResponse{
-		FieldID:           row.FieldID,
-		Key:               row.FieldKey,
-		Name:              row.FieldName,
-		FieldType:         row.FieldType,
-		DefinitionDeleted: row.DefinitionDeleted != 0,
-	}
-	switch row.FieldType {
-	case "text", "url", "select":
-		if row.ValueText != nil {
-			r.Value = *row.ValueText
-		}
-	case "number":
-		if row.ValueNumber != nil {
-			r.Value = *row.ValueNumber
-		}
-	case "date":
-		if row.ValueDate != nil {
-			r.Value = *row.ValueDate
-		}
-	case "boolean":
-		if row.ValueBoolean != nil {
-			r.Value = *row.ValueBoolean != 0
-		}
-	}
-	return r
 }
 
 // handleGetProjectFields returns all custom field values for a project.
@@ -92,24 +48,14 @@ func (s *Server) handleGetProjectFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "project not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load project")
-	}
-
-	rows, err := s.db.GetProjectFieldValues(c.RequestCtx(), id)
+	dtos, err := s.projectFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load field values")
+		return Respond(c, err)
 	}
 
-	items := make([]projectFieldValueResponse, len(rows))
-	for i, row := range rows {
-		items[i] = rowToProjectFieldValueResponse(row)
+	items := make([]projectFieldValueResponse, len(dtos))
+	for i, d := range dtos {
+		items[i] = projectFieldValueDTOToResponse(d)
 	}
 	return c.JSON(GetProjectFieldsResponse{Fields: items})
 }
@@ -133,113 +79,69 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "project not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load project")
-	}
-
 	body, ok := decodeAndValidate(c, &PatchProjectFieldsRequest{})
 	if !ok {
 		return nil
 	}
 
-	// Validate all fields must be scope=project
-	for _, input := range body.Values {
-		def, err := s.db.GetFieldDefinitionByID(c.RequestCtx(), dbgen.GetFieldDefinitionByIDParams{
-			ID:          input.FieldID,
-			WorkspaceID: claims.WorkspaceID,
-		})
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return errRes(c, fiber.StatusNotFound, "field "+input.FieldID+" not found")
-			}
-			return errRes(c, fiber.StatusInternalServerError, "could not load field")
-		}
-		if def.Scope != "project" {
-			return errRes(c, fiber.StatusUnprocessableEntity, "field "+def.Key+" is not a project field")
-		}
+	// Snapshot existing values for audit before/after.
+	existing, _ := s.projectFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
+	existingByFieldID := make(map[string]*service.FieldValueDTO, len(existing))
+	for _, v := range existing {
+		v := v
+		existingByFieldID[v.FieldID] = v
 	}
 
-	// Snapshot existing values for event before/after.
-	existingProjRows, _ := s.db.GetProjectFieldValues(c.RequestCtx(), id)
-	existingProjByFieldID := make(map[string]dbgen.GetProjectFieldValuesRow, len(existingProjRows))
-	for _, row := range existingProjRows {
-		existingProjByFieldID[row.FieldID] = row
+	inputs := make([]service.SetFieldValueInput, len(body.Values))
+	for i, v := range body.Values {
+		inputs[i] = service.SetFieldValueInput{FieldID: v.FieldID, Value: v.Value}
 	}
 
-	type projResolvedEntry struct {
-		rv  *resolvedValue
-		def dbgen.FieldDefinition
-	}
-	entries := make([]projResolvedEntry, len(body.Values))
-	for i, input := range body.Values {
-		rv, def, err := s.validateAndResolve(c, claims.WorkspaceID, input)
-		if err != nil {
-			return errRes(c, fiber.StatusUnprocessableEntity, err.Error())
-		}
-		entries[i] = projResolvedEntry{rv: rv, def: def}
+	dtos, err := s.projectFields.SetValues(c.RequestCtx(), claims.WorkspaceID, id, claims.UserID, inputs)
+	if err != nil {
+		return Respond(c, err)
 	}
 
+	// Emit audit events (best-effort).
 	userID := claims.UserID
-	for i, e := range entries {
-		input := body.Values[i]
-		existing := existingProjByFieldID[input.FieldID]
-		beforeVal := projectFieldRowToValue(existing)
-		// Use def for key/name so brand-new fields are correct in audit.
-		fieldKey := e.def.Key
-		fieldName := e.def.Name
-		if e.rv == nil {
-			if err := s.db.DeleteProjectFieldValue(c.RequestCtx(), dbgen.DeleteProjectFieldValueParams{
-				ProjectID: id,
-				FieldID:   input.FieldID,
-			}); err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return errRes(c, fiber.StatusInternalServerError, "could not clear field value")
-			}
+	afterByFieldID := make(map[string]*service.FieldValueDTO, len(dtos))
+	for _, v := range dtos {
+		afterByFieldID[v.FieldID] = v
+	}
+	for _, input := range body.Values {
+		before := existingByFieldID[input.FieldID]
+		after := afterByFieldID[input.FieldID]
+		var beforeVal, afterVal interface{}
+		if before != nil {
+			beforeVal = before.Value
+		}
+		if input.Value == nil {
 			s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
 				WorkspaceID: claims.WorkspaceID,
 				ProjectID:   id,
 				UserID:      &userID,
 				ActorType:   audit.ActorTypeUser,
 				EventType:   audit.EventProjectFieldCleared,
-				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: fieldKey, FieldName: fieldName, Before: beforeVal},
+				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal},
 			})
-			continue
+		} else {
+			if after != nil {
+				afterVal = after.Value
+			}
+			s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
+				WorkspaceID: claims.WorkspaceID,
+				ProjectID:   id,
+				UserID:      &userID,
+				ActorType:   audit.ActorTypeUser,
+				EventType:   audit.EventProjectFieldSet,
+				Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal, After: afterVal},
+			})
 		}
-		if _, err := s.db.UpsertProjectFieldValue(c.RequestCtx(), dbgen.UpsertProjectFieldValueParams{
-			ID:           uuid.NewString(),
-			ProjectID:    id,
-			FieldID:      e.rv.fieldID,
-			ValueText:    e.rv.valueText,
-			ValueNumber:  e.rv.valueNumber,
-			ValueDate:    e.rv.valueDate,
-			ValueBoolean: e.rv.valueBoolean,
-			CreatedBy:    claims.UserID,
-		}); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not save field value")
-		}
-		afterVal := resolvedToValue(e.rv)
-		s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
-			WorkspaceID: claims.WorkspaceID,
-			ProjectID:   id,
-			UserID:      &userID,
-			ActorType:   audit.ActorTypeUser,
-			EventType:   audit.EventProjectFieldSet,
-			Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: fieldKey, FieldName: fieldName, Before: beforeVal, After: afterVal},
-		})
 	}
 
-	rows, err := s.db.GetProjectFieldValues(c.RequestCtx(), id)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not reload field values")
-	}
-	items := make([]projectFieldValueResponse, len(rows))
-	for i, row := range rows {
-		items[i] = rowToProjectFieldValueResponse(row)
+	items := make([]projectFieldValueResponse, len(dtos))
+	for i, d := range dtos {
+		items[i] = projectFieldValueDTOToResponse(d)
 	}
 	return c.JSON(GetProjectFieldsResponse{Fields: items})
 }

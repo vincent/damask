@@ -51,6 +51,22 @@ func (s *variantService) Get(ctx context.Context, workspaceID, id string) (*Vari
 	return toVariantDTO(v), nil
 }
 
+func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error) {
+	v, err := s.variants.Create(ctx, repository.Variant{
+		ID:              p.ID,
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.AssetVersionID,
+		Type:            p.Type,
+		StorageKey:      p.StorageKey,
+		TransformParams: p.TransformParams,
+		Size:            p.Size,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toVariantDTO(v), nil
+}
+
 // Delete deletes a variant. Only variants attached to the asset's current version may be deleted.
 func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, variantID string) error {
 	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)

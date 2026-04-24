@@ -129,6 +129,24 @@ func (s *tagService) Patch(ctx context.Context, workspaceID, currentName string,
 		finalName = *p.Name
 	}
 
+	if p.Color != nil || p.GroupName != nil {
+		reloaded, err := s.tags.GetByName(ctx, workspaceID, finalName)
+		if err != nil {
+			return nil, err
+		}
+		newColor := reloaded.Color
+		if p.Color != nil {
+			newColor = p.Color
+		}
+		newGroup := reloaded.GroupName
+		if p.GroupName != nil {
+			newGroup = p.GroupName
+		}
+		if err := s.tags.UpdateMetadata(ctx, workspaceID, finalName, newColor, newGroup); err != nil {
+			return nil, err
+		}
+	}
+
 	updated, err := s.tags.GetByName(ctx, workspaceID, finalName)
 	if err != nil {
 		return nil, err
@@ -138,6 +156,78 @@ func (s *tagService) Patch(ctx context.Context, workspaceID, currentName string,
 
 func (s *tagService) Delete(ctx context.Context, workspaceID string, names []string) error {
 	return s.tags.Delete(ctx, workspaceID, names)
+}
+
+func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names []string) (BulkDeleteTagsResult, error) {
+	var result BulkDeleteTagsResult
+	err := s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
+		for _, name := range names {
+			tag, err := tx.GetByName(ctx, workspaceID, name)
+			if isNotFound(err) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			count, err := tx.CountAssets(ctx, tag.ID)
+			if err != nil {
+				return err
+			}
+			result.RemovedFromAssets += count
+			if err := tx.Delete(ctx, workspaceID, []string{name}); err != nil {
+				return err
+			}
+			result.Deleted++
+		}
+		return nil
+	})
+	return result, err
+}
+
+func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []string, target string) (MergeTagsResult, error) {
+	var result MergeTagsResult
+	err := s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
+		tgt, err := tx.Upsert(ctx, workspaceID, target)
+		if err != nil {
+			return err
+		}
+		for _, src := range sources {
+			srcTag, err := tx.GetByName(ctx, workspaceID, src)
+			if isNotFound(err) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			count, err := tx.CountAssets(ctx, srcTag.ID)
+			if err != nil {
+				return err
+			}
+			result.MergedAssets += count
+			if err := tx.ReassignAssets(ctx, srcTag.ID, tgt.ID); err != nil {
+				return err
+			}
+			if err := tx.Delete(ctx, workspaceID, []string{src}); err != nil {
+				return err
+			}
+		}
+		reloaded, err := tx.GetByName(ctx, workspaceID, tgt.Name)
+		if err != nil {
+			return err
+		}
+		count, err := tx.CountAssets(ctx, reloaded.ID)
+		if err != nil {
+			return err
+		}
+		reloaded.AssetCount = count
+		result.Target = toTagDTO(reloaded)
+		return nil
+	})
+	return result, err
+}
+
+func (s *tagService) TouchLastUsed(ctx context.Context, workspaceID, name string) error {
+	return s.tags.TouchLastUsed(ctx, workspaceID, name)
 }
 
 func (s *tagService) ListForAsset(ctx context.Context, assetID string) ([]*TagDTO, error) {

@@ -128,3 +128,52 @@ func (r *RealVersionRepo) IsReferencedAsCover(_ context.Context, versionID strin
 	defer r.mu.RUnlock()
 	return r.coverVersions[versionID], nil
 }
+
+func (r *RealVersionRepo) GetByHash(_ context.Context, assetID, contentHash string) (repository.AssetVersion, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, v := range r.versions {
+		if v.AssetID == assetID && v.ContentHash == contentHash {
+			return v, nil
+		}
+	}
+	return repository.AssetVersion{}, fmt.Errorf("version not found: %w", apperr.ErrNotFound)
+}
+
+func (r *RealVersionRepo) NextVersionNum(_ context.Context, assetID string) (int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var max int64
+	for _, v := range r.versions {
+		if v.AssetID == assetID && v.VersionNum > max {
+			max = v.VersionNum
+		}
+	}
+	return max + 1, nil
+}
+
+func (r *RealVersionRepo) SetCurrent(_ context.Context, assetID, versionID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, v := range r.versions {
+		if v.AssetID == assetID {
+			v.IsCurrent = id == versionID
+			r.versions[id] = v
+		}
+	}
+	return nil
+}
+
+func (r *RealVersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *string) error { return nil }
+
+func (r *RealVersionRepo) ListWithVariantCount(_ context.Context, assetID string) ([]repository.AssetVersionWithCount, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.AssetVersionWithCount
+	for _, v := range r.versions {
+		if v.AssetID == assetID && v.DeletedAt == nil {
+			out = append(out, repository.AssetVersionWithCount{AssetVersion: v})
+		}
+	}
+	return out, nil
+}

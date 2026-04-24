@@ -59,6 +59,71 @@ func (s *versionService) Get(ctx context.Context, workspaceID, id string) (*Vers
 	return toVersionDTO(v), nil
 }
 
+func (s *versionService) GetCurrentByAsset(ctx context.Context, assetID string) (*VersionDTO, error) {
+	v, err := s.versions.GetCurrentByAsset(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	return toVersionDTO(v), nil
+}
+
+func (s *versionService) ListWithVariantCount(ctx context.Context, assetID string) ([]*VersionWithCountDTO, error) {
+	rows, err := s.versions.ListWithVariantCount(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*VersionWithCountDTO, len(rows))
+	for i, r := range rows {
+		out[i] = &VersionWithCountDTO{
+			VersionDTO:   *toVersionDTO(r.AssetVersion),
+			VariantCount: r.VariantCount,
+		}
+	}
+	return out, nil
+}
+
+func (s *versionService) GetByHash(ctx context.Context, assetID, contentHash string) (*VersionDTO, error) {
+	v, err := s.versions.GetByHash(ctx, assetID, contentHash)
+	if err != nil {
+		return nil, err
+	}
+	return toVersionDTO(v), nil
+}
+
+func (s *versionService) NextVersionNum(ctx context.Context, assetID string) (int64, error) {
+	return s.versions.NextVersionNum(ctx, assetID)
+}
+
+func (s *versionService) Create(ctx context.Context, v *VersionDTO) (*VersionDTO, error) {
+	created, err := s.versions.Create(ctx, repository.AssetVersion{
+		ID:          v.ID,
+		AssetID:     v.AssetID,
+		WorkspaceID: v.WorkspaceID,
+		VersionNum:  v.VersionNum,
+		StorageKey:  v.StorageKey,
+		ContentHash: v.ContentHash,
+		MimeType:    v.MimeType,
+		Size:        v.Size,
+		Width:       v.Width,
+		Height:      v.Height,
+		DurationSec: v.DurationSec,
+		Comment:     v.Comment,
+		CreatedBy:   v.CreatedBy,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toVersionDTO(created), nil
+}
+
+func (s *versionService) SetCurrent(ctx context.Context, assetID, versionID string) error {
+	return s.versions.SetCurrent(ctx, assetID, versionID)
+}
+
+func (s *versionService) SetAssetThumbnail(ctx context.Context, assetID string, key *string) error {
+	return s.versions.SetAssetThumbnail(ctx, assetID, key)
+}
+
 // Delete soft-deletes a non-current version that is not in use as a cover.
 func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versionID string) error {
 	v, err := s.versions.GetByIDForWorkspace(ctx, workspaceID, versionID)

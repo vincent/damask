@@ -108,6 +108,12 @@ type AssetVersion struct {
 	DeletedAt    *string
 }
 
+// AssetVersionWithCount is an AssetVersion enriched with its derived variant count.
+type AssetVersionWithCount struct {
+	AssetVersion
+	VariantCount int64
+}
+
 // FieldDefinition is the domain representation of a custom field definition.
 type FieldDefinition struct {
 	ID                 string
@@ -202,6 +208,30 @@ type Variant struct {
 type ProjectWithCount struct {
 	Project
 	AssetCount int64
+}
+
+// FieldValue is the domain representation of a typed custom field value.
+type FieldValue struct {
+	FieldID           string
+	FieldKey          string
+	FieldName         string
+	FieldType         string
+	FieldOptions      *string
+	ValueText         *string
+	ValueNumber       *float64
+	ValueDate         *string
+	ValueBoolean      *int64
+	DefinitionDeleted bool
+}
+
+// SetFieldValueParams holds the parameters for setting a single field value.
+type SetFieldValueParams struct {
+	FieldID      string
+	ValueText    *string
+	ValueNumber  *float64
+	ValueDate    *string
+	ValueBoolean *int64
+	CreatedBy    string
 }
 
 // ListAssetsParams holds filters for listing assets.

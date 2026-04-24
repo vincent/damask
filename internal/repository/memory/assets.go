@@ -117,3 +117,21 @@ func (r *AssetRepo) SoftDelete(ctx context.Context, workspaceID, id string) erro
 
 func (r *AssetRepo) IsProjectCover(_ context.Context, _, _ string) (bool, error) { return false, nil }
 func (r *AssetRepo) IsWorkspaceIcon(_ context.Context, _, _ string) (bool, error) { return false, nil }
+
+func (r *AssetRepo) CountByIDs(_ context.Context, workspaceID string, ids []string) (int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	set := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	var count int64
+	for _, a := range r.assets {
+		if a.WorkspaceID == workspaceID {
+			if _, ok := set[a.ID]; ok {
+				count++
+			}
+		}
+	}
+	return count, nil
+}

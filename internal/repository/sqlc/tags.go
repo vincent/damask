@@ -12,13 +12,20 @@ import (
 	"damask/server/internal/repository"
 )
 
+type sqlExecer interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 type tagRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB    // held for RunInTx (BeginTx); nil inside a tx
+	exec  sqlExecer  // *sql.DB or *sql.Tx for raw queries
 }
 
 // NewTagRepo returns a repository.TagRepository backed by sqlc-generated queries.
-func NewTagRepo(q *dbgen.Queries) repository.TagRepository {
-	return &tagRepo{q: q}
+func NewTagRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.TagRepository {
+	return &tagRepo{q: q, sqlDB: sqlDB, exec: sqlDB}
 }
 
 func (r *tagRepo) GetByName(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
@@ -126,6 +133,40 @@ func (r *tagRepo) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tag
 		WorkspaceID: workspaceID,
 		Name:        tagName,
 	})
+}
+
+func (r *tagRepo) CountAssets(ctx context.Context, tagID string) (int64, error) {
+	var count int64
+	err := r.exec.QueryRowContext(ctx, `SELECT COUNT(*) FROM asset_tags WHERE tag_id = ?`, tagID).Scan(&count)
+	return count, err
+}
+
+func (r *tagRepo) ReassignAssets(ctx context.Context, fromTagID, toTagID string) error {
+	_, err := r.exec.ExecContext(ctx,
+		`INSERT OR IGNORE INTO asset_tags (asset_id, tag_id) SELECT asset_id, ? FROM asset_tags WHERE tag_id = ?`,
+		toTagID, fromTagID,
+	)
+	return err
+}
+
+func (r *tagRepo) TouchLastUsed(ctx context.Context, workspaceID, name string) error {
+	return r.q.TouchTagLastUsed(ctx, dbgen.TouchTagLastUsedParams{
+		WorkspaceID: workspaceID,
+		Name:        name,
+	})
+}
+
+func (r *tagRepo) RunInTx(ctx context.Context, fn func(tx repository.TagRepository) error) error {
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	txRepo := &tagRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB, exec: tx}
+	if err := fn(txRepo); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func toTag(t dbgen.Tag) repository.Tag {

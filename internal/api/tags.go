@@ -1,8 +1,6 @@
 package api
 
 import (
-	"database/sql"
-	"errors"
 	"math"
 	"regexp"
 	"sort"
@@ -11,12 +9,10 @@ import (
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
 
 	"github.com/agnivade/levenshtein"
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 var hexColorRegex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -43,23 +39,6 @@ func tagDTOToResponse(d *service.TagDTO) TagResponse {
 	}
 	if d.LastUsedAt != nil {
 		s := d.LastUsedAt.UTC().Format("2006-01-02T15:04:05Z")
-		r.LastUsedAt = &s
-	}
-	return r
-}
-
-// tagRowToResponse converts a ListTagsWithCount row (used by handlers not yet wired to the service).
-func tagRowToResponse(row dbgen.ListTagsWithCountRow) TagResponse {
-	r := TagResponse{
-		ID:         row.ID,
-		Name:       row.Name,
-		AssetCount: row.AssetCount,
-		Color:      row.Color,
-		GroupName:  row.GroupName,
-		CreatedAt:  row.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
-	}
-	if row.LastUsedAt != nil {
-		s := row.LastUsedAt.UTC().Format("2006-01-02T15:04:05Z")
 		r.LastUsedAt = &s
 	}
 	return r
@@ -147,69 +126,16 @@ func (s *Server) handlePatchTag(c fiber.Ctx) error {
 		return nil
 	}
 
-	existing, err := s.db.GetTagByWorkspaceAndName(c.RequestCtx(), dbgen.GetTagByWorkspaceAndNameParams{
-		WorkspaceID: claims.WorkspaceID,
-		Name:        tagName,
+	dto, err := s.tags.Patch(c.RequestCtx(), claims.WorkspaceID, tagName, service.PatchTagParams{
+		Name:      body.Name,
+		Color:     body.Color,
+		GroupName: body.GroupName,
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "tag not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load tag")
+		return Respond(c, err)
 	}
 
-	finalName := existing.Name
-	if body.Name != nil && *body.Name != existing.Name {
-		newName := *body.Name
-		_, err := s.db.GetTagByWorkspaceAndName(c.RequestCtx(), dbgen.GetTagByWorkspaceAndNameParams{
-			WorkspaceID: claims.WorkspaceID,
-			Name:        newName,
-		})
-		if err == nil {
-			return errRes(c, fiber.StatusConflict, "a tag with this name already exists")
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusInternalServerError, "could not check tag name")
-		}
-		if err := s.db.UpdateTagName(c.RequestCtx(), dbgen.UpdateTagNameParams{
-			Name:        newName,
-			WorkspaceID: claims.WorkspaceID,
-			Name_2:      tagName,
-		}); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not rename tag")
-		}
-		finalName = newName
-	}
-
-	newColor := existing.Color
-	if body.Color != nil {
-		newColor = body.Color
-	}
-	newGroup := existing.GroupName
-	if body.GroupName != nil {
-		newGroup = body.GroupName
-	}
-	if body.Color != nil || body.GroupName != nil {
-		if err := s.db.UpdateTagMetadata(c.RequestCtx(), dbgen.UpdateTagMetadataParams{
-			Color:       newColor,
-			GroupName:   newGroup,
-			WorkspaceID: claims.WorkspaceID,
-			Name:        finalName,
-		}); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not update tag")
-		}
-	}
-
-	rows, err := s.db.ListTagsWithCount(c.RequestCtx(), claims.WorkspaceID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load tag")
-	}
-	for _, row := range rows {
-		if row.Name == finalName {
-			return c.JSON(tagRowToResponse(row))
-		}
-	}
-	return errRes(c, fiber.StatusInternalServerError, "could not reload tag")
+	return c.JSON(tagDTOToResponse(dto))
 }
 
 // handleBulkDeleteTags handles DELETE /api/v1/tags
@@ -233,49 +159,14 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 		return nil
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	result, err := s.tags.BulkDelete(c.RequestCtx(), claims.WorkspaceID, body.Names)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback() //nolint:errcheck
-	qtx := s.db.WithTx(tx)
-
-	deleted := 0
-	removedFromAssets := int64(0)
-
-	for _, name := range body.Names {
-		tag, err := qtx.GetTagByWorkspaceAndName(c.RequestCtx(), dbgen.GetTagByWorkspaceAndNameParams{
-			WorkspaceID: claims.WorkspaceID,
-			Name:        name,
-		})
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not look up tag")
-		}
-
-		var count int64
-		if err := tx.QueryRowContext(c.RequestCtx(), `SELECT COUNT(*) FROM asset_tags WHERE tag_id = ?`, tag.ID).Scan(&count); err == nil {
-			removedFromAssets += count
-		}
-
-		if err := qtx.DeleteTag(c.RequestCtx(), dbgen.DeleteTagParams{
-			WorkspaceID: claims.WorkspaceID,
-			Name:        name,
-		}); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not delete tag")
-		}
-		deleted++
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
+		return Respond(c, err)
 	}
 
 	return c.JSON(fiber.Map{
-		"deleted":             deleted,
-		"removed_from_assets": removedFromAssets,
+		"deleted":             result.Deleted,
+		"removed_from_assets": result.RemovedFromAssets,
 	})
 }
 
@@ -300,74 +191,14 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 		return nil
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	result, err := s.tags.Merge(c.RequestCtx(), claims.WorkspaceID, body.Sources, body.Target)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback() //nolint:errcheck
-	qtx := s.db.WithTx(tx)
-
-	target, err := qtx.GetOrCreateTag(c.RequestCtx(), dbgen.GetOrCreateTagParams{
-		ID:          uuid.NewString(),
-		WorkspaceID: claims.WorkspaceID,
-		Name:        body.Target,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not ensure target tag")
-	}
-
-	mergedAssets := int64(0)
-	for _, src := range body.Sources {
-		srcTag, err := qtx.GetTagByWorkspaceAndName(c.RequestCtx(), dbgen.GetTagByWorkspaceAndNameParams{
-			WorkspaceID: claims.WorkspaceID,
-			Name:        src,
-		})
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
-		}
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not load source tag")
-		}
-
-		var count int64
-		_ = tx.QueryRowContext(c.RequestCtx(), `SELECT COUNT(*) FROM asset_tags WHERE tag_id = ?`, srcTag.ID).Scan(&count)
-		mergedAssets += count
-
-		if _, err = tx.ExecContext(c.RequestCtx(),
-			`INSERT OR IGNORE INTO asset_tags (asset_id, tag_id)
-			 SELECT asset_id, ? FROM asset_tags WHERE tag_id = ?`,
-			target.ID, srcTag.ID,
-		); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not reassign asset tags")
-		}
-
-		if err := qtx.DeleteTag(c.RequestCtx(), dbgen.DeleteTagParams{
-			WorkspaceID: claims.WorkspaceID,
-			Name:        src,
-		}); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not delete source tag")
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit merge")
-	}
-
-	allRows, err := s.db.ListTagsWithCount(c.RequestCtx(), claims.WorkspaceID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not reload tag")
-	}
-	var targetResp TagResponse
-	for _, row := range allRows {
-		if row.ID == target.ID {
-			targetResp = tagRowToResponse(row)
-			break
-		}
+		return Respond(c, err)
 	}
 
 	return c.JSON(fiber.Map{
-		"merged_assets": mergedAssets,
-		"target":        targetResp,
+		"merged_assets": result.MergedAssets,
+		"target":        tagDTOToResponse(result.Target),
 	})
 }
 
@@ -384,15 +215,15 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rows, err := s.db.ListTagsWithCount(c.RequestCtx(), claims.WorkspaceID)
+	dtos, err := s.tags.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list tags")
+		return Respond(c, err)
 	}
 
-	active := make([]dbgen.ListTagsWithCountRow, 0, len(rows))
-	for _, r := range rows {
-		if r.AssetCount > 0 {
-			active = append(active, r)
+	active := make([]*service.TagDTO, 0, len(dtos))
+	for _, d := range dtos {
+		if d.AssetCount > 0 {
+			active = append(active, d)
 		}
 	}
 
@@ -494,11 +325,7 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 		return Respond(c, err)
 	}
 
-	// Touch last_used_at (fire-and-forget).
-	_ = s.db.TouchTagLastUsed(c.RequestCtx(), dbgen.TouchTagLastUsedParams{
-		WorkspaceID: claims.WorkspaceID,
-		Name:        tag.Name,
-	})
+	_ = s.tags.TouchLastUsed(c.RequestCtx(), claims.WorkspaceID, tag.Name)
 
 	userID := claims.UserID
 	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{

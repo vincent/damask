@@ -14,12 +14,13 @@ import (
 )
 
 type workspaceRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB
 }
 
 // NewWorkspaceRepo returns a repository.WorkspaceRepository backed by sqlc-generated queries.
-func NewWorkspaceRepo(q *dbgen.Queries) repository.WorkspaceRepository {
-	return &workspaceRepo{q: q}
+func NewWorkspaceRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.WorkspaceRepository {
+	return &workspaceRepo{q: q, sqlDB: sqlDB}
 }
 
 func (r *workspaceRepo) GetByID(ctx context.Context, id string) (repository.Workspace, error) {
@@ -213,6 +214,46 @@ func toWorkspace(w dbgen.Workspace) repository.Workspace {
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
+}
+
+func (r *workspaceRepo) Create(ctx context.Context, w repository.Workspace) (repository.Workspace, error) {
+	row, err := r.q.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{
+		ID:   w.ID,
+		Name: w.Name,
+	})
+	if err != nil {
+		return repository.Workspace{}, err
+	}
+	return toWorkspace(row), nil
+}
+
+func (r *workspaceRepo) RunInTx(ctx context.Context, fn func(repository.WorkspaceRepository) error) error {
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := fn(&workspaceRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// RunRegistrationTx opens a single DB transaction and provides tx-scoped
+// UserRepository and WorkspaceRepository to fn. Used only by UserService.Register.
+func (r *workspaceRepo) RunRegistrationTx(ctx context.Context, fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error) error {
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	txQ := r.q.WithTx(tx)
+	txUsers := &userRepo{q: txQ, sqlDB: r.sqlDB}
+	txWorkspaces := &workspaceRepo{q: txQ, sqlDB: r.sqlDB}
+	if err := fn(ctx, txUsers, txWorkspaces); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func toInvite(i dbgen.WorkspaceInvite) repository.Invite {

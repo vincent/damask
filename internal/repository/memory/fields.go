@@ -89,3 +89,23 @@ func (r *RealFieldRepo) CountByWorkspaceAndScope(_ context.Context, workspaceID,
 	}
 	return count, nil
 }
+
+func (r *RealFieldRepo) CountAssetValues(_ context.Context, fieldID string) (int64, error) {
+	return 0, nil
+}
+
+func (r *RealFieldRepo) CountProjectValues(_ context.Context, fieldID string) (int64, error) {
+	return 0, nil
+}
+
+func (r *RealFieldRepo) UpdatePosition(_ context.Context, workspaceID, id string, position int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	f, ok := r.fields[id]
+	if !ok || f.WorkspaceID != workspaceID {
+		return nil
+	}
+	f.Position = position
+	r.fields[id] = f
+	return nil
+}

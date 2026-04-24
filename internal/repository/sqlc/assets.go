@@ -3,6 +3,7 @@ package reposqlc
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 
 	"damask/server/internal/apperr"
@@ -11,12 +12,13 @@ import (
 )
 
 type assetRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB
 }
 
 // NewAssetRepo returns a repository.AssetRepository backed by sqlc-generated queries.
-func NewAssetRepo(q *dbgen.Queries) repository.AssetRepository {
-	return &assetRepo{q: q}
+func NewAssetRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.AssetRepository {
+	return &assetRepo{q: q, sqlDB: sqlDB}
 }
 
 func (r *assetRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Asset, error) {
@@ -165,6 +167,22 @@ func (r *assetRepo) IsWorkspaceIcon(ctx context.Context, workspaceID, assetID st
 		return false, nil
 	}
 	return false, err
+}
+
+func (r *assetRepo) CountByIDs(ctx context.Context, workspaceID string, ids []string) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	idsJSON, err := json.Marshal(ids)
+	if err != nil {
+		return 0, err
+	}
+	row := r.sqlDB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM assets WHERE workspace_id = ? AND id IN (SELECT value FROM json_each(?))`,
+		workspaceID, string(idsJSON),
+	)
+	var count int64
+	return count, row.Scan(&count)
 }
 
 func toAsset(a dbgen.Asset) repository.Asset {

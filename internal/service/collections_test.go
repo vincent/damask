@@ -13,7 +13,7 @@ import (
 func newCollectionSvc(t *testing.T) (service.CollectionService, *memory.RealCollectionRepo) {
 	t.Helper()
 	repo := memory.NewRealCollectionRepo()
-	return service.NewCollectionService(repo), repo
+	return service.NewCollectionService(repo, memory.NewAssetRepo()), repo
 }
 
 // --- Create ---

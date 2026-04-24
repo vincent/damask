@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"damask/server/internal/auth"
@@ -16,16 +15,8 @@ func (s *Server) allAssetsInWorkspace(ctx context.Context, workspaceID string, a
 	if len(assetIDs) == 0 {
 		return true, nil
 	}
-	idsJSON, err := json.Marshal(assetIDs)
+	count, err := s.assets.CountByIDs(ctx, workspaceID, assetIDs)
 	if err != nil {
-		return false, err
-	}
-	row := s.sqlDB.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM assets WHERE workspace_id = ? AND id IN (SELECT value FROM json_each(?))`,
-		workspaceID, string(idsJSON),
-	)
-	var count int64
-	if err := row.Scan(&count); err != nil {
 		return false, err
 	}
 	return count == int64(len(assetIDs)), nil
@@ -140,9 +131,9 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 		return Respond(c, err)
 	}
 
-	assets, err := s.db.ListCollectionAssets(c.RequestCtx(), id)
+	assets, err := s.collections.ListAssets(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list collection assets")
+		return Respond(c, err)
 	}
 
 	type collectionDetailResponse struct {
@@ -152,7 +143,7 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 
 	assetResponses := make([]AssetResponse, len(assets))
 	for i, a := range assets {
-		assetResponses[i] = assetToResponse(a, nil)
+		assetResponses[i] = assetToResponse(dtoToDBAsset(a), nil)
 	}
 
 	return c.JSON(collectionDetailResponse{

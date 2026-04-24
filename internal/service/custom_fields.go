@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -11,6 +13,8 @@ import (
 
 	"github.com/google/uuid"
 )
+
+var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 const maxFieldDefinitionsPerScope = 50
 
@@ -202,6 +206,28 @@ func (s *fieldService) Delete(ctx context.Context, workspaceID, id string) error
 	return s.fields.SoftDelete(ctx, workspaceID, id)
 }
 
+func (s *fieldService) GetStats(ctx context.Context, workspaceID, id string) (FieldStatsDTO, error) {
+	if _, err := s.fields.GetByID(ctx, workspaceID, id); err != nil {
+		return FieldStatsDTO{}, err
+	}
+	assetCount, err := s.fields.CountAssetValues(ctx, id)
+	if err != nil {
+		return FieldStatsDTO{}, err
+	}
+	projectCount, err := s.fields.CountProjectValues(ctx, id)
+	if err != nil {
+		return FieldStatsDTO{}, err
+	}
+	return FieldStatsDTO{AssetCount: assetCount, ProjectCount: projectCount}, nil
+}
+
+func (s *fieldService) Reorder(ctx context.Context, workspaceID string, items []ReorderFieldItem) error {
+	for _, item := range items {
+		_ = s.fields.UpdatePosition(ctx, workspaceID, item.ID, item.Position)
+	}
+	return nil
+}
+
 func toFieldDTO(f repository.FieldDefinition) *FieldDefinitionDTO {
 	return &FieldDefinitionDTO{
 		ID:                 f.ID,
@@ -219,4 +245,287 @@ func toFieldDTO(f repository.FieldDefinition) *FieldDefinitionDTO {
 		UpdatedAt:          f.UpdatedAt,
 		DeletedAt:          f.DeletedAt,
 	}
+}
+
+// -- AssetFieldService --------------------------------------------------------
+
+type assetFieldService struct {
+	assets     repository.AssetRepository
+	fields     repository.FieldRepository
+	assetFields repository.AssetFieldRepository
+}
+
+// NewAssetFieldService returns an AssetFieldService.
+func NewAssetFieldService(assets repository.AssetRepository, fields repository.FieldRepository, assetFields repository.AssetFieldRepository) AssetFieldService {
+	return &assetFieldService{assets: assets, fields: fields, assetFields: assetFields}
+}
+
+func (s *assetFieldService) GetValues(ctx context.Context, workspaceID, assetID string) ([]*FieldValueDTO, error) {
+	if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+		return nil, err
+	}
+	rows, err := s.assetFields.GetValues(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	return toFieldValueDTOs(rows), nil
+}
+
+func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error) {
+	if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+		return nil, err
+	}
+	for _, input := range inputs {
+		def, err := s.fields.GetByID(ctx, workspaceID, input.FieldID)
+		if err != nil {
+			return nil, err
+		}
+		if def.DeletedAt != nil {
+			return nil, fmt.Errorf("field %s has been deleted: %w", input.FieldID, apperr.ErrInvalidInput)
+		}
+		if input.Value == nil {
+			if err := s.assetFields.DeleteValue(ctx, assetID, input.FieldID); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		p, err := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
+		if err != nil {
+			return nil, fmt.Errorf("%w", apperr.ErrInvalidInput)
+		}
+		p.CreatedBy = userID
+		if err := s.assetFields.UpsertValue(ctx, assetID, p); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := s.assetFields.GetValues(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	return toFieldValueDTOs(rows), nil
+}
+
+func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (int64, error) {
+	// Validate values once (same fields for all assets).
+	type resolvedInput struct {
+		fieldID string
+		p       *repository.SetFieldValueParams
+	}
+	resolved := make([]resolvedInput, len(inputs))
+	for i, input := range inputs {
+		if input.Value == nil {
+			resolved[i] = resolvedInput{fieldID: input.FieldID}
+			continue
+		}
+		def, err := s.fields.GetByID(ctx, workspaceID, input.FieldID)
+		if err != nil {
+			return 0, err
+		}
+		if def.DeletedAt != nil {
+			return 0, fmt.Errorf("field %s has been deleted: %w", input.FieldID, apperr.ErrInvalidInput)
+		}
+		p, err := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
+		if err != nil {
+			return 0, fmt.Errorf("%w", apperr.ErrInvalidInput)
+		}
+		p.CreatedBy = userID
+		resolved[i] = resolvedInput{fieldID: input.FieldID, p: &p}
+	}
+
+	// Pre-filter: collect only asset IDs that belong to this workspace (read before tx).
+	validIDs := make([]string, 0, len(assetIDs))
+	for _, assetID := range assetIDs {
+		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err == nil {
+			validIDs = append(validIDs, assetID)
+		}
+	}
+
+	var updatedCount int64
+	err := s.assetFields.RunInTx(ctx, func(tx repository.AssetFieldRepository) error {
+		for _, assetID := range validIDs {
+			assetOK := true
+			for _, r := range resolved {
+				if r.p == nil {
+					if err := tx.DeleteValue(ctx, assetID, r.fieldID); err != nil {
+						assetOK = false
+						break
+					}
+					continue
+				}
+				if err := tx.UpsertValue(ctx, assetID, *r.p); err != nil {
+					return err
+				}
+			}
+			if assetOK {
+				updatedCount++
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return updatedCount, nil
+}
+
+// -- ProjectFieldService -------------------------------------------------------
+
+type projectFieldService struct {
+	projects     repository.ProjectRepository
+	fields       repository.FieldRepository
+	projectFields repository.ProjectFieldRepository
+}
+
+// NewProjectFieldService returns a ProjectFieldService.
+func NewProjectFieldService(projects repository.ProjectRepository, fields repository.FieldRepository, projectFields repository.ProjectFieldRepository) ProjectFieldService {
+	return &projectFieldService{projects: projects, fields: fields, projectFields: projectFields}
+}
+
+func (s *projectFieldService) GetValues(ctx context.Context, workspaceID, projectID string) ([]*FieldValueDTO, error) {
+	if _, err := s.projects.GetByID(ctx, workspaceID, projectID); err != nil {
+		return nil, err
+	}
+	rows, err := s.projectFields.GetValues(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return toFieldValueDTOs(rows), nil
+}
+
+func (s *projectFieldService) SetValues(ctx context.Context, workspaceID, projectID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error) {
+	if _, err := s.projects.GetByID(ctx, workspaceID, projectID); err != nil {
+		return nil, err
+	}
+	for _, input := range inputs {
+		def, err := s.fields.GetByID(ctx, workspaceID, input.FieldID)
+		if err != nil {
+			return nil, err
+		}
+		if def.Scope != "project" {
+			return nil, fmt.Errorf("field %s is not a project field: %w", def.Key, apperr.ErrInvalidInput)
+		}
+		if input.Value == nil {
+			if err := s.projectFields.DeleteValue(ctx, projectID, input.FieldID); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		p, err := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
+		if err != nil {
+			return nil, fmt.Errorf("%w", apperr.ErrInvalidInput)
+		}
+		p.CreatedBy = userID
+		if err := s.projectFields.UpsertValue(ctx, projectID, p); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := s.projectFields.GetValues(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return toFieldValueDTOs(rows), nil
+}
+
+// -- Shared helpers -----------------------------------------------------------
+
+func resolveFieldValue(fieldID, fieldType string, options *string, value interface{}) (repository.SetFieldValueParams, error) {
+	p := repository.SetFieldValueParams{FieldID: fieldID}
+	switch fieldType {
+	case "text", "url":
+		s, ok := value.(string)
+		if !ok {
+			return p, fmt.Errorf("field %s expects a string value", fieldID)
+		}
+		p.ValueText = &s
+	case "select":
+		s, ok := value.(string)
+		if !ok {
+			return p, fmt.Errorf("field %s expects a string value", fieldID)
+		}
+		if options != nil {
+			var opts []string
+			if err := json.Unmarshal([]byte(*options), &opts); err == nil {
+				valid := false
+				for _, o := range opts {
+					if o == s {
+						valid = true
+						break
+					}
+				}
+				if !valid {
+					return p, fmt.Errorf("value '%s' is not a valid option for field %s", s, fieldID)
+				}
+			}
+		}
+		p.ValueText = &s
+	case "number":
+		switch v := value.(type) {
+		case float64:
+			p.ValueNumber = &v
+		case int64:
+			f := float64(v)
+			p.ValueNumber = &f
+		default:
+			return p, fmt.Errorf("field %s expects a numeric value", fieldID)
+		}
+	case "date":
+		s, ok := value.(string)
+		if !ok || !dateRe.MatchString(s) {
+			return p, fmt.Errorf("field %s expects a date in YYYY-MM-DD format", fieldID)
+		}
+		if _, err := time.Parse("2006-01-02", s); err != nil {
+			return p, fmt.Errorf("field %s: invalid date '%s'", fieldID, s)
+		}
+		p.ValueDate = &s
+	case "boolean":
+		b, ok := value.(bool)
+		if !ok {
+			return p, fmt.Errorf("field %s expects a boolean value", fieldID)
+		}
+		var v int64
+		if b {
+			v = 1
+		}
+		p.ValueBoolean = &v
+	}
+	return p, nil
+}
+
+
+func toFieldValueDTOs(rows []repository.FieldValue) []*FieldValueDTO {
+	out := make([]*FieldValueDTO, len(rows))
+	for i, row := range rows {
+		out[i] = toFieldValueDTO(row)
+	}
+	return out
+}
+
+func toFieldValueDTO(row repository.FieldValue) *FieldValueDTO {
+	dto := &FieldValueDTO{
+		FieldID:           row.FieldID,
+		FieldKey:          row.FieldKey,
+		FieldName:         row.FieldName,
+		FieldType:         row.FieldType,
+		FieldOptions:      row.FieldOptions,
+		DefinitionDeleted: row.DefinitionDeleted,
+	}
+	switch row.FieldType {
+	case "text", "url", "select":
+		if row.ValueText != nil {
+			dto.Value = *row.ValueText
+		}
+	case "number":
+		if row.ValueNumber != nil {
+			dto.Value = *row.ValueNumber
+		}
+	case "date":
+		if row.ValueDate != nil {
+			dto.Value = *row.ValueDate
+		}
+	case "boolean":
+		if row.ValueBoolean != nil {
+			dto.Value = *row.ValueBoolean != 0
+		}
+	}
+	return dto
 }

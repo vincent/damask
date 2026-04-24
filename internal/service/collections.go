@@ -58,11 +58,12 @@ func (p *UpdateCollectionParams) Validate() error {
 
 type collectionService struct {
 	collections repository.CollectionRepository
+	assets      repository.AssetRepository
 }
 
 // NewCollectionService returns a CollectionService.
-func NewCollectionService(collections repository.CollectionRepository) CollectionService {
-	return &collectionService{collections: collections}
+func NewCollectionService(collections repository.CollectionRepository, assets repository.AssetRepository) CollectionService {
+	return &collectionService{collections: collections, assets: assets}
 }
 
 func (s *collectionService) List(ctx context.Context, workspaceID string) ([]*CollectionDTO, error) {
@@ -158,6 +159,25 @@ func (s *collectionService) ListForAsset(ctx context.Context, workspaceID, asset
 	out := make([]*CollectionDTO, len(rows))
 	for i, r := range rows {
 		out[i] = toCollectionDTO(r)
+	}
+	return out, nil
+}
+
+func (s *collectionService) ListAssets(ctx context.Context, workspaceID, collectionID string) ([]*AssetDTO, error) {
+	if _, err := s.collections.GetByID(ctx, workspaceID, collectionID); err != nil {
+		return nil, err
+	}
+	ids, err := s.collections.ListAssetIDs(ctx, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*AssetDTO, 0, len(ids))
+	for _, id := range ids {
+		a, err := s.assets.GetByID(ctx, workspaceID, id)
+		if err != nil {
+			continue // asset may have been soft-deleted
+		}
+		out = append(out, toAssetDTO(a))
 	}
 	return out, nil
 }

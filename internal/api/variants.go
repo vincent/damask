@@ -1,9 +1,7 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"mime"
@@ -14,9 +12,9 @@ import (
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
+	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 
@@ -48,7 +46,7 @@ type CreateVariantResponse struct {
 	Message string `json:"message"`
 }
 
-func variantToResponse(assetID string, v dbgen.Variant) VariantResponse {
+func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse {
 	return VariantResponse{
 		ID:              v.ID,
 		AssetVersionID:  v.AssetVersionID,
@@ -98,28 +96,21 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
-	variants, err := s.db.ListVariantsByAssetCurrentVersion(c.RequestCtx(), assetID)
+	variants, err := s.variants.List(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list variants")
+		return Respond(c, err)
 	}
 
 	out := make([]VariantResponse, len(variants))
 	for i, v := range variants {
-		out[i] = variantToResponse(assetID, v)
+		out[i] = variantDTOToResponse(assetID, v)
 	}
 
-	// Determine if a rebuild job is in flight for the current version.
 	rebuilding := false
 	if asset.CurrentVersionID != nil {
 		rebuilding = s.isRebuildingVariants(c, *asset.CurrentVersionID)
@@ -154,23 +145,15 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
-	// Require a current version.
 	if asset.CurrentVersionID == nil {
 		return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
 	}
 
-	// Block creation while a rebuild is in progress.
 	if s.isRebuildingVariants(c, *asset.CurrentVersionID) {
 		return errRes(c, fiber.StatusConflict, "variants are rebuilding — please wait for the rebuild to complete before creating new variants")
 	}
@@ -211,8 +194,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		}
 	}
 
-	// Load the current version to get its storage key and version num.
-	currentVer, err := s.db.GetCurrentVersion(c.RequestCtx(), assetID)
+	currentVer, err := s.versions.GetCurrentByAsset(c.RequestCtx(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
 	}
@@ -274,25 +256,13 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	variantID := c.Params("vid")
 
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+		return Respond(c, err)
 	}
 
-	variant, err := s.db.GetVariantByID(c.RequestCtx(), dbgen.GetVariantByIDParams{
-		ID:          variantID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	variant, err := s.variants.Get(c.RequestCtx(), claims.WorkspaceID, variantID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "variant not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load variant")
+		return Respond(c, err)
 	}
 
 	if setCacheHeaders(c, variant.ID, variant.CreatedAt, true) {
@@ -346,40 +316,13 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	variantID := c.Params("vid")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	variant, err := s.variants.Get(c.RequestCtx(), claims.WorkspaceID, variantID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
-	variant, err := s.db.GetVariantByID(c.RequestCtx(), dbgen.GetVariantByIDParams{
-		ID:          variantID,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "variant not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load variant")
-	}
-
-	// Guard: only allow deleting variants for the current version.
-	// Variants on old versions are managed by the retention purge job.
-	if asset.CurrentVersionID == nil || variant.AssetVersionID != *asset.CurrentVersionID {
-		return errRes(c, fiber.StatusUnprocessableEntity,
-			"this variant belongs to a previous version and will be cleaned up automatically")
-	}
-
-	if err := s.db.DeleteVariant(c.RequestCtx(), dbgen.DeleteVariantParams{
-		ID:          variantID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete variant")
+	if err := s.variants.Delete(c.RequestCtx(), claims.WorkspaceID, assetID, variantID); err != nil {
+		return Respond(c, err)
 	}
 
 	_ = s.storage.Delete(variant.StorageKey)
@@ -420,22 +363,16 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
 	if asset.CurrentVersionID == nil {
 		return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
 	}
 
-	currentVer, err := s.db.GetCurrentVersion(c.RequestCtx(), assetID)
+	currentVer, err := s.versions.GetCurrentByAsset(c.RequestCtx(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
 	}
@@ -453,7 +390,6 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 
 	variantID := uuid.NewString()
 	ext := strings.ToLower(filepath.Ext(fh.Filename))
-	// Use first 8 chars of variant ID as the params hash (manual = no transform params).
 	storageKey := storage.VersionedVariantKey(
 		asset.WorkspaceID, assetID, currentVer.VersionNum,
 		"manual", variantID[:8], ext,
@@ -465,7 +401,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 
 	sz := fh.Size
 	emptyParams := "{}"
-	v, err := s.db.CreateVariant(c.RequestCtx(), dbgen.CreateVariantParams{
+	v, err := s.variants.Create(c.RequestCtx(), service.CreateVariantParams{
 		ID:              variantID,
 		WorkspaceID:     asset.WorkspaceID,
 		AssetVersionID:  currentVer.ID,
@@ -489,7 +425,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: "manual"},
 	})
 
-	return c.Status(fiber.StatusCreated).JSON(variantToResponse(assetID, v))
+	return c.Status(fiber.StatusCreated).JSON(variantDTOToResponse(assetID, v))
 }
 
 // handlePreviewTransform applies an in-memory image transform and returns the result.
@@ -516,15 +452,9 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
 	if !strings.HasPrefix(asset.MimeType, "image/") {

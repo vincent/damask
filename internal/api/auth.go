@@ -4,13 +4,13 @@ import (
 	"time"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
-	services "damask/server/internal/fileproc"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
 
 const sessionDuration = 7 * 24 * time.Hour
 
@@ -40,14 +40,6 @@ type AuthResponse struct {
 	Workspace *WorkspaceResponse `json:"workspace,omitempty"`
 }
 
-func userToResponse(u dbgen.User) UserResponse {
-	return UserResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		Name:      u.Name,
-		CreatedAt: u.CreatedAt,
-	}
-}
 
 // handleRegister creates a new user account and a default workspace.
 //
@@ -73,46 +65,34 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
 
-	userID := uuid.New().String()
-
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback()
-
-	qtx := s.db.WithTx(tx)
-
-	user, err := qtx.CreateUser(c.RequestCtx(), dbgen.CreateUserParams{
-		ID:           userID,
-		Email:        req.Email,
-		PasswordHash: hash,
-		Name:         req.Name,
+	result, err := s.users.Register(c.RequestCtx(), service.RegisterUserParams{
+		UserID:        uuid.New().String(),
+		Name:          req.Name,
+		Email:         req.Email,
+		PasswordHash:  hash,
+		WorkspaceName: req.Name + "'s Workspace",
 	})
 	if err != nil {
-		if isUniqueConstraintError(err) {
-			return errRes(c, fiber.StatusConflict, "email already in use")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not create user")
+		return Respond(c, err)
 	}
 
-	workspace, err := services.CreateWorkspaceForUser(c.RequestCtx(), qtx, req.Name+"'s Workspace", userID)
+	ws, err := s.workspace.Get(c.RequestCtx(), result.WorkspaceID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create workspace")
+		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
-	}
-
-	token, err := s.tokenMaker.CreateToken(userID, workspace.ID, sessionDuration)
+	token, err := s.tokenMaker.CreateToken(result.User.ID, result.WorkspaceID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
 	s.setAuthCookie(c, token)
-	wr := workspaceToResponse(*workspace)
-	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: &wr})
+	wr := workspaceDTOToResponse(ws)
+	return c.Status(fiber.StatusCreated).JSON(AuthResponse{
+		Token:     token,
+		User:      UserResponse{ID: result.User.ID, Email: result.User.Email, Name: result.User.Name, CreatedAt: result.User.CreatedAt},
+		Workspace: &wr,
+	})
 }
 
 // handleLogin authenticates a user and returns a JWT token.
@@ -133,37 +113,31 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 		return nil
 	}
 
-	user, err := s.db.GetUserByEmail(c.RequestCtx(), req.Email)
+	result, err := s.users.Login(c.RequestCtx(), service.LoginUserParams{
+		Email:         req.Email,
+		PlainPassword: req.Password,
+	})
 	if err != nil {
 		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
-	}
-
-	memberships, err := s.db.ListWorkspacesByUserID(c.RequestCtx(), user.ID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load workspace membership")
-	}
-	if len(memberships) == 0 {
-		return errRes(c, fiber.StatusInternalServerError, "user has no workspace")
-	}
-
-	first := memberships[0]
-	workspace, err := s.db.GetWorkspaceByID(c.RequestCtx(), first.ID)
+	ws, err := s.workspace.Get(c.RequestCtx(), result.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
-	token, err := s.tokenMaker.CreateToken(user.ID, first.ID, sessionDuration)
+	token, err := s.tokenMaker.CreateToken(result.User.ID, result.WorkspaceID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
 	s.setAuthCookie(c, token)
-	wr := workspaceToResponse(workspace)
-	return c.JSON(AuthResponse{Token: token, User: userToResponse(user), Workspace: &wr})
+	wr := workspaceDTOToResponse(ws)
+	return c.JSON(AuthResponse{
+		Token:     token,
+		User:      UserResponse{ID: result.User.ID, Email: result.User.Email, Name: result.User.Name, CreatedAt: result.User.CreatedAt},
+		Workspace: &wr,
+	})
 }
 
 // handleRefresh reissues an auth token for the currently authenticated user.

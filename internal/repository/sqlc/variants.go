@@ -45,6 +45,22 @@ func (r *variantRepo) ListByAsset(ctx context.Context, _ string, assetID string)
 	return out, nil
 }
 
+func (r *variantRepo) Create(ctx context.Context, v repository.Variant) (repository.Variant, error) {
+	row, err := r.q.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              v.ID,
+		WorkspaceID:     v.WorkspaceID,
+		AssetVersionID:  v.AssetVersionID,
+		Type:            v.Type,
+		StorageKey:      v.StorageKey,
+		TransformParams: v.TransformParams,
+		Size:            v.Size,
+	})
+	if err != nil {
+		return repository.Variant{}, err
+	}
+	return toVariant(row), nil
+}
+
 func (r *variantRepo) Delete(ctx context.Context, workspaceID, id string) error {
 	return r.q.DeleteVariant(ctx, dbgen.DeleteVariantParams{
 		ID:          id,

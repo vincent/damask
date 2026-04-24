@@ -156,3 +156,44 @@ func (r *RealTagRepo) RemoveFromAsset(_ context.Context, _, assetID, tagName str
 	r.assetTags[assetID] = filtered
 	return nil
 }
+
+func (r *RealTagRepo) CountAssets(_ context.Context, tagID string) (int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var count int64
+	for _, ids := range r.assetTags {
+		for _, id := range ids {
+			if id == tagID {
+				count++
+			}
+		}
+	}
+	return count, nil
+}
+
+func (r *RealTagRepo) ReassignAssets(_ context.Context, fromTagID, toTagID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for assetID, ids := range r.assetTags {
+		hasFrom := false
+		hasTo := false
+		for _, id := range ids {
+			if id == fromTagID {
+				hasFrom = true
+			}
+			if id == toTagID {
+				hasTo = true
+			}
+		}
+		if hasFrom && !hasTo {
+			r.assetTags[assetID] = append(r.assetTags[assetID], toTagID)
+		}
+	}
+	return nil
+}
+
+func (r *RealTagRepo) TouchLastUsed(_ context.Context, _, _ string) error { return nil }
+
+func (r *RealTagRepo) RunInTx(_ context.Context, fn func(repository.TagRepository) error) error {
+	return fn(r)
+}

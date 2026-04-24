@@ -123,3 +123,12 @@ func (r *RealCollectionRepo) CountAssets(_ context.Context, collectionID string)
 	defer r.mu.RUnlock()
 	return int64(len(r.assets[collectionID])), nil
 }
+
+func (r *RealCollectionRepo) ListAssetIDs(_ context.Context, collectionID string) ([]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ids := r.assets[collectionID]
+	out := make([]string, len(ids))
+	copy(out, ids)
+	return out, nil
+}

@@ -13,6 +13,8 @@ type AssetRepository interface {
 	IsProjectCover(ctx context.Context, workspaceID, assetID string) (bool, error)
 	// IsWorkspaceIcon reports whether the asset is set as the workspace icon.
 	IsWorkspaceIcon(ctx context.Context, workspaceID, assetID string) (bool, error)
+	// CountByIDs returns how many of the given IDs belong to the workspace.
+	CountByIDs(ctx context.Context, workspaceID string, ids []string) (int64, error)
 }
 
 // ProjectRepository handles persistence for Project records.
@@ -54,6 +56,14 @@ type TagRepository interface {
 	ListForAsset(ctx context.Context, assetID string) ([]Tag, error)
 	AddToAsset(ctx context.Context, assetID, tagID string) error
 	RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error
+	// CountAssets returns the number of asset_tags rows for a given tag ID.
+	CountAssets(ctx context.Context, tagID string) (int64, error)
+	// ReassignAssets moves all asset_tags rows from fromTagID to toTagID (idempotent).
+	ReassignAssets(ctx context.Context, fromTagID, toTagID string) error
+	// TouchLastUsed updates last_used_at to now for the given tag (fire-and-forget).
+	TouchLastUsed(ctx context.Context, workspaceID, name string) error
+	// RunInTx executes fn inside a single database transaction.
+	RunInTx(ctx context.Context, fn func(tx TagRepository) error) error
 }
 
 // CollectionRepository handles persistence for Collection records.
@@ -69,6 +79,8 @@ type CollectionRepository interface {
 	ListForAsset(ctx context.Context, workspaceID, assetID string) ([]Collection, error)
 	// CountAssets returns the number of assets in the collection.
 	CountAssets(ctx context.Context, collectionID string) (int64, error)
+	// ListAssetIDs returns the asset IDs in the collection.
+	ListAssetIDs(ctx context.Context, collectionID string) ([]string, error)
 }
 
 // ShareRepository handles persistence for Share records.
@@ -96,6 +108,16 @@ type VersionRepository interface {
 	CountByAsset(ctx context.Context, assetID string) (int64, error)
 	// IsReferencedAsCover returns true when the version is set as a project cover or workspace icon.
 	IsReferencedAsCover(ctx context.Context, versionID string) (bool, error)
+	// GetByHash returns a version matching assetID + contentHash, or ErrNotFound.
+	GetByHash(ctx context.Context, assetID, contentHash string) (AssetVersion, error)
+	// NextVersionNum returns MAX(version_num)+1 for the asset (1 if no versions exist).
+	NextVersionNum(ctx context.Context, assetID string) (int64, error)
+	// SetCurrent atomically promotes versionID to current for assetID.
+	SetCurrent(ctx context.Context, assetID, versionID string) error
+	// SetAssetThumbnail updates assets.thumbnail_key for the given asset.
+	SetAssetThumbnail(ctx context.Context, assetID string, key *string) error
+	// ListWithVariantCount returns versions with per-version variant counts.
+	ListWithVariantCount(ctx context.Context, assetID string) ([]AssetVersionWithCount, error)
 }
 
 // FieldRepository handles persistence for FieldDefinition records.
@@ -106,18 +128,38 @@ type FieldRepository interface {
 	Update(ctx context.Context, f FieldDefinition) (FieldDefinition, error)
 	SoftDelete(ctx context.Context, workspaceID, id string) error
 	CountByWorkspaceAndScope(ctx context.Context, workspaceID, scope string) (int64, error)
+	CountAssetValues(ctx context.Context, fieldID string) (int64, error)
+	CountProjectValues(ctx context.Context, fieldID string) (int64, error)
+	UpdatePosition(ctx context.Context, workspaceID, id string, position int64) error
+}
+
+// AssetFieldRepository handles persistence for asset field values.
+type AssetFieldRepository interface {
+	GetValues(ctx context.Context, assetID string) ([]FieldValue, error)
+	DeleteValue(ctx context.Context, assetID, fieldID string) error
+	UpsertValue(ctx context.Context, assetID string, p SetFieldValueParams) error
+	RunInTx(ctx context.Context, fn func(tx AssetFieldRepository) error) error
+}
+
+// ProjectFieldRepository handles persistence for project field values.
+type ProjectFieldRepository interface {
+	GetValues(ctx context.Context, projectID string) ([]FieldValue, error)
+	DeleteValue(ctx context.Context, projectID, fieldID string) error
+	UpsertValue(ctx context.Context, projectID string, p SetFieldValueParams) error
 }
 
 // VariantRepository handles persistence for asset variant records.
 type VariantRepository interface {
 	GetByID(ctx context.Context, workspaceID, id string) (Variant, error)
 	ListByAsset(ctx context.Context, workspaceID, assetID string) ([]Variant, error)
+	Create(ctx context.Context, v Variant) (Variant, error)
 	Delete(ctx context.Context, workspaceID, id string) error
 }
 
 // WorkspaceRepository handles persistence for Workspace records.
 type WorkspaceRepository interface {
 	GetByID(ctx context.Context, id string) (Workspace, error)
+	Create(ctx context.Context, w Workspace) (Workspace, error)
 	Update(ctx context.Context, w Workspace) (Workspace, error)
 	CountAssets(ctx context.Context, workspaceID string) (int64, error)
 	// Member methods
@@ -135,6 +177,12 @@ type WorkspaceRepository interface {
 	AcceptInvite(ctx context.Context, inviteID string) error
 	// Workspace list for user
 	ListByUserID(ctx context.Context, userID string) ([]WorkspaceWithRole, error)
+	// RunInTx executes fn inside a single database transaction.
+	// The WorkspaceRepository passed to fn is scoped to that transaction.
+	RunInTx(ctx context.Context, fn func(tx WorkspaceRepository) error) error
+	// RunRegistrationTx executes fn with tx-scoped UserRepository and WorkspaceRepository
+	// sharing the same underlying database transaction. Used only by UserService.Register.
+	RunRegistrationTx(ctx context.Context, fn func(ctx context.Context, txUsers UserRepository, txWorkspaces WorkspaceRepository) error) error
 }
 
 // UserRepository handles persistence for User records.
@@ -143,4 +191,6 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (User, error)
 	Create(ctx context.Context, u User) (User, error)
 	Update(ctx context.Context, u User) (User, error)
+	// RunInTx executes fn inside a single database transaction.
+	RunInTx(ctx context.Context, fn func(tx UserRepository) error) error
 }

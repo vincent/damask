@@ -11,12 +11,13 @@ import (
 )
 
 type userRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB
 }
 
 // NewUserRepo returns a repository.UserRepository backed by sqlc-generated queries.
-func NewUserRepo(q *dbgen.Queries) repository.UserRepository {
-	return &userRepo{q: q}
+func NewUserRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.UserRepository {
+	return &userRepo{q: q, sqlDB: sqlDB}
 }
 
 func (r *userRepo) GetByID(ctx context.Context, id string) (repository.User, error) {
@@ -59,6 +60,18 @@ func (r *userRepo) Update(ctx context.Context, u repository.User) (repository.Us
 	// handle OIDC/OAuth updates. This method is a placeholder for when auth migration
 	// reaches the workspace service.
 	return r.GetByID(ctx, u.ID)
+}
+
+func (r *userRepo) RunInTx(ctx context.Context, fn func(repository.UserRepository) error) error {
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := fn(&userRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func toUser(u dbgen.User) repository.User {

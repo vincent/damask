@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,9 +12,9 @@ import (
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
 	services "damask/server/internal/fileproc"
+	"damask/server/internal/service"
 	"damask/server/internal/versioning"
 
 	"github.com/gofiber/fiber/v3"
@@ -52,28 +50,20 @@ type VersionWithAssetResponse struct {
 	Asset   AssetResponse   `json:"asset"`
 }
 
-func (s *Server) buildVersionResponse(ctx context.Context, v dbgen.AssetVersion) VersionResponse {
-	var createdBy *VersionCreatedByResponse
-	if v.CreatedBy != nil {
-		user, err := s.db.GetUserByID(ctx, *v.CreatedBy)
-		createdByResp := VersionCreatedByResponse{ID: *v.CreatedBy}
-		if err == nil {
-			createdByResp.Name = user.Name
-		}
-		createdBy = &createdByResp
+func (s *Server) resolveCreator(ctx context.Context, userID string) *VersionCreatedByResponse {
+	resp := &VersionCreatedByResponse{ID: userID}
+	if dto, err := s.users.GetByID(ctx, userID); err == nil {
+		resp.Name = dto.Name
 	}
-	return buildVersionResponseWithCreator(v, createdBy)
+	return resp
 }
 
-// buildVersionResponseWithCreator builds a VersionResponse using a pre-resolved creator.
-// Use this in list paths to avoid issuing a GetUserByID query per row.
-func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy *VersionCreatedByResponse) VersionResponse {
+func versionDTOToResponse(v *service.VersionDTO, createdBy *VersionCreatedByResponse) VersionResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
 		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
 		thumbURL = &u
 	}
-
 	return VersionResponse{
 		ID:           v.ID,
 		VersionNum:   v.VersionNum,
@@ -85,68 +75,15 @@ func buildVersionResponseWithCreator(v dbgen.AssetVersion, createdBy *VersionCre
 		ThumbnailURL: thumbURL,
 		Comment:      v.Comment,
 		CreatedBy:    createdBy,
-		CreatedAt:    v.CreatedAt,
-		IsCurrent:    v.IsCurrent == 1,
+		CreatedAt:    v.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		IsCurrent:    v.IsCurrent,
 	}
 }
 
-// buildVersionResponseWithCount is like buildVersionResponseWithCreator but also
-// carries the per-version variant count returned by ListVersionsWithVariantCount.
-func buildVersionResponseWithCount(v dbgen.ListVersionsWithVariantCountRow, createdBy *VersionCreatedByResponse) VersionResponse {
-	var thumbURL *string
-	if v.ThumbnailKey != nil {
-		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
-		thumbURL = &u
-	}
-
-	return VersionResponse{
-		ID:           v.ID,
-		VersionNum:   v.VersionNum,
-		MimeType:     v.MimeType,
-		Size:         v.Size,
-		Width:        v.Width,
-		Height:       v.Height,
-		DurationSec:  v.DurationSec,
-		ThumbnailURL: thumbURL,
-		Comment:      v.Comment,
-		CreatedBy:    createdBy,
-		CreatedAt:    v.CreatedAt,
-		IsCurrent:    v.IsCurrent == 1,
-		VariantCount: v.VariantCount,
-	}
-}
-
-// setCurrentVersion promotes versionID to current within a transaction.
-// It clears is_current on all other versions of assetID and updates
-// assets.current_version_id. Must be called with s.sqlDB available.
-func (s *Server) setCurrentVersion(ctx context.Context, assetID, versionID string) error {
-	tx, err := s.sqlDB.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	qtx := s.db.WithTx(tx)
-
-	// Clear all is_current flags for this asset.
-	if err := qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
-		return err
-	}
-
-	// Set the target version as current.
-	if err := qtx.SetCurrentVersionFlag(ctx, versionID); err != nil {
-		return err
-	}
-
-	// Keep assets.current_version_id in sync.
-	if err := qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
-		CurrentVersionID: &versionID,
-		ID:               assetID,
-	}); err != nil {
-		return err
-	}
-
-	return tx.Commit()
+func versionWithCountDTOToResponse(v *service.VersionWithCountDTO, createdBy *VersionCreatedByResponse) VersionResponse {
+	r := versionDTOToResponse(&v.VersionDTO, createdBy)
+	r.VariantCount = v.VariantCount
+	return r
 }
 
 // --- AV-1.3: Upload new version ---
@@ -169,20 +106,13 @@ func (s *Server) setCurrentVersion(ctx context.Context, assetID, versionID strin
 // @Failure 409 {object} ErrorResponse "File is identical to the current version"
 // @Failure 422 {object} ErrorResponse "Comment too long"
 // @Router /api/v1/assets/{id}/versions [post]
-// handleUploadAssetVersion handles POST /api/v1/assets/:id/versions
 func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
 	fh, err := c.FormFile("file")
@@ -195,14 +125,12 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusUnprocessableEntity, "comment must be 500 characters or fewer")
 	}
 
-	// Save to a temp file so we can hash + detect MIME + extract meta.
 	tmpFile := filepath.Join(os.TempDir(), uuid.NewString()+"_"+fh.Filename)
 	if err := c.SaveFile(fh, tmpFile); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "cannot save uploaded file")
 	}
 	defer os.Remove(tmpFile)
 
-	// Open the temp file once; hash it, then seek back to reuse for storage.Put.
 	f, err := os.Open(tmpFile)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not open uploaded file")
@@ -214,44 +142,31 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash file")
 	}
 
-	// Capture the current version ID before we promote a new one — needed for rebuild job.
 	var prevVersionID string
 	if asset.CurrentVersionID != nil {
 		prevVersionID = *asset.CurrentVersionID
 	}
 
-	// Dedup: if identical bytes are already the current version, reject.
-	existing, lookupErr := s.db.GetVersionByHash(c.RequestCtx(), dbgen.GetVersionByHashParams{
-		AssetID:     assetID,
-		ContentHash: hash,
-	})
-	if lookupErr == nil && existing.IsCurrent == 1 {
+	// Dedup: reject if identical bytes are already the current version.
+	existing, hashErr := s.versions.GetByHash(c.RequestCtx(), assetID, hash)
+	if hashErr == nil && existing.IsCurrent {
 		return errRes(c, fiber.StatusConflict, "this file is identical to the current version")
 	}
 
-	// Determine next version_num via MAX to avoid counting deleted rows.
-	var maxNum sql.NullInt64
-	if err := s.sqlDB.QueryRowContext(c.RequestCtx(),
-		`SELECT MAX(version_num) FROM asset_versions WHERE asset_id = ?`, assetID,
-	).Scan(&maxNum); err != nil {
+	nextNum, err := s.versions.NextVersionNum(c.RequestCtx(), assetID)
+	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not determine version number")
 	}
-	nextNum := maxNum.Int64 + 1
 
-	// Detect MIME + dimensions (both use the temp file path, not the reader).
 	mimeType, _ := services.DetectMimeType(tmpFile)
 	if mimeType == "" {
 		mimeType = fh.Header.Get("Content-Type")
 	}
-
 	meta, _ := services.ExtractMeta(c.RequestCtx(), tmpFile, mimeType)
 
-	// Build storage key: workspace/asset/vN/filename.
 	storageKey := fmt.Sprintf("%s/%s/v%d/%s", claims.WorkspaceID, assetID, nextNum, fh.Filename)
 
-	// Only write to storage if this is truly a new file (not a hash-matched old version).
-	if lookupErr != nil {
-		// Seek back to start — f was already read for hashing above.
+	if hashErr != nil {
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not rewind file")
 		}
@@ -259,18 +174,16 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 			return errRes(c, fiber.StatusInternalServerError, "could not store file")
 		}
 	} else {
-		// Reuse the existing storage key from the found version.
 		storageKey = existing.StorageKey
 	}
 
-	// Persist version row (is_current=0; we promote it next).
 	var commentPtr *string
 	if comment != "" {
 		commentPtr = &comment
 	}
-
 	createdByPtr := &claims.UserID
-	newVersion, err := s.db.CreateAssetVersion(c.RequestCtx(), dbgen.CreateAssetVersionParams{
+
+	newVersion, err := s.versions.Create(c.RequestCtx(), &service.VersionDTO{
 		ID:          uuid.NewString(),
 		AssetID:     assetID,
 		WorkspaceID: claims.WorkspaceID,
@@ -284,32 +197,23 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		DurationSec: meta.DurationSec,
 		Comment:     commentPtr,
 		CreatedBy:   createdByPtr,
-		IsCurrent:   0,
 	})
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create version")
 	}
 
-	// Atomically promote the new version to current.
-	if err := s.setCurrentVersion(c.RequestCtx(), assetID, newVersion.ID); err != nil {
+	if err := s.versions.SetCurrent(c.RequestCtx(), assetID, newVersion.ID); err != nil {
 		slog.Error("set current version", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not promote version")
 	}
-	newVersion.IsCurrent = 1
+	newVersion.IsCurrent = true
 
-	// Also update the asset's top-level fields to stay in sync with the current version.
-	if err := s.db.UpdateAssetThumbnail(c.RequestCtx(), dbgen.UpdateAssetThumbnailParams{
-		ThumbnailKey: nil, // thumbnail will come from the job
-		ID:           assetID,
-	}); err != nil {
+	if err := s.versions.SetAssetThumbnail(c.RequestCtx(), assetID, nil); err != nil {
 		slog.Error("clear asset thumbnail", "error", err)
 	}
 
-	// Enqueue thumbnail generation for the new version.
 	s.enqueueVersionThumbnail(c.RequestCtx(), asset, newVersion)
 
-	// Enqueue variant rebuild: copy variant definitions from the previous version.
-	// No-op if this is the first version (prevVersionID == "").
 	if err := jobs.EnqueueRebuildVariantsJob(
 		c.RequestCtx(), s.queue,
 		claims.WorkspaceID, assetID, newVersion.ID, prevVersionID,
@@ -317,11 +221,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		slog.Error("enqueue rebuild variants", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
 	}
 
-	// Reload asset to return latest state.
-	updatedAsset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	updatedAsset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
 	}
@@ -340,9 +240,13 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		Payload:     audit.AssetVersionUploadedPayload{V: 1, VersionNum: newVersion.VersionNum, Size: newVersion.Size, Comment: commentStr},
 	})
 
+	var createdBy *VersionCreatedByResponse
+	if newVersion.CreatedBy != nil {
+		createdBy = s.resolveCreator(c.RequestCtx(), *newVersion.CreatedBy)
+	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"version": s.buildVersionResponse(c.RequestCtx(), newVersion),
-		"asset":   assetToResponse(updatedAsset, nil),
+		"version": versionDTOToResponse(newVersion, createdBy),
+		"asset":   assetToResponse(dtoToDBAsset(updatedAsset), nil),
 	})
 }
 
@@ -360,24 +264,17 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
 // @Router /api/v1/assets/{id}/versions [get]
-// handleListAssetVersions handles GET /api/v1/assets/:id/versions
 func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+		return Respond(c, err)
 	}
 
-	versions, err := s.db.ListVersionsWithVariantCount(c.RequestCtx(), assetID)
+	versions, err := s.versions.ListWithVariantCount(c.RequestCtx(), assetID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list versions")
+		return Respond(c, err)
 	}
 
 	// Batch-resolve creator names to avoid N+1 queries.
@@ -386,7 +283,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 		if v.CreatedBy != nil {
 			if _, seen := userNames[*v.CreatedBy]; !seen {
 				userNames[*v.CreatedBy] = ""
-				if u, err := s.db.GetUserByID(c.RequestCtx(), *v.CreatedBy); err == nil {
+				if u, err := s.users.GetByID(c.RequestCtx(), *v.CreatedBy); err == nil {
 					userNames[*v.CreatedBy] = u.Name
 				}
 			}
@@ -402,7 +299,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 				Name: userNames[*v.CreatedBy],
 			}
 		}
-		resp[i] = buildVersionResponseWithCount(v, createdBy)
+		resp[i] = versionWithCountDTOToResponse(v, createdBy)
 	}
 	return c.JSON(resp)
 }
@@ -424,32 +321,19 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 // @Failure 409 {object} ErrorResponse "Version is already current"
 // @Failure 422 {object} ErrorResponse "Cannot restore a deleted version"
 // @Router /api/v1/assets/{id}/versions/{vid}/restore [post]
-// handleRestoreAssetVersion handles POST /api/v1/assets/:id/versions/:vid/restore
 func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	assetBeforeRestore, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	assetBeforeRestore, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
-	target, err := s.db.GetVersionByID(c.RequestCtx(), dbgen.GetVersionByIDParams{
-		ID:          versionID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "version not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load version")
+		return Respond(c, err)
 	}
 
 	if target.AssetID != assetID {
@@ -458,37 +342,26 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	if target.DeletedAt != nil {
 		return errRes(c, fiber.StatusUnprocessableEntity, "cannot restore a deleted version")
 	}
-	if target.IsCurrent == 1 {
+	if target.IsCurrent {
 		return errRes(c, fiber.StatusConflict, "version is already current")
 	}
 
-	if err := s.setCurrentVersion(c.RequestCtx(), assetID, versionID); err != nil {
+	if err := s.versions.SetCurrent(c.RequestCtx(), assetID, versionID); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not restore version")
 	}
 
-	// Sync the asset's thumbnail with the restored version's thumbnail.
-	if err := s.db.UpdateAssetThumbnail(c.RequestCtx(), dbgen.UpdateAssetThumbnailParams{
-		ThumbnailKey: target.ThumbnailKey,
-		ID:           assetID,
-	}); err != nil {
+	if err := s.versions.SetAssetThumbnail(c.RequestCtx(), assetID, target.ThumbnailKey); err != nil {
 		slog.Error("restore: sync thumbnail", "error", err)
 	}
 
-	updatedAsset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	updatedAsset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
 	}
 
-	// Record the version number we rolled back from (the previous current).
 	var fromVersionNum int64
 	if assetBeforeRestore.CurrentVersionID != nil {
-		if prev, err := s.db.GetVersionByID(c.RequestCtx(), dbgen.GetVersionByIDParams{
-			ID:          *assetBeforeRestore.CurrentVersionID,
-			WorkspaceID: claims.WorkspaceID,
-		}); err == nil {
+		if prev, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, *assetBeforeRestore.CurrentVersionID); err == nil {
 			fromVersionNum = prev.VersionNum
 		}
 	}
@@ -503,10 +376,14 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 		Payload:     audit.AssetVersionRestoredPayload{V: 1, FromVersionNum: fromVersionNum, ToVersionNum: target.VersionNum},
 	})
 
-	target.IsCurrent = 1
+	target.IsCurrent = true
+	var createdBy *VersionCreatedByResponse
+	if target.CreatedBy != nil {
+		createdBy = s.resolveCreator(c.RequestCtx(), *target.CreatedBy)
+	}
 	return c.JSON(fiber.Map{
-		"version": s.buildVersionResponse(c.RequestCtx(), target),
-		"asset":   assetToResponse(updatedAsset, nil),
+		"version": versionDTOToResponse(target, createdBy),
+		"asset":   assetToResponse(dtoToDBAsset(updatedAsset), nil),
 	})
 }
 
@@ -527,53 +404,26 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 // @Failure 409 {object} ErrorResponse "Version is in use as a cover/icon"
 // @Failure 422 {object} ErrorResponse "Cannot delete the current version"
 // @Router /api/v1/assets/{id}/versions/{vid} [delete]
-// handleDeleteAssetVersion handles DELETE /api/v1/assets/:id/versions/:vid
 func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+		return Respond(c, err)
 	}
 
-	target, err := s.db.GetVersionByID(c.RequestCtx(), dbgen.GetVersionByIDParams{
-		ID:          versionID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "version not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load version")
+		return Respond(c, err)
 	}
 
 	if target.AssetID != assetID {
 		return errRes(c, fiber.StatusNotFound, "version not found")
 	}
-	// Safety: never delete the current version.
-	if target.IsCurrent == 1 {
-		return errRes(c, fiber.StatusUnprocessableEntity,
-			"cannot delete the current version — restore another version first, then delete this one")
-	}
 
-	// Safety: block deletion if this version is in use as a project cover or workspace icon.
-	if refs, err := s.db.IsVersionReferencedAsCover(c.RequestCtx(), dbgen.IsVersionReferencedAsCoverParams{
-		CoverVersionID: &versionID,
-		IconVersionID:  &versionID,
-	}); err == nil && refs > 0 {
-		return errRes(c, fiber.StatusConflict,
-			"this version is in use as a project cover or workspace icon — update the cover first, then delete this version")
-	}
-
-	if err := s.db.SoftDeleteVersion(c.RequestCtx(), versionID); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete version")
+	if err := s.versions.Delete(c.RequestCtx(), claims.WorkspaceID, assetID, versionID); err != nil {
+		return Respond(c, err)
 	}
 
 	userID := claims.UserID
@@ -604,39 +454,25 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset, version, or file not found"
 // @Router /api/v1/assets/{id}/versions/{vid}/file [get]
-// handleGetVersionFile handles GET /api/v1/assets/:id/versions/:vid/file
 func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return Respond(c, err)
 	}
 
-	target, err := s.db.GetVersionByID(c.RequestCtx(), dbgen.GetVersionByIDParams{
-		ID:          versionID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "version not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load version")
+		return Respond(c, err)
 	}
 	if target.AssetID != assetID {
 		return errRes(c, fiber.StatusNotFound, "version not found")
 	}
 
-	versionLastMod := parseVersionTime(target.CreatedAt)
-	if setCacheHeaders(c, target.ContentHash, versionLastMod, true) {
+	if setCacheHeaders(c, target.ContentHash, target.CreatedAt, true) {
 		return nil
 	}
 
@@ -666,31 +502,18 @@ func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset, version, or thumbnail not ready"
 // @Router /api/v1/assets/{id}/versions/{vid}/thumb [get]
-// handleGetVersionThumb handles GET /api/v1/assets/:id/versions/:vid/thumb
 func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+		return Respond(c, err)
 	}
 
-	target, err := s.db.GetVersionByID(c.RequestCtx(), dbgen.GetVersionByIDParams{
-		ID:          versionID,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "version not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load version")
+		return Respond(c, err)
 	}
 	if target.AssetID != assetID {
 		return errRes(c, fiber.StatusNotFound, "version not found")
@@ -700,8 +523,7 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 	}
 
 	thumbETag := target.ID + "_thumb"
-	thumbLastMod := parseVersionTime(target.CreatedAt)
-	if setCacheHeaders(c, thumbETag, thumbLastMod, true) {
+	if setCacheHeaders(c, thumbETag, target.CreatedAt, true) {
 		return nil
 	}
 
@@ -716,10 +538,7 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 
 // --- thumbnail job helper ---
 
-// enqueueVersionThumbnail enqueues thumbnail generation for the given version.
-// The job handler updates asset_versions.thumbnail_key (not assets.thumbnail_key)
-// via a dedicated version thumbnail job type.
-func (s *Server) enqueueVersionThumbnail(ctx context.Context, asset dbgen.Asset, version dbgen.AssetVersion) {
+func (s *Server) enqueueVersionThumbnail(ctx context.Context, asset *service.AssetDTO, version *service.VersionDTO) {
 	payload := jobs.VersionThumbnailJobPayload{
 		AssetID:     asset.ID,
 		VersionID:   version.ID,

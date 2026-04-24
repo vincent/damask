@@ -9,7 +9,6 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
-	services "damask/server/internal/fileproc"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 
@@ -120,36 +119,14 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	user, err := s.db.GetUserByID(c.RequestCtx(), claims.UserID)
-	if err != nil {
-		return errRes(c, fiber.StatusNotFound, "user not found")
-	}
-
 	req, ok := decodeAndValidate(c, &CreateWorkspaceRequest{})
 	if !ok {
 		return nil
 	}
 
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
+	ws, err := s.users.CreateWorkspace(c.RequestCtx(), claims.UserID, req.Name)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback()
-
-	qtx := s.db.WithTx(tx)
-
-	workspace, err := services.CreateWorkspaceForUser(c.RequestCtx(), qtx, req.Name, user.ID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create workspace")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
-	}
-
-	ws, err := s.workspace.Get(c.RequestCtx(), workspace.ID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
+		return Respond(c, err)
 	}
 	wr := workspaceDTOToResponse(ws)
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Workspace: &wr})
@@ -601,7 +578,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		slog.ErrorContext(c.RequestCtx(), "failed to send welcome mail", "error", err)
 	}
 
-	if inviter, err := s.db.GetUserByID(c.RequestCtx(), result.InviterID); err == nil {
+	if inviter, err := s.users.GetByID(c.RequestCtx(), result.InviterID); err == nil {
 		if err := s.mailer.SendInviteAccepted(c.RequestCtx(), inviter.Email, result.UserName, result.UserEmail, result.InviteRole); err != nil {
 			slog.ErrorContext(c.RequestCtx(), "failed to send invite accepted mail", "error", err)
 		}
@@ -612,11 +589,9 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
 
-	user, err := s.db.GetUserByID(c.RequestCtx(), result.UserID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load user")
-	}
-
 	s.setAuthCookie(c, token)
-	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Token: token, User: userToResponse(user)})
+	return c.Status(fiber.StatusCreated).JSON(AuthResponse{
+		Token: token,
+		User:  UserResponse{ID: result.UserID, Email: result.UserEmail, Name: result.UserName},
+	})
 }

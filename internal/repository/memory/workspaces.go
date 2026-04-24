@@ -19,6 +19,7 @@ type RealWorkspaceRepo struct {
 	members    map[string]repository.Member // key: workspaceID+":"+userID
 	invites    map[string]repository.Invite // key: invite ID
 	userWS     map[string][]string          // userID -> []workspaceID
+	userRepo   repository.UserRepository    // injected for RunRegistrationTx
 }
 
 func NewRealWorkspaceRepo() *RealWorkspaceRepo {
@@ -28,6 +29,11 @@ func NewRealWorkspaceRepo() *RealWorkspaceRepo {
 		invites:    make(map[string]repository.Invite),
 		userWS:     make(map[string][]string),
 	}
+}
+
+// SetUserRepo wires the UserRepository used by RunRegistrationTx.
+func (r *RealWorkspaceRepo) SetUserRepo(u repository.UserRepository) {
+	r.userRepo = u
 }
 
 func (r *RealWorkspaceRepo) Seed(workspaces ...repository.Workspace) {
@@ -45,6 +51,13 @@ func (r *RealWorkspaceRepo) GetByID(_ context.Context, id string) (repository.Wo
 	if !ok {
 		return repository.Workspace{}, fmt.Errorf("workspace %q: %w", id, apperr.ErrNotFound)
 	}
+	return ws, nil
+}
+
+func (r *RealWorkspaceRepo) Create(_ context.Context, ws repository.Workspace) (repository.Workspace, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.workspaces[ws.ID] = ws
 	return ws, nil
 }
 
@@ -195,4 +208,17 @@ func (r *RealWorkspaceRepo) ListByUserID(_ context.Context, userID string) ([]re
 		}
 	}
 	return out, nil
+}
+
+// RunInTx runs fn with the same repo (memory is already serialised; no real tx needed).
+func (r *RealWorkspaceRepo) RunInTx(_ context.Context, fn func(repository.WorkspaceRepository) error) error {
+	return fn(r)
+}
+
+// RunRegistrationTx runs fn with the same repo instances (memory is already atomic).
+func (r *RealWorkspaceRepo) RunRegistrationTx(_ context.Context, fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error) error {
+	// The caller must supply the user repo; here we use an inline no-op stub that
+	// delegates back to whatever real user repo is in use. Since memory tests inject
+	// a RealUserRepo, we need access to it. We expose a SetUserRepo method for that.
+	return fn(context.Background(), r.userRepo, r)
 }

@@ -53,8 +53,14 @@ func (r *TagRepo) Delete(_ context.Context, _ string, _ []string) error { return
 func (r *TagRepo) ListForAsset(_ context.Context, _ string) ([]repository.Tag, error) {
 	return nil, nil
 }
-func (r *TagRepo) AddToAsset(_ context.Context, _, _ string) error    { return nil }
+func (r *TagRepo) AddToAsset(_ context.Context, _, _ string) error         { return nil }
 func (r *TagRepo) RemoveFromAsset(_ context.Context, _, _, _ string) error { return nil }
+func (r *TagRepo) CountAssets(_ context.Context, _ string) (int64, error)  { return 0, nil }
+func (r *TagRepo) ReassignAssets(_ context.Context, _, _ string) error     { return nil }
+func (r *TagRepo) TouchLastUsed(_ context.Context, _, _ string) error      { return nil }
+func (r *TagRepo) RunInTx(_ context.Context, fn func(repository.TagRepository) error) error {
+	return fn(r)
+}
 
 // CollectionRepo -----------------------------------------------------------
 
@@ -81,6 +87,9 @@ func (r *CollectionRepo) ListForAsset(_ context.Context, _, _ string) ([]reposit
 	return nil, nil
 }
 func (r *CollectionRepo) CountAssets(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *CollectionRepo) ListAssetIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
 
 // ShareRepo ----------------------------------------------------------------
 
@@ -160,6 +169,9 @@ func NewWorkspaceRepo() *WorkspaceRepo { return &WorkspaceRepo{} }
 func (r *WorkspaceRepo) GetByID(_ context.Context, _ string) (repository.Workspace, error) {
 	return repository.Workspace{}, nil
 }
+func (r *WorkspaceRepo) Create(_ context.Context, w repository.Workspace) (repository.Workspace, error) {
+	return w, nil
+}
 func (r *WorkspaceRepo) Update(_ context.Context, w repository.Workspace) (repository.Workspace, error) {
 	return w, nil
 }
@@ -188,6 +200,12 @@ func (r *WorkspaceRepo) AcceptInvite(_ context.Context, _ string) error     { re
 func (r *WorkspaceRepo) ListByUserID(_ context.Context, _ string) ([]repository.WorkspaceWithRole, error) {
 	return nil, nil
 }
+func (r *WorkspaceRepo) RunInTx(_ context.Context, fn func(repository.WorkspaceRepository) error) error {
+	return fn(r)
+}
+func (r *WorkspaceRepo) RunRegistrationTx(_ context.Context, fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error) error {
+	return fn(context.Background(), &UserRepo{}, r)
+}
 
 // UserRepo -----------------------------------------------------------------
 
@@ -206,4 +224,7 @@ func (r *UserRepo) Create(_ context.Context, u repository.User) (repository.User
 }
 func (r *UserRepo) Update(_ context.Context, u repository.User) (repository.User, error) {
 	return u, nil
+}
+func (r *UserRepo) RunInTx(_ context.Context, fn func(repository.UserRepository) error) error {
+	return fn(r)
 }

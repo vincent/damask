@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
@@ -159,22 +158,14 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if _, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+	stats, err := s.fields.GetStats(c.RequestCtx(), claims.WorkspaceID, id)
+	if err != nil {
 		return Respond(c, err)
 	}
 
-	assetCount, err := s.db.CountFieldDefinitionAssetValues(c.RequestCtx(), id)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not count asset values")
-	}
-	projectCount, err := s.db.CountFieldDefinitionProjectValues(c.RequestCtx(), id)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not count project values")
-	}
-
 	return c.JSON(FieldDefinitionStatsResponse{
-		AssetCount:   assetCount,
-		ProjectCount: projectCount,
+		AssetCount:   stats.AssetCount,
+		ProjectCount: stats.ProjectCount,
 	})
 }
 
@@ -281,13 +272,11 @@ func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 		return nil
 	}
 
-	for _, item := range body.Items {
-		_ = s.db.UpdateFieldDefinitionPosition(c.RequestCtx(), dbgen.UpdateFieldDefinitionPositionParams{
-			Position:    item.Position,
-			ID:          item.ID,
-			WorkspaceID: claims.WorkspaceID,
-		})
+	items := make([]service.ReorderFieldItem, len(body.Items))
+	for i, item := range body.Items {
+		items[i] = service.ReorderFieldItem{ID: item.ID, Position: item.Position}
 	}
+	_ = s.fields.Reorder(c.RequestCtx(), claims.WorkspaceID, items)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

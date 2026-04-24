@@ -45,11 +45,14 @@ type Server struct {
 	tags         service.TagService
 	collections  service.CollectionService
 	shares       service.ShareService
-	fields       service.FieldService
-	versions     service.VersionService
+	fields        service.FieldService
+	assetFields   service.AssetFieldService
+	projectFields service.ProjectFieldService
+	versions      service.VersionService
 	variants     service.VariantService
 	auditLog     service.AuditLogService
 	workspace    service.WorkspaceService
+	users        service.UserService
 	ingressSvc   service.IngressService
 	stack        service.StackService
 }
@@ -77,19 +80,22 @@ func NewHttpServer(
 		cfg:          cfg,
 		audit:        audit.New(sqlDB),
 		demo:         demoSeeder,
-		assets:       service.NewAssetService(reposqlc.NewAssetRepo(db)),
+		assets:       service.NewAssetService(reposqlc.NewAssetRepo(db, sqlDB)),
 		projects:     service.NewProjectService(reposqlc.NewProjectRepo(db)),
 		folders:      service.NewFolderService(reposqlc.NewFolderRepo(db, sqlDB)),
-		tags:         service.NewTagService(reposqlc.NewTagRepo(db)),
-		collections:  service.NewCollectionService(reposqlc.NewCollectionRepo(db, sqlDB)),
+		tags:         service.NewTagService(reposqlc.NewTagRepo(db, sqlDB)),
+		collections:  service.NewCollectionService(reposqlc.NewCollectionRepo(db, sqlDB), reposqlc.NewAssetRepo(db, sqlDB)),
 		shares:       service.NewShareService(reposqlc.NewShareRepo(db)),
-		fields:       service.NewFieldService(reposqlc.NewFieldRepo(db)),
-		versions:     service.NewVersionService(reposqlc.NewVersionRepo(db)),
-		variants:     service.NewVariantService(reposqlc.NewVariantRepo(db), reposqlc.NewAssetRepo(db)),
+		fields:        service.NewFieldService(reposqlc.NewFieldRepo(db)),
+		assetFields:   service.NewAssetFieldService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewFieldRepo(db), reposqlc.NewAssetFieldRepo(db, sqlDB)),
+		projectFields: service.NewProjectFieldService(reposqlc.NewProjectRepo(db), reposqlc.NewFieldRepo(db), reposqlc.NewProjectFieldRepo(db)),
+		versions:      service.NewVersionService(reposqlc.NewVersionRepo(db, sqlDB)),
+		variants:     service.NewVariantService(reposqlc.NewVariantRepo(db), reposqlc.NewAssetRepo(db, sqlDB)),
 		auditLog:     service.NewAuditLogService(db),
-		workspace:    service.NewWorkspaceService(reposqlc.NewWorkspaceRepo(db), reposqlc.NewUserRepo(db)),
+		workspace:    service.NewWorkspaceService(reposqlc.NewWorkspaceRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB)),
+		users:        service.NewUserService(reposqlc.NewUserRepo(db, sqlDB), reposqlc.NewWorkspaceRepo(db, sqlDB)),
 		ingressSvc:   service.NewIngressService(db, cfg.AppSecret, q, mailer),
-		stack:        service.NewStackService(reposqlc.NewAssetRepo(db), reposqlc.NewVersionRepo(db), stor, q),
+		stack:        service.NewStackService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewVersionRepo(db, sqlDB), stor, q),
 	}
 }
 

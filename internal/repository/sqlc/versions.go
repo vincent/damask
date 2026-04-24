@@ -12,12 +12,13 @@ import (
 )
 
 type versionRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB
 }
 
 // NewVersionRepo returns a repository.VersionRepository backed by sqlc-generated queries.
-func NewVersionRepo(q *dbgen.Queries) repository.VersionRepository {
-	return &versionRepo{q: q}
+func NewVersionRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.VersionRepository {
+	return &versionRepo{q: q, sqlDB: sqlDB}
 }
 
 func (r *versionRepo) GetByID(ctx context.Context, id string) (repository.AssetVersion, error) {
@@ -112,6 +113,93 @@ func (r *versionRepo) IsReferencedAsCover(ctx context.Context, versionID string)
 
 func (r *versionRepo) CountByAsset(ctx context.Context, assetID string) (int64, error) {
 	return r.q.CountActiveVersions(ctx, assetID)
+}
+
+func (r *versionRepo) GetByHash(ctx context.Context, assetID, contentHash string) (repository.AssetVersion, error) {
+	row, err := r.q.GetVersionByHash(ctx, dbgen.GetVersionByHashParams{
+		AssetID:     assetID,
+		ContentHash: contentHash,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.AssetVersion{}, apperr.ErrNotFound
+		}
+		return repository.AssetVersion{}, err
+	}
+	return toVersion(row), nil
+}
+
+func (r *versionRepo) NextVersionNum(ctx context.Context, assetID string) (int64, error) {
+	var maxNum sql.NullInt64
+	err := r.sqlDB.QueryRowContext(ctx,
+		`SELECT MAX(version_num) FROM asset_versions WHERE asset_id = ?`, assetID,
+	).Scan(&maxNum)
+	if err != nil {
+		return 0, err
+	}
+	return maxNum.Int64 + 1, nil
+}
+
+func (r *versionRepo) SetCurrent(ctx context.Context, assetID, versionID string) error {
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	qtx := r.q.WithTx(tx)
+	if err := qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
+		return err
+	}
+	if err := qtx.SetCurrentVersionFlag(ctx, versionID); err != nil {
+		return err
+	}
+	if err := qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
+		CurrentVersionID: &versionID,
+		ID:               assetID,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *versionRepo) SetAssetThumbnail(ctx context.Context, assetID string, key *string) error {
+	return r.q.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+		ThumbnailKey: key,
+		ID:           assetID,
+	})
+}
+
+func (r *versionRepo) ListWithVariantCount(ctx context.Context, assetID string) ([]repository.AssetVersionWithCount, error) {
+	rows, err := r.q.ListVersionsWithVariantCount(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.AssetVersionWithCount, len(rows))
+	for i, row := range rows {
+		out[i] = repository.AssetVersionWithCount{
+			AssetVersion: repository.AssetVersion{
+				ID:           row.ID,
+				AssetID:      row.AssetID,
+				WorkspaceID:  row.WorkspaceID,
+				VersionNum:   row.VersionNum,
+				StorageKey:   row.StorageKey,
+				ContentHash:  row.ContentHash,
+				MimeType:     row.MimeType,
+				Size:         row.Size,
+				Width:        row.Width,
+				Height:       row.Height,
+				DurationSec:  row.DurationSec,
+				ThumbnailKey: row.ThumbnailKey,
+				Comment:      row.Comment,
+				CreatedBy:    row.CreatedBy,
+				CreatedAt:    parseVersionTime(row.CreatedAt),
+				IsCurrent:    row.IsCurrent != 0,
+				DeletedAt:    row.DeletedAt,
+			},
+			VariantCount: row.VariantCount,
+		}
+	}
+	return out, nil
 }
 
 func toVersion(v dbgen.AssetVersion) repository.AssetVersion {
