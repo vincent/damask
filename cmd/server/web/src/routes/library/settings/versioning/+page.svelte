@@ -55,7 +55,7 @@
 
 <div class="flex-1 overflow-y-auto">
   <PageHeader title={m.version_history()} description={m.version_history_page_description()} />
-  <div class="mx-auto w-full max-w-3xl px-8 py-10 space-y-8">
+  <div class="mx-auto w-full max-w-4xl px-8 py-10 space-y-8">
 
     {#if authStore.role !== 'owner'}
       <p class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-md text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">

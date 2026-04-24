@@ -54,7 +54,7 @@
     <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1.5 truncate">{description}</p>
 
     {#if connected && (setupSourceHref || onDisconnect)}
-      <div class="mt-2 flex flex-wrap items-center gap-3">
+      <div class="mt-4 flex flex-wrap items-center gap-3">
         {#if !confirming}
           <button
             onclick={() => (confirming = true)}

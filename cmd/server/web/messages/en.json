@@ -572,5 +572,6 @@
   "back_to_library": "Back to Library",
   "user_profile": "User profile",
   "privacy_audit_logs": "Privacy & audit logs",
-  "ingress_description": "Connect sources to automatically import assets from"
+  "ingress_description": "Connect sources to automatically import assets from",
+  "group": "Group"
 }

@@ -31,7 +31,7 @@
 <div class="flex-1 overflow-y-auto">
   <PageHeader title={m.integrations_title()} description={m.integrations_subtitle()} />
 
-  <div class="mx-auto w-full max-w-3xl px-8 py-8">
+  <div class="mx-auto w-full max-w-4xl px-8 py-8">
     {#if loading}
       <div class="space-y-3">
         {#each [0, 1] as _}

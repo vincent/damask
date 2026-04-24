@@ -38,16 +38,16 @@
 
   const settingsSections = [
     { id: 'members',       label: () => m.tab_members(),                 path: '/library/settings/members',       icon: Users },
+    { id: 'tags',          label: () => m.tags(),                           path: '/library/settings/tags',          icon: Tag },
+    { id: 'custom-fields', label: () => m.custom_fields_title(),   path: '/library/settings/custom-fields', icon: Settings2 },
     { id: 'ingress',       label: () => m.tab_ingress(),                 path: '/library/settings/ingress',       icon: Download },
     { id: 'integrations',  label: () => m.integrations_title(),     path: '/library/settings/integrations',  icon: Plug },
     { id: 'versioning',    label: () => m.tab_history(),                 path: '/library/settings/versioning',    icon: History },
-    { id: 'custom-fields', label: () => m.custom_fields_title(),   path: '/library/settings/custom-fields', icon: Settings2 },
-    { id: 'tags',          label: () => m.tags(),                           path: '/library/settings/tags',          icon: Tag },
   ]
   
   const securitySections = [
     { id: 'privacy',       label: () => m.tab_exif_privacy(),     path: '/library/settings/privacy',       icon: Shield },
-    { id: 'activity',      label: () => m.activity(),                   path: '/library/settings/activity',               icon: Activity },
+    { id: 'activity',      label: () => m.activity(),                   path: '/library/settings/activity',      icon: Activity },
   ]
 
   const isSettings = $derived(page.url.pathname.startsWith('/library/settings'))

@@ -59,7 +59,7 @@
   </PageHeader>
   <div class="flex overflow-y-auto">
     <!-- Source list -->
-    <main class="flex-1 mx-auto px-6 py-6">
+    <main class="flex-1 mx-auto mb-20 px-6 py-6">
       {#if ingressStore.loadingSources}
         <GridSkeleton lines={4} />
 
@@ -93,12 +93,6 @@
               />
             </button>
           {/each}
-        </div>
-        <div class="mt-4 flex justify-center">
-          <Button variant="primary" onclick={() => { showAddModal = true }}>
-            {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-            {m.add_ingress_source()}
-          </Button>
         </div>
       {/if}
     </main>

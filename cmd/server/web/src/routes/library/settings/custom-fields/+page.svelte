@@ -131,76 +131,68 @@
 
   <!-- Field list -->
   <div class="flex-1 overflow-y-auto px-6 py-4">
-    {#if customFieldsStore.loading}
-      <div class="flex justify-center py-16">
-        <Spinner size="md" />
-      </div>
-    {:else if fields.length === 0}
-      <EmptyState
-        title="No {activeScope} fields yet"
-        description="Add custom metadata fields to collect structured data on your {activeScope === 'asset' ? 'assets' : 'projects'}."
-      />
-    {:else}
-      <ul class="space-y-2">
-        {#each fields as field, i (field.id)}
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-          <li
-            class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 transition-colors dark:bg-gray-900
-              {dragOverIndex === i ? 'border-indigo-400 dark:border-indigo-500' : 'border-gray-200 dark:border-gray-700'}"
-            draggable="true"
-            ondragstart={() => dragStart(i)}
-            ondragover={(e) => dragOver(e, i)}
-            ondrop={drop}
-            ondragend={() => { dragIndex = null; dragOverIndex = null }}
-          >
-            <!-- Drag handle -->
-            <GripVertical class="h-4 w-4 shrink-0 cursor-grab text-gray-300 dark:text-gray-600" />
+    <div class="mx-auto w-full max-w-4xl">
+      {#if customFieldsStore.loading}
+        <div class="flex justify-center py-16">
+          <Spinner size="md" />
+        </div>
+      {:else if fields.length === 0}
+        <EmptyState
+          title="No {activeScope} fields yet"
+          description="Add custom metadata fields to collect structured data on your {activeScope === 'asset' ? 'assets' : 'projects'}."
+        />
+      {:else}
+        <p class="my-3 text-sm text-gray-400 dark:text-gray-600">{m.drag_row_reorder()}</p>
+        <ul class="space-y-3">
+          {#each fields as field, i (field.id)}
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <li
+              class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 transition-colors dark:bg-gray-900
+                {dragOverIndex === i ? 'border-indigo-400 dark:border-indigo-500' : 'border-gray-200 dark:border-gray-700'}"
+              draggable="true"
+              ondragstart={() => dragStart(i)}
+              ondragover={(e) => dragOver(e, i)}
+              ondrop={drop}
+              ondragend={() => { dragIndex = null; dragOverIndex = null }}
+            >
+              <!-- Drag handle -->
+              <GripVertical class="h-4 w-4 shrink-0 cursor-grab text-gray-300 dark:text-gray-600" />
 
-            <!-- Field info -->
-            <div class="flex flex-1 flex-wrap items-center gap-2 min-w-0">
-              <span class="text-md font-medium text-gray-900 dark:text-gray-100">{field.name}</span>
-              <Badge>{fieldTypeBadge(field.field_type)}</Badge>
-              <span class="font-mono text-[11px] text-gray-400 dark:text-gray-500">{field.key}</span>
-              {#if field.required}
-                <span class="text-[11px] font-medium text-orange-500 dark:text-orange-400">{m.required()}</span>
-              {/if}
-              {#if field.inherit_from_project && activeScope === 'asset'}
-                <span class="text-[11px] text-gray-400 dark:text-gray-500">{m.auto_fill_assets()}</span>
-              {/if}
-            </div>
-
-            <!-- Options preview for select -->
-            {#if field.field_type === 'select' && field.options}
-              {@const opts = JSON.parse(field.options) as string[]}
-              <div class="flex flex-wrap gap-1">
-                {#each opts.slice(0, 4) as opt}
-                  <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">{opt}</span>
-                {/each}
-                {#if opts.length > 4}
-                  <span class="text-[11px] text-gray-400">+{opts.length - 4}</span>
+              <!-- Field info -->
+              <div class="flex flex-1 flex-wrap items-center gap-2 min-w-0">
+                <span class="text-md font-medium text-gray-900 dark:text-gray-100">{field.name}</span>
+                <Badge>{fieldTypeBadge(field.field_type)}</Badge>
+                <span class="font-mono text-[11px] text-gray-400 dark:text-gray-500">{field.key}</span>
+                {#if field.required}
+                  <span class="text-[11px] font-medium text-orange-500 dark:text-orange-400">{m.required()}</span>
+                {/if}
+                {#if field.inherit_from_project && activeScope === 'asset'}
+                  <span class="text-[11px] text-gray-400 dark:text-gray-500">{m.auto_fill_assets()}</span>
                 {/if}
               </div>
-            {/if}
 
-            <!-- Actions -->
-            <div class="flex shrink-0 items-center gap-1">
-              <ButtonEdit title="{m.edit()} {field.name}" onclick={() => handleEdit(field)} />
-              <ButtonDelete title="{m.delete()} {field.name}" onclick={() => handleDelete(field)} />
-            </div>
-          </li>
-        {/each}
-      </ul>
-      <p class="mt-3 text-sm text-gray-400 dark:text-gray-600">{m.drag_row_reorder()}</p>
-    {/if}
+              <!-- Options preview for select -->
+              {#if field.field_type === 'select' && field.options}
+                {@const opts = JSON.parse(field.options) as string[]}
+                <div class="flex flex-wrap gap-1">
+                  {#each opts.slice(0, 4) as opt}
+                    <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">{opt}</span>
+                  {/each}
+                  {#if opts.length > 4}
+                    <span class="text-[11px] text-gray-400">+{opts.length - 4}</span>
+                  {/if}
+                </div>
+              {/if}
 
-    <div class="flex justify-center items-center">
-      <button
-        class="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-md font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-        onclick={() => { editingField = null; showCreateModal = true }}
-      >
-        <Plus class="h-4 w-4" />
-        {m.add_field()}
-      </button>
+              <!-- Actions -->
+              <div class="flex shrink-0 items-center gap-1">
+                <ButtonEdit title="{m.edit()} {field.name}" onclick={() => handleEdit(field)} />
+                <ButtonDelete title="{m.delete()} {field.name}" onclick={() => handleDelete(field)} />
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
     </div>
   </div>
 </PageContainer>
