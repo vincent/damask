@@ -47,13 +47,14 @@ func (r *TagRepo) List(_ context.Context, _ string) ([]repository.Tag, error) { 
 func (r *TagRepo) Upsert(_ context.Context, _, _ string) (repository.Tag, error) {
 	return repository.Tag{}, nil
 }
-func (r *TagRepo) Rename(_ context.Context, _, _, _ string) error  { return nil }
+func (r *TagRepo) UpdateMetadata(_ context.Context, _, _ string, _, _ *string) error { return nil }
+func (r *TagRepo) Rename(_ context.Context, _, _, _ string) error                     { return nil }
 func (r *TagRepo) Delete(_ context.Context, _ string, _ []string) error { return nil }
 func (r *TagRepo) ListForAsset(_ context.Context, _ string) ([]repository.Tag, error) {
 	return nil, nil
 }
 func (r *TagRepo) AddToAsset(_ context.Context, _, _ string) error    { return nil }
-func (r *TagRepo) RemoveFromAsset(_ context.Context, _, _ string) error { return nil }
+func (r *TagRepo) RemoveFromAsset(_ context.Context, _, _, _ string) error { return nil }
 
 // CollectionRepo -----------------------------------------------------------
 

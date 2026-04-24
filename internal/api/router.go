@@ -13,7 +13,7 @@ import (
 	"damask/server/internal/events"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
-	"damask/server/internal/repository/sqlc"
+	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 
@@ -40,6 +40,9 @@ type Server struct {
 	audit        *audit.EventWriter
 	demo         DemoSeeder // nil when demo build tag is not set
 	assets       service.AssetService
+	projects     service.ProjectService
+	folders      service.FolderService
+	tags         service.TagService
 }
 
 func NewHttpServer(
@@ -66,6 +69,9 @@ func NewHttpServer(
 		audit:        audit.New(sqlDB),
 		demo:         demoSeeder,
 		assets:       service.NewAssetService(reposqlc.NewAssetRepo(db)),
+		projects:     service.NewProjectService(reposqlc.NewProjectRepo(db)),
+		folders:      service.NewFolderService(reposqlc.NewFolderRepo(db, sqlDB)),
+		tags:         service.NewTagService(reposqlc.NewTagRepo(db)),
 	}
 }
 

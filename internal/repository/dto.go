@@ -53,6 +53,7 @@ type Tag struct {
 	Name        string
 	Color       *string
 	GroupName   *string
+	AssetCount  int64
 	CreatedAt   time.Time
 	LastUsedAt  *time.Time
 }

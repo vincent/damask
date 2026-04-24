@@ -12,12 +12,13 @@ import (
 )
 
 type folderRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB
 }
 
 // NewFolderRepo returns a repository.FolderRepository backed by sqlc-generated queries.
-func NewFolderRepo(q *dbgen.Queries) repository.FolderRepository {
-	return &folderRepo{q: q}
+func NewFolderRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.FolderRepository {
+	return &folderRepo{q: q, sqlDB: sqlDB}
 }
 
 func (r *folderRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Folder, error) {
@@ -35,20 +36,25 @@ func (r *folderRepo) GetByID(ctx context.Context, workspaceID, id string) (repos
 }
 
 func (r *folderRepo) ListByProject(ctx context.Context, workspaceID, projectID string) ([]repository.Folder, error) {
-	rows, err := r.q.GetFolderChildren(ctx, dbgen.GetFolderChildrenParams{
-		ParentID:    nil,
-		WorkspaceID: workspaceID,
-	})
+	sqlRows, err := r.sqlDB.QueryContext(ctx,
+		`SELECT id, workspace_id, project_id, parent_id, name, slug, position, created_at
+		 FROM folders WHERE workspace_id = ? AND project_id = ? ORDER BY position, name`,
+		workspaceID, projectID,
+	)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]repository.Folder, 0, len(rows))
-	for _, row := range rows {
-		if row.ProjectID == projectID {
-			out = append(out, toFolder(row))
+	defer sqlRows.Close()
+
+	var out []repository.Folder
+	for sqlRows.Next() {
+		var f dbgen.Folder
+		if err := sqlRows.Scan(&f.ID, &f.WorkspaceID, &f.ProjectID, &f.ParentID, &f.Name, &f.Slug, &f.Position, &f.CreatedAt); err != nil {
+			return nil, err
 		}
+		out = append(out, toFolder(f))
 	}
-	return out, nil
+	return out, sqlRows.Err()
 }
 
 func (r *folderRepo) Create(ctx context.Context, f repository.Folder) (repository.Folder, error) {

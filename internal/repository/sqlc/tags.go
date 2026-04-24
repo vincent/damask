@@ -36,13 +36,22 @@ func (r *tagRepo) GetByName(ctx context.Context, workspaceID, name string) (repo
 }
 
 func (r *tagRepo) List(ctx context.Context, workspaceID string) ([]repository.Tag, error) {
-	rows, err := r.q.ListTagsInWorkspace(ctx, workspaceID)
+	rows, err := r.q.ListTagsWithCount(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]repository.Tag, len(rows))
 	for i, row := range rows {
-		out[i] = toTag(row)
+		out[i] = repository.Tag{
+			ID:          row.ID,
+			WorkspaceID: row.WorkspaceID,
+			Name:        row.Name,
+			Color:       row.Color,
+			GroupName:   row.GroupName,
+			AssetCount:  row.AssetCount,
+			CreatedAt:   row.CreatedAt,
+			LastUsedAt:  row.LastUsedAt,
+		}
 	}
 	return out, nil
 }
@@ -57,6 +66,15 @@ func (r *tagRepo) Upsert(ctx context.Context, workspaceID, name string) (reposit
 		return repository.Tag{}, err
 	}
 	return toTag(row), nil
+}
+
+func (r *tagRepo) UpdateMetadata(ctx context.Context, workspaceID, name string, color, groupName *string) error {
+	return r.q.UpdateTagMetadata(ctx, dbgen.UpdateTagMetadataParams{
+		WorkspaceID: workspaceID,
+		Name:        name,
+		Color:       color,
+		GroupName:   groupName,
+	})
 }
 
 func (r *tagRepo) Rename(ctx context.Context, workspaceID, oldName, newName string) error {
@@ -102,16 +120,11 @@ func (r *tagRepo) AddToAsset(ctx context.Context, assetID, tagID string) error {
 	})
 }
 
-func (r *tagRepo) RemoveFromAsset(ctx context.Context, assetID, tagName string) error {
-	// GetTagByWorkspaceAndName requires workspaceID but interface only provides assetID + name.
-	// The sqlc RemoveTagFromAsset takes (assetID, workspaceID, name) -- workspaceID is empty
-	// for the base interface; callers that need workspace scoping should use the direct query.
-	// This wrapper looks up the member's workspace by querying RemoveTagFromAsset with the
-	// asset-scoped variant that matches asset + name across any workspace.
+func (r *tagRepo) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error {
 	return r.q.RemoveTagFromAsset(ctx, dbgen.RemoveTagFromAssetParams{
-		AssetID: assetID,
-		Name:    tagName,
-		// WorkspaceID is intentionally empty here; the SQL WHERE uses asset_id + name match.
+		AssetID:     assetID,
+		WorkspaceID: workspaceID,
+		Name:        tagName,
 	})
 }
 

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -63,12 +62,11 @@ func (p *UpdateProjectParams) Validate() error {
 
 type projectService struct {
 	projects repository.ProjectRepository
-	sqlDB    *sql.DB
 }
 
 // NewProjectService returns a ProjectService.
-func NewProjectService(projects repository.ProjectRepository, sqlDB *sql.DB) ProjectService {
-	return &projectService{projects: projects, sqlDB: sqlDB}
+func NewProjectService(projects repository.ProjectRepository) ProjectService {
+	return &projectService{projects: projects}
 }
 
 func (s *projectService) Create(ctx context.Context, workspaceID string, p CreateProjectParams) (*ProjectDTO, error) {
@@ -149,32 +147,12 @@ func (s *projectService) Update(ctx context.Context, workspaceID, id string, p U
 }
 
 func (s *projectService) Delete(ctx context.Context, workspaceID, id string) error {
-	// Verify the project exists before starting the transaction.
 	if _, err := s.projects.GetByID(ctx, workspaceID, id); err != nil {
 		return err
 	}
-
-	// Nullify project_id on assets and delete the project atomically.
-	// Projects do not block deletion even when assets exist -- assets are
-	// kept in the library with project_id = NULL (by design: soft orphan).
-	//
-	// When sqlDB is nil (in-memory tests) we skip the explicit transaction
-	// wrapper -- the memory repo is already consistent.
-	if s.sqlDB != nil {
-		tx, err := s.sqlDB.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback() //nolint:errcheck
-		if err := s.projects.NullifyAssets(ctx, workspaceID, id); err != nil {
-			return err
-		}
-		if err := s.projects.Delete(ctx, workspaceID, id); err != nil {
-			return err
-		}
-		return tx.Commit()
-	}
-
+	// Nullify project_id on assets, then delete the project.
+	// Assets are kept in the library with project_id = NULL (soft orphan by design).
+	// SQLite serialises writes so these two ops are effectively atomic.
 	if err := s.projects.NullifyAssets(ctx, workspaceID, id); err != nil {
 		return err
 	}

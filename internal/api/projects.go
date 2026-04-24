@@ -1,41 +1,40 @@
 package api
 
 import (
-	"database/sql"
-	"errors"
 	"time"
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 type ProjectResponse struct {
-	ID           string    `json:"id"`
-	WorkspaceID  string    `json:"workspace_id"`
-	Name         string    `json:"name"`
-	Description  *string   `json:"description"`
-	Color        *string   `json:"color"`
-	CoverAssetID *string   `json:"cover_asset_id"`
-	AssetCount   int64     `json:"asset_count"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             string    `json:"id"`
+	WorkspaceID    string    `json:"workspace_id"`
+	Name           string    `json:"name"`
+	Description    *string   `json:"description"`
+	Color          *string   `json:"color"`
+	CoverAssetID   *string   `json:"cover_asset_id"`
+	CoverVersionID *string   `json:"cover_version_id"`
+	AssetCount     int64     `json:"asset_count"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-func projectToResponse(p dbgen.Project, assetCount int64) ProjectResponse {
+func projectDTOToResponse(d *service.ProjectDTO) ProjectResponse {
 	return ProjectResponse{
-		ID:           p.ID,
-		WorkspaceID:  p.WorkspaceID,
-		Name:         p.Name,
-		Description:  p.Description,
-		Color:        p.Color,
-		CoverAssetID: p.CoverAssetID,
-		AssetCount:   assetCount,
-		CreatedAt:    p.CreatedAt,
-		UpdatedAt:    p.UpdatedAt,
+		ID:             d.ID,
+		WorkspaceID:    d.WorkspaceID,
+		Name:           d.Name,
+		Description:    d.Description,
+		Color:          d.Color,
+		CoverAssetID:   d.CoverAssetID,
+		CoverVersionID: d.CoverVersionID,
+		AssetCount:     d.AssetCount,
+		CreatedAt:      d.CreatedAt,
+		UpdatedAt:      d.UpdatedAt,
 	}
 }
 
@@ -60,28 +59,26 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 		return nil
 	}
 
-	p, err := s.db.CreateProject(c.RequestCtx(), dbgen.CreateProjectParams{
-		ID:          uuid.NewString(),
-		WorkspaceID: claims.WorkspaceID,
+	dto, err := s.projects.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateProjectParams{
 		Name:        body.Name,
 		Description: body.Description,
 		Color:       body.Color,
 	})
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create project")
+		return Respond(c, err)
 	}
 
 	userID := claims.UserID
 	s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
 		WorkspaceID: claims.WorkspaceID,
-		ProjectID:   p.ID,
+		ProjectID:   dto.ID,
 		UserID:      &userID,
 		ActorType:   audit.ActorTypeUser,
 		EventType:   audit.EventProjectCreated,
-		Payload:     audit.ProjectCreatedPayload{V: 1, Name: p.Name},
+		Payload:     audit.ProjectCreatedPayload{V: 1, Name: dto.Name},
 	})
 
-	return c.Status(fiber.StatusCreated).JSON(projectToResponse(p, 0))
+	return c.Status(fiber.StatusCreated).JSON(projectDTOToResponse(dto))
 }
 
 // handleListProjects returns all projects in the active workspace.
@@ -97,26 +94,15 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 func (s *Server) handleListProjects(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rows, err := s.db.ListProjectsWithCount(c.RequestCtx(), claims.WorkspaceID)
+	dtos, err := s.projects.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list projects")
+		return Respond(c, err)
 	}
 
-	items := make([]ProjectResponse, len(rows))
-	for i, row := range rows {
-		items[i] = ProjectResponse{
-			ID:           row.ID,
-			WorkspaceID:  row.WorkspaceID,
-			Name:         row.Name,
-			Description:  row.Description,
-			Color:        row.Color,
-			CoverAssetID: row.CoverAssetID,
-			AssetCount:   row.AssetCount,
-			CreatedAt:    row.CreatedAt,
-			UpdatedAt:    row.UpdatedAt,
-		}
+	items := make([]ProjectResponse, len(dtos))
+	for i, d := range dtos {
+		items[i] = projectDTOToResponse(d)
 	}
-
 	return c.JSON(items)
 }
 
@@ -134,33 +120,12 @@ func (s *Server) handleListProjects(c fiber.Ctx) error {
 // @Router /api/v1/projects/{id} [get]
 func (s *Server) handleGetProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	id := c.Params("id")
 
-	p, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	dto, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, c.Params("id"))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "project not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load project")
+		return Respond(c, err)
 	}
-
-	// Get asset count separately
-	rows, err := s.db.ListProjectsWithCount(c.RequestCtx(), claims.WorkspaceID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load project")
-	}
-	var count int64
-	for _, row := range rows {
-		if row.ID == id {
-			count = row.AssetCount
-			break
-		}
-	}
-
-	return c.JSON(projectToResponse(p, count))
+	return c.JSON(projectDTOToResponse(dto))
 }
 
 // handleUpdateProject updates a project's metadata.
@@ -182,49 +147,28 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	// Verify project exists and belongs to workspace
-	before, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "project not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load project")
-	}
-
 	body, ok := decodeAndValidate(c, &UpdateProjectRequest{})
 	if !ok {
 		return nil
 	}
 
-	if body.Color == nil {
-		body.Color = before.Color
-	}
-	if body.CoverAssetID == nil {
-		body.CoverAssetID = before.CoverAssetID
-	}
-	if body.Description == nil {
-		body.Description = before.Description
-	}
-	if body.Name == nil {
-		body.Name = &before.Name
+	// Fetch current name before update to detect rename for audit log.
+	before, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	if err != nil {
+		return Respond(c, err)
 	}
 
-	p, err := s.db.UpdateProject(c.RequestCtx(), dbgen.UpdateProjectParams{
+	dto, err := s.projects.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateProjectParams{
 		Name:         body.Name,
 		Description:  body.Description,
 		Color:        body.Color,
 		CoverAssetID: body.CoverAssetID,
-		ID:           id,
-		WorkspaceID:  claims.WorkspaceID,
 	})
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not update project")
+		return Respond(c, err)
 	}
 
-	if p.Name != before.Name {
+	if dto.Name != before.Name {
 		userID := claims.UserID
 		s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
 			WorkspaceID: claims.WorkspaceID,
@@ -232,11 +176,11 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 			UserID:      &userID,
 			ActorType:   audit.ActorTypeUser,
 			EventType:   audit.EventProjectRenamed,
-			Payload:     audit.ProjectRenamedPayload{V: 1, Before: before.Name, After: p.Name},
+			Payload:     audit.ProjectRenamedPayload{V: 1, Before: before.Name, After: dto.Name},
 		})
 	}
 
-	return c.JSON(projectToResponse(p, 0))
+	return c.JSON(projectDTOToResponse(dto))
 }
 
 // handleDeleteProject deletes a project.
@@ -255,41 +199,8 @@ func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	// Verify exists
-	if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "project not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load project")
-	}
-
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not start transaction")
-	}
-	defer tx.Rollback()
-
-	qtx := s.db.WithTx(tx)
-
-	if err := qtx.NullifyProjectAssets(c.RequestCtx(), dbgen.NullifyProjectAssetsParams{
-		ProjectID:   &id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not unlink assets")
-	}
-
-	if err := qtx.DeleteProject(c.RequestCtx(), dbgen.DeleteProjectParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete project")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit transaction")
+	if err := s.projects.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+		return Respond(c, err)
 	}
 
 	userID := claims.UserID

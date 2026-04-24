@@ -48,11 +48,12 @@ type TagRepository interface {
 	GetByName(ctx context.Context, workspaceID, name string) (Tag, error)
 	List(ctx context.Context, workspaceID string) ([]Tag, error)
 	Upsert(ctx context.Context, workspaceID, name string) (Tag, error)
+	UpdateMetadata(ctx context.Context, workspaceID, name string, color, groupName *string) error
 	Rename(ctx context.Context, workspaceID, oldName, newName string) error
 	Delete(ctx context.Context, workspaceID string, names []string) error
 	ListForAsset(ctx context.Context, assetID string) ([]Tag, error)
 	AddToAsset(ctx context.Context, assetID, tagID string) error
-	RemoveFromAsset(ctx context.Context, assetID, tagName string) error
+	RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error
 }
 
 // CollectionRepository handles persistence for Collection records.

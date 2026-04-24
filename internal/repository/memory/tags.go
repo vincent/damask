@@ -66,6 +66,20 @@ func (r *RealTagRepo) Upsert(ctx context.Context, workspaceID, name string) (rep
 	return t, nil
 }
 
+func (r *RealTagRepo) UpdateMetadata(_ context.Context, workspaceID, name string, color, groupName *string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, t := range r.tags {
+		if t.WorkspaceID == workspaceID && t.Name == name {
+			t.Color = color
+			t.GroupName = groupName
+			r.tags[id] = t
+			return nil
+		}
+	}
+	return apperr.ErrNotFound
+}
+
 func (r *RealTagRepo) Rename(ctx context.Context, workspaceID, oldName, newName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -119,7 +133,7 @@ func (r *RealTagRepo) AddToAsset(ctx context.Context, assetID, tagID string) err
 	return nil
 }
 
-func (r *RealTagRepo) RemoveFromAsset(ctx context.Context, assetID, tagName string) error {
+func (r *RealTagRepo) RemoveFromAsset(_ context.Context, _, assetID, tagName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var tagID string

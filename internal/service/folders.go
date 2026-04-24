@@ -86,6 +86,19 @@ func (s *folderService) Create(ctx context.Context, workspaceID, projectID strin
 		parentID = p.ParentID
 	}
 
+	// SQLite does not enforce UNIQUE for NULL parent_id, so check root duplicates here.
+	if parentID == nil {
+		existing, err := s.folders.ListByProject(ctx, workspaceID, projectID)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range existing {
+			if f.ParentID == nil && f.Name == p.Name {
+				return nil, fmt.Errorf("a folder with that name already exists here: %w", apperr.ErrConflict)
+			}
+		}
+	}
+
 	sl := slug.ToSlug(p.Name)
 	folder, err := s.folders.Create(ctx, repository.Folder{
 		ID:          uuid.NewString(),

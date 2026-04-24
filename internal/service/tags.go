@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
@@ -14,11 +15,14 @@ import (
 
 // TagDTO is the output of TagService methods.
 type TagDTO struct {
-	ID        string
+	ID          string
 	WorkspaceID string
-	Name      string
-	Color     *string
-	GroupName *string
+	Name        string
+	Color       *string
+	GroupName   *string
+	AssetCount  int64
+	CreatedAt   time.Time
+	LastUsedAt  *time.Time
 }
 
 // CreateTagParams is the input for TagService.Create.
@@ -89,6 +93,13 @@ func (s *tagService) Create(ctx context.Context, workspaceID string, p CreateTag
 	tag, err := s.tags.Upsert(ctx, workspaceID, p.Name)
 	if err != nil {
 		return nil, err
+	}
+	if p.Color != nil || p.GroupName != nil {
+		if err := s.tags.UpdateMetadata(ctx, workspaceID, tag.Name, p.Color, p.GroupName); err != nil {
+			return nil, err
+		}
+		tag.Color = p.Color
+		tag.GroupName = p.GroupName
 	}
 	return toTagDTO(tag), nil
 }
@@ -162,7 +173,7 @@ func (s *tagService) RemoveFromAsset(ctx context.Context, workspaceID, assetID, 
 	if _, err := s.tags.GetByName(ctx, workspaceID, tagName); err != nil {
 		return err
 	}
-	return s.tags.RemoveFromAsset(ctx, assetID, tagName)
+	return s.tags.RemoveFromAsset(ctx, workspaceID, assetID, tagName)
 }
 
 // UpsertForAsset upserts the tag by name and links it to the asset.
@@ -186,6 +197,9 @@ func toTagDTO(t repository.Tag) *TagDTO {
 		Name:        t.Name,
 		Color:       t.Color,
 		GroupName:   t.GroupName,
+		AssetCount:  t.AssetCount,
+		CreatedAt:   t.CreatedAt,
+		LastUsedAt:  t.LastUsedAt,
 	}
 }
 

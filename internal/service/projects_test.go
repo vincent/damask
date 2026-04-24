@@ -14,7 +14,7 @@ import (
 func newProjectSvc(t *testing.T) (service.ProjectService, *memory.ProjectRepo) {
 	t.Helper()
 	repo := memory.NewProjectRepo()
-	svc := service.NewProjectService(repo, nil) // nil sqlDB: memory repo ignores transactions
+	svc := service.NewProjectService(repo)
 	return svc, repo
 }
 
