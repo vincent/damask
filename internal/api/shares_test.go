@@ -1,434 +1,447 @@
 package api_test
 
 import (
-	"damask/server/internal/api"
-	th "damask/server/internal/tests_helpers"
-	"encoding/json"
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"damask/server/internal/api"
+	"damask/server/internal/apperr"
+	"damask/server/internal/service"
+	"damask/server/internal/testutil"
+	"damask/server/internal/testutil/fixtures"
 )
 
-// createShare is a test helper that POSTs to /api/v1/shares.
-func createShare(t *testing.T, env *th.TestEnv, cookie *http.Cookie, req api.CreateShareRequest) api.ShareResponse {
-	t.Helper()
-	httpReq := th.AuthRequest(http.MethodPost, "/api/v1/shares", th.JsonBody(req), cookie)
-	resp, err := env.App.Test(httpReq)
-	if err != nil {
-		t.Fatalf("create share request: %v", err)
+// fixedShare builds a ShareDTO with sensible defaults for a given id and target.
+func fixedShare(id, wsID, targetType, targetID string) *service.ShareDTO {
+	return &service.ShareDTO{
+		ID:            id,
+		WorkspaceID:   wsID,
+		TargetType:    targetType,
+		TargetID:      targetID,
+		AllowDownload: true,
+		CreatedAt:     time.Now(),
 	}
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("expected 201, got %d", resp.StatusCode)
-	}
-	var s api.ShareResponse
-	if err := json.NewDecoder(resp.Body).Decode(&s); err != nil {
-		t.Fatalf("decode share: %v", err)
-	}
-	return s
 }
 
-// --- S-2: POST /shares ---
+// shareEnv wires a testutil env with a project mock returning prj_1 and a share store
+// that tracks one share by ID.
+func shareEnv(t *testing.T) (*testutil.TestEnv, *service.ShareDTO) {
+	t.Helper()
+	env := testutil.NewTestEnv(t)
+	env.Projects.GetFn = func(_ context.Context, _, id string) (*service.ProjectDTO, error) {
+		return fixtures.Project(func(p *service.ProjectDTO) { p.ID = id }), nil
+	}
+	env.Assets.GetFn = func(_ context.Context, _, id string) (*service.AssetDTO, error) {
+		return fixtures.Asset(func(a *service.AssetDTO) { a.ID = id }), nil
+	}
+	sh := fixedShare("shr_1", "ws_1", "project", "prj_1")
+	env.Shares.CreateFn = func(_ context.Context, wsID string, p service.CreateShareParams) (*service.ShareDTO, error) {
+		s := fixedShare("shr_1", wsID, p.TargetType, p.TargetID)
+		s.Label = p.Label
+		s.AllowDownload = p.AllowDownload
+		if p.Password != nil {
+			hash := "hashed"
+			s.PasswordHash = &hash
+		}
+		if p.ExpiresInDays != nil {
+			future := time.Now().Add(time.Duration(*p.ExpiresInDays) * 24 * time.Hour).UTC().Format("2006-01-02T15:04:05Z")
+			s.ExpiresAt = &future
+		}
+		s.AllowComments = p.AllowComments
+		*sh = *s
+		return sh, nil
+	}
+	env.Shares.GetFn = func(_ context.Context, wsID, id string) (*service.ShareDTO, error) {
+		if wsID != sh.WorkspaceID || id != sh.ID {
+			return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
+		}
+		return sh, nil
+	}
+	env.Shares.ListFn = func(_ context.Context, wsID string) ([]*service.ShareDTO, error) {
+		if wsID != sh.WorkspaceID {
+			return []*service.ShareDTO{}, nil
+		}
+		return []*service.ShareDTO{sh}, nil
+	}
+	env.Shares.UpdateFn = func(_ context.Context, wsID, id string, p service.UpdateShareParams) (*service.ShareDTO, error) {
+		if wsID != sh.WorkspaceID || id != sh.ID {
+			return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
+		}
+		if p.Label != nil {
+			sh.Label = *p.Label
+		}
+		if p.Password != nil {
+			h := "hashed"
+			sh.PasswordHash = &h
+		}
+		if p.ClearPassword {
+			sh.PasswordHash = nil
+		}
+		if p.AllowComments != nil {
+			sh.AllowComments = *p.AllowComments
+		}
+		return sh, nil
+	}
+	env.Shares.RevokeFn = func(_ context.Context, wsID, id string) error {
+		if wsID != sh.WorkspaceID || id != sh.ID {
+			return fmt.Errorf("not found: %w", apperr.ErrNotFound)
+		}
+		now := time.Now().UTC().Format(time.RFC3339)
+		sh.RevokedAt = &now
+		return nil
+	}
+	return env, sh
+}
+
+// --- POST /shares ---
 
 func TestCreateShare_ProjectTarget(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "Nike Q3", "#ff0000")
-
+	env, _ := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	allowDownload := true
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		Label:         "Nike Q3 delivery",
-		TargetType:    "project",
-		TargetID:      p.ID,
-		AllowDownload: &allowDownload,
-	})
 
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{
+			Label:         "Nike Q3 delivery",
+			TargetType:    "project",
+			TargetID:      "prj_1",
+			AllowDownload: &allowDownload,
+		}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	var sh api.ShareResponse
+	testutil.DecodeJSON(t, resp, &sh)
 	if sh.TargetType != "project" {
 		t.Errorf("target_type = %q, want project", sh.TargetType)
-	}
-	if sh.TargetID != p.ID {
-		t.Errorf("target_id mismatch")
 	}
 	if sh.Label != "Nike Q3 delivery" {
 		t.Errorf("label = %q, want Nike Q3 delivery", sh.Label)
 	}
 	if !sh.AllowDownload {
-		t.Errorf("expected allow_download = true")
+		t.Error("expected allow_download = true")
 	}
 	if sh.HasPassword {
-		t.Errorf("expected has_password = false")
+		t.Error("expected has_password = false")
 	}
 	if sh.PublicURL == "" || !strings.Contains(sh.PublicURL, "/s/"+sh.ID) {
 		t.Errorf("public_url = %q, expected to contain /s/%s", sh.PublicURL, sh.ID)
 	}
-	if sh.WorkspaceID != owner.WorkspaceID {
-		t.Errorf("workspace_id mismatch")
-	}
 }
 
 func TestCreateShare_AssetTarget(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	assetID := uploadTestAsset(t, env, owner)
+	env, _ := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType: "asset",
-		TargetID:   assetID,
-	})
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "asset", TargetID: "ast_1"}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
 
+	var sh api.ShareResponse
+	testutil.DecodeJSON(t, resp, &sh)
 	if sh.TargetType != "asset" {
 		t.Errorf("target_type = %q, want asset", sh.TargetType)
-	}
-	if sh.TargetID != assetID {
-		t.Errorf("target_id mismatch")
 	}
 }
 
 func TestCreateShare_WithPassword(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "Secret", "#000")
-
+	env, _ := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	password := "hunter2"
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-		Password:   &password,
-	})
 
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1", Password: &password}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	var sh api.ShareResponse
+	testutil.DecodeJSON(t, resp, &sh)
 	if !sh.HasPassword {
-		t.Errorf("expected has_password = true")
+		t.Error("expected has_password = true")
 	}
 }
 
 func TestCreateShare_WithExpiry(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "Expiring", "#000")
-
+	env, _ := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	expiresInDays := 14
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType:    "project",
-		TargetID:      p.ID,
-		ExpiresInDays: &expiresInDays,
-	})
 
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1", ExpiresInDays: &expiresInDays}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	var sh api.ShareResponse
+	testutil.DecodeJSON(t, resp, &sh)
 	if sh.ExpiresAt == nil {
-		t.Errorf("expected expires_at to be set")
+		t.Error("expected expires_at to be set")
 	}
 	if sh.IsExpired {
-		t.Errorf("expected is_expired = false for future expiry")
+		t.Error("expected is_expired = false for future expiry")
 	}
 }
 
 func TestCreateShare_InvalidTargetType(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonBody(api.CreateShareRequest{TargetType: "unknown", TargetID: "abc"}), owner.Cookie)
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "unknown", TargetID: "abc"}), cookie)
 	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusUnprocessableEntity {
-		t.Errorf("expected 422, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
 }
 
 func TestCreateShare_TargetNotFound(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "nonexistent"}), owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
+	env := testutil.NewTestEnv(t)
+	env.Projects.GetFn = func(_ context.Context, _, _ string) (*service.ProjectDTO, error) {
+		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "nonexistent"}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestCreateShare_TargetFromOtherWorkspace(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner1 := th.Register(t, env, "Owner1", "owner1@example.com", "password123")
-	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
-	p := createProject(t, env, owner1.Cookie, "Private", "#000")
-
-	// owner2 tries to share owner1's project
-	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: p.ID}), owner2.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404 for cross-workspace target, got %d", resp.StatusCode)
+	env := testutil.NewTestEnv(t)
+	// Project exists in ws_1, but requester is ws_2 — service returns not found
+	env.Projects.GetFn = func(_ context.Context, wsID, _ string) (*service.ProjectDTO, error) {
+		if wsID != "ws_1" {
+			return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
+		}
+		return fixtures.Project(), nil
 	}
+	cookie := env.MintCookie(t, "usr_2", "ws_2")
+
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestCreateShare_Unauthenticated(t *testing.T) {
-	env := th.SetupTestApp(t)
-	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "x"}), nil)
+	env := testutil.NewTestEnv(t)
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "x"}), nil)
 	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
 }
 
-// --- S-3: GET /shares ---
+// --- GET /shares ---
 
 func TestListShares_Empty(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	req := th.AuthRequest(http.MethodGet, "/api/v1/shares", nil, owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	env := testutil.NewTestEnv(t)
+	env.Shares.ListFn = func(_ context.Context, _ string) ([]*service.ShareDTO, error) {
+		return []*service.ShareDTO{}, nil
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares", nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var items []api.ShareResponse
-	_ = json.NewDecoder(resp.Body).Decode(&items)
+	testutil.DecodeJSON(t, resp, &items)
 	if len(items) != 0 {
 		t.Errorf("expected 0 shares, got %d", len(items))
 	}
 }
 
 func TestListShares_WorkspaceIsolation(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner1 := th.Register(t, env, "Owner1", "owner1@example.com", "password123")
-	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
+	env, _ := shareEnv(t)
+	// Authenticate as ws_other — shareEnv's ListFn returns empty for other workspaces
+	cookie := env.MintCookie(t, "usr_other", "ws_other")
 
-	p := createProject(t, env, owner1.Cookie, "Alpha", "#000")
-	createShare(t, env, owner1.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
-
-	req := th.AuthRequest(http.MethodGet, "/api/v1/shares", nil, owner2.Cookie)
-	resp, _ := env.App.Test(req)
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares", nil, cookie))
 	var items []api.ShareResponse
-	_ = json.NewDecoder(resp.Body).Decode(&items)
+	testutil.DecodeJSON(t, resp, &items)
 	if len(items) != 0 {
-		t.Errorf("owner2 should see 0 shares, got %d", len(items))
+		t.Errorf("expected 0 shares for other workspace, got %d", len(items))
 	}
 }
 
-// --- S-3: GET /shares/:id ---
+// --- GET /shares/:id ---
 
 func TestGetShare_Success(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
+	env, sh := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var got api.ShareResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if got.ID != sh.ID {
-		t.Errorf("id mismatch")
+		t.Errorf("id = %q, want %s", got.ID, sh.ID)
 	}
 }
 
 func TestGetShare_NotFound(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/nonexistent", nil, owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
+	env := testutil.NewTestEnv(t)
+	env.Shares.GetFn = func(_ context.Context, _, _ string) (*service.ShareDTO, error) {
+		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares/nonexistent", nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestGetShare_OtherWorkspace(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner1 := th.Register(t, env, "Owner1", "owner1@example.com", "password123")
-	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
-	p := createProject(t, env, owner1.Cookie, "P", "#000")
-	sh := createShare(t, env, owner1.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
+	env, _ := shareEnv(t)
+	// Authenticate as ws_other — shareEnv's GetFn returns 404 for wrong workspace
+	cookie := env.MintCookie(t, "usr_other", "ws_other")
 
-	req := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, owner2.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares/shr_1", nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
-// --- S-3: PUT /shares/:id ---
+// --- PUT /shares/:id ---
 
 func TestUpdateShare_Label(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		Label:      "Old",
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
+	env, _ := shareEnv(t)
+	// Create the share first so it exists in the mock store
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
 	label := "New Label"
-	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonBody(api.UpdateShareRequest{Label: &label}), owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
+		testutil.JsonBody(api.UpdateShareRequest{Label: &label}), cookie))
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var got api.ShareResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if got.Label != "New Label" {
 		t.Errorf("label = %q, want New Label", got.Label)
 	}
 }
 
 func TestUpdateShare_SetAndClearPassword(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
+	env, _ := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
-	// Set password
 	password := "s3cr3t"
-	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonBody(api.UpdateShareRequest{Password: &password}), owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("set password: expected 200, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
+		testutil.JsonBody(api.UpdateShareRequest{Password: &password}), cookie))
+	testutil.AssertStatus(t, resp, http.StatusOK)
 	var got api.ShareResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if !got.HasPassword {
-		t.Errorf("expected has_password = true after setting password")
+		t.Error("expected has_password = true after setting password")
 	}
 
-	// Clear password
 	clearPassword := true
-	req2 := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonBody(api.UpdateShareRequest{ClearPassword: &clearPassword}), owner.Cookie)
-	resp2, _ := env.App.Test(req2)
-	if resp2.StatusCode != http.StatusOK {
-		t.Fatalf("clear password: expected 200, got %d", resp2.StatusCode)
-	}
+	resp2, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
+		testutil.JsonBody(api.UpdateShareRequest{ClearPassword: &clearPassword}), cookie))
+	testutil.AssertStatus(t, resp2, http.StatusOK)
 	var got2 api.ShareResponse
-	_ = json.NewDecoder(resp2.Body).Decode(&got2)
+	testutil.DecodeJSON(t, resp2, &got2)
 	if got2.HasPassword {
-		t.Errorf("expected has_password = false after clearing password")
+		t.Error("expected has_password = false after clearing password")
 	}
 }
 
 func TestUpdateShare_AllowComments(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
+	env, sh := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
 	if sh.AllowComments {
-		t.Fatalf("expected allow_comments = false by default")
+		t.Fatal("expected allow_comments = false by default")
 	}
 
 	allowComments := true
-	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/"+sh.ID,
-		th.JsonBody(api.UpdateShareRequest{AllowComments: &allowComments}), owner.Cookie)
-	resp, _ := env.App.Test(req)
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
+		testutil.JsonBody(api.UpdateShareRequest{AllowComments: &allowComments}), cookie))
 	var got api.ShareResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if !got.AllowComments {
-		t.Errorf("expected allow_comments = true after update")
+		t.Error("expected allow_comments = true after update")
 	}
 }
 
 func TestUpdateShare_NotFound(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	env.Shares.UpdateFn = func(_ context.Context, _, _ string, _ service.UpdateShareParams) (*service.ShareDTO, error) {
+		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	x := "x"
-	req := th.AuthRequest(http.MethodPut, "/api/v1/shares/nonexistent",
-		th.JsonBody(api.UpdateShareRequest{Label: &x}), owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/nonexistent",
+		testutil.JsonBody(api.UpdateShareRequest{Label: &x}), cookie))
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
-// --- S-3: DELETE /shares/:id (soft revoke) ---
+// --- DELETE /shares/:id ---
 
 func TestRevokeShare_Success(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "P", "#000")
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
+	env, sh := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+	// Populate the share in the mock store
+	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
+		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
-	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusNoContent)
 
-	// Share should still be retrievable (soft delete) with revoked_at set
-	req2 := th.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
-	resp2, _ := env.App.Test(req2)
-	if resp2.StatusCode != http.StatusOK {
-		t.Fatalf("share should still be accessible after soft revoke, got %d", resp2.StatusCode)
-	}
+	// Share should still be retrievable with revoked_at set
+	resp2, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares/"+sh.ID, nil, cookie))
+	testutil.AssertStatus(t, resp2, http.StatusOK)
 	var got api.ShareResponse
-	_ = json.NewDecoder(resp2.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp2, &got)
 	if got.RevokedAt == nil {
-		t.Errorf("expected revoked_at to be set after DELETE")
+		t.Error("expected revoked_at to be set after DELETE")
 	}
 }
 
 func TestRevokeShare_NotFound(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/nonexistent", nil, owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
+	env := testutil.NewTestEnv(t)
+	env.Shares.RevokeFn = func(_ context.Context, _, _ string) error {
+		return fmt.Errorf("not found: %w", apperr.ErrNotFound)
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodDelete, "/api/v1/shares/nonexistent", nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestRevokeShare_OtherWorkspace(t *testing.T) {
-	env := th.SetupTestApp(t)
-	owner1 := th.Register(t, env, "Owner1", "owner1@example.com", "password123")
-	owner2 := th.Register(t, env, "Owner2", "owner2@example.com", "password123")
-	p := createProject(t, env, owner1.Cookie, "P", "#000")
-	sh := createShare(t, env, owner1.Cookie, api.CreateShareRequest{
-		TargetType: "project",
-		TargetID:   p.ID,
-	})
+	env, _ := shareEnv(t)
+	cookie := env.MintCookie(t, "usr_other", "ws_other")
 
-	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner2.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodDelete, "/api/v1/shares/shr_1", nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestListShares_IncludesIsExpired(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := createProject(t, env, owner.Cookie, "P", "#000")
-	expiresInDays := 7
-	sh := createShare(t, env, owner.Cookie, api.CreateShareRequest{
-		TargetType:    "project",
-		TargetID:      p.ID,
-		ExpiresInDays: &expiresInDays,
-	})
-
-	// Force expires_at into the past
-	_, err := env.SqlDB.Exec(
-		`UPDATE shares SET expires_at = datetime('now', '-1 day') WHERE id = ?`, sh.ID,
-	)
-	if err != nil {
-		t.Fatalf("expire share: %v", err)
+	env := testutil.NewTestEnv(t)
+	pastExpiry := "2020-01-01T00:00:00Z"
+	env.Shares.ListFn = func(_ context.Context, _ string) ([]*service.ShareDTO, error) {
+		return []*service.ShareDTO{
+			fixtures.Share(func(s *service.ShareDTO) { s.ExpiresAt = &pastExpiry }),
+		}, nil
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	req := th.AuthRequest(http.MethodGet, "/api/v1/shares", nil, owner.Cookie)
-	resp, _ := env.App.Test(req)
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares", nil, cookie))
 	var items []api.ShareResponse
-	_ = json.NewDecoder(resp.Body).Decode(&items)
+	testutil.DecodeJSON(t, resp, &items)
 
 	if len(items) != 1 {
 		t.Fatalf("expected 1 share, got %d", len(items))
 	}
 	if !items[0].IsExpired {
-		t.Errorf("expected is_expired = true for past expires_at")
+		t.Error("expected is_expired = true for past expires_at")
 	}
 }

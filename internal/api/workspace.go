@@ -74,9 +74,10 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 	return c.JSON(WorkspaceMeResponse{
 		Workspace: workspaceDTOToResponse(me.Workspace),
 		User: UserResponse{
-			ID:    me.UserID,
-			Email: me.UserEmail,
-			Name:  me.UserName,
+			ID:        me.UserID,
+			Email:     me.UserEmail,
+			Name:      me.UserName,
+			CreatedAt: me.UserCreatedAt,
 		},
 		Role:            auth.Role(me.Role),
 		TotalAssetCount: me.TotalAssetCount,
@@ -353,7 +354,7 @@ func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 
 	if err := s.workspace.RemoveMember(c.Context(), claims.WorkspaceID, claims.UserID, targetUserID); err != nil {
 		if isInvalidInput(err) {
-			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
+			return errRes(c, fiber.StatusBadRequest, err.Error())
 		}
 		return ErrorStatusResponse(c, err)
 	}
@@ -386,7 +387,7 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 
 	if err := s.workspace.UpdateMemberRole(c.Context(), claims.WorkspaceID, claims.UserID, targetUserID, string(body.Role)); err != nil {
 		if isInvalidInput(err) {
-			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
+			return errRes(c, fiber.StatusBadRequest, err.Error())
 		}
 		return ErrorStatusResponse(c, err)
 	}
@@ -549,6 +550,6 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	s.setAuthCookie(c, token)
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{
 		Token: token,
-		User:  UserResponse{ID: result.UserID, Email: result.UserEmail, Name: result.UserName},
+		User:  UserResponse{ID: result.UserID, Email: result.UserEmail, Name: result.UserName, CreatedAt: result.UserCreatedAt},
 	})
 }

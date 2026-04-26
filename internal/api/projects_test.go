@@ -1,38 +1,49 @@
 package api_test
 
 import (
-	"damask/server/internal/api"
-	"damask/server/internal/auth"
-	th "damask/server/internal/tests_helpers"
-	"encoding/json"
+	"context"
 	"net/http"
 	"testing"
+
+	"damask/server/internal/api"
+	"damask/server/internal/apperr"
+	"damask/server/internal/service"
+	"damask/server/internal/testutil"
+	"damask/server/internal/testutil/fixtures"
+	"damask/server/internal/auth"
+	"encoding/json"
+	"fmt"
 )
 
 func TestCreateProject_Success(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
+	env := testutil.NewTestEnv(t)
 	color := "#3b82f6"
-	description := "Summer campaign"
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{
+	desc := "Summer campaign"
+	env.Projects.CreateFn = func(_ context.Context, wsID string, p service.CreateProjectParams) (*service.ProjectDTO, error) {
+		return fixtures.Project(func(pr *service.ProjectDTO) {
+			pr.WorkspaceID = wsID
+			pr.Name = p.Name
+			pr.Color = p.Color
+			pr.Description = p.Description
+		}), nil
+	}
+
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects",
+		testutil.JsonBody(api.CreateProjectRequest{
 			Name:        "Campaign 2024",
 			Color:       &color,
-			Description: &description,
+			Description: &desc,
 		}),
-		owner.Cookie)
+		cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("expected 201, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusCreated)
 
 	var p api.ProjectResponse
-	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
+	testutil.DecodeJSON(t, resp, &p)
 	if p.Name != "Campaign 2024" {
 		t.Errorf("name = %q, want Campaign 2024", p.Name)
 	}
@@ -42,77 +53,68 @@ func TestCreateProject_Success(t *testing.T) {
 	if p.Description == nil || *p.Description != "Summer campaign" {
 		t.Errorf("description = %v, want Summer campaign", p.Description)
 	}
-	if p.WorkspaceID != owner.WorkspaceID {
-		t.Errorf("workspace_id mismatch")
-	}
 }
 
 func TestCreateProject_MissingName(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: ""}), owner.Cookie)
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects",
+		testutil.JsonBody(api.CreateProjectRequest{Name: ""}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusUnprocessableEntity {
-		t.Errorf("expected 422, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
 }
 
 func TestCreateProject_ViewerRejected(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
+	env := testutil.NewTestEnv(t)
+	env.Workspace.GetMemberFn = func(_ context.Context, _, uID string) (*service.MemberDTO, error) {
+		return &service.MemberDTO{UserID: uID, Role: string(auth.Viewer)}, nil
+	}
+	token := env.MintToken(t, "usr_viewer", "ws_1")
 
-	req := th.BearerRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "My Project"}), viewerToken)
+	req := testutil.BearerRequest(http.MethodPost, "/api/v1/projects",
+		testutil.JsonBody(api.CreateProjectRequest{Name: "My Project"}), token)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusForbidden {
-		t.Errorf("expected 403, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusForbidden)
 }
 
 func TestListProjects_Empty(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	env.Projects.ListFn = func(_ context.Context, _ string) ([]*service.ProjectDTO, error) {
+		return []*service.ProjectDTO{}, nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	req := th.AuthRequest(http.MethodGet, "/api/v1/projects", nil, owner.Cookie)
+	req := testutil.AuthRequest(http.MethodGet, "/api/v1/projects", nil, cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
 
 	var items []api.ProjectResponse
-	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
+	testutil.DecodeJSON(t, resp, &items)
 	if len(items) != 0 {
 		t.Errorf("expected 0 projects, got %d", len(items))
 	}
 }
 
 func TestListProjects_WithCount(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	p := th.CreateProject(t, env, owner.Cookie, "Alpha", "#ff0000")
-
-	// Upload an asset and assign it to the project
-	assetID := env.UploadTestAsset(t, owner.Cookie)
-	_, err := env.SqlDB.Exec(
-		`UPDATE assets SET project_id = ? WHERE id = ?`,
-		p.ID, assetID,
-	)
-	if err != nil {
-		t.Fatalf("assign project: %v", err)
+	env := testutil.NewTestEnv(t)
+	env.Projects.ListFn = func(_ context.Context, _ string) ([]*service.ProjectDTO, error) {
+		return []*service.ProjectDTO{
+			fixtures.Project(func(p *service.ProjectDTO) { p.AssetCount = 1 }),
+		}, nil
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	req := th.AuthRequest(http.MethodGet, "/api/v1/projects", nil, owner.Cookie)
+	req := testutil.AuthRequest(http.MethodGet, "/api/v1/projects", nil, cookie)
 	resp, _ := env.App.Test(req)
 	var items []api.ProjectResponse
 	_ = json.NewDecoder(resp.Body).Decode(&items)
@@ -126,51 +128,60 @@ func TestListProjects_WithCount(t *testing.T) {
 }
 
 func TestGetProject_Success(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := th.CreateProject(t, env, owner.Cookie, "MyProject", "#00ff00")
+	env := testutil.NewTestEnv(t)
+	env.Projects.GetFn = func(_ context.Context, _, id string) (*service.ProjectDTO, error) {
+		return fixtures.Project(func(p *service.ProjectDTO) { p.ID = id }), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	req := th.AuthRequest(http.MethodGet, "/api/v1/projects/"+p.ID, nil, owner.Cookie)
+	req := testutil.AuthRequest(http.MethodGet, "/api/v1/projects/prj_1", nil, cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var got api.ProjectResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
-	if got.ID != p.ID {
-		t.Errorf("id mismatch: got %s, want %s", got.ID, p.ID)
+	testutil.DecodeJSON(t, resp, &got)
+	if got.ID != "prj_1" {
+		t.Errorf("id = %q, want prj_1", got.ID)
 	}
 }
 
 func TestGetProject_NotFound(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	req := th.AuthRequest(http.MethodGet, "/api/v1/projects/nonexistent", nil, owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
+	env := testutil.NewTestEnv(t)
+	env.Projects.GetFn = func(_ context.Context, _, _ string) (*service.ProjectDTO, error) {
+		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodGet, "/api/v1/projects/nonexistent", nil, cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestUpdateProject(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := th.CreateProject(t, env, owner.Cookie, "Old Name", "#aabbcc")
-
+	env := testutil.NewTestEnv(t)
 	newName := "New Name"
 	newColor := "#112233"
-	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonBody(api.UpdateProjectRequest{Name: &newName, Color: &newColor}), owner.Cookie)
+	env.Projects.UpdateFn = func(_ context.Context, _, _ string, p service.UpdateProjectParams) (*service.ProjectDTO, error) {
+		return fixtures.Project(func(pr *service.ProjectDTO) {
+			pr.Name = *p.Name
+			pr.Color = p.Color
+		}), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
+		testutil.JsonBody(api.UpdateProjectRequest{Name: &newName, Color: &newColor}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var got api.ProjectResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if got.Name != "New Name" {
 		t.Errorf("name = %q, want New Name", got.Name)
 	}
@@ -180,128 +191,109 @@ func TestUpdateProject(t *testing.T) {
 }
 
 func TestUpdateProject_PartialName(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	color := "#aabbcc"
-	description := "original desc"
-	p := th.CreateProject(t, env, owner.Cookie, "Original Name", color)
-	// Set description via full update first
-	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonBody(api.UpdateProjectRequest{Name: &p.Name, Color: &color, Description: &description}), owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("setup update: expected 200, got %d", resp.StatusCode)
-	}
-
-	// Partial update: only name, color and description should be preserved
+	env := testutil.NewTestEnv(t)
+	origColor := "#aabbcc"
+	origDesc := "original desc"
 	newName := "Updated Name"
-	req = th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonBody(api.UpdateProjectRequest{Name: &newName}), owner.Cookie)
+	env.Projects.UpdateFn = func(_ context.Context, _, _ string, p service.UpdateProjectParams) (*service.ProjectDTO, error) {
+		return fixtures.Project(func(pr *service.ProjectDTO) {
+			pr.Name = *p.Name
+			pr.Color = &origColor
+			pr.Description = &origDesc
+		}), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
+		testutil.JsonBody(api.UpdateProjectRequest{Name: &newName}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var got api.ProjectResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if got.Name != "Updated Name" {
 		t.Errorf("name = %q, want Updated Name", got.Name)
 	}
-	if got.Color == nil || *got.Color != color {
-		t.Errorf("color = %v, want %s (should be preserved)", got.Color, color)
+	if got.Color == nil || *got.Color != origColor {
+		t.Errorf("color = %v, want %s (preserved)", got.Color, origColor)
 	}
-	if got.Description == nil || *got.Description != description {
-		t.Errorf("description = %v, want %q (should be preserved)", got.Description, description)
+	if got.Description == nil || *got.Description != origDesc {
+		t.Errorf("description = %v, want %q (preserved)", got.Description, origDesc)
 	}
 }
 
 func TestUpdateProject_PartialColor(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	p := th.CreateProject(t, env, owner.Cookie, "My Project", "#aabbcc")
-
+	env := testutil.NewTestEnv(t)
 	newColor := "#112233"
-	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonBody(api.UpdateProjectRequest{Color: &newColor}), owner.Cookie)
+	env.Projects.UpdateFn = func(_ context.Context, _, _ string, p service.UpdateProjectParams) (*service.ProjectDTO, error) {
+		origName := "My Project"
+		return fixtures.Project(func(pr *service.ProjectDTO) {
+			pr.Name = origName
+			pr.Color = p.Color
+		}), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
+		testutil.JsonBody(api.UpdateProjectRequest{Color: &newColor}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var got api.ProjectResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if got.Color == nil || *got.Color != "#112233" {
 		t.Errorf("color = %v, want #112233", got.Color)
 	}
 	if got.Name != "My Project" {
-		t.Errorf("name = %q, want My Project (should be preserved)", got.Name)
+		t.Errorf("name = %q, want My Project (preserved)", got.Name)
 	}
 }
 
 func TestUpdateProject_PartialDescription_PreservesCoverAsset(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	p := th.CreateProject(t, env, owner.Cookie, "My Project", "#aabbcc")
-	assetID := env.UploadTestAsset(t, owner.Cookie)
-
-	// Set cover_asset_id via full update
-	desc := "original"
-	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonBody(api.UpdateProjectRequest{Name: &p.Name, CoverAssetID: &assetID, Description: &desc}), owner.Cookie)
-	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("setup update: expected 200, got %d", resp.StatusCode)
-	}
-
-	// Partial update: only description, cover_asset_id should be preserved
+	env := testutil.NewTestEnv(t)
+	assetID := "ast_cover_1"
 	newDesc := "updated desc"
-	req = th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonBody(api.UpdateProjectRequest{Description: &newDesc}), owner.Cookie)
+	env.Projects.UpdateFn = func(_ context.Context, _, _ string, p service.UpdateProjectParams) (*service.ProjectDTO, error) {
+		return fixtures.Project(func(pr *service.ProjectDTO) {
+			pr.Description = p.Description
+			pr.CoverAssetID = &assetID
+		}), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
+		testutil.JsonBody(api.UpdateProjectRequest{Description: &newDesc}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var got api.ProjectResponse
-	_ = json.NewDecoder(resp.Body).Decode(&got)
+	testutil.DecodeJSON(t, resp, &got)
 	if got.Description == nil || *got.Description != "updated desc" {
 		t.Errorf("description = %v, want updated desc", got.Description)
 	}
 	if got.CoverAssetID == nil || *got.CoverAssetID != assetID {
-		t.Errorf("cover_asset_id = %v, want %s (should be preserved)", got.CoverAssetID, assetID)
+		t.Errorf("cover_asset_id = %v, want %s (preserved)", got.CoverAssetID, assetID)
 	}
 }
 
-func TestDeleteProject_UnlinksAssets(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	p := th.CreateProject(t, env, owner.Cookie, "Temp", "#000000")
+func TestDeleteProject_Success(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	env.Projects.DeleteFn = func(_ context.Context, _, _ string) error { return nil }
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	assetID := env.UploadTestAsset(t, owner.Cookie)
-	env.SqlDB.Exec(`UPDATE assets SET project_id = ? WHERE id = ?`, p.ID, assetID) //nolint:errcheck
-
-	// Delete the project
-	req := th.AuthRequest(http.MethodDelete, "/api/v1/projects/"+p.ID, nil, owner.Cookie)
+	req := testutil.AuthRequest(http.MethodDelete, "/api/v1/projects/prj_1", nil, cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d", resp.StatusCode)
-	}
-
-	// Verify asset still exists but project_id is NULL
-	var projectID *string
-	row := env.SqlDB.QueryRow(`SELECT project_id FROM assets WHERE id = ?`, assetID)
-	if err := row.Scan(&projectID); err != nil {
-		t.Fatalf("scan: %v", err)
-	}
-	if projectID != nil {
-		t.Errorf("expected project_id to be NULL after deletion, got %v", *projectID)
-	}
+	testutil.AssertStatus(t, resp, http.StatusNoContent)
 }

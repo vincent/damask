@@ -15,6 +15,25 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// createShare is a test helper for tests still using tests_helpers (th).
+// Remove this once share_collection_test.go and shares_public_test.go are migrated to testutil.
+func createShare(t *testing.T, env *th.TestEnv, cookie *http.Cookie, req api.CreateShareRequest) api.ShareResponse {
+	t.Helper()
+	httpReq := th.AuthRequest(http.MethodPost, "/api/v1/shares", th.JsonBody(req), cookie)
+	resp, err := env.App.Test(httpReq)
+	if err != nil {
+		t.Fatalf("create share request: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+	var s api.ShareResponse
+	if err := json.NewDecoder(resp.Body).Decode(&s); err != nil {
+		t.Fatalf("decode share: %v", err)
+	}
+	return s
+}
+
 // ── WS-5.1: POST /api/v1/shares with target_type = "collection" ──────────────
 
 func Test_ShareCollection_Creates(t *testing.T) {

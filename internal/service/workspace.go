@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"damask/server/internal/apperr"
@@ -32,6 +33,7 @@ type WorkspaceMeDTO struct {
 	UserID          string
 	UserEmail       string
 	UserName        string
+	UserCreatedAt   time.Time
 	Role            string
 	TotalAssetCount int64
 }
@@ -89,12 +91,13 @@ type AcceptInviteParams struct {
 
 // AcceptInviteResult is returned by WorkspaceService.AcceptInvite.
 type AcceptInviteResult struct {
-	UserID      string
-	WorkspaceID string
-	UserEmail   string
-	UserName    string
-	InviterID   string
-	InviteRole  string
+	UserID        string
+	WorkspaceID   string
+	UserEmail     string
+	UserName      string
+	UserCreatedAt time.Time
+	InviterID     string
+	InviteRole    string
 }
 
 type workspaceService struct {
@@ -155,6 +158,7 @@ func (s *workspaceService) Me(ctx context.Context, workspaceID, userID string) (
 		UserID:          user.ID,
 		UserEmail:       user.Email,
 		UserName:        user.Name,
+		UserCreatedAt:   user.CreatedAt,
 		Role:            member.Role,
 		TotalAssetCount: assetCount,
 	}, nil
@@ -282,14 +286,17 @@ func (s *workspaceService) AcceptInvite(ctx context.Context, p AcceptInviteParam
 		return nil, fmt.Errorf("invalid or expired invite token: %w", apperr.ErrNotFound)
 	}
 
-	_, err = s.users.Create(ctx, repository.User{
+	newUser, err := s.users.Create(ctx, repository.User{
 		ID:           p.UserID,
 		Email:        inv.Email,
 		PasswordHash: p.PasswordHash,
 		Name:         p.Name,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return nil, fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+		}
+		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 
 	invitedBy := inv.InvitedBy
@@ -307,12 +314,13 @@ func (s *workspaceService) AcceptInvite(ctx context.Context, p AcceptInviteParam
 	}
 
 	return &AcceptInviteResult{
-		UserID:      p.UserID,
-		WorkspaceID: inv.WorkspaceID,
-		UserEmail:   inv.Email,
-		UserName:    p.Name,
-		InviterID:   inv.InvitedBy,
-		InviteRole:  inv.Role,
+		UserID:        p.UserID,
+		WorkspaceID:   inv.WorkspaceID,
+		UserEmail:     inv.Email,
+		UserName:      p.Name,
+		UserCreatedAt: newUser.CreatedAt,
+		InviterID:     inv.InvitedBy,
+		InviteRole:    inv.Role,
 	}, nil
 }
 

@@ -18,6 +18,24 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// createFolder creates a folder in the given project via the HTTP API and returns its parsed response.
+// Used by tests that still rely on tests_helpers (th). Remove once assets_test.go and
+// router_isolation_test.go are migrated to testutil.
+func createFolder(t *testing.T, env *th.TestEnv, cookie *http.Cookie, projectID, name string, parentID *string) api.FolderResponse {
+	t.Helper()
+	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
+		th.JsonBody(api.CreateFolderRequest{Name: name, ParentID: parentID}), cookie)
+	res, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	var out api.FolderResponse
+	_ = json.Unmarshal(b, &out)
+	return out
+}
+
 func TestUploadAsset_Success(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 

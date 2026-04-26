@@ -182,7 +182,7 @@ func buildTestApp(s *Server) *fiber.App {
 
 	getRoleFn := func(ctx context.Context, workspaceID, userID string) (auth.Role, error) {
 		if s.workspace == nil {
-			return auth.Owner, nil
+			return auth.Viewer, nil
 		}
 		member, err := s.workspace.GetMember(ctx, workspaceID, userID)
 		if err != nil {

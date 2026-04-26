@@ -1,337 +1,271 @@
 package api_test
 
 import (
+	"context"
 	"encoding/json"
-	"io"
+	"fmt"
 	"net/http"
 	"testing"
 
-	th "damask/server/internal/tests_helpers"
-
-	"github.com/gofiber/fiber/v3"
+	"damask/server/internal/api"
+	"damask/server/internal/apperr"
+	"damask/server/internal/service"
+	"damask/server/internal/testutil"
+	"damask/server/internal/testutil/fixtures"
 )
 
 func TestCollections_Create(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	env.Collections.CreateFn = func(_ context.Context, _ string, p service.CreateCollectionParams) (*service.CollectionDTO, error) {
+		return fixtures.Collection(func(c *service.CollectionDTO) { c.Name = p.Name }), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "My Collection"}), owner.Cookie))
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
+		testutil.JsonBody(map[string]any{"name": "My Collection"}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, body)
-	}
+	testutil.AssertStatus(t, resp, http.StatusCreated)
 
-	var col map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&col); err != nil {
-		t.Fatal(err)
-	}
-	if col["name"] != "My Collection" {
-		t.Errorf("expected name My Collection, got %v", col["name"])
+	var col api.CollectionResponse
+	testutil.DecodeJSON(t, resp, &col)
+	if col.Name != "My Collection" {
+		t.Errorf("name = %q, want My Collection", col.Name)
 	}
 }
 
 func TestCollections_CreateWithAssets(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	asset := th.UploadAsset(t, env, owner.Cookie)
+	env := testutil.NewTestEnv(t)
+	env.Assets.CountByIDsFn = func(_ context.Context, _ string, ids []string) (int64, error) {
+		return int64(len(ids)), nil
+	}
+	env.Collections.CreateFn = func(_ context.Context, _ string, p service.CreateCollectionParams) (*service.CollectionDTO, error) {
+		return fixtures.Collection(func(c *service.CollectionDTO) {
+			c.Name = p.Name
+			c.AssetCount = int64(len(p.AssetIDs))
+		}), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "Stack Save", "asset_ids": []string{asset.ID}}), owner.Cookie))
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
+		testutil.JsonBody(map[string]any{"name": "Stack Save", "asset_ids": []string{"ast_1"}}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, body)
-	}
+	testutil.AssertStatus(t, resp, http.StatusCreated)
 
-	var col map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&col); err != nil {
-		t.Fatal(err)
-	}
-	if col["asset_count"].(float64) != 1 {
-		t.Errorf("expected asset_count=1, got %v", col["asset_count"])
+	var col api.CollectionResponse
+	testutil.DecodeJSON(t, resp, &col)
+	if col.AssetCount != 1 {
+		t.Errorf("asset_count = %d, want 1", col.AssetCount)
 	}
 }
 
 func TestCollections_CreateValidation(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": ""}), owner.Cookie))
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
+		testutil.JsonBody(map[string]any{"name": ""}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusUnprocessableEntity {
-		t.Errorf("expected 422, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
 }
 
 func TestCollections_List(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	// Create two collections.
-	for _, name := range []string{"Alpha", "Beta"} {
-		if _, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-			th.JsonBody(map[string]any{"name": name}), owner.Cookie)); err != nil {
-			t.Fatal(err)
-		}
+	env := testutil.NewTestEnv(t)
+	env.Collections.ListFn = func(_ context.Context, _ string) ([]*service.CollectionDTO, error) {
+		return []*service.CollectionDTO{
+			fixtures.Collection(func(c *service.CollectionDTO) { c.ID = "col_1"; c.Name = "Alpha" }),
+			fixtures.Collection(func(c *service.CollectionDTO) { c.ID = "col_2"; c.Name = "Beta" }),
+		}, nil
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/collections", nil, owner.Cookie))
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/collections", nil, cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
 
-	var cols []map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&cols); err != nil {
-		t.Fatal(err)
-	}
+	var cols []api.CollectionResponse
+	testutil.DecodeJSON(t, resp, &cols)
 	if len(cols) != 2 {
 		t.Errorf("expected 2 collections, got %d", len(cols))
 	}
 }
 
 func TestCollections_Get(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	asset := th.UploadAsset(t, env, owner.Cookie)
-
-	// Create collection with one asset.
-	createResp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "Detail Test", "asset_ids": []string{asset.ID}}), owner.Cookie))
-	var col map[string]any
-	if err := json.NewDecoder(createResp.Body).Decode(&col); err != nil {
-		t.Fatal(err)
+	env := testutil.NewTestEnv(t)
+	env.Collections.GetFn = func(_ context.Context, _, id string) (*service.CollectionDTO, error) {
+		return fixtures.Collection(func(c *service.CollectionDTO) { c.ID = id }), nil
 	}
-	if err := createResp.Body.Close(); err != nil {
-		t.Fatal(err)
+	env.Collections.ListAssetsFn = func(_ context.Context, _, _ string) ([]*service.AssetDTO, error) {
+		return []*service.AssetDTO{fixtures.Asset()}, nil
 	}
-	colID := col["id"].(string)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/collections/"+colID, nil, owner.Cookie))
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/collections/col_1", nil, cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
-	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
 
-	var detail map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&detail); err != nil {
-		t.Fatal(err)
+	var detail struct {
+		api.CollectionResponse
+		Assets []api.AssetResponse `json:"assets"`
 	}
-	assets := detail["assets"].([]any)
-	if len(assets) != 1 {
-		t.Errorf("expected 1 asset, got %d", len(assets))
+	testutil.DecodeJSON(t, resp, &detail)
+	if len(detail.Assets) != 1 {
+		t.Errorf("expected 1 asset, got %d", len(detail.Assets))
 	}
 }
 
 func TestCollections_GetNotFound(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	env.Collections.GetFn = func(_ context.Context, _, _ string) (*service.CollectionDTO, error) {
+		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/collections/nonexistent", nil, owner.Cookie))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", resp.StatusCode)
-	}
+	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/collections/nonexistent", nil, cookie))
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestCollections_Update(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	createResp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "Before"}), owner.Cookie))
-	var col map[string]any
-	if err := json.NewDecoder(createResp.Body).Decode(&col); err != nil {
-		t.Fatal(err)
+	env := testutil.NewTestEnv(t)
+	env.Collections.UpdateFn = func(_ context.Context, _, id string, p service.UpdateCollectionParams) (*service.CollectionDTO, error) {
+		return fixtures.Collection(func(c *service.CollectionDTO) {
+			c.ID = id
+			if p.Name != nil {
+				c.Name = *p.Name
+			}
+		}), nil
 	}
-	if err := createResp.Body.Close(); err != nil {
-		t.Fatal(err)
-	}
-	colID := col["id"].(string)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/collections/"+colID,
-		th.JsonBody(map[string]any{"name": "After", "description": "desc"}), owner.Cookie))
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/collections/col_1",
+		testutil.JsonBody(map[string]any{"name": "After", "description": "desc"}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
-	}
-	var updated map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
-		t.Fatal(err)
-	}
-	if updated["name"] != "After" {
-		t.Errorf("expected name After, got %v", updated["name"])
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	var col api.CollectionResponse
+	testutil.DecodeJSON(t, resp, &col)
+	if col.Name != "After" {
+		t.Errorf("name = %q, want After", col.Name)
 	}
 }
 
 func TestCollections_Delete(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	createResp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "To Delete"}), owner.Cookie))
-	var col map[string]any
-	if err := json.NewDecoder(createResp.Body).Decode(&col); err != nil {
-		t.Fatal(err)
+	env := testutil.NewTestEnv(t)
+	notFound := false
+	env.Collections.DeleteFn = func(_ context.Context, _, _ string) error {
+		notFound = true
+		return nil
 	}
-	if err := createResp.Body.Close(); err != nil {
-		t.Fatal(err)
+	env.Collections.GetFn = func(_ context.Context, _, _ string) (*service.CollectionDTO, error) {
+		if notFound {
+			return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
+		}
+		return fixtures.Collection(), nil
 	}
-	colID := col["id"].(string)
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	resp, err := env.App.Test(th.AuthRequest(http.MethodDelete, "/api/v1/collections/"+colID, nil, owner.Cookie))
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodDelete, "/api/v1/collections/col_1", nil, cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		t.Errorf("expected 204, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusNoContent)
 
-	getResp, _ := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/collections/"+colID, nil, owner.Cookie))
-	defer getResp.Body.Close()
-	if getResp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404 after delete, got %d", getResp.StatusCode)
-	}
+	getResp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/collections/col_1", nil, cookie))
+	testutil.AssertStatus(t, getResp, http.StatusNotFound)
 }
 
 func TestCollections_AddRemoveAsset(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-	asset := th.UploadAsset(t, env, owner.Cookie)
+	env := testutil.NewTestEnv(t)
+	env.Collections.AddAssetFn = func(_ context.Context, _, _, _ string) error { return nil }
+	env.Collections.RemoveAssetFn = func(_ context.Context, _, _, _ string) error { return nil }
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	createResp, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "Asset Test"}), owner.Cookie))
-	var col map[string]any
-	if err := json.NewDecoder(createResp.Body).Decode(&col); err != nil {
-		t.Fatal(err)
-	}
-	if err := createResp.Body.Close(); err != nil {
-		t.Fatal(err)
-	}
-	colID := col["id"].(string)
-
-	// Add asset.
-	addResp, err := env.App.Test(th.AuthRequest(http.MethodPost,
-		"/api/v1/collections/"+colID+"/assets/"+asset.ID, nil, owner.Cookie))
+	addResp, err := env.App.Test(testutil.AuthRequest(http.MethodPost,
+		"/api/v1/collections/col_1/assets/ast_1", nil, cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := addResp.Body.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if addResp.StatusCode != http.StatusNoContent {
-		t.Errorf("expected 204 on add, got %d", addResp.StatusCode)
-	}
+	testutil.AssertStatus(t, addResp, http.StatusNoContent)
 
-	// Remove asset.
-	rmResp, err := env.App.Test(th.AuthRequest(http.MethodDelete,
-		"/api/v1/collections/"+colID+"/assets/"+asset.ID, nil, owner.Cookie))
+	rmResp, err := env.App.Test(testutil.AuthRequest(http.MethodDelete,
+		"/api/v1/collections/col_1/assets/ast_1", nil, cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := rmResp.Body.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if rmResp.StatusCode != http.StatusNoContent {
-		t.Errorf("expected 204 on remove, got %d", rmResp.StatusCode)
-	}
+	testutil.AssertStatus(t, rmResp, http.StatusNoContent)
 }
 
 func TestCollections_CreateWithForeignAsset(t *testing.T) {
-	env1, owner1 := th.SetupWithOwner(t)
-	env2, owner2 := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	// CountByIDs returns 0 — asset not in workspace
+	env.Assets.CountByIDsFn = func(_ context.Context, _ string, _ []string) (int64, error) {
+		return 0, nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	foreignAsset := th.UploadAsset(t, env2, owner2.Cookie)
-
-	resp, err := env1.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "Bad", "asset_ids": []string{foreignAsset.ID}}), owner1.Cookie),
-		fiber.TestConfig{Timeout: 5000})
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
+		testutil.JsonBody(map[string]any{"name": "Bad", "asset_ids": []string{"ast_foreign"}}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusForbidden {
-		body, _ := io.ReadAll(resp.Body)
-		t.Errorf("expected 403 for foreign asset, got %d: %s", resp.StatusCode, body)
-	}
+	testutil.AssertStatus(t, resp, http.StatusForbidden)
 }
 
 func TestCollections_CreateMixedOwnership(t *testing.T) {
-	env1, owner1 := th.SetupWithOwner(t)
-	env2, owner2 := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	// Only 1 of 2 assets found in workspace
+	env.Assets.CountByIDsFn = func(_ context.Context, _ string, _ []string) (int64, error) {
+		return 1, nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	localAsset := th.UploadAsset(t, env1, owner1.Cookie)
-	foreignAsset := th.UploadAsset(t, env2, owner2.Cookie)
-
-	resp, err := env1.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "Mixed", "asset_ids": []string{localAsset.ID, foreignAsset.ID}}), owner1.Cookie),
-		fiber.TestConfig{Timeout: 5000})
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
+		testutil.JsonBody(map[string]any{"name": "Mixed", "asset_ids": []string{"ast_1", "ast_foreign"}}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusForbidden {
-		body, _ := io.ReadAll(resp.Body)
-		t.Errorf("expected 403 for mixed ownership, got %d: %s", resp.StatusCode, body)
-	}
+	testutil.AssertStatus(t, resp, http.StatusForbidden)
 }
 
 func TestCollections_WorkspaceIsolation(t *testing.T) {
-	env1, owner1 := th.SetupWithOwner(t)
-	env2, owner2 := th.SetupWithOwner(t)
-
-	// Create collection in env1.
-	createResp, _ := env1.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(map[string]any{"name": "Private"}), owner1.Cookie))
-	var col map[string]any
-	if err := json.NewDecoder(createResp.Body).Decode(&col); err != nil {
-		t.Fatal(err)
+	env := testutil.NewTestEnv(t)
+	env.Collections.GetFn = func(_ context.Context, wsID, _ string) (*service.CollectionDTO, error) {
+		if wsID != "ws_owner" {
+			return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
+		}
+		return fixtures.Collection(), nil
 	}
-	if err := createResp.Body.Close(); err != nil {
-		t.Fatal(err)
-	}
-	colID := col["id"].(string)
+	// Authenticate as a user from a different workspace
+	cookie := env.MintCookie(t, "usr_other", "ws_other")
 
-	// Try to read from env2.
-	resp, err := env2.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/collections/"+colID, nil, owner2.Cookie),
-		fiber.TestConfig{Timeout: 5000})
+	resp, err := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/collections/col_1", nil, cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404 for cross-workspace access, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestCollections_Unauthenticated(t *testing.T) {
-	env, _ := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/collections", nil)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", resp.StatusCode)
-	}
+	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
 }
+
+// Compile-time check that CollectionResponse is exported (used in test above).
+var _ = json.Marshal

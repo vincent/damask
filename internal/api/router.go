@@ -68,6 +68,21 @@ func NewHttpServer(
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
 ) *Server {
+	auditWriter := audit.New(sqlDB)
+	assetRepo := reposqlc.NewAssetRepo(db, sqlDB)
+	tagRepo := reposqlc.NewTagRepo(db, sqlDB)
+	fieldRepo := reposqlc.NewFieldRepo(db)
+	projectRepo := reposqlc.NewProjectRepo(db)
+	folderRepo := reposqlc.NewFolderRepo(db, sqlDB)
+	collectionRepo := reposqlc.NewCollectionRepo(db, sqlDB)
+	shareRepo := reposqlc.NewShareRepo(db, sqlDB)
+	userRepo := reposqlc.NewUserRepo(db, sqlDB)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(db, sqlDB)
+	versionRepo := reposqlc.NewVersionRepo(db, sqlDB)
+	variantRepo := reposqlc.NewVariantRepo(db)
+	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
+	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
+
 	return &Server{
 		auth:          tokenMaker,
 		storage:       stor,
@@ -77,25 +92,25 @@ func NewHttpServer(
 		previewCache:  NewLRUPreviewCache(100),
 		cfg:           cfg,
 		demo:          demoSeeder,
-		assets:        service.NewAssetService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewTagRepo(db, sqlDB), reposqlc.NewFieldRepo(db), stor, audit.New(sqlDB)),
-		projects:      service.NewProjectService(reposqlc.NewProjectRepo(db), audit.New(sqlDB)),
-		folders:       service.NewFolderService(reposqlc.NewFolderRepo(db, sqlDB)),
-		tags:          service.NewTagService(reposqlc.NewTagRepo(db, sqlDB), audit.New(sqlDB)),
-		collections:   service.NewCollectionService(reposqlc.NewCollectionRepo(db, sqlDB), reposqlc.NewAssetRepo(db, sqlDB)),
-		shares:        service.NewShareService(reposqlc.NewShareRepo(db, sqlDB), audit.New(sqlDB)),
-		sharePublic:   service.NewSharePublicService(reposqlc.NewShareRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB), mailer),
+		assets:        service.NewAssetService(assetRepo, tagRepo, fieldRepo, stor, auditWriter),
+		projects:      service.NewProjectService(projectRepo, auditWriter),
+		folders:       service.NewFolderService(folderRepo),
+		tags:          service.NewTagService(tagRepo, auditWriter),
+		collections:   service.NewCollectionService(collectionRepo, assetRepo),
+		shares:        service.NewShareService(shareRepo, auditWriter),
+		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, mailer),
 		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
-		fields:        service.NewFieldService(reposqlc.NewFieldRepo(db)),
-		assetFields:   service.NewAssetFieldService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewFieldRepo(db), reposqlc.NewAssetFieldRepo(db, sqlDB), audit.New(sqlDB)),
-		projectFields: service.NewProjectFieldService(reposqlc.NewProjectRepo(db), reposqlc.NewFieldRepo(db), reposqlc.NewProjectFieldRepo(db), audit.New(sqlDB)),
-		versions:      service.NewVersionService(reposqlc.NewVersionRepo(db, sqlDB), audit.New(sqlDB)),
-		variants:      service.NewVariantService(reposqlc.NewVariantRepo(db), reposqlc.NewAssetRepo(db, sqlDB), audit.New(sqlDB)),
+		fields:        service.NewFieldService(fieldRepo),
+		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
+		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
+		versions:      service.NewVersionService(versionRepo, auditWriter),
+		variants:      service.NewVariantService(variantRepo, assetRepo, auditWriter),
 		auditLog:      service.NewAuditLogService(db),
-		workspace:     service.NewWorkspaceService(reposqlc.NewWorkspaceRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB)),
-		users:         service.NewUserService(reposqlc.NewUserRepo(db, sqlDB), reposqlc.NewWorkspaceRepo(db, sqlDB)),
+		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo),
+		users:         service.NewUserService(userRepo, workspaceRepo),
 		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
-		stack:         service.NewStackService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewVersionRepo(db, sqlDB), stor, q),
-		upload:        service.NewUploadService(db, sqlDB, stor, q, audit.New(sqlDB)),
+		stack:         service.NewStackService(assetRepo, versionRepo, stor, q),
+		upload:        service.NewUploadService(db, sqlDB, stor, q, auditWriter),
 	}
 }
 

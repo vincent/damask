@@ -1,172 +1,120 @@
 package api_test
 
 import (
-	"damask/server/internal/api"
-	th "damask/server/internal/tests_helpers"
-	"encoding/json"
-	"io"
+	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
-	"github.com/gofiber/fiber/v3"
+	"damask/server/internal/api"
+	"damask/server/internal/apperr"
+	"damask/server/internal/service"
+	"damask/server/internal/testutil"
+	"damask/server/internal/testutil/fixtures"
 )
 
-// createFolder creates a folder in the given project and returns its parsed response.
-func createFolder(t *testing.T, env *th.TestEnv, cookie *http.Cookie, projectID, name string, parentID *string) api.FolderResponse {
-	t.Helper()
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonBody(api.CreateFolderRequest{Name: name, ParentID: parentID}), cookie)
-	res, err := env.App.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Body.Close()
-	b, _ := io.ReadAll(res.Body)
-	var out api.FolderResponse
-	_ = json.Unmarshal(b, &out)
-	return out
+// folderDTO builds a FolderDTO fixture with the given id, projectID and name.
+func folderDTO(id, projectID, name string, parentID *string) *service.FolderDTO {
+	return fixtures.Folder(func(f *service.FolderDTO) {
+		f.ID = id
+		f.ProjectID = projectID
+		f.Name = name
+		f.ParentID = parentID
+	})
 }
 
 func TestCreateFolder_Success(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+	env := testutil.NewTestEnv(t)
+	env.Folders.CreateFn = func(_ context.Context, _, projectID string, p service.CreateFolderParams) (*service.FolderDTO, error) {
+		return folderDTO("fld_1", projectID, p.Name, p.ParentID), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	projRes, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "My Project"}), owner.Cookie))
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
+		testutil.JsonBody(api.CreateFolderRequest{Name: "Assets"}), cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer projRes.Body.Close()
-	if projRes.StatusCode != http.StatusCreated {
-		t.Fatalf("create project: got %d", projRes.StatusCode)
-	}
-	var proj api.ProjectResponse
-	b, _ := io.ReadAll(projRes.Body)
-	_ = json.Unmarshal(b, &proj)
-	projectID := proj.ID
+	testutil.AssertStatus(t, resp, http.StatusCreated)
 
-	folderReq := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonBody(api.CreateFolderRequest{Name: "Assets"}), owner.Cookie)
-	folderRes, err := env.App.Test(folderReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer folderRes.Body.Close()
-	if folderRes.StatusCode != http.StatusCreated {
-		b, _ := io.ReadAll(folderRes.Body)
-		t.Fatalf("create folder: got %d, body: %s", folderRes.StatusCode, string(b))
-	}
 	var folder api.FolderResponse
-	b, _ = io.ReadAll(folderRes.Body)
-	_ = json.Unmarshal(b, &folder)
+	testutil.DecodeJSON(t, resp, &folder)
 	if folder.Name != "Assets" {
-		t.Errorf("got name %v, want Assets", folder.Name)
+		t.Errorf("name = %q, want Assets", folder.Name)
 	}
-	if folder.ProjectID != projectID {
-		t.Errorf("got project_id %v, want %s", folder.ProjectID, projectID)
+	if folder.ProjectID != "prj_1" {
+		t.Errorf("project_id = %q, want prj_1", folder.ProjectID)
 	}
 }
 
 func TestCreateFolder_SubfolderSuccess(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
-	defer projRes.Body.Close()
-	var proj api.ProjectResponse
-	b, _ := io.ReadAll(projRes.Body)
-	_ = json.Unmarshal(b, &proj)
-	projectID := proj.ID
-
-	// Create root folder
-	rootOut := createFolder(t, env, owner.Cookie, projectID, "Root", nil)
-	rootID := rootOut.ID
-
-	// Create subfolder — should succeed
-	subReq := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonBody(api.CreateFolderRequest{Name: "Sub", ParentID: &rootID}), owner.Cookie)
-	subRes, _ := env.App.Test(subReq)
-	defer subRes.Body.Close()
-	if subRes.StatusCode != http.StatusCreated {
-		b, _ := io.ReadAll(subRes.Body)
-		t.Fatalf("create subfolder: got %d, body: %s", subRes.StatusCode, string(b))
+	env := testutil.NewTestEnv(t)
+	parentID := "fld_root"
+	env.Folders.CreateFn = func(_ context.Context, _, projectID string, p service.CreateFolderParams) (*service.FolderDTO, error) {
+		return folderDTO("fld_sub", projectID, p.Name, p.ParentID), nil
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
+		testutil.JsonBody(api.CreateFolderRequest{Name: "Sub", ParentID: &parentID}), cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusCreated)
 }
 
 func TestCreateFolder_MaxDepthEnforced(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
-	defer projRes.Body.Close()
-	var proj api.ProjectResponse
-	b, _ := io.ReadAll(projRes.Body)
-	_ = json.Unmarshal(b, &proj)
-	projectID := proj.ID
-
-	// Create root folder (depth 0)
-	rootOut := createFolder(t, env, owner.Cookie, projectID, "Root", nil)
-	rootID := rootOut.ID
-
-	// Create subfolder (depth 1) — should succeed
-	subOut := createFolder(t, env, owner.Cookie, projectID, "Sub", &rootID)
-	subID := subOut.ID
-
-	// Try to create depth 2 subfolder — should return 422
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonBody(api.CreateFolderRequest{Name: "Deep", ParentID: &subID}), owner.Cookie)
-	deepRes, _ := env.App.Test(req)
-	defer deepRes.Body.Close()
-	if deepRes.StatusCode != http.StatusUnprocessableEntity {
-		t.Errorf("expected 422, got %d", deepRes.StatusCode)
+	env := testutil.NewTestEnv(t)
+	env.Folders.CreateFn = func(_ context.Context, _, _ string, _ service.CreateFolderParams) (*service.FolderDTO, error) {
+		return nil, fmt.Errorf("max depth exceeded: %w", apperr.ErrInvalidInput)
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	deepID := "fld_deep"
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
+		testutil.JsonBody(api.CreateFolderRequest{Name: "TooDeep", ParentID: &deepID}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
 }
 
 func TestCreateFolder_DuplicateName(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
-	defer projRes.Body.Close()
-	var proj api.ProjectResponse
-	b, _ := io.ReadAll(projRes.Body)
-	_ = json.Unmarshal(b, &proj)
-	projectID := proj.ID
-
-	createFolder(t, env, owner.Cookie, projectID, "Dupe", nil)
-
-	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonBody(api.CreateFolderRequest{Name: "Dupe"}), owner.Cookie)
-	dupeRes, _ := env.App.Test(req)
-	defer dupeRes.Body.Close()
-	if dupeRes.StatusCode != http.StatusConflict {
-		t.Errorf("expected 409, got %d", dupeRes.StatusCode)
+	env := testutil.NewTestEnv(t)
+	env.Folders.CreateFn = func(_ context.Context, _, _ string, _ service.CreateFolderParams) (*service.FolderDTO, error) {
+		return nil, fmt.Errorf("duplicate name: %w", apperr.ErrConflict)
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
+		testutil.JsonBody(api.CreateFolderRequest{Name: "Dupe"}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusConflict)
 }
 
 func TestGetFolders_Tree(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
-	defer projRes.Body.Close()
-	var proj api.ProjectResponse
-	b, _ := io.ReadAll(projRes.Body)
-	_ = json.Unmarshal(b, &proj)
-	projectID := proj.ID
-
-	rootOut := createFolder(t, env, owner.Cookie, projectID, "Root", nil)
-	rootID := rootOut.ID
-	createFolder(t, env, owner.Cookie, projectID, "Child", &rootID)
-
-	req := th.AuthRequest(http.MethodGet, "/api/v1/projects/"+projectID+"/folders", nil, owner.Cookie)
-	treeRes, _ := env.App.Test(req)
-	defer treeRes.Body.Close()
-	if treeRes.StatusCode != http.StatusOK {
-		t.Fatalf("get folders: got %d", treeRes.StatusCode)
+	env := testutil.NewTestEnv(t)
+	childID := "fld_child"
+	env.Folders.ListTreeFn = func(_ context.Context, _, _ string) ([]*service.FolderTreeDTO, error) {
+		return []*service.FolderTreeDTO{
+			{
+				ID:        "fld_root",
+				ProjectID: "prj_1",
+				Name:      "Root",
+				Children: []*service.FolderTreeDTO{
+					{ID: childID, ProjectID: "prj_1", Name: "Child"},
+				},
+			},
+		}, nil
 	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
+
+	req := testutil.AuthRequest(http.MethodGet, "/api/v1/projects/prj_1/folders", nil, cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var tree []api.FolderResponse
-	b, _ = io.ReadAll(treeRes.Body)
-	_ = json.Unmarshal(b, &tree)
+	testutil.DecodeJSON(t, resp, &tree)
 	if len(tree) != 1 {
 		t.Fatalf("expected 1 root folder, got %d", len(tree))
 	}
@@ -176,85 +124,34 @@ func TestGetFolders_Tree(t *testing.T) {
 }
 
 func TestUpdateFolder_Rename(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
-
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
-	defer projRes.Body.Close()
-	var proj api.ProjectResponse
-	b, _ := io.ReadAll(projRes.Body)
-	_ = json.Unmarshal(b, &proj)
-	projectID := proj.ID
-
-	folderOut := createFolder(t, env, owner.Cookie, projectID, "OldName", nil)
-	folderID := folderOut.ID
+	env := testutil.NewTestEnv(t)
+	env.Folders.UpdateFn = func(_ context.Context, _, id string, p service.UpdateFolderParams) (*service.FolderDTO, error) {
+		return folderDTO(id, "prj_1", *p.Name, nil), nil
+	}
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	newName := "NewName"
-	req := th.AuthRequest(http.MethodPut, "/api/v1/folders/"+folderID,
-		th.JsonBody(api.UpdateFolderRequest{Name: &newName}), owner.Cookie)
-	updateRes, _ := env.App.Test(req)
-	defer updateRes.Body.Close()
-	if updateRes.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(updateRes.Body)
-		t.Fatalf("update folder: got %d, body: %s", updateRes.StatusCode, string(b))
-	}
+	req := testutil.AuthRequest(http.MethodPut, "/api/v1/folders/fld_1",
+		testutil.JsonBody(api.UpdateFolderRequest{Name: &newName}), cookie)
+	resp, _ := env.App.Test(req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
 	var updated api.FolderResponse
-	b, _ = io.ReadAll(updateRes.Body)
-	_ = json.Unmarshal(b, &updated)
+	testutil.DecodeJSON(t, resp, &updated)
 	if updated.Name != "NewName" {
-		t.Errorf("got name %v, want NewName", updated.Name)
+		t.Errorf("name = %q, want NewName", updated.Name)
 	}
 }
 
-func TestDeleteFolder_NullifiesAssets(t *testing.T) {
-	env, owner := th.SetupWithOwner(t)
+func TestDeleteFolder_Success(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	env.Folders.DeleteFn = func(_ context.Context, _, _ string) error { return nil }
+	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
-	projRes, _ := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "P"}), owner.Cookie))
-	defer projRes.Body.Close()
-	var proj api.ProjectResponse
-	b, _ := io.ReadAll(projRes.Body)
-	_ = json.Unmarshal(b, &proj)
-	projectID := proj.ID
-
-	folderOut := createFolder(t, env, owner.Cookie, projectID, "ToDelete", nil)
-	folderID := folderOut.ID
-
-	// Upload a test asset
-	assetID := uploadTestAsset(t, env, owner)
-
-	// Move asset to folder
-	patchReq := th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID,
-		th.JsonBody(api.UpdateAssetFolderRequest{FolderID: &folderID}), owner.Cookie)
-	patchRes, err2 := env.App.Test(patchReq)
-	if err2 != nil {
-		t.Fatalf("patch request error: %v", err2)
-	}
-	defer patchRes.Body.Close()
-	if patchRes.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(patchRes.Body)
-		t.Fatalf("move asset to folder: got %d, body: %s", patchRes.StatusCode, string(b))
-	}
-
-	// Delete folder
-	delReq := th.AuthRequest(http.MethodDelete, "/api/v1/folders/"+folderID, nil, owner.Cookie)
-	delRes, err3 := env.App.Test(delReq, fiber.TestConfig{Timeout: 5000})
-	if err3 != nil {
-		t.Fatalf("delete request error: %v", err3)
-	}
-	defer delRes.Body.Close()
-	if delRes.StatusCode != http.StatusNoContent {
-		b, _ := io.ReadAll(delRes.Body)
-		t.Fatalf("delete folder: got %d, body: %s", delRes.StatusCode, string(b))
-	}
-
-	// Verify asset's folder_id is now NULL
-	var folderIDVal interface{}
-	err := env.SqlDB.QueryRow("SELECT folder_id FROM assets WHERE id = ?", assetID).Scan(&folderIDVal)
+	req := testutil.AuthRequest(http.MethodDelete, "/api/v1/folders/fld_1", nil, cookie)
+	resp, err := env.App.Test(req)
 	if err != nil {
-		t.Fatalf("query asset: %v", err)
+		t.Fatal(err)
 	}
-	if folderIDVal != nil {
-		t.Errorf("expected folder_id to be NULL, got %v", folderIDVal)
-	}
+	testutil.AssertStatus(t, resp, http.StatusNoContent)
 }

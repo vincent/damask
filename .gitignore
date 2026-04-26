@@ -30,6 +30,7 @@ vendor/
 *.swo
 .claude/
 CLAUDE.md
+/docs
 
 # OS
 .DS_Store

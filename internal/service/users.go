@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"damask/server/internal/apperr"
@@ -109,7 +110,10 @@ func (s *userService) Register(ctx context.Context, p RegisterUserParams) (*Regi
 			Name:         p.Name,
 		})
 		if err != nil {
-			return fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				return fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+			}
+			return fmt.Errorf("could not create user: %w", err)
 		}
 
 		ws, err := txWorkspaces.Create(ctx, repository.Workspace{
@@ -140,7 +144,10 @@ func (s *userService) Register(ctx context.Context, p RegisterUserParams) (*Regi
 func (s *userService) Login(ctx context.Context, p LoginUserParams) (*LoginUserResult, error) {
 	user, err := s.users.GetByEmail(ctx, p.Email)
 	if err != nil {
-		return nil, fmt.Errorf("invalid credentials: %w", apperr.ErrForbidden)
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, fmt.Errorf("invalid credentials: %w", apperr.ErrForbidden)
+		}
+		return nil, err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(p.PlainPassword)); err != nil {
@@ -148,7 +155,10 @@ func (s *userService) Login(ctx context.Context, p LoginUserParams) (*LoginUserR
 	}
 
 	workspaces, err := s.workspaces.ListByUserID(ctx, user.ID)
-	if err != nil || len(workspaces) == 0 {
+	if err != nil {
+		return nil, err
+	}
+	if len(workspaces) == 0 {
 		return nil, fmt.Errorf("user has no workspace: %w", apperr.ErrInvalidInput)
 	}
 
