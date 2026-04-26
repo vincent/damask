@@ -147,6 +147,32 @@ func (r *fieldRepo) UpdatePosition(ctx context.Context, workspaceID, id string, 
 	})
 }
 
+func (r *fieldRepo) GetByKey(ctx context.Context, workspaceID, key string) (repository.FieldDefinition, error) {
+	row, err := r.q.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
+		WorkspaceID: workspaceID,
+		Key:         key,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.FieldDefinition{}, apperr.ErrNotFound
+		}
+		return repository.FieldDefinition{}, err
+	}
+	return toField(row), nil
+}
+
+func (r *fieldRepo) ListImageAssetIDs(ctx context.Context, workspaceID string) ([]string, error) {
+	return r.q.ListImageAssetIDs(ctx, workspaceID)
+}
+
+func (r *fieldRepo) ListMissingExifField(ctx context.Context, workspaceID, fieldID string, limit int64) ([]string, error) {
+	return r.q.ListAssetsMissingExifField(ctx, dbgen.ListAssetsMissingExifFieldParams{
+		FieldID:     fieldID,
+		WorkspaceID: workspaceID,
+		Limit:       limit,
+	})
+}
+
 func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error {
 	defs, err := r.q.ListInheritableAssetFieldDefinitions(ctx, workspaceID)
 	if err != nil {
@@ -226,7 +252,7 @@ func (r *assetFieldRepo) RunInTx(ctx context.Context, fn func(tx repository.Asse
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 	txRepo := &assetFieldRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}
 	if err := fn(txRepo); err != nil {
 		return err

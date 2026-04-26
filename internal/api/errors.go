@@ -41,10 +41,10 @@ func unwrapMessage(err error) string {
 	return err.Error()
 }
 
-// Respond maps a service-layer error to the appropriate HTTP response.
+// ErrorStatusResponse maps a service-layer error to the appropriate HTTP response.
 // ErrNotFound -> 404, ErrForbidden -> 403, ErrConflict -> 409,
 // ErrInvalidInput -> 422, anything else -> 500.
-func Respond(c fiber.Ctx, err error) error {
+func ErrorStatusResponse(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, apperr.ErrNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})

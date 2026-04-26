@@ -34,7 +34,7 @@ func (s *Server) handleStackMerge(c fiber.Ctx) error {
 		GifFrameMs:     body.GifFrameMs,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"job_id": jobID})

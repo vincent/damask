@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
@@ -38,23 +39,155 @@ func (r *assetRepo) GetByID(ctx context.Context, workspaceID, id string) (reposi
 	return toAsset(row), nil
 }
 
-func (r *assetRepo) List(ctx context.Context, params repository.ListAssetsParams) ([]repository.Asset, error) {
-	rows, err := r.q.ListAssets(ctx, dbgen.ListAssetsParams{
-		WorkspaceID: params.WorkspaceID,
-		ProjectID:   params.ProjectID,
-		MimePrefix:  params.MimePrefix,
-		CursorAt:    params.CursorAt,
-		CursorID:    params.CursorID,
-		Limit:       params.Limit,
-	})
+func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]repository.Asset, error) {
+	var joins []string
+	var where []string
+	var args []interface{}
+
+	// Base table alias differs when joining for taken_at sort.
+	from := "assets a"
+
+	where = append(where, "a.workspace_id = ?")
+	args = append(args, p.WorkspaceID)
+
+	if p.FolderIsRoot {
+		where = append(where, "a.folder_id IS NULL")
+		if p.ProjectID != nil {
+			where = append(where, "a.project_id = ?")
+			args = append(args, *p.ProjectID)
+		}
+	} else if p.FolderID != nil {
+		where = append(where, "a.folder_id = ?")
+		args = append(args, *p.FolderID)
+	} else if p.ProjectID != nil {
+		where = append(where, "a.project_id = ?")
+		args = append(args, *p.ProjectID)
+	}
+
+	if p.CollectionID != nil {
+		where = append(where, "a.id IN (SELECT asset_id FROM collection_assets WHERE collection_id = ?)")
+		args = append(args, *p.CollectionID)
+	}
+
+	if len(p.TagNames) > 0 {
+		placeholders := strings.Repeat("?,", len(p.TagNames))
+		placeholders = placeholders[:len(placeholders)-1]
+		where = append(where, fmt.Sprintf(
+			"a.id IN (SELECT at.asset_id FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE t.workspace_id = ? AND t.name IN (%s) GROUP BY at.asset_id HAVING COUNT(DISTINCT t.id) = ?)",
+			placeholders,
+		))
+		args = append(args, p.WorkspaceID)
+		for _, name := range p.TagNames {
+			args = append(args, name)
+		}
+		args = append(args, int64(len(p.TagNames)))
+	}
+
+	if p.SearchQuery != "" {
+		where = append(where, "a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?)")
+		args = append(args, p.SearchQuery+"*")
+	}
+
+	if p.MimePrefix != nil {
+		where = append(where, "a.mime_type LIKE ?")
+		args = append(args, *p.MimePrefix+"%")
+	}
+
+	// Cursor
+	if p.CursorID != "" && p.CursorValue != "" {
+		switch p.CursorField {
+		case "size":
+			if p.SortDesc {
+				where = append(where, "(a.size < ? OR (a.size = ? AND a.id < ?))")
+			} else {
+				where = append(where, "(a.size > ? OR (a.size = ? AND a.id < ?))")
+			}
+			args = append(args, p.CursorValue, p.CursorValue, p.CursorID)
+		case "id":
+			if p.SortDesc {
+				where = append(where, "a.id < ?")
+			} else {
+				where = append(where, "a.id > ?")
+			}
+			args = append(args, p.CursorID)
+		default: // created_at
+			if p.SortDesc || p.SortField == "" {
+				where = append(where, "(a.created_at < ? OR (a.created_at = ? AND a.id < ?))")
+			} else {
+				where = append(where, "(a.created_at > ? OR (a.created_at = ? AND a.id > ?))")
+			}
+			args = append(args, p.CursorValue, p.CursorValue, p.CursorID)
+		}
+	}
+
+	// ORDER BY
+	var orderBy string
+	switch p.SortField {
+	case "size":
+		if p.SortDesc {
+			orderBy = "a.size DESC, a.id DESC"
+		} else {
+			orderBy = "a.size ASC, a.id DESC"
+		}
+	case "id":
+		if p.SortDesc {
+			orderBy = "a.id DESC"
+		} else {
+			orderBy = "a.id ASC"
+		}
+	case "taken_at":
+		joins = append(joins, fmt.Sprintf("LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?"))
+		// ExifFieldID goes before WHERE args — prepend it.
+		newArgs := []interface{}{p.ExifFieldID}
+		newArgs = append(newArgs, args...)
+		args = newArgs
+		dir := "ASC"
+		if p.SortDesc {
+			dir = "DESC"
+		}
+		orderBy = fmt.Sprintf("afv.value_date %s NULLS LAST, a.created_at DESC, a.id DESC", dir)
+	case "created_at_asc":
+		orderBy = "a.created_at ASC, a.id ASC"
+	default: // created_at DESC
+		orderBy = "a.created_at DESC, a.id DESC"
+	}
+
+	args = append(args, p.Limit)
+
+	joinSQL := ""
+	if len(joins) > 0 {
+		joinSQL = " " + strings.Join(joins, " ")
+	}
+	query := fmt.Sprintf(
+		`SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
+		        a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
+		        a.current_version_id, a.created_at, a.updated_at
+		 FROM %s%s
+		 WHERE %s
+		 ORDER BY %s
+		 LIMIT ?`,
+		from, joinSQL, strings.Join(where, " AND "), orderBy,
+	)
+
+	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]repository.Asset, len(rows))
-	for i, row := range rows {
-		out[i] = toAsset(row)
+	defer rows.Close()
+
+	var out []repository.Asset
+	for rows.Next() {
+		var a repository.Asset
+		if err := rows.Scan(
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
+			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
+			&a.CurrentVersionID, &a.CreatedAt, &a.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
 	}
-	return out, nil
+	return out, rows.Err()
 }
 
 func (r *assetRepo) Create(ctx context.Context, params repository.CreateAssetParams) (repository.Asset, error) {
@@ -373,4 +506,174 @@ func toAsset(a dbgen.Asset) repository.Asset {
 		CreatedAt:        a.CreatedAt,
 		UpdatedAt:        a.UpdatedAt,
 	}
+}
+
+func (r *assetRepo) CollectStorageKeys(ctx context.Context, workspaceID, assetID string) (repository.AssetStorageKeys, error) {
+	asset, err := r.q.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: assetID, WorkspaceID: workspaceID})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.AssetStorageKeys{}, apperr.ErrNotFound
+		}
+		return repository.AssetStorageKeys{}, err
+	}
+	out := repository.AssetStorageKeys{
+		AssetKey: asset.StorageKey,
+		ThumbKey: asset.ThumbnailKey,
+	}
+	versions, err := r.q.ListAllVersions(ctx, assetID)
+	if err != nil {
+		return repository.AssetStorageKeys{}, err
+	}
+	for _, v := range versions {
+		vk := repository.VersionStorageKeys{
+			StorageKey:   v.StorageKey,
+			ThumbnailKey: v.ThumbnailKey,
+		}
+		variants, err := r.q.ListVariantsByVersion(ctx, v.ID)
+		if err != nil {
+			return repository.AssetStorageKeys{}, err
+		}
+		for _, variant := range variants {
+			vk.VariantKeys = append(vk.VariantKeys, variant.StorageKey)
+		}
+		out.VersionKeys = append(out.VersionKeys, vk)
+	}
+	return out, nil
+}
+
+func (r *assetRepo) HardDelete(ctx context.Context, workspaceID, assetID string) error {
+	return r.q.DeleteAsset(ctx, dbgen.DeleteAssetParams{ID: assetID, WorkspaceID: workspaceID})
+}
+
+func (r *assetRepo) CountVersionsByAsset(ctx context.Context, assetID string) (int64, error) {
+	return r.q.CountVersionsForAsset(ctx, assetID)
+}
+
+func (r *assetRepo) CountVariantsByCurrentVersion(ctx context.Context, assetID string) (int64, error) {
+	var currentVersionID string
+	err := r.sqlDB.QueryRowContext(ctx,
+		`SELECT COALESCE(current_version_id, '') FROM assets WHERE id = ?`, assetID,
+	).Scan(&currentVersionID)
+	if err != nil || currentVersionID == "" {
+		return 0, nil
+	}
+	return r.q.CountVariantsByVersion(ctx, currentVersionID)
+}
+
+func (r *assetRepo) IsRebuildingVariants(ctx context.Context, versionID string) (bool, error) {
+	var count int64
+	err := r.sqlDB.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM jobs
+		 WHERE type = 'rebuild_variants'
+		   AND JSON_EXTRACT(payload, '$.new_version_id') = ?
+		   AND status IN ('pending', 'processing')`,
+		versionID,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *assetRepo) ListComments(ctx context.Context, assetID string) ([]repository.AssetComment, error) {
+	rows, err := r.q.ListCommentsOnAsset(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.AssetComment, len(rows))
+	for i, c := range rows {
+		createdAt, _ := time.Parse("2006-01-02 15:04:05", c.CreatedAt)
+		out[i] = repository.AssetComment{
+			ID:          c.ID,
+			AssetID:     assetID,
+			ShareID:     c.ShareID,
+			AuthorName:  c.AuthorName,
+			AuthorEmail: c.AuthorEmail,
+			Body:        c.Body,
+			CreatedAt:   createdAt,
+		}
+	}
+	return out, nil
+}
+
+func (r *assetRepo) SetProject(ctx context.Context, workspaceID, assetID string, projectID *string) error {
+	return r.q.UpdateAssetProject(ctx, dbgen.UpdateAssetProjectParams{
+		ID:          assetID,
+		WorkspaceID: workspaceID,
+		ProjectID:   projectID,
+	})
+}
+
+func (r *assetRepo) BatchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
+	return r.batchVersionCounts(ctx, assetIDs)
+}
+
+func (r *assetRepo) BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
+	return r.batchVariantCounts(ctx, assetIDs)
+}
+
+// batchVersionCounts returns version counts for a slice of asset IDs.
+func (r *assetRepo) batchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
+	counts := make(map[string]int64, len(assetIDs))
+	if len(assetIDs) == 0 {
+		return counts, nil
+	}
+	placeholders := make([]string, len(assetIDs))
+	args := make([]any, len(assetIDs))
+	for i, id := range assetIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf(
+		`SELECT asset_id, COUNT(*) FROM asset_versions WHERE deleted_at IS NULL AND asset_id IN (%s) GROUP BY asset_id`,
+		strings.Join(placeholders, ","),
+	)
+	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return counts, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var n int64
+		if err := rows.Scan(&id, &n); err == nil {
+			counts[id] = n
+		}
+	}
+	return counts, rows.Err()
+}
+
+// batchVariantCounts returns variant counts (on current version) for a slice of asset IDs.
+func (r *assetRepo) batchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
+	counts := make(map[string]int64, len(assetIDs))
+	if len(assetIDs) == 0 {
+		return counts, nil
+	}
+	placeholders := make([]string, len(assetIDs))
+	args := make([]any, len(assetIDs))
+	for i, id := range assetIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf(
+		`SELECT av.asset_id, COUNT(v.id)
+		   FROM asset_versions av
+		   JOIN variants v ON v.asset_version_id = av.id
+		  WHERE av.is_current = 1 AND av.asset_id IN (%s)
+		  GROUP BY av.asset_id`,
+		strings.Join(placeholders, ","),
+	)
+	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return counts, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var n int64
+		if err := rows.Scan(&id, &n); err == nil {
+			counts[id] = n
+		}
+	}
+	return counts, rows.Err()
 }

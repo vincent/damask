@@ -11,7 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
 const sessionDuration = 7 * 24 * time.Hour
 
 // BcryptCost is the work factor used for password hashing.
@@ -35,11 +34,10 @@ type UserResponse struct {
 }
 
 type AuthResponse struct {
-	Token     string           `json:"token"`
-	User      UserResponse     `json:"user"`
+	Token     string             `json:"token"`
+	User      UserResponse       `json:"user"`
 	Workspace *WorkspaceResponse `json:"workspace,omitempty"`
 }
-
 
 // handleRegister creates a new user account and a default workspace.
 //
@@ -73,7 +71,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		WorkspaceName: req.Name + "'s Workspace",
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	ws, err := s.workspace.Get(c.RequestCtx(), result.WorkspaceID)
@@ -81,7 +79,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
-	token, err := s.tokenMaker.CreateToken(result.User.ID, result.WorkspaceID, sessionDuration)
+	token, err := s.auth.CreateToken(result.User.ID, result.WorkspaceID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
@@ -126,7 +124,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
 
-	token, err := s.tokenMaker.CreateToken(result.User.ID, result.WorkspaceID, sessionDuration)
+	token, err := s.auth.CreateToken(result.User.ID, result.WorkspaceID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
@@ -153,7 +151,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 func (s *Server) handleRefresh(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	token, err := s.tokenMaker.CreateToken(claims.UserID, claims.WorkspaceID, sessionDuration)
+	token, err := s.auth.CreateToken(claims.UserID, claims.WorkspaceID, sessionDuration)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}

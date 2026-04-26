@@ -83,7 +83,7 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 		AssetIDs:    body.AssetIDs,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(collectionDTOToResponse(col))
@@ -102,7 +102,7 @@ func (s *Server) handleListCollections(c fiber.Ctx) error {
 
 	cols, err := s.collections.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	out := make([]CollectionResponse, len(cols))
@@ -128,12 +128,12 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 
 	col, err := s.collections.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	assets, err := s.collections.ListAssets(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	type collectionDetailResponse struct {
@@ -180,7 +180,7 @@ func (s *Server) handleUpdateCollection(c fiber.Ctx) error {
 		Description: &body.Description,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(collectionDTOToResponse(col))
@@ -202,7 +202,7 @@ func (s *Server) handleDeleteCollection(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	if err := s.collections.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -226,11 +226,11 @@ func (s *Server) handleAddCollectionAsset(c fiber.Ctx) error {
 	assetID := c.Params("aid")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if err := s.collections.AddAsset(c.RequestCtx(), claims.WorkspaceID, id, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -254,7 +254,7 @@ func (s *Server) handleRemoveCollectionAsset(c fiber.Ctx) error {
 	assetID := c.Params("aid")
 
 	if err := s.collections.RemoveAsset(c.RequestCtx(), claims.WorkspaceID, id, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -275,12 +275,12 @@ func (s *Server) handleListAssetCollections(c fiber.Ctx) error {
 	assetID := c.Params("id")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	cols, err := s.collections.ListForAsset(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	out := make([]CollectionResponse, len(cols))
@@ -289,4 +289,3 @@ func (s *Server) handleListAssetCollections(c fiber.Ctx) error {
 	}
 	return c.JSON(out)
 }
-

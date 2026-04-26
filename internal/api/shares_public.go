@@ -145,7 +145,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 
 	_ = s.sharePublic.IncrementViewCount(c.RequestCtx(), id)
 
-	token, err := s.tokenMaker.CreateShareToken(
+	token, err := s.auth.CreateShareToken(
 		sh.ID,
 		sh.TargetType,
 		sh.TargetID,
@@ -177,7 +177,7 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
 
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
 
@@ -237,16 +237,16 @@ func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 	shareID := c.Params("id")
 	assetID := c.Params("aid")
 
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
-	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
+	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
 		return err
 	}
 
 	a, err := s.sharePublic.GetAsset(c.RequestCtx(), assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	return c.JSON(publicAssetDTOToResponse(a))
 }
@@ -273,16 +273,16 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	if !sc.AllowDownload {
 		return errRes(c, fiber.StatusForbidden, "download not allowed for this share")
 	}
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
-	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
+	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
 		return err
 	}
 
 	f, err := s.sharePublic.GetAssetFile(c.RequestCtx(), assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	lastMod := parseVersionTime(f.VersionCreatedAt)
@@ -321,16 +321,16 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 	shareID := c.Params("id")
 	assetID := c.Params("aid")
 
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
-	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
+	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
 		return err
 	}
 
 	thumb, err := s.sharePublic.GetAssetThumb(c.RequestCtx(), assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	thumbETag := assetID + "_" + strconv.FormatInt(thumb.UpdatedAt.Unix(), 10)
@@ -369,7 +369,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	if !sc.AllowComments {
 		return errRes(c, fiber.StatusForbidden, "comments not allowed for this share")
 	}
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
 
@@ -377,7 +377,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	if !ok {
 		return nil
 	}
-	if err := s.assertAssetInShareSvc(c, sc, body.AssetID); err != nil {
+	if err := s.assertAssetInShare(c, sc, body.AssetID); err != nil {
 		return err
 	}
 
@@ -416,7 +416,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	shareID := c.Params("id")
 
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
 
@@ -465,10 +465,10 @@ func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 	shareID := c.Params("id")
 	assetID := c.Params("aid")
 
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
-	if err := s.assertAssetInShareSvc(c, sc, assetID); err != nil {
+	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
 		return err
 	}
 
@@ -501,7 +501,7 @@ func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 	shareID := c.Params("id")
 
 	if _, err := s.sharePublic.GetOwnerShare(c.RequestCtx(), claims.WorkspaceID, shareID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	dtos, err := s.sharePublic.ListCommentsByShare(c.RequestCtx(), shareID)
@@ -535,7 +535,7 @@ func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 	commentID := c.Params("cid")
 
 	if _, err := s.sharePublic.GetOwnerShare(c.RequestCtx(), claims.WorkspaceID, shareID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if err := s.sharePublic.DeleteComment(c.RequestCtx(), shareID, commentID); err != nil {
@@ -544,8 +544,6 @@ func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
-
-// ── WS-5: anonymous ZIP export for shared collections ────────────────────────
 
 // @Summary Download shared assets as ZIP (public)
 // @Description Streams a ZIP archive of all assets accessible via the share. Works for <code>asset</code>, <code>project</code>, and <code>collection</code> target types. Requires the share to have <code>allow_download: true</code> and a valid share session token. The ZIP is scoped strictly to the share's target — it cannot expose assets outside it.
@@ -565,7 +563,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 	if !sc.AllowDownload {
 		return errRes(c, fiber.StatusForbidden, "download not allowed for this share")
 	}
-	if err := s.reCheckShareSvc(c, shareID); err != nil {
+	if err := s.assertShareActive(c, shareID); err != nil {
 		return err
 	}
 
@@ -648,7 +646,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-func (s *Server) reCheckShareSvc(c fiber.Ctx, shareID string) error {
+func (s *Server) assertShareActive(c fiber.Ctx, shareID string) error {
 	_, err := s.sharePublic.GetActive(c.RequestCtx(), shareID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusGone, "share has been revoked or expired")
@@ -656,7 +654,7 @@ func (s *Server) reCheckShareSvc(c fiber.Ctx, shareID string) error {
 	return nil
 }
 
-func (s *Server) assertAssetInShareSvc(c fiber.Ctx, sc *auth.ShareClaims, assetID string) error {
+func (s *Server) assertAssetInShare(c fiber.Ctx, sc *auth.ShareClaims, assetID string) error {
 	ok, err := s.sharePublic.IsAssetInTarget(c.RequestCtx(), sc.TargetType, sc.TargetID, assetID)
 	if err != nil || !ok {
 		return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")

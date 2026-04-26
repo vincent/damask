@@ -113,3 +113,22 @@ func (r *RealFieldRepo) UpdatePosition(_ context.Context, workspaceID, id string
 func (r *RealFieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error {
 	return nil
 }
+
+func (r *RealFieldRepo) GetByKey(_ context.Context, workspaceID, key string) (repository.FieldDefinition, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, f := range r.fields {
+		if f.WorkspaceID == workspaceID && f.Key == key && f.DeletedAt == nil {
+			return f, nil
+		}
+	}
+	return repository.FieldDefinition{}, fmt.Errorf("field key %q: %w", key, apperr.ErrNotFound)
+}
+
+func (r *RealFieldRepo) ListImageAssetIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
+func (r *RealFieldRepo) ListMissingExifField(_ context.Context, _, _ string, _ int64) ([]string, error) {
+	return nil, nil
+}

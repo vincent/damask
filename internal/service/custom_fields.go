@@ -232,6 +232,18 @@ func (s *fieldService) InheritProjectFields(ctx context.Context, workspaceID, as
 	return s.fields.InheritProjectFields(ctx, workspaceID, assetID, projectID, userID)
 }
 
+// ListAssetsMissingExif returns asset IDs that need EXIF extraction jobs.
+// If the tombstone field "_exif_make" doesn't exist yet, all image asset IDs are returned.
+// Otherwise, only assets missing the tombstone field value are returned (up to 10 000).
+func (s *fieldService) ListAssetsMissingExif(ctx context.Context, workspaceID string) ([]string, error) {
+	tombstone, err := s.fields.GetByKey(ctx, workspaceID, "_exif_make")
+	if err != nil {
+		// No tombstone field yet — return all image asset IDs.
+		return s.fields.ListImageAssetIDs(ctx, workspaceID)
+	}
+	return s.fields.ListMissingExifField(ctx, workspaceID, tombstone.ID, 10000)
+}
+
 func toFieldDTO(f repository.FieldDefinition) *FieldDefinitionDTO {
 	return &FieldDefinitionDTO{
 		ID:                 f.ID,
@@ -254,8 +266,8 @@ func toFieldDTO(f repository.FieldDefinition) *FieldDefinitionDTO {
 // -- AssetFieldService --------------------------------------------------------
 
 type assetFieldService struct {
-	assets     repository.AssetRepository
-	fields     repository.FieldRepository
+	assets      repository.AssetRepository
+	fields      repository.FieldRepository
 	assetFields repository.AssetFieldRepository
 }
 
@@ -375,8 +387,8 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 // -- ProjectFieldService -------------------------------------------------------
 
 type projectFieldService struct {
-	projects     repository.ProjectRepository
-	fields       repository.FieldRepository
+	projects      repository.ProjectRepository
+	fields        repository.FieldRepository
 	projectFields repository.ProjectFieldRepository
 }
 
@@ -494,7 +506,6 @@ func resolveFieldValue(fieldID, fieldType string, options *string, value interfa
 	}
 	return p, nil
 }
-
 
 func toFieldValueDTOs(rows []repository.FieldValue) []*FieldValueDTO {
 	out := make([]*FieldValueDTO, len(rows))

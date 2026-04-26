@@ -22,6 +22,24 @@ type AssetRepository interface {
 	RefreshFTS(ctx context.Context, assetID string) error
 	// ListByFields returns assets matching the given field filters (JOIN-per-filter pattern).
 	ListByFields(ctx context.Context, params ListAssetsByFieldsParams) ([]Asset, error)
+	// CollectStorageKeys returns all storage keys (asset + versions + variants) for an asset.
+	CollectStorageKeys(ctx context.Context, workspaceID, assetID string) (AssetStorageKeys, error)
+	// HardDelete permanently deletes the asset DB row (assumes storage cleanup is done by caller).
+	HardDelete(ctx context.Context, workspaceID, assetID string) error
+	// CountVersionsByAsset returns the number of non-deleted versions for an asset.
+	CountVersionsByAsset(ctx context.Context, assetID string) (int64, error)
+	// CountVariantsByCurrentVersion returns the number of variants on the asset's current version.
+	CountVariantsByCurrentVersion(ctx context.Context, assetID string) (int64, error)
+	// IsRebuildingVariants reports whether a rebuild_variants job is pending/processing for the given version.
+	IsRebuildingVariants(ctx context.Context, versionID string) (bool, error)
+	// ListComments returns all share comments posted on the asset.
+	ListComments(ctx context.Context, assetID string) ([]AssetComment, error)
+	// BatchVersionCounts returns version counts keyed by asset ID.
+	BatchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
+	// BatchVariantCounts returns variant counts (current version) keyed by asset ID.
+	BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
+	// SetProject assigns or clears the project for an asset (projectID = nil clears it).
+	SetProject(ctx context.Context, workspaceID, assetID string, projectID *string) error
 }
 
 // ProjectRepository handles persistence for Project records.
@@ -50,6 +68,8 @@ type FolderRepository interface {
 	GetChildren(ctx context.Context, workspaceID, parentID string) ([]Folder, error)
 	// NullifyAssets sets folder_id = NULL on all assets in the folder.
 	NullifyAssets(ctx context.Context, workspaceID, folderID string) error
+	// ListTree returns a recursive tree of folders for a project, each with asset count. Depth ≤ 2.
+	ListTree(ctx context.Context, workspaceID, projectID string) ([]FolderTree, error)
 }
 
 // TagRepository handles persistence for Tag records.
@@ -158,6 +178,12 @@ type FieldRepository interface {
 	// InheritProjectFields copies inheritable project field values to a newly created asset.
 	// It is a no-op when there are no inheritable definitions or the project has no values set.
 	InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error
+	// GetByKey returns the field definition with the given key in the workspace, or ErrNotFound.
+	GetByKey(ctx context.Context, workspaceID, key string) (FieldDefinition, error)
+	// ListImageAssetIDs returns IDs of all image assets in the workspace.
+	ListImageAssetIDs(ctx context.Context, workspaceID string) ([]string, error)
+	// ListMissingExifField returns asset IDs that are image assets but lack a value for fieldID.
+	ListMissingExifField(ctx context.Context, workspaceID, fieldID string, limit int64) ([]string, error)
 }
 
 // AssetFieldRepository handles persistence for asset field values.

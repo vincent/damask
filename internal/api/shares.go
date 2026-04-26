@@ -131,7 +131,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 		AllowDownload: allowDownload,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if sh.TargetType == "asset" {
@@ -162,7 +162,7 @@ func (s *Server) handleListShares(c fiber.Ctx) error {
 
 	shares, err := s.shares.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	items := make([]ShareResponse, len(shares))
@@ -188,7 +188,7 @@ func (s *Server) handleGetShare(c fiber.Ctx) error {
 
 	sh, err := s.shares.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(shareDTOToResponse(sh, s.cfg.BaseURL.String()))
@@ -235,7 +235,7 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 		AllowDownload: body.AllowDownload,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(shareDTOToResponse(sh, s.cfg.BaseURL.String()))
@@ -257,11 +257,11 @@ func (s *Server) handleRevokeShare(c fiber.Ctx) error {
 
 	sh, err := s.shares.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if err := s.shares.Revoke(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if sh.TargetType == "asset" {

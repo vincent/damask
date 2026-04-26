@@ -76,7 +76,7 @@ func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 	assetID := c.Params("id")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	limit, cursor, types := parseEventQueryParams(c)
@@ -89,7 +89,7 @@ func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 		Types:       types,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(auditListDTOToResponse(result))
@@ -113,7 +113,7 @@ func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 	projectID := c.Params("id")
 
 	if _, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, projectID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	limit, cursor, types := parseEventQueryParams(c)
@@ -126,7 +126,7 @@ func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 		Types:       types,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(auditListDTOToResponse(result))
@@ -158,7 +158,7 @@ func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 		Types:       types,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	events := make([]activityEvent, len(result.Events))
@@ -218,7 +218,7 @@ func (s *Server) handleExportActivity(c fiber.Ctx) error {
 		Until:       until,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	c.Set("Content-Type", "text/csv")

@@ -231,7 +231,7 @@ func (r *userRepo) RunInTx(ctx context.Context, fn func(repository.UserRepositor
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 	if err := fn(&userRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
 		return err
 	}

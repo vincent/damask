@@ -62,18 +62,11 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 // isRebuildingVariants returns true when a rebuild_variants job for the given
 // version is in pending or processing state.
 func (s *Server) isRebuildingVariants(c fiber.Ctx, versionID string) bool {
-	var count int64
-	err := s.sqlDB.QueryRowContext(c.RequestCtx(),
-		`SELECT COUNT(*) FROM jobs
-		 WHERE type = 'rebuild_variants'
-		   AND JSON_EXTRACT(payload, '$.new_version_id') = ?
-		   AND status IN ('pending', 'processing')`,
-		versionID,
-	).Scan(&count)
+	rebuilding, err := s.assets.IsRebuildingVariants(c.RequestCtx(), versionID)
 	if err != nil {
 		slog.Error("is_rebuilding_variants", "error", err)
 	}
-	return err == nil && count > 0
+	return rebuilding
 }
 
 // ---- Handlers ----
@@ -98,12 +91,12 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 
 	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	variants, err := s.variants.List(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	out := make([]VariantResponse, len(variants))
@@ -147,7 +140,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 
 	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if asset.CurrentVersionID == nil {
@@ -257,12 +250,12 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	variantID := c.Params("vid")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	variant, err := s.variants.Get(c.RequestCtx(), claims.WorkspaceID, variantID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if setCacheHeaders(c, variant.ID, variant.CreatedAt, true) {
@@ -318,11 +311,11 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 
 	variant, err := s.variants.Get(c.RequestCtx(), claims.WorkspaceID, variantID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if err := s.variants.Delete(c.RequestCtx(), claims.WorkspaceID, assetID, variantID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	_ = s.storage.Delete(variant.StorageKey)
@@ -365,7 +358,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 
 	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if asset.CurrentVersionID == nil {
@@ -454,7 +447,7 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 
 	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if !strings.HasPrefix(asset.MimeType, "image/") {

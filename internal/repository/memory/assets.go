@@ -141,3 +141,47 @@ func (r *AssetRepo) CountByIDs(_ context.Context, workspaceID string, ids []stri
 	}
 	return count, nil
 }
+
+func (r *AssetRepo) CollectStorageKeys(_ context.Context, _, _ string) (repository.AssetStorageKeys, error) {
+	return repository.AssetStorageKeys{}, nil
+}
+func (r *AssetRepo) HardDelete(_ context.Context, workspaceID, id string) error {
+	return r.SoftDelete(context.Background(), workspaceID, id)
+}
+func (r *AssetRepo) CountVersionsByAsset(_ context.Context, _ string) (int64, error) {
+	return 0, nil
+}
+func (r *AssetRepo) CountVariantsByCurrentVersion(_ context.Context, _ string) (int64, error) {
+	return 0, nil
+}
+func (r *AssetRepo) IsRebuildingVariants(_ context.Context, _ string) (bool, error) {
+	return false, nil
+}
+func (r *AssetRepo) ListComments(_ context.Context, _ string) ([]repository.AssetComment, error) {
+	return nil, nil
+}
+func (r *AssetRepo) BatchVersionCounts(_ context.Context, ids []string) (map[string]int64, error) {
+	m := make(map[string]int64, len(ids))
+	for _, id := range ids {
+		m[id] = 0
+	}
+	return m, nil
+}
+func (r *AssetRepo) BatchVariantCounts(_ context.Context, ids []string) (map[string]int64, error) {
+	m := make(map[string]int64, len(ids))
+	for _, id := range ids {
+		m[id] = 0
+	}
+	return m, nil
+}
+func (r *AssetRepo) SetProject(_ context.Context, workspaceID, assetID string, projectID *string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	a, ok := r.assets[assetID]
+	if !ok || a.WorkspaceID != workspaceID {
+		return fmt.Errorf("asset %q: %w", assetID, apperr.ErrNotFound)
+	}
+	a.ProjectID = projectID
+	r.assets[assetID] = a
+	return nil
+}

@@ -121,6 +121,14 @@ func (s *Server) validateOAuthCallback(c fiber.Ctx, oauth2Cfg oauth2.Config) (*o
 
 // --- OIDC handlers ---
 
+// handleOIDCLogin initiates an OIDC login flow.
+//
+// @Summary Initiate OIDC login
+// @Description Redirects the browser to the configured OIDC provider's authorization endpoint. Sets short-lived <code>oidc_state</code> and <code>oidc_pkce</code> cookies (10 min TTL) for CSRF and PKCE verification. Returns 503 if OIDC is not configured.
+// @Tags Auth
+// @Success 302 {string} string "Redirect to OIDC provider"
+// @Failure 503 {object} ErrorResponse "OIDC not configured"
+// @Router /auth/oidc/login [get]
 // GET /auth/oidc/login
 func (s *Server) handleOIDCLogin(c fiber.Ctx) error {
 	rt := config.GetOIDCRuntime()
@@ -130,6 +138,15 @@ func (s *Server) handleOIDCLogin(c fiber.Ctx) error {
 	return s.initiateOAuth(c, rt.OAuth2Config)
 }
 
+// handleOIDCCallback handles the OIDC provider redirect.
+//
+// @Summary OIDC callback
+// @Description Receives the authorization code from the OIDC provider. Validates state (CSRF) and PKCE, exchanges the code for tokens, verifies the ID token, upserts the user, issues a session cookie, and redirects to <code>/</code>. On any error redirects to <code>/login?error=...</code>.
+// @Tags Auth
+// @Param code query string true "Authorization code from provider"
+// @Param state query string true "State parameter (CSRF token)"
+// @Success 302 {string} string "Redirect to / on success, or /login?error=... on failure"
+// @Router /auth/oidc/callback [get]
 // GET /auth/oidc/callback
 func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 	rt := config.GetOIDCRuntime()
@@ -177,7 +194,7 @@ func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
 
-	jwtToken, err := s.tokenMaker.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
+	jwtToken, err := s.auth.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
@@ -187,6 +204,14 @@ func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 
 // --- Google handlers ---
 
+// handleGoogleLogin initiates a Google OAuth2 login flow.
+//
+// @Summary Initiate Google login
+// @Description Redirects the browser to Google's OAuth2 authorization endpoint with <code>prompt=select_account</code>. Sets short-lived <code>oidc_state</code> and <code>oidc_pkce</code> cookies (10 min TTL). Returns 503 if Google OAuth is not configured.
+// @Tags Auth
+// @Success 302 {string} string "Redirect to Google OAuth2"
+// @Failure 503 {object} ErrorResponse "Google login not configured"
+// @Router /auth/google/login [get]
 // GET /auth/google/login
 func (s *Server) handleGoogleLogin(c fiber.Ctx) error {
 	rt := config.GetGoogleRuntime()
@@ -198,6 +223,15 @@ func (s *Server) handleGoogleLogin(c fiber.Ctx) error {
 	)
 }
 
+// handleGoogleCallback handles the Google OAuth2 provider redirect.
+//
+// @Summary Google OAuth2 callback
+// @Description Receives the authorization code from Google. Validates state and PKCE, exchanges the code, verifies the ID token, upserts the user (marked as Google-linked), issues a session cookie, and redirects to <code>/</code>. On any error redirects to <code>/login?error=...</code>.
+// @Tags Auth
+// @Param code query string true "Authorization code from Google"
+// @Param state query string true "State parameter (CSRF token)"
+// @Success 302 {string} string "Redirect to / on success, or /login?error=... on failure"
+// @Router /auth/google/callback [get]
 // GET /auth/google/callback
 func (s *Server) handleGoogleCallback(c fiber.Ctx) error {
 	rt := config.GetGoogleRuntime()
@@ -245,7 +279,7 @@ func (s *Server) handleGoogleCallback(c fiber.Ctx) error {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
 
-	jwtToken, err := s.tokenMaker.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
+	jwtToken, err := s.auth.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
@@ -272,6 +306,14 @@ func (s *Server) canvaOAuth2Config() oauth2.Config {
 	}
 }
 
+// handleCanvaLogin initiates a Canva OAuth2 login flow.
+//
+// @Summary Initiate Canva login
+// @Description Redirects the browser to Canva's OAuth2 authorization endpoint requesting the <code>profile:read</code> scope. Sets short-lived <code>oidc_state</code> and <code>oidc_pkce</code> cookies (10 min TTL). Returns 503 if Canva OAuth is not configured.
+// @Tags Auth
+// @Success 302 {string} string "Redirect to Canva OAuth2"
+// @Failure 503 {object} ErrorResponse "Canva login not configured"
+// @Router /auth/canva/login [get]
 // GET /auth/canva/login
 func (s *Server) handleCanvaLogin(c fiber.Ctx) error {
 	if s.cfg.Canva.ClientID == "" {
@@ -280,6 +322,15 @@ func (s *Server) handleCanvaLogin(c fiber.Ctx) error {
 	return s.initiateOAuth(c, s.canvaOAuth2Config())
 }
 
+// handleCanvaCallback handles the Canva OAuth2 provider redirect.
+//
+// @Summary Canva OAuth2 callback
+// @Description Receives the authorization code from Canva. Validates state and PKCE, exchanges the code, fetches the user profile from the Canva API (<code>/rest/v1/users/me</code>), upserts the user, issues a session cookie, and redirects to <code>/</code>. On any error redirects to <code>/login?error=oidc_exchange&error_step=...</code>.
+// @Tags Auth
+// @Param code query string true "Authorization code from Canva"
+// @Param state query string true "State parameter (CSRF token)"
+// @Success 302 {string} string "Redirect to / on success, or /login?error=... on failure"
+// @Router /auth/canva/callback [get]
 // GET /auth/canva/callback
 func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 	if s.cfg.Canva.ClientID == "" {
@@ -326,7 +377,7 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 		return c.Redirect().To("/login?error=oidc_exchange&error_step=upsert_user")
 	}
 
-	jwtToken, err := s.tokenMaker.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
+	jwtToken, err := s.auth.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange&error_step=create_token")
 	}
@@ -347,6 +398,17 @@ type meResponse struct {
 	CanvaLinked  bool    `json:"canva_linked"`
 }
 
+// handleGetMe returns the authenticated user's profile.
+//
+// @Summary Get current user profile
+// @Description Returns the profile of the currently authenticated user including their linked OAuth providers (OIDC, Google, Canva).
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} meResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 500 {object} ErrorResponse "Could not load user"
+// @Router /auth/me [get]
 // GET /auth/me
 func (s *Server) handleGetMe(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -368,6 +430,17 @@ func (s *Server) handleGetMe(c fiber.Ctx) error {
 
 // --- unlink handlers ---
 
+// handleUnlinkOIDC unlinks the OIDC provider from the current user's account.
+//
+// @Summary Unlink OIDC provider
+// @Description Removes the OIDC login method from the current user's account. Fails with 422 if OIDC is the user's only auth method (would lock them out).
+// @Tags Auth
+// @Security BearerAuth
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ErrorResponse "Cannot unlink — only auth method remaining"
+// @Failure 500 {object} ErrorResponse "Could not unlink"
+// @Router /auth/oidc/link [delete]
 // DELETE /auth/oidc/link
 func (s *Server) handleUnlinkOIDC(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -379,6 +452,17 @@ func (s *Server) handleUnlinkOIDC(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// handleUnlinkGoogle unlinks the Google provider from the current user's account.
+//
+// @Summary Unlink Google provider
+// @Description Removes the Google login method from the current user's account. Fails with 422 if Google is the user's only auth method (would lock them out).
+// @Tags Auth
+// @Security BearerAuth
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ErrorResponse "Cannot unlink — only auth method remaining"
+// @Failure 500 {object} ErrorResponse "Could not unlink"
+// @Router /auth/google/link [delete]
 // DELETE /auth/google/link
 func (s *Server) handleUnlinkGoogle(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -390,6 +474,17 @@ func (s *Server) handleUnlinkGoogle(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// handleUnlinkCanva unlinks the Canva provider from the current user's account.
+//
+// @Summary Unlink Canva provider
+// @Description Removes the Canva login method from the current user's account. Fails with 422 if Canva is the user's only auth method (would lock them out).
+// @Tags Auth
+// @Security BearerAuth
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ErrorResponse "Cannot unlink — only auth method remaining"
+// @Failure 500 {object} ErrorResponse "Could not unlink"
+// @Router /auth/canva/link [delete]
 // DELETE /auth/canva/link
 func (s *Server) handleUnlinkCanva(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)

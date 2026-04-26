@@ -1,15 +1,11 @@
 package api
 
 import (
-	"context"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
 	"mime"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -17,11 +13,9 @@ import (
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
-	services "damask/server/internal/fileproc"
 	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 type AssetResponse struct {
@@ -128,16 +122,11 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "file field is required")
 	}
 
-	tmpF, err := os.CreateTemp("", "damask-upload-*"+filepath.Ext(fh.Filename))
+	f, err := fh.Open()
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "cannot create temp file")
+		return errRes(c, fiber.StatusInternalServerError, "cannot open uploaded file")
 	}
-	tmpFile := tmpF.Name()
-	_ = tmpF.Close()
-	err = c.SaveFile(fh, tmpFile)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "cannot create temp file")
-	}
+	defer f.Close()
 
 	var uploadProjectID *string
 	if pid := c.FormValue("project_id"); pid != "" {
@@ -149,16 +138,16 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		uploadFolderID = &fid
 	}
 
-	asset, fErr := services.CreateAsset(c.RequestCtx(), s.db, s.sqlDB, s.storage, s.queue, claims.WorkspaceID, tmpFile, services.AssetOptions{
-		ProjectID:     uploadProjectID,
-		FolderID:      uploadFolderID,
-		UserID:        claims.UserID,
-		InheritFields: s.newInheritProjectFieldsFunc(),
-		OriginalName:  fh.Filename,
+	asset, err := s.upload.Ingest(c.RequestCtx(), claims.WorkspaceID, f, service.UploadMeta{
+		OriginalFilename: fh.Filename,
+		ProjectID:        uploadProjectID,
+		FolderID:         uploadFolderID,
+		UserID:           claims.UserID,
+		InheritFields:    s.newInheritProjectFieldsFunc(),
 	})
-	if fErr != nil {
-		slog.Error("cannot create asset", "error", fErr)
-		return errRes(c, fErr.Code, fErr.Message)
+	if err != nil {
+		slog.Error("cannot create asset", "error", err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID
@@ -171,7 +160,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "upload"},
 	})
 
-	return c.Status(fiber.StatusCreated).JSON(assetToResponse(*asset, nil))
+	return c.Status(fiber.StatusCreated).JSON(assetToResponse(dtoToDBAsset(asset), nil))
 }
 
 // handleListAssets lists assets in the workspace with filtering, sorting, and cursor pagination.
@@ -202,341 +191,107 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		}
 	}
 
-	q := c.Query("q")
-	if q != "" {
-		return s.handleSearchAssets(c, claims.WorkspaceID, q, limit)
-	}
-
-	// Tag filter — AND logic across multiple tags
-	if tagsParam := c.Query("tags"); tagsParam != "" {
-		tagNames := strings.Split(tagsParam, ",")
-		for i, t := range tagNames {
-			tagNames[i] = strings.TrimSpace(strings.ToLower(t))
-		}
-		return s.handleListAssetsByTags(c, claims.WorkspaceID, tagNames, limit)
-	}
-
-	// Field value filter — look for any query param prefixed with "field["
+	// Field value filter — handled separately (different pagination scheme).
 	if hasFieldFilters(c) {
 		return s.handleListAssetsByFields(c, claims.WorkspaceID, limit)
 	}
 
-	// Folder filter
-	if folderID := c.Query("folder_id"); folderID != "" {
-		isRoot := folderID == "root"
-		projectID := c.Query("project_id")
-		return s.handleListAssetsInFolder(c, claims.WorkspaceID, folderID, isRoot, projectID, limit)
+	lp := service.ListAssetsParams{
+		WorkspaceID: claims.WorkspaceID,
+		Limit:       limit,
 	}
 
-	sort := c.Query("sort")
-
-	if sort == "taken_at" || sort == "taken_at_desc" {
-		return s.handleListAssetsSortByTakenAt(c, claims.WorkspaceID, limit, sort == "taken_at_desc")
+	// Search
+	if q := c.Query("q"); q != "" {
+		lp.SearchQuery = q
 	}
 
-	orderBy := "created_at DESC, id DESC"
-	sortField := "created_at"
-	switch sort {
-	case "size_asc":
-		orderBy = "size ASC, id DESC"
-		sortField = "size"
-	case "size_desc":
-		orderBy = "size DESC, id DESC"
-		sortField = "size"
-	case "created_at_asc":
-		orderBy = "created_at ASC, id ASC"
-	case "created_at_desc":
-		orderBy = "created_at DESC, id DESC"
-	case "id_asc":
-		orderBy = "id ASC"
-		sortField = "id"
-	case "id_desc":
-		orderBy = "id DESC"
-		sortField = "id"
-	}
-
-	var whereClauses []string
-	var args []interface{}
-	whereClauses = append(whereClauses, "workspace_id = ?")
-	args = append(args, claims.WorkspaceID)
-
-	if pid := c.Query("project_id"); pid != "" {
-		whereClauses = append(whereClauses, "project_id = ?")
-		args = append(args, pid)
-	}
-	if cid := c.Query("collection_id"); cid != "" {
-		whereClauses = append(whereClauses, "id IN (SELECT asset_id FROM collection_assets WHERE collection_id = ?)")
-		args = append(args, cid)
-	}
-	if mime := c.Query("mime"); mime != "" {
-		whereClauses = append(whereClauses, "mime_type LIKE ?")
-		args = append(args, mime+"%")
-	}
-
-	if cursor := c.Query("cursor"); cursor != "" {
-		cv, err := decodeCursor(cursor)
-		if err == nil {
-			switch cv.Field {
-			case "size":
-				if sort == "size_asc" {
-					whereClauses = append(whereClauses, "(size > ? OR (size = ? AND id < ?))")
-				} else {
-					whereClauses = append(whereClauses, "(size < ? OR (size = ? AND id < ?))")
-				}
-				args = append(args, cv.Value, cv.Value, cv.ID)
-			case "id":
-				if sort == "id_asc" {
-					whereClauses = append(whereClauses, "id > ?")
-				} else {
-					whereClauses = append(whereClauses, "id < ?")
-				}
-				args = append(args, cv.ID)
-			default: // "created_at"
-				if sort == "created_at_asc" {
-					whereClauses = append(whereClauses, "(created_at > ? OR (created_at = ? AND id > ?))")
-				} else {
-					whereClauses = append(whereClauses, "(created_at < ? OR (created_at = ? AND id < ?))")
-				}
-				args = append(args, cv.Value, cv.Value, cv.ID)
-			}
+	// Tag filter — AND logic
+	if tagsParam := c.Query("tags"); tagsParam != "" {
+		for _, t := range strings.Split(tagsParam, ",") {
+			lp.TagNames = append(lp.TagNames, strings.TrimSpace(strings.ToLower(t)))
 		}
 	}
 
-	args = append(args, limit)
+	// Folder filter
+	if folderID := c.Query("folder_id"); folderID != "" {
+		if folderID == "root" {
+			lp.FolderIsRoot = true
+			if pid := c.Query("project_id"); pid != "" {
+				lp.ProjectID = &pid
+			} else {
+				return errRes(c, fiber.StatusBadRequest, "project_id is required when using folder_id=root")
+			}
+		} else {
+			lp.FolderID = &folderID
+		}
+	} else if pid := c.Query("project_id"); pid != "" {
+		lp.ProjectID = &pid
+	}
 
-	query := fmt.Sprintf(`
-		SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key,
-		       mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at
-		FROM assets
-		WHERE %s
-		ORDER BY %s
-		LIMIT ?
-	`, strings.Join(whereClauses, " AND "), orderBy)
+	if cid := c.Query("collection_id"); cid != "" {
+		lp.CollectionID = &cid
+	}
 
-	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
+	if mime := c.Query("mime"); mime != "" {
+		lp.MimePrefix = &mime
+	}
+
+	// Sort
+	sort := c.Query("sort")
+	switch sort {
+	case "size_asc":
+		lp.SortField = "size"
+		lp.SortDesc = false
+	case "size_desc":
+		lp.SortField = "size"
+		lp.SortDesc = true
+	case "id_asc":
+		lp.SortField = "id"
+		lp.SortDesc = false
+	case "id_desc":
+		lp.SortField = "id"
+		lp.SortDesc = true
+	case "created_at_asc":
+		lp.SortField = "created_at_asc"
+		lp.SortDesc = false
+	case "taken_at":
+		lp.SortField = "taken_at"
+		lp.SortDesc = false
+	case "taken_at_desc":
+		lp.SortField = "taken_at"
+		lp.SortDesc = true
+	default: // created_at DESC
+		lp.SortDesc = true
+	}
+
+	// Cursor
+	if cursor := c.Query("cursor"); cursor != "" {
+		if cv, err := decodeCursor(cursor); err == nil {
+			lp.CursorField = cv.Field
+			lp.CursorValue = cv.Value
+			lp.CursorID = cv.ID
+		}
+	}
+
+	assets, err := s.assets.List(c.RequestCtx(), lp)
 	if err != nil {
 		slog.Error("could not list assets", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
-	defer rows.Close()
 
-	var assets []dbgen.Asset
-	for rows.Next() {
-		var a dbgen.Asset
-		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-			&a.CreatedAt, &a.UpdatedAt,
-		); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "scan failed")
-		}
-		assets = append(assets, a)
+	ids := make([]string, len(assets))
+	for i, a := range assets {
+		ids[i] = a.ID
 	}
-	if err := rows.Err(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-	}
+	versionCounts, _ := s.assets.BatchVersionCounts(c.RequestCtx(), ids)
+	variantCounts, _ := s.assets.BatchVariantCounts(c.RequestCtx(), ids)
 
-	versionCounts := s.batchVersionCounts(c.RequestCtx(), assets)
-	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, sortField, versionCounts, variantCounts))
+	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts))
 }
 
-// handleListAssetsSortByTakenAt sorts assets by _exif_taken_at field value (ASC, NULLs last).
-// desc=true reverses to DESC (still NULLs last).
-func (s *Server) handleListAssetsSortByTakenAt(c fiber.Ctx, workspaceID string, limit int64, desc bool) error {
-	// Look up the _exif_taken_at field definition ID.
-	fd, err := s.db.GetFieldDefinitionByKey(c.RequestCtx(), dbgen.GetFieldDefinitionByKeyParams{
-		WorkspaceID: workspaceID,
-		Key:         "_exif_taken_at",
-	})
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return errRes(c, fiber.StatusInternalServerError, "could not query field definitions")
-	}
-
-	var whereExtra string
-	var extraArgs []interface{}
-
-	if pid := c.Query("project_id"); pid != "" {
-		whereExtra += " AND a.project_id = ?"
-		extraArgs = append(extraArgs, pid)
-	}
-	if mime := c.Query("mime"); mime != "" {
-		whereExtra += " AND a.mime_type LIKE ?"
-		extraArgs = append(extraArgs, mime+"%")
-	}
-
-	// Field ID for the LEFT JOIN (empty string if field doesn't exist yet — join yields no rows).
-	fieldID := ""
-	if err == nil {
-		fieldID = fd.ID
-	}
-
-	orderDir := "ASC"
-	if desc {
-		orderDir = "DESC"
-	}
-
-	query := fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
-		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
-		       a.created_at, a.updated_at
-		FROM assets a
-		LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?
-		WHERE a.workspace_id = ?%s
-		ORDER BY afv.value_date %s NULLS LAST, a.created_at DESC, a.id DESC
-		LIMIT ?
-	`, whereExtra, orderDir)
-
-	// Args order: fieldID (JOIN), workspaceID (WHERE), extra filters, limit.
-	queryArgs := []interface{}{fieldID, workspaceID}
-	queryArgs = append(queryArgs, extraArgs...)
-	queryArgs = append(queryArgs, limit)
-
-	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, queryArgs...)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-	}
-	defer rows.Close()
-
-	var assets []dbgen.Asset
-	for rows.Next() {
-		var a dbgen.Asset
-		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-			&a.CreatedAt, &a.UpdatedAt,
-		); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "scan failed")
-		}
-		assets = append(assets, a)
-	}
-	if err := rows.Err(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-	}
-
-	versionCounts := s.batchVersionCounts(c.RequestCtx(), assets)
-	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", versionCounts, variantCounts))
-}
-
-func (s *Server) handleListAssetsByTags(c fiber.Ctx, workspaceID string, tagNames []string, limit int64) error {
-	// Build placeholders for IN clause — tag names must come BEFORE the HAVING count arg
-	placeholders := make([]string, len(tagNames))
-	args := []interface{}{workspaceID, workspaceID}
-	for i, name := range tagNames {
-		placeholders[i] = "?"
-		args = append(args, name)
-	}
-	args = append(args, int64(len(tagNames)))
-
-	// Optional cursor
-	var cursorClause string
-	if cursor := c.Query("cursor"); cursor != "" {
-		cv, err := decodeCursor(cursor)
-		if err == nil {
-			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
-			args = append(args, cv.Value, cv.Value, cv.ID)
-		}
-	}
-
-	args = append(args, limit)
-
-	query := fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
-		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
-		       a.created_at, a.updated_at
-		FROM assets a
-		WHERE a.workspace_id = ?
-		  AND a.id IN (
-		    SELECT at.asset_id FROM asset_tags at
-		    JOIN tags t ON t.id = at.tag_id
-		    WHERE t.workspace_id = ? AND t.name IN (%s)
-		    GROUP BY at.asset_id HAVING COUNT(DISTINCT t.id) = ?
-		  )
-		  %s
-		ORDER BY a.created_at DESC, a.id DESC
-		LIMIT ?
-	`, strings.Join(placeholders, ","), cursorClause)
-
-	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-	}
-	defer rows.Close()
-
-	var assets []dbgen.Asset
-	for rows.Next() {
-		var a dbgen.Asset
-		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-			&a.CreatedAt, &a.UpdatedAt,
-		); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "scan failed")
-		}
-		assets = append(assets, a)
-	}
-	if err := rows.Err(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "query failed")
-	}
-
-	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts, variantCounts))
-}
-
-func (s *Server) handleSearchAssets(c fiber.Ctx, workspaceID, q string, limit int64) error {
-	args := []interface{}{workspaceID, q + "*"}
-
-	var cursorClause string
-	if cursor := c.Query("cursor"); cursor != "" {
-		cv, err := decodeCursor(cursor)
-		if err == nil {
-			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
-			args = append(args, cv.Value, cv.Value, cv.ID)
-		}
-	}
-
-	args = append(args, limit)
-
-	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
-		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
-		       a.created_at, a.updated_at
-		FROM assets a
-		WHERE a.workspace_id = ?
-		  AND a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?)
-		  %s
-		ORDER BY a.created_at DESC, a.id DESC
-		LIMIT ?
-	`, cursorClause), args...)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "search failed")
-	}
-	defer rows.Close()
-
-	var assets []dbgen.Asset
-	for rows.Next() {
-		var a dbgen.Asset
-		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-			&a.CreatedAt, &a.UpdatedAt,
-		); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "scan failed")
-		}
-		assets = append(assets, a)
-	}
-	if err := rows.Err(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "search failed")
-	}
-
-	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts, variantCounts))
-}
-
-func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortField string, versionCounts map[string]int64, variantCounts map[string]int64) AssetListResponse {
+// buildAssetListResponseFromDTOs builds an AssetListResponse from service.AssetDTO slice.
+func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sortField string, versionCounts, variantCounts map[string]int64) AssetListResponse {
 	items := make([]AssetResponse, len(assets))
 	for i, a := range assets {
 		var vc, nVariants int64
@@ -546,7 +301,23 @@ func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortFie
 		if variantCounts != nil {
 			nVariants = variantCounts[a.ID]
 		}
-		items[i] = assetToResponseWithCount(a, nil, vc, nVariants, false)
+		items[i] = AssetResponse{
+			ID:               a.ID,
+			WorkspaceID:      a.WorkspaceID,
+			ProjectID:        a.ProjectID,
+			FolderID:         a.FolderID,
+			OriginalFilename: a.OriginalFilename,
+			MimeType:         a.MimeType,
+			Size:             a.Size,
+			Width:            a.Width,
+			Height:           a.Height,
+			ThumbnailKey:     a.ThumbnailKey,
+			CreatedAt:        a.CreatedAt,
+			UpdatedAt:        a.UpdatedAt,
+			Tags:             []string{},
+			VersionCount:     vc,
+			VariantCount:     nVariants,
+		}
 	}
 	var nextCursor *string
 	if int64(len(assets)) == limit && len(assets) > 0 {
@@ -568,113 +339,6 @@ func buildAssetListResponseWithCounts(assets []dbgen.Asset, limit int64, sortFie
 		nextCursor = &encoded
 	}
 	return AssetListResponse{Assets: items, NextCursor: nextCursor}
-}
-
-// buildAssetListResponseFromDTOs builds an AssetListResponse from service.AssetDTO slice.
-// Used by handleListAssetsByFields which returns service DTOs instead of dbgen rows.
-func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64) AssetListResponse {
-	items := make([]AssetResponse, len(assets))
-	for i, a := range assets {
-		items[i] = AssetResponse{
-			ID:               a.ID,
-			WorkspaceID:      a.WorkspaceID,
-			ProjectID:        a.ProjectID,
-			FolderID:         a.FolderID,
-			OriginalFilename: a.OriginalFilename,
-			MimeType:         a.MimeType,
-			Size:             a.Size,
-			Width:            a.Width,
-			Height:           a.Height,
-			ThumbnailKey:     a.ThumbnailKey,
-			CreatedAt:        a.CreatedAt,
-			UpdatedAt:        a.UpdatedAt,
-			Tags:             []string{},
-		}
-	}
-	var nextCursor *string
-	if int64(len(assets)) == limit && len(assets) > 0 {
-		last := assets[len(assets)-1]
-		cv := cursorVal{
-			Field: "created_at",
-			Value: last.CreatedAt.UTC().Format("2006-01-02 15:04:05"),
-			ID:    last.ID,
-		}
-		encoded := encodeCursor(cv)
-		nextCursor = &encoded
-	}
-	return AssetListResponse{Assets: items, NextCursor: nextCursor}
-}
-
-// batchVersionCounts fetches version counts for the given asset IDs in a single
-// query and returns a map of assetID → count.
-func (s *Server) batchVersionCounts(ctx context.Context, assets []dbgen.Asset) map[string]int64 {
-	counts := make(map[string]int64, len(assets))
-	if len(assets) == 0 {
-		return counts
-	}
-	placeholders := make([]string, len(assets))
-	args := make([]any, len(assets))
-	for i, a := range assets {
-		placeholders[i] = "?"
-		args[i] = a.ID
-	}
-	query := fmt.Sprintf(
-		`SELECT asset_id, COUNT(*) 
-		   FROM asset_versions 
-		  WHERE deleted_at IS NULL 
-		    AND asset_id IN (%s) 
-		  GROUP BY asset_id`,
-		strings.Join(placeholders, ","),
-	)
-	rows, err := s.sqlDB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return counts
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		var n int64
-		if err := rows.Scan(&id, &n); err == nil {
-			counts[id] = n
-		}
-	}
-	return counts
-}
-
-// batchVariantCounts fetches variant counts (on current version) for the given asset IDs.
-func (s *Server) batchVariantCounts(ctx context.Context, assets []dbgen.Asset) map[string]int64 {
-	counts := make(map[string]int64, len(assets))
-	if len(assets) == 0 {
-		return counts
-	}
-	placeholders := make([]string, len(assets))
-	args := make([]any, len(assets))
-	for i, a := range assets {
-		placeholders[i] = "?"
-		args[i] = a.ID
-	}
-	query := fmt.Sprintf(
-		`SELECT av.asset_id, COUNT(v.id)
-		   FROM asset_versions av
-		   JOIN variants v ON v.asset_version_id = av.id
-		  WHERE av.is_current = 1 
-		    AND av.asset_id IN (%s)
-		  GROUP BY av.asset_id`,
-		strings.Join(placeholders, ","),
-	)
-	rows, err := s.sqlDB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return counts
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		var n int64
-		if err := rows.Scan(&id, &n); err == nil {
-			counts[id] = n
-		}
-	}
-	return counts
 }
 
 type cursorVal struct {
@@ -733,23 +397,23 @@ func (s *Server) handleGetComments(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	dtos, err := s.assets.GetComments(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
+		return ErrorStatusResponse(c, err)
+	}
+	out := make([]CommentResponse, len(dtos))
+	for i, d := range dtos {
+		out[i] = CommentResponse{
+			ID:          d.ID,
+			ShareID:     d.ShareID,
+			AssetID:     d.AssetID,
+			AuthorName:  d.AuthorName,
+			AuthorEmail: d.AuthorEmail,
+			Body:        d.Body,
+			CreatedAt:   d.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
 	}
-
-	comments, err := s.db.ListCommentsOnAsset(c.RequestCtx(), asset.ID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not load comments")
-	}
-
-	return c.JSON(comments)
+	return c.JSON(out)
 }
 
 // handleGetAsset returns a single asset by ID.
@@ -770,37 +434,24 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	dto, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
-	tagRows, _ := s.db.GetTagsForAsset(c.RequestCtx(), id)
-	tagNames := make([]string, len(tagRows))
-	for i, t := range tagRows {
+	tagDTOs, _ := s.tags.ListForAsset(c.RequestCtx(), id)
+	tagNames := make([]string, len(tagDTOs))
+	for i, t := range tagDTOs {
 		tagNames[i] = t.Name
 	}
 
-	versionCount, _ := s.db.CountVersionsForAsset(c.RequestCtx(), id)
+	versionCount, _ := s.assets.CountVersionsByAsset(c.RequestCtx(), id)
 
-	// Check if a variant rebuild job is in flight for the current version.
 	variantsRebuilding := false
 	if dto.CurrentVersionID != nil {
-		var rebuildCount int64
-		if err := s.sqlDB.QueryRowContext(c.RequestCtx(),
-			`SELECT COUNT(*) FROM jobs
-			 WHERE type = 'rebuild_variants'
-			   AND JSON_EXTRACT(payload, '$.new_version_id') = ?
-			   AND status IN ('pending', 'processing')`,
-			*dto.CurrentVersionID,
-		).Scan(&rebuildCount); err == nil {
-			variantsRebuilding = rebuildCount > 0
-		}
+		rebuilding, _ := s.assets.IsRebuildingVariants(c.RequestCtx(), *dto.CurrentVersionID)
+		variantsRebuilding = rebuilding
 	}
 
-	currentVersionID := ""
-	if dto.CurrentVersionID != nil {
-		currentVersionID = *dto.CurrentVersionID
-	}
-	variantCount, _ := s.db.CountVariantsByVersion(c.RequestCtx(), currentVersionID)
+	variantCount, _ := s.assets.CountVariantsByCurrentVersion(c.RequestCtx(), id)
 
 	// Reconstruct a dbgen.Asset from the DTO to reuse the existing response builder.
 	asset := dtoToDBAsset(dto)
@@ -823,27 +474,17 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	assetDTO, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return ErrorStatusResponse(c, err)
 	}
 
-	version, err := s.db.GetCurrentVersion(c.RequestCtx(), id)
+	version, err := s.versions.GetCurrentByAsset(c.RequestCtx(), id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset file not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset version")
+		return ErrorStatusResponse(c, err)
 	}
 
-	lastMod := parseVersionTime(version.CreatedAt)
-	if setCacheHeaders(c, version.ContentHash, lastMod, false) {
+	if setCacheHeaders(c, version.ContentHash, version.CreatedAt, false) {
 		return nil
 	}
 
@@ -856,7 +497,7 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		userID := claims.UserID
 		s.audit.WriteAssetAsync(audit.AssetEvent{
 			WorkspaceID: claims.WorkspaceID,
-			AssetID:     asset.ID,
+			AssetID:     assetDTO.ID,
 			UserID:      &userID,
 			ActorType:   audit.ActorTypeUser,
 			EventType:   audit.EventAssetDownloaded,
@@ -864,8 +505,8 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		})
 	}
 
-	c.Set("Content-Type", asset.MimeType)
-	c.Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": asset.OriginalFilename}))
+	c.Set("Content-Type", assetDTO.MimeType)
+	c.Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": assetDTO.OriginalFilename}))
 	if version.Size > 0 {
 		c.Set("Content-Length", strconv.FormatInt(version.Size, 10))
 	}
@@ -888,29 +529,21 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	dto, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return ErrorStatusResponse(c, err)
 	}
 
-	if asset.ThumbnailKey == nil {
+	if dto.ThumbnailKey == nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not ready")
 	}
 
-	// log.Println("thumbnail: serve", *asset.ThumbnailKey)
-
-	thumbETag := asset.ID + "_" + strconv.FormatInt(asset.UpdatedAt.Unix(), 10)
-	if setCacheHeaders(c, thumbETag, asset.UpdatedAt, false) {
+	thumbETag := dto.ID + "_" + strconv.FormatInt(dto.UpdatedAt.Unix(), 10)
+	if setCacheHeaders(c, thumbETag, dto.UpdatedAt, false) {
 		return nil
 	}
 
-	rc, err := s.storage.Get(*asset.ThumbnailKey)
+	rc, err := s.storage.Get(*dto.ThumbnailKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
@@ -935,92 +568,14 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
-	}
-
-	// Block delete if asset is used as a project cover
-	_, err = s.db.GetProjectByCoverAsset(c.RequestCtx(), dbgen.GetProjectByCoverAssetParams{
-		CoverAssetID: &asset.ID,
-		WorkspaceID:  claims.WorkspaceID,
-	})
-	if err == nil {
-		return errRes(c, fiber.StatusConflict, "asset is used as a project cover")
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return errRes(c, fiber.StatusInternalServerError, "could not check asset usage")
-	}
-
-	// Block delete if asset is used as the workspace icon
-	_, err = s.db.GetWorkspaceByIconAsset(c.RequestCtx(), dbgen.GetWorkspaceByIconAssetParams{
-		IconAssetID: &asset.ID,
-		ID:          claims.WorkspaceID,
-	})
-	if err == nil {
-		return errRes(c, fiber.StatusConflict, "asset is used as the workspace icon")
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return errRes(c, fiber.StatusInternalServerError, "could not check asset usage")
-	}
-
-	// Collect all storage keys before deleting, then delete DB rows in a
-	// transaction. Storage cleanup happens after commit so files are never
-	// orphaned by a failed DB delete.
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback()
-	qtx := s.db.WithTx(tx)
-
-	var storageKeys []string
-	storageKeys = append(storageKeys, asset.StorageKey)
-	if asset.ThumbnailKey != nil {
-		storageKeys = append(storageKeys, *asset.ThumbnailKey)
-	}
-
-	versions, err := qtx.ListAllVersions(c.RequestCtx(), asset.ID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list asset versions")
-	}
-	for _, v := range versions {
-		storageKeys = append(storageKeys, v.StorageKey)
-		if v.ThumbnailKey != nil {
-			storageKeys = append(storageKeys, *v.ThumbnailKey)
-		}
-		variants, err := qtx.ListVariantsByVersion(c.RequestCtx(), v.ID)
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not list variants")
-		}
-		for _, variant := range variants {
-			storageKeys = append(storageKeys, variant.StorageKey)
-		}
-	}
-
-	if err := qtx.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
-		ID:          asset.ID,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not delete asset")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit deletion")
-	}
-
-	for _, key := range storageKeys {
-		_ = s.storage.Delete(key)
+	if err := s.assets.HardDelete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID
 	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
 		WorkspaceID: claims.WorkspaceID,
-		AssetID:     asset.ID,
+		AssetID:     id,
 		UserID:      &userID,
 		ActorType:   audit.ActorTypeUser,
 		EventType:   audit.EventAssetDeleted,
@@ -1049,28 +604,9 @@ func (s *Server) handleBulkTag(c fiber.Ctx) error {
 		return nil
 	}
 	claims := auth.GetClaims(c)
-	tag, err := s.db.GetOrCreateTag(c.RequestCtx(), dbgen.GetOrCreateTagParams{
-		ID:          uuid.NewString(),
-		WorkspaceID: claims.WorkspaceID,
-		Name:        body.TagName,
-	})
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not get or create tag")
+	if err := s.assets.BulkTag(c.RequestCtx(), claims.WorkspaceID, body.TagName, body.AssetIDs); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
-
-	for _, assetID := range body.AssetIDs {
-		// Verify ownership
-		if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-			ID: assetID, WorkspaceID: claims.WorkspaceID,
-		}); err != nil {
-			continue // skip assets not in this workspace
-		}
-		_ = s.db.AddTagToAsset(c.RequestCtx(), dbgen.AddTagToAssetParams{
-			AssetID: assetID,
-			TagID:   tag.ID,
-		})
-	}
-
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -1096,98 +632,17 @@ func (s *Server) handleBulkProject(c fiber.Ctx) error {
 		return nil
 	}
 
-	// If project_id provided, verify it belongs to workspace
+	// If project_id provided, verify it belongs to workspace.
 	if body.ProjectID != nil {
-		if _, err := s.db.GetProjectByID(c.RequestCtx(), dbgen.GetProjectByIDParams{
-			ID:          *body.ProjectID,
-			WorkspaceID: claims.WorkspaceID,
-		}); err != nil {
-			return errRes(c, fiber.StatusNotFound, "project not found")
+		if _, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, *body.ProjectID); err != nil {
+			return ErrorStatusResponse(c, err)
 		}
 	}
 
-	var projectID *string
-	if body.ProjectID != nil {
-		projectID = body.ProjectID
+	if err := s.assets.BulkMoveProject(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs, body.ProjectID); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
-
-	for _, assetID := range body.AssetIDs {
-		if _, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-			ID: assetID, WorkspaceID: claims.WorkspaceID,
-		}); err != nil {
-			continue
-		}
-		_ = s.db.UpdateAssetProject(c.RequestCtx(), dbgen.UpdateAssetProjectParams{
-			ProjectID:   projectID,
-			ID:          assetID,
-			WorkspaceID: claims.WorkspaceID,
-		})
-	}
-
 	return c.SendStatus(fiber.StatusNoContent)
-}
-
-func (s *Server) handleListAssetsInFolder(c fiber.Ctx, workspaceID, folderID string, isRoot bool, projectID string, limit int64) error {
-	var args []interface{}
-	var whereClause string
-
-	if isRoot {
-		if projectID == "" {
-			return errRes(c, fiber.StatusBadRequest, "project_id is required when using folder_id=root")
-		}
-		whereClause = "a.workspace_id = ? AND a.folder_id IS NULL AND a.project_id = ?"
-		args = []interface{}{workspaceID, projectID}
-	} else {
-		whereClause = "a.workspace_id = ? AND a.folder_id = ?"
-		args = []interface{}{workspaceID, folderID}
-	}
-
-	var cursorClause string
-	if cursor := c.Query("cursor"); cursor != "" {
-		cv, err := decodeCursor(cursor)
-		if err == nil {
-			cursorClause = "AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))"
-			args = append(args, cv.Value, cv.Value, cv.ID)
-		}
-	}
-	args = append(args, limit)
-
-	query := fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
-		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
-		       a.created_at, a.updated_at
-		FROM assets a
-		WHERE %s
-		  %s
-		ORDER BY a.created_at DESC, a.id DESC
-		LIMIT ?
-	`, whereClause, cursorClause)
-
-	rows, err := s.sqlDB.QueryContext(c.RequestCtx(), query, args...)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-	}
-	defer rows.Close()
-
-	var assets []dbgen.Asset
-	for rows.Next() {
-		var a dbgen.Asset
-		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
-			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
-			&a.CreatedAt, &a.UpdatedAt,
-		); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "scan failed")
-		}
-		assets = append(assets, a)
-	}
-	if err := rows.Err(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "query failed")
-	}
-
-	counts := s.batchVersionCounts(c.RequestCtx(), assets)
-	variantCounts := s.batchVariantCounts(c.RequestCtx(), assets)
-	return c.JSON(buildAssetListResponseWithCounts(assets, limit, "created_at", counts, variantCounts))
 }
 
 // handleUpdateAssetFolder moves an asset to a different folder or project.
@@ -1214,48 +669,15 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Verify asset exists in workspace
-	before, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	before, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return ErrorStatusResponse(c, err)
 	}
 
-	var folderID *string
-	if body.FolderID != nil && *body.FolderID != "" {
-		// Verify folder belongs to workspace
-		if _, err := s.db.GetFolderByID(c.RequestCtx(), dbgen.GetFolderByIDParams{
-			ID:          *body.FolderID,
-			WorkspaceID: claims.WorkspaceID,
-		}); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return errRes(c, fiber.StatusNotFound, "folder not found")
-			}
-			return errRes(c, fiber.StatusInternalServerError, "could not load folder")
-		}
-		folderID = body.FolderID
-	}
-
-	if err := s.db.UpdateAssetFolder(c.RequestCtx(), dbgen.UpdateAssetFolderParams{
-		FolderID:    folderID,
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not update asset folder")
-	}
-
-	// Reload asset to return updated version
-	updated, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	p := service.MoveAssetParams{FolderID: body.FolderID}
+	updated, err := s.assets.Move(c.RequestCtx(), claims.WorkspaceID, id, p)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID
@@ -1274,7 +696,7 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 		},
 	})
 
-	return c.JSON(assetToResponse(updated, nil))
+	return c.JSON(assetToResponse(dtoToDBAsset(updated), nil))
 }
 
 // handleRenameAsset updates the display name of an asset.
@@ -1301,45 +723,14 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 		return nil
 	}
 
-	before, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	before, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return errRes(c, fiber.StatusNotFound, "asset not found")
-		}
-		return errRes(c, fiber.StatusInternalServerError, "could not load asset")
+		return ErrorStatusResponse(c, err)
 	}
 
-	// Preserve the original file extension.
-	// body.Name is the stem only; reconstruct the full filename.
-	ext := filepath.Ext(before.OriginalFilename)
-	stem := strings.TrimSuffix(body.Name, ext) // guard: strip ext if client sent it
-	newName := stem + ext
-
-	// No-op: return early if the name hasn't changed.
-	if newName == before.OriginalFilename {
-		return c.JSON(assetToResponse(before, nil))
-	}
-
-	if err := s.db.UpdateAssetName(c.RequestCtx(), dbgen.UpdateAssetNameParams{
-		OriginalFilename: newName,
-		ID:               id,
-		WorkspaceID:      claims.WorkspaceID,
-	}); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not rename asset")
-	}
-
-	// Refresh FTS index so search reflects the new name.
-	_ = s.assets.RefreshFTS(c.RequestCtx(), id)
-
-	updated, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-		ID:          id,
-		WorkspaceID: claims.WorkspaceID,
-	})
+	updated, err := s.assets.Rename(c.RequestCtx(), claims.WorkspaceID, id, body.Name)
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID
@@ -1356,7 +747,7 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 		},
 	})
 
-	return c.JSON(assetToResponse(updated, nil))
+	return c.JSON(assetToResponse(dtoToDBAsset(updated), nil))
 }
 
 // handleBulkDelete permanently deletes multiple assets.
@@ -1380,66 +771,9 @@ func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 		return nil
 	}
 
-	type pendingDelete struct {
-		asset       dbgen.Asset
-		storageKeys []string
+	if err := s.assets.BulkHardDelete(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
-	var pending []pendingDelete
-
-	for _, assetID := range body.AssetIDs {
-		asset, err := s.db.GetAssetByID(c.RequestCtx(), dbgen.GetAssetByIDParams{
-			ID: assetID, WorkspaceID: claims.WorkspaceID,
-		})
-		if err != nil {
-			continue
-		}
-		keys := []string{asset.StorageKey}
-		if asset.ThumbnailKey != nil {
-			keys = append(keys, *asset.ThumbnailKey)
-		}
-		versions, err := s.db.ListAllVersions(c.RequestCtx(), asset.ID)
-		if err == nil {
-			for _, v := range versions {
-				keys = append(keys, v.StorageKey)
-				if v.ThumbnailKey != nil {
-					keys = append(keys, *v.ThumbnailKey)
-				}
-				variants, err := s.db.ListVariantsByVersion(c.RequestCtx(), v.ID)
-				if err == nil {
-					for _, variant := range variants {
-						keys = append(keys, variant.StorageKey)
-					}
-				}
-			}
-		}
-		pending = append(pending, pendingDelete{asset: asset, storageKeys: keys})
-	}
-
-	// Delete all DB rows in a single transaction before touching storage.
-	tx, err := s.sqlDB.BeginTx(c.RequestCtx(), nil)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not begin transaction")
-	}
-	defer tx.Rollback()
-	qtx := s.db.WithTx(tx)
-	for _, pd := range pending {
-		if err := qtx.DeleteAsset(c.RequestCtx(), dbgen.DeleteAssetParams{
-			ID:          pd.asset.ID,
-			WorkspaceID: claims.WorkspaceID,
-		}); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not delete asset")
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not commit deletion")
-	}
-
-	for _, pd := range pending {
-		for _, key := range pd.storageKeys {
-			_ = s.storage.Delete(key)
-		}
-	}
-
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

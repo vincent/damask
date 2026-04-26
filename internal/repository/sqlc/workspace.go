@@ -232,7 +232,7 @@ func (r *workspaceRepo) RunInTx(ctx context.Context, fn func(repository.Workspac
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 	if err := fn(&workspaceRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (r *workspaceRepo) RunRegistrationTx(ctx context.Context, fn func(context.C
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck
 	txQ := r.q.WithTx(tx)
 	txUsers := &userRepo{q: txQ, sqlDB: r.sqlDB}
 	txWorkspaces := &workspaceRepo{q: txQ, sqlDB: r.sqlDB}

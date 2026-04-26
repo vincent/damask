@@ -26,6 +26,20 @@ type FolderDTO struct {
 	Children    []*FolderDTO
 }
 
+// FolderTreeDTO is a folder with asset count and pre-built children, returned by ListTree.
+type FolderTreeDTO struct {
+	ID          string
+	WorkspaceID string
+	ProjectID   string
+	ParentID    *string
+	Name        string
+	Slug        *string
+	Position    int64
+	CreatedAt   time.Time
+	AssetCount  int64
+	Children    []*FolderTreeDTO
+}
+
 // CreateFolderParams is the input for FolderService.Create.
 type CreateFolderParams struct {
 	Name     string
@@ -136,6 +150,33 @@ func (s *folderService) List(ctx context.Context, workspaceID, projectID string)
 		out[i] = toFolderDTO(r)
 	}
 	return out, nil
+}
+
+func (s *folderService) ListTree(ctx context.Context, workspaceID, projectID string) ([]*FolderTreeDTO, error) {
+	roots, err := s.folders.ListTree(ctx, workspaceID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return toFolderTreeDTOs(roots), nil
+}
+
+func toFolderTreeDTOs(nodes []repository.FolderTree) []*FolderTreeDTO {
+	out := make([]*FolderTreeDTO, len(nodes))
+	for i, n := range nodes {
+		out[i] = &FolderTreeDTO{
+			ID:          n.ID,
+			WorkspaceID: n.WorkspaceID,
+			ProjectID:   n.ProjectID,
+			ParentID:    n.ParentID,
+			Name:        n.Name,
+			Slug:        n.Slug,
+			Position:    n.Position,
+			CreatedAt:   n.CreatedAt,
+			AssetCount:  n.AssetCount,
+			Children:    toFolderTreeDTOs(n.Children),
+		}
+	}
+	return out
 }
 
 func (s *folderService) Update(ctx context.Context, workspaceID, id string, p UpdateFolderParams) (*FolderDTO, error) {

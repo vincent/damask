@@ -46,6 +46,39 @@ type Folder struct {
 	CreatedAt   time.Time
 }
 
+// FolderTree is a folder with asset count and pre-built children list.
+type FolderTree struct {
+	Folder
+	AssetCount int64
+	Children   []FolderTree
+}
+
+// AssetComment is the domain representation of a comment posted on an asset via a share.
+type AssetComment struct {
+	ID          string
+	AssetID     string
+	ShareID     string
+	AuthorName  string
+	AuthorEmail *string
+	Body        string
+	CreatedAt   time.Time
+}
+
+// AssetStorageKeys holds all storage keys for an asset and its versions + variants.
+// Used to clean up storage after a hard delete.
+type AssetStorageKeys struct {
+	AssetKey    string
+	ThumbKey    *string
+	VersionKeys []VersionStorageKeys
+}
+
+// VersionStorageKeys holds the storage keys for one asset version and its variants.
+type VersionStorageKeys struct {
+	StorageKey   string
+	ThumbnailKey *string
+	VariantKeys  []string
+}
+
 // Tag is the domain representation of a tag.
 type Tag struct {
 	ID          string
@@ -299,16 +332,30 @@ type FieldFilter struct {
 }
 
 // ListAssetsParams holds filters for listing assets.
-// ProjectID and MimePrefix accept nil to mean "all".
-// CursorAt and CursorID implement keyset pagination (created_at + id).
+// The List method builds a dynamic SQL query from these fields.
 type ListAssetsParams struct {
-	WorkspaceID  string
-	ProjectID    interface{} // *string or nil
-	MimePrefix   interface{} // *string or nil
-	CursorAt     interface{} // *time.Time or nil
-	CursorID     *string
-	Limit        int64
-	FieldFilters []FieldFilter // dynamic field value filters
+	WorkspaceID string
+	// Project / folder filters (mutually exclusive with TagNames/SearchQuery)
+	ProjectID    *string
+	FolderID     *string // non-nil = filter by folder; use FolderIsRoot for root filter
+	FolderIsRoot bool    // true = folder_id IS NULL, requires ProjectID
+	CollectionID *string // filter to assets in this collection
+	// Tag filter (AND logic)
+	TagNames []string
+	// FTS search
+	SearchQuery string
+	// MIME prefix filter
+	MimePrefix *string
+	// Sort: "created_at" (default), "size", "id", "taken_at"
+	SortField string
+	SortDesc  bool // for taken_at: true = DESC (NULLs last always)
+	// Cursor pagination — Field + Value encode the sort position; ID is tiebreaker
+	CursorField string // "created_at" | "size" | "id"
+	CursorValue string // stringified cursor value
+	CursorID    string // UUID tiebreaker
+	Limit       int64
+	// ExifFieldID is required when SortField=="taken_at" (pre-looked-up field definition ID)
+	ExifFieldID string
 }
 
 // ListAssetsByFieldsParams holds the parameters for field-filter-based asset listing.

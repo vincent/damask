@@ -24,6 +24,17 @@ func (q *Queries) AddTagToAsset(ctx context.Context, arg AddTagToAssetParams) er
 	return err
 }
 
+const countTagAssets = `-- name: CountTagAssets :one
+SELECT COUNT(*) FROM asset_tags WHERE tag_id = ?
+`
+
+func (q *Queries) CountTagAssets(ctx context.Context, tagID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTagAssets, tagID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTag = `-- name: CreateTag :one
 INSERT INTO tags (id, workspace_id, name, color, group_name)
 VALUES (?, ?, ?, ?, ?)
@@ -247,6 +258,21 @@ func (q *Queries) ListTagsWithCount(ctx context.Context, workspaceID string) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const reassignTagAssets = `-- name: ReassignTagAssets :exec
+INSERT OR IGNORE INTO asset_tags (asset_id, tag_id)
+SELECT src.asset_id, ? FROM asset_tags src WHERE src.tag_id = ?
+`
+
+type ReassignTagAssetsParams struct {
+	TagID   string `json:"tag_id"`
+	TagID_2 string `json:"tag_id_2"`
+}
+
+func (q *Queries) ReassignTagAssets(ctx context.Context, arg ReassignTagAssetsParams) error {
+	_, err := q.db.ExecContext(ctx, reassignTagAssets, arg.TagID, arg.TagID_2)
+	return err
 }
 
 const removeTagFromAsset = `-- name: RemoveTagFromAsset :exec

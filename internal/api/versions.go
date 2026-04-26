@@ -12,8 +12,8 @@ import (
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	"damask/server/internal/jobs"
 	services "damask/server/internal/fileproc"
+	"damask/server/internal/jobs"
 	"damask/server/internal/service"
 	"damask/server/internal/versioning"
 
@@ -112,7 +112,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 
 	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	fh, err := c.FormFile("file")
@@ -269,12 +269,12 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 	assetID := c.Params("id")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	versions, err := s.versions.ListWithVariantCount(c.RequestCtx(), assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	// Batch-resolve creator names to avoid N+1 queries.
@@ -328,12 +328,12 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 
 	assetBeforeRestore, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if target.AssetID != assetID {
@@ -410,12 +410,12 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 	versionID := c.Params("vid")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if target.AssetID != assetID {
@@ -423,7 +423,7 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 	}
 
 	if err := s.versions.Delete(c.RequestCtx(), claims.WorkspaceID, assetID, versionID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID
@@ -461,12 +461,12 @@ func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 
 	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	if target.AssetID != assetID {
 		return errRes(c, fiber.StatusNotFound, "version not found")
@@ -508,12 +508,12 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 	versionID := c.Params("vid")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	if target.AssetID != assetID {
 		return errRes(c, fiber.StatusNotFound, "version not found")

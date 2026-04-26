@@ -118,6 +118,70 @@ func (r *folderRepo) NullifyAssets(ctx context.Context, workspaceID, folderID st
 	})
 }
 
+func (r *folderRepo) ListTree(ctx context.Context, workspaceID, projectID string) ([]repository.FolderTree, error) {
+	rows, err := r.sqlDB.QueryContext(ctx, `
+		WITH RECURSIVE tree AS (
+			SELECT *, 0 AS depth FROM folders
+			WHERE project_id = ? AND parent_id IS NULL AND workspace_id = ?
+			UNION ALL
+			SELECT f.*, t.depth + 1 FROM folders f
+			JOIN tree t ON f.parent_id = t.id
+			WHERE t.depth < 2
+		)
+		SELECT t.id, t.workspace_id, t.project_id, t.parent_id, t.name, t.slug, t.position, t.created_at, t.depth,
+			(SELECT COUNT(*) FROM assets a WHERE a.folder_id = t.id AND a.workspace_id = ?) AS asset_count
+		FROM tree t
+		ORDER BY t.depth, t.position, t.name
+	`, projectID, workspaceID, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	type flatRow struct {
+		folder   repository.Folder
+		depth    int64
+		assetCount int64
+	}
+
+	var flat []flatRow
+	for rows.Next() {
+		var f dbgen.Folder
+		var depth, assetCount int64
+		if err := rows.Scan(
+			&f.ID, &f.WorkspaceID, &f.ProjectID, &f.ParentID,
+			&f.Name, &f.Slug, &f.Position, &f.CreatedAt, &depth, &assetCount,
+		); err != nil {
+			return nil, err
+		}
+		flat = append(flat, flatRow{folder: toFolder(f), depth: depth, assetCount: assetCount})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Build tree structure: roots hold children.
+	idxByID := make(map[string]int) // id → index in roots
+	var roots []repository.FolderTree
+	for _, row := range flat {
+		node := repository.FolderTree{
+			Folder:     row.folder,
+			AssetCount: row.assetCount,
+			Children:   []repository.FolderTree{},
+		}
+		if row.folder.ParentID == nil {
+			idxByID[row.folder.ID] = len(roots)
+			roots = append(roots, node)
+		} else {
+			parentIdx, ok := idxByID[*row.folder.ParentID]
+			if ok {
+				roots[parentIdx].Children = append(roots[parentIdx].Children, node)
+			}
+		}
+	}
+	return roots, nil
+}
+
 func toFolder(f dbgen.Folder) repository.Folder {
 	return repository.Folder{
 		ID:          f.ID,

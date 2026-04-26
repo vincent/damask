@@ -5,10 +5,21 @@ import "time"
 // ListAssetsParams holds filters for listing assets via AssetService.List.
 type ListAssetsParams struct {
 	WorkspaceID string
-	ProjectID   *string
-	MimePrefix  *string
-	CursorAt    *time.Time
-	CursorID    *string
+	// Filters
+	ProjectID    *string
+	FolderID     *string // non-nil = filter by folder_id; use FolderIsRoot for root
+	FolderIsRoot bool    // true = folder_id IS NULL (requires ProjectID)
+	CollectionID *string
+	TagNames     []string
+	SearchQuery  string
+	MimePrefix   *string
+	// Sort: "created_at" (default), "size", "id", "taken_at"
+	SortField string
+	SortDesc  bool
+	// Cursor (opaque; parsed by handler from cursor query param)
+	CursorField string
+	CursorValue string
+	CursorID    string
 	Limit       int64
 }
 

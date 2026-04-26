@@ -1,9 +1,7 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"time"
 
@@ -88,7 +86,7 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 
 	me, err := s.workspace.Me(c.RequestCtx(), claims.WorkspaceID, claims.UserID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(WorkspaceMeResponse{
@@ -126,7 +124,7 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 
 	ws, err := s.users.CreateWorkspace(c.RequestCtx(), claims.UserID, req.Name)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	wr := workspaceDTOToResponse(ws)
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{Workspace: &wr})
@@ -157,7 +155,7 @@ func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 
 	rows, err := s.workspace.ListForUser(c.RequestCtx(), claims.UserID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]WorkspaceWithRoleResponse, len(rows))
@@ -212,7 +210,7 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
 
-	token, err := s.tokenMaker.CreateToken(claims.UserID, req.WorkspaceID, 7*24*time.Hour)
+	token, err := s.auth.CreateToken(claims.UserID, req.WorkspaceID, 7*24*time.Hour)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}
@@ -252,7 +250,7 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 		ExifKeepGps:           &body.ExifKeepGPS,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	return c.JSON(workspaceDTOToResponse(ws))
 }
@@ -293,32 +291,9 @@ func (s *Server) handleTriggerWorkspaceJob(c fiber.Ctx) error {
 }
 
 func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID string) error {
-	var pendingIDs []string
-
-	tombstoneDef, err := s.db.GetFieldDefinitionByKey(c.RequestCtx(), dbgen.GetFieldDefinitionByKeyParams{
-		WorkspaceID: workspaceID,
-		Key:         "_exif_make",
-	})
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return errRes(c, fiber.StatusInternalServerError, "could not query field definitions")
-	}
-
-	if errors.Is(err, sql.ErrNoRows) {
-		ids, qErr := s.db.ListImageAssetIDs(c.RequestCtx(), workspaceID)
-		if qErr != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not list assets")
-		}
-		pendingIDs = ids
-	} else {
-		ids, qErr := s.db.ListAssetsMissingExifField(c.RequestCtx(), dbgen.ListAssetsMissingExifFieldParams{
-			FieldID:     tombstoneDef.ID,
-			WorkspaceID: workspaceID,
-			Limit:       10000,
-		})
-		if qErr != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not list pending assets")
-		}
-		pendingIDs = ids
+	pendingIDs, err := s.fields.ListAssetsMissingExif(c.RequestCtx(), workspaceID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not determine pending assets")
 	}
 
 	if len(pendingIDs) == 0 {
@@ -362,7 +337,7 @@ func (s *Server) handleListMembers(c fiber.Ctx) error {
 
 	members, err := s.workspace.ListMembers(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]MemberResponse, len(members))
@@ -398,7 +373,7 @@ func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 		if isInvalidInput(err) {
 			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
 		}
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -431,7 +406,7 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 		if isInvalidInput(err) {
 			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
 		}
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -460,7 +435,7 @@ func (s *Server) handleListInvites(c fiber.Ctx) error {
 
 	invites, err := s.workspace.ListInvites(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]InviteResponse, len(invites))
@@ -492,7 +467,7 @@ func (s *Server) handleDeleteInvite(c fiber.Ctx) error {
 	inviteID := c.Params("inviteId")
 
 	if err := s.workspace.DeleteInvite(c.RequestCtx(), claims.WorkspaceID, inviteID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -524,7 +499,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		Role:  req.Role,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if err = s.mailer.SendInvite(c.RequestCtx(), inv.Email, inv.Role, inv.InviteToken); err != nil {
@@ -571,7 +546,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		UserID:       userID,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if err := s.mailer.SendWelcome(c.RequestCtx(), result.UserEmail, result.UserName, result.WorkspaceID); err != nil {
@@ -584,7 +559,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		}
 	}
 
-	token, err := s.tokenMaker.CreateToken(result.UserID, result.WorkspaceID, 7*24*time.Hour)
+	token, err := s.auth.CreateToken(result.UserID, result.WorkspaceID, 7*24*time.Hour)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not create token")
 	}

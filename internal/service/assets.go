@@ -8,15 +8,19 @@ import (
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
+	"damask/server/internal/storage"
 )
 
 type assetService struct {
 	assets repository.AssetRepository
+	tags   repository.TagRepository
+	fields repository.FieldRepository
+	stor   storage.Storage
 }
 
 // NewAssetService returns an AssetService backed by the given repository.
-func NewAssetService(assets repository.AssetRepository) AssetService {
-	return &assetService{assets: assets}
+func NewAssetService(assets repository.AssetRepository, tags repository.TagRepository, fields repository.FieldRepository, stor storage.Storage) AssetService {
+	return &assetService{assets: assets, tags: tags, fields: fields, stor: stor}
 }
 
 func (s *assetService) Get(ctx context.Context, workspaceID, assetID string) (*AssetDTO, error) {
@@ -28,25 +32,32 @@ func (s *assetService) Get(ctx context.Context, workspaceID, assetID string) (*A
 }
 
 func (s *assetService) List(ctx context.Context, params ListAssetsParams) ([]*AssetDTO, error) {
-	var cursorAt interface{}
-	if params.CursorAt != nil {
-		cursorAt = params.CursorAt
+	// For taken_at sort, look up the exif field definition ID.
+	exifFieldID := ""
+	if params.SortField == "taken_at" {
+		fd, err := s.fields.GetByKey(ctx, params.WorkspaceID, "_exif_taken_at")
+		if err == nil {
+			exifFieldID = fd.ID
+		}
+		// If the field doesn't exist, proceed with empty exifFieldID (join yields no rows).
 	}
-	var projectID interface{}
-	if params.ProjectID != nil {
-		projectID = params.ProjectID
-	}
-	var mimePrefix interface{}
-	if params.MimePrefix != nil {
-		mimePrefix = params.MimePrefix
-	}
+
 	rows, err := s.assets.List(ctx, repository.ListAssetsParams{
-		WorkspaceID: params.WorkspaceID,
-		ProjectID:   projectID,
-		MimePrefix:  mimePrefix,
-		CursorAt:    cursorAt,
-		CursorID:    params.CursorID,
-		Limit:       params.Limit,
+		WorkspaceID:  params.WorkspaceID,
+		ProjectID:    params.ProjectID,
+		FolderID:     params.FolderID,
+		FolderIsRoot: params.FolderIsRoot,
+		CollectionID: params.CollectionID,
+		TagNames:     params.TagNames,
+		SearchQuery:  params.SearchQuery,
+		MimePrefix:   params.MimePrefix,
+		SortField:    params.SortField,
+		SortDesc:     params.SortDesc,
+		CursorField:  params.CursorField,
+		CursorValue:  params.CursorValue,
+		CursorID:     params.CursorID,
+		Limit:        params.Limit,
+		ExifFieldID:  exifFieldID,
 	})
 	if err != nil {
 		return nil, err
@@ -146,6 +157,139 @@ func (s *assetService) Delete(ctx context.Context, workspaceID, assetID string) 
 		return fmt.Errorf("asset is used as the workspace icon: %w", apperr.ErrConflict)
 	}
 	return s.assets.SoftDelete(ctx, workspaceID, assetID)
+}
+
+func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID string) error {
+	isCover, err := s.assets.IsProjectCover(ctx, workspaceID, assetID)
+	if err != nil {
+		return err
+	}
+	if isCover {
+		return fmt.Errorf("asset is used as a project cover: %w", apperr.ErrConflict)
+	}
+	isIcon, err := s.assets.IsWorkspaceIcon(ctx, workspaceID, assetID)
+	if err != nil {
+		return err
+	}
+	if isIcon {
+		return fmt.Errorf("asset is used as the workspace icon: %w", apperr.ErrConflict)
+	}
+	keys, err := s.assets.CollectStorageKeys(ctx, workspaceID, assetID)
+	if err != nil {
+		return err
+	}
+	if err := s.assets.HardDelete(ctx, workspaceID, assetID); err != nil {
+		return err
+	}
+	s.deleteStorageKeys(keys)
+	return nil
+}
+
+func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, assetIDs []string) error {
+	type pending struct {
+		keys repository.AssetStorageKeys
+		id   string
+	}
+	var todo []pending
+	for _, id := range assetIDs {
+		keys, err := s.assets.CollectStorageKeys(ctx, workspaceID, id)
+		if err != nil {
+			continue // skip assets not in this workspace
+		}
+		todo = append(todo, pending{keys: keys, id: id})
+	}
+	for _, p := range todo {
+		if err := s.assets.HardDelete(ctx, workspaceID, p.id); err != nil {
+			return err
+		}
+		s.deleteStorageKeys(p.keys)
+	}
+	return nil
+}
+
+func (s *assetService) deleteStorageKeys(keys repository.AssetStorageKeys) {
+	_ = s.stor.Delete(keys.AssetKey)
+	if keys.ThumbKey != nil {
+		_ = s.stor.Delete(*keys.ThumbKey)
+	}
+	for _, vk := range keys.VersionKeys {
+		_ = s.stor.Delete(vk.StorageKey)
+		if vk.ThumbnailKey != nil {
+			_ = s.stor.Delete(*vk.ThumbnailKey)
+		}
+		for _, k := range vk.VariantKeys {
+			_ = s.stor.Delete(k)
+		}
+	}
+}
+
+func (s *assetService) BulkTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error {
+	tag, err := s.tags.Upsert(ctx, workspaceID, tagName)
+	if err != nil {
+		return err
+	}
+	for _, assetID := range assetIDs {
+		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+			continue // skip assets not in this workspace
+		}
+		_ = s.tags.AddToAsset(ctx, assetID, tag.ID)
+	}
+	return nil
+}
+
+func (s *assetService) BulkMoveProject(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error {
+	for _, assetID := range assetIDs {
+		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+			continue // skip assets not in this workspace
+		}
+		if err := s.assets.SetProject(ctx, workspaceID, assetID, projectID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *assetService) GetComments(ctx context.Context, workspaceID, assetID string) ([]AssetCommentDTO, error) {
+	if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+		return nil, err
+	}
+	rows, err := s.assets.ListComments(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AssetCommentDTO, len(rows))
+	for i, c := range rows {
+		out[i] = AssetCommentDTO{
+			ID:          c.ID,
+			AssetID:     c.AssetID,
+			ShareID:     c.ShareID,
+			AuthorName:  c.AuthorName,
+			AuthorEmail: c.AuthorEmail,
+			Body:        c.Body,
+			CreatedAt:   c.CreatedAt,
+		}
+	}
+	return out, nil
+}
+
+func (s *assetService) CountVersionsByAsset(ctx context.Context, assetID string) (int64, error) {
+	return s.assets.CountVersionsByAsset(ctx, assetID)
+}
+
+func (s *assetService) CountVariantsByCurrentVersion(ctx context.Context, assetID string) (int64, error) {
+	return s.assets.CountVariantsByCurrentVersion(ctx, assetID)
+}
+
+func (s *assetService) IsRebuildingVariants(ctx context.Context, versionID string) (bool, error) {
+	return s.assets.IsRebuildingVariants(ctx, versionID)
+}
+
+func (s *assetService) BatchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
+	return s.assets.BatchVersionCounts(ctx, assetIDs)
+}
+
+func (s *assetService) BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
+	return s.assets.BatchVariantCounts(ctx, assetIDs)
 }
 
 func toAssetDTO(a repository.Asset) *AssetDTO {

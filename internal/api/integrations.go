@@ -54,7 +54,7 @@ func (s *Server) handleDeleteConnection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 	if err := s.integrations.DeleteConnection(c.Context(), claims.WorkspaceID, id); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }

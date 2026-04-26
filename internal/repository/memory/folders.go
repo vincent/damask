@@ -96,3 +96,15 @@ func (r *RealFolderRepo) GetChildren(_ context.Context, workspaceID, parentID st
 }
 
 func (r *RealFolderRepo) NullifyAssets(_ context.Context, _, _ string) error { return nil }
+
+func (r *RealFolderRepo) ListTree(_ context.Context, workspaceID, projectID string) ([]repository.FolderTree, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var roots []repository.FolderTree
+	for _, f := range r.folders {
+		if f.WorkspaceID == workspaceID && f.ProjectID == projectID && f.ParentID == nil {
+			roots = append(roots, repository.FolderTree{Folder: f})
+		}
+	}
+	return roots, nil
+}

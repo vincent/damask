@@ -92,12 +92,12 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 		Limit:        limit,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	// Convert service DTOs to the existing response type via dbgen shim.
 	// batchVersionCounts / batchVariantCounts still use s.db; that is handled
 	// by the assets handler layer which calls those helpers directly.
 	// For now return the slim asset list without counts (consistent with other list paths).
-	return c.JSON(buildAssetListResponseFromDTOs(assets, limit))
+	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, "created_at", nil, nil))
 }

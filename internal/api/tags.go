@@ -58,7 +58,7 @@ func (s *Server) handleListTags(c fiber.Ctx) error {
 
 	dtos, err := s.tags.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	items := make([]TagResponse, len(dtos))
@@ -95,7 +95,7 @@ func (s *Server) handleCreateTag(c fiber.Ctx) error {
 		GroupName: body.GroupName,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(tagDTOToResponse(dto))
@@ -132,7 +132,7 @@ func (s *Server) handlePatchTag(c fiber.Ctx) error {
 		GroupName: body.GroupName,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(tagDTOToResponse(dto))
@@ -161,7 +161,7 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 
 	result, err := s.tags.BulkDelete(c.RequestCtx(), claims.WorkspaceID, body.Names)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(fiber.Map{
@@ -193,7 +193,7 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 
 	result, err := s.tags.Merge(c.RequestCtx(), claims.WorkspaceID, body.Sources, body.Target)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(fiber.Map{
@@ -217,7 +217,7 @@ func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 
 	dtos, err := s.tags.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	active := make([]*service.TagDTO, 0, len(dtos))
@@ -278,12 +278,12 @@ func (s *Server) handleGetAssetTags(c fiber.Ctx) error {
 	assetID := c.Params("id")
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	tagDTOs, err := s.tags.ListForAsset(c.RequestCtx(), assetID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	names := make([]string, len(tagDTOs))
@@ -317,12 +317,12 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 	}
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	tag, err := s.tags.AddToAsset(c.RequestCtx(), claims.WorkspaceID, assetID, body.Name)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	_ = s.tags.TouchLastUsed(c.RequestCtx(), claims.WorkspaceID, tag.Name)
@@ -358,11 +358,11 @@ func (s *Server) handleRemoveTagFromAsset(c fiber.Ctx) error {
 	tagName := strings.ToLower(c.Params("name"))
 
 	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if err := s.tags.RemoveFromAsset(c.RequestCtx(), claims.WorkspaceID, assetID, tagName); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID

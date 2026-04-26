@@ -50,7 +50,7 @@ func (s *Server) handleGetProjectFields(c fiber.Ctx) error {
 
 	dtos, err := s.projectFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	items := make([]projectFieldValueResponse, len(dtos))
@@ -99,7 +99,7 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 
 	dtos, err := s.projectFields.SetValues(c.RequestCtx(), claims.WorkspaceID, id, claims.UserID, inputs)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	// Emit audit events (best-effort).

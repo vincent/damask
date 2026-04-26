@@ -74,7 +74,7 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 
 	defs, err := s.fields.List(c.RequestCtx(), claims.WorkspaceID, scope)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	items := make([]FieldDefinitionResponse, len(defs))
@@ -116,7 +116,7 @@ func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 		InheritFromProject: body.InheritFromProject,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fieldDTOToResponse(def))
@@ -138,7 +138,7 @@ func (s *Server) handleGetFieldDefinition(c fiber.Ctx) error {
 
 	def, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(fieldDTOToResponse(def))
@@ -160,7 +160,7 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 
 	stats, err := s.fields.GetStats(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(FieldDefinitionStatsResponse{
@@ -196,7 +196,7 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	if body.Options != nil {
 		existing, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id)
 		if err != nil {
-			return Respond(c, err)
+			return ErrorStatusResponse(c, err)
 		}
 		if existing.FieldType == "select" {
 			var opts []string
@@ -226,7 +226,7 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 		InheritFromProject: body.InheritFromProject,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(fieldDTOToResponse(updated))
@@ -247,7 +247,7 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	if err := s.fields.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

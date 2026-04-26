@@ -145,9 +145,9 @@ func logEntryDTOToResponse(d *service.IngressLogEntryDTO) ingressLogResponse {
 func (s *Server) handleListIngressRules(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rules, err := s.ingressSvc.ListRules(c.Context(), claims.WorkspaceID, c.Params("id"))
+	rules, err := s.ingress.ListRules(c.Context(), claims.WorkspaceID, c.Params("id"))
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]ingressRuleResponse, len(rules))
@@ -166,7 +166,7 @@ func (s *Server) handleCreateIngressRule(c fiber.Ctx) error {
 		return nil
 	}
 
-	r, err := s.ingressSvc.CreateRule(c.Context(), claims.WorkspaceID, c.Params("id"), service.CreateIngressRuleParams{
+	r, err := s.ingress.CreateRule(c.Context(), claims.WorkspaceID, c.Params("id"), service.CreateIngressRuleParams{
 		Position: req.Position,
 		Field:    req.Field,
 		Operator: req.Operator,
@@ -174,7 +174,7 @@ func (s *Server) handleCreateIngressRule(c fiber.Ctx) error {
 		Action:   req.Action,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(ruleDTOToResponse(r))
@@ -189,7 +189,7 @@ func (s *Server) handleUpdateIngressRule(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 
-	r, err := s.ingressSvc.UpdateRule(c.Context(), claims.WorkspaceID, c.Params("id"), c.Params("rid"), service.UpdateIngressRuleParams{
+	r, err := s.ingress.UpdateRule(c.Context(), claims.WorkspaceID, c.Params("id"), c.Params("rid"), service.UpdateIngressRuleParams{
 		Position: req.Position,
 		Field:    req.Field,
 		Operator: req.Operator,
@@ -197,7 +197,7 @@ func (s *Server) handleUpdateIngressRule(c fiber.Ctx) error {
 		Action:   req.Action,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(ruleDTOToResponse(r))
@@ -207,8 +207,8 @@ func (s *Server) handleUpdateIngressRule(c fiber.Ctx) error {
 func (s *Server) handleDeleteIngressRule(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	if err := s.ingressSvc.DeleteRule(c.Context(), claims.WorkspaceID, c.Params("id"), c.Params("rid")); err != nil {
-		return Respond(c, err)
+	if err := s.ingress.DeleteRule(c.Context(), claims.WorkspaceID, c.Params("id"), c.Params("rid")); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -228,9 +228,9 @@ func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 		svcEntries[i] = service.ReorderRuleEntry{ID: e.ID, Position: e.Position}
 	}
 
-	rules, err := s.ingressSvc.ReorderRules(c.Context(), claims.WorkspaceID, c.Params("id"), svcEntries)
+	rules, err := s.ingress.ReorderRules(c.Context(), claims.WorkspaceID, c.Params("id"), svcEntries)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]ingressRuleResponse, len(rules))
@@ -269,7 +269,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		}
 	}
 
-	src, err := s.ingressSvc.CreateSource(c.Context(), claims.WorkspaceID, claims.UserID, service.CreateIngressSourceParams{
+	src, err := s.ingress.CreateSource(c.Context(), claims.WorkspaceID, claims.UserID, service.CreateIngressSourceParams{
 		Type:            req.Type,
 		Label:           req.Label,
 		Config:          req.Config,
@@ -280,7 +280,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 		Rules:           rules,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(sourceDTOToResponse(src))
@@ -295,9 +295,9 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	sources, err := s.ingressSvc.ListSources(c.Context(), claims.WorkspaceID)
+	sources, err := s.ingress.ListSources(c.Context(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]ingressSourceResponse, len(sources))
@@ -317,9 +317,9 @@ func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 func (s *Server) handleGetIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	src, err := s.ingressSvc.GetSource(c.Context(), claims.WorkspaceID, c.Params("id"))
+	src, err := s.ingress.GetSource(c.Context(), claims.WorkspaceID, c.Params("id"))
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(sourceDTOToResponse(src))
@@ -355,7 +355,7 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 		destProjectSet = true
 	}
 
-	src, err := s.ingressSvc.UpdateSource(c.Context(), claims.WorkspaceID, c.Params("id"), service.UpdateIngressSourceParams{
+	src, err := s.ingress.UpdateSource(c.Context(), claims.WorkspaceID, c.Params("id"), service.UpdateIngressSourceParams{
 		Label:           req.Label,
 		Config:          req.Config,
 		DestFolderID:    destFolderID,
@@ -366,7 +366,7 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 		PollIntervalMin: req.PollIntervalMin,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(sourceDTOToResponse(src))
@@ -382,8 +382,8 @@ func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 func (s *Server) handleDeleteIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	if err := s.ingressSvc.DeleteSource(c.Context(), claims.WorkspaceID, c.Params("id")); err != nil {
-		return Respond(c, err)
+	if err := s.ingress.DeleteSource(c.Context(), claims.WorkspaceID, c.Params("id")); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -399,8 +399,8 @@ func (s *Server) handleDeleteIngressSource(c fiber.Ctx) error {
 func (s *Server) handleTestIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	if err := s.ingressSvc.TestSource(c.Context(), claims.WorkspaceID, c.Params("id")); err != nil {
-		return Respond(c, err)
+	if err := s.ingress.TestSource(c.Context(), claims.WorkspaceID, c.Params("id")); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(fiber.Map{"ok": true})
@@ -416,9 +416,9 @@ func (s *Server) handleTestIngressSource(c fiber.Ctx) error {
 func (s *Server) handlePollIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	jobID, err := s.ingressSvc.TriggerPoll(c.Context(), claims.WorkspaceID, c.Params("id"))
+	jobID, err := s.ingress.TriggerPoll(c.Context(), claims.WorkspaceID, c.Params("id"))
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"job_id": jobID})
@@ -436,9 +436,9 @@ func (s *Server) handlePollIngressSource(c fiber.Ctx) error {
 func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	entries, err := s.ingressSvc.ListSourceLog(c.Context(), claims.WorkspaceID, c.Params("id"), 50, 0)
+	entries, err := s.ingress.ListSourceLog(c.Context(), claims.WorkspaceID, c.Params("id"), 50, 0)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]ingressLogResponse, len(entries))
@@ -458,9 +458,9 @@ func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 func (s *Server) handleListIngressLog(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	entries, err := s.ingressSvc.ListLog(c.Context(), claims.WorkspaceID, c.Query("status"), 50, 0)
+	entries, err := s.ingress.ListLog(c.Context(), claims.WorkspaceID, c.Query("status"), 50, 0)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	result := make([]ingressLogResponse, len(entries))
@@ -480,8 +480,8 @@ func (s *Server) handleListIngressLog(c fiber.Ctx) error {
 func (s *Server) handleDeleteIngressLogEntry(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	if err := s.ingressSvc.DeleteLogEntry(c.Context(), claims.WorkspaceID, c.Params("entry_id")); err != nil {
-		return Respond(c, err)
+	if err := s.ingress.DeleteLogEntry(c.Context(), claims.WorkspaceID, c.Params("entry_id")); err != nil {
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -497,13 +497,13 @@ func (s *Server) handleDeleteIngressLogEntry(c fiber.Ctx) error {
 func (s *Server) handleRetryIngressLogEntry(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	jobID, err := s.ingressSvc.RetryLogEntry(c.Context(), claims.WorkspaceID, c.Params("entry_id"))
+	jobID, err := s.ingress.RetryLogEntry(c.Context(), claims.WorkspaceID, c.Params("entry_id"))
 	if err != nil {
 		// ErrInvalidInput here means "entry is not in a retryable state" — return 400 not 422.
 		if isInvalidInput(err) {
 			return errRes(c, fiber.StatusBadRequest, err.Error())
 		}
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"job_id": jobID})

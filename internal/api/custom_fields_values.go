@@ -67,7 +67,7 @@ func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
 
 	dtos, err := s.assetFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(GetAssetFieldsResponse{Fields: fieldValueDTOsToResponse(dtos)})
@@ -112,7 +112,7 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 
 	dtos, err := s.assetFields.SetValues(c.RequestCtx(), claims.WorkspaceID, id, claims.UserID, inputs)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	// Emit audit events (best-effort).
@@ -185,7 +185,7 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 
 	updated, err := s.assetFields.BulkSetValues(c.RequestCtx(), claims.WorkspaceID, claims.UserID, body.AssetIDs, inputs)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	assetIDsCopy := make([]string, len(body.AssetIDs))

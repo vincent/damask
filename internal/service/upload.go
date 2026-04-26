@@ -26,16 +26,6 @@ type UploadMeta struct {
 	InheritFields fileproc.FieldInheritanceFunc
 }
 
-// UploadedAssetDTO is the result of UploadService.Ingest.
-type UploadedAssetDTO struct {
-	ID               string
-	WorkspaceID      string
-	OriginalFilename string
-	StorageKey       string
-	MimeType         string
-	Size             int64
-}
-
 type uploadServiceImpl struct {
 	db      *dbgen.Queries
 	sqlDB   *sql.DB
@@ -50,7 +40,7 @@ func NewUploadService(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, q 
 
 // Ingest writes r to a temp file, calls fileproc.CreateAsset, then removes the temp file.
 // Queue enqueue failures are logged but do not fail the upload (fire-and-forget).
-func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (*UploadedAssetDTO, error) {
+func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (*AssetDTO, error) {
 	if workspaceID == "" {
 		return nil, fmt.Errorf("workspaceID is required: %w", apperr.ErrInvalidInput)
 	}
@@ -85,12 +75,21 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 		return nil, fmt.Errorf("%s: %w", fErr.Message, apperr.ErrInvalidInput)
 	}
 
-	return &UploadedAssetDTO{
+	return &AssetDTO{
 		ID:               asset.ID,
 		WorkspaceID:      asset.WorkspaceID,
+		ProjectID:        asset.ProjectID,
+		FolderID:         asset.FolderID,
 		OriginalFilename: asset.OriginalFilename,
 		StorageKey:       asset.StorageKey,
 		MimeType:         asset.MimeType,
 		Size:             asset.Size,
+		Width:            asset.Width,
+		Height:           asset.Height,
+		ThumbnailKey:     asset.ThumbnailKey,
+		Metadata:         asset.Metadata,
+		CurrentVersionID: asset.CurrentVersionID,
+		CreatedAt:        asset.CreatedAt,
+		UpdatedAt:        asset.UpdatedAt,
 	}, nil
 }

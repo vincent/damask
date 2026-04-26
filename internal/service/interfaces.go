@@ -3,7 +3,19 @@ package service
 import (
 	"context"
 	"io"
+	"time"
 )
+
+// AssetCommentDTO is a comment posted on an asset via a public share.
+type AssetCommentDTO struct {
+	ID          string
+	AssetID     string
+	ShareID     string
+	AuthorName  string
+	AuthorEmail *string
+	Body        string
+	CreatedAt   time.Time
+}
 
 // AssetService handles business logic for asset records.
 type AssetService interface {
@@ -12,11 +24,31 @@ type AssetService interface {
 	Move(ctx context.Context, workspaceID, assetID string, p MoveAssetParams) (*AssetDTO, error)
 	Rename(ctx context.Context, workspaceID, assetID, newStem string) (*AssetDTO, error)
 	Delete(ctx context.Context, workspaceID, assetID string) error
+	// HardDelete permanently removes the asset, its versions, and all associated storage files.
+	HardDelete(ctx context.Context, workspaceID, assetID string) error
+	// BulkHardDelete hard-deletes multiple assets atomically.
+	BulkHardDelete(ctx context.Context, workspaceID string, assetIDs []string) error
+	// BulkTag upserts a tag and links it to all the given asset IDs.
+	BulkTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
+	// BulkMoveProject assigns all given assets to projectID (nil = remove project).
+	BulkMoveProject(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error
+	// GetComments returns all share comments posted on an asset.
+	GetComments(ctx context.Context, workspaceID, assetID string) ([]AssetCommentDTO, error)
+	// CountVersionsByAsset returns the number of non-deleted versions for an asset.
+	CountVersionsByAsset(ctx context.Context, assetID string) (int64, error)
+	// CountVariantsByCurrentVersion returns the variant count for the asset's current version.
+	CountVariantsByCurrentVersion(ctx context.Context, assetID string) (int64, error)
+	// IsRebuildingVariants reports whether a rebuild_variants job is pending/processing for the given version.
+	IsRebuildingVariants(ctx context.Context, versionID string) (bool, error)
 	CountByIDs(ctx context.Context, workspaceID string, ids []string) (int64, error)
 	// RefreshFTS rebuilds the FTS5 index for the asset to include text field values.
 	RefreshFTS(ctx context.Context, assetID string) error
 	// ListByFields returns assets matching field-value filters (field[key][op]=value style).
 	ListByFields(ctx context.Context, params ListAssetsByFieldsParams) ([]*AssetDTO, error)
+	// BatchVersionCounts returns a version count per asset ID.
+	BatchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
+	// BatchVariantCounts returns a variant count (current version) per asset ID.
+	BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
 }
 
 // CreateVariantParams is the input for VariantService.Create.
@@ -102,6 +134,9 @@ type FieldService interface {
 	Reorder(ctx context.Context, workspaceID string, items []ReorderFieldItem) error
 	// InheritProjectFields copies inheritable project field values to a newly created asset.
 	InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error
+	// ListAssetsMissingExif returns the asset IDs that need EXIF extraction jobs enqueued.
+	// The caller is responsible for enqueueing the jobs.
+	ListAssetsMissingExif(ctx context.Context, workspaceID string) ([]string, error)
 }
 
 // FieldStatsDTO holds usage counts for a field definition.
@@ -164,6 +199,8 @@ type FolderService interface {
 	Create(ctx context.Context, workspaceID, projectID string, p CreateFolderParams) (*FolderDTO, error)
 	Get(ctx context.Context, workspaceID, id string) (*FolderDTO, error)
 	List(ctx context.Context, workspaceID, projectID string) ([]*FolderDTO, error)
+	// ListTree returns a recursive tree (depth ≤ 2) of folders with asset counts.
+	ListTree(ctx context.Context, workspaceID, projectID string) ([]*FolderTreeDTO, error)
 	Update(ctx context.Context, workspaceID, id string, p UpdateFolderParams) (*FolderDTO, error)
 	Delete(ctx context.Context, workspaceID, id string) error
 }
@@ -217,7 +254,7 @@ type AuditLogService interface {
 
 // UploadService handles asset ingestion from an io.Reader.
 type UploadService interface {
-	Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (*UploadedAssetDTO, error)
+	Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (*AssetDTO, error)
 }
 
 // UserService handles business logic for user registration and login.

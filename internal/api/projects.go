@@ -65,7 +65,7 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 		Color:       body.Color,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID
@@ -96,7 +96,7 @@ func (s *Server) handleListProjects(c fiber.Ctx) error {
 
 	dtos, err := s.projects.List(c.RequestCtx(), claims.WorkspaceID)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	items := make([]ProjectResponse, len(dtos))
@@ -123,7 +123,7 @@ func (s *Server) handleGetProject(c fiber.Ctx) error {
 
 	dto, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, c.Params("id"))
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 	return c.JSON(projectDTOToResponse(dto))
 }
@@ -155,7 +155,7 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	// Fetch current name before update to detect rename for audit log.
 	before, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, id)
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	dto, err := s.projects.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateProjectParams{
@@ -165,7 +165,7 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 		CoverAssetID: body.CoverAssetID,
 	})
 	if err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	if dto.Name != before.Name {
@@ -200,7 +200,7 @@ func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	if err := s.projects.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
-		return Respond(c, err)
+		return ErrorStatusResponse(c, err)
 	}
 
 	userID := claims.UserID

@@ -9,12 +9,14 @@ import (
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
+	"damask/server/internal/storage"
 )
 
 func newAssetSvc(t *testing.T) (service.AssetService, *memory.AssetRepo) {
 	t.Helper()
 	repo := memory.NewAssetRepo()
-	return service.NewAssetService(repo), repo
+	stor, _ := storage.NewAferoMemoryStorage()
+	return service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor), repo
 }
 
 // --- Get ---

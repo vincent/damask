@@ -28,22 +28,20 @@ const defaultBodyLimitBytes = 100 * 1024 * 1024 // 100 MB
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
-	db           *dbgen.Queries
-	sqlDB        *sql.DB
-	tokenMaker   *auth.Maker
-	storage      storage.Storage
-	queue        queue.JobQueue
-	mailer       mail.Mailer
-	hub          events.EventHub
-	previewCache *lruPreviewCache
-	cfg          *config.Config
-	audit        *audit.EventWriter
-	demo         DemoSeeder // nil when demo build tag is not set
-	assets       service.AssetService
-	projects     service.ProjectService
-	folders      service.FolderService
-	tags         service.TagService
-	collections  service.CollectionService
+	auth          *auth.Maker
+	storage       storage.Storage
+	queue         queue.JobQueue
+	mailer        mail.Mailer
+	hub           events.EventHub
+	previewCache  *lruPreviewCache
+	cfg           *config.Config
+	audit         *audit.EventWriter
+	demo          DemoSeeder // nil when demo build tag is not set
+	assets        service.AssetService
+	projects      service.ProjectService
+	folders       service.FolderService
+	tags          service.TagService
+	collections   service.CollectionService
 	shares        service.ShareService
 	sharePublic   service.SharePublicService
 	fields        service.FieldService
@@ -51,12 +49,13 @@ type Server struct {
 	assetFields   service.AssetFieldService
 	projectFields service.ProjectFieldService
 	versions      service.VersionService
-	variants     service.VariantService
-	auditLog     service.AuditLogService
-	workspace    service.WorkspaceService
-	users        service.UserService
-	ingressSvc   service.IngressService
-	stack        service.StackService
+	variants      service.VariantService
+	auditLog      service.AuditLogService
+	workspace     service.WorkspaceService
+	users         service.UserService
+	ingress       service.IngressService
+	stack         service.StackService
+	upload        service.UploadService
 }
 
 func NewHttpServer(
@@ -71,35 +70,34 @@ func NewHttpServer(
 	demoSeeder DemoSeeder,
 ) *Server {
 	return &Server{
-		db:           db,
-		sqlDB:        sqlDB,
-		tokenMaker:   tokenMaker,
-		storage:      stor,
-		queue:        q,
-		mailer:       mailer,
-		hub:          hub,
-		previewCache: NewLRUPreviewCache(100),
-		cfg:          cfg,
-		audit:        audit.New(sqlDB),
-		demo:         demoSeeder,
-		assets:       service.NewAssetService(reposqlc.NewAssetRepo(db, sqlDB)),
-		projects:     service.NewProjectService(reposqlc.NewProjectRepo(db)),
-		folders:      service.NewFolderService(reposqlc.NewFolderRepo(db, sqlDB)),
-		tags:         service.NewTagService(reposqlc.NewTagRepo(db, sqlDB)),
-		collections:  service.NewCollectionService(reposqlc.NewCollectionRepo(db, sqlDB), reposqlc.NewAssetRepo(db, sqlDB)),
-		shares:       service.NewShareService(reposqlc.NewShareRepo(db, sqlDB)),
-		sharePublic:  service.NewSharePublicService(reposqlc.NewShareRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB), mailer),
-		integrations: service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
+		auth:          tokenMaker,
+		storage:       stor,
+		queue:         q,
+		mailer:        mailer,
+		hub:           hub,
+		previewCache:  NewLRUPreviewCache(100),
+		cfg:           cfg,
+		audit:         audit.New(sqlDB),
+		demo:          demoSeeder,
+		assets:        service.NewAssetService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewTagRepo(db, sqlDB), reposqlc.NewFieldRepo(db), stor),
+		projects:      service.NewProjectService(reposqlc.NewProjectRepo(db)),
+		folders:       service.NewFolderService(reposqlc.NewFolderRepo(db, sqlDB)),
+		tags:          service.NewTagService(reposqlc.NewTagRepo(db, sqlDB)),
+		collections:   service.NewCollectionService(reposqlc.NewCollectionRepo(db, sqlDB), reposqlc.NewAssetRepo(db, sqlDB)),
+		shares:        service.NewShareService(reposqlc.NewShareRepo(db, sqlDB)),
+		sharePublic:   service.NewSharePublicService(reposqlc.NewShareRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB), mailer),
+		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
 		fields:        service.NewFieldService(reposqlc.NewFieldRepo(db)),
 		assetFields:   service.NewAssetFieldService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewFieldRepo(db), reposqlc.NewAssetFieldRepo(db, sqlDB)),
 		projectFields: service.NewProjectFieldService(reposqlc.NewProjectRepo(db), reposqlc.NewFieldRepo(db), reposqlc.NewProjectFieldRepo(db)),
 		versions:      service.NewVersionService(reposqlc.NewVersionRepo(db, sqlDB)),
-		variants:     service.NewVariantService(reposqlc.NewVariantRepo(db), reposqlc.NewAssetRepo(db, sqlDB)),
-		auditLog:     service.NewAuditLogService(db),
-		workspace:    service.NewWorkspaceService(reposqlc.NewWorkspaceRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB)),
-		users:        service.NewUserService(reposqlc.NewUserRepo(db, sqlDB), reposqlc.NewWorkspaceRepo(db, sqlDB)),
-		ingressSvc:   service.NewIngressService(db, cfg.AppSecret, q, mailer),
-		stack:        service.NewStackService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewVersionRepo(db, sqlDB), stor, q),
+		variants:      service.NewVariantService(reposqlc.NewVariantRepo(db), reposqlc.NewAssetRepo(db, sqlDB)),
+		auditLog:      service.NewAuditLogService(db),
+		workspace:     service.NewWorkspaceService(reposqlc.NewWorkspaceRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB)),
+		users:         service.NewUserService(reposqlc.NewUserRepo(db, sqlDB), reposqlc.NewWorkspaceRepo(db, sqlDB)),
+		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
+		stack:         service.NewStackService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewVersionRepo(db, sqlDB), stor, q),
+		upload:        service.NewUploadService(db, sqlDB, stor, q),
 	}
 }
 
@@ -152,7 +150,7 @@ func NewRouter(
 	app.Get("/healthz", handleHealthz)
 
 	// Public server config (demo flag, etc.)
-	app.Get("/config", auth.OptionalAuth(s.tokenMaker), s.handleConfig)
+	app.Get("/config", auth.OptionalAuth(s.auth), s.handleConfig)
 	app.Get("/config/auth", s.handleAuthConfig)
 
 	// Demo routes — only compiled and registered with -tags=demo
@@ -175,10 +173,7 @@ func NewRouter(
 	api.Post("/workspace/switch", s.handleSwitchWorkspace)
 
 	getRoleFn := func(ctx context.Context, workspaceID, userID string) (auth.Role, error) {
-		member, err := s.db.GetMember(ctx, dbgen.GetMemberParams{
-			WorkspaceID: workspaceID,
-			UserID:      userID,
-		})
+		member, err := s.workspace.GetMember(ctx, workspaceID, userID)
 		if err != nil {
 			return "", err
 		}

@@ -49,3 +49,10 @@ DELETE FROM tags WHERE workspace_id = ? AND name = ?;
 
 -- name: ListTagsInWorkspace :many
 SELECT * FROM tags WHERE workspace_id = ? ORDER BY name ASC;
+
+-- name: CountTagAssets :one
+SELECT COUNT(*) FROM asset_tags WHERE tag_id = ?;
+
+-- name: ReassignTagAssets :exec
+INSERT OR IGNORE INTO asset_tags (asset_id, tag_id)
+SELECT src.asset_id, ? FROM asset_tags src WHERE src.tag_id = ?;
