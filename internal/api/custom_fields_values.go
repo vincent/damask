@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
@@ -199,103 +198,10 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 	return c.JSON(BulkPatchAssetFieldsResponse{Updated: updated})
 }
 
-// -- Shared value validation helpers used by project fields handler -----------
-
 // FieldValueInput is the unexported alias for backward compatibility.
 type FieldValueInput struct {
 	FieldID string      `json:"field_id"`
 	Value   interface{} `json:"value"`
-}
-
-type fieldValueInput = FieldValueInput
-
-type resolvedValue struct {
-	fieldID      string
-	valueText    *string
-	valueNumber  *float64
-	valueDate    *string
-	valueBoolean *int64
-}
-
-// validateAndResolve loads the field definition via s.fields and validates the incoming value.
-// Returns (nil, nil) when input.Value is nil — the caller must distinguish this
-// "explicit clear" sentinel from an error (err != nil) before writing.
-func (s *Server) validateAndResolve(c fiber.Ctx, workspaceID string, input fieldValueInput) (*resolvedValue, *service.FieldDefinitionDTO, error) {
-	def, err := s.fields.Get(c.RequestCtx(), workspaceID, input.FieldID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if input.Value == nil {
-		return nil, def, nil //nolint:nilnil
-	}
-
-	rv := &resolvedValue{fieldID: input.FieldID}
-
-	switch def.FieldType {
-	case "text", "url":
-		s, ok := input.Value.(string)
-		if !ok {
-			return nil, def, fiber.NewError(fiber.StatusUnprocessableEntity, "field "+def.Key+" expects a string value")
-		}
-		rv.valueText = &s
-
-	case "select":
-		s, ok := input.Value.(string)
-		if !ok {
-			return nil, def, fiber.NewError(fiber.StatusUnprocessableEntity, "field "+def.Key+" expects a string value")
-		}
-		if def.Options != nil {
-			var opts []string
-			if err := json.Unmarshal([]byte(*def.Options), &opts); err == nil {
-				valid := false
-				for _, o := range opts {
-					if o == s {
-						valid = true
-						break
-					}
-				}
-				if !valid {
-					return nil, def, fiber.NewError(fiber.StatusUnprocessableEntity, "value '"+s+"' is not a valid option for field "+def.Key)
-				}
-			}
-		}
-		rv.valueText = &s
-
-	case "number":
-		switch v := input.Value.(type) {
-		case float64:
-			rv.valueNumber = &v
-		case json.Number:
-			f, err := v.Float64()
-			if err != nil {
-				return nil, def, fiber.NewError(fiber.StatusUnprocessableEntity, "field "+def.Key+" expects a numeric value")
-			}
-			rv.valueNumber = &f
-		default:
-			return nil, def, fiber.NewError(fiber.StatusUnprocessableEntity, "field "+def.Key+" expects a numeric value")
-		}
-
-	case "date":
-		s, ok := input.Value.(string)
-		if !ok {
-			return nil, def, fiber.NewError(fiber.StatusUnprocessableEntity, "field "+def.Key+" expects a date in YYYY-MM-DD format")
-		}
-		rv.valueDate = &s
-
-	case "boolean":
-		b, ok := input.Value.(bool)
-		if !ok {
-			return nil, def, fiber.NewError(fiber.StatusUnprocessableEntity, "field "+def.Key+" expects a boolean value")
-		}
-		var v int64
-		if b {
-			v = 1
-		}
-		rv.valueBoolean = &v
-	}
-
-	return rv, def, nil
 }
 
 func fieldKeyOf(before, after *service.FieldValueDTO) string {

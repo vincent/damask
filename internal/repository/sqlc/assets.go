@@ -136,7 +136,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 			orderBy = "a.id ASC"
 		}
 	case "taken_at":
-		joins = append(joins, fmt.Sprintf("LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?"))
+		joins = append(joins, "LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?")
 		// ExifFieldID goes before WHERE args — prepend it.
 		newArgs := []interface{}{p.ExifFieldID}
 		newArgs = append(newArgs, args...)

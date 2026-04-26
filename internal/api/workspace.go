@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 
@@ -29,23 +28,6 @@ type WorkspaceResponse struct {
 	UpdatedAt                time.Time `json:"updated_at"`
 }
 
-// workspaceToResponse converts the raw dbgen.Workspace (used in auth.go which still
-// calls s.db directly) to the API response type.
-func workspaceToResponse(w dbgen.Workspace) WorkspaceResponse {
-	return WorkspaceResponse{
-		ID:                       w.ID,
-		Name:                     w.Name,
-		VersionRetentionCount:    w.VersionRetentionCount,
-		EventLogRetentionDays:    w.EventLogRetentionDays,
-		DownloadLogRetentionDays: w.DownloadLogRetentionDays,
-		IconAssetID:              w.IconAssetID,
-		IconVersionID:            w.IconVersionID,
-		ExifKeep:                 w.ExifKeep != 0,
-		ExifKeepGps:              w.ExifKeepGps != 0,
-		CreatedAt:                w.CreatedAt,
-		UpdatedAt:                w.UpdatedAt,
-	}
-}
 
 func workspaceDTOToResponse(w *service.WorkspaceDTO) WorkspaceResponse {
 	return WorkspaceResponse{

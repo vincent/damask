@@ -169,9 +169,6 @@ func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 			EntityID:      d.EntityID,
 		}
 	}
-	if events == nil {
-		events = []activityEvent{}
-	}
 
 	return c.JSON(fiber.Map{
 		"events":      events,
@@ -252,20 +249,9 @@ func auditListDTOToResponse(d *service.AuditEventListDTO) EventListResponse {
 	for i, e := range d.Events {
 		events[i] = auditDTOToEventResponse(e)
 	}
-	if events == nil {
-		events = []EventResponse{}
-	}
 	return EventListResponse{
 		Events:     events,
 		NextCursor: d.NextCursor,
 		HasMore:    d.HasMore,
 	}
-}
-
-func csvEscape(s string) string {
-	if strings.ContainsAny(s, `",`+"\n") {
-		s = strings.ReplaceAll(s, `"`, `""`)
-		return `"` + s + `"`
-	}
-	return s
 }

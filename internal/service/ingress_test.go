@@ -32,7 +32,7 @@ func newIngressEnv(t *testing.T) *ingressTestEnv {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { sqlDB.Close() })
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	ctx := context.Background()
 	wsID := uuid.NewString()

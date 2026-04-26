@@ -14,8 +14,6 @@ import (
 
 var keyRegexp = regexp.MustCompile(`^[a-z0-9_]+$`)
 
-const maxFieldDefinitionsPerScope = 50
-
 type FieldDefinitionResponse struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`

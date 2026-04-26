@@ -546,9 +546,3 @@ func verifyState(raw, secret string) (oauthState, error) {
 	return s, nil
 }
 
-func nilIfEmpty(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}

@@ -20,7 +20,7 @@ func newUploadSvc(t *testing.T) service.UploadService {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { sqlDB.Close() })
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {
@@ -60,7 +60,7 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { sqlDB.Close() })
+	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_upload"
