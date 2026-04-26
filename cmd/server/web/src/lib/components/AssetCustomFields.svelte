@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { assetFieldApi, fieldDefinitionApi } from '$lib/api/client'
+  import { assetFieldApi, fieldDefinitionApi } from '$lib/api/custom_fields'
   import type { Asset, AssetFieldValue, FieldDefinition } from '$lib/api/models'
   import { ChevronDown, ChevronRight, Camera } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'

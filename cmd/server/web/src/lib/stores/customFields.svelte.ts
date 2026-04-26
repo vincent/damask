@@ -1,4 +1,4 @@
-import { fieldDefinitionApi } from '$lib/api/client'
+import { fieldDefinitionApi } from '$lib/api'
 import type { AssetFieldValue, FieldDefinition, FieldScope } from '$lib/api/models'
 
 class CustomFieldsStore {

@@ -1,4 +1,4 @@
-import { tagApi } from '$lib/api/client'
+import { tagApi } from '$lib/api'
 import type { DuplicateTagPair, Tag } from '$lib/api/models'
 
 function createTagsManagementStore() {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fieldDefinitionApi } from '$lib/api/client'
+  import { fieldDefinitionApi } from '$lib/api'
   import type { FieldDefinition, FieldFilter } from '$lib/api/models'
   import { onMount } from 'svelte'
   import Chip from '$lib/components/ui/Chip.svelte'

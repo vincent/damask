@@ -1,5 +1,5 @@
 import type { Command } from './types'
-import { assetFieldApi } from '$lib/api/client'
+import { assetFieldApi } from '$lib/api'
 import { customFieldsStore } from '$lib/stores/customFields.svelte'
 import { m } from '$lib/paraglide/messages'
 

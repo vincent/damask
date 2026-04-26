@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fieldDefinitionApi, projectFieldApi } from '$lib/api/client'
+  import { fieldDefinitionApi, projectFieldApi } from '$lib/api'
   import type { FieldDefinition, ProjectFieldValue } from '$lib/api/models'
   import { ChevronDown, ChevronRight } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'

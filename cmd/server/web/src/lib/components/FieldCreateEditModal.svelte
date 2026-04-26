@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fieldDefinitionApi } from '$lib/api/client'
+  import { fieldDefinitionApi } from '$lib/api'
   import type { FieldDefinition, FieldScope, FieldType } from '$lib/api/models'
   import Modal from '$lib/components/ui/Modal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
