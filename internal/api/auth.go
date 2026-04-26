@@ -63,7 +63,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
 
-	result, err := s.users.Register(c.RequestCtx(), service.RegisterUserParams{
+	result, err := s.users.Register(c.Context(), service.RegisterUserParams{
 		UserID:        uuid.New().String(),
 		Name:          req.Name,
 		Email:         req.Email,
@@ -74,7 +74,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	ws, err := s.workspace.Get(c.RequestCtx(), result.WorkspaceID)
+	ws, err := s.workspace.Get(c.Context(), result.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}
@@ -111,7 +111,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 		return nil
 	}
 
-	result, err := s.users.Login(c.RequestCtx(), service.LoginUserParams{
+	result, err := s.users.Login(c.Context(), service.LoginUserParams{
 		Email:         req.Email,
 		PlainPassword: req.Password,
 	})
@@ -119,7 +119,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusUnauthorized, "invalid credentials")
 	}
 
-	ws, err := s.workspace.Get(c.RequestCtx(), result.WorkspaceID)
+	ws, err := s.workspace.Get(c.Context(), result.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load workspace")
 	}

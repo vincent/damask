@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
@@ -138,7 +137,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		uploadFolderID = &fid
 	}
 
-	asset, err := s.upload.Ingest(c.RequestCtx(), claims.WorkspaceID, f, service.UploadMeta{
+	asset, err := s.upload.Ingest(c.Context(), claims.WorkspaceID, f, service.UploadMeta{
 		OriginalFilename: fh.Filename,
 		ProjectID:        uploadProjectID,
 		FolderID:         uploadFolderID,
@@ -149,16 +148,6 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 		slog.Error("cannot create asset", "error", err)
 		return ErrorStatusResponse(c, err)
 	}
-
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     asset.ID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetCreated,
-		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "upload"},
-	})
 
 	return c.Status(fiber.StatusCreated).JSON(assetToResponse(dtoToDBAsset(asset), nil))
 }
@@ -274,7 +263,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		}
 	}
 
-	assets, err := s.assets.List(c.RequestCtx(), lp)
+	assets, err := s.assets.List(c.Context(), lp)
 	if err != nil {
 		slog.Error("could not list assets", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
@@ -284,8 +273,8 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	for i, a := range assets {
 		ids[i] = a.ID
 	}
-	versionCounts, _ := s.assets.BatchVersionCounts(c.RequestCtx(), ids)
-	variantCounts, _ := s.assets.BatchVariantCounts(c.RequestCtx(), ids)
+	versionCounts, _ := s.assets.BatchVersionCounts(c.Context(), ids)
+	variantCounts, _ := s.assets.BatchVariantCounts(c.Context(), ids)
 
 	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts))
 }
@@ -397,7 +386,7 @@ func (s *Server) handleGetComments(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	dtos, err := s.assets.GetComments(c.RequestCtx(), claims.WorkspaceID, id)
+	dtos, err := s.assets.GetComments(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -432,26 +421,26 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	dto, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	dto, err := s.assets.Get(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	tagDTOs, _ := s.tags.ListForAsset(c.RequestCtx(), id)
+	tagDTOs, _ := s.tags.ListForAsset(c.Context(), id)
 	tagNames := make([]string, len(tagDTOs))
 	for i, t := range tagDTOs {
 		tagNames[i] = t.Name
 	}
 
-	versionCount, _ := s.assets.CountVersionsByAsset(c.RequestCtx(), id)
+	versionCount, _ := s.assets.CountVersionsByAsset(c.Context(), id)
 
 	variantsRebuilding := false
 	if dto.CurrentVersionID != nil {
-		rebuilding, _ := s.assets.IsRebuildingVariants(c.RequestCtx(), *dto.CurrentVersionID)
+		rebuilding, _ := s.assets.IsRebuildingVariants(c.Context(), *dto.CurrentVersionID)
 		variantsRebuilding = rebuilding
 	}
 
-	variantCount, _ := s.assets.CountVariantsByCurrentVersion(c.RequestCtx(), id)
+	variantCount, _ := s.assets.CountVariantsByCurrentVersion(c.Context(), id)
 
 	// Reconstruct a dbgen.Asset from the DTO to reuse the existing response builder.
 	asset := dtoToDBAsset(dto)
@@ -474,12 +463,12 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	assetDTO, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	assetDTO, err := s.assets.Get(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	version, err := s.versions.GetCurrentByAsset(c.RequestCtx(), id)
+	version, err := s.versions.GetCurrentByAsset(c.Context(), id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -494,15 +483,7 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	}
 
 	if c.Get("Sec-Fetch-Dest") != "image" {
-		userID := claims.UserID
-		s.audit.WriteAssetAsync(audit.AssetEvent{
-			WorkspaceID: claims.WorkspaceID,
-			AssetID:     assetDTO.ID,
-			UserID:      &userID,
-			ActorType:   audit.ActorTypeUser,
-			EventType:   audit.EventAssetDownloaded,
-			Payload:     audit.AssetDownloadedPayload{V: 1, Via: "direct"},
-		})
+		s.assets.WriteAssetDownloadedAsync(claims.WorkspaceID, assetDTO.ID, claims.UserID)
 	}
 
 	c.Set("Content-Type", assetDTO.MimeType)
@@ -529,7 +510,7 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	dto, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	dto, err := s.assets.Get(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -568,19 +549,9 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if err := s.assets.HardDelete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+	if err := s.assets.HardDelete(c.Context(), claims.WorkspaceID, id); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     id,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetDeleted,
-		Payload:     audit.AssetDeletedPayload{V: 1},
-	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -604,7 +575,7 @@ func (s *Server) handleBulkTag(c fiber.Ctx) error {
 		return nil
 	}
 	claims := auth.GetClaims(c)
-	if err := s.assets.BulkTag(c.RequestCtx(), claims.WorkspaceID, body.TagName, body.AssetIDs); err != nil {
+	if err := s.assets.BulkTag(c.Context(), claims.WorkspaceID, body.TagName, body.AssetIDs); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
@@ -634,12 +605,12 @@ func (s *Server) handleBulkProject(c fiber.Ctx) error {
 
 	// If project_id provided, verify it belongs to workspace.
 	if body.ProjectID != nil {
-		if _, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, *body.ProjectID); err != nil {
+		if _, err := s.projects.Get(c.Context(), claims.WorkspaceID, *body.ProjectID); err != nil {
 			return ErrorStatusResponse(c, err)
 		}
 	}
 
-	if err := s.assets.BulkMoveProject(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs, body.ProjectID); err != nil {
+	if err := s.assets.BulkMoveProject(c.Context(), claims.WorkspaceID, body.AssetIDs, body.ProjectID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
@@ -669,32 +640,11 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 		return nil
 	}
 
-	before, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
-	if err != nil {
-		return ErrorStatusResponse(c, err)
-	}
-
 	p := service.MoveAssetParams{FolderID: body.FolderID}
-	updated, err := s.assets.Move(c.RequestCtx(), claims.WorkspaceID, id, p)
+	updated, err := s.assets.Move(c.Context(), claims.WorkspaceID, id, p)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     id,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetMoved,
-		Payload: audit.AssetMovedPayload{
-			V:               1,
-			BeforeProjectID: before.ProjectID,
-			AfterProjectID:  updated.ProjectID,
-			BeforeFolderID:  before.FolderID,
-			AfterFolderID:   updated.FolderID,
-		},
-	})
 
 	return c.JSON(assetToResponse(dtoToDBAsset(updated), nil))
 }
@@ -723,29 +673,10 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 		return nil
 	}
 
-	before, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	updated, err := s.assets.Rename(c.Context(), claims.WorkspaceID, id, body.Name)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-
-	updated, err := s.assets.Rename(c.RequestCtx(), claims.WorkspaceID, id, body.Name)
-	if err != nil {
-		return ErrorStatusResponse(c, err)
-	}
-
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     id,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetRenamed,
-		Payload: audit.AssetRenamedPayload{
-			V:      1,
-			Before: before.OriginalFilename,
-			After:  updated.OriginalFilename,
-		},
-	})
 
 	return c.JSON(assetToResponse(dtoToDBAsset(updated), nil))
 }
@@ -771,7 +702,7 @@ func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 		return nil
 	}
 
-	if err := s.assets.BulkHardDelete(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs); err != nil {
+	if err := s.assets.BulkHardDelete(c.Context(), claims.WorkspaceID, body.AssetIDs); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)

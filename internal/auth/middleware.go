@@ -16,7 +16,7 @@ var Viewer = Role("viewer")
 const claimsKey = "claims"
 
 // RequireAuth validates the token from Authorization header or auth_token cookie.
-// On success it stores the Claims in c.Locals for downstream handlers.
+// On success it stores the Claims in c.Locals and enriches c.Context() with the actor.
 func RequireAuth(maker *Maker) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		tokenStr := extractToken(c)
@@ -30,6 +30,11 @@ func RequireAuth(maker *Maker) fiber.Handler {
 		}
 
 		c.Locals(claimsKey, claims)
+		c.SetContext(WithActor(c.Context(), Actor{
+			Type:        "user",
+			UserID:      &claims.UserID,
+			WorkspaceID: &claims.WorkspaceID,
+		}))
 		return c.Next()
 	}
 }
@@ -71,13 +76,18 @@ func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, 
 }
 
 // OptionalAuth attempts token validation but never rejects the request.
-// If a valid token is present, Claims are stored in c.Locals for downstream handlers.
+// If a valid token is present, Claims are stored in c.Locals and c.Context() is enriched with the actor.
 func OptionalAuth(maker *Maker) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		tokenStr := extractToken(c)
 		if tokenStr != "" {
 			if claims, err := maker.VerifyToken(tokenStr); err == nil {
 				c.Locals(claimsKey, claims)
+				c.SetContext(WithActor(c.Context(), Actor{
+					Type:        "user",
+					UserID:      &claims.UserID,
+					WorkspaceID: &claims.WorkspaceID,
+				}))
 			}
 		}
 		return c.Next()

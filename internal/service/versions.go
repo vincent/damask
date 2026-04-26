@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/repository"
 )
 
@@ -32,11 +34,12 @@ type VersionDTO struct {
 
 type versionService struct {
 	versions repository.VersionRepository
+	audit    audit.Writer
 }
 
 // NewVersionService returns a VersionService.
-func NewVersionService(versions repository.VersionRepository) VersionService {
-	return &versionService{versions: versions}
+func NewVersionService(versions repository.VersionRepository, aw audit.Writer) VersionService {
+	return &versionService{versions: versions, audit: aw}
 }
 
 func (s *versionService) List(ctx context.Context, assetID string) ([]*VersionDTO, error) {
@@ -143,7 +146,47 @@ func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versi
 	if isCover {
 		return fmt.Errorf("version is in use as a project cover or workspace icon: %w", apperr.ErrConflict)
 	}
-	return s.versions.SoftDelete(ctx, versionID)
+	if err := s.versions.SoftDelete(ctx, versionID); err != nil {
+		return err
+	}
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetVersionDeleted,
+		Payload:     audit.AssetVersionDeletedPayload{V: 1, VersionNum: v.VersionNum},
+	})
+	return nil
+}
+
+// WriteVersionUploaded emits an asset_version_uploaded audit event.
+// Called by handlers that orchestrate the multi-step upload flow.
+func (s *versionService) WriteVersionUploaded(ctx context.Context, workspaceID, assetID string, v *VersionDTO, comment string) {
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetVersionUploaded,
+		Payload:     audit.AssetVersionUploadedPayload{V: 1, VersionNum: v.VersionNum, Size: v.Size, Comment: comment},
+	})
+}
+
+// WriteVersionRestored emits an asset_version_restored audit event.
+// Called by handlers after SetCurrent succeeds.
+func (s *versionService) WriteVersionRestored(ctx context.Context, workspaceID, assetID string, fromVersionNum, toVersionNum int64) {
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetVersionRestored,
+		Payload:     audit.AssetVersionRestoredPayload{V: 1, FromVersionNum: fromVersionNum, ToVersionNum: toVersionNum},
+	})
 }
 
 func toVersionDTO(v repository.AssetVersion) *VersionDTO {

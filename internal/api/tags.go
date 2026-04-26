@@ -7,7 +7,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
 
@@ -56,7 +55,7 @@ func tagDTOToResponse(d *service.TagDTO) TagResponse {
 func (s *Server) handleListTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	dtos, err := s.tags.List(c.RequestCtx(), claims.WorkspaceID)
+	dtos, err := s.tags.List(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -89,7 +88,7 @@ func (s *Server) handleCreateTag(c fiber.Ctx) error {
 		return nil
 	}
 
-	dto, err := s.tags.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateTagParams{
+	dto, err := s.tags.Create(c.Context(), claims.WorkspaceID, service.CreateTagParams{
 		Name:      body.Name,
 		Color:     body.Color,
 		GroupName: body.GroupName,
@@ -126,7 +125,7 @@ func (s *Server) handlePatchTag(c fiber.Ctx) error {
 		return nil
 	}
 
-	dto, err := s.tags.Patch(c.RequestCtx(), claims.WorkspaceID, tagName, service.PatchTagParams{
+	dto, err := s.tags.Patch(c.Context(), claims.WorkspaceID, tagName, service.PatchTagParams{
 		Name:      body.Name,
 		Color:     body.Color,
 		GroupName: body.GroupName,
@@ -159,7 +158,7 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 		return nil
 	}
 
-	result, err := s.tags.BulkDelete(c.RequestCtx(), claims.WorkspaceID, body.Names)
+	result, err := s.tags.BulkDelete(c.Context(), claims.WorkspaceID, body.Names)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -191,7 +190,7 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 		return nil
 	}
 
-	result, err := s.tags.Merge(c.RequestCtx(), claims.WorkspaceID, body.Sources, body.Target)
+	result, err := s.tags.Merge(c.Context(), claims.WorkspaceID, body.Sources, body.Target)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -215,7 +214,7 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	dtos, err := s.tags.List(c.RequestCtx(), claims.WorkspaceID)
+	dtos, err := s.tags.List(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -277,11 +276,11 @@ func (s *Server) handleGetAssetTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	tagDTOs, err := s.tags.ListForAsset(c.RequestCtx(), assetID)
+	tagDTOs, err := s.tags.ListForAsset(c.Context(), assetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -316,26 +315,16 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 		return nil
 	}
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	tag, err := s.tags.AddToAsset(c.RequestCtx(), claims.WorkspaceID, assetID, body.Name)
+	tag, err := s.tags.AddToAsset(c.Context(), claims.WorkspaceID, assetID, body.Name)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	_ = s.tags.TouchLastUsed(c.RequestCtx(), claims.WorkspaceID, tag.Name)
-
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     assetID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetTagged,
-		Payload:     audit.AssetTaggedPayload{V: 1, Tag: tag.Name},
-	})
+	_ = s.tags.TouchLastUsed(c.Context(), claims.WorkspaceID, tag.Name)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"name": tag.Name})
 }
@@ -357,23 +346,13 @@ func (s *Server) handleRemoveTagFromAsset(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	tagName := strings.ToLower(c.Params("name"))
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	if err := s.tags.RemoveFromAsset(c.RequestCtx(), claims.WorkspaceID, assetID, tagName); err != nil {
+	if err := s.tags.RemoveFromAsset(c.Context(), claims.WorkspaceID, assetID, tagName); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     assetID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetUntagged,
-		Payload:     audit.AssetUntaggedPayload{V: 1, Tag: tagName},
-	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

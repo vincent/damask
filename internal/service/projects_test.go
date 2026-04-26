@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
@@ -14,8 +15,15 @@ import (
 func newProjectSvc(t *testing.T) (service.ProjectService, *memory.ProjectRepo) {
 	t.Helper()
 	repo := memory.NewProjectRepo()
-	svc := service.NewProjectService(repo)
+	svc := service.NewProjectService(repo, audit.NopWriter{})
 	return svc, repo
+}
+
+func newProjectSvcSpy(t *testing.T) (service.ProjectService, *memory.ProjectRepo, *spyWriter) {
+	t.Helper()
+	spy := newSpy()
+	repo := memory.NewProjectRepo()
+	return service.NewProjectService(repo, spy), repo, spy
 }
 
 // --- Create ---
@@ -126,5 +134,52 @@ func TestProjectService_Delete_OK(t *testing.T) {
 	_, err := svc.Get(context.Background(), "ws_1", "p1")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+// --- Audit events ---
+
+func TestProjectService_Create_EmitsAuditEvent(t *testing.T) {
+	svc, _, spy := newProjectSvcSpy(t)
+	if _, err := svc.Create(context.Background(), "ws_1", service.CreateProjectParams{Name: "Alpha"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastProject()
+	if e.EventType != audit.EventProjectCreated {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventProjectCreated)
+	}
+	if e.WorkspaceID != "ws_1" {
+		t.Errorf("WorkspaceID: got %q, want %q", e.WorkspaceID, "ws_1")
+	}
+}
+
+func TestProjectService_Update_Rename_EmitsAuditEvent(t *testing.T) {
+	svc, repo, spy := newProjectSvcSpy(t)
+	repo.Seed(repository.Project{ID: "p1", WorkspaceID: "ws_1", Name: "Old"})
+	newName := "New"
+	if _, err := svc.Update(context.Background(), "ws_1", "p1", service.UpdateProjectParams{Name: &newName}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastProject()
+	if e.EventType != audit.EventProjectRenamed {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventProjectRenamed)
+	}
+	if e.ProjectID != "p1" {
+		t.Errorf("ProjectID: got %q, want %q", e.ProjectID, "p1")
+	}
+}
+
+func TestProjectService_Delete_EmitsAuditEvent(t *testing.T) {
+	svc, repo, spy := newProjectSvcSpy(t)
+	repo.Seed(repository.Project{ID: "p1", WorkspaceID: "ws_1", Name: "ToDelete"})
+	if err := svc.Delete(context.Background(), "ws_1", "p1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastProject()
+	if e.EventType != audit.EventProjectDeleted {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventProjectDeleted)
+	}
+	if e.ProjectID != "p1" {
+		t.Errorf("ProjectID: got %q, want %q", e.ProjectID, "p1")
 	}
 }

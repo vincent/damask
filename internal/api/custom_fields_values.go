@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 
-	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
 
@@ -64,7 +63,7 @@ func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	dtos, err := s.assetFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
+	dtos, err := s.assetFields.GetValues(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -96,59 +95,14 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Snapshot existing values for audit before/after.
-	existing, _ := s.assetFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
-	existingByFieldID := make(map[string]*service.FieldValueDTO, len(existing))
-	for _, v := range existing {
-		v := v
-		existingByFieldID[v.FieldID] = v
-	}
-
 	inputs := make([]service.SetFieldValueInput, len(body.Values))
 	for i, v := range body.Values {
 		inputs[i] = service.SetFieldValueInput{FieldID: v.FieldID, Value: v.Value}
 	}
 
-	dtos, err := s.assetFields.SetValues(c.RequestCtx(), claims.WorkspaceID, id, claims.UserID, inputs)
+	dtos, err := s.assetFields.SetValues(c.Context(), claims.WorkspaceID, id, claims.UserID, inputs)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
-	}
-
-	// Emit audit events (best-effort).
-	userID := claims.UserID
-	afterByFieldID := make(map[string]*service.FieldValueDTO, len(dtos))
-	for _, v := range dtos {
-		afterByFieldID[v.FieldID] = v
-	}
-	for _, input := range body.Values {
-		before := existingByFieldID[input.FieldID]
-		after := afterByFieldID[input.FieldID]
-		var beforeVal, afterVal interface{}
-		if before != nil {
-			beforeVal = before.Value
-		}
-		if input.Value == nil {
-			s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-				WorkspaceID: claims.WorkspaceID,
-				AssetID:     id,
-				UserID:      &userID,
-				ActorType:   audit.ActorTypeUser,
-				EventType:   audit.EventAssetFieldCleared,
-				Payload:     audit.AssetFieldClearedPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal},
-			})
-		} else {
-			if after != nil {
-				afterVal = after.Value
-			}
-			s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-				WorkspaceID: claims.WorkspaceID,
-				AssetID:     id,
-				UserID:      &userID,
-				ActorType:   audit.ActorTypeUser,
-				EventType:   audit.EventAssetFieldSet,
-				Payload:     audit.AssetFieldSetPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal, After: afterVal},
-			})
-		}
 	}
 
 	go func() { _ = s.assets.RefreshFTS(context.Background(), id) }()
@@ -182,7 +136,7 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 		inputs[i] = service.SetFieldValueInput{FieldID: v.FieldID, Value: v.Value}
 	}
 
-	updated, err := s.assetFields.BulkSetValues(c.RequestCtx(), claims.WorkspaceID, claims.UserID, body.AssetIDs, inputs)
+	updated, err := s.assetFields.BulkSetValues(c.Context(), claims.WorkspaceID, claims.UserID, body.AssetIDs, inputs)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -204,22 +158,3 @@ type FieldValueInput struct {
 	Value   interface{} `json:"value"`
 }
 
-func fieldKeyOf(before, after *service.FieldValueDTO) string {
-	if after != nil {
-		return after.FieldKey
-	}
-	if before != nil {
-		return before.FieldKey
-	}
-	return ""
-}
-
-func fieldNameOf(before, after *service.FieldValueDTO) string {
-	if after != nil {
-		return after.FieldName
-	}
-	if before != nil {
-		return before.FieldName
-	}
-	return ""
-}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/auth"
 
 	"github.com/google/uuid"
 )
@@ -169,7 +170,8 @@ func (q *Queue) processNext(ctx context.Context) {
 		return
 	}
 
-	if err := h(ctx, job); err != nil {
+	jobCtx := auth.WithActor(ctx, auth.Actor{Type: "system"})
+	if err := h(jobCtx, job); err != nil {
 		slog.Error("queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
 		errMsg := err.Error()
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{

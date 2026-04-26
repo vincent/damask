@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 )
@@ -13,7 +14,14 @@ import (
 func newTagSvc(t *testing.T) (service.TagService, *memory.RealTagRepo) {
 	t.Helper()
 	repo := memory.NewRealTagRepo()
-	return service.NewTagService(repo), repo
+	return service.NewTagService(repo, audit.NopWriter{}), repo
+}
+
+func newTagSvcSpy(t *testing.T) (service.TagService, *memory.RealTagRepo, *spyWriter) {
+	t.Helper()
+	spy := newSpy()
+	repo := memory.NewRealTagRepo()
+	return service.NewTagService(repo, spy), repo, spy
 }
 
 // --- Create ---
@@ -140,5 +148,48 @@ func TestTagService_Delete_OK(t *testing.T) {
 	tags, _ := svc.List(context.Background(), "ws_1")
 	if len(tags) != 0 {
 		t.Errorf("expected 0 tags after delete, got %d", len(tags))
+	}
+}
+
+// --- Audit events ---
+
+func TestTagService_AddToAsset_EmitsAuditEvent(t *testing.T) {
+	svc, _, spy := newTagSvcSpy(t)
+	if _, err := svc.AddToAsset(context.Background(), "ws_1", "ast_1", "nature"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetTagged {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetTagged)
+	}
+	if e.AssetID != "ast_1" {
+		t.Errorf("AssetID: got %q, want %q", e.AssetID, "ast_1")
+	}
+}
+
+func TestTagService_RemoveFromAsset_EmitsAuditEvent(t *testing.T) {
+	svc, _, spy := newTagSvcSpy(t)
+	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "nature") //nolint
+	spy.asset = nil                                                    // reset after add
+	if err := svc.RemoveFromAsset(context.Background(), "ws_1", "ast_1", "nature"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetUntagged {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetUntagged)
+	}
+	if e.AssetID != "ast_1" {
+		t.Errorf("AssetID: got %q, want %q", e.AssetID, "ast_1")
+	}
+}
+
+func TestTagService_AddToAsset_AuditOnEveryCall(t *testing.T) {
+	svc, _, spy := newTagSvcSpy(t)
+	// Two calls with the same tag: the repo deduplicates the link, but the
+	// service emits an audit event on every call regardless.
+	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo") //nolint
+	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo") //nolint
+	if spy.assetCount() != 2 {
+		t.Errorf("expected 2 audit events (one per call), got %d", spy.assetCount())
 	}
 }

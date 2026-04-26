@@ -6,17 +6,26 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 )
 
+func newAssetSvcSpy(t *testing.T) (service.AssetService, *memory.AssetRepo, *spyWriter) {
+	t.Helper()
+	spy := newSpy()
+	repo := memory.NewAssetRepo()
+	stor, _ := storage.NewAferoMemoryStorage()
+	return service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, spy), repo, spy
+}
+
 func newAssetSvc(t *testing.T) (service.AssetService, *memory.AssetRepo) {
 	t.Helper()
 	repo := memory.NewAssetRepo()
 	stor, _ := storage.NewAferoMemoryStorage()
-	return service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor), repo
+	return service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}), repo
 }
 
 // --- Get ---
@@ -178,5 +187,67 @@ func TestAssetService_Delete_OK(t *testing.T) {
 	_, err := svc.Get(context.Background(), "ws_1", "a1")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+// --- Audit events ---
+
+func TestAssetService_Rename_EmitsAuditEvent(t *testing.T) {
+	svc, repo, spy := newAssetSvcSpy(t)
+	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"})
+	if _, err := svc.Rename(context.Background(), "ws_1", "a1", "banner"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetRenamed {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetRenamed)
+	}
+	if e.AssetID != "a1" {
+		t.Errorf("AssetID: got %q, want %q", e.AssetID, "a1")
+	}
+	if e.WorkspaceID != "ws_1" {
+		t.Errorf("WorkspaceID: got %q, want %q", e.WorkspaceID, "ws_1")
+	}
+}
+
+func TestAssetService_Rename_NoAuditOnNoOp(t *testing.T) {
+	svc, repo, spy := newAssetSvcSpy(t)
+	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"})
+	if _, err := svc.Rename(context.Background(), "ws_1", "a1", "photo"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spy.assetCount() != 0 {
+		t.Errorf("expected no audit event on no-op rename, got %d", spy.assetCount())
+	}
+}
+
+func TestAssetService_Move_EmitsAuditEvent(t *testing.T) {
+	svc, repo, spy := newAssetSvcSpy(t)
+	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "doc.pdf"})
+	folderID := "folder_42"
+	if _, err := svc.Move(context.Background(), "ws_1", "a1", service.MoveAssetParams{FolderID: &folderID}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetMoved {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetMoved)
+	}
+	if e.AssetID != "a1" {
+		t.Errorf("AssetID: got %q, want %q", e.AssetID, "a1")
+	}
+}
+
+func TestAssetService_HardDelete_EmitsAuditEvent(t *testing.T) {
+	svc, repo, spy := newAssetSvcSpy(t)
+	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "old.png"})
+	if err := svc.HardDelete(context.Background(), "ws_1", "a1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetDeleted {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetDeleted)
+	}
+	if e.AssetID != "a1" {
+		t.Errorf("AssetID: got %q, want %q", e.AssetID, "a1")
 	}
 }

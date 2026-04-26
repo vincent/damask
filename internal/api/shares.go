@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
 
@@ -120,7 +119,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 		allowDownload = *body.AllowDownload
 	}
 
-	sh, err := s.shares.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateShareParams{
+	sh, err := s.shares.Create(c.Context(), claims.WorkspaceID, service.CreateShareParams{
 		CreatedBy:     claims.UserID,
 		Label:         body.Label,
 		TargetType:    body.TargetType,
@@ -132,18 +131,6 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)
-	}
-
-	if sh.TargetType == "asset" {
-		userID := claims.UserID
-		s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-			WorkspaceID: claims.WorkspaceID,
-			AssetID:     sh.TargetID,
-			UserID:      &userID,
-			ActorType:   audit.ActorTypeUser,
-			EventType:   audit.EventAssetShared,
-			Payload:     audit.AssetSharedPayload{V: 1, ShareID: sh.ID, TargetType: sh.TargetType, ExpiresAt: sh.ExpiresAt},
-		})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(shareDTOToResponse(sh, s.cfg.BaseURL.String()))
@@ -160,7 +147,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 func (s *Server) handleListShares(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	shares, err := s.shares.List(c.RequestCtx(), claims.WorkspaceID)
+	shares, err := s.shares.List(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -186,7 +173,7 @@ func (s *Server) handleGetShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	sh, err := s.shares.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	sh, err := s.shares.Get(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -225,7 +212,7 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 		clearExpiry = *body.ClearExpiry
 	}
 
-	sh, err := s.shares.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateShareParams{
+	sh, err := s.shares.Update(c.Context(), claims.WorkspaceID, id, service.UpdateShareParams{
 		Label:         body.Label,
 		Password:      body.Password,
 		ClearPassword: clearPassword,
@@ -255,25 +242,8 @@ func (s *Server) handleRevokeShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	sh, err := s.shares.Get(c.RequestCtx(), claims.WorkspaceID, id)
-	if err != nil {
+	if err := s.shares.Revoke(c.Context(), claims.WorkspaceID, id); err != nil {
 		return ErrorStatusResponse(c, err)
-	}
-
-	if err := s.shares.Revoke(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
-		return ErrorStatusResponse(c, err)
-	}
-
-	if sh.TargetType == "asset" {
-		userID := claims.UserID
-		s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-			WorkspaceID: claims.WorkspaceID,
-			AssetID:     sh.TargetID,
-			UserID:      &userID,
-			ActorType:   audit.ActorTypeUser,
-			EventType:   audit.EventAssetShareRevoked,
-			Payload:     audit.AssetShareRevokedPayload{V: 1, ShareID: sh.ID},
-		})
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

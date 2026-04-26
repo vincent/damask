@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/repository"
 
 	"github.com/google/uuid"
@@ -62,11 +64,12 @@ func (p *UpdateProjectParams) Validate() error {
 
 type projectService struct {
 	projects repository.ProjectRepository
+	audit    audit.Writer
 }
 
 // NewProjectService returns a ProjectService.
-func NewProjectService(projects repository.ProjectRepository) ProjectService {
-	return &projectService{projects: projects}
+func NewProjectService(projects repository.ProjectRepository, aw audit.Writer) ProjectService {
+	return &projectService{projects: projects, audit: aw}
 }
 
 func (s *projectService) Create(ctx context.Context, workspaceID string, p CreateProjectParams) (*ProjectDTO, error) {
@@ -83,7 +86,17 @@ func (s *projectService) Create(ctx context.Context, workspaceID string, p Creat
 	if err != nil {
 		return nil, err
 	}
-	return toProjectDTO(proj, 0), nil
+	dto := toProjectDTO(proj, 0)
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteProject(ctx, audit.ProjectEvent{
+		WorkspaceID: workspaceID,
+		ProjectID:   dto.ID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventProjectCreated,
+		Payload:     audit.ProjectCreatedPayload{V: 1, Name: dto.Name},
+	})
+	return dto, nil
 }
 
 func (s *projectService) Get(ctx context.Context, workspaceID, id string) (*ProjectDTO, error) {
@@ -126,6 +139,7 @@ func (s *projectService) Update(ctx context.Context, workspaceID, id string, p U
 	if err != nil {
 		return nil, err
 	}
+	prevName := existing.Name
 	// Merge: nil fields keep their existing value.
 	if p.Name != nil {
 		existing.Name = *p.Name
@@ -143,7 +157,19 @@ func (s *projectService) Update(ctx context.Context, workspaceID, id string, p U
 	if err != nil {
 		return nil, err
 	}
-	return toProjectDTO(updated, 0), nil
+	dto := toProjectDTO(updated, 0)
+	if dto.Name != prevName {
+		actor := auth.ActorFromCtx(ctx)
+		s.audit.WriteProject(ctx, audit.ProjectEvent{
+			WorkspaceID: workspaceID,
+			ProjectID:   id,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventProjectRenamed,
+			Payload:     audit.ProjectRenamedPayload{V: 1, Before: prevName, After: dto.Name},
+		})
+	}
+	return dto, nil
 }
 
 func (s *projectService) Delete(ctx context.Context, workspaceID, id string) error {
@@ -156,7 +182,19 @@ func (s *projectService) Delete(ctx context.Context, workspaceID, id string) err
 	if err := s.projects.NullifyAssets(ctx, workspaceID, id); err != nil {
 		return err
 	}
-	return s.projects.Delete(ctx, workspaceID, id)
+	if err := s.projects.Delete(ctx, workspaceID, id); err != nil {
+		return err
+	}
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteProject(ctx, audit.ProjectEvent{
+		WorkspaceID: workspaceID,
+		ProjectID:   id,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventProjectDeleted,
+		Payload:     audit.ProjectDeletedPayload{V: 1},
+	})
+	return nil
 }
 
 func toProjectDTO(p repository.Project, assetCount int64) *ProjectDTO {

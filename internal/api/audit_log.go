@@ -75,13 +75,13 @@ func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
 	limit, cursor, types := parseEventQueryParams(c)
 
-	result, err := s.auditLog.ListAssetEvents(c.RequestCtx(), service.ListAssetEventsParams{
+	result, err := s.auditLog.ListAssetEvents(c.Context(), service.ListAssetEventsParams{
 		AssetID:     assetID,
 		WorkspaceID: claims.WorkspaceID,
 		Limit:       limit,
@@ -112,13 +112,13 @@ func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	projectID := c.Params("id")
 
-	if _, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, projectID); err != nil {
+	if _, err := s.projects.Get(c.Context(), claims.WorkspaceID, projectID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
 	limit, cursor, types := parseEventQueryParams(c)
 
-	result, err := s.auditLog.ListProjectEvents(c.RequestCtx(), service.ListProjectEventsParams{
+	result, err := s.auditLog.ListProjectEvents(c.Context(), service.ListProjectEventsParams{
 		ProjectID:   projectID,
 		WorkspaceID: claims.WorkspaceID,
 		Limit:       limit,
@@ -150,7 +150,7 @@ func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 	limit, cursor, types := parseEventQueryParams(c)
 	userID := c.Query("user_id")
 
-	result, err := s.auditLog.ListWorkspaceActivity(c.RequestCtx(), service.ListWorkspaceActivityParams{
+	result, err := s.auditLog.ListWorkspaceActivity(c.Context(), service.ListWorkspaceActivityParams{
 		WorkspaceID: claims.WorkspaceID,
 		Limit:       limit,
 		Cursor:      cursor,
@@ -209,7 +209,7 @@ func (s *Server) handleExportActivity(c fiber.Ctx) error {
 		}
 	}
 
-	csv, err := s.auditLog.ExportActivity(c.RequestCtx(), service.ExportActivityParams{
+	csv, err := s.auditLog.ExportActivity(c.Context(), service.ExportActivityParams{
 		WorkspaceID: claims.WorkspaceID,
 		Since:       since,
 		Until:       until,

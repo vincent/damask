@@ -66,7 +66,7 @@ type WorkspaceMeResponse struct {
 func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	me, err := s.workspace.Me(c.RequestCtx(), claims.WorkspaceID, claims.UserID)
+	me, err := s.workspace.Me(c.Context(), claims.WorkspaceID, claims.UserID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -104,7 +104,7 @@ func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 		return nil
 	}
 
-	ws, err := s.users.CreateWorkspace(c.RequestCtx(), claims.UserID, req.Name)
+	ws, err := s.users.CreateWorkspace(c.Context(), claims.UserID, req.Name)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -135,7 +135,7 @@ type WorkspaceWithRoleResponse struct {
 func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	rows, err := s.workspace.ListForUser(c.RequestCtx(), claims.UserID)
+	rows, err := s.workspace.ListForUser(c.Context(), claims.UserID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -182,12 +182,12 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 		return nil
 	}
 
-	member, err := s.workspace.GetMember(c.RequestCtx(), req.WorkspaceID, claims.UserID)
+	member, err := s.workspace.GetMember(c.Context(), req.WorkspaceID, claims.UserID)
 	if err != nil {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
 
-	ws, err := s.workspace.Get(c.RequestCtx(), req.WorkspaceID)
+	ws, err := s.workspace.Get(c.Context(), req.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusForbidden, "not a member of this workspace")
 	}
@@ -226,7 +226,7 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 		return nil
 	}
 
-	ws, err := s.workspace.Update(c.RequestCtx(), claims.WorkspaceID, service.UpdateWorkspaceParams{
+	ws, err := s.workspace.Update(c.Context(), claims.WorkspaceID, service.UpdateWorkspaceParams{
 		VersionRetentionCount: &body.VersionRetentionCount,
 		ExifKeep:              &body.ExifKeep,
 		ExifKeepGps:           &body.ExifKeepGPS,
@@ -273,7 +273,7 @@ func (s *Server) handleTriggerWorkspaceJob(c fiber.Ctx) error {
 }
 
 func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID string) error {
-	pendingIDs, err := s.fields.ListAssetsMissingExif(c.RequestCtx(), workspaceID)
+	pendingIDs, err := s.fields.ListAssetsMissingExif(c.Context(), workspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not determine pending assets")
 	}
@@ -288,7 +288,7 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 			"workspace_id": workspaceID,
 			"user_id":      userID,
 		})
-		if _, err := s.queue.Enqueue(c.RequestCtx(), workspaceID, queue.JobTypeExtractExif, string(payload)); err != nil {
+		if _, err := s.queue.Enqueue(c.Context(), workspaceID, queue.JobTypeExtractExif, string(payload)); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not enqueue jobs")
 		}
 	}
@@ -317,7 +317,7 @@ type MemberResponse struct {
 func (s *Server) handleListMembers(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	members, err := s.workspace.ListMembers(c.RequestCtx(), claims.WorkspaceID)
+	members, err := s.workspace.ListMembers(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -351,7 +351,7 @@ func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	targetUserID := c.Params("userId")
 
-	if err := s.workspace.RemoveMember(c.RequestCtx(), claims.WorkspaceID, claims.UserID, targetUserID); err != nil {
+	if err := s.workspace.RemoveMember(c.Context(), claims.WorkspaceID, claims.UserID, targetUserID); err != nil {
 		if isInvalidInput(err) {
 			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
 		}
@@ -384,7 +384,7 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 		return nil
 	}
 
-	if err := s.workspace.UpdateMemberRole(c.RequestCtx(), claims.WorkspaceID, claims.UserID, targetUserID, string(body.Role)); err != nil {
+	if err := s.workspace.UpdateMemberRole(c.Context(), claims.WorkspaceID, claims.UserID, targetUserID, string(body.Role)); err != nil {
 		if isInvalidInput(err) {
 			return errRes(c, fiber.StatusBadRequest, unwrapMessage(err))
 		}
@@ -415,7 +415,7 @@ type InviteResponse struct {
 func (s *Server) handleListInvites(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	invites, err := s.workspace.ListInvites(c.RequestCtx(), claims.WorkspaceID)
+	invites, err := s.workspace.ListInvites(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -448,7 +448,7 @@ func (s *Server) handleDeleteInvite(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	inviteID := c.Params("inviteId")
 
-	if err := s.workspace.DeleteInvite(c.RequestCtx(), claims.WorkspaceID, inviteID); err != nil {
+	if err := s.workspace.DeleteInvite(c.Context(), claims.WorkspaceID, inviteID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
@@ -476,7 +476,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		return nil
 	}
 
-	inv, err := s.workspace.CreateInvite(c.RequestCtx(), claims.WorkspaceID, claims.UserID, service.CreateInviteParams{
+	inv, err := s.workspace.CreateInvite(c.Context(), claims.WorkspaceID, claims.UserID, service.CreateInviteParams{
 		Email: req.Email,
 		Role:  req.Role,
 	})
@@ -484,8 +484,8 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	if err = s.mailer.SendInvite(c.RequestCtx(), inv.Email, inv.Role, inv.InviteToken); err != nil {
-		slog.ErrorContext(c.RequestCtx(), "failed to send invitation mail", "error", err)
+	if err = s.mailer.SendInvite(c.Context(), inv.Email, inv.Role, inv.InviteToken); err != nil {
+		slog.ErrorContext(c.Context(), "failed to send invitation mail", "error", err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(InviteResponse{
@@ -521,7 +521,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	}
 
 	userID := uuid.New().String()
-	result, err := s.workspace.AcceptInvite(c.RequestCtx(), service.AcceptInviteParams{
+	result, err := s.workspace.AcceptInvite(c.Context(), service.AcceptInviteParams{
 		Token:        req.Token,
 		Name:         req.Name,
 		PasswordHash: hash,
@@ -531,13 +531,13 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	if err := s.mailer.SendWelcome(c.RequestCtx(), result.UserEmail, result.UserName, result.WorkspaceID); err != nil {
-		slog.ErrorContext(c.RequestCtx(), "failed to send welcome mail", "error", err)
+	if err := s.mailer.SendWelcome(c.Context(), result.UserEmail, result.UserName, result.WorkspaceID); err != nil {
+		slog.ErrorContext(c.Context(), "failed to send welcome mail", "error", err)
 	}
 
-	if inviter, err := s.users.GetByID(c.RequestCtx(), result.InviterID); err == nil {
-		if err := s.mailer.SendInviteAccepted(c.RequestCtx(), inviter.Email, result.UserName, result.UserEmail, result.InviteRole); err != nil {
-			slog.ErrorContext(c.RequestCtx(), "failed to send invite accepted mail", "error", err)
+	if inviter, err := s.users.GetByID(c.Context(), result.InviterID); err == nil {
+		if err := s.mailer.SendInviteAccepted(c.Context(), inviter.Email, result.UserName, result.UserEmail, result.InviteRole); err != nil {
+			slog.ErrorContext(c.Context(), "failed to send invite accepted mail", "error", err)
 		}
 	}
 

@@ -7,12 +7,26 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 )
+
+func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
+	t.Helper()
+	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_spy.db?_foreign_keys=ON")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	stor, _ := storage.NewAferoMemoryStorage()
+	spy := newSpy()
+	q := queue.New(queries, 1)
+	return service.NewUploadService(queries, sqlDB, stor, q, spy), spy
+}
 
 func newUploadSvc(t *testing.T) service.UploadService {
 	t.Helper()
@@ -27,7 +41,7 @@ func newUploadSvc(t *testing.T) service.UploadService {
 		t.Fatalf("storage: %v", err)
 	}
 	q := queue.New(queries, 1)
-	return service.NewUploadService(queries, sqlDB, stor, q)
+	return service.NewUploadService(queries, sqlDB, stor, q, audit.NopWriter{})
 }
 
 // -- Validate inputs --
@@ -73,7 +87,7 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	}
 
 	q2 := queue.New(queries, 1)
-	svc := service.NewUploadService(queries, sqlDB, stor, q2)
+	svc := service.NewUploadService(queries, sqlDB, stor, q2, audit.NopWriter{})
 
 	dto, err := svc.Ingest(ctx, wsID, strings.NewReader("fake image bytes"), service.UploadMeta{
 		OriginalFilename: "photo.jpg",
@@ -90,5 +104,47 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	}
 	if dto.ID == "" {
 		t.Errorf("expected non-empty asset ID")
+	}
+}
+
+// --- Audit events ---
+
+func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
+	svc, spy := newUploadSvcSpy(t)
+
+	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_audit.db?_foreign_keys=ON")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	ctx := context.Background()
+	wsID := "ws_audit"
+	userID := "user_audit"
+	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "a@t.com", PasswordHash: "x", Name: "t"}); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	// Rebuild svc with the seeded DB so the workspace FK constraint passes.
+	stor, _ := storage.NewAferoMemoryStorage()
+	q := queue.New(queries, 1)
+	svc = service.NewUploadService(queries, sqlDB, stor, q, spy)
+
+	_, err = svc.Ingest(ctx, wsID, strings.NewReader("bytes"), service.UploadMeta{
+		OriginalFilename: "shot.jpg",
+		UserID:           userID,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetCreated {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetCreated)
+	}
+	if e.WorkspaceID != wsID {
+		t.Errorf("WorkspaceID: got %q, want %q", e.WorkspaceID, wsID)
 	}
 }

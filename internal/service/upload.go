@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/fileproc"
 	"damask/server/internal/queue"
@@ -31,11 +33,12 @@ type uploadServiceImpl struct {
 	sqlDB   *sql.DB
 	storage storage.Storage
 	q       queue.JobQueue
+	audit   audit.Writer
 }
 
 // NewUploadService returns an UploadService.
-func NewUploadService(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, q queue.JobQueue) UploadService {
-	return &uploadServiceImpl{db: db, sqlDB: sqlDB, storage: stor, q: q}
+func NewUploadService(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, q queue.JobQueue, aw audit.Writer) UploadService {
+	return &uploadServiceImpl{db: db, sqlDB: sqlDB, storage: stor, q: q, audit: aw}
 }
 
 // Ingest writes r to a temp file, calls fileproc.CreateAsset, then removes the temp file.
@@ -75,7 +78,7 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 		return nil, fmt.Errorf("%s: %w", fErr.Message, apperr.ErrInvalidInput)
 	}
 
-	return &AssetDTO{
+	dto := &AssetDTO{
 		ID:               asset.ID,
 		WorkspaceID:      asset.WorkspaceID,
 		ProjectID:        asset.ProjectID,
@@ -91,5 +94,15 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 		CurrentVersionID: asset.CurrentVersionID,
 		CreatedAt:        asset.CreatedAt,
 		UpdatedAt:        asset.UpdatedAt,
-	}, nil
+	}
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     dto.ID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetCreated,
+		Payload:     audit.AssetCreatedPayload{V: 1, Filename: dto.OriginalFilename, Source: "upload"},
+	})
+	return dto, nil
 }

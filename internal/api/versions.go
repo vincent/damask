@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	services "damask/server/internal/fileproc"
 	"damask/server/internal/jobs"
@@ -110,7 +109,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
+	asset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -148,12 +147,12 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 
 	// Dedup: reject if identical bytes are already the current version.
-	existing, hashErr := s.versions.GetByHash(c.RequestCtx(), assetID, hash)
+	existing, hashErr := s.versions.GetByHash(c.Context(), assetID, hash)
 	if hashErr == nil && existing.IsCurrent {
 		return errRes(c, fiber.StatusConflict, "this file is identical to the current version")
 	}
 
-	nextNum, err := s.versions.NextVersionNum(c.RequestCtx(), assetID)
+	nextNum, err := s.versions.NextVersionNum(c.Context(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not determine version number")
 	}
@@ -162,7 +161,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	if mimeType == "" {
 		mimeType = fh.Header.Get("Content-Type")
 	}
-	meta, _ := services.ExtractMeta(c.RequestCtx(), tmpFile, mimeType)
+	meta, _ := services.ExtractMeta(c.Context(), tmpFile, mimeType)
 
 	storageKey := fmt.Sprintf("%s/%s/v%d/%s", claims.WorkspaceID, assetID, nextNum, fh.Filename)
 
@@ -183,7 +182,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 	createdByPtr := &claims.UserID
 
-	newVersion, err := s.versions.Create(c.RequestCtx(), &service.VersionDTO{
+	newVersion, err := s.versions.Create(c.Context(), &service.VersionDTO{
 		ID:          uuid.NewString(),
 		AssetID:     assetID,
 		WorkspaceID: claims.WorkspaceID,
@@ -202,47 +201,39 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create version")
 	}
 
-	if err := s.versions.SetCurrent(c.RequestCtx(), assetID, newVersion.ID); err != nil {
+	if err := s.versions.SetCurrent(c.Context(), assetID, newVersion.ID); err != nil {
 		slog.Error("set current version", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not promote version")
 	}
 	newVersion.IsCurrent = true
 
-	if err := s.versions.SetAssetThumbnail(c.RequestCtx(), assetID, nil); err != nil {
+	if err := s.versions.SetAssetThumbnail(c.Context(), assetID, nil); err != nil {
 		slog.Error("clear asset thumbnail", "error", err)
 	}
 
-	s.enqueueVersionThumbnail(c.RequestCtx(), asset, newVersion)
+	s.enqueueVersionThumbnail(c.Context(), asset, newVersion)
 
 	if err := jobs.EnqueueRebuildVariantsJob(
-		c.RequestCtx(), s.queue,
+		c.Context(), s.queue,
 		claims.WorkspaceID, assetID, newVersion.ID, prevVersionID,
 	); err != nil {
 		slog.Error("enqueue rebuild variants", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
 	}
 
-	updatedAsset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
+	updatedAsset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
 	}
 
-	userID := claims.UserID
 	commentStr := ""
 	if newVersion.Comment != nil {
 		commentStr = *newVersion.Comment
 	}
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     assetID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetVersionUploaded,
-		Payload:     audit.AssetVersionUploadedPayload{V: 1, VersionNum: newVersion.VersionNum, Size: newVersion.Size, Comment: commentStr},
-	})
+	s.versions.WriteVersionUploaded(c.Context(), claims.WorkspaceID, assetID, newVersion, commentStr)
 
 	var createdBy *VersionCreatedByResponse
 	if newVersion.CreatedBy != nil {
-		createdBy = s.resolveCreator(c.RequestCtx(), *newVersion.CreatedBy)
+		createdBy = s.resolveCreator(c.Context(), *newVersion.CreatedBy)
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"version": versionDTOToResponse(newVersion, createdBy),
@@ -268,11 +259,11 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	versions, err := s.versions.ListWithVariantCount(c.RequestCtx(), assetID)
+	versions, err := s.versions.ListWithVariantCount(c.Context(), assetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -283,7 +274,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 		if v.CreatedBy != nil {
 			if _, seen := userNames[*v.CreatedBy]; !seen {
 				userNames[*v.CreatedBy] = ""
-				if u, err := s.users.GetByID(c.RequestCtx(), *v.CreatedBy); err == nil {
+				if u, err := s.users.GetByID(c.Context(), *v.CreatedBy); err == nil {
 					userNames[*v.CreatedBy] = u.Name
 				}
 			}
@@ -326,12 +317,12 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	assetBeforeRestore, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
+	assetBeforeRestore, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
+	target, err := s.versions.Get(c.Context(), claims.WorkspaceID, versionID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -346,40 +337,32 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusConflict, "version is already current")
 	}
 
-	if err := s.versions.SetCurrent(c.RequestCtx(), assetID, versionID); err != nil {
+	if err := s.versions.SetCurrent(c.Context(), assetID, versionID); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not restore version")
 	}
 
-	if err := s.versions.SetAssetThumbnail(c.RequestCtx(), assetID, target.ThumbnailKey); err != nil {
+	if err := s.versions.SetAssetThumbnail(c.Context(), assetID, target.ThumbnailKey); err != nil {
 		slog.Error("restore: sync thumbnail", "error", err)
 	}
 
-	updatedAsset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
+	updatedAsset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
 	}
 
 	var fromVersionNum int64
 	if assetBeforeRestore.CurrentVersionID != nil {
-		if prev, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, *assetBeforeRestore.CurrentVersionID); err == nil {
+		if prev, err := s.versions.Get(c.Context(), claims.WorkspaceID, *assetBeforeRestore.CurrentVersionID); err == nil {
 			fromVersionNum = prev.VersionNum
 		}
 	}
 
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     assetID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetVersionRestored,
-		Payload:     audit.AssetVersionRestoredPayload{V: 1, FromVersionNum: fromVersionNum, ToVersionNum: target.VersionNum},
-	})
+	s.versions.WriteVersionRestored(c.Context(), claims.WorkspaceID, assetID, fromVersionNum, target.VersionNum)
 
 	target.IsCurrent = true
 	var createdBy *VersionCreatedByResponse
 	if target.CreatedBy != nil {
-		createdBy = s.resolveCreator(c.RequestCtx(), *target.CreatedBy)
+		createdBy = s.resolveCreator(c.Context(), *target.CreatedBy)
 	}
 	return c.JSON(fiber.Map{
 		"version": versionDTOToResponse(target, createdBy),
@@ -409,11 +392,11 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
+	target, err := s.versions.Get(c.Context(), claims.WorkspaceID, versionID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -422,19 +405,9 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "version not found")
 	}
 
-	if err := s.versions.Delete(c.RequestCtx(), claims.WorkspaceID, assetID, versionID); err != nil {
+	if err := s.versions.Delete(c.Context(), claims.WorkspaceID, assetID, versionID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-
-	userID := claims.UserID
-	s.audit.WriteAsset(c.RequestCtx(), audit.AssetEvent{
-		WorkspaceID: claims.WorkspaceID,
-		AssetID:     assetID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventAssetVersionDeleted,
-		Payload:     audit.AssetVersionDeletedPayload{V: 1, VersionNum: target.VersionNum},
-	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -459,12 +432,12 @@ func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	asset, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID)
+	asset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
+	target, err := s.versions.Get(c.Context(), claims.WorkspaceID, versionID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -507,11 +480,11 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 	assetID := c.Params("id")
 	versionID := c.Params("vid")
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	target, err := s.versions.Get(c.RequestCtx(), claims.WorkspaceID, versionID)
+	target, err := s.versions.Get(c.Context(), claims.WorkspaceID, versionID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}

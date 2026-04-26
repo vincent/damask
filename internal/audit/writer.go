@@ -13,11 +13,29 @@ import (
 	"github.com/google/uuid"
 )
 
+// Writer is the interface services use to write audit events.
+// All methods are fire-and-forget — implementations must never return errors.
+type Writer interface {
+	WriteAsset(ctx context.Context, e AssetEvent)
+	WriteAssetAsync(e AssetEvent)
+	WriteProject(ctx context.Context, e ProjectEvent)
+}
+
+// NopWriter is a no-op Writer used in tests and when auditing is disabled.
+type NopWriter struct{}
+
+func (NopWriter) WriteAsset(_ context.Context, _ AssetEvent)  {}
+func (NopWriter) WriteAssetAsync(_ AssetEvent)                 {}
+func (NopWriter) WriteProject(_ context.Context, _ ProjectEvent) {}
+
 // EventWriter writes asset and project events to the DB.
 // It must be injected into any handler that modifies asset or project state.
 type EventWriter struct {
 	db *sql.DB
 }
+
+// Ensure EventWriter implements Writer.
+var _ Writer = (*EventWriter)(nil)
 
 // New creates an EventWriter backed by the given *sql.DB.
 func New(db *sql.DB) *EventWriter {

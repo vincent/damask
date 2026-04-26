@@ -92,6 +92,12 @@ func (m *MockVersionService) Delete(ctx context.Context, workspaceID, assetID, v
 	return nil
 }
 
+func (m *MockVersionService) WriteVersionUploaded(_ context.Context, _, _ string, _ *service.VersionDTO, _ string) {
+}
+
+func (m *MockVersionService) WriteVersionRestored(_ context.Context, _, _ string, _, _ int64) {
+}
+
 // MockVariantService is a no-op implementation of service.VariantService.
 type MockVariantService struct {
 	ListFn   func(ctx context.Context, workspaceID, assetID string) ([]*service.VariantDTO, error)
@@ -129,3 +135,7 @@ func (m *MockVariantService) Delete(ctx context.Context, workspaceID, assetID, v
 	}
 	return nil
 }
+
+func (m *MockVariantService) WriteVariantQueued(_ context.Context, _, _, _ string) {}
+
+func (m *MockVariantService) WriteVariantDownloadedAsync(_, _, _, _ string) {}

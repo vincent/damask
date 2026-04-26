@@ -84,7 +84,7 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 		}
 	}
 
-	assets, err := s.assets.ListByFields(c.RequestCtx(), service.ListAssetsByFieldsParams{
+	assets, err := s.assets.ListByFields(c.Context(), service.ListAssetsByFieldsParams{
 		WorkspaceID:  workspaceID,
 		FieldFilters: svcFilters,
 		CursorAt:     cursorAt,

@@ -17,7 +17,7 @@ func decodeAndValidate[T Validator](c fiber.Ctx, body T) (T, bool) {
 		_ = errRes(c, fiber.StatusBadRequest, "invalid request body")
 		return body, false
 	}
-	if problems := body.Valid(c.RequestCtx()); len(problems) > 0 {
+	if problems := body.Valid(c.Context()); len(problems) > 0 {
 		_ = c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"error":  "validation failed",
 			"fields": problems,

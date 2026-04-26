@@ -3,7 +3,6 @@ package api
 import (
 	"time"
 
-	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
 
@@ -59,7 +58,7 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 		return nil
 	}
 
-	dto, err := s.projects.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateProjectParams{
+	dto, err := s.projects.Create(c.Context(), claims.WorkspaceID, service.CreateProjectParams{
 		Name:        body.Name,
 		Description: body.Description,
 		Color:       body.Color,
@@ -67,16 +66,6 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-
-	userID := claims.UserID
-	s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
-		WorkspaceID: claims.WorkspaceID,
-		ProjectID:   dto.ID,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventProjectCreated,
-		Payload:     audit.ProjectCreatedPayload{V: 1, Name: dto.Name},
-	})
 
 	return c.Status(fiber.StatusCreated).JSON(projectDTOToResponse(dto))
 }
@@ -94,7 +83,7 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 func (s *Server) handleListProjects(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	dtos, err := s.projects.List(c.RequestCtx(), claims.WorkspaceID)
+	dtos, err := s.projects.List(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -121,7 +110,7 @@ func (s *Server) handleListProjects(c fiber.Ctx) error {
 func (s *Server) handleGetProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	dto, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, c.Params("id"))
+	dto, err := s.projects.Get(c.Context(), claims.WorkspaceID, c.Params("id"))
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -152,13 +141,7 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Fetch current name before update to detect rename for audit log.
-	before, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, id)
-	if err != nil {
-		return ErrorStatusResponse(c, err)
-	}
-
-	dto, err := s.projects.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateProjectParams{
+	dto, err := s.projects.Update(c.Context(), claims.WorkspaceID, id, service.UpdateProjectParams{
 		Name:         body.Name,
 		Description:  body.Description,
 		Color:        body.Color,
@@ -166,18 +149,6 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)
-	}
-
-	if dto.Name != before.Name {
-		userID := claims.UserID
-		s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
-			WorkspaceID: claims.WorkspaceID,
-			ProjectID:   id,
-			UserID:      &userID,
-			ActorType:   audit.ActorTypeUser,
-			EventType:   audit.EventProjectRenamed,
-			Payload:     audit.ProjectRenamedPayload{V: 1, Before: before.Name, After: dto.Name},
-		})
 	}
 
 	return c.JSON(projectDTOToResponse(dto))
@@ -199,19 +170,9 @@ func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if err := s.projects.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+	if err := s.projects.Delete(c.Context(), claims.WorkspaceID, id); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-
-	userID := claims.UserID
-	s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
-		WorkspaceID: claims.WorkspaceID,
-		ProjectID:   id,
-		UserID:      &userID,
-		ActorType:   audit.ActorTypeUser,
-		EventType:   audit.EventProjectDeleted,
-		Payload:     audit.ProjectDeletedPayload{V: 1},
-	})
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

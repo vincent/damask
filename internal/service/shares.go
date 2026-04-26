@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/repository"
 
 	"github.com/google/uuid"
@@ -70,11 +72,12 @@ var ShareBcryptCost = bcrypt.DefaultCost
 
 type shareService struct {
 	shares repository.ShareRepository
+	audit  audit.Writer
 }
 
 // NewShareService returns a ShareService.
-func NewShareService(shares repository.ShareRepository) ShareService {
-	return &shareService{shares: shares}
+func NewShareService(shares repository.ShareRepository, aw audit.Writer) ShareService {
+	return &shareService{shares: shares, audit: aw}
 }
 
 func (s *shareService) List(ctx context.Context, workspaceID string) ([]*ShareDTO, error) {
@@ -134,7 +137,19 @@ func (s *shareService) Create(ctx context.Context, workspaceID string, p CreateS
 	if err != nil {
 		return nil, err
 	}
-	return toShareDTO(sh), nil
+	dto := toShareDTO(sh)
+	if dto.TargetType == "asset" {
+		actor := auth.ActorFromCtx(ctx)
+		s.audit.WriteAsset(ctx, audit.AssetEvent{
+			WorkspaceID: workspaceID,
+			AssetID:     dto.TargetID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventAssetShared,
+			Payload:     audit.AssetSharedPayload{V: 1, ShareID: dto.ID, TargetType: dto.TargetType, ExpiresAt: dto.ExpiresAt},
+		})
+	}
+	return dto, nil
 }
 
 func (s *shareService) Update(ctx context.Context, workspaceID, id string, p UpdateShareParams) (*ShareDTO, error) {
@@ -180,10 +195,25 @@ func (s *shareService) Update(ctx context.Context, workspaceID, id string, p Upd
 }
 
 func (s *shareService) Revoke(ctx context.Context, workspaceID, id string) error {
-	if _, err := s.shares.GetByID(ctx, workspaceID, id); err != nil {
+	sh, err := s.shares.GetByID(ctx, workspaceID, id)
+	if err != nil {
 		return err
 	}
-	return s.shares.Revoke(ctx, workspaceID, id)
+	if err := s.shares.Revoke(ctx, workspaceID, id); err != nil {
+		return err
+	}
+	if sh.TargetType == "asset" {
+		actor := auth.ActorFromCtx(ctx)
+		s.audit.WriteAsset(ctx, audit.AssetEvent{
+			WorkspaceID: workspaceID,
+			AssetID:     sh.TargetID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventAssetShareRevoked,
+			Payload:     audit.AssetShareRevokedPayload{V: 1, ShareID: sh.ID},
+		})
+	}
+	return nil
 }
 
 func toShareDTO(sh repository.Share) *ShareDTO {

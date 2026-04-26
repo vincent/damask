@@ -67,7 +67,7 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 	}
 
 	if len(body.AssetIDs) > 0 {
-		ok, err := s.allAssetsInWorkspace(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs)
+		ok, err := s.allAssetsInWorkspace(c.Context(), claims.WorkspaceID, body.AssetIDs)
 		if err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not verify assets")
 		}
@@ -76,7 +76,7 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 		}
 	}
 
-	col, err := s.collections.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateCollectionParams{
+	col, err := s.collections.Create(c.Context(), claims.WorkspaceID, service.CreateCollectionParams{
 		Name:        body.Name,
 		Description: body.Description,
 		CreatedBy:   claims.UserID,
@@ -100,7 +100,7 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 func (s *Server) handleListCollections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	cols, err := s.collections.List(c.RequestCtx(), claims.WorkspaceID)
+	cols, err := s.collections.List(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -126,12 +126,12 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	col, err := s.collections.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	col, err := s.collections.Get(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	assets, err := s.collections.ListAssets(c.RequestCtx(), claims.WorkspaceID, id)
+	assets, err := s.collections.ListAssets(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -175,7 +175,7 @@ func (s *Server) handleUpdateCollection(c fiber.Ctx) error {
 		return nil
 	}
 
-	col, err := s.collections.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateCollectionParams{
+	col, err := s.collections.Update(c.Context(), claims.WorkspaceID, id, service.UpdateCollectionParams{
 		Name:        &body.Name,
 		Description: &body.Description,
 	})
@@ -201,7 +201,7 @@ func (s *Server) handleDeleteCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if err := s.collections.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+	if err := s.collections.Delete(c.Context(), claims.WorkspaceID, id); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -225,11 +225,11 @@ func (s *Server) handleAddCollectionAsset(c fiber.Ctx) error {
 	id := c.Params("id")
 	assetID := c.Params("aid")
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	if err := s.collections.AddAsset(c.RequestCtx(), claims.WorkspaceID, id, assetID); err != nil {
+	if err := s.collections.AddAsset(c.Context(), claims.WorkspaceID, id, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -253,7 +253,7 @@ func (s *Server) handleRemoveCollectionAsset(c fiber.Ctx) error {
 	id := c.Params("id")
 	assetID := c.Params("aid")
 
-	if err := s.collections.RemoveAsset(c.RequestCtx(), claims.WorkspaceID, id, assetID); err != nil {
+	if err := s.collections.RemoveAsset(c.Context(), claims.WorkspaceID, id, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -274,11 +274,11 @@ func (s *Server) handleListAssetCollections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.assets.Get(c.RequestCtx(), claims.WorkspaceID, assetID); err != nil {
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	cols, err := s.collections.ListForAsset(c.RequestCtx(), claims.WorkspaceID, assetID)
+	cols, err := s.collections.ListForAsset(c.Context(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}

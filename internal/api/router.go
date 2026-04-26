@@ -35,7 +35,6 @@ type Server struct {
 	hub           events.EventHub
 	previewCache  *lruPreviewCache
 	cfg           *config.Config
-	audit         *audit.EventWriter
 	demo          DemoSeeder // nil when demo build tag is not set
 	assets        service.AssetService
 	projects      service.ProjectService
@@ -77,27 +76,26 @@ func NewHttpServer(
 		hub:           hub,
 		previewCache:  NewLRUPreviewCache(100),
 		cfg:           cfg,
-		audit:         audit.New(sqlDB),
 		demo:          demoSeeder,
-		assets:        service.NewAssetService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewTagRepo(db, sqlDB), reposqlc.NewFieldRepo(db), stor),
-		projects:      service.NewProjectService(reposqlc.NewProjectRepo(db)),
+		assets:        service.NewAssetService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewTagRepo(db, sqlDB), reposqlc.NewFieldRepo(db), stor, audit.New(sqlDB)),
+		projects:      service.NewProjectService(reposqlc.NewProjectRepo(db), audit.New(sqlDB)),
 		folders:       service.NewFolderService(reposqlc.NewFolderRepo(db, sqlDB)),
-		tags:          service.NewTagService(reposqlc.NewTagRepo(db, sqlDB)),
+		tags:          service.NewTagService(reposqlc.NewTagRepo(db, sqlDB), audit.New(sqlDB)),
 		collections:   service.NewCollectionService(reposqlc.NewCollectionRepo(db, sqlDB), reposqlc.NewAssetRepo(db, sqlDB)),
-		shares:        service.NewShareService(reposqlc.NewShareRepo(db, sqlDB)),
+		shares:        service.NewShareService(reposqlc.NewShareRepo(db, sqlDB), audit.New(sqlDB)),
 		sharePublic:   service.NewSharePublicService(reposqlc.NewShareRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB), mailer),
 		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
 		fields:        service.NewFieldService(reposqlc.NewFieldRepo(db)),
-		assetFields:   service.NewAssetFieldService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewFieldRepo(db), reposqlc.NewAssetFieldRepo(db, sqlDB)),
-		projectFields: service.NewProjectFieldService(reposqlc.NewProjectRepo(db), reposqlc.NewFieldRepo(db), reposqlc.NewProjectFieldRepo(db)),
-		versions:      service.NewVersionService(reposqlc.NewVersionRepo(db, sqlDB)),
-		variants:      service.NewVariantService(reposqlc.NewVariantRepo(db), reposqlc.NewAssetRepo(db, sqlDB)),
+		assetFields:   service.NewAssetFieldService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewFieldRepo(db), reposqlc.NewAssetFieldRepo(db, sqlDB), audit.New(sqlDB)),
+		projectFields: service.NewProjectFieldService(reposqlc.NewProjectRepo(db), reposqlc.NewFieldRepo(db), reposqlc.NewProjectFieldRepo(db), audit.New(sqlDB)),
+		versions:      service.NewVersionService(reposqlc.NewVersionRepo(db, sqlDB), audit.New(sqlDB)),
+		variants:      service.NewVariantService(reposqlc.NewVariantRepo(db), reposqlc.NewAssetRepo(db, sqlDB), audit.New(sqlDB)),
 		auditLog:      service.NewAuditLogService(db),
 		workspace:     service.NewWorkspaceService(reposqlc.NewWorkspaceRepo(db, sqlDB), reposqlc.NewUserRepo(db, sqlDB)),
 		users:         service.NewUserService(reposqlc.NewUserRepo(db, sqlDB), reposqlc.NewWorkspaceRepo(db, sqlDB)),
 		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
 		stack:         service.NewStackService(reposqlc.NewAssetRepo(db, sqlDB), reposqlc.NewVersionRepo(db, sqlDB), stor, q),
-		upload:        service.NewUploadService(db, sqlDB, stor, q),
+		upload:        service.NewUploadService(db, sqlDB, stor, q, audit.New(sqlDB)),
 	}
 }
 

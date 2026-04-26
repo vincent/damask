@@ -107,7 +107,6 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		hub:           hub,
 		previewCache:  NewLRUPreviewCache(100),
 		cfg:           cfg.Cfg,
-		audit:         nil, // safe: WriteAsset/WriteProject check db internally, nil db → no-op log write
 		demo:          nil,
 		assets:        cfg.Assets,
 		projects:      cfg.Projects,

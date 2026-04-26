@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 	"golang.org/x/crypto/bcrypt"
@@ -19,7 +20,14 @@ func init() {
 func newShareSvc(t *testing.T) (service.ShareService, *memory.RealShareRepo) {
 	t.Helper()
 	repo := memory.NewRealShareRepo()
-	return service.NewShareService(repo), repo
+	return service.NewShareService(repo, audit.NopWriter{}), repo
+}
+
+func newShareSvcSpy(t *testing.T) (service.ShareService, *memory.RealShareRepo, *spyWriter) {
+	t.Helper()
+	spy := newSpy()
+	repo := memory.NewRealShareRepo()
+	return service.NewShareService(repo, spy), repo, spy
 }
 
 func baseShareParams() service.CreateShareParams {
@@ -162,5 +170,46 @@ func TestShareService_Revoke_NotFound(t *testing.T) {
 	err := svc.Revoke(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- Audit events ---
+
+func TestShareService_Create_EmitsAuditEvent(t *testing.T) {
+	svc, _, spy := newShareSvcSpy(t)
+	if _, err := svc.Create(context.Background(), "ws_1", baseShareParams()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetShared {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetShared)
+	}
+	if e.WorkspaceID != "ws_1" {
+		t.Errorf("WorkspaceID: got %q, want %q", e.WorkspaceID, "ws_1")
+	}
+}
+
+func TestShareService_Create_NoAuditForNonAssetTarget(t *testing.T) {
+	svc, _, spy := newShareSvcSpy(t)
+	p := baseShareParams()
+	p.TargetType = "collection"
+	if _, err := svc.Create(context.Background(), "ws_1", p); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if spy.assetCount() != 0 {
+		t.Errorf("expected no asset audit event for non-asset share, got %d", spy.assetCount())
+	}
+}
+
+func TestShareService_Revoke_EmitsAuditEvent(t *testing.T) {
+	svc, _, spy := newShareSvcSpy(t)
+	dto, _ := svc.Create(context.Background(), "ws_1", baseShareParams())
+	spy.asset = nil // reset after create
+	if err := svc.Revoke(context.Background(), "ws_1", dto.ID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	e := spy.lastAsset()
+	if e.EventType != audit.EventAssetShareRevoked {
+		t.Errorf("EventType: got %q, want %q", e.EventType, audit.EventAssetShareRevoked)
 	}
 }

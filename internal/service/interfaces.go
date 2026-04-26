@@ -49,12 +49,15 @@ type AssetService interface {
 	BatchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
 	// BatchVariantCounts returns a variant count (current version) per asset ID.
 	BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
+	// WriteAssetDownloadedAsync emits asset_downloaded in a background goroutine.
+	WriteAssetDownloadedAsync(workspaceID, assetID, userID string)
 }
 
 // CreateVariantParams is the input for VariantService.Create.
 type CreateVariantParams struct {
 	ID              string
 	WorkspaceID     string
+	AssetID         string // used for audit; may be empty for job-enqueued variants
 	AssetVersionID  string
 	Type            string
 	StorageKey      string
@@ -68,6 +71,10 @@ type VariantService interface {
 	Get(ctx context.Context, workspaceID, id string) (*VariantDTO, error)
 	Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error)
 	Delete(ctx context.Context, workspaceID, assetID, variantID string) error
+	// WriteVariantQueued emits asset_variant_created for job-queued variants.
+	WriteVariantQueued(ctx context.Context, workspaceID, assetID, variantType string)
+	// WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.
+	WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType string)
 }
 
 // WorkspaceService handles business logic for workspace settings, members, and invites.
@@ -112,6 +119,10 @@ type VersionService interface {
 	// SetAssetThumbnail updates assets.thumbnail_key.
 	SetAssetThumbnail(ctx context.Context, assetID string, key *string) error
 	Delete(ctx context.Context, workspaceID, assetID, versionID string) error
+	// WriteVersionUploaded emits the asset_version_uploaded audit event (called from upload handler).
+	WriteVersionUploaded(ctx context.Context, workspaceID, assetID string, v *VersionDTO, comment string)
+	// WriteVersionRestored emits the asset_version_restored audit event (called from restore handler).
+	WriteVersionRestored(ctx context.Context, workspaceID, assetID string, fromVersionNum, toVersionNum int64)
 }
 
 // ShareService handles business logic for share link records.

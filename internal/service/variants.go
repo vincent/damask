@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/repository"
 )
 
@@ -24,11 +26,12 @@ type VariantDTO struct {
 type variantService struct {
 	variants repository.VariantRepository
 	assets   repository.AssetRepository
+	audit    audit.Writer
 }
 
 // NewVariantService returns a VariantService.
-func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository) VariantService {
-	return &variantService{variants: variants, assets: assets}
+func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository, aw audit.Writer) VariantService {
+	return &variantService{variants: variants, assets: assets, audit: aw}
 }
 
 func (s *variantService) List(ctx context.Context, workspaceID, assetID string) ([]*VariantDTO, error) {
@@ -64,7 +67,44 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (*Va
 	if err != nil {
 		return nil, err
 	}
-	return toVariantDTO(v), nil
+	dto := toVariantDTO(v)
+	// Only emit audit for manual uploads (job-queued variants are audited via WriteVariantQueued).
+	if p.AssetID != "" {
+		actor := auth.ActorFromCtx(ctx)
+		s.audit.WriteAsset(ctx, audit.AssetEvent{
+			WorkspaceID: p.WorkspaceID,
+			AssetID:     p.AssetID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventAssetVariantCreated,
+			Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: dto.Type},
+		})
+	}
+	return dto, nil
+}
+
+// WriteVariantQueued emits asset_variant_created for job-queued variants (before the job runs).
+func (s *variantService) WriteVariantQueued(ctx context.Context, workspaceID, assetID, variantType string) {
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetVariantCreated,
+		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: variantType},
+	})
+}
+
+// WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.
+func (s *variantService) WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType string) {
+	s.audit.WriteAssetAsync(audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetVariantDownloaded,
+		Payload:     audit.AssetVariantDownloadedPayload{V: 1, VariantID: variantID, Type: variantType},
+	})
 }
 
 // Delete deletes a variant. Only variants attached to the asset's current version may be deleted.
@@ -80,7 +120,19 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 	if asset.CurrentVersionID == nil || v.AssetVersionID != *asset.CurrentVersionID {
 		return fmt.Errorf("variant belongs to a previous version: %w", apperr.ErrInvalidInput)
 	}
-	return s.variants.Delete(ctx, workspaceID, variantID)
+	if err := s.variants.Delete(ctx, workspaceID, variantID); err != nil {
+		return err
+	}
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetVariantDeleted,
+		Payload:     audit.AssetVariantDeletedPayload{V: 1, VariantID: variantID, Type: v.Type},
+	})
+	return nil
 }
 
 func toVariantDTO(v repository.Variant) *VariantDTO {

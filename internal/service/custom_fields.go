@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/repository"
 
 	"github.com/google/uuid"
@@ -269,11 +271,12 @@ type assetFieldService struct {
 	assets      repository.AssetRepository
 	fields      repository.FieldRepository
 	assetFields repository.AssetFieldRepository
+	audit       audit.Writer
 }
 
 // NewAssetFieldService returns an AssetFieldService.
-func NewAssetFieldService(assets repository.AssetRepository, fields repository.FieldRepository, assetFields repository.AssetFieldRepository) AssetFieldService {
-	return &assetFieldService{assets: assets, fields: fields, assetFields: assetFields}
+func NewAssetFieldService(assets repository.AssetRepository, fields repository.FieldRepository, assetFields repository.AssetFieldRepository, aw audit.Writer) AssetFieldService {
+	return &assetFieldService{assets: assets, fields: fields, assetFields: assetFields, audit: aw}
 }
 
 func (s *assetFieldService) GetValues(ctx context.Context, workspaceID, assetID string) ([]*FieldValueDTO, error) {
@@ -291,6 +294,13 @@ func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID,
 	if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
 		return nil, err
 	}
+	// Snapshot before-state for audit diff.
+	existingRows, _ := s.assetFields.GetValues(ctx, assetID)
+	existingByFieldID := make(map[string]*FieldValueDTO, len(existingRows))
+	for _, v := range toFieldValueDTOs(existingRows) {
+		existingByFieldID[v.FieldID] = v
+	}
+
 	for _, input := range inputs {
 		def, err := s.fields.GetByID(ctx, workspaceID, input.FieldID)
 		if err != nil {
@@ -318,7 +328,47 @@ func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID,
 	if err != nil {
 		return nil, err
 	}
-	return toFieldValueDTOs(rows), nil
+	dtos := toFieldValueDTOs(rows)
+
+	// Emit per-field audit events.
+	actor := auth.ActorFromCtx(ctx)
+	afterByFieldID := make(map[string]*FieldValueDTO, len(dtos))
+	for _, v := range dtos {
+		afterByFieldID[v.FieldID] = v
+	}
+	for _, input := range inputs {
+		before := existingByFieldID[input.FieldID]
+		after := afterByFieldID[input.FieldID]
+		var beforeVal interface{}
+		if before != nil {
+			beforeVal = before.Value
+		}
+		if input.Value == nil {
+			s.audit.WriteAsset(ctx, audit.AssetEvent{
+				WorkspaceID: workspaceID,
+				AssetID:     assetID,
+				UserID:      actor.UserID,
+				ActorType:   actor.Type,
+				EventType:   audit.EventAssetFieldCleared,
+				Payload:     audit.AssetFieldClearedPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal},
+			})
+		} else {
+			var afterVal interface{}
+			if after != nil {
+				afterVal = after.Value
+			}
+			s.audit.WriteAsset(ctx, audit.AssetEvent{
+				WorkspaceID: workspaceID,
+				AssetID:     assetID,
+				UserID:      actor.UserID,
+				ActorType:   actor.Type,
+				EventType:   audit.EventAssetFieldSet,
+				Payload:     audit.AssetFieldSetPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal, After: afterVal},
+			})
+		}
+	}
+
+	return dtos, nil
 }
 
 func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (int64, error) {
@@ -390,11 +440,12 @@ type projectFieldService struct {
 	projects      repository.ProjectRepository
 	fields        repository.FieldRepository
 	projectFields repository.ProjectFieldRepository
+	audit         audit.Writer
 }
 
 // NewProjectFieldService returns a ProjectFieldService.
-func NewProjectFieldService(projects repository.ProjectRepository, fields repository.FieldRepository, projectFields repository.ProjectFieldRepository) ProjectFieldService {
-	return &projectFieldService{projects: projects, fields: fields, projectFields: projectFields}
+func NewProjectFieldService(projects repository.ProjectRepository, fields repository.FieldRepository, projectFields repository.ProjectFieldRepository, aw audit.Writer) ProjectFieldService {
+	return &projectFieldService{projects: projects, fields: fields, projectFields: projectFields, audit: aw}
 }
 
 func (s *projectFieldService) GetValues(ctx context.Context, workspaceID, projectID string) ([]*FieldValueDTO, error) {
@@ -412,6 +463,13 @@ func (s *projectFieldService) SetValues(ctx context.Context, workspaceID, projec
 	if _, err := s.projects.GetByID(ctx, workspaceID, projectID); err != nil {
 		return nil, err
 	}
+	// Snapshot before-state for audit diff.
+	existingRows, _ := s.projectFields.GetValues(ctx, projectID)
+	existingByFieldID := make(map[string]*FieldValueDTO, len(existingRows))
+	for _, v := range toFieldValueDTOs(existingRows) {
+		existingByFieldID[v.FieldID] = v
+	}
+
 	for _, input := range inputs {
 		def, err := s.fields.GetByID(ctx, workspaceID, input.FieldID)
 		if err != nil {
@@ -439,7 +497,47 @@ func (s *projectFieldService) SetValues(ctx context.Context, workspaceID, projec
 	if err != nil {
 		return nil, err
 	}
-	return toFieldValueDTOs(rows), nil
+	dtos := toFieldValueDTOs(rows)
+
+	// Emit per-field audit events.
+	actor := auth.ActorFromCtx(ctx)
+	afterByFieldID := make(map[string]*FieldValueDTO, len(dtos))
+	for _, v := range dtos {
+		afterByFieldID[v.FieldID] = v
+	}
+	for _, input := range inputs {
+		before := existingByFieldID[input.FieldID]
+		after := afterByFieldID[input.FieldID]
+		var beforeVal interface{}
+		if before != nil {
+			beforeVal = before.Value
+		}
+		if input.Value == nil {
+			s.audit.WriteProject(ctx, audit.ProjectEvent{
+				WorkspaceID: workspaceID,
+				ProjectID:   projectID,
+				UserID:      actor.UserID,
+				ActorType:   actor.Type,
+				EventType:   audit.EventProjectFieldCleared,
+				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal},
+			})
+		} else {
+			var afterVal interface{}
+			if after != nil {
+				afterVal = after.Value
+			}
+			s.audit.WriteProject(ctx, audit.ProjectEvent{
+				WorkspaceID: workspaceID,
+				ProjectID:   projectID,
+				UserID:      actor.UserID,
+				ActorType:   actor.Type,
+				EventType:   audit.EventProjectFieldSet,
+				Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal, After: afterVal},
+			})
+		}
+	}
+
+	return dtos, nil
 }
 
 // -- Shared helpers -----------------------------------------------------------
@@ -543,4 +641,24 @@ func toFieldValueDTO(row repository.FieldValue) *FieldValueDTO {
 		}
 	}
 	return dto
+}
+
+func fieldKeyOf(before, after *FieldValueDTO) string {
+	if after != nil {
+		return after.FieldKey
+	}
+	if before != nil {
+		return before.FieldKey
+	}
+	return ""
+}
+
+func fieldNameOf(before, after *FieldValueDTO) string {
+	if after != nil {
+		return after.FieldName
+	}
+	if before != nil {
+		return before.FieldName
+	}
+	return ""
 }

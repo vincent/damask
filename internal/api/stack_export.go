@@ -33,7 +33,7 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 	}
 
 	// Verify all assets belong to this workspace before sending any headers.
-	if ok, err := s.allAssetsInWorkspace(c.RequestCtx(), claims.WorkspaceID, body.AssetIDs); err != nil {
+	if ok, err := s.allAssetsInWorkspace(c.Context(), claims.WorkspaceID, body.AssetIDs); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not verify assets")
 	} else if !ok {
 		return errRes(c, fiber.StatusForbidden, "one or more assets not found in workspace")

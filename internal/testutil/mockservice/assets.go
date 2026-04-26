@@ -159,6 +159,8 @@ func (m *MockAssetService) BatchVariantCounts(ctx context.Context, assetIDs []st
 	return nil, nil
 }
 
+func (m *MockAssetService) WriteAssetDownloadedAsync(_, _, _ string) {}
+
 // MockUploadService is a no-op implementation of service.UploadService.
 type MockUploadService struct {
 	IngestFn func(ctx context.Context, workspaceID string, r io.Reader, meta service.UploadMeta) (*service.AssetDTO, error)

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
 
@@ -48,7 +47,7 @@ func (s *Server) handleGetProjectFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	dtos, err := s.projectFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
+	dtos, err := s.projectFields.GetValues(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -84,59 +83,14 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 		return nil
 	}
 
-	// Snapshot existing values for audit before/after.
-	existing, _ := s.projectFields.GetValues(c.RequestCtx(), claims.WorkspaceID, id)
-	existingByFieldID := make(map[string]*service.FieldValueDTO, len(existing))
-	for _, v := range existing {
-		v := v
-		existingByFieldID[v.FieldID] = v
-	}
-
 	inputs := make([]service.SetFieldValueInput, len(body.Values))
 	for i, v := range body.Values {
 		inputs[i] = service.SetFieldValueInput{FieldID: v.FieldID, Value: v.Value}
 	}
 
-	dtos, err := s.projectFields.SetValues(c.RequestCtx(), claims.WorkspaceID, id, claims.UserID, inputs)
+	dtos, err := s.projectFields.SetValues(c.Context(), claims.WorkspaceID, id, claims.UserID, inputs)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
-	}
-
-	// Emit audit events (best-effort).
-	userID := claims.UserID
-	afterByFieldID := make(map[string]*service.FieldValueDTO, len(dtos))
-	for _, v := range dtos {
-		afterByFieldID[v.FieldID] = v
-	}
-	for _, input := range body.Values {
-		before := existingByFieldID[input.FieldID]
-		after := afterByFieldID[input.FieldID]
-		var beforeVal, afterVal interface{}
-		if before != nil {
-			beforeVal = before.Value
-		}
-		if input.Value == nil {
-			s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
-				WorkspaceID: claims.WorkspaceID,
-				ProjectID:   id,
-				UserID:      &userID,
-				ActorType:   audit.ActorTypeUser,
-				EventType:   audit.EventProjectFieldCleared,
-				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal},
-			})
-		} else {
-			if after != nil {
-				afterVal = after.Value
-			}
-			s.audit.WriteProject(c.RequestCtx(), audit.ProjectEvent{
-				WorkspaceID: claims.WorkspaceID,
-				ProjectID:   id,
-				UserID:      &userID,
-				ActorType:   audit.ActorTypeUser,
-				EventType:   audit.EventProjectFieldSet,
-				Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal, After: afterVal},
-			})
-		}
 	}
 
 	items := make([]projectFieldValueResponse, len(dtos))

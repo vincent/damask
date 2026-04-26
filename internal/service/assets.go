@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 )
@@ -16,11 +18,12 @@ type assetService struct {
 	tags   repository.TagRepository
 	fields repository.FieldRepository
 	stor   storage.Storage
+	audit  audit.Writer
 }
 
 // NewAssetService returns an AssetService backed by the given repository.
-func NewAssetService(assets repository.AssetRepository, tags repository.TagRepository, fields repository.FieldRepository, stor storage.Storage) AssetService {
-	return &assetService{assets: assets, tags: tags, fields: fields, stor: stor}
+func NewAssetService(assets repository.AssetRepository, tags repository.TagRepository, fields repository.FieldRepository, stor storage.Storage, aw audit.Writer) AssetService {
+	return &assetService{assets: assets, tags: tags, fields: fields, stor: stor, audit: aw}
 }
 
 func (s *assetService) Get(ctx context.Context, workspaceID, assetID string) (*AssetDTO, error) {
@@ -70,7 +73,8 @@ func (s *assetService) List(ctx context.Context, params ListAssetsParams) ([]*As
 }
 
 func (s *assetService) Move(ctx context.Context, workspaceID, assetID string, p MoveAssetParams) (*AssetDTO, error) {
-	if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+	before, err := s.assets.GetByID(ctx, workspaceID, assetID)
+	if err != nil {
 		return nil, err
 	}
 	updated, err := s.assets.Update(ctx, repository.UpdateAssetParams{
@@ -82,7 +86,23 @@ func (s *assetService) Move(ctx context.Context, workspaceID, assetID string, p 
 	if err != nil {
 		return nil, err
 	}
-	return toAssetDTO(updated), nil
+	dto := toAssetDTO(updated)
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetMoved,
+		Payload: audit.AssetMovedPayload{
+			V:               1,
+			BeforeProjectID: before.ProjectID,
+			AfterProjectID:  dto.ProjectID,
+			BeforeFolderID:  before.FolderID,
+			AfterFolderID:   dto.FolderID,
+		},
+	})
+	return dto, nil
 }
 
 func (s *assetService) Rename(ctx context.Context, workspaceID, assetID, newStem string) (*AssetDTO, error) {
@@ -108,7 +128,17 @@ func (s *assetService) Rename(ctx context.Context, workspaceID, assetID, newStem
 	if err != nil {
 		return nil, err
 	}
-	return toAssetDTO(updated), nil
+	dto := toAssetDTO(updated)
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetRenamed,
+		Payload:     audit.AssetRenamedPayload{V: 1, Before: existing.OriginalFilename, After: dto.OriginalFilename},
+	})
+	return dto, nil
 }
 
 func (s *assetService) CountByIDs(ctx context.Context, workspaceID string, ids []string) (int64, error) {
@@ -182,6 +212,15 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 		return err
 	}
 	s.deleteStorageKeys(keys)
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetDeleted,
+		Payload:     audit.AssetDeletedPayload{V: 1},
+	})
 	return nil
 }
 
@@ -290,6 +329,17 @@ func (s *assetService) BatchVersionCounts(ctx context.Context, assetIDs []string
 
 func (s *assetService) BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
 	return s.assets.BatchVariantCounts(ctx, assetIDs)
+}
+
+func (s *assetService) WriteAssetDownloadedAsync(workspaceID, assetID, userID string) {
+	s.audit.WriteAssetAsync(audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      &userID,
+		ActorType:   audit.ActorTypeUser,
+		EventType:   audit.EventAssetDownloaded,
+		Payload:     audit.AssetDownloadedPayload{V: 1, Via: "direct"},
+	})
 }
 
 func toAssetDTO(a repository.Asset) *AssetDTO {

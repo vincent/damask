@@ -70,7 +70,7 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "scope must be 'asset' or 'project'")
 	}
 
-	defs, err := s.fields.List(c.RequestCtx(), claims.WorkspaceID, scope)
+	defs, err := s.fields.List(c.Context(), claims.WorkspaceID, scope)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -102,7 +102,7 @@ func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 		return nil
 	}
 
-	def, err := s.fields.Create(c.RequestCtx(), claims.WorkspaceID, service.CreateFieldDefinitionParams{
+	def, err := s.fields.Create(c.Context(), claims.WorkspaceID, service.CreateFieldDefinitionParams{
 		CreatedBy:          claims.UserID,
 		Scope:              body.Scope,
 		Name:               body.Name,
@@ -134,7 +134,7 @@ func (s *Server) handleGetFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	def, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id)
+	def, err := s.fields.Get(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -156,7 +156,7 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	stats, err := s.fields.GetStats(c.RequestCtx(), claims.WorkspaceID, id)
+	stats, err := s.fields.GetStats(c.Context(), claims.WorkspaceID, id)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -192,7 +192,7 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 
 	// Validate options format if provided
 	if body.Options != nil {
-		existing, err := s.fields.Get(c.RequestCtx(), claims.WorkspaceID, id)
+		existing, err := s.fields.Get(c.Context(), claims.WorkspaceID, id)
 		if err != nil {
 			return ErrorStatusResponse(c, err)
 		}
@@ -214,7 +214,7 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 		body.Name = &trimmed
 	}
 
-	updated, err := s.fields.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateFieldDefinitionParams{
+	updated, err := s.fields.Update(c.Context(), claims.WorkspaceID, id, service.UpdateFieldDefinitionParams{
 		Name:               body.Name,
 		Key:                body.Key,
 		FieldType:          body.FieldType,
@@ -244,7 +244,7 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if err := s.fields.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+	if err := s.fields.Delete(c.Context(), claims.WorkspaceID, id); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -274,7 +274,7 @@ func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 	for i, item := range body.Items {
 		items[i] = service.ReorderFieldItem{ID: item.ID, Position: item.Position}
 	}
-	_ = s.fields.Reorder(c.RequestCtx(), claims.WorkspaceID, items)
+	_ = s.fields.Reorder(c.Context(), claims.WorkspaceID, items)
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

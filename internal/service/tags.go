@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
+	"damask/server/internal/auth"
 	"damask/server/internal/repository"
 
 	"github.com/google/uuid"
@@ -59,12 +61,13 @@ func (p *PatchTagParams) Validate() error {
 }
 
 type tagService struct {
-	tags repository.TagRepository
+	tags  repository.TagRepository
+	audit audit.Writer
 }
 
 // NewTagService returns a TagService.
-func NewTagService(tags repository.TagRepository) TagService {
-	return &tagService{tags: tags}
+func NewTagService(tags repository.TagRepository, aw audit.Writer) TagService {
+	return &tagService{tags: tags, audit: aw}
 }
 
 func (s *tagService) List(ctx context.Context, workspaceID string) ([]*TagDTO, error) {
@@ -255,7 +258,17 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 	if err := s.tags.AddToAsset(ctx, assetID, tag.ID); err != nil {
 		return nil, err
 	}
-	return toTagDTO(tag), nil
+	dto := toTagDTO(tag)
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetTagged,
+		Payload:     audit.AssetTaggedPayload{V: 1, Tag: dto.Name},
+	})
+	return dto, nil
 }
 
 func (s *tagService) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error {
@@ -263,7 +276,19 @@ func (s *tagService) RemoveFromAsset(ctx context.Context, workspaceID, assetID, 
 	if _, err := s.tags.GetByName(ctx, workspaceID, tagName); err != nil {
 		return err
 	}
-	return s.tags.RemoveFromAsset(ctx, workspaceID, assetID, tagName)
+	if err := s.tags.RemoveFromAsset(ctx, workspaceID, assetID, tagName); err != nil {
+		return err
+	}
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: workspaceID,
+		AssetID:     assetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetUntagged,
+		Payload:     audit.AssetUntaggedPayload{V: 1, Tag: tagName},
+	})
+	return nil
 }
 
 // UpsertForAsset upserts the tag by name and links it to the asset.

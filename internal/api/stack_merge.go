@@ -27,7 +27,7 @@ func (s *Server) handleStackMerge(c fiber.Ctx) error {
 		return nil
 	}
 
-	jobID, err := s.stack.EnqueueMerge(c.RequestCtx(), claims.WorkspaceID, claims.UserID, service.MergeParams{
+	jobID, err := s.stack.EnqueueMerge(c.Context(), claims.WorkspaceID, claims.UserID, service.MergeParams{
 		AssetIDs:       body.AssetIDs,
 		OutputType:     body.OutputType,
 		OutputFilename: body.Filename,

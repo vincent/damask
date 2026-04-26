@@ -59,7 +59,7 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 	projectID := c.Params("id")
 
 	// Verify project belongs to workspace via the projects service.
-	if _, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, projectID); err != nil {
+	if _, err := s.projects.Get(c.Context(), claims.WorkspaceID, projectID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -68,7 +68,7 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 		return nil
 	}
 
-	dto, err := s.folders.Create(c.RequestCtx(), claims.WorkspaceID, projectID, service.CreateFolderParams{
+	dto, err := s.folders.Create(c.Context(), claims.WorkspaceID, projectID, service.CreateFolderParams{
 		Name:     body.Name,
 		ParentID: body.ParentID,
 		Position: body.Position,
@@ -96,11 +96,11 @@ func (s *Server) handleGetFolders(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	projectID := c.Params("id")
 
-	if _, err := s.projects.Get(c.RequestCtx(), claims.WorkspaceID, projectID); err != nil {
+	if _, err := s.projects.Get(c.Context(), claims.WorkspaceID, projectID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	tree, err := s.folders.ListTree(c.RequestCtx(), claims.WorkspaceID, projectID)
+	tree, err := s.folders.ListTree(c.Context(), claims.WorkspaceID, projectID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load folders")
 	}
@@ -152,7 +152,7 @@ func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 		return nil
 	}
 
-	dto, err := s.folders.Update(c.RequestCtx(), claims.WorkspaceID, id, service.UpdateFolderParams{
+	dto, err := s.folders.Update(c.Context(), claims.WorkspaceID, id, service.UpdateFolderParams{
 		Name:     body.Name,
 		Position: body.Position,
 	})
@@ -182,7 +182,7 @@ func (s *Server) handleDeleteFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	if err := s.folders.Delete(c.RequestCtx(), claims.WorkspaceID, id); err != nil {
+	if err := s.folders.Delete(c.Context(), claims.WorkspaceID, id); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
