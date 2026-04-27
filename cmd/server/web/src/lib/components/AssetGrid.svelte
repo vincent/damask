@@ -138,6 +138,7 @@
         <div in:scale={{ start: .5, duration: 30 }} class="relative group" data-asset-id={asset.id}>
           <AssetCard
             {asset} {zoom}
+            draggedIds={selectionStore.selectedIds.has(asset.id) ? [...selectionStore.selectedIds] : []}
             requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)} onclick={(e) => onCardClick(asset, globalIndex, e)}
           />
 

@@ -1,5 +1,8 @@
 package tests_helpers
 
+// Integration tests helpers.
+// Prefer using testutil helpers if you dont need a real DB.
+
 import (
 	"bytes"
 	"context"

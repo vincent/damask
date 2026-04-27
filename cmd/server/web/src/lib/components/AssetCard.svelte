@@ -4,7 +4,9 @@
   import { File, Loader, Play, TriangleAlert } from '@lucide/svelte'
   import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
-  
+  import { mount, unmount } from 'svelte'
+  import DragGhost from './DragGhost.svelte'
+
   interface Props {
     asset: Asset
     class?: string,
@@ -12,9 +14,11 @@
     onclick: (e: MouseEvent) => void
     /** Set to true when this asset was just uploaded and may be missing required fields */
     requiresFields?: boolean
+    /** All selected IDs when this card is part of a multi-selection drag; empty for solo drag */
+    draggedIds?: string[]
   }
 
-  let { asset, class: extraClass = '', zoom = 5, onclick, requiresFields = false }: Props = $props()
+  let { asset, class: extraClass = '', zoom = 5, onclick, requiresFields = false, draggedIds = [] }: Props = $props()
 
   const hasRequiredFields = $derived(customFieldsStore.assetFields.some((f) => f.required))
   const showRequiredNudge = $derived(requiresFields && hasRequiredFields)
@@ -34,6 +38,30 @@
   ondragstart={(e) => {
     e.dataTransfer?.setData('text/plain', asset.id)
     e.dataTransfer?.setData('application/json', JSON.stringify({ assetId: asset.id }))
+
+    // Transparent 1×1 pixel suppresses the browser's default drag ghost
+    const pixel = document.createElement('canvas')
+    pixel.width = pixel.height = 1
+    e.dataTransfer?.setDragImage(pixel, 0, 0)
+
+    // Mount the visual ghost that follows the cursor
+    const ids = draggedIds.length > 0 ? draggedIds : [asset.id]
+    const wrapper = document.createElement('div')
+    wrapper.style.cssText = 'position:fixed;pointer-events:none;z-index:9999;top:0;left:0;transform:translate(-50%,-50%)'
+    document.body.appendChild(wrapper)
+    const app = mount(DragGhost, { target: wrapper, props: { assetIds: ids } })
+
+    const onDragOver = (ev: DragEvent) => {
+      wrapper.style.left = ev.clientX + 'px'
+      wrapper.style.top  = ev.clientY + 'px'
+    }
+    document.addEventListener('dragover', onDragOver)
+
+    e.currentTarget?.addEventListener('dragend', () => {
+      document.removeEventListener('dragover', onDragOver)
+      unmount(app)
+      wrapper.remove()
+    }, { once: true })
   }}
 >
   <!-- stack effect -->
@@ -117,6 +145,10 @@
 
 
 <style>
+  .asset-card img {
+    pointer-events: none;
+  }
+
   .card-shadow + .card-shadow {
     top: -6px;
     right: -6px;
