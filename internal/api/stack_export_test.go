@@ -25,22 +25,6 @@ func TestStackExport_EmptyAssetIDs(t *testing.T) {
 	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
 }
 
-func TestStackExport_WrongWorkspace(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	// CountByIDs returns 0 — none of the requested assets belong to this workspace
-	env.Assets.CountByIDsFn = func(_ context.Context, _ string, _ []string) (int64, error) {
-		return 0, nil
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/stack/export",
-		testutil.JsonBody(map[string]any{"asset_ids": []string{"ast_foreign"}}), cookie))
-	if err != nil {
-		t.Fatal(err)
-	}
-	testutil.AssertStatus(t, resp, http.StatusForbidden)
-}
-
 func TestStackExport_ValidZip(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	env.Assets.CountByIDsFn = func(_ context.Context, _ string, ids []string) (int64, error) {

@@ -28,6 +28,20 @@ func newAssetSvc(t *testing.T) (service.AssetService, *memory.AssetRepo) {
 	return service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}), repo
 }
 
+// coverFlagRepo wraps AssetRepo and lets a single asset report as a project cover or workspace icon.
+type coverFlagRepo struct {
+	*memory.AssetRepo
+	coverID string
+	iconID  string
+}
+
+func (r *coverFlagRepo) IsProjectCover(_ context.Context, _, assetID string) (bool, error) {
+	return assetID == r.coverID, nil
+}
+func (r *coverFlagRepo) IsWorkspaceIcon(_ context.Context, _, assetID string) (bool, error) {
+	return assetID == r.iconID, nil
+}
+
 // --- Get ---
 
 func TestAssetService_Get_NotFound(t *testing.T) {
@@ -187,6 +201,32 @@ func TestAssetService_Delete_OK(t *testing.T) {
 	_, err := svc.Get(context.Background(), "ws_1", "a1")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+func TestAssetService_Delete_ConflictProjectCover(t *testing.T) {
+	inner := memory.NewAssetRepo()
+	inner.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "cover.jpg"})
+	repo := &coverFlagRepo{AssetRepo: inner, coverID: "a1"}
+	stor, _ := storage.NewAferoMemoryStorage()
+	svc := service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{})
+
+	err := svc.Delete(context.Background(), "ws_1", "a1")
+	if !errors.Is(err, apperr.ErrConflict) {
+		t.Fatalf("expected ErrConflict when asset is project cover, got %v", err)
+	}
+}
+
+func TestAssetService_Delete_ConflictWorkspaceIcon(t *testing.T) {
+	inner := memory.NewAssetRepo()
+	inner.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "icon.png"})
+	repo := &coverFlagRepo{AssetRepo: inner, iconID: "a1"}
+	stor, _ := storage.NewAferoMemoryStorage()
+	svc := service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{})
+
+	err := svc.Delete(context.Background(), "ws_1", "a1")
+	if !errors.Is(err, apperr.ErrConflict) {
+		t.Fatalf("expected ErrConflict when asset is workspace icon, got %v", err)
 	}
 }
 

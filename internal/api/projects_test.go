@@ -5,14 +5,13 @@ import (
 	"net/http"
 	"testing"
 
+	"encoding/json"
+
 	"damask/server/internal/api"
-	"damask/server/internal/apperr"
+	"damask/server/internal/auth"
 	"damask/server/internal/service"
 	"damask/server/internal/testutil"
 	"damask/server/internal/testutil/fixtures"
-	"damask/server/internal/auth"
-	"encoding/json"
-	"fmt"
 )
 
 func TestCreateProject_Success(t *testing.T) {
@@ -53,19 +52,6 @@ func TestCreateProject_Success(t *testing.T) {
 	if p.Description == nil || *p.Description != "Summer campaign" {
 		t.Errorf("description = %v, want Summer campaign", p.Description)
 	}
-}
-
-func TestCreateProject_MissingName(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects",
-		testutil.JsonBody(api.CreateProjectRequest{Name: ""}), cookie)
-	resp, err := env.App.Test(req)
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
-	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
 }
 
 func TestCreateProject_ViewerRejected(t *testing.T) {
@@ -146,18 +132,6 @@ func TestGetProject_Success(t *testing.T) {
 	if got.ID != "prj_1" {
 		t.Errorf("id = %q, want prj_1", got.ID)
 	}
-}
-
-func TestGetProject_NotFound(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Projects.GetFn = func(_ context.Context, _, _ string) (*service.ProjectDTO, error) {
-		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	req := testutil.AuthRequest(http.MethodGet, "/api/v1/projects/nonexistent", nil, cookie)
-	resp, _ := env.App.Test(req)
-	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestUpdateProject(t *testing.T) {

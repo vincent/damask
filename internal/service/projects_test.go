@@ -137,6 +137,46 @@ func TestProjectService_Delete_OK(t *testing.T) {
 	}
 }
 
+// nullifySpyRepo wraps ProjectRepo and records whether NullifyAssets was called.
+type nullifySpyRepo struct {
+	*memory.ProjectRepo
+	nullifyCalled bool
+}
+
+func (r *nullifySpyRepo) NullifyAssets(_ context.Context, _, _ string) error {
+	r.nullifyCalled = true
+	return nil
+}
+
+func TestProjectService_Delete_UnlinksAssets(t *testing.T) {
+	inner := memory.NewProjectRepo()
+	spy := &nullifySpyRepo{ProjectRepo: inner}
+	svc := service.NewProjectService(spy, audit.NopWriter{})
+	inner.Seed(repository.Project{ID: "p1", WorkspaceID: "ws_1", Name: "ToDelete"})
+
+	if err := svc.Delete(context.Background(), "ws_1", "p1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !spy.nullifyCalled {
+		t.Error("expected NullifyAssets to be called before project deletion")
+	}
+}
+
+func TestProjectService_Update_PreservesCoverAsset(t *testing.T) {
+	svc, repo := newProjectSvc(t)
+	coverID := "ast_cover_1"
+	repo.Seed(repository.Project{ID: "p1", WorkspaceID: "ws_1", Name: "Alpha", CoverAssetID: &coverID})
+
+	newDesc := "updated desc"
+	dto, err := svc.Update(context.Background(), "ws_1", "p1", service.UpdateProjectParams{Description: &newDesc})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.CoverAssetID == nil || *dto.CoverAssetID != coverID {
+		t.Errorf("CoverAssetID: got %v, want %q (should be preserved on partial update)", dto.CoverAssetID, coverID)
+	}
+}
+
 // --- Audit events ---
 
 func TestProjectService_Create_EmitsAuditEvent(t *testing.T) {

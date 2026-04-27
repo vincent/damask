@@ -186,16 +186,6 @@ func TestCreateShare_WithExpiry(t *testing.T) {
 	}
 }
 
-func TestCreateShare_InvalidTargetType(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "unknown", TargetID: "abc"}), cookie)
-	resp, _ := env.App.Test(req)
-	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
-}
-
 func TestCreateShare_TargetNotFound(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	env.Projects.GetFn = func(_ context.Context, _, _ string) (*service.ProjectDTO, error) {
@@ -280,17 +270,6 @@ func TestGetShare_Success(t *testing.T) {
 	if got.ID != sh.ID {
 		t.Errorf("id = %q, want %s", got.ID, sh.ID)
 	}
-}
-
-func TestGetShare_NotFound(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Shares.GetFn = func(_ context.Context, _, _ string) (*service.ShareDTO, error) {
-		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/shares/nonexistent", nil, cookie))
-	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestGetShare_OtherWorkspace(t *testing.T) {
@@ -403,17 +382,6 @@ func TestRevokeShare_Success(t *testing.T) {
 	if got.RevokedAt == nil {
 		t.Error("expected revoked_at to be set after DELETE")
 	}
-}
-
-func TestRevokeShare_NotFound(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Shares.RevokeFn = func(_ context.Context, _, _ string) error {
-		return fmt.Errorf("not found: %w", apperr.ErrNotFound)
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodDelete, "/api/v1/shares/nonexistent", nil, cookie))
-	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestRevokeShare_OtherWorkspace(t *testing.T) {

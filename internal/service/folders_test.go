@@ -95,6 +95,17 @@ func TestFolderService_Create_ParentDifferentProject(t *testing.T) {
 	}
 }
 
+func TestFolderService_Create_DuplicateName(t *testing.T) {
+	svc, _ := newFolderSvc(t)
+	if _, err := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Drafts"}); err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+	_, err := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Drafts"})
+	if !errors.Is(err, apperr.ErrConflict) {
+		t.Fatalf("expected ErrConflict for duplicate name, got %v", err)
+	}
+}
+
 // --- Get ---
 
 func TestFolderService_Get_NotFound(t *testing.T) {
@@ -130,7 +141,32 @@ func TestFolderService_Update_OK(t *testing.T) {
 	}
 }
 
+// folderNullifySpyRepo wraps RealFolderRepo and records whether NullifyAssets was called.
+type folderNullifySpyRepo struct {
+	*memory.RealFolderRepo
+	nullifyCalled bool
+}
+
+func (r *folderNullifySpyRepo) NullifyAssets(_ context.Context, _, _ string) error {
+	r.nullifyCalled = true
+	return nil
+}
+
 // --- Delete ---
+
+func TestFolderService_Delete_NullifiesAssets(t *testing.T) {
+	inner := memory.NewRealFolderRepo()
+	spy := &folderNullifySpyRepo{RealFolderRepo: inner}
+	svc := service.NewFolderService(spy)
+	inner.Seed(repository.Folder{ID: "f1", WorkspaceID: "ws_1", ProjectID: "p1", Name: "ToDelete"})
+
+	if err := svc.Delete(context.Background(), "ws_1", "f1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !spy.nullifyCalled {
+		t.Error("expected NullifyAssets to be called before folder deletion")
+	}
+}
 
 func TestFolderService_Delete_NotFound(t *testing.T) {
 	svc, _ := newFolderSvc(t)

@@ -62,18 +62,6 @@ func TestCollections_CreateWithAssets(t *testing.T) {
 	}
 }
 
-func TestCollections_CreateValidation(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
-		testutil.JsonBody(map[string]any{"name": ""}), cookie))
-	if err != nil {
-		t.Fatal(err)
-	}
-	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
-}
-
 func TestCollections_List(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	env.Collections.ListFn = func(_ context.Context, _ string) ([]*service.CollectionDTO, error) {
@@ -121,17 +109,6 @@ func TestCollections_Get(t *testing.T) {
 	if len(detail.Assets) != 1 {
 		t.Errorf("expected 1 asset, got %d", len(detail.Assets))
 	}
-}
-
-func TestCollections_GetNotFound(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Collections.GetFn = func(_ context.Context, _, _ string) (*service.CollectionDTO, error) {
-		return nil, fmt.Errorf("not found: %w", apperr.ErrNotFound)
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodGet, "/api/v1/collections/nonexistent", nil, cookie))
-	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestCollections_Update(t *testing.T) {

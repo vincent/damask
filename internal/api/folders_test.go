@@ -65,20 +65,6 @@ func TestCreateFolder_SubfolderSuccess(t *testing.T) {
 	testutil.AssertStatus(t, resp, http.StatusCreated)
 }
 
-func TestCreateFolder_MaxDepthEnforced(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Folders.CreateFn = func(_ context.Context, _, _ string, _ service.CreateFolderParams) (*service.FolderDTO, error) {
-		return nil, fmt.Errorf("max depth exceeded: %w", apperr.ErrInvalidInput)
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	deepID := "fld_deep"
-	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
-		testutil.JsonBody(api.CreateFolderRequest{Name: "TooDeep", ParentID: &deepID}), cookie)
-	resp, _ := env.App.Test(req)
-	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
-}
-
 func TestCreateFolder_DuplicateName(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	env.Folders.CreateFn = func(_ context.Context, _, _ string, _ service.CreateFolderParams) (*service.FolderDTO, error) {

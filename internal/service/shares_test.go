@@ -99,7 +99,38 @@ func TestShareService_Create_WithExpiry(t *testing.T) {
 	}
 }
 
+// --- List ---
+
+func TestShareService_List_WorkspaceIsolation(t *testing.T) {
+	svc, _ := newShareSvc(t)
+	svc.Create(context.Background(), "ws_A", baseShareParams()) //nolint
+	svc.Create(context.Background(), "ws_B", baseShareParams()) //nolint
+
+	shares, err := svc.List(context.Background(), "ws_A")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(shares) != 1 {
+		t.Errorf("expected 1 share for ws_A, got %d", len(shares))
+	}
+	if shares[0].WorkspaceID != "ws_A" {
+		t.Errorf("WorkspaceID: got %q, want ws_A", shares[0].WorkspaceID)
+	}
+}
+
 // --- Get ---
+
+func TestShareService_Get_WrongWorkspace(t *testing.T) {
+	svc, _ := newShareSvc(t)
+	dto, err := svc.Create(context.Background(), "ws_A", baseShareParams())
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	_, err = svc.Get(context.Background(), "ws_B", dto.ID)
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for wrong workspace, got %v", err)
+	}
+}
 
 func TestShareService_Get_NotFound(t *testing.T) {
 	svc, _ := newShareSvc(t)

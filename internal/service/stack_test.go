@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
@@ -133,6 +134,55 @@ func TestStackService_EnqueueMerge_InvalidOutputType(t *testing.T) {
 	})
 	if !errors.Is(err, apperr.ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+// -- ExportZip duplicate filename deduplication --
+
+func TestStackService_ExportZip_DuplicateFilenames(t *testing.T) {
+	assetRepo := memory.NewAssetRepo()
+	versionRepo := memory.NewRealVersionRepo()
+	stor, _ := storage.NewAferoMemoryStorage()
+
+	assetRepo.Seed(
+		repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"},
+		repository.Asset{ID: "ast_2", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"},
+	)
+	versionRepo.Seed(
+		repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key1"},
+		repository.AssetVersion{ID: "v2", AssetID: "ast_2", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key2"},
+	)
+	if err := stor.Put("key1", strings.NewReader("data1")); err != nil {
+		t.Fatalf("stor.Put key1: %v", err)
+	}
+	if err := stor.Put("key2", strings.NewReader("data2")); err != nil {
+		t.Fatalf("stor.Put key2: %v", err)
+	}
+
+	svc := service.NewStackService(assetRepo, versionRepo, stor, nil)
+
+	var buf bytes.Buffer
+	if err := svc.ExportZip(context.Background(), "ws_1", service.ExportZipParams{
+		AssetIDs: []string{"ast_1", "ast_2"},
+	}, &buf); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data := buf.Bytes()
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatalf("not a valid zip: %v", err)
+	}
+
+	names := make(map[string]struct{}, len(zr.File))
+	for _, f := range zr.File {
+		if _, dup := names[f.Name]; dup {
+			t.Errorf("duplicate zip entry name: %q", f.Name)
+		}
+		names[f.Name] = struct{}{}
+	}
+	if len(names) < 2 {
+		t.Errorf("expected 2 unique entries, got %d", len(names))
 	}
 }
 

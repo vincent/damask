@@ -90,6 +90,15 @@ func (s *collectionService) Create(ctx context.Context, workspaceID string, p Cr
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
+	if len(p.AssetIDs) > 0 {
+		count, err := s.assets.CountByIDs(ctx, workspaceID, p.AssetIDs)
+		if err != nil {
+			return nil, err
+		}
+		if count != int64(len(p.AssetIDs)) {
+			return nil, fmt.Errorf("one or more assets do not belong to this workspace: %w", apperr.ErrForbidden)
+		}
+	}
 	col, err := s.collections.Create(ctx, repository.Collection{
 		ID:          uuid.NewString(),
 		WorkspaceID: workspaceID,

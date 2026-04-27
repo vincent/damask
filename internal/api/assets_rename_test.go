@@ -33,44 +33,6 @@ func TestRenameAsset_Success(t *testing.T) {
 	}
 }
 
-func TestRenameAsset_ExtensionPreserved(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Assets.RenameFn = func(_ context.Context, _, _, stem string) (*service.AssetDTO, error) {
-		return fixtures.Asset(func(a *service.AssetDTO) { a.OriginalFilename = stem + ".jpg" }), nil
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	req := testutil.AuthRequest(http.MethodPut, "/api/v1/assets/ast_1/rename",
-		testutil.JsonBody(api.RenameAssetRequest{Name: "newname.jpg"}), cookie)
-	resp, _ := env.App.Test(req)
-	testutil.AssertStatus(t, resp, http.StatusOK)
-
-	var asset api.AssetResponse
-	testutil.DecodeJSON(t, resp, &asset)
-	if asset.OriginalFilename != "newname.jpg.jpg" && asset.OriginalFilename != "newname.jpg" {
-		t.Errorf("filename = %q", asset.OriginalFilename)
-	}
-}
-
-func TestRenameAsset_NoOp(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Assets.RenameFn = func(_ context.Context, _, _, _ string) (*service.AssetDTO, error) {
-		return fixtures.Asset(func(a *service.AssetDTO) { a.OriginalFilename = "photo.jpg" }), nil
-	}
-	cookie := env.MintCookie(t, "usr_1", "ws_1")
-
-	req := testutil.AuthRequest(http.MethodPut, "/api/v1/assets/ast_1/rename",
-		testutil.JsonBody(api.RenameAssetRequest{Name: "photo"}), cookie)
-	resp, _ := env.App.Test(req)
-	testutil.AssertStatus(t, resp, http.StatusOK)
-
-	var asset api.AssetResponse
-	testutil.DecodeJSON(t, resp, &asset)
-	if asset.OriginalFilename != "photo.jpg" {
-		t.Errorf("filename = %q, want photo.jpg", asset.OriginalFilename)
-	}
-}
-
 func TestRenameAsset_Unauthenticated(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 )
@@ -16,7 +17,44 @@ func newCollectionSvc(t *testing.T) (service.CollectionService, *memory.RealColl
 	return service.NewCollectionService(repo, memory.NewAssetRepo()), repo
 }
 
+// --- List ---
+
+func TestCollectionService_List_WorkspaceIsolation(t *testing.T) {
+	svc, _ := newCollectionSvc(t)
+	svc.Create(context.Background(), "ws_A", service.CreateCollectionParams{Name: "Alpha", CreatedBy: "u1"}) //nolint
+	svc.Create(context.Background(), "ws_B", service.CreateCollectionParams{Name: "Beta", CreatedBy: "u2"})  //nolint
+
+	cols, err := svc.List(context.Background(), "ws_A")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cols) != 1 {
+		t.Errorf("expected 1 collection for ws_A, got %d", len(cols))
+	}
+	if cols[0].WorkspaceID != "ws_A" {
+		t.Errorf("WorkspaceID: got %q, want ws_A", cols[0].WorkspaceID)
+	}
+}
+
 // --- Create ---
+
+func TestCollectionService_Create_WithForeignAsset(t *testing.T) {
+	collRepo := memory.NewRealCollectionRepo()
+	assetRepo := memory.NewAssetRepo()
+	svc := service.NewCollectionService(collRepo, assetRepo)
+
+	// ast_foreign belongs to ws_B, not ws_A
+	assetRepo.Seed(repository.Asset{ID: "ast_foreign", WorkspaceID: "ws_B", OriginalFilename: "x.jpg"})
+
+	_, err := svc.Create(context.Background(), "ws_A", service.CreateCollectionParams{
+		Name:      "Bad",
+		CreatedBy: "u1",
+		AssetIDs:  []string{"ast_foreign"},
+	})
+	if !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden for foreign asset, got %v", err)
+	}
+}
 
 func TestCollectionService_Create_OK(t *testing.T) {
 	svc, _ := newCollectionSvc(t)
