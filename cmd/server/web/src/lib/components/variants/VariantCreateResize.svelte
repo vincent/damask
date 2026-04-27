@@ -3,6 +3,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import { variantApi, type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
+  import ResolutionOptions from '../ResolutionOptions.svelte'
   
   interface Props {
     asset: Asset
@@ -27,6 +28,16 @@
 
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
   const isVideo = $derived(asset?.mime_type?.startsWith('video/') ?? false)
+
+  function useResolution(e: Event) {
+    const o = (e.target as HTMLSelectElement)?.selectedOptions;
+    if (!o) return;
+    const wh = o[0]?.getAttribute('data-wh')?.split('x')
+    if (wh?.length === 2) {
+        resizeWidth = +wh[0]
+        resizeHeight = +wh[1]
+    }
+  }
 
   function updatePreview() {
     clearTimeout(previewTimeout)
@@ -55,7 +66,14 @@
         </div>
     {/if}
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-3 gap-3">
+        <div>
+            <label for="variant-{kind}-resolution" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.resolution()}</label>
+            <select id="variant-{kind}-resolution" onchange={useResolution}
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                <ResolutionOptions />
+            </select>
+        </div>
         <div>
             <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.width()} (px)</label>
             <input id="variant-{kind}-width" type="number" min="1" max="8000" bind:value={resizeWidth} oninput={updatePreview}

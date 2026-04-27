@@ -334,7 +334,7 @@ function openMergeForSelected() {
       {#if unusedTags.length > 0}
         <Button variant="primary" onclick={() => (showPurgeModal = true)}>
           {#snippet icon()}<Trash2 class="h-3.5 w-3.5" />{/snippet}
-          {m.tags_purge_unused()} ({unusedTags.length})
+          {m.tags_purge_title()} ({unusedTags.length})
         </Button>
       {/if}
       <Button variant="primary" onclick={() => { showNewTagModal = true; newTagName = ''; newTagColor = null; newTagGroup = null; newTagError = '' }}>
@@ -344,7 +344,7 @@ function openMergeForSelected() {
     </div>
   </PageHeader>
 
-  <div class="mx-auto w-full max-w-4xl px-8 py-8">
+  <div class="mx-auto w-full max-w-4xl py-8">
 
     <!-- Toolbar -->
     <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-3 dark:border-gray-800">

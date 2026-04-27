@@ -573,5 +573,9 @@
   "user_profile": "User profile",
   "privacy_audit_logs": "Privacy & audit logs",
   "ingress_description": "Connect sources to automatically import assets from",
-  "group": "Group"
+  "group": "Group",
+  "sort_date": "Date",
+  "sort_mimetype": "Type",
+  "sort_weight": "Size",
+  "sort_date_taken": "Shooting date"
 }

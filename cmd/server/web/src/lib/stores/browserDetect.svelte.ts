@@ -13,7 +13,6 @@ export const browserDetectStore = {
 
     // every time the media query matches or unmatches
     mediaQuery.addEventListener('change', ({ matches }) => {
-      debugger;
       // set the state of our variable
       smallDevice = matches;
     });

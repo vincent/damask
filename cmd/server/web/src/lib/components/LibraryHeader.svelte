@@ -56,9 +56,14 @@
 
   <div class="flex items-center gap-2">
     <SortButtons
-      bind:value={sort} bind:asc
-      keys={{ created_at: 'date', mimetype: 'type', size: 'size', taken_at: 'taken date' }}
       sort={(key, a) => assetsStore.sort(key, a)}
+      bind:value={sort} bind:asc
+      keys={{
+        created_at: m.sort_date(),
+        mimetype: m.sort_mimetype(),
+        size: m.sort_weight(),
+        taken_at: m.sort_date_taken(),
+      }}
     />
   </div>
 

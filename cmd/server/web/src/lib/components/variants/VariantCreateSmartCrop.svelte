@@ -3,6 +3,7 @@
     import Button from '$lib/components/ui/Button.svelte'
     import { type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
+  import ResolutionOptions from '../ResolutionOptions.svelte'
 
     interface Props {
         asset: Asset
@@ -18,6 +19,16 @@
     let height = $state(400)
     let format = $state<'jpeg' | 'png' | 'tiff'>('jpeg')
     let quality = $state(85)
+
+    function useResolution(e: Event) {
+        const o = (e.target as HTMLSelectElement)?.selectedOptions;
+        if (!o) return;
+        const wh = o[0]?.getAttribute('data-wh')?.split('x')
+        if (wh?.length === 2) {
+            width = +wh[0]
+            height = +wh[1]
+        }
+    }
 </script>
 
 <div class="space-y-5">
@@ -25,7 +36,14 @@
         <p class="text-sm text-gray-400 dark:text-gray-500">Original: {asset.width} × {asset.height} px</p>
     {/if}
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-3 gap-4">
+        <div>
+            <label for="variant-{kind}-resolution" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.resolution()}</label>
+            <select id="variant-{kind}-resolution" onchange={useResolution}
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-md focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100">
+                <ResolutionOptions />
+            </select>
+        </div>
         <div>
             <label for="variant-{kind}-width" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.width()} (px)</label>
             <input id="variant-{kind}-width" type="number" min="1" max="8000" bind:value={width}
@@ -39,7 +57,7 @@
     </div>
 
     <div>
-        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.for_notifs()}</label>
+        <label for="variant-{kind}-format" class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">{m.format()}</label>
         <div class="flex gap-2">
             {#each ['jpeg', 'png', 'tiff'] as fmt}
                 <button type="button"
