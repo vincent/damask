@@ -9,39 +9,32 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
     document: 'Documents',
 }
 
-const base = {
-    image: 'sky',
-    video: 'red',
-    audio: 'emerald',
-    document: 'blue',
-}
-
 export const ASSET_BACKGROUND_COLORS: Record<string, string> = {
-    image: `bg-${base.image}-300 dark:bg-${base.image}-700`,
-    video: `bg-${base.video}-300 dark:bg-${base.video}-700`,
-    audio: `bg-${base.audio}-300 dark:bg-${base.audio}-700`,
-    document: `bg-${base.document}-200 dark:bg-${base.document}-700`,
+    image: `bg-sky-300 dark:bg-sky-700`,
+    video: `bg-red-300 dark:bg-red-700`,
+    audio: `bg-emerald-300 dark:bg-emerald-700`,
+    document: `bg-blue-200 dark:bg-blue-700`,
 }
 
 export const DOT_COLORS: Record<string, string> = {
-    image: `bg-${base.image}-200 dark:bg-${base.image}-600`,
-    video: `bg-${base.video}-200 dark:bg-${base.video}-600`,
-    audio: `bg-${base.audio}-200 dark:bg-${base.audio}-600`,
-    document: `bg-${base.document}-100 dark:bg-${base.document}-600`,
+    image: `bg-sky-200 dark:bg-sky-600`,
+    video: `bg-red-200 dark:bg-red-600`,
+    audio: `bg-emerald-200 dark:bg-emerald-600`,
+    document: `bg-blue-100 dark:bg-blue-600`,
 }
 
 export const CATEGORY_ICON_BG: Record<CategoryKey, { light: string; dark: string }> = {
-    image: { light: `bg-${base.image}-100 text-${base.image}-600`, dark: `dark:bg-${base.image}-900/50 dark:text-${base.image}-300` },
-    video: { light: `bg-${base.video}-100 text-${base.video}-600`, dark: `dark:bg-${base.video}-900/50 dark:text-${base.video}-300` },
-    audio: { light: `bg-${base.audio}-100 text-${base.audio}-600`, dark: `dark:bg-${base.audio}-900/50 dark:text-${base.audio}-300` },
-    document: { light: `bg-${base.document}-100 text-${base.document}-600`, dark: `dark:bg-${base.document}-900/50 dark:text-${base.document}-300` },
+    image: { light: `bg-sky-100 text-sky-600`, dark: `dark:bg-sky-900/50 dark:text-sky-300` },
+    video: { light: `bg-red-100 text-red-600`, dark: `dark:bg-red-900/50 dark:text-red-300` },
+    audio: { light: `bg-emerald-100 text-emerald-600`, dark: `dark:bg-emerald-900/50 dark:text-emerald-300` },
+    document: { light: `bg-blue-100 text-blue-600`, dark: `dark:bg-blue-900/50 dark:text-blue-300` },
 }
 
 export const CATEGORY_BORDER: Record<CategoryKey, string> = {
-    image: `border-${base.image}-200 dark:border-${base.image}-700`,
-    video: `border-${base.video}-200 dark:border-${base.video}-700`,
-    audio: `border-${base.audio}-200 dark:border-${base.audio}-700`,
-    document: `border-${base.document}-200 dark:border-${base.document}-700`,
+    image: `border-sky-200 dark:border-sky-700`,
+    video: `border-red-200 dark:border-red-700`,
+    audio: `border-emerald-200 dark:border-emerald-700`,
+    document: `border-blue-200 dark:border-blue-700`,
 }
 
 export function getProjectColor(project?: { color?: string | null } | null, opacity = 'ff'): string {
