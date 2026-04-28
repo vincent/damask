@@ -84,14 +84,15 @@ function connectSSE() {
       if (event.type !== 'thumbnail_ready') return
 
       reloadAssetResources(event.asset_id)
+      patchAsset(event.asset_id, { thumbnail_key: event.thumbnail_key })
 
       const uploadId = pendingThumbnails.get(event.asset_id)
-      if (!uploadId) return
-
-      pendingThumbnails.delete(event.asset_id)
-      patchAsset(event.asset_id, { thumbnail_key: event.thumbnail_key })
-      uploadsStore.update(uploadId, { status: 'done' })
+      if (uploadId) {
+        pendingThumbnails.delete(event.asset_id)
+        uploadsStore.update(uploadId, { status: 'done' })
+      }
     } catch {
+      console.warn(`unhandled event`, e)
       // ignore malformed events
     }
   })

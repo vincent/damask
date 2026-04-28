@@ -92,7 +92,7 @@ func NewHttpServer(
 		previewCache:  NewLRUPreviewCache(100),
 		cfg:           cfg,
 		demo:          demoSeeder,
-		assets:        service.NewAssetService(assetRepo, tagRepo, fieldRepo, stor, auditWriter),
+		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
 		projects:      service.NewProjectService(projectRepo, auditWriter),
 		folders:       service.NewFolderService(folderRepo),
 		tags:          service.NewTagService(tagRepo, auditWriter),
@@ -298,6 +298,7 @@ func NewRouter(
 	api.Get("/assets/:id/comments", s.handleGetComments)
 	api.Get("/assets/:id/file", s.handleGetAssetFile)
 	api.Get("/assets/:id/thumb", s.handleGetAssetThumb)
+	api.Post("/assets/:id/thumb/regenerate", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRegenerateThumbnail)
 	api.Delete("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteAsset)
 
 	// Asset field values

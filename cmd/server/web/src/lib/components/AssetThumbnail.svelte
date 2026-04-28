@@ -7,6 +7,7 @@
     alt?: string
     class?: string
     hoverPlay?: boolean
+    assetId?: string
   }
 
   let {
@@ -15,6 +16,7 @@
     alt = '',
     class: className = '',
     hoverPlay = true,
+    assetId,
   }: Props = $props()
 
   let videoEl = $state<HTMLVideoElement | undefined>()
@@ -39,7 +41,6 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <video
     bind:this={videoEl}
-    {src}
     muted
     loop
     playsinline
@@ -47,7 +48,9 @@
     class={className}
     onmouseenter={onMouseEnter}
     onmouseleave={onMouseLeave}
-  ></video>
+  >
+    <source data-asset-dynamic-resource={assetId} {src} type={contentType} />
+  </video>
 {:else}
-  <img {src} {alt} class={className} loading="lazy" />
+  <img {src} {alt} class={className} loading="lazy" data-asset-dynamic-resource={assetId} />
 {/if}

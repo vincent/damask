@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/auth"
+	dbgen "damask/server/internal/db/gen"
 
 	"github.com/google/uuid"
 )
@@ -95,6 +95,7 @@ func (q *Queue) Enqueue(ctx context.Context, workspaceID, jobType, payload strin
 	if err != nil {
 		return dbgen.Job{}, err
 	}
+	slog.Debug("queue: created job", "job", job)
 
 	// Best-effort wake up a worker; non-blocking.
 	select {
@@ -194,8 +195,8 @@ func (q *Queue) processNext(ctx context.Context) {
 
 // Job type constants used throughout the application.
 const (
-	JobTypeVersionThumbnail  = "version_thumbnail"
-	JobTypeVariantThumbnail  = "generate_variant_thumbnail"
+	JobTypeVersionThumbnail = "version_thumbnail"
+	JobTypeVariantThumbnail = "generate_variant_thumbnail"
 
 	// Variant jobs — user-triggered, each creates a variants row.
 	JobTypeVideoCaptureImage = "video_capture_image"

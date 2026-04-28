@@ -539,6 +539,23 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	return c.SendStream(rc)
 }
 
+// handleRegenerateThumbnail re-enqueues a version_thumbnail job for the asset's current version.
+func (s *Server) handleRegenerateThumbnail(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+
+	jobIDs, err := s.assets.RegenerateThumbnail(c.Context(), claims.WorkspaceID, []string{assetID})
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	return c.Status(fiber.StatusAccepted).JSON(CreateVariantResponse{
+		JobID:   jobIDs[0],
+		Status:  "pending",
+		Message: "thumbnail regeneration queued",
+	})
+}
+
 // handleDeleteAsset permanently deletes an asset and its stored files.
 //
 // @Summary Delete an asset

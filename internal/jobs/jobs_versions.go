@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"mime"
 
 	dbgen "damask/server/internal/db/gen"
@@ -54,6 +55,8 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
+	slog.Debug("generate thumbnail", "mime_type", p.MimeType, "storage_key", p.StorageKey)
+
 	thumbData, thumbExt, err := transform.GenerateThumbnailData(ctx, s.storage, p.MimeType, p.StorageKey)
 	if err != nil {
 		return fmt.Errorf("generate thumbnail: %w", err)
@@ -83,6 +86,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 	// If this version is still current, sync the asset thumbnail too.
 	ver, err := s.db.GetVersionByIDUnchecked(ctx, p.VersionID)
 	if err == nil && ver.IsCurrent == 1 {
+		slog.Debug("generate thumbnail: update current thumbnail", "assetID", p.AssetID, "thumbKey", thumbKey)
 		if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 			ThumbnailKey:         &thumbKey,
 			ThumbnailContentType: thumbContentType,

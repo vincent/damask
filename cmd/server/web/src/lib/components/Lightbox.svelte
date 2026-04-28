@@ -10,7 +10,7 @@
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
-  import { Inbox, Share, Upload } from '@lucide/svelte'
+  import { Inbox, RefreshCw, Share, Upload } from '@lucide/svelte'
   import AssetTags from './AssetTags.svelte';
   import AssetMetadata from './AssetMetadata.svelte';
   import Spinner from '$lib/components/ui/Spinner.svelte'
@@ -69,6 +69,7 @@
   let linkCopied = $state(false)
   let renamingAsset = $state(false)
   let renameBusy = $state(false)
+  let regenThumbLoading = $state(false)
 
   function stemOf(filename: string) {
     const dot = filename.lastIndexOf('.')
@@ -166,6 +167,15 @@
     } finally {
       creating = false
     }
+  }
+
+  async function handleRegenerateThumbnail() {
+    if (!asset) return
+    regenThumbLoading = true
+    try {
+      await assetApi.regenerateThumbnail(asset.id)
+    } catch { /* silently ignore */ }
+    finally { regenThumbLoading = false }
   }
 
   async function handleDeleteVariant(variantId: string) {
@@ -375,6 +385,16 @@
                 {m.share()}
               </button>
               <ButtonCopy copied={linkCopied} onclick={copyShareLink} text="Copy Share Link" />
+              {#if authStore.role !== 'viewer'}
+                <button
+                  class="flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-md text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-50"
+                  onclick={handleRegenerateThumbnail}
+                  disabled={regenThumbLoading}
+                >
+                  <RefreshCw class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+                  {regenThumbLoading ? 'Queuing…' : 'Regenerate Thumbnail'}
+                </button>
+              {/if}
             </div>
           </div>
 

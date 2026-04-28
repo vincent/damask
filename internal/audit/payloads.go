@@ -3,6 +3,7 @@ package audit
 // Asset event types
 const (
 	EventAssetCreated           = "asset_created"
+	EventAssetThumbnailRegen    = "asset_thumbnail_regen"
 	EventAssetRenamed           = "asset_renamed"
 	EventAssetMoved             = "asset_moved"
 	EventAssetTagged            = "asset_tagged"

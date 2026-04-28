@@ -51,6 +51,7 @@ type AssetService interface {
 	BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
 	// WriteAssetDownloadedAsync emits asset_downloaded in a background goroutine.
 	WriteAssetDownloadedAsync(workspaceID, assetID, userID string)
+	RegenerateThumbnail(ctx context.Context, workspaceID string, assetIDs []string) (jobIDs []string, err error)
 }
 
 // CreateVariantParams is the input for VariantService.Create.

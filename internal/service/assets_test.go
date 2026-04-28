@@ -18,14 +18,14 @@ func newAssetSvcSpy(t *testing.T) (service.AssetService, *memory.AssetRepo, *spy
 	spy := newSpy()
 	repo := memory.NewAssetRepo()
 	stor, _ := storage.NewAferoMemoryStorage()
-	return service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, spy), repo, spy
+	return service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, spy, nil), repo, spy
 }
 
 func newAssetSvc(t *testing.T) (service.AssetService, *memory.AssetRepo) {
 	t.Helper()
 	repo := memory.NewAssetRepo()
 	stor, _ := storage.NewAferoMemoryStorage()
-	return service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}), repo
+	return service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}, nil), repo
 }
 
 // coverFlagRepo wraps AssetRepo and lets a single asset report as a project cover or workspace icon.
@@ -209,7 +209,7 @@ func TestAssetService_Delete_ConflictProjectCover(t *testing.T) {
 	inner.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "cover.jpg"})
 	repo := &coverFlagRepo{AssetRepo: inner, coverID: "a1"}
 	stor, _ := storage.NewAferoMemoryStorage()
-	svc := service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{})
+	svc := service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}, nil)
 
 	err := svc.Delete(context.Background(), "ws_1", "a1")
 	if !errors.Is(err, apperr.ErrConflict) {
@@ -222,7 +222,7 @@ func TestAssetService_Delete_ConflictWorkspaceIcon(t *testing.T) {
 	inner.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "icon.png"})
 	repo := &coverFlagRepo{AssetRepo: inner, iconID: "a1"}
 	stor, _ := storage.NewAferoMemoryStorage()
-	svc := service.NewAssetService(repo, memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{})
+	svc := service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}, nil)
 
 	err := svc.Delete(context.Background(), "ws_1", "a1")
 	if !errors.Is(err, apperr.ErrConflict) {

@@ -29,6 +29,7 @@ type MockAssetService struct {
 	ListByFieldsFn                 func(ctx context.Context, params service.ListAssetsByFieldsParams) ([]*service.AssetDTO, error)
 	BatchVersionCountsFn           func(ctx context.Context, assetIDs []string) (map[string]int64, error)
 	BatchVariantCountsFn           func(ctx context.Context, assetIDs []string) (map[string]int64, error)
+	RegenerateThumbnailFn          func(ctx context.Context, workspaceID string, assetIDs []string) ([]string, error)
 }
 
 func NewAssetService() *MockAssetService { return &MockAssetService{} }
@@ -155,6 +156,13 @@ func (m *MockAssetService) BatchVersionCounts(ctx context.Context, assetIDs []st
 func (m *MockAssetService) BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
 	if m.BatchVariantCountsFn != nil {
 		return m.BatchVariantCountsFn(ctx, assetIDs)
+	}
+	return nil, nil
+}
+
+func (m *MockAssetService) RegenerateThumbnail(ctx context.Context, workspaceID string, assetIDs []string) ([]string, error) {
+	if m.RegenerateThumbnailFn != nil {
+		return m.RegenerateThumbnailFn(ctx, workspaceID, assetIDs)
 	}
 	return nil, nil
 }

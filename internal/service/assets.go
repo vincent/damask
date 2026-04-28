@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -9,21 +10,25 @@ import (
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
+	"damask/server/internal/jobs"
+	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 )
 
 type assetService struct {
-	assets repository.AssetRepository
-	tags   repository.TagRepository
-	fields repository.FieldRepository
-	stor   storage.Storage
-	audit  audit.Writer
+	assets   repository.AssetRepository
+	versions repository.VersionRepository
+	tags     repository.TagRepository
+	fields   repository.FieldRepository
+	stor     storage.Storage
+	audit    audit.Writer
+	q        queue.JobQueue
 }
 
 // NewAssetService returns an AssetService backed by the given repository.
-func NewAssetService(assets repository.AssetRepository, tags repository.TagRepository, fields repository.FieldRepository, stor storage.Storage, aw audit.Writer) AssetService {
-	return &assetService{assets: assets, tags: tags, fields: fields, stor: stor, audit: aw}
+func NewAssetService(assets repository.AssetRepository, versions repository.VersionRepository, tags repository.TagRepository, fields repository.FieldRepository, stor storage.Storage, aw audit.Writer, q queue.JobQueue) AssetService {
+	return &assetService{assets: assets, versions: versions, tags: tags, fields: fields, stor: stor, audit: aw, q: q}
 }
 
 func (s *assetService) Get(ctx context.Context, workspaceID, assetID string) (*AssetDTO, error) {
@@ -340,6 +345,48 @@ func (s *assetService) WriteAssetDownloadedAsync(workspaceID, assetID, userID st
 		EventType:   audit.EventAssetDownloaded,
 		Payload:     audit.AssetDownloadedPayload{V: 1, Via: "direct"},
 	})
+}
+
+// RegenerateThumbnail re-enqueues a version_thumbnail job for the asset's current version.
+func (s *assetService) RegenerateThumbnail(ctx context.Context, workspaceID string, assetIDs []string) (jobIDs []string, err error) {
+	for _, assetID := range assetIDs {
+		asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
+		if err != nil {
+			continue // skip assets not in this workspace
+		}
+		if asset.CurrentVersionID == nil {
+			return jobIDs, fmt.Errorf("asset is has no version yet: %w", apperr.ErrNotFound)
+		}
+
+		ver, err := s.versions.GetCurrentByAsset(ctx, assetID)
+		if err != nil {
+			return jobIDs, fmt.Errorf("could not load current version: %w", apperr.ErrNotFound)
+		}
+
+		payload, _ := json.Marshal(jobs.VersionThumbnailJobPayload{
+			AssetID:     asset.ID,
+			VersionID:   ver.ID,
+			WorkspaceID: workspaceID,
+			StorageKey:  ver.StorageKey,
+			MimeType:    ver.MimeType,
+		})
+
+		job, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeVersionThumbnail, string(payload))
+		if err != nil {
+			return jobIDs, fmt.Errorf("could not enqueue job: %w", apperr.ErrConflict)
+		}
+		jobIDs = append(jobIDs, job.ID)
+
+		actor := auth.ActorFromCtx(ctx)
+		s.audit.WriteAsset(ctx, audit.AssetEvent{
+			WorkspaceID: workspaceID,
+			AssetID:     assetID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventAssetThumbnailRegen,
+		})
+	}
+	return jobIDs, nil
 }
 
 func toAssetDTO(a repository.Asset) *AssetDTO {

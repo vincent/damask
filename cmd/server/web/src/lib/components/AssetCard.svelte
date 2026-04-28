@@ -97,6 +97,7 @@
         contentType={asset.thumbnail_content_type ? asset.thumbnail_content_type : (asset.thumbnail_key?.includes('.mp4') ? 'video/mp4' : 'image/jpeg')}
         alt={asset.original_filename}
         class="h-full w-full object-cover"
+        assetId={asset.id}
       />
     {:else}
       <!-- Centered icon -->

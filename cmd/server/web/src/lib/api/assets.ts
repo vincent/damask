@@ -118,9 +118,15 @@ export const assetApi = {
       body: JSON.stringify({ asset_ids: assetIds }),
     }),
 
-  /** GET /api/v1/assets/:id/thumb — thumbnail URL for an asset. */
-  thumbUrl(id: string): string {
-    return `${API_BASE}/api/v1/assets/${id}/thumb`
+  /** GET /api/v1/assets/:id/thumb — thumbnail URL for an asset.
+   * Pass thumbnailKey to append a cache-busting version token so the browser
+   * refetches when the thumbnail is regenerated (24h max-age otherwise wins). */
+  thumbUrl(id: string, thumbnailKey?: string | null): string {
+    const base = `${API_BASE}/api/v1/assets/${id}/thumb`
+    if (!thumbnailKey) return base
+    // Use the last path segment of the storage key as an opaque version token.
+    const v = thumbnailKey.split('/').pop() ?? thumbnailKey
+    return `${base}?v=${encodeURIComponent(v)}`
   },
 
   /** GET /api/v1/assets/:id/file — original file URL for an asset. */
@@ -131,4 +137,10 @@ export const assetApi = {
   /** GET /api/v1/assets/:id/comments — list comments for an asset. */
   listAssetComments: (id: string) =>
     apiFetch<ShareComment[]>(`/api/v1/assets/${id}/comments`),
+
+  /** POST /api/v1/assets/:id/thumb/regenerate (editor+) — requeue the thumbnail generation job. */
+  regenerateThumbnail: (id: string) =>
+    apiFetch<{ job_id: string; status: string; message: string }>(`/api/v1/assets/${id}/thumb/regenerate`, {
+      method: 'POST',
+    }),
 }
