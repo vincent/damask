@@ -4,21 +4,22 @@ import "time"
 
 // Asset is the domain representation of an uploaded file.
 type Asset struct {
-	ID               string
-	WorkspaceID      string
-	ProjectID        *string
-	FolderID         *string
-	OriginalFilename string
-	StorageKey       string
-	MimeType         string
-	Size             int64
-	Width            *int64
-	Height           *int64
-	ThumbnailKey     *string
-	Metadata         *string
-	CurrentVersionID *string
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                   string
+	WorkspaceID          string
+	ProjectID            *string
+	FolderID             *string
+	OriginalFilename     string
+	StorageKey           string
+	MimeType             string
+	Size                 int64
+	Width                *int64
+	Height               *int64
+	ThumbnailKey         *string
+	ThumbnailContentType string
+	Metadata             *string
+	CurrentVersionID     *string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 // Project is the domain representation of a project.
@@ -74,9 +75,10 @@ type AssetStorageKeys struct {
 
 // VersionStorageKeys holds the storage keys for one asset version and its variants.
 type VersionStorageKeys struct {
-	StorageKey   string
-	ThumbnailKey *string
-	VariantKeys  []string
+	StorageKey           string
+	ThumbnailKey         *string
+	VariantKeys          []string
+	VariantThumbnailKeys []string
 }
 
 // Tag is the domain representation of a tag.
@@ -284,14 +286,16 @@ type OAuthConnection struct {
 
 // Variant is the domain representation of an asset variant (transformed version).
 type Variant struct {
-	ID              string
-	WorkspaceID     string
-	AssetVersionID  string
-	Type            string
-	StorageKey      string
-	TransformParams *string
-	Size            *int64
-	CreatedAt       time.Time
+	ID                   string
+	WorkspaceID          string
+	AssetVersionID       string
+	Type                 string
+	StorageKey           string
+	TransformParams      *string
+	Size                 *int64
+	ThumbnailKey         *string
+	ThumbnailContentType string
+	CreatedAt            time.Time
 }
 
 // ProjectWithCount is a Project enriched with its asset count.

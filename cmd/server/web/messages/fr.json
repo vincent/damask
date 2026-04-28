@@ -563,5 +563,10 @@
   "ingress_canva_ownership_any": "Tous les designs accessibles",
   "ingress_canva_name_filter": "Filtrer par nom (optionnel)",
   "ingress_canva_name_filter_hint": "Importer uniquement les designs dont le titre contient ce texte",
-  "back_to_library": "Retour à la bibliothèque"
+  "back_to_library": "Retour à la bibliothèque",
+  "thumbnail_loading": "Chargement de l'aperçu",
+  "thumbnail_video_preview": "Aperçu vidéo",
+  "thumbnail_pdf_preview": "Aperçu du document",
+  "variant_thumbnail_generating": "Génération de l'aperçu…",
+  "variant_no_preview": "Aperçu non disponible"
 }

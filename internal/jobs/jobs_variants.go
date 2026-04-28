@@ -20,6 +20,17 @@ import (
 
 // ---- Payload types ----
 
+// enqueueVariantThumb enqueues a generate_variant_thumbnail job after a variant row is created.
+func (s *JobServer) enqueueVariantThumb(ctx context.Context, p VariantJobPayload, variantID, storageKey, contentType string) {
+	_ = EnqueueVariantThumbnailJob(ctx, s, VariantThumbnailJobPayload{
+		VariantID:   variantID,
+		WorkspaceID: p.WorkspaceID,
+		AssetID:     p.AssetID,
+		StorageKey:  storageKey,
+		MimeType:    contentType,
+	})
+}
+
 // VariantJobPayload is the payload for user-triggered variant creation jobs.
 // VersionID and VersionNum identify the asset version the variant is bound to.
 type VariantJobPayload struct {
@@ -107,6 +118,9 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 		TransformParams: &pj,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/jpeg")
+	}
 	return err
 }
 
@@ -183,6 +197,9 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		TransformParams: &paramsStr,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumb(ctx, p, variantID, storageKey, contentType)
+	}
 	return err
 }
 
@@ -243,6 +260,10 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 	}
 
 	sz := int64(len(dstData))
+	outputMime := "video/mp4"
+	if params.Format == "webm" {
+		outputMime = "video/webm"
+	}
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
 		WorkspaceID:     p.WorkspaceID,
@@ -252,6 +273,9 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 		TransformParams: &pj,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumb(ctx, p, variantID, storageKey, outputMime)
+	}
 	return err
 }
 
@@ -296,5 +320,8 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		TransformParams: &emptyParams,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")
+	}
 	return err
 }

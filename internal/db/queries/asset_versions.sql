@@ -51,7 +51,7 @@ ORDER BY version_num DESC
 LIMIT -1 OFFSET ?;
 
 -- name: SetVersionThumbnail :exec
-UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?;
+UPDATE asset_versions SET thumbnail_key = ?, thumbnail_content_type = ? WHERE id = ?;
 
 -- name: HardDeleteVersion :exec
 DELETE FROM asset_versions WHERE id = ?;

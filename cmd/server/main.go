@@ -17,6 +17,7 @@ import (
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
+	"damask/server/internal/transform"
 	services "damask/server/internal/fileproc"
 	"damask/server/internal/storage"
 
@@ -104,6 +105,10 @@ func main() {
 
 	q.Start(ctx)
 	defer q.Stop()
+
+	if missing := transform.CheckExternalDeps(); len(missing) > 0 {
+		slog.Warn("external dependencies missing — some thumbnail types will be skipped", "missing", missing)
+	}
 
 	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, cfg)
 	js.RegisterJobHandlers()

@@ -118,19 +118,23 @@ func ThumbnailFromVideo(ctx context.Context, rc io.ReadCloser, mimeType string) 
 		return nil, "", err
 	}
 	defer cleanup()
-	data, err := VideoExtractThumbnail(ctx, tmpPath, VideoThumbnailParams{Timestamp: 1.0})
+	data, err := VideoClipThumbnail(ctx, tmpPath, VideoClipParams{})
 	if err != nil {
 		return nil, "", err
 	}
-	return data, ".jpg", nil
+	return data, ".mp4", nil
 }
 
 func ThumbnailFromPDF(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {
-	data, contentType, err := MagikFirstThumbnail(ctx, rc, mimeType)
+	if !ImageMagickAvailable() || !FFmpegAvailable() {
+		slog.Debug("thumbnail: convert or ffmpeg not available, skipping PDF slideshow")
+		return nil, "", nil
+	}
+	data, err := PDFSlideshowThumbnail(ctx, rc, mimeType)
 	if err != nil {
 		return nil, "", err
 	}
-	return data, mimeToExt(contentType), nil
+	return data, ".mp4", nil
 }
 
 func ThumbnailFromAudio(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {

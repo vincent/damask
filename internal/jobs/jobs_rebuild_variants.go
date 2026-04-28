@@ -206,8 +206,9 @@ func (s *JobServer) rebuildImageVariant(
 	}
 
 	sz := int64(len(data))
+	vid := uuid.NewString()
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              uuid.NewString(),
+		ID:              vid,
 		WorkspaceID:     ver.WorkspaceID,
 		AssetVersionID:  ver.ID,
 		Type:            variantType,
@@ -215,6 +216,9 @@ func (s *JobServer) rebuildImageVariant(
 		TransformParams: &paramsJSON,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, contentType)
+	}
 	return err
 }
 
@@ -250,8 +254,9 @@ func (s *JobServer) rebuildBgRemoveVariant(
 
 	emptyParams := "{}"
 	sz := int64(len(result))
+	vid := uuid.NewString()
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              uuid.NewString(),
+		ID:              vid,
 		WorkspaceID:     ver.WorkspaceID,
 		AssetVersionID:  ver.ID,
 		Type:            queue.JobTypeImageBgRemove,
@@ -259,6 +264,9 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		TransformParams: &emptyParams,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/png")
+	}
 	return err
 }
 
@@ -300,8 +308,9 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 	}
 
 	sz := int64(len(data))
+	vid := uuid.NewString()
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              uuid.NewString(),
+		ID:              vid,
 		WorkspaceID:     ver.WorkspaceID,
 		AssetVersionID:  ver.ID,
 		Type:            queue.JobTypeVideoCaptureImage,
@@ -309,6 +318,9 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 		TransformParams: &paramsJSON,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/jpeg")
+	}
 	return err
 }
 
@@ -362,9 +374,14 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 		return fmt.Errorf("store variant: %w", err)
 	}
 
+	outputMime := "video/mp4"
+	if params.Format == "webm" {
+		outputMime = "video/webm"
+	}
 	sz := int64(len(dstData))
+	vid := uuid.NewString()
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              uuid.NewString(),
+		ID:              vid,
 		WorkspaceID:     ver.WorkspaceID,
 		AssetVersionID:  ver.ID,
 		Type:            queue.JobTypeVideoTranscode,
@@ -372,5 +389,8 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 		TransformParams: &paramsJSON,
 		Size:            &sz,
 	})
+	if err == nil {
+		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, outputMime)
+	}
 	return err
 }

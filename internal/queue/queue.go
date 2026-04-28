@@ -194,7 +194,8 @@ func (q *Queue) processNext(ctx context.Context) {
 
 // Job type constants used throughout the application.
 const (
-	JobTypeVersionThumbnail = "version_thumbnail"
+	JobTypeVersionThumbnail  = "version_thumbnail"
+	JobTypeVariantThumbnail  = "generate_variant_thumbnail"
 
 	// Variant jobs — user-triggered, each creates a variants row.
 	JobTypeVideoCaptureImage = "video_capture_image"

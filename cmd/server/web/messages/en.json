@@ -577,5 +577,10 @@
   "sort_date": "Date",
   "sort_mimetype": "Type",
   "sort_weight": "Size",
-  "sort_date_taken": "Shooting date"
+  "sort_date_taken": "Shooting date",
+  "thumbnail_loading": "Loading preview",
+  "thumbnail_video_preview": "Video preview",
+  "thumbnail_pdf_preview": "Document preview",
+  "variant_thumbnail_generating": "Generating preview…",
+  "variant_no_preview": "No preview available"
 }

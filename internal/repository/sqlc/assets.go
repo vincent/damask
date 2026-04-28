@@ -490,21 +490,22 @@ func fieldFilterArgs(f repository.FieldFilter) []interface{} {
 
 func toAsset(a dbgen.Asset) repository.Asset {
 	return repository.Asset{
-		ID:               a.ID,
-		WorkspaceID:      a.WorkspaceID,
-		ProjectID:        a.ProjectID,
-		FolderID:         a.FolderID,
-		OriginalFilename: a.OriginalFilename,
-		StorageKey:       a.StorageKey,
-		MimeType:         a.MimeType,
-		Size:             a.Size,
-		Width:            a.Width,
-		Height:           a.Height,
-		ThumbnailKey:     a.ThumbnailKey,
-		Metadata:         a.Metadata,
-		CurrentVersionID: a.CurrentVersionID,
-		CreatedAt:        a.CreatedAt,
-		UpdatedAt:        a.UpdatedAt,
+		ID:                   a.ID,
+		WorkspaceID:          a.WorkspaceID,
+		ProjectID:            a.ProjectID,
+		FolderID:             a.FolderID,
+		OriginalFilename:     a.OriginalFilename,
+		StorageKey:           a.StorageKey,
+		MimeType:             a.MimeType,
+		Size:                 a.Size,
+		Width:                a.Width,
+		Height:               a.Height,
+		ThumbnailKey:         a.ThumbnailKey,
+		ThumbnailContentType: a.ThumbnailContentType,
+		Metadata:             a.Metadata,
+		CurrentVersionID:     a.CurrentVersionID,
+		CreatedAt:            a.CreatedAt,
+		UpdatedAt:            a.UpdatedAt,
 	}
 }
 

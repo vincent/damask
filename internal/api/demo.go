@@ -81,7 +81,7 @@ func (s *Server) handleDemoSession(c fiber.Ctx) error {
 	}
 
 	// 2-hour demo token with is_demo=true claim
-	tokenStr, err := s.tokenMaker.CreateDemoToken(userID, workspaceID, 2*time.Hour)
+	tokenStr, err := s.auth.CreateDemoToken(userID, workspaceID, 2*time.Hour)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "could not create demo token")
 	}

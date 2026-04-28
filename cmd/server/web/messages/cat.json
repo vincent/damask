@@ -562,5 +562,10 @@
   "ingress_canva_ownership_any": "Tots els dissenys accessibles",
   "ingress_canva_name_filter": "Filtra per nom (opcional)",
   "ingress_canva_name_filter_hint": "Importa només els dissenys el títol dels quals contingui aquest text",
-  "back_to_library": "Tornar a la biblioteca"
+  "back_to_library": "Tornar a la biblioteca",
+  "thumbnail_loading": "Carregant la previsualització",
+  "thumbnail_video_preview": "Previsualització de vídeo",
+  "thumbnail_pdf_preview": "Previsualització del document",
+  "variant_thumbnail_generating": "Generant la previsualització…",
+  "variant_no_preview": "Previsualització no disponible"
 }

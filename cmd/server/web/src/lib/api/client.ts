@@ -232,6 +232,10 @@ export const variantApi = {
   fileUrl: (assetId: string, variantId: string): string =>
     `${API_BASE}/api/v1/assets/${assetId}/variants/${variantId}/file`,
 
+  /** GET /api/v1/assets/:id/variants/:vid/thumb — thumbnail URL for a variant. */
+  thumbUrl: (assetId: string, variantId: string): string =>
+    `${API_BASE}/api/v1/assets/${assetId}/variants/${variantId}/thumb`,
+
   /** GET /api/v1/assets/:id/preview — in-memory cached preview transform URL (query params: w, h, fit, format, q). */
   previewUrl: (assetId: string, params: {
     w?: number

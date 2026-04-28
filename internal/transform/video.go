@@ -116,6 +116,68 @@ func VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnail
 	return buf.Bytes(), nil
 }
 
+// VideoClipParams defines parameters for creating a short video clip thumbnail.
+type VideoClipParams struct {
+	DurationSec int    // default 5
+	Bitrate     string // default "200k"
+	Width       int    // default 400
+}
+
+// VideoClipThumbnail produces a short silent MP4 clip starting at t=1s.
+// Returns MP4 bytes.
+func VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) ([]byte, error) {
+	if len(strings.TrimSpace(srcPath)) == 0 {
+		return nil, fmt.Errorf("source path is empty")
+	}
+	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("source path does not exist: %s", srcPath)
+	}
+
+	dur := p.DurationSec
+	if dur <= 0 {
+		dur = 5
+	}
+	bitrate := p.Bitrate
+	if bitrate == "" {
+		bitrate = "200k"
+	}
+	width := p.Width
+	if width <= 0 {
+		width = 400
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+	outPath := srcPath + "_clip.mp4"
+	defer os.Remove(outPath)
+
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx,
+		"ffmpeg", "-y",
+		"-ss", "1",
+		"-i", srcPath,
+		"-t", strconv.Itoa(dur),
+		"-an",
+		"-vf", fmt.Sprintf("scale=%d:-2", width),
+		"-b:v", bitrate,
+		"-c:v", "libx264",
+		"-movflags", "+faststart",
+		"-preset", "fast",
+		outPath,
+	)
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ffmpeg clip: %w — stderr: %s", err, stderr.String())
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		return nil, fmt.Errorf("read clip: %w", err)
+	}
+	return data, nil
+}
+
 // VideoTranscode transcodes a video using ffmpeg, writing the result to dstPath.
 // Both srcPath and dstPath must be filesystem paths.
 func VideoTranscode(ctx context.Context, srcPath, dstPath string, p TranscodeParams) error {

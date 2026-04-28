@@ -57,6 +57,7 @@ export interface Asset {
   width: number | null
   height: number | null
   thumbnail_key: string | null
+  thumbnail_content_type: string | null
   metadata: string | null
   tags: string[]
   version_count: number
@@ -190,6 +191,8 @@ export interface Variant {
   size: number | null
   storage_key: string
   download_url: string
+  thumbnail_url: string | null
+  thumbnail_content_type: string
   created_at: string
 }
 

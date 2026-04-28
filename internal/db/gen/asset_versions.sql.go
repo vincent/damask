@@ -36,7 +36,7 @@ INSERT INTO asset_versions (
   mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, is_current
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at
+RETURNING id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at
 `
 
 type CreateAssetVersionParams struct {
@@ -89,6 +89,7 @@ func (q *Queries) CreateAssetVersion(ctx context.Context, arg CreateAssetVersion
 		&i.Height,
 		&i.DurationSec,
 		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.Comment,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -99,7 +100,7 @@ func (q *Queries) CreateAssetVersion(ctx context.Context, arg CreateAssetVersion
 }
 
 const getCurrentVersion = `-- name: GetCurrentVersion :one
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ? AND is_current = 1 AND deleted_at IS NULL
 LIMIT 1
 `
@@ -120,6 +121,7 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, assetID string) (AssetV
 		&i.Height,
 		&i.DurationSec,
 		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.Comment,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -130,7 +132,7 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, assetID string) (AssetV
 }
 
 const getVersionByHash = `-- name: GetVersionByHash :one
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ? AND content_hash = ? AND deleted_at IS NULL
 ORDER BY version_num DESC
 LIMIT 1
@@ -157,6 +159,7 @@ func (q *Queries) GetVersionByHash(ctx context.Context, arg GetVersionByHashPara
 		&i.Height,
 		&i.DurationSec,
 		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.Comment,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -167,7 +170,7 @@ func (q *Queries) GetVersionByHash(ctx context.Context, arg GetVersionByHashPara
 }
 
 const getVersionByID = `-- name: GetVersionByID :one
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions WHERE id = ? AND workspace_id = ?
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions WHERE id = ? AND workspace_id = ?
 `
 
 type GetVersionByIDParams struct {
@@ -191,6 +194,7 @@ func (q *Queries) GetVersionByID(ctx context.Context, arg GetVersionByIDParams) 
 		&i.Height,
 		&i.DurationSec,
 		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.Comment,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -201,7 +205,7 @@ func (q *Queries) GetVersionByID(ctx context.Context, arg GetVersionByIDParams) 
 }
 
 const getVersionByIDUnchecked = `-- name: GetVersionByIDUnchecked :one
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions WHERE id = ?
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions WHERE id = ?
 `
 
 func (q *Queries) GetVersionByIDUnchecked(ctx context.Context, id string) (AssetVersion, error) {
@@ -220,6 +224,7 @@ func (q *Queries) GetVersionByIDUnchecked(ctx context.Context, id string) (Asset
 		&i.Height,
 		&i.DurationSec,
 		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.Comment,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -230,7 +235,7 @@ func (q *Queries) GetVersionByIDUnchecked(ctx context.Context, id string) (Asset
 }
 
 const getVersionByNum = `-- name: GetVersionByNum :one
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions WHERE asset_id = ? AND version_num = ?
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions WHERE asset_id = ? AND version_num = ?
 `
 
 type GetVersionByNumParams struct {
@@ -254,6 +259,7 @@ func (q *Queries) GetVersionByNum(ctx context.Context, arg GetVersionByNumParams
 		&i.Height,
 		&i.DurationSec,
 		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.Comment,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -292,7 +298,7 @@ func (q *Queries) IsVersionReferencedAsCover(ctx context.Context, arg IsVersionR
 }
 
 const listAllVersions = `-- name: ListAllVersions :many
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ?
 ORDER BY version_num DESC
 `
@@ -319,6 +325,7 @@ func (q *Queries) ListAllVersions(ctx context.Context, assetID string) ([]AssetV
 			&i.Height,
 			&i.DurationSec,
 			&i.ThumbnailKey,
+			&i.ThumbnailContentType,
 			&i.Comment,
 			&i.CreatedBy,
 			&i.CreatedAt,
@@ -366,7 +373,7 @@ func (q *Queries) ListAssetsWithVersions(ctx context.Context, workspaceID string
 }
 
 const listVersions = `-- name: ListVersions :many
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ? AND deleted_at IS NULL
 ORDER BY version_num DESC
 `
@@ -393,6 +400,7 @@ func (q *Queries) ListVersions(ctx context.Context, assetID string) ([]AssetVers
 			&i.Height,
 			&i.DurationSec,
 			&i.ThumbnailKey,
+			&i.ThumbnailContentType,
 			&i.Comment,
 			&i.CreatedBy,
 			&i.CreatedAt,
@@ -413,7 +421,7 @@ func (q *Queries) ListVersions(ctx context.Context, assetID string) ([]AssetVers
 }
 
 const listVersionsBeyondRetention = `-- name: ListVersionsBeyondRetention :many
-SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ?
   AND deleted_at IS NULL
   AND is_current = 0
@@ -448,6 +456,7 @@ func (q *Queries) ListVersionsBeyondRetention(ctx context.Context, arg ListVersi
 			&i.Height,
 			&i.DurationSec,
 			&i.ThumbnailKey,
+			&i.ThumbnailContentType,
 			&i.Comment,
 			&i.CreatedBy,
 			&i.CreatedAt,
@@ -468,7 +477,7 @@ func (q *Queries) ListVersionsBeyondRetention(ctx context.Context, arg ListVersi
 }
 
 const listVersionsWithVariantCount = `-- name: ListVersionsWithVariantCount :many
-SELECT av.id, av.asset_id, av.workspace_id, av.version_num, av.storage_key, av.content_hash, av.mime_type, av.size, av.width, av.height, av.duration_sec, av.thumbnail_key, av.comment, av.created_by, av.created_at, av.is_current, av.deleted_at, COUNT(v.id) AS variant_count
+SELECT av.id, av.asset_id, av.workspace_id, av.version_num, av.storage_key, av.content_hash, av.mime_type, av.size, av.width, av.height, av.duration_sec, av.thumbnail_key, av.thumbnail_content_type, av.comment, av.created_by, av.created_at, av.is_current, av.deleted_at, COUNT(v.id) AS variant_count
 FROM asset_versions av
 LEFT JOIN variants v ON v.asset_version_id = av.id
 WHERE av.asset_id = ? AND av.deleted_at IS NULL
@@ -477,24 +486,25 @@ ORDER BY av.version_num DESC
 `
 
 type ListVersionsWithVariantCountRow struct {
-	ID           string   `json:"id"`
-	AssetID      string   `json:"asset_id"`
-	WorkspaceID  string   `json:"workspace_id"`
-	VersionNum   int64    `json:"version_num"`
-	StorageKey   string   `json:"storage_key"`
-	ContentHash  string   `json:"content_hash"`
-	MimeType     string   `json:"mime_type"`
-	Size         int64    `json:"size"`
-	Width        *int64   `json:"width"`
-	Height       *int64   `json:"height"`
-	DurationSec  *float64 `json:"duration_sec"`
-	ThumbnailKey *string  `json:"thumbnail_key"`
-	Comment      *string  `json:"comment"`
-	CreatedBy    *string  `json:"created_by"`
-	CreatedAt    string   `json:"created_at"`
-	IsCurrent    int64    `json:"is_current"`
-	DeletedAt    *string  `json:"deleted_at"`
-	VariantCount int64    `json:"variant_count"`
+	ID                   string   `json:"id"`
+	AssetID              string   `json:"asset_id"`
+	WorkspaceID          string   `json:"workspace_id"`
+	VersionNum           int64    `json:"version_num"`
+	StorageKey           string   `json:"storage_key"`
+	ContentHash          string   `json:"content_hash"`
+	MimeType             string   `json:"mime_type"`
+	Size                 int64    `json:"size"`
+	Width                *int64   `json:"width"`
+	Height               *int64   `json:"height"`
+	DurationSec          *float64 `json:"duration_sec"`
+	ThumbnailKey         *string  `json:"thumbnail_key"`
+	ThumbnailContentType string   `json:"thumbnail_content_type"`
+	Comment              *string  `json:"comment"`
+	CreatedBy            *string  `json:"created_by"`
+	CreatedAt            string   `json:"created_at"`
+	IsCurrent            int64    `json:"is_current"`
+	DeletedAt            *string  `json:"deleted_at"`
+	VariantCount         int64    `json:"variant_count"`
 }
 
 // Versions for an asset with per-version variant count (for History tab VV-4.2).
@@ -520,6 +530,7 @@ func (q *Queries) ListVersionsWithVariantCount(ctx context.Context, assetID stri
 			&i.Height,
 			&i.DurationSec,
 			&i.ThumbnailKey,
+			&i.ThumbnailContentType,
 			&i.Comment,
 			&i.CreatedBy,
 			&i.CreatedAt,
@@ -550,16 +561,17 @@ func (q *Queries) SetCurrentVersionFlag(ctx context.Context, id string) error {
 }
 
 const setVersionThumbnail = `-- name: SetVersionThumbnail :exec
-UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?
+UPDATE asset_versions SET thumbnail_key = ?, thumbnail_content_type = ? WHERE id = ?
 `
 
 type SetVersionThumbnailParams struct {
-	ThumbnailKey *string `json:"thumbnail_key"`
-	ID           string  `json:"id"`
+	ThumbnailKey         *string `json:"thumbnail_key"`
+	ThumbnailContentType string  `json:"thumbnail_content_type"`
+	ID                   string  `json:"id"`
 }
 
 func (q *Queries) SetVersionThumbnail(ctx context.Context, arg SetVersionThumbnailParams) error {
-	_, err := q.db.ExecContext(ctx, setVersionThumbnail, arg.ThumbnailKey, arg.ID)
+	_, err := q.db.ExecContext(ctx, setVersionThumbnail, arg.ThumbnailKey, arg.ThumbnailContentType, arg.ID)
 	return err
 }
 

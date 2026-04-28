@@ -317,6 +317,7 @@ func NewRouter(
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)
 	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadManualVariant)
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
+	api.Get("/assets/:id/variants/:vid/thumb", s.handleGetVariantThumb)
 	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteVariant)
 
 	// Asset versions

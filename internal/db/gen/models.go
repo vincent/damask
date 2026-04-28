@@ -9,21 +9,22 @@ import (
 )
 
 type Asset struct {
-	ID               string    `json:"id"`
-	WorkspaceID      string    `json:"workspace_id"`
-	ProjectID        *string   `json:"project_id"`
-	FolderID         *string   `json:"folder_id"`
-	OriginalFilename string    `json:"original_filename"`
-	StorageKey       string    `json:"storage_key"`
-	MimeType         string    `json:"mime_type"`
-	Size             int64     `json:"size"`
-	Width            *int64    `json:"width"`
-	Height           *int64    `json:"height"`
-	ThumbnailKey     *string   `json:"thumbnail_key"`
-	Metadata         *string   `json:"metadata"`
-	CurrentVersionID *string   `json:"current_version_id"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID                   string    `json:"id"`
+	WorkspaceID          string    `json:"workspace_id"`
+	ProjectID            *string   `json:"project_id"`
+	FolderID             *string   `json:"folder_id"`
+	OriginalFilename     string    `json:"original_filename"`
+	StorageKey           string    `json:"storage_key"`
+	MimeType             string    `json:"mime_type"`
+	Size                 int64     `json:"size"`
+	Width                *int64    `json:"width"`
+	Height               *int64    `json:"height"`
+	ThumbnailKey         *string   `json:"thumbnail_key"`
+	ThumbnailContentType string    `json:"thumbnail_content_type"`
+	Metadata             *string   `json:"metadata"`
+	CurrentVersionID     *string   `json:"current_version_id"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type AssetEvent struct {
@@ -56,23 +57,24 @@ type AssetTag struct {
 }
 
 type AssetVersion struct {
-	ID           string   `json:"id"`
-	AssetID      string   `json:"asset_id"`
-	WorkspaceID  string   `json:"workspace_id"`
-	VersionNum   int64    `json:"version_num"`
-	StorageKey   string   `json:"storage_key"`
-	ContentHash  string   `json:"content_hash"`
-	MimeType     string   `json:"mime_type"`
-	Size         int64    `json:"size"`
-	Width        *int64   `json:"width"`
-	Height       *int64   `json:"height"`
-	DurationSec  *float64 `json:"duration_sec"`
-	ThumbnailKey *string  `json:"thumbnail_key"`
-	Comment      *string  `json:"comment"`
-	CreatedBy    *string  `json:"created_by"`
-	CreatedAt    string   `json:"created_at"`
-	IsCurrent    int64    `json:"is_current"`
-	DeletedAt    *string  `json:"deleted_at"`
+	ID                   string   `json:"id"`
+	AssetID              string   `json:"asset_id"`
+	WorkspaceID          string   `json:"workspace_id"`
+	VersionNum           int64    `json:"version_num"`
+	StorageKey           string   `json:"storage_key"`
+	ContentHash          string   `json:"content_hash"`
+	MimeType             string   `json:"mime_type"`
+	Size                 int64    `json:"size"`
+	Width                *int64   `json:"width"`
+	Height               *int64   `json:"height"`
+	DurationSec          *float64 `json:"duration_sec"`
+	ThumbnailKey         *string  `json:"thumbnail_key"`
+	ThumbnailContentType string   `json:"thumbnail_content_type"`
+	Comment              *string  `json:"comment"`
+	CreatedBy            *string  `json:"created_by"`
+	CreatedAt            string   `json:"created_at"`
+	IsCurrent            int64    `json:"is_current"`
+	DeletedAt            *string  `json:"deleted_at"`
 }
 
 type AssetsFt struct {
@@ -280,14 +282,16 @@ type User struct {
 }
 
 type Variant struct {
-	ID              string    `json:"id"`
-	WorkspaceID     string    `json:"workspace_id"`
-	AssetVersionID  string    `json:"asset_version_id"`
-	Type            string    `json:"type"`
-	StorageKey      string    `json:"storage_key"`
-	TransformParams *string   `json:"transform_params"`
-	Size            *int64    `json:"size"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID                   string    `json:"id"`
+	WorkspaceID          string    `json:"workspace_id"`
+	AssetVersionID       string    `json:"asset_version_id"`
+	Type                 string    `json:"type"`
+	StorageKey           string    `json:"storage_key"`
+	TransformParams      *string   `json:"transform_params"`
+	Size                 *int64    `json:"size"`
+	ThumbnailKey         *string   `json:"thumbnail_key"`
+	ThumbnailContentType string    `json:"thumbnail_content_type"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 type Workspace struct {

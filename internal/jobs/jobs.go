@@ -84,6 +84,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	reg(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 
 	reg(queue.JobTypeVersionThumbnail, s.jobVersionThumbnail)
+	reg(queue.JobTypeVariantThumbnail, s.jobVariantThumbnail)
 
 	// Variant jobs — user-triggered, each creates a variants row.
 	reg(queue.JobTypeVideoCaptureImage, s.jobVideoCaptureImage)

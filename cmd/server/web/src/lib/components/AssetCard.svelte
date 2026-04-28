@@ -6,6 +6,7 @@
   import { m } from '$lib/paraglide/messages'
   import { mount, unmount } from 'svelte'
   import DragGhost from './DragGhost.svelte'
+  import AssetThumbnail from './AssetThumbnail.svelte'
 
   interface Props {
     asset: Asset
@@ -91,15 +92,11 @@
     {/if}
 
     {#if (category === 'image' || category === 'video' || category === 'audio' || category === 'document') && !isProcessing}
-      <img
+      <AssetThumbnail
         src={assetApi.thumbUrl(asset.id)}
+        contentType={asset.thumbnail_content_type ? asset.thumbnail_content_type : (asset.thumbnail_key?.includes('.mp4') ? 'video/mp4' : 'image/jpeg')}
         alt={asset.original_filename}
-        data-asset-dynamic-resource={asset.id}
         class="h-full w-full object-cover"
-        loading="lazy"
-        onerror={(e) => {
-          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-        }}
       />
     {:else}
       <!-- Centered icon -->

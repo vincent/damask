@@ -145,6 +145,11 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 		if err := s.storage.Delete(v.StorageKey); err != nil {
 			slog.Error("purge-version-storage: delete variant storage", "storage_key", v.StorageKey, "error", err)
 		}
+		if v.ThumbnailKey != nil {
+			if err := s.storage.Delete(*v.ThumbnailKey); err != nil {
+				slog.Error("purge-version-storage: delete variant thumb", "storage_key", *v.ThumbnailKey, "error", err)
+			}
+		}
 	}
 
 	// Delete source + thumbnail storage files.

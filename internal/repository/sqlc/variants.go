@@ -70,13 +70,15 @@ func (r *variantRepo) Delete(ctx context.Context, workspaceID, id string) error 
 
 func toVariant(v dbgen.Variant) repository.Variant {
 	return repository.Variant{
-		ID:              v.ID,
-		WorkspaceID:     v.WorkspaceID,
-		AssetVersionID:  v.AssetVersionID,
-		Type:            v.Type,
-		StorageKey:      v.StorageKey,
-		TransformParams: v.TransformParams,
-		Size:            v.Size,
-		CreatedAt:       v.CreatedAt,
+		ID:                   v.ID,
+		WorkspaceID:          v.WorkspaceID,
+		AssetVersionID:       v.AssetVersionID,
+		Type:                 v.Type,
+		StorageKey:           v.StorageKey,
+		TransformParams:      v.TransformParams,
+		Size:                 v.Size,
+		ThumbnailKey:         v.ThumbnailKey,
+		ThumbnailContentType: v.ThumbnailContentType,
+		CreatedAt:            v.CreatedAt,
 	}
 }

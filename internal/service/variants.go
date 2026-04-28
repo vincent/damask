@@ -13,14 +13,16 @@ import (
 
 // VariantDTO is the output of VariantService methods.
 type VariantDTO struct {
-	ID              string
-	WorkspaceID     string
-	AssetVersionID  string
-	Type            string
-	StorageKey      string
-	TransformParams *string
-	Size            *int64
-	CreatedAt       time.Time
+	ID                   string
+	WorkspaceID          string
+	AssetVersionID       string
+	Type                 string
+	StorageKey           string
+	TransformParams      *string
+	Size                 *int64
+	ThumbnailKey         *string
+	ThumbnailContentType string
+	CreatedAt            time.Time
 }
 
 type variantService struct {
@@ -137,13 +139,15 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 
 func toVariantDTO(v repository.Variant) *VariantDTO {
 	return &VariantDTO{
-		ID:              v.ID,
-		WorkspaceID:     v.WorkspaceID,
-		AssetVersionID:  v.AssetVersionID,
-		Type:            v.Type,
-		StorageKey:      v.StorageKey,
-		TransformParams: v.TransformParams,
-		Size:            v.Size,
-		CreatedAt:       v.CreatedAt,
+		ID:                   v.ID,
+		WorkspaceID:          v.WorkspaceID,
+		AssetVersionID:       v.AssetVersionID,
+		Type:                 v.Type,
+		StorageKey:           v.StorageKey,
+		TransformParams:      v.TransformParams,
+		Size:                 v.Size,
+		ThumbnailKey:         v.ThumbnailKey,
+		ThumbnailContentType: v.ThumbnailContentType,
+		CreatedAt:            v.CreatedAt,
 	}
 }

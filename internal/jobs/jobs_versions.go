@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime"
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
@@ -66,9 +67,15 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		return fmt.Errorf("store thumb: %w", err)
 	}
 
+	thumbContentType := mime.TypeByExtension(thumbExt)
+	if thumbContentType == "" {
+		thumbContentType = "image/jpeg"
+	}
+
 	if err := s.db.SetVersionThumbnail(ctx, dbgen.SetVersionThumbnailParams{
-		ThumbnailKey: &thumbKey,
-		ID:           p.VersionID,
+		ThumbnailKey:         &thumbKey,
+		ThumbnailContentType: thumbContentType,
+		ID:                   p.VersionID,
 	}); err != nil {
 		return fmt.Errorf("set version thumbnail: %w", err)
 	}
@@ -77,8 +84,9 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 	ver, err := s.db.GetVersionByIDUnchecked(ctx, p.VersionID)
 	if err == nil && ver.IsCurrent == 1 {
 		if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
-			ThumbnailKey: &thumbKey,
-			ID:           p.AssetID,
+			ThumbnailKey:         &thumbKey,
+			ThumbnailContentType: thumbContentType,
+			ID:                   p.AssetID,
 		}); err == nil {
 			s.hub.Publish(p.WorkspaceID, events.Event{
 				Type:         "thumbnail_ready",

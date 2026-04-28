@@ -18,23 +18,24 @@ import (
 )
 
 type AssetResponse struct {
-	ID                 string    `json:"id"`
-	WorkspaceID        string    `json:"workspace_id"`
-	ProjectID          *string   `json:"project_id"`
-	FolderID           *string   `json:"folder_id"`
-	OriginalFilename   string    `json:"original_filename"`
-	MimeType           string    `json:"mime_type"`
-	Size               int64     `json:"size"`
-	Width              *int64    `json:"width"`
-	Height             *int64    `json:"height"`
-	ThumbnailKey       *string   `json:"thumbnail_key"`
-	Metadata           *string   `json:"metadata"`
-	Tags               []string  `json:"tags"`
-	VersionCount       int64     `json:"version_count"`
-	VariantCount       int64     `json:"variant_count"`
-	VariantsRebuilding bool      `json:"variants_rebuilding"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                   string    `json:"id"`
+	WorkspaceID          string    `json:"workspace_id"`
+	ProjectID            *string   `json:"project_id"`
+	FolderID             *string   `json:"folder_id"`
+	OriginalFilename     string    `json:"original_filename"`
+	MimeType             string    `json:"mime_type"`
+	Size                 int64     `json:"size"`
+	Width                *int64    `json:"width"`
+	Height               *int64    `json:"height"`
+	ThumbnailKey         *string   `json:"thumbnail_key"`
+	ThumbnailContentType *string   `json:"thumbnail_content_type"`
+	Metadata             *string   `json:"metadata"`
+	Tags                 []string  `json:"tags"`
+	VersionCount         int64     `json:"version_count"`
+	VariantCount         int64     `json:"variant_count"`
+	VariantsRebuilding   bool      `json:"variants_rebuilding"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type AssetListResponse struct {
@@ -291,21 +292,22 @@ func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sor
 			nVariants = variantCounts[a.ID]
 		}
 		items[i] = AssetResponse{
-			ID:               a.ID,
-			WorkspaceID:      a.WorkspaceID,
-			ProjectID:        a.ProjectID,
-			FolderID:         a.FolderID,
-			OriginalFilename: a.OriginalFilename,
-			MimeType:         a.MimeType,
-			Size:             a.Size,
-			Width:            a.Width,
-			Height:           a.Height,
-			ThumbnailKey:     a.ThumbnailKey,
-			CreatedAt:        a.CreatedAt,
-			UpdatedAt:        a.UpdatedAt,
-			Tags:             []string{},
-			VersionCount:     vc,
-			VariantCount:     nVariants,
+			ID:                   a.ID,
+			WorkspaceID:          a.WorkspaceID,
+			ProjectID:            a.ProjectID,
+			FolderID:             a.FolderID,
+			OriginalFilename:     a.OriginalFilename,
+			MimeType:             a.MimeType,
+			Size:                 a.Size,
+			Width:                a.Width,
+			Height:               a.Height,
+			ThumbnailKey:         a.ThumbnailKey,
+			ThumbnailContentType: &a.ThumbnailContentType,
+			CreatedAt:            a.CreatedAt,
+			UpdatedAt:            a.UpdatedAt,
+			Tags:                 []string{},
+			VersionCount:         vc,
+			VariantCount:         nVariants,
 		}
 	}
 	var nextCursor *string
@@ -529,7 +531,11 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
 
-	c.Set("Content-Type", "image/jpeg")
+	ct := dto.ThumbnailContentType
+	if ct == "" {
+		ct = "image/jpeg"
+	}
+	c.Set("Content-Type", ct)
 	return c.SendStream(rc)
 }
 

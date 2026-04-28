@@ -3,6 +3,9 @@ INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, tra
 VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
+-- name: SetVariantThumbnail :exec
+UPDATE variants SET thumbnail_key = ?, thumbnail_content_type = ? WHERE id = ?;
+
 -- name: GetVariantByID :one
 SELECT * FROM variants WHERE id = ? AND workspace_id = ?;
 

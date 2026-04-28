@@ -78,11 +78,12 @@ CREATE TABLE assets (
     size                INTEGER NOT NULL,
     width               INTEGER,
     height              INTEGER,
-    thumbnail_key       TEXT,
-    metadata            TEXT, -- JSON
-    current_version_id  TEXT,  -- FK added after asset_versions is created
-    created_at          DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at          DATETIME NOT NULL DEFAULT (datetime('now'))
+    thumbnail_key          TEXT,
+    thumbnail_content_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    metadata               TEXT, -- JSON
+    current_version_id     TEXT,  -- FK added after asset_versions is created
+    created_at             DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at             DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE asset_versions (
@@ -97,12 +98,13 @@ CREATE TABLE asset_versions (
   width         INTEGER,
   height        INTEGER,
   duration_sec  REAL,
-  thumbnail_key TEXT,
-  comment       TEXT,
-  created_by    TEXT REFERENCES users(id),
-  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  is_current    INTEGER NOT NULL DEFAULT 0,
-  deleted_at    TEXT,
+  thumbnail_key          TEXT,
+  thumbnail_content_type TEXT NOT NULL DEFAULT 'image/jpeg',
+  comment                TEXT,
+  created_by             TEXT REFERENCES users(id),
+  created_at             TEXT NOT NULL DEFAULT (datetime('now')),
+  is_current             INTEGER NOT NULL DEFAULT 0,
+  deleted_at             TEXT,
   UNIQUE(asset_id, version_num)
 );
 
@@ -133,11 +135,13 @@ CREATE TABLE variants (
     id               TEXT PRIMARY KEY,
     workspace_id     TEXT NOT NULL REFERENCES workspaces(id),
     asset_version_id TEXT NOT NULL REFERENCES asset_versions(id) ON DELETE CASCADE,
-    type             TEXT NOT NULL,
-    storage_key      TEXT NOT NULL,
-    transform_params TEXT, -- JSON
-    size             INTEGER,
-    created_at       DATETIME NOT NULL DEFAULT (datetime('now'))
+    type                   TEXT NOT NULL,
+    storage_key            TEXT NOT NULL,
+    transform_params       TEXT, -- JSON
+    size                   INTEGER,
+    thumbnail_key          TEXT,
+    thumbnail_content_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    created_at             DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE jobs (

@@ -116,7 +116,7 @@ func (q *Queries) GetCollection(ctx context.Context, arg GetCollectionParams) (C
 }
 
 const listCollectionAssets = `-- name: ListCollectionAssets :many
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata, a.current_version_id, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.created_at, a.updated_at
 FROM assets a
 JOIN collection_assets ca ON ca.asset_id = a.id
 WHERE ca.collection_id = ?
@@ -144,6 +144,7 @@ func (q *Queries) ListCollectionAssets(ctx context.Context, collectionID string)
 			&i.Width,
 			&i.Height,
 			&i.ThumbnailKey,
+			&i.ThumbnailContentType,
 			&i.Metadata,
 			&i.CurrentVersionID,
 			&i.CreatedAt,

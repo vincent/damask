@@ -24,14 +24,16 @@ import (
 // ---- Response types ----
 
 type VariantResponse struct {
-	ID              string    `json:"id"`
-	AssetVersionID  string    `json:"asset_version_id"`
-	Type            string    `json:"type"`
-	TransformParams *string   `json:"transform_params"`
-	Size            *int64    `json:"size"`
-	StorageKey      string    `json:"storage_key"`
-	DownloadURL     string    `json:"download_url"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID                   string    `json:"id"`
+	AssetVersionID       string    `json:"asset_version_id"`
+	Type                 string    `json:"type"`
+	TransformParams      *string   `json:"transform_params"`
+	Size                 *int64    `json:"size"`
+	StorageKey           string    `json:"storage_key"`
+	DownloadURL          string    `json:"download_url"`
+	ThumbnailURL         *string   `json:"thumbnail_url"`
+	ThumbnailContentType string    `json:"thumbnail_content_type"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 type ListVariantsResponse struct {
@@ -46,15 +48,26 @@ type CreateVariantResponse struct {
 }
 
 func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse {
+	var thumbURL *string
+	if v.ThumbnailKey != nil {
+		u := fmt.Sprintf("/api/v1/assets/%s/variants/%s/thumb", assetID, v.ID)
+		thumbURL = &u
+	}
+	ct := v.ThumbnailContentType
+	if ct == "" {
+		ct = "image/jpeg"
+	}
 	return VariantResponse{
-		ID:              v.ID,
-		AssetVersionID:  v.AssetVersionID,
-		Type:            v.Type,
-		TransformParams: v.TransformParams,
-		Size:            v.Size,
-		StorageKey:      v.StorageKey,
-		DownloadURL:     fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", assetID, v.ID),
-		CreatedAt:       v.CreatedAt,
+		ID:                   v.ID,
+		AssetVersionID:       v.AssetVersionID,
+		Type:                 v.Type,
+		TransformParams:      v.TransformParams,
+		Size:                 v.Size,
+		StorageKey:           v.StorageKey,
+		DownloadURL:          fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", assetID, v.ID),
+		ThumbnailURL:         thumbURL,
+		ThumbnailContentType: ct,
+		CreatedAt:            v.CreatedAt,
 	}
 }
 
@@ -302,6 +315,9 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 	}
 
 	_ = s.storage.Delete(variant.StorageKey)
+	if variant.ThumbnailKey != nil {
+		_ = s.storage.Delete(*variant.ThumbnailKey)
+	}
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -367,6 +383,11 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 
 	sz := fh.Size
 	emptyParams := "{}"
+	uploadedMimeType := mime.TypeByExtension(ext)
+	if uploadedMimeType == "" {
+		uploadedMimeType = "application/octet-stream"
+	}
+
 	v, err := s.variants.Create(c.Context(), service.CreateVariantParams{
 		ID:              variantID,
 		WorkspaceID:     asset.WorkspaceID,
@@ -382,7 +403,45 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create variant record")
 	}
 
+	if thumbPayload, err := json.Marshal(jobs.VariantThumbnailJobPayload{
+		VariantID:   variantID,
+		WorkspaceID: asset.WorkspaceID,
+		AssetID:     assetID,
+		StorageKey:  storageKey,
+		MimeType:    uploadedMimeType,
+	}); err == nil {
+		_, _ = s.queue.Enqueue(c.Context(), asset.WorkspaceID, queue.JobTypeVariantThumbnail, string(thumbPayload))
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(variantDTOToResponse(assetID, v))
+}
+
+// handleGetVariantThumb handles GET /api/v1/assets/:id/variants/:vid/thumb
+// Returns 202 while the thumbnail job is still processing, streams the file once ready.
+func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	variantID := c.Params("vid")
+
+	variant, err := s.variants.Get(c.Context(), claims.WorkspaceID, variantID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	if variant.ThumbnailKey == nil {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status": "processing"})
+	}
+
+	rc, err := s.storage.Get(*variant.ThumbnailKey)
+	if err != nil {
+		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
+	}
+
+	ct := variant.ThumbnailContentType
+	if ct == "" {
+		ct = "image/jpeg"
+	}
+	c.Set("Content-Type", ct)
+	return c.SendStream(rc)
 }
 
 // handlePreviewTransform applies an in-memory image transform and returns the result.

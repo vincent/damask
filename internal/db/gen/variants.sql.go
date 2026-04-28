@@ -58,7 +58,7 @@ func (q *Queries) CountVariantsByVersion(ctx context.Context, assetVersionID str
 const createVariant = `-- name: CreateVariant :one
 INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)
 VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at
+RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size, thumbnail_key, thumbnail_content_type, created_at
 `
 
 type CreateVariantParams struct {
@@ -90,6 +90,8 @@ func (q *Queries) CreateVariant(ctx context.Context, arg CreateVariantParams) (V
 		&i.StorageKey,
 		&i.TransformParams,
 		&i.Size,
+		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -119,7 +121,7 @@ func (q *Queries) DeleteVariantsByVersion(ctx context.Context, assetVersionID st
 }
 
 const getVariantByID = `-- name: GetVariantByID :one
-SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, thumbnail_key, thumbnail_content_type, created_at FROM variants WHERE id = ? AND workspace_id = ?
 `
 
 type GetVariantByIDParams struct {
@@ -138,13 +140,15 @@ func (q *Queries) GetVariantByID(ctx context.Context, arg GetVariantByIDParams) 
 		&i.StorageKey,
 		&i.TransformParams,
 		&i.Size,
+		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getVariantByTypeAndParams = `-- name: GetVariantByTypeAndParams :one
-SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, thumbnail_key, thumbnail_content_type, created_at FROM variants
 WHERE asset_version_id = ? AND type = ? AND transform_params = ?
 LIMIT 1
 `
@@ -167,13 +171,15 @@ func (q *Queries) GetVariantByTypeAndParams(ctx context.Context, arg GetVariantB
 		&i.StorageKey,
 		&i.TransformParams,
 		&i.Size,
+		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listVariantsByAssetCurrentVersion = `-- name: ListVariantsByAssetCurrentVersion :many
-SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size, v.created_at
+SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size, v.thumbnail_key, v.thumbnail_content_type, v.created_at
 FROM variants v
 JOIN asset_versions av ON av.id = v.asset_version_id
 WHERE av.asset_id = ? AND av.is_current = 1
@@ -198,6 +204,8 @@ func (q *Queries) ListVariantsByAssetCurrentVersion(ctx context.Context, assetID
 			&i.StorageKey,
 			&i.TransformParams,
 			&i.Size,
+			&i.ThumbnailKey,
+			&i.ThumbnailContentType,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -214,7 +222,7 @@ func (q *Queries) ListVariantsByAssetCurrentVersion(ctx context.Context, assetID
 }
 
 const listVariantsByVersion = `-- name: ListVariantsByVersion :many
-SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants WHERE asset_version_id = ? ORDER BY created_at DESC
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, thumbnail_key, thumbnail_content_type, created_at FROM variants WHERE asset_version_id = ? ORDER BY created_at DESC
 `
 
 // All variants for a specific asset_version_id, ordered newest first.
@@ -235,6 +243,8 @@ func (q *Queries) ListVariantsByVersion(ctx context.Context, assetVersionID stri
 			&i.StorageKey,
 			&i.TransformParams,
 			&i.Size,
+			&i.ThumbnailKey,
+			&i.ThumbnailContentType,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -248,4 +258,19 @@ func (q *Queries) ListVariantsByVersion(ctx context.Context, assetVersionID stri
 		return nil, err
 	}
 	return items, nil
+}
+
+const setVariantThumbnail = `-- name: SetVariantThumbnail :exec
+UPDATE variants SET thumbnail_key = ?, thumbnail_content_type = ? WHERE id = ?
+`
+
+type SetVariantThumbnailParams struct {
+	ThumbnailKey         *string `json:"thumbnail_key"`
+	ThumbnailContentType string  `json:"thumbnail_content_type"`
+	ID                   string  `json:"id"`
+}
+
+func (q *Queries) SetVariantThumbnail(ctx context.Context, arg SetVariantThumbnailParams) error {
+	_, err := q.db.ExecContext(ctx, setVariantThumbnail, arg.ThumbnailKey, arg.ThumbnailContentType, arg.ID)
+	return err
 }

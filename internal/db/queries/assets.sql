@@ -26,7 +26,7 @@ ORDER BY
 LIMIT sqlc.arg('limit');
 
 -- name: UpdateAssetThumbnail :exec
-UPDATE assets SET thumbnail_key = ?, updated_at = datetime('now') WHERE id = ?;
+UPDATE assets SET thumbnail_key = ?, thumbnail_content_type = ?, updated_at = datetime('now') WHERE id = ?;
 
 -- name: UpdateAssetDimensions :exec
 UPDATE assets SET width = ?, height = ?, metadata = ?, updated_at = datetime('now') WHERE id = ?;
