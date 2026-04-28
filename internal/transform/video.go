@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"strconv"
@@ -116,6 +117,33 @@ func VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnail
 	return buf.Bytes(), nil
 }
 
+// gifFramerate returns avg_frame_rate for a GIF via ffprobe, or 0 on failure.
+func gifFramerate(ctx context.Context, srcPath string) float64 {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "ffprobe",
+		"-v", "quiet",
+		"-probesize", "20000000",
+		"-select_streams", "v:0",
+		"-show_entries", "stream=avg_frame_rate",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		srcPath,
+	).Output()
+	if err != nil {
+		return 0
+	}
+	parts := strings.SplitN(strings.TrimSpace(string(out)), "/", 2)
+	if len(parts) != 2 {
+		return 0
+	}
+	num, err1 := strconv.ParseFloat(parts[0], 64)
+	den, err2 := strconv.ParseFloat(parts[1], 64)
+	if err1 != nil || err2 != nil || den == 0 {
+		return 0
+	}
+	return num / den
+}
+
 // VideoClipParams defines parameters for creating a short video clip thumbnail.
 type VideoClipParams struct {
 	DurationSec int    // default 5
@@ -146,17 +174,22 @@ func VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) 
 		width = 400
 	}
 
+	args := []string{"-y", "-ss", "1"}
+	if strings.HasSuffix(strings.ToLower(srcPath), ".gif") {
+		if fps := gifFramerate(ctx, srcPath); fps > 0 {
+			args = append(args, "-r", strconv.FormatFloat(fps, 'f', -1, 64))
+			dur = int(math.Round(fps))
+		}
+	}
+	args = append(args, "-i", srcPath)
+
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
 	outPath := srcPath + "_clip.mp4"
 	defer os.Remove(outPath)
 
-	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx,
-		"ffmpeg", "-y",
-		"-ss", "1",
-		"-i", srcPath,
+	args = append(args,
 		"-t", strconv.Itoa(dur),
 		"-an",
 		"-vf", fmt.Sprintf("scale=%d:-2", width),
@@ -166,6 +199,9 @@ func VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) 
 		"-preset", "fast",
 		outPath,
 	)
+
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg clip: %w — stderr: %s", err, stderr.String())

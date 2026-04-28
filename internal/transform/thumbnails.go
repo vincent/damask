@@ -13,6 +13,18 @@ import (
 // or skipped (e.g. video when ffmpeg is unavailable) — callers should no-op.
 func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeType, storageKey string) (data []byte, ext string, err error) {
 	switch {
+	case mimeType == "image/gif":
+		rc, err := storage.Get(storageKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		if !FFmpegAvailable() {
+			slog.Debug("thumbnail: ffmpeg not available, falling back to static thumbnail for gif", "storage_key", storageKey)
+			return ThumbnailFromImage(rc)
+		}
+		return ThumbnailFromVideo(ctx, rc, mimeType)
+
 	case IsImageMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
