@@ -110,7 +110,8 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 // --- Audit events ---
 
 func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
-	svc, spy := newUploadSvcSpy(t)
+	var svc service.UploadService
+	_, spy := newUploadSvcSpy(t)
 
 	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_audit.db?_foreign_keys=ON")
 	if err != nil {

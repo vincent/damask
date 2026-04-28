@@ -123,7 +123,7 @@ func PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) 
 	// with a quadratic ease-in slide from offscreen right.
 	var fc strings.Builder
 	for i := 1; i < n; i++ {
-		fc.WriteString(fmt.Sprintf("[%d]setpts=PTS+%d/TB[i%d];\n", i, i, i))
+		fmt.Fprintf(&fc, "[%d]setpts=PTS+%d/TB[i%d];\n", i, i, i)
 	}
 	prev := "[0]"
 	for i := 1; i < n; i++ {
@@ -135,10 +135,8 @@ func PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) 
 		if i == n-1 {
 			shortest = ":shortest=1"
 		}
-		fc.WriteString(fmt.Sprintf(
-			"%s[i%d]overlay=x='if(lt(t,%d),W+1,max(0,W*(1-(t-%d)^2)))':y=0%s %s;\n",
-			prev, i, i, i, shortest, out,
-		))
+		fmt.Fprintf(&fc, "%s[i%d]overlay=x='if(lt(t,%d),W+1,max(0,W*(1-(t-%d)^2)))':y=0%s %s;\n",
+			prev, i, i, i, shortest, out)
 		prev = out
 	}
 
