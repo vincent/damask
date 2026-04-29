@@ -9,7 +9,7 @@ import (
 	"os/exec"
 )
 
-func AudioWaveform(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
+func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
 	ext := mimeToExt(mimeType)
 
 	tmpPath, cleanup, err := writeToTempFile(ctx, src, ext)

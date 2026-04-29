@@ -30,8 +30,11 @@ import (
 	"damask/server/internal/events"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
+	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
+	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
 
 	"github.com/gofiber/fiber/v3"
@@ -101,9 +104,13 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	q := queue.New(queries, 1)
 
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
-	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, cfg, nil)
-	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, cfg)
-	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, cfg, nil, nil)
+	trf := transform.NewTransformer()
+	tmb := transform.NewThumbnailer(trf)
+	media := mediatype.NewRegistry(trf)
+	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
+	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
+	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor)
+	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
 	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor}
 }
 

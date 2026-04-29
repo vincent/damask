@@ -20,7 +20,7 @@ var ErrNoBgAPIKey = errors.New("REMOVEBG_API_KEY is not configured")
 // RemoveBackground calls the Remove.bg API to remove the background from the
 // provided image bytes. Returns PNG bytes on success.
 // Returns ErrNoBgAPIKey if apiKey is empty.
-func RemoveBackground(ctx context.Context, imageData []byte, apiKey string) ([]byte, error) {
+func (t *transformer) RemoveBackground(ctx context.Context, imageData []byte, apiKey string) ([]byte, error) {
 	if apiKey == "" {
 		return nil, ErrNoBgAPIKey
 	}

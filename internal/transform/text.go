@@ -28,7 +28,7 @@ type ImageOfTextOptions struct {
 	FontFile    io.ReadCloser // optional, if empty use default font
 }
 
-func GenerateImageOfText(ctx context.Context, opts ImageOfTextOptions) ([]byte, error) {
+func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextOptions) ([]byte, error) {
 
 	var err error
 	var openTypeFont *opentype.Font

@@ -10,9 +10,11 @@ import (
 	"damask/server/internal/audit"
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 )
 
 func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
@@ -25,7 +27,8 @@ func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 	stor, _ := storage.NewAferoMemoryStorage()
 	spy := newSpy()
 	q := queue.New(queries, 1)
-	return service.NewUploadService(queries, sqlDB, stor, q, spy), spy
+	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, mediatype.NewRegistry(transform.NewTransformer()))
+	return service.NewUploadService(injestor, spy), spy
 }
 
 func newUploadSvc(t *testing.T) service.UploadService {
@@ -41,7 +44,8 @@ func newUploadSvc(t *testing.T) service.UploadService {
 		t.Fatalf("storage: %v", err)
 	}
 	q := queue.New(queries, 1)
-	return service.NewUploadService(queries, sqlDB, stor, q, audit.NopWriter{})
+	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, mediatype.NewRegistry(transform.NewTransformer()))
+	return service.NewUploadService(injestor, audit.NopWriter{})
 }
 
 // -- Validate inputs --
@@ -87,7 +91,7 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	}
 
 	q2 := queue.New(queries, 1)
-	svc := service.NewUploadService(queries, sqlDB, stor, q2, audit.NopWriter{})
+	svc := service.NewUploadService(service.NewAssetInjestor(queries, sqlDB, stor, q2, mediatype.NewRegistry(transform.NewTransformer())), audit.NopWriter{})
 
 	dto, err := svc.Ingest(ctx, wsID, strings.NewReader("fake image bytes"), service.UploadMeta{
 		OriginalFilename: "photo.jpg",
@@ -132,7 +136,7 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	// Rebuild svc with the seeded DB so the workspace FK constraint passes.
 	stor, _ := storage.NewAferoMemoryStorage()
 	q := queue.New(queries, 1)
-	svc = service.NewUploadService(queries, sqlDB, stor, q, spy)
+	svc = service.NewUploadService(service.NewAssetInjestor(queries, sqlDB, stor, q, mediatype.NewRegistry(transform.NewTransformer())), spy)
 
 	_, err = svc.Ingest(ctx, wsID, strings.NewReader("bytes"), service.UploadMeta{
 		OriginalFilename: "shot.jpg",

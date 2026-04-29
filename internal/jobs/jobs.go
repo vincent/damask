@@ -2,6 +2,14 @@ package jobs
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"io"
+	"mime"
+	"os"
+	"time"
+
+	"damask/server/internal/assetio"
 	"damask/server/internal/audit"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
@@ -10,12 +18,7 @@ import (
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
-	"database/sql"
-	"fmt"
-	"io"
-	"mime"
-	"os"
-	"time"
+	"damask/server/internal/transform"
 )
 
 // JobServer holds shared dependencies injected at startup.
@@ -29,6 +32,9 @@ type JobServer struct {
 	cfg      *config.Config
 	audit    *audit.EventWriter
 	handlers map[string]queue.HandlerFunc
+	trf      transform.Transformer
+	tmb      transform.Thumbnailer
+	injestor assetio.Injestor
 }
 
 func NewJobServer(
@@ -38,7 +44,10 @@ func NewJobServer(
 	hub events.EventHub,
 	q queue.JobQueue,
 	mailer mail.Mailer,
+	trf transform.Transformer,
+	tmb transform.Thumbnailer,
 	cfg *config.Config,
+	injestor assetio.Injestor,
 ) *JobServer {
 	return &JobServer{
 		db:       db,
@@ -48,8 +57,11 @@ func NewJobServer(
 		mailer:   mailer,
 		hub:      hub,
 		cfg:      cfg,
+		trf:      trf,
+		tmb:      tmb,
 		audit:    audit.New(sqlDB),
 		handlers: make(map[string]queue.HandlerFunc),
+		injestor: injestor,
 	}
 }
 
@@ -79,7 +91,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	}
 
 	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer)
+	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.injestor)
 	reg(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	reg(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 

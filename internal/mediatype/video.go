@@ -1,4 +1,4 @@
-package fileproc
+package mediatype
 
 import (
 	"context"
@@ -8,14 +8,20 @@ import (
 	"damask/server/internal/transform"
 )
 
-type VideoHandler struct{}
+type VideoHandler struct {
+	trf transform.Transformer
+}
+
+func NewVideoHandler(trf transform.Transformer) VideoHandler {
+	return VideoHandler{trf: trf}
+}
 
 func (h VideoHandler) Supports(mime string) bool {
 	return strings.HasPrefix(mime, "video/")
 }
 
 func (h VideoHandler) ExtractMeta(ctx context.Context, filePath string) (FileMeta, error) {
-	res, err := transform.VideoExtractResolution(ctx, filePath)
+	res, err := h.trf.VideoExtractResolution(ctx, filePath)
 
 	var width, height *int64
 	if err == nil {

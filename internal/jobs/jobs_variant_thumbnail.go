@@ -9,7 +9,6 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
-	"damask/server/internal/transform"
 )
 
 // VariantThumbnailJobPayload is the payload for variant thumbnail generation.
@@ -46,7 +45,7 @@ func (s *JobServer) jobVariantThumbnail(ctx context.Context, job dbgen.Job) erro
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
-	thumbData, thumbExt, err := transform.GenerateThumbnailData(ctx, s.storage, p.MimeType, p.StorageKey)
+	thumbData, thumbExt, err := s.tmb.GenerateThumbnailData(ctx, s.storage, p.MimeType, p.StorageKey)
 	if err != nil {
 		return fmt.Errorf("generate thumbnail: %w", err)
 	}

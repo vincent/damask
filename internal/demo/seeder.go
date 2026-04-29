@@ -38,13 +38,15 @@ const bcryptHashOfDemo = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL
 type Seeder struct {
 	db          *sql.DB
 	storage     storage.Storage
+	trf         transform.Transformer
+	tmb         transform.Thumbnailer
 	cfg         config.DemoConfig
 	lastResetAt time.Time // set after each successful reset; zero on first boot
 }
 
 // New returns a Seeder ready to use.
-func New(db *sql.DB, stor storage.Storage, cfg config.DemoConfig) *Seeder {
-	return &Seeder{db: db, storage: stor, cfg: cfg}
+func New(db *sql.DB, stor storage.Storage, cfg config.DemoConfig, trf transform.Transformer, tmb transform.Thumbnailer) *Seeder {
+	return &Seeder{db: db, storage: stor, cfg: cfg, trf: trf, tmb: tmb}
 }
 
 // ids holds the stable IDs created during seeding so later steps can reference them.
@@ -567,7 +569,7 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 		}
 
 		// Generate thumbnail synchronously
-		thumbData, thumbExt, tErr := transform.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
+		thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
 		if tErr == nil && thumbData != nil {
 			thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
 			if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {
@@ -665,7 +667,7 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 	}
 
 	// Generate thumbnail synchronously
-	thumbData, thumbExt, tErr := transform.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
+	thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
 	if tErr == nil && thumbData != nil {
 		thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
 		if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {

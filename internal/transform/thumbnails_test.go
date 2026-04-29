@@ -9,37 +9,8 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
-	"io"
 	"testing"
 )
-
-// mockStorage implements storage.Storage for testing.
-type mockStorage struct {
-	data map[string][]byte
-	err  error
-}
-
-func (m *mockStorage) Get(key string) (io.ReadCloser, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	if data, exists := m.data[key]; exists {
-		return io.NopCloser(bytes.NewReader(data)), nil
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *mockStorage) Put(key string, r io.Reader) error {
-	return errors.New("not implemented")
-}
-
-func (m *mockStorage) Delete(key string) error {
-	return errors.New("not implemented")
-}
-
-func (m *mockStorage) List(prefix string) ([]string, error) {
-	return nil, errors.New("not implemented")
-}
 
 // createTestJPEG creates a minimal valid JPEG image for testing.
 func createTestJPEG() []byte {
@@ -66,6 +37,8 @@ func TestGenerateThumbnailData(t *testing.T) {
 	jpegData := createTestJPEG()
 	pngData := createTestPNG()
 	plainTextData := []byte("Hello, this is plain text content for thumbnail generation.")
+
+	thumbnailer := transform.NewThumbnailer(&mockTransformer{})
 
 	tests := []struct {
 		name       string
@@ -189,7 +162,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotBytes, gotExt, gotErr := transform.GenerateThumbnailData(context.Background(), tt.storage, tt.mimeType, tt.storageKey)
+			gotBytes, gotExt, gotErr := thumbnailer.GenerateThumbnailData(context.Background(), tt.storage, tt.mimeType, tt.storageKey)
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("GenerateThumbnailData() failed: %v", gotErr)

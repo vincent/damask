@@ -20,9 +20,13 @@ import (
 	"damask/server/internal/demo"
 	"damask/server/internal/events"
 	"damask/server/internal/jobs"
+	"damask/server/internal/mail"
+	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
+	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	th "damask/server/internal/tests_helpers"
+	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -73,13 +77,19 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	q := queue.New(queries, 1)
 	hub := events.NewEventHub()
 
-	seeder := demo.New(rawDB, stor, demoCfg)
+	trf := transform.NewTransformer()
+	tmb := transform.NewThumbnailer(trf)
+	media := mediatype.NewRegistry(trf)
+	injestor := service.NewAssetInjestor(queries, rawDB, stor, q, media)
+	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
+
+	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb)
 	if err := seeder.EnsureWorkspace(t.Context()); err != nil {
 		t.Fatalf("ensure demo workspace: %v", err)
 	}
 
-	_ = jobs.NewJobServer(queries, rawDB, maker, stor, hub, q, cfg)
-	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, cfg, seeder)
+	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, injestor)
+	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil)
 
 	return &demoEnv{App: app, Maker: maker, SqlDB: rawDB, Seeder: seeder}
 }

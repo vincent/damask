@@ -33,7 +33,7 @@ type TranscodeParams struct {
 // VideoExtractResolution runs ffprobe to extract a single frame from a video file.
 // srcPath must be a filesystem path to the source video.
 // Returns VideoResolution.
-func VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResolution, error) {
+func (t *transformer) VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResolution, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -77,7 +77,7 @@ func VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResoluti
 // VideoExtractThumbnail runs ffmpeg to extract a single frame from a video file.
 // srcPath must be a filesystem path to the source video.
 // Returns JPEG bytes.
-func VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error) {
+func (t *transformer) VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error) {
 	if len(strings.TrimSpace(srcPath)) == 0 {
 		return nil, fmt.Errorf("source path is empty")
 	}
@@ -153,7 +153,7 @@ type VideoClipParams struct {
 
 // VideoClipThumbnail produces a short silent MP4 clip starting at t=1s.
 // Returns MP4 bytes.
-func VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) ([]byte, error) {
+func (t *transformer) VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) ([]byte, error) {
 	if len(strings.TrimSpace(srcPath)) == 0 {
 		return nil, fmt.Errorf("source path is empty")
 	}
@@ -216,7 +216,7 @@ func VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) 
 
 // VideoTranscode transcodes a video using ffmpeg, writing the result to dstPath.
 // Both srcPath and dstPath must be filesystem paths.
-func VideoTranscode(ctx context.Context, srcPath, dstPath string, p TranscodeParams) error {
+func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath string, p TranscodeParams) error {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 

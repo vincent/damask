@@ -501,7 +501,7 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	}
 	defer rc.Close()
 
-	data, ct, err := transform.ImagePreview(rc, transform.PreviewParams{
+	data, ct, err := s.trf.ImagePreview(rc, transform.PreviewParams{
 		Width:   w,
 		Height:  h,
 		Fit:     fit,

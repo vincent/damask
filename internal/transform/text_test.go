@@ -1,7 +1,8 @@
-package transform
+package transform_test
 
 import (
 	"bytes"
+	"damask/server/internal/transform"
 	"image/png"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 )
 
 func TestGenerateImageOfText_DefaultFont(t *testing.T) {
+	tf := &mockTransformer{}
 	tests := []struct {
 		name        string
 		textContent string
@@ -54,7 +56,7 @@ func TestGenerateImageOfText_DefaultFont(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateImageOfText(t.Context(), ImageOfTextOptions{
+			got, err := tf.GenerateImageOfText(t.Context(), transform.ImageOfTextOptions{
 				TextContent: tt.textContent,
 				FgColorHex:  tt.fgColorHex,
 				BgColorHex:  tt.bgColorHex,
@@ -75,6 +77,7 @@ func TestGenerateImageOfText_DefaultFont(t *testing.T) {
 }
 
 func TestGenerateImageOfText_CustomFont(t *testing.T) {
+	tf := &mockTransformer{}
 	fontPath := filepath.Join("AovelSansRounded-rdDL.ttf")
 
 	if _, err := os.Stat(fontPath); os.IsNotExist(err) {
@@ -111,7 +114,7 @@ func TestGenerateImageOfText_CustomFont(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, _ = ff.Seek(0, io.SeekStart)
-			got, err := GenerateImageOfText(t.Context(), ImageOfTextOptions{
+			got, err := tf.GenerateImageOfText(t.Context(), transform.ImageOfTextOptions{
 				TextContent: tt.textContent,
 				FontSize:    tt.fontSize,
 				FontFile:    ff,
@@ -134,15 +137,16 @@ func TestGenerateImageOfText_CustomFont(t *testing.T) {
 }
 
 func TestGenerateImageOfText_ErrorCases(t *testing.T) {
+	tf := transform.NewTransformer()
 	tests := []struct {
 		name        string
-		opts        ImageOfTextOptions
+		opts        transform.ImageOfTextOptions
 		wantErr     bool
 		errContains string
 	}{
 		{
 			name: "invalid font file path",
-			opts: ImageOfTextOptions{
+			opts: transform.ImageOfTextOptions{
 				TextContent: "Hello",
 				FontFile:    io.NopCloser(bytes.NewReader([]byte("not a real font file"))),
 				Width:       400,
@@ -155,7 +159,7 @@ func TestGenerateImageOfText_ErrorCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := GenerateImageOfText(t.Context(), tt.opts)
+			_, err := tf.GenerateImageOfText(t.Context(), tt.opts)
 
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("GenerateImageOfText() error = %v, wantErr %v", err, tt.wantErr)

@@ -68,7 +68,7 @@ type PreviewParams struct {
 }
 
 // ImageWatermark reads an image, resizes it according to params, and returns encoded bytes.
-func ImageWatermark(src io.Reader, p WatermarkParams) ([]byte, string, error) {
+func (t *transformer) ImageWatermark(src io.Reader, p WatermarkParams) ([]byte, string, error) {
 	if p.Opacity <= 0 || p.Opacity > 100 {
 		p.Opacity = 50
 	}
@@ -102,7 +102,7 @@ func overlayWatermark(originalImg, watermarkImg image.Image, opacity float64) im
 }
 
 // ImageResize reads an image, resizes it according to params, and returns encoded bytes.
-func ImageResize(src io.Reader, p ResizeParams) ([]byte, string, error) {
+func (t *transformer) ImageResize(src io.Reader, p ResizeParams) ([]byte, string, error) {
 	if p.Width <= 0 && p.Height <= 0 {
 		return nil, "", errors.New("width or height must be > 0")
 	}
@@ -131,7 +131,7 @@ func ImageResize(src io.Reader, p ResizeParams) ([]byte, string, error) {
 }
 
 // ImageConvert reads an image and re-encodes it in the target format.
-func ImageConvert(src io.Reader, p ConvertParams) ([]byte, string, error) {
+func (t *transformer) ImageConvert(src io.Reader, p ConvertParams) ([]byte, string, error) {
 	if p.Quality <= 0 || p.Quality > 100 {
 		p.Quality = 85
 	}
@@ -143,7 +143,7 @@ func ImageConvert(src io.Reader, p ConvertParams) ([]byte, string, error) {
 }
 
 // ImageCrop reads an image, crops the specified rectangle, and returns encoded bytes.
-func ImageCrop(src io.Reader, p CropParams) ([]byte, string, error) {
+func (t *transformer) ImageCrop(src io.Reader, p CropParams) ([]byte, string, error) {
 	if p.Width <= 0 || p.Height <= 0 {
 		return nil, "", errors.New("width and height must be > 0")
 	}
@@ -159,7 +159,7 @@ func ImageCrop(src io.Reader, p CropParams) ([]byte, string, error) {
 }
 
 // ImageSmartCrop finds the most visually interesting region of src at the given size.
-func ImageSmartCrop(src io.Reader, p SmartCropParams) ([]byte, string, error) {
+func (t *transformer) ImageSmartCrop(src io.Reader, p SmartCropParams) ([]byte, string, error) {
 	if p.Width <= 0 || p.Height <= 0 {
 		return nil, "", errors.New("width and height must be > 0")
 	}
@@ -188,7 +188,7 @@ func ImageSmartCrop(src io.Reader, p SmartCropParams) ([]byte, string, error) {
 }
 
 // ImagePreview generates a small in-memory preview (max 800px) for the UI.
-func ImagePreview(src io.Reader, p PreviewParams) ([]byte, string, error) {
+func (t *transformer) ImagePreview(src io.Reader, p PreviewParams) ([]byte, string, error) {
 	if p.Quality <= 0 || p.Quality > 100 {
 		p.Quality = 80
 	}

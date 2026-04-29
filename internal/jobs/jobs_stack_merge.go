@@ -14,9 +14,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"damask/server/internal/assetio"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
-	services "damask/server/internal/fileproc"
 
 	pdfcpuapi "github.com/pdfcpu/pdfcpu/pkg/api"
 	pdftypes "github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
@@ -111,12 +111,12 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		filename = "stack-merge"
 	}
 
-	asset, ferr := services.CreateAsset(ctx, s.db, s.sqlDB, s.storage, s.queue, p.WorkspaceID, outPath, services.AssetOptions{
+	asset, err := s.injestor.IngestFile(ctx, p.WorkspaceID, outPath, assetio.IngestFileOpts{
 		UserID:       p.CreatedBy,
 		OriginalName: filename + outExt,
 	})
-	if ferr != nil {
-		return fmt.Errorf("create asset: %w", ferr)
+	if err != nil {
+		return fmt.Errorf("create asset: %w", err)
 	}
 
 	resultBytes, _ := json.Marshal(map[string]string{"asset_id": asset.ID})

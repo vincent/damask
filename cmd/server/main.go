@@ -13,23 +13,25 @@ import (
 	"damask/server/internal/config"
 	"damask/server/internal/db"
 	"damask/server/internal/events"
-	services "damask/server/internal/fileproc"
 	"damask/server/internal/ingress"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
+	"damask/server/internal/mailserver"
+	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
+	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 
 	// Side-effect imports to register ingress source types
-	canvasrc "damask/server/internal/ingress/sources/canva"
+	"damask/server/internal/ingress/sources/canva"
 	_ "damask/server/internal/ingress/sources/dav"
 	_ "damask/server/internal/ingress/sources/email_api"
-	gdrivesrc "damask/server/internal/ingress/sources/gdrive"
+	"damask/server/internal/ingress/sources/gdrive"
 	_ "damask/server/internal/ingress/sources/imap"
 	_ "damask/server/internal/ingress/sources/s3"
 	_ "damask/server/internal/ingress/sources/sftp"
-	oauthpkg "damask/server/internal/oauth"
+	"damask/server/internal/oauth"
 
 	"github.com/gofiber/fiber/v3"
 	"golang.org/x/oauth2"
@@ -59,7 +61,7 @@ func main() {
 	default:
 		logLevel.Set(slog.LevelInfo)
 	}
-	slog.Error("log", "level", logLevel.Level())
+	slog.Info("log", "level", logLevel.Level())
 
 	slog.Info("database", "path", cfg.DBPath)
 	queries, sqlDB, err := db.Open(cfg.DBPath)
@@ -107,11 +109,13 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	if missing := transform.CheckExternalDeps(); len(missing) > 0 {
-		slog.Warn("external dependencies missing — some thumbnail types will be skipped", "missing", missing)
-	}
+	trf := transform.NewTransformer()
+	tmb := transform.NewThumbnailer(trf)
 
-	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, cfg)
+	media := mediatype.NewRegistry(trf)
+	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
+
+	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, trf, tmb, cfg, injestor)
 	js.RegisterJobHandlers()
 
 	if cfg.EnableScheduler {
@@ -127,11 +131,11 @@ func main() {
 
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
-	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor)
+	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor, trf, tmb)
 
-	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, cfg, demoSeeder, uiFS)
+	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS)
 
-	mail := services.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
+	mail := mailserver.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
 	slog.Info("mail server starting", "port", cfg.MailServerPort)
 	mailErr := make(chan error, 1)
 	go func() {
@@ -143,7 +147,7 @@ func main() {
 	config.InitOIDCProviders(cfg)
 
 	// Wire TokenRefresher into OAuth-backed ingress sources.
-	refresher := oauthpkg.NewTokenRefresher(queries, cfg.AppSecret)
+	refresher := oauth.NewTokenRefresher(queries, cfg.AppSecret)
 	if cfg.Google.ClientID != "" {
 		slog.Info("register Google tokens refresher")
 		refresher.RegisterProvider("google", &oauth2.Config{
@@ -167,8 +171,8 @@ func main() {
 			Scopes:      []string{"profile:read", "design:content:read"},
 		})
 	}
-	gdrivesrc.SetRefresher(refresher)
-	canvasrc.SetRefresher(refresher)
+	gdrive.SetRefresher(refresher)
+	canva.SetRefresher(refresher)
 
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)
 	appErr := make(chan error, 1)

@@ -13,13 +13,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"damask/server/internal/assetio"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
-	services "damask/server/internal/fileproc"
 	"damask/server/internal/storage"
 
 	"github.com/google/uuid"
@@ -27,18 +27,19 @@ import (
 
 // Worker handles ingest_poll and ingest_fetch jobs.
 type Worker struct {
-	db      *dbgen.Queries
-	sqlDB   *sql.DB
-	storage storage.Storage
-	queue   queue.JobQueue
-	cfg     *config.Config
-	audit   *audit.EventWriter
-	mailer  mail.Mailer
+	db       *dbgen.Queries
+	sqlDB    *sql.DB
+	storage  storage.Storage
+	queue    queue.JobQueue
+	cfg      *config.Config
+	audit    *audit.EventWriter
+	mailer   mail.Mailer
+	injestor assetio.Injestor
 }
 
 // NewWorker creates a Worker.
-func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config, au *audit.EventWriter, mailer mail.Mailer) *Worker {
-	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg, audit: au, mailer: mailer}
+func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config, au *audit.EventWriter, mailer mail.Mailer, injestor assetio.Injestor) *Worker {
+	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg, audit: au, mailer: mailer, injestor: injestor}
 }
 
 // PollJobPayload is the JSON payload for a JobTypeIngestPoll job.
@@ -231,13 +232,14 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	}
 	defer os.Remove(namedTmp)
 
-	asset, fErr := services.CreateAsset(ctx, w.db, w.sqlDB, w.storage, w.queue,
-		src.WorkspaceID, namedTmp,
-		services.AssetOptions{ProjectID: projectID, FolderID: folderID, UserID: src.CreatedBy},
-	)
-	if fErr != nil {
+	asset, err := w.injestor.IngestFile(ctx, src.WorkspaceID, namedTmp, assetio.IngestFileOpts{
+		ProjectID: projectID,
+		FolderID:  folderID,
+		UserID:    src.CreatedBy,
+	})
+	if err != nil {
 		slog.Error("ingest_fetch: cannot create asset", "error", err)
-		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create asset: %s", fErr.Message))
+		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create asset: %w", err))
 	}
 
 	assetID := asset.ID

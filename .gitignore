@@ -28,9 +28,11 @@ vendor/
 .vscode/
 *.swp
 *.swo
+.codex
 .claude/
 CLAUDE.md
 /docs
+AGENTS.md
 
 # OS
 .DS_Store

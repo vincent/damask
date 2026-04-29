@@ -1,4 +1,4 @@
-package fileproc
+package mailserver
 
 import (
 	dbgen "damask/server/internal/db/gen"

@@ -55,7 +55,7 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) ([
 // PDFSlideshowThumbnail converts up to 6 PDF pages to JPEG frames via ImageMagick convert,
 // then concatenates them into a silent MP4 slideshow via ffmpeg.
 // Returns MP4 bytes. Falls back gracefully if convert or ffmpeg is unavailable.
-func PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error) {
+func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error) {
 	tmpPDF, cleanup, err := writeToTempFile(ctx, src, ".pdf")
 	if err != nil {
 		return nil, fmt.Errorf("temp pdf: %w", err)

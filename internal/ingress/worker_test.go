@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"damask/server/internal/assetio"
 	"damask/server/internal/audit"
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
@@ -21,6 +22,29 @@ import (
 )
 
 const testAppSecret = "test-app-secret-for-tests!!"
+
+// stubInjestor satisfies assetio.Injestor for tests that exercise HandleFetch.
+// It inserts a minimal asset row so FK constraints on asset_id pass.
+type stubInjestor struct{ db *dbgen.Queries }
+
+func (s stubInjestor) IngestFile(ctx context.Context, workspaceID, _ string, _ assetio.IngestFileOpts) (assetio.AssetSummary, error) {
+	id := uuid.NewString()
+	if _, err := s.db.CreateAsset(ctx, dbgen.CreateAssetParams{
+		ID:               id,
+		WorkspaceID:      workspaceID,
+		OriginalFilename: "stub.txt",
+		StorageKey:       "stub/" + id,
+		MimeType:         "text/plain",
+	}); err != nil {
+		return assetio.AssetSummary{}, err
+	}
+	return assetio.AssetSummary{
+		ID:               id,
+		WorkspaceID:      workspaceID,
+		OriginalFilename: "stub.txt",
+		MimeType:         "text/plain",
+	}, nil
+}
 
 // pollSource is a fakeSource that returns a fixed list of items from Poll
 // and serves file content from Fetch.
@@ -53,7 +77,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 
 	cfg := &config.Config{AppSecret: testAppSecret}
 	q := queue.New(queries, 1)
-	w := NewWorker(queries, sqlDB, stor, q, cfg, audit.New(sqlDB), mail.NewMailer(&mail.MailSenderConfig{}))
+	w := NewWorker(queries, sqlDB, stor, q, cfg, audit.New(sqlDB), mail.NewMailer(&mail.MailSenderConfig{}), stubInjestor{db: queries})
 	return w, queries
 }
 

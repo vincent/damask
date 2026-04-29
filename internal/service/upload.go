@@ -2,19 +2,15 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/assetio"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/fileproc"
-	"damask/server/internal/queue"
-	"damask/server/internal/storage"
 )
 
 // UploadMeta holds caller-supplied metadata for a file upload.
@@ -25,23 +21,20 @@ type UploadMeta struct {
 	UserID           string
 	// InheritFields is called after asset creation to copy project field values.
 	// May be nil.
-	InheritFields fileproc.FieldInheritanceFunc
+	InheritFields assetio.FieldInheritanceFunc
 }
 
 type uploadServiceImpl struct {
-	db      *dbgen.Queries
-	sqlDB   *sql.DB
-	storage storage.Storage
-	q       queue.JobQueue
-	audit   audit.Writer
+	injestor AssetInjestor
+	audit    audit.Writer
 }
 
 // NewUploadService returns an UploadService.
-func NewUploadService(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, q queue.JobQueue, aw audit.Writer) UploadService {
-	return &uploadServiceImpl{db: db, sqlDB: sqlDB, storage: stor, q: q, audit: aw}
+func NewUploadService(injestor AssetInjestor, aw audit.Writer) UploadService {
+	return &uploadServiceImpl{injestor: injestor, audit: aw}
 }
 
-// Ingest writes r to a temp file, calls fileproc.CreateAsset, then removes the temp file.
+// Ingest writes r to a temp file, calls AssetInjestor.IngestFileFull, then removes the temp file.
 // Queue enqueue failures are logged but do not fail the upload (fire-and-forget).
 func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (*AssetDTO, error) {
 	if workspaceID == "" {
@@ -51,7 +44,6 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 		return nil, fmt.Errorf("filename is required: %w", apperr.ErrInvalidInput)
 	}
 
-	// Write reader to a temp file so fileproc can stat + sniff MIME.
 	tmpF, err := os.CreateTemp("", "damask-upload-*"+filepath.Ext(meta.OriginalFilename))
 	if err != nil {
 		return nil, fmt.Errorf("cannot create temp file: %w", err)
@@ -65,44 +57,25 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 	}
 	_ = tmpF.Close()
 
-	// fileproc.CreateAsset handles: stat, MIME detection, storage.Put, DB writes,
-	// version creation, field inheritance, thumbnail + EXIF job enqueueing.
-	asset, fErr := fileproc.CreateAsset(ctx, s.db, s.sqlDB, s.storage, s.q, workspaceID, tmpPath, fileproc.AssetOptions{
+	asset, err := s.injestor.IngestFileWithDetails(ctx, workspaceID, tmpPath, assetio.IngestFileOpts{
 		ProjectID:     meta.ProjectID,
 		FolderID:      meta.FolderID,
 		UserID:        meta.UserID,
 		InheritFields: meta.InheritFields,
 		OriginalName:  meta.OriginalFilename,
 	})
-	if fErr != nil {
-		return nil, fmt.Errorf("%s: %w", fErr.Message, apperr.ErrInvalidInput)
+	if err != nil {
+		return nil, err
 	}
 
-	dto := &AssetDTO{
-		ID:               asset.ID,
-		WorkspaceID:      asset.WorkspaceID,
-		ProjectID:        asset.ProjectID,
-		FolderID:         asset.FolderID,
-		OriginalFilename: asset.OriginalFilename,
-		StorageKey:       asset.StorageKey,
-		MimeType:         asset.MimeType,
-		Size:             asset.Size,
-		Width:            asset.Width,
-		Height:           asset.Height,
-		ThumbnailKey:     asset.ThumbnailKey,
-		Metadata:         asset.Metadata,
-		CurrentVersionID: asset.CurrentVersionID,
-		CreatedAt:        asset.CreatedAt,
-		UpdatedAt:        asset.UpdatedAt,
-	}
 	actor := auth.ActorFromCtx(ctx)
 	s.audit.WriteAsset(ctx, audit.AssetEvent{
 		WorkspaceID: workspaceID,
-		AssetID:     dto.ID,
+		AssetID:     asset.ID,
 		UserID:      actor.UserID,
 		ActorType:   actor.Type,
 		EventType:   audit.EventAssetCreated,
-		Payload:     audit.AssetCreatedPayload{V: 1, Filename: dto.OriginalFilename, Source: "upload"},
+		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "upload"},
 	})
-	return dto, nil
+	return asset, nil
 }

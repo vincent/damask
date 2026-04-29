@@ -169,31 +169,31 @@ func (s *JobServer) rebuildImageVariant(
 		if err := json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse resize params: %w", err)
 		}
-		data, contentType, err = transform.ImageResize(rc, params)
+		data, contentType, err = s.trf.ImageResize(rc, params)
 	case queue.JobTypeImageConvert:
 		var params transform.ConvertParams
 		if err := json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse convert params: %w", err)
 		}
-		data, contentType, err = transform.ImageConvert(rc, params)
+		data, contentType, err = s.trf.ImageConvert(rc, params)
 	case queue.JobTypeImageCrop:
 		var params transform.CropParams
 		if err := json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse crop params: %w", err)
 		}
-		data, contentType, err = transform.ImageCrop(rc, params)
+		data, contentType, err = s.trf.ImageCrop(rc, params)
 	case queue.JobTypeImageWatermark:
 		var params transform.WatermarkParams
 		if err := json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
-		data, contentType, err = transform.ImageWatermark(rc, params)
+		data, contentType, err = s.trf.ImageWatermark(rc, params)
 	case queue.JobTypeImageSmartCrop:
 		var params transform.SmartCropParams
 		if err := json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse smartcrop params: %w", err)
 		}
-		data, contentType, err = transform.ImageSmartCrop(rc, params)
+		data, contentType, err = s.trf.ImageSmartCrop(rc, params)
 	}
 	if err != nil {
 		return fmt.Errorf("transform: %w", err)
@@ -242,7 +242,7 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		return fmt.Errorf("read source: %w", err)
 	}
 
-	result, err := transform.RemoveBackground(ctx, imgData, s.cfg.RemoveBgAPIKey)
+	result, err := s.trf.RemoveBackground(ctx, imgData, s.cfg.RemoveBgAPIKey)
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
 	}
@@ -275,7 +275,7 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 	ver dbgen.AssetVersion,
 	paramsJSON, paramsHash string,
 ) error {
-	if !transform.FFmpegAvailable() {
+	if !s.trf.FFmpegAvailable() {
 		return fmt.Errorf("ffmpeg not found in PATH")
 	}
 
@@ -297,7 +297,7 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 	}
 	defer cleanup()
 
-	data, err := transform.VideoExtractThumbnail(ctx, tmpPath, params)
+	data, err := s.trf.VideoExtractThumbnail(ctx, tmpPath, params)
 	if err != nil {
 		return fmt.Errorf("extract thumbnail: %w", err)
 	}
@@ -329,7 +329,7 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 	ver dbgen.AssetVersion,
 	paramsJSON, paramsHash string,
 ) error {
-	if !transform.FFmpegAvailable() {
+	if !s.trf.FFmpegAvailable() {
 		return fmt.Errorf("ffmpeg not found in PATH")
 	}
 
@@ -360,7 +360,7 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 	dstPath := srcPath + "_out" + ext
 	defer os.Remove(dstPath)
 
-	if err := transform.VideoTranscode(ctx, srcPath, dstPath, params); err != nil {
+	if err := s.trf.VideoTranscode(ctx, srcPath, dstPath, params); err != nil {
 		return fmt.Errorf("transcode: %w", err)
 	}
 

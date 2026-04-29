@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"damask/server/internal/auth"
-	services "damask/server/internal/fileproc"
 	"damask/server/internal/jobs"
+	"damask/server/internal/transform"
 	"damask/server/internal/service"
 	"damask/server/internal/versioning"
 
@@ -157,11 +157,11 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not determine version number")
 	}
 
-	mimeType, _ := services.DetectMimeType(tmpFile)
+	mimeType, _ := transform.DetectMimeType(tmpFile)
 	if mimeType == "" {
 		mimeType = fh.Header.Get("Content-Type")
 	}
-	meta, _ := services.ExtractMeta(c.Context(), tmpFile, mimeType)
+	meta, _ := s.media.ExtractMeta(c.Context(), tmpFile, mimeType)
 
 	storageKey := fmt.Sprintf("%s/%s/v%d/%s", claims.WorkspaceID, assetID, nextNum, fh.Filename)
 

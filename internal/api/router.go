@@ -12,10 +12,12 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
 	"damask/server/internal/mail"
+	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
@@ -35,6 +37,8 @@ type Server struct {
 	hub           events.EventHub
 	previewCache  *lruPreviewCache
 	cfg           *config.Config
+	trf           transform.Transformer
+	media         *mediatype.Registry
 	demo          DemoSeeder // nil when demo build tag is not set
 	assets        service.AssetService
 	projects      service.ProjectService
@@ -65,6 +69,7 @@ func NewHttpServer(
 	hub events.EventHub,
 	q queue.JobQueue,
 	mailer mail.Mailer,
+	trf transform.Transformer,
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
 ) *Server {
@@ -83,6 +88,7 @@ func NewHttpServer(
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
 
+	media := mediatype.NewRegistry(trf)
 	return &Server{
 		auth:          tokenMaker,
 		storage:       stor,
@@ -91,7 +97,9 @@ func NewHttpServer(
 		hub:           hub,
 		previewCache:  NewLRUPreviewCache(100),
 		cfg:           cfg,
+		trf:           trf,
 		demo:          demoSeeder,
+		media:         media,
 		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
 		projects:      service.NewProjectService(projectRepo, auditWriter),
 		folders:       service.NewFolderService(folderRepo),
@@ -110,7 +118,7 @@ func NewHttpServer(
 		users:         service.NewUserService(userRepo, workspaceRepo),
 		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
 		stack:         service.NewStackService(assetRepo, versionRepo, stor, q),
-		upload:        service.NewUploadService(db, sqlDB, stor, q, auditWriter),
+		upload:        service.NewUploadService(service.NewAssetInjestor(db, sqlDB, stor, q, media), auditWriter),
 	}
 }
 
@@ -137,11 +145,12 @@ func NewRouter(
 	hub events.EventHub,
 	q queue.JobQueue,
 	mailer mail.Mailer,
+	trf transform.Transformer,
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
 	uiFS fs.FS,
 ) *fiber.App {
-	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, cfg, demoSeeder)
+	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder)
 
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {

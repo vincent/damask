@@ -1,4 +1,4 @@
-package fileproc
+package mediatype
 
 import (
 	"context"
@@ -18,14 +18,14 @@ func NewDefaultHandler(exps []string) DefaultHandler {
 }
 
 func (h DefaultHandler) Supports(mime string) bool {
-	for _, prefix := range h.regexps {
-		if prefix.MatchString(mime) {
+	for _, re := range h.regexps {
+		if re.MatchString(mime) {
 			return true
 		}
 	}
 	return false
 }
 
-func (h DefaultHandler) ExtractMeta(ctx context.Context, filePath string) (FileMeta, error) {
+func (h DefaultHandler) ExtractMeta(_ context.Context, _ string) (FileMeta, error) {
 	return FileMeta{}, nil
 }
