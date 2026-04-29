@@ -33,3 +33,24 @@ func IsTextMime(mime string) bool {
 func IsFontMime(mime string) bool {
 	return strings.HasPrefix(mime, "font/")
 }
+
+// IsDocumentMime reports whether mime is an office document type handled by LibreOffice.
+func IsDocumentMime(mime string) bool {
+	switch mime {
+	case
+		"application/vnd.oasis.opendocument.presentation",
+		"application/vnd.ms-powerpoint",
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		"application/vnd.oasis.opendocument.text",
+		"application/msword",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		"application/rtf",
+		"text/html",
+		"application/vnd.oasis.opendocument.spreadsheet",
+		"application/vnd.ms-excel",
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		"text/csv":
+		return true
+	}
+	return false
+}

@@ -61,6 +61,18 @@ func GenerateThumbnailData(ctx context.Context, storage storage.Storage, mimeTyp
 		defer rc.Close()
 		return ThumbnailFromAudio(ctx, rc, mimeType)
 
+	case IsDocumentMime(mimeType):
+		rc, err := storage.Get(storageKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		if !LibreOfficeAvailable() {
+			slog.Debug("thumbnail: soffice not available, skipping document", "storage_key", storageKey)
+			return nil, "", nil
+		}
+		return ThumbnailFromDocument(ctx, rc, mimeType)
+
 	case IsTextMime(mimeType):
 		rc, err := storage.Get(storageKey)
 		if err != nil {
@@ -147,6 +159,14 @@ func ThumbnailFromPDF(ctx context.Context, rc io.ReadCloser, mimeType string) ([
 		return nil, "", err
 	}
 	return data, ".mp4", nil
+}
+
+func ThumbnailFromDocument(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {
+	data, err := DocumentThumbnail(ctx, rc, mimeType)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, ".png", nil
 }
 
 func ThumbnailFromAudio(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {

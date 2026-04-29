@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -52,7 +53,11 @@ var handlers = []MediaHandler{
 	ImageHandler{},
 	VideoHandler{},
 	NewDefaultHandler([]string{
+		"application/msword",
+		"application/vnd",
 		"text/plain",
+		"text/html",
+		"text/csv",
 		"audio/",
 		"font/",
 		"/pdf",
@@ -71,6 +76,9 @@ func getHandler(mime string) MediaHandler {
 // -- Helpers
 
 // DetectMimeType sniffs the MIME type of the file at filePath.
+// When content sniffing returns a generic type (zip, octet-stream, plain text),
+// it falls back to extension-based lookup to correctly identify OOXML/ODF formats
+// that are zip-based and would otherwise be misidentified.
 func DetectMimeType(filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -80,13 +88,32 @@ func DetectMimeType(filePath string) (string, error) {
 
 	sniff := make([]byte, 512)
 	n, _ := f.Read(sniff)
-	mimeType := http.DetectContentType(sniff[:n])
+	mimeType := stripMimeParams(http.DetectContentType(sniff[:n]))
 
-	if idx := strings.Index(mimeType, ";"); idx != -1 {
-		mimeType = strings.TrimSpace(mimeType[:idx])
+	if isGenericMime(mimeType) {
+		if ext := filepath.Ext(filePath); ext != "" {
+			if byExt := stripMimeParams(mime.TypeByExtension(ext)); byExt != "" {
+				return byExt, nil
+			}
+		}
 	}
 
 	return mimeType, nil
+}
+
+func stripMimeParams(ct string) string {
+	if idx := strings.Index(ct, ";"); idx != -1 {
+		return strings.TrimSpace(ct[:idx])
+	}
+	return ct
+}
+
+func isGenericMime(ct string) bool {
+	switch ct {
+	case "application/zip", "application/octet-stream", "text/plain":
+		return true
+	}
+	return false
 }
 
 // ExtractMeta extracts width, height, duration, etc. from a file using the

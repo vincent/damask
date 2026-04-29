@@ -13,13 +13,13 @@ import (
 	"damask/server/internal/config"
 	"damask/server/internal/db"
 	"damask/server/internal/events"
+	services "damask/server/internal/fileproc"
 	"damask/server/internal/ingress"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
-	"damask/server/internal/transform"
-	services "damask/server/internal/fileproc"
 	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 
 	// Side-effect imports to register ingress source types
 	canvasrc "damask/server/internal/ingress/sources/canva"
@@ -42,6 +42,13 @@ func main() {
 	logLevel := new(slog.LevelVar)
 	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})
 	slog.SetDefault(slog.New(handler))
+
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("config", "error", err)
+		os.Exit(1)
+	}
+
 	switch os.Getenv("LOG_LEVEL") {
 	case "DEBUG":
 		logLevel.Set(slog.LevelDebug)
@@ -52,15 +59,9 @@ func main() {
 	default:
 		logLevel.Set(slog.LevelInfo)
 	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		slog.Error("config", "error", err)
-		os.Exit(1)
-	}
+	slog.Error("log", "level", logLevel.Level())
 
 	slog.Info("database", "path", cfg.DBPath)
-
 	queries, sqlDB, err := db.Open(cfg.DBPath)
 	if err != nil {
 		slog.Error("database", "error", err)

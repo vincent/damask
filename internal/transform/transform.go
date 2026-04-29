@@ -19,12 +19,19 @@ func ImageMagickAvailable() bool {
 	return err == nil
 }
 
+// LibreOfficeAvailable reports whether the `soffice` binary is in PATH.
+func LibreOfficeAvailable() bool {
+	_, err := exec.LookPath("soffice")
+	return err == nil
+}
+
 // CheckExternalDeps returns the names of required external binaries that are missing.
 // ffmpeg is required for video thumbnails and PDF slideshows.
 // convert (ImageMagick) is required for image and PDF thumbnails.
+// soffice (LibreOffice) is required for office document thumbnails.
 func CheckExternalDeps() []string {
 	var missing []string
-	for _, bin := range []string{"ffmpeg", "convert"} {
+	for _, bin := range []string{"ffmpeg", "convert", "soffice"} {
 		if _, err := exec.LookPath(bin); err != nil {
 			missing = append(missing, bin)
 		}

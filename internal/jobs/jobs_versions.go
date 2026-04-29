@@ -62,10 +62,13 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		return fmt.Errorf("generate thumbnail: %w", err)
 	}
 	if thumbData == nil {
+		slog.Debug("generate thumbnail: unsupported file", "format", p.MimeType, "storedKey", p.StorageKey)
 		return nil // unsupported or skipped (e.g. no ffmpeg)
 	}
 
 	thumbKey := fmt.Sprintf("%s/%s/versions/%s/thumb%s", p.WorkspaceID, p.AssetID, p.VersionID, thumbExt)
+	slog.Debug("generate thumbnail: store in", "thumbKey", thumbKey)
+
 	if err := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
 		return fmt.Errorf("store thumb: %w", err)
 	}
