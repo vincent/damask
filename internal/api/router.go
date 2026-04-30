@@ -17,6 +17,7 @@ import (
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
@@ -161,6 +162,9 @@ func NewRouter(
 		BodyLimit:    bodyLimit,
 	})
 
+	app.Use(telemetry.FiberMiddleware())
+	app.Use(telemetry.FiberStatusMiddleware())
+
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173", s.cfg.BaseURL.String()},
 		AllowCredentials: true,
@@ -207,6 +211,8 @@ func NewRouter(
 
 	// Generic job trigger — owner only
 	api.Post("/workspace/jobs/:type/trigger", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTriggerWorkspaceJob)
+
+	api.Get("/admin/telemetry", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTelemetryStatus)
 
 	// Invites — owner only; blocked in demo mode
 	api.Post("/workspace/invites", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleCreateInvite)

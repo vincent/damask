@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
@@ -21,6 +22,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
 	// Side-effect imports to register ingress source types
@@ -106,6 +108,39 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	otelTracesShutdown, err := telemetry.Setup(ctx, telemetry.Config{
+		Enabled:     cfg.Telemetry.Enabled,
+		Endpoint:    cfg.Telemetry.Endpoint,
+		Token:       cfg.Telemetry.Token,
+		ServiceName: cfg.Telemetry.ServiceName,
+		Env:         cfg.Telemetry.Env,
+	})
+	if err != nil {
+		slog.Warn("otel setup failed; continuing without sending traces", "error", err)
+	}
+
+	otelLogsShutdown, err := telemetry.InitLogs(ctx, telemetry.Config{
+		Enabled:     cfg.Telemetry.Enabled,
+		Endpoint:    cfg.Telemetry.Endpoint,
+		Token:       cfg.Telemetry.Token,
+		ServiceName: cfg.Telemetry.ServiceName,
+		Env:         cfg.Telemetry.Env,
+	})
+	if err != nil {
+		slog.Warn("otel setup failed; continuing without sending logs", "error", err)
+	}
+
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := otelTracesShutdown(shutdownCtx); err != nil {
+			slog.Warn("otel shutdown failed", "error", err)
+		}
+		if err := otelLogsShutdown(shutdownCtx); err != nil {
+			slog.Warn("otel shutdown failed", "error", err)
+		}
+	}()
+
 	q.Start(ctx)
 	defer q.Stop()
 
@@ -117,17 +152,6 @@ func main() {
 
 	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, trf, tmb, cfg, injestor)
 	js.RegisterJobHandlers()
-
-	if cfg.EnableScheduler {
-		ingress.NewScheduler(queries, q).Start(ctx)
-		slog.Info("ingress scheduler started")
-		jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)
-		slog.Info("field cleanup scheduler started")
-		jobs.NewRetentionScheduler(q).Start(ctx)
-		slog.Info("retention scheduler started")
-		jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
-		slog.Info("audit-log retention scheduler started")
-	}
 
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
@@ -173,6 +197,19 @@ func main() {
 	}
 	gdrive.SetRefresher(refresher)
 	canva.SetRefresher(refresher)
+
+	/// start background services
+
+	if cfg.EnableScheduler {
+		ingress.NewScheduler(queries, q).Start(ctx)
+		slog.Info("ingress scheduler started")
+		jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)
+		slog.Info("field cleanup scheduler started")
+		jobs.NewRetentionScheduler(q).Start(ctx)
+		slog.Info("retention scheduler started")
+		jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
+		slog.Info("audit-log retention scheduler started")
+	}
 
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)
 	appErr := make(chan error, 1)

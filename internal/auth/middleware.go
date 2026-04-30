@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"damask/server/internal/telemetry"
+
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -35,6 +37,7 @@ func RequireAuth(maker *Maker) fiber.Handler {
 			UserID:      &claims.UserID,
 			WorkspaceID: &claims.WorkspaceID,
 		}))
+		telemetry.EnrichSpan(c, claims.WorkspaceID, claims.UserID)
 		return c.Next()
 	}
 }
@@ -88,6 +91,7 @@ func OptionalAuth(maker *Maker) fiber.Handler {
 					UserID:      &claims.UserID,
 					WorkspaceID: &claims.WorkspaceID,
 				}))
+				telemetry.EnrichSpan(c, claims.WorkspaceID, claims.UserID)
 			}
 		}
 		return c.Next()

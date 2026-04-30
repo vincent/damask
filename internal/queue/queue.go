@@ -12,8 +12,12 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // HandlerFunc processes a job payload and returns an error on failure.
@@ -172,7 +176,17 @@ func (q *Queue) processNext(ctx context.Context) {
 	}
 
 	jobCtx := auth.WithActor(ctx, auth.Actor{Type: "system"})
+	jobCtx, span := telemetry.Tracer("damask/internal/queue").Start(jobCtx, "job."+job.Type,
+		trace.WithAttributes(
+			attribute.String("job.id", job.ID),
+			attribute.String("job.type", job.Type),
+			attribute.Int64("job.attempt", job.Attempts),
+		),
+	)
+	defer span.End()
 	if err := h(jobCtx, job); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		slog.Error("queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
 		errMsg := err.Error()
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
@@ -181,6 +195,7 @@ func (q *Queue) processNext(ctx context.Context) {
 		})
 		return
 	}
+	span.SetStatus(codes.Ok, "")
 
 	if err := q.db.CompleteJob(ctx, job.ID); err != nil {
 		slog.Error("queue: complete job", "job_id", job.ID, "error", err)

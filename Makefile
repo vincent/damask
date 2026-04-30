@@ -1,4 +1,4 @@
-.PHONY: dev dev-server dev-web build build-web build-demo test lint generate migrate admin admin-run admin-install swagger
+.PHONY: dev dev-server dev-web build build-web build-demo build-dev test lint generate migrate admin admin-run admin-install swagger
 
 # Run both server and web dev servers concurrently
 dev:
@@ -23,6 +23,10 @@ build: build-web
 # Build the Go server binary with demo jobs
 build-demo: build-web
 	go build -tags=demo -o bin/damask-server-demo ./cmd/server
+
+# Build the Go server binary
+build-dev: build-web
+	go build -o bin/damask-server-dev ./cmd/server
 
 # Update Swagger docs
 swagger:

@@ -15,6 +15,7 @@ import (
 	"damask/server/internal/service"
 
 	"github.com/gofiber/fiber/v3"
+	"go.opentelemetry.io/otel"
 )
 
 type AssetResponse struct {
@@ -172,14 +173,18 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Router /api/v1/assets [get]
 func (s *Server) handleListAssets(c fiber.Ctx) error {
+	tracer := otel.Tracer("handleListAssets")
 	claims := auth.GetClaims(c)
 
+	ctx, span := tracer.Start(c.Context(), "parse.args")
 	limit := int64(50)
 	if l := c.Query("limit"); l != "" {
 		if n, err := strconv.ParseInt(l, 10, 64); err == nil && n > 0 && n <= 100 {
 			limit = n
 		}
 	}
+
+	slog.InfoContext(ctx, "log from handleListAssets")
 
 	// Field value filter — handled separately (different pagination scheme).
 	if hasFieldFilters(c) {
@@ -263,19 +268,24 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 			lp.CursorID = cv.ID
 		}
 	}
+	span.End()
 
+	_, span = tracer.Start(c.Context(), "fetch")
 	assets, err := s.assets.List(c.Context(), lp)
 	if err != nil {
 		slog.Error("could not list assets", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
+	span.End()
 
+	_, span = tracer.Start(c.Context(), "batch.counts")
 	ids := make([]string, len(assets))
 	for i, a := range assets {
 		ids[i] = a.ID
 	}
 	versionCounts, _ := s.assets.BatchVersionCounts(c.Context(), ids)
 	variantCounts, _ := s.assets.BatchVariantCounts(c.Context(), ids)
+	span.End()
 
 	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts))
 }

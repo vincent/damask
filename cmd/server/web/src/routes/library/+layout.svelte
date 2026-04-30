@@ -11,7 +11,7 @@
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
-  import { Activity, LogOut, Plus, Settings2, Tag, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft } from '@lucide/svelte'
+  import { Activity, LogOut, Plus, Settings2, Tag, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft, Gauge } from '@lucide/svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'

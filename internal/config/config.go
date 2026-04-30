@@ -59,6 +59,16 @@ type Config struct {
 	OIDC   OIDCConfig
 	Google GoogleOIDCConfig
 	Canva  CanvaConfig
+
+	Telemetry TelemetryConfig
+}
+
+type TelemetryConfig struct {
+	Enabled     bool
+	Endpoint    string
+	Token       string
+	ServiceName string
+	Env         string
 }
 
 // DemoConfig holds all demo-mode settings. All fields are zero-valued when
@@ -143,7 +153,13 @@ func Load() (*Config, error) {
 			SignupURL:          getEnv("DEMO_SIGNUP_URL", "/signup"),
 		},
 	}
-
+	cfg.Telemetry = TelemetryConfig{
+		Enabled:     getEnv("OTEL_ENABLED", "false") == "true",
+		Endpoint:    getEnv("OTEL_ENDPOINT", "http://localhost:8082/api/otel/v1"),
+		Token:       getEnv("OTEL_TOKEN", "dev-token"),
+		ServiceName: "damask",
+		Env:         cfg.AppEnv,
+	}
 	cfg.OIDC = OIDCConfig{
 		IssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 		ClientID:     os.Getenv("OIDC_CLIENT_ID"),

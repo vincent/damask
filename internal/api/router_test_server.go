@@ -16,6 +16,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/telemetry"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
@@ -74,6 +75,10 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 			AppSecret: "test-secret-key-must-be-32chars!!",
 			AppEnv:    "development",
 			BaseURL:   u,
+			Telemetry: config.TelemetryConfig{
+				ServiceName: "damask",
+				Env:         "development",
+			},
 		}
 	}
 
@@ -133,6 +138,10 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 	return s, app
 }
 
+func (s *Server) SetConfigForTest(cfg *config.Config) {
+	s.cfg = cfg
+}
+
 // buildTestApp registers all routes on a fresh Fiber app using server s.
 // The route registrations must stay in sync with NewRouter in router.go.
 func buildTestApp(s *Server) *fiber.App {
@@ -146,6 +155,9 @@ func buildTestApp(s *Server) *fiber.App {
 		ErrorHandler: createDefaultErrorHandler(bodyLimit),
 		BodyLimit:    bodyLimit,
 	})
+
+	app.Use(telemetry.FiberMiddleware())
+	app.Use(telemetry.FiberStatusMiddleware())
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
@@ -191,11 +203,15 @@ func buildTestApp(s *Server) *fiber.App {
 		return auth.Role(member.Role), nil
 	}
 
+	app.Get("/api/admin/telemetry", auth.RequireAuth(tokenMaker), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTelemetryStatus)
+
 	// Workspace settings — owner only
 	api.Put("/workspace/settings", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateWorkspaceSettings)
 
 	// Generic job trigger — owner only
 	api.Post("/workspace/jobs/:type/trigger", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTriggerWorkspaceJob)
+
+	api.Get("/admin/telemetry", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTelemetryStatus)
 
 	// Invites — owner only
 	api.Post("/workspace/invites", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleCreateInvite)

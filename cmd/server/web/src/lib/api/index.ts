@@ -9,3 +9,4 @@ export * from './shares';
 export * from './versions';
 export * from './custom_fields';
 export * from './workspace';
+export * from './telemetry';
