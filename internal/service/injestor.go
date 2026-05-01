@@ -14,10 +14,12 @@ import (
 	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
+	apptelemetry "damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // AssetInjestor extends assetio.Injestor with a richer return used within the service layer.
@@ -86,16 +88,37 @@ func (s *injestorImpl) IngestFileWithDetails(ctx context.Context, workspaceID, f
 }
 
 // ingest is the shared implementation called by IngestFile and IngestFileFull.
-func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string, opts assetio.IngestFileOpts) (dbgen.Asset, error) {
+func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string, opts assetio.IngestFileOpts) (asset dbgen.Asset, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.injestor.ingest",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Bool("damask.upload.has_project", opts.ProjectID != nil),
+		attribute.Bool("damask.upload.has_folder", opts.FolderID != nil),
+	)
+	defer func() {
+		if asset.ID != "" {
+			span.SetAttributes(
+				attribute.String("damask.asset_id", asset.ID),
+				attribute.String("damask.mime_type", asset.MimeType),
+				attribute.Int64("damask.asset.size", asset.Size),
+			)
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset ingest failed", "workspace_id", workspaceID, "error", err)
+		}
+	}()
+
 	stat, err := os.Stat(filePath)
 	if err != nil {
 		return dbgen.Asset{}, fmt.Errorf("could not stat uploaded file: %w", err)
 	}
+	span.SetAttributes(attribute.Int64("damask.upload.bytes", stat.Size()))
 
 	mimeType, err := transform.DetectMimeType(filePath)
 	if err != nil {
 		return dbgen.Asset{}, fmt.Errorf("could not detect MIME type: %w", err)
 	}
+	span.SetAttributes(attribute.String("damask.mime_type", mimeType))
 
 	assetID := uuid.New().String()
 	originalFilename := filepath.Base(filePath)
@@ -109,20 +132,34 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		return dbgen.Asset{}, fmt.Errorf("could not open file: %w", err)
 	}
 	defer f.Close()
-	if err := s.stor.Put(storageKey, f); err != nil {
+	_, storeSpan := apptelemetry.StartSpan(ctx, "service.injestor.storage_put",
+		attribute.String("damask.storage.key", storageKey),
+		attribute.Int64("damask.upload.bytes", stat.Size()),
+	)
+	err = s.stor.Put(storageKey, f)
+	apptelemetry.EndSpan(storeSpan, err)
+	if err != nil {
 		return dbgen.Asset{}, fmt.Errorf("could not store file: %w", err)
 	}
 
 	meta := mediatype.FileMeta{}
 	if s.media.Supports(mimeType) {
+		metaCtx, metaSpan := apptelemetry.StartSpan(ctx, "service.injestor.extract_metadata",
+			attribute.String("damask.mime_type", mimeType),
+		)
 		if m, merr := s.media.ExtractMeta(ctx, filePath, mimeType); merr == nil {
 			meta = m
+		} else {
+			apptelemetry.RecordError(metaSpan, merr)
+			slog.WarnContext(metaCtx, "metadata extraction failed", "mime_type", mimeType, "error", merr)
 		}
+		metaSpan.End()
 	} else {
-		slog.Debug("no handler for MIME type, skipping metadata extraction", "mime_type", mimeType)
+		slog.DebugContext(ctx, "no handler for MIME type, skipping metadata extraction", "mime_type", mimeType)
 	}
 
-	asset, err := s.db.CreateAsset(ctx, dbgen.CreateAssetParams{
+	_, createSpan := apptelemetry.StartSpan(ctx, "service.injestor.create_asset")
+	asset, err = s.db.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
 		ProjectID:        opts.ProjectID,
@@ -133,15 +170,16 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		Width:            meta.Width,
 		Height:           meta.Height,
 	})
+	apptelemetry.EndSpan(createSpan, err)
 	if err != nil {
 		return dbgen.Asset{}, fmt.Errorf("could not save asset: %w", err)
 	}
 
-	slog.Debug("created asset", "asset_id", asset.ID, "mime_type", asset.MimeType)
+	slog.DebugContext(ctx, "created asset", "asset_id", asset.ID, "mime_type", asset.MimeType, "size", asset.Size)
 
 	initialVersionID, vErr := s.createInitialVersion(ctx, asset, filePath, storageKey, mimeType, meta, opts.UserID)
 	if vErr != nil {
-		slog.Error("create initial version", "asset_id", asset.ID, "error", vErr)
+		slog.ErrorContext(ctx, "create initial version", "asset_id", asset.ID, "error", vErr)
 	}
 
 	if opts.FolderID != nil {
@@ -150,14 +188,19 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 			ID:          asset.ID,
 			WorkspaceID: workspaceID,
 		}); err != nil {
-			slog.Error("set folder for asset", "asset_id", asset.ID, "error", err)
+			slog.ErrorContext(ctx, "set folder for asset", "asset_id", asset.ID, "error", err)
 		} else {
 			asset.FolderID = opts.FolderID
 		}
 	}
 
 	if opts.InheritFields != nil && opts.ProjectID != nil && opts.UserID != "" {
-		opts.InheritFields(ctx, workspaceID, asset.ID, *opts.ProjectID, opts.UserID)
+		inheritCtx, inheritSpan := apptelemetry.StartSpan(ctx, "service.injestor.inherit_project_fields",
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.project_id", *opts.ProjectID),
+		)
+		opts.InheritFields(inheritCtx, workspaceID, asset.ID, *opts.ProjectID, opts.UserID)
+		inheritSpan.End()
 	}
 
 	if s.media.Supports(mimeType) && initialVersionID != "" {
@@ -168,8 +211,14 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 			StorageKey:  asset.StorageKey,
 			MimeType:    asset.MimeType,
 		})
-		if _, err := s.q.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload)); err != nil {
-			slog.Error("enqueue version thumbnail", "asset_id", asset.ID, "error", err)
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_thumbnail",
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.job.type", string(queue.JobTypeVersionThumbnail)),
+		)
+		_, err := s.q.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "error", err)
 		}
 	}
 
@@ -179,8 +228,14 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 			"workspace_id": workspaceID,
 			"user_id":      opts.UserID,
 		})
-		if _, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractExif, string(exifPayload)); err != nil {
-			slog.Error("enqueue extract_exif", "asset_id", asset.ID, "error", err)
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_exif",
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.job.type", string(queue.JobTypeExtractExif)),
+		)
+		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractExif, string(exifPayload))
+		apptelemetry.EndSpan(enqueueSpan, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "enqueue extract_exif", "asset_id", asset.ID, "error", err)
 		}
 	}
 
@@ -193,13 +248,25 @@ func (s *injestorImpl) createInitialVersion(
 	filePath, storageKey, mimeType string,
 	meta mediatype.FileMeta,
 	userID string,
-) (string, error) {
+) (versionID string, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.injestor.create_initial_version",
+		attribute.String("damask.workspace_id", asset.WorkspaceID),
+		attribute.String("damask.asset_id", asset.ID),
+		attribute.Int64("damask.asset.size", asset.Size),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "create initial version failed", "asset_id", asset.ID, "error", err)
+		}
+	}()
+
 	hash, err := versioning.HashFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("hash file: %w", err)
 	}
 
-	versionID := uuid.NewString()
+	versionID = uuid.NewString()
 
 	tx, err := s.sqlDB.BeginTx(ctx, nil)
 	if err != nil {
@@ -214,7 +281,7 @@ func (s *injestorImpl) createInitialVersion(
 		createdByPtr = &userID
 	}
 
-	if _, err := qtx.CreateAssetVersion(ctx, dbgen.CreateAssetVersionParams{
+	if _, err = qtx.CreateAssetVersion(ctx, dbgen.CreateAssetVersionParams{
 		ID:          versionID,
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,
@@ -232,12 +299,13 @@ func (s *injestorImpl) createInitialVersion(
 		return "", fmt.Errorf("create version row (asset_id, workspace_id, created_by) (%s, %s, %v): %w", asset.ID, asset.WorkspaceID, createdByPtr, err)
 	}
 
-	if err := qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
+	if err = qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
 		CurrentVersionID: &versionID,
 		ID:               asset.ID,
 	}); err != nil {
 		return "", fmt.Errorf("set current_version_id: %w", err)
 	}
 
-	return versionID, tx.Commit()
+	err = tx.Commit()
+	return versionID, err
 }

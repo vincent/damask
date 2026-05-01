@@ -1,6 +1,8 @@
 package exifextract
 
 import (
+	"context"
+	"damask/server/internal/telemetry"
 	"fmt"
 	"io"
 	"time"
@@ -41,7 +43,10 @@ type GPSCoords struct {
 // Extract reads EXIF from r. keepGPS=false strips GPS regardless of file content.
 // Returns nil, nil when the file has no EXIF data — callers should write a tombstone.
 // Never panics: all goexif calls are wrapped in recover().
-func Extract(r io.Reader, keepGPS bool) (result *ExtractedEXIF, err error) {
+func Extract(ctx context.Context, r io.Reader, keepGPS bool) (result *ExtractedEXIF, err error) {
+	_, span := telemetry.StartSpan(ctx, "services.exif.extract")
+	defer telemetry.EndSpan(span, err)
+
 	defer func() {
 		if rec := recover(); rec != nil {
 			result = nil

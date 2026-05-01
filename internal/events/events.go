@@ -2,7 +2,9 @@ package events
 
 import (
 	"bufio"
+	"context"
 	"damask/server/internal/auth"
+	"damask/server/internal/telemetry"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -21,7 +23,7 @@ type Event struct {
 
 type EventHub interface {
 	Subscribe(workspaceID string) (<-chan Event, func())
-	Publish(workspaceID string, ev Event)
+	Publish(ctx context.Context, workspaceID string, ev Event)
 	EventHandler(c fiber.Ctx) error
 }
 
@@ -68,7 +70,10 @@ func (h *EventHubImpl) Subscribe(workspaceID string) (<-chan Event, func()) {
 
 // Publish sends an event to all subscribers of workspaceID.
 // Non-blocking: slow clients are skipped.
-func (h *EventHubImpl) Publish(workspaceID string, ev Event) {
+func (h *EventHubImpl) Publish(ctx context.Context, workspaceID string, ev Event) {
+	_, span := telemetry.StartSpan(ctx, "service.events.publish")
+	defer span.End()
+
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for _, ch := range h.subs[workspaceID] {

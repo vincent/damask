@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"time"
 
+	apptelemetry "damask/server/internal/telemetry"
+
 	"github.com/google/uuid"
 )
 
@@ -24,8 +26,8 @@ type Writer interface {
 // NopWriter is a no-op Writer used in tests and when auditing is disabled.
 type NopWriter struct{}
 
-func (NopWriter) WriteAsset(_ context.Context, _ AssetEvent)  {}
-func (NopWriter) WriteAssetAsync(_ AssetEvent)                 {}
+func (NopWriter) WriteAsset(_ context.Context, _ AssetEvent)     {}
+func (NopWriter) WriteAssetAsync(_ AssetEvent)                   {}
 func (NopWriter) WriteProject(_ context.Context, _ ProjectEvent) {}
 
 // EventWriter writes asset and project events to the DB.
@@ -64,6 +66,9 @@ type ProjectEvent struct {
 
 // WriteAsset inserts an asset event row. Errors are logged but never returned.
 func (w *EventWriter) WriteAsset(ctx context.Context, e AssetEvent) {
+	_, span := apptelemetry.StartSpan(ctx, "service.audit.write.asset")
+	defer span.End()
+
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
 		slog.Error("audit: marshal asset event", "event_type", e.EventType, "error", err)
@@ -92,6 +97,9 @@ func (w *EventWriter) WriteAssetAsync(e AssetEvent) {
 
 // WriteProject inserts a project event row. Errors are logged but never returned.
 func (w *EventWriter) WriteProject(ctx context.Context, e ProjectEvent) {
+	_, span := apptelemetry.StartSpan(ctx, "service.audit.write.project")
+	defer span.End()
+
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
 		slog.Error("audit: marshal project event", "event_type", e.EventType, "error", err)

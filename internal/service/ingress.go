@@ -15,8 +15,10 @@ import (
 	"damask/server/internal/ingress"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
+	apptelemetry "damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // IngressSourceDTO is the output of IngressService source methods.
@@ -309,7 +311,18 @@ func (s *ingressService) DeleteSource(ctx context.Context, workspaceID, id strin
 	})
 }
 
-func (s *ingressService) TestSource(ctx context.Context, workspaceID, id string) error {
+func (s *ingressService) TestSource(ctx context.Context, workspaceID, id string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.ingress.test_source",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.ingress.source_id", id),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "ingress source test failed", "workspace_id", workspaceID, "source_id", id, "error", err)
+		}
+	}()
+
 	src, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
@@ -339,7 +352,21 @@ func (s *ingressService) TestSource(ctx context.Context, workspaceID, id string)
 	return nil
 }
 
-func (s *ingressService) TriggerPoll(ctx context.Context, workspaceID, id string) (string, error) {
+func (s *ingressService) TriggerPoll(ctx context.Context, workspaceID, id string) (jobID string, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.ingress.trigger_poll",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.ingress.source_id", id),
+	)
+	defer func() {
+		if jobID != "" {
+			span.SetAttributes(attribute.String("damask.job_id", jobID))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "ingress poll trigger failed", "workspace_id", workspaceID, "source_id", id, "error", err)
+		}
+	}()
+
 	src, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
@@ -590,7 +617,21 @@ func (s *ingressService) DeleteLogEntry(ctx context.Context, workspaceID, entryI
 	return s.db.DeleteIngressLogEntry(ctx, entryID)
 }
 
-func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID string) (string, error) {
+func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID string) (jobID string, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.ingress.retry_log_entry",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.ingress.log_entry_id", entryID),
+	)
+	defer func() {
+		if jobID != "" {
+			span.SetAttributes(attribute.String("damask.job_id", jobID))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "ingress retry failed", "workspace_id", workspaceID, "entry_id", entryID, "error", err)
+		}
+	}()
+
 	entry, err := s.db.GetIngressLogEntry(ctx, entryID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("log entry %q: %w", entryID, apperr.ErrNotFound)

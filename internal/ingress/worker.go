@@ -21,8 +21,11 @@ import (
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
+	"damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // Worker handles ingest_poll and ingest_fetch jobs.
@@ -50,11 +53,11 @@ type PollJobPayload struct {
 
 // FetchJobPayload is the JSON payload for a JobTypeIngestFetch job.
 type FetchJobPayload struct {
-	SourceID         string `json:"source_id"`
-	WorkspaceID      string `json:"workspace_id"`
-	LogEntryID       string `json:"log_entry_id"`
-	RemoteID         string `json:"remote_id"`
-	Filename         string `json:"filename"`
+	SourceID         string            `json:"source_id"`
+	WorkspaceID      string            `json:"workspace_id"`
+	LogEntryID       string            `json:"log_entry_id"`
+	RemoteID         string            `json:"remote_id"`
+	Filename         string            `json:"filename"`
 	TmpPath          string            `json:"tmp_path,omitempty"`
 	OverrideFolderID string            `json:"override_folder_id,omitempty"`
 	Meta             map[string]string `json:"meta,omitempty"`
@@ -62,9 +65,13 @@ type FetchJobPayload struct {
 
 // HandlePoll is the queue.HandlerFunc for JobTypeIngestPoll.
 // It opens the source, calls Poll(), inserts log entries, and enqueues fetch jobs.
-func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
+func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) (err error) {
+	ctx, span := telemetry.StartSpan(ctx, "workers.ingest.poll")
+	defer telemetry.EndSpan(span, err)
+
 	var p PollJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("ingest_poll: parse payload: %w", err)
 	}
 
@@ -72,8 +79,13 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 		ID: p.SourceID, WorkspaceID: p.WorkspaceID,
 	})
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("ingest_poll: get source %s: %w", p.SourceID, err)
 	}
+
+	span.SetAttributes(attribute.String("damask.ingest.poll.workspace_id", p.WorkspaceID))
+	span.SetAttributes(attribute.String("damask.ingest.poll.source_id", p.SourceID))
+
 	if src.Enabled == 0 {
 		return nil
 	}
@@ -82,6 +94,8 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 	if err != nil {
 		return w.failSource(ctx, src, fmt.Errorf("ingest_poll: decrypt config: %w", err))
 	}
+
+	span.SetAttributes(attribute.String("damask.ingest.poll.source_type", src.Type))
 
 	source, err := Build(src.Type, configJSON)
 	if err != nil {
@@ -95,6 +109,12 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 
 	for _, item := range items {
 		entryID := uuid.NewString()
+
+		_, itemSpan := telemetry.StartSpan(ctx, "workers.ingest.poll.item",
+			attribute.String("damask.ingest.poll.entry_id", entryID),
+		)
+		defer itemSpan.End()
+
 		entry, err := w.db.InsertIngressLogEntry(ctx, dbgen.InsertIngressLogEntryParams{
 			ID:       entryID,
 			SourceID: src.ID,
@@ -106,7 +126,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 			continue
 		}
 		if err != nil {
-			slog.Error("ingest_poll: insert log entry", "remote_id", item.RemoteID, "error", err)
+			slog.ErrorContext(ctx, "ingest_poll: insert log entry", "remote_id", item.RemoteID, "error", err)
 			continue
 		}
 
@@ -119,7 +139,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 			Meta:        item.Meta,
 		})
 		if _, err := w.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
-			slog.Error("ingest_poll: enqueue fetch", "remote_id", item.RemoteID, "error", err)
+			slog.ErrorContext(ctx, "ingest_poll: enqueue fetch", "remote_id", item.RemoteID, "error", err)
 		}
 	}
 
@@ -128,16 +148,26 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) error {
 
 // HandleFetch is the queue.HandlerFunc for JobTypeIngestFetch.
 // It downloads one item, validates MIME, stores it, and creates an asset row.
-func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
+func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
+	ctx, span := telemetry.StartSpan(ctx, "workers.ingest.fetch")
+	defer telemetry.EndSpan(span, err)
+
 	var p FetchJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("ingest_fetch: parse payload: %w", err)
 	}
 
+	span.SetAttributes(attribute.String("damask.ingest.workspace_id", p.WorkspaceID))
+	span.SetAttributes(attribute.String("damask.ingest.entry_id", p.LogEntryID))
+
 	entry, err := w.db.GetIngressLogEntry(ctx, p.LogEntryID)
 	if err != nil {
 		return fmt.Errorf("ingest_fetch: get log entry %s: %w", p.LogEntryID, err)
 	}
+
+	span.SetAttributes(attribute.String("damask.ingest.entry_remote_id", entry.RemoteID))
+	span.SetAttributes(attribute.String("damask.ingest.entry_status", entry.Status))
+
 	// Idempotency: skip if already processed
 	if entry.Status != "pending" {
 		return nil
@@ -149,6 +179,10 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	if err != nil {
 		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: get source: %w", err))
 	}
+
+	span.SetAttributes(attribute.String("damask.ingest.entry_source_id", src.ID))
+	span.SetAttributes(attribute.String("damask.ingest.entry_source_label", src.Label))
+	span.SetAttributes(attribute.String("damask.ingest.entry_source_type", src.Type))
 
 	configJSON, err := DecryptConfig(w.cfg.AppSecret, src.Config)
 	if err != nil {
@@ -165,7 +199,11 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	if err != nil {
 		slog.Warn("ingest_fetch: list rules (continuing without rules)", "source_id", src.ID, "error", err)
 	}
+
+	span.SetAttributes(attribute.Int("damask.ingest.entry_source_rules", len(rules)))
+
 	ruleResult := EvaluateRules(rules, ItemMeta{Filename: entry.Filename})
+	span.SetAttributes(attribute.Bool("damask.ingest.entry_source_rules_pass", ruleResult.Allow))
 	if !ruleResult.Allow {
 		skipped := "skipped"
 		_ = w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
@@ -178,19 +216,23 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 	projectID := src.DestProjectID
 	folderID := src.DestFolderID
 	if p.OverrideFolderID != "" {
+		span.SetAttributes(attribute.String("damask.ingest.entry_folder_id", p.OverrideFolderID))
 		folderID = &p.OverrideFolderID
 	}
-	if ruleResult.ProjectID != nil {
-		projectID = ruleResult.ProjectID
-	}
 	if ruleResult.FolderID != nil {
+		span.SetAttributes(attribute.String("damask.ingest.entry_folder_id", *ruleResult.FolderID))
 		folderID = ruleResult.FolderID
+	}
+	if ruleResult.ProjectID != nil {
+		span.SetAttributes(attribute.String("damask.ingest.entry_project_id", *ruleResult.ProjectID))
+		projectID = ruleResult.ProjectID
 	}
 
 	// Fetch the item — either from a pre-written temp file (email_api push path)
 	// or by calling source.Fetch() (pull sources).
 	var rc io.ReadCloser
 	if p.TmpPath != "" {
+		slog.DebugContext(ctx, "use existing temp file")
 		f, err := os.Open(p.TmpPath)
 		if err != nil {
 			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: open tmp file: %w", err))
@@ -198,6 +240,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		defer os.Remove(p.TmpPath)
 		rc = f
 	} else {
+		slog.DebugContext(ctx, "use fetch from source")
 		rc, err = source.Fetch(ctx, IngestItem{RemoteID: entry.RemoteID, Filename: entry.Filename, Meta: p.Meta})
 		if err != nil {
 			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: fetch item: %w", err))
@@ -217,12 +260,15 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create temp file: %w", err))
 	}
 	tmpPath := tmp.Name()
+	slog.DebugContext(ctx, "use temp file", "path", tmpPath)
 	defer os.Remove(tmpPath)
 
-	if _, err := io.Copy(tmp, io.MultiReader(bytes.NewReader(sniff), rc)); err != nil {
+	copied, err := io.Copy(tmp, io.MultiReader(bytes.NewReader(sniff), rc))
+	if err != nil {
 		_ = tmp.Close()
 		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: write temp file: %w", err))
 	}
+	slog.DebugContext(ctx, "wrote temp file", "path", tmpPath, "bytes", copied)
 	_ = tmp.Close()
 
 	// Rename temp file to use original filename for CreateAsset
@@ -231,6 +277,8 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		namedTmp = tmpPath // fall back to random name
 	}
 	defer os.Remove(namedTmp)
+
+	slog.DebugContext(ctx, "ingest file", "path", namedTmp)
 
 	asset, err := w.injestor.IngestFile(ctx, src.WorkspaceID, namedTmp, assetio.IngestFileOpts{
 		ProjectID: projectID,
@@ -242,13 +290,16 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create asset: %w", err))
 	}
 
+	slog.DebugContext(ctx, "update ingress log entry", "entry_id", entry.ID, "asset_id", &asset.ID)
+
 	assetID := asset.ID
 	if err := w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status:  "imported",
 		AssetID: &assetID,
 		ID:      entry.ID,
 	}); err != nil {
-		slog.Error("ingest_fetch: update log entry", "entry_id", entry.ID, "error", err)
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "ingest_fetch: update log entry", "entry_id", entry.ID, "error", err)
 	}
 
 	w.audit.WriteAsset(ctx, audit.AssetEvent{
@@ -266,8 +317,11 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) error {
 		Name:        src.Label,
 	})
 	if err != nil {
-		slog.Error("ingest_fetch: could not get or create tag", "error", err)
+		span.SetStatus(codes.Error, err.Error())
+		slog.ErrorContext(ctx, "ingest_fetch: could not get or create tag", "error", err)
 	}
+
+	slog.DebugContext(ctx, "tag new entry", "tag", src.Label, "asset_id", &asset.ID)
 
 	_ = w.db.AddTagToAsset(ctx, dbgen.AddTagToAssetParams{
 		AssetID: assetID,
@@ -292,6 +346,9 @@ func (w *Worker) failSource(ctx context.Context, src dbgen.IngressSource, err er
 }
 
 func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSource, errMsg string, disabled bool) {
+	ctx, span := telemetry.StartSpan(ctx, "workers.ingest.notify_failure")
+	defer span.End()
+
 	members, dbErr := w.db.ListMembers(ctx, src.WorkspaceID)
 	if dbErr != nil {
 		return

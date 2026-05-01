@@ -2,11 +2,14 @@ package config
 
 import (
 	"context"
+	"damask/server/internal/telemetry"
 	"log/slog"
 	"sync"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/oauth2"
 )
 
@@ -88,11 +91,16 @@ func discoverWithRetry(ctx context.Context, name, issuerURL, clientID, clientSec
 	}
 }
 
-func discover(ctx context.Context, issuerURL, clientID, clientSecret, redirectURL string) (*OIDCRuntime, error) {
+func discover(ctx context.Context, issuerURL, clientID, clientSecret, redirectURL string) (rt *OIDCRuntime, err error) {
+	_, span := telemetry.StartSpan(ctx, "service.oidc.discover")
+	defer telemetry.EndSpan(span, err)
+
 	provider, err := gooidc.NewProvider(ctx, issuerURL)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
+	span.SetAttributes(attribute.String("damask.oidc.provider_auth_url", provider.Endpoint().AuthURL))
 	verifier := provider.Verifier(&gooidc.Config{ClientID: clientID})
 	oauth2Cfg := oauth2.Config{
 		ClientID:     clientID,

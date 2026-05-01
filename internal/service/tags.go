@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -11,8 +12,10 @@ import (
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/repository"
+	apptelemetry "damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // TagDTO is the output of TagService methods.
@@ -161,9 +164,23 @@ func (s *tagService) Delete(ctx context.Context, workspaceID string, names []str
 	return s.tags.Delete(ctx, workspaceID, names)
 }
 
-func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names []string) (BulkDeleteTagsResult, error) {
-	var result BulkDeleteTagsResult
-	err := s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
+func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names []string) (result BulkDeleteTagsResult, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.tags.bulk_delete",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.tags.requested_count", len(names)),
+	)
+	defer func() {
+		span.SetAttributes(
+			attribute.Int("damask.tags.deleted_count", result.Deleted),
+			attribute.Int64("damask.assets.affected_count", result.RemovedFromAssets),
+		)
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "tag bulk delete failed", "workspace_id", workspaceID, "tag_count", len(names), "error", err)
+		}
+	}()
+
+	err = s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
 		for _, name := range names {
 			tag, err := tx.GetByName(ctx, workspaceID, name)
 			if isNotFound(err) {
@@ -187,9 +204,21 @@ func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names [
 	return result, err
 }
 
-func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []string, target string) (MergeTagsResult, error) {
-	var result MergeTagsResult
-	err := s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
+func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []string, target string) (result MergeTagsResult, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.tags.merge",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.tags.source_count", len(sources)),
+		attribute.String("damask.tags.target", target),
+	)
+	defer func() {
+		span.SetAttributes(attribute.Int64("damask.assets.affected_count", result.MergedAssets))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "tag merge failed", "workspace_id", workspaceID, "source_count", len(sources), "target", target, "error", err)
+		}
+	}()
+
+	err = s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
 		tgt, err := tx.Upsert(ctx, workspaceID, target)
 		if err != nil {
 			return err

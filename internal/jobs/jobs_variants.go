@@ -99,7 +99,7 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 			ThumbnailKey: &storageKey,
 			ID:           p.AssetID,
 		}); err == nil {
-			s.hub.Publish(p.WorkspaceID, events.Event{
+			s.hub.Publish(ctx, p.WorkspaceID, events.Event{
 				Type:         "thumbnail_ready",
 				AssetID:      p.AssetID,
 				ThumbnailKey: storageKey,

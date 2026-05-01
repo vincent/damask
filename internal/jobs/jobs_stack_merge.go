@@ -128,7 +128,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		slog.Warn("stack_merge: could not persist result", "err", err)
 	}
 
-	s.hub.Publish(p.WorkspaceID, events.Event{
+	s.hub.Publish(ctx, p.WorkspaceID, events.Event{
 		Type:    "stack_merge_done",
 		AssetID: asset.ID,
 		JobID:   job.ID,

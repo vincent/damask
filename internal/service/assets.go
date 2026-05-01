@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
@@ -14,6 +15,9 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
+	apptelemetry "damask/server/internal/telemetry"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type assetService struct {
@@ -39,7 +43,23 @@ func (s *assetService) Get(ctx context.Context, workspaceID, assetID string) (*A
 	return toAssetDTO(asset), nil
 }
 
-func (s *assetService) List(ctx context.Context, params ListAssetsParams) ([]*AssetDTO, error) {
+func (s *assetService) List(ctx context.Context, params ListAssetsParams) (out []*AssetDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.list",
+		attribute.String("damask.workspace_id", params.WorkspaceID),
+		attribute.Int64("damask.assets.limit", params.Limit),
+		attribute.Bool("damask.assets.has_search", params.SearchQuery != ""),
+		attribute.Int("damask.assets.tag_filter_count", len(params.TagNames)),
+		attribute.Bool("damask.assets.has_cursor", params.CursorID != ""),
+		attribute.String("damask.assets.sort_field", params.SortField),
+	)
+	defer func() {
+		span.SetAttributes(attribute.Int("damask.assets.result_count", len(out)))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset list failed", "workspace_id", params.WorkspaceID, "error", err)
+		}
+	}()
+
 	// For taken_at sort, look up the exif field definition ID.
 	exifFieldID := ""
 	if params.SortField == "taken_at" {
@@ -70,7 +90,7 @@ func (s *assetService) List(ctx context.Context, params ListAssetsParams) ([]*As
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*AssetDTO, len(rows))
+	out = make([]*AssetDTO, len(rows))
 	for i, r := range rows {
 		out[i] = toAssetDTO(r)
 	}
@@ -154,7 +174,21 @@ func (s *assetService) RefreshFTS(ctx context.Context, assetID string) error {
 	return s.assets.RefreshFTS(ctx, assetID)
 }
 
-func (s *assetService) ListByFields(ctx context.Context, params ListAssetsByFieldsParams) ([]*AssetDTO, error) {
+func (s *assetService) ListByFields(ctx context.Context, params ListAssetsByFieldsParams) (out []*AssetDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.list_by_fields",
+		attribute.String("damask.workspace_id", params.WorkspaceID),
+		attribute.Int("damask.fields.filter_count", len(params.FieldFilters)),
+		attribute.Int64("damask.assets.limit", params.Limit),
+		attribute.Bool("damask.assets.has_cursor", params.CursorID != nil),
+	)
+	defer func() {
+		span.SetAttributes(attribute.Int("damask.assets.result_count", len(out)))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset list by fields failed", "workspace_id", params.WorkspaceID, "filters", len(params.FieldFilters), "error", err)
+		}
+	}()
+
 	repoFilters := make([]repository.FieldFilter, len(params.FieldFilters))
 	for i, f := range params.FieldFilters {
 		repoFilters[i] = repository.FieldFilter{Key: f.Key, Operator: f.Operator, Value: f.Value}
@@ -169,14 +203,25 @@ func (s *assetService) ListByFields(ctx context.Context, params ListAssetsByFiel
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*AssetDTO, len(rows))
+	out = make([]*AssetDTO, len(rows))
 	for i, r := range rows {
 		out[i] = toAssetDTO(r)
 	}
 	return out, nil
 }
 
-func (s *assetService) Delete(ctx context.Context, workspaceID, assetID string) error {
+func (s *assetService) Delete(ctx context.Context, workspaceID, assetID string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.delete",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.asset_id", assetID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset delete failed", "workspace_id", workspaceID, "asset_id", assetID, "error", err)
+		}
+	}()
+
 	isCover, err := s.assets.IsProjectCover(ctx, workspaceID, assetID)
 	if err != nil {
 		return err
@@ -194,7 +239,18 @@ func (s *assetService) Delete(ctx context.Context, workspaceID, assetID string) 
 	return s.assets.SoftDelete(ctx, workspaceID, assetID)
 }
 
-func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID string) error {
+func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.hard_delete",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.asset_id", assetID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset hard delete failed", "workspace_id", workspaceID, "asset_id", assetID, "error", err)
+		}
+	}()
+
 	isCover, err := s.assets.IsProjectCover(ctx, workspaceID, assetID)
 	if err != nil {
 		return err
@@ -229,7 +285,18 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 	return nil
 }
 
-func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, assetIDs []string) error {
+func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, assetIDs []string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.bulk_hard_delete",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(assetIDs)),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset bulk hard delete failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "error", err)
+		}
+	}()
+
 	type pending struct {
 		keys repository.AssetStorageKeys
 		id   string
@@ -267,7 +334,19 @@ func (s *assetService) deleteStorageKeys(keys repository.AssetStorageKeys) {
 	}
 }
 
-func (s *assetService) BulkTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error {
+func (s *assetService) BulkTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.bulk_tag",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(assetIDs)),
+		attribute.String("damask.tag_name", tagName),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset bulk tag failed", "workspace_id", workspaceID, "tag", tagName, "asset_count", len(assetIDs), "error", err)
+		}
+	}()
+
 	tag, err := s.tags.Upsert(ctx, workspaceID, tagName)
 	if err != nil {
 		return err
@@ -281,7 +360,19 @@ func (s *assetService) BulkTag(ctx context.Context, workspaceID, tagName string,
 	return nil
 }
 
-func (s *assetService) BulkMoveProject(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error {
+func (s *assetService) BulkMoveProject(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.bulk_move_project",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(assetIDs)),
+		attribute.Bool("damask.project.clear", projectID == nil),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset bulk project move failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "error", err)
+		}
+	}()
+
 	for _, assetID := range assetIDs {
 		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
 			continue // skip assets not in this workspace
@@ -349,6 +440,18 @@ func (s *assetService) WriteAssetDownloadedAsync(workspaceID, assetID, userID st
 
 // RegenerateThumbnail re-enqueues a version_thumbnail job for the asset's current version.
 func (s *assetService) RegenerateThumbnail(ctx context.Context, workspaceID string, assetIDs []string) (jobIDs []string, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.regenerate_thumbnail",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(assetIDs)),
+	)
+	defer func() {
+		span.SetAttributes(attribute.Int("damask.jobs.enqueued_count", len(jobIDs)))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset thumbnail regeneration failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "error", err)
+		}
+	}()
+
 	for _, assetID := range assetIDs {
 		asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 		if err != nil {

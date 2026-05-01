@@ -37,7 +37,7 @@ func approxEqual(a, b, eps float64) bool {
 func TestExtract_KodakPixpro(t *testing.T) {
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 
-	result, err := Extract(bytes.NewReader(data), true)
+	result, err := Extract(t.Context(), bytes.NewReader(data), true)
 	if err != nil {
 		t.Fatalf("Extract returned error: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestExtract_KodakPixpro(t *testing.T) {
 func TestExtract_KodakPixpro_StripGPS(t *testing.T) {
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 
-	result, err := Extract(bytes.NewReader(data), false)
+	result, err := Extract(t.Context(), bytes.NewReader(data), false)
 	if err != nil {
 		t.Fatalf("Extract returned error: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestExtract_KodakPixpro_StripGPS(t *testing.T) {
 
 func TestExtract_NoEXIF(t *testing.T) {
 	// A trivial byte sequence that is not a valid JPEG/EXIF.
-	result, err := Extract(bytes.NewReader([]byte{0xFF, 0xD8, 0xFF, 0xE0}), true)
+	result, err := Extract(t.Context(), bytes.NewReader([]byte{0xFF, 0xD8, 0xFF, 0xE0}), true)
 	if err != nil {
 		t.Fatalf("unexpected error for no-EXIF data: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestExtract_NoEXIF(t *testing.T) {
 
 func TestExtract_Panic(t *testing.T) {
 	// Empty reader triggers a panic in goexif; Extract must recover.
-	result, err := Extract(bytes.NewReader(nil), true)
+	result, err := Extract(t.Context(), bytes.NewReader(nil), true)
 	// Either a nil result or an error is acceptable — must not panic.
 	_ = result
 	_ = err
@@ -169,7 +169,7 @@ func TestGetRational_WholeNumber(t *testing.T) {
 	// getRational should format whole-number rationals without denominator.
 	// We test via Extract on a real file to avoid directly coupling to internals.
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
-	result, _ := Extract(bytes.NewReader(data), false)
+	result, _ := Extract(t.Context(), bytes.NewReader(data), false)
 	if result == nil || result.ExposureTime == nil {
 		t.Skip("no exposure time in test file")
 	}
@@ -181,7 +181,7 @@ func TestGetRational_WholeNumber(t *testing.T) {
 
 func TestExtract_TakenAt_Format(t *testing.T) {
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
-	result, _ := Extract(bytes.NewReader(data), false)
+	result, _ := Extract(t.Context(), bytes.NewReader(data), false)
 	if result == nil || result.TakenAt == nil {
 		t.Skip("no TakenAt in test file")
 	}

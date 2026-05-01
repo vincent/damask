@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -11,6 +12,9 @@ import (
 	"damask/server/internal/assetio"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
+	apptelemetry "damask/server/internal/telemetry"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // UploadMeta holds caller-supplied metadata for a file upload.
@@ -36,7 +40,22 @@ func NewUploadService(injestor AssetInjestor, aw audit.Writer) UploadService {
 
 // Ingest writes r to a temp file, calls AssetInjestor.IngestFileFull, then removes the temp file.
 // Queue enqueue failures are logged but do not fail the upload (fire-and-forget).
-func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (*AssetDTO, error) {
+func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (asset *AssetDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.upload.ingest",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Bool("damask.upload.has_project", meta.ProjectID != nil),
+		attribute.Bool("damask.upload.has_folder", meta.FolderID != nil),
+	)
+	defer func() {
+		if asset != nil {
+			span.SetAttributes(attribute.String("damask.asset_id", asset.ID))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "upload ingest failed", "workspace_id", workspaceID, "filename", meta.OriginalFilename, "error", err)
+		}
+	}()
+
 	if workspaceID == "" {
 		return nil, fmt.Errorf("workspaceID is required: %w", apperr.ErrInvalidInput)
 	}
@@ -51,13 +70,18 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 	tmpPath := tmpF.Name()
 	defer os.Remove(tmpPath)
 
-	if _, err := io.Copy(tmpF, r); err != nil {
+	_, copySpan := apptelemetry.StartSpan(ctx, "service.upload.write_temp")
+	var written int64
+	written, err = io.Copy(tmpF, r)
+	copySpan.SetAttributes(attribute.Int64("damask.upload.bytes", written))
+	apptelemetry.EndSpan(copySpan, err)
+	if err != nil {
 		_ = tmpF.Close()
 		return nil, fmt.Errorf("cannot write temp file: %w", err)
 	}
 	_ = tmpF.Close()
 
-	asset, err := s.injestor.IngestFileWithDetails(ctx, workspaceID, tmpPath, assetio.IngestFileOpts{
+	asset, err = s.injestor.IngestFileWithDetails(ctx, workspaceID, tmpPath, assetio.IngestFileOpts{
 		ProjectID:     meta.ProjectID,
 		FolderID:      meta.FolderID,
 		UserID:        meta.UserID,

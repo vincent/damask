@@ -17,7 +17,6 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // HandlerFunc processes a job payload and returns an error on failure.
@@ -89,8 +88,14 @@ func (q *Queue) Stop() {
 }
 
 // Enqueue persists a new job and notifies an idle worker.
-func (q *Queue) Enqueue(ctx context.Context, workspaceID, jobType, payload string) (dbgen.Job, error) {
-	job, err := q.db.CreateJob(ctx, dbgen.CreateJobParams{
+func (q *Queue) Enqueue(ctx context.Context, workspaceID, jobType, payload string) (job dbgen.Job, err error) {
+	_, span := telemetry.StartSpan(ctx, "service.queue.enqueue",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.job.type", jobType),
+	)
+	defer telemetry.EndSpan(span, err)
+
+	job, err = q.db.CreateJob(ctx, dbgen.CreateJobParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: workspaceID,
 		Type:        jobType,
@@ -99,7 +104,9 @@ func (q *Queue) Enqueue(ctx context.Context, workspaceID, jobType, payload strin
 	if err != nil {
 		return dbgen.Job{}, err
 	}
-	slog.Debug("queue: created job", "job", job)
+
+	span.SetAttributes(attribute.String("damask.job.id", job.ID))
+	slog.DebugContext(ctx, "queue: created job", "job", job)
 
 	// Best-effort wake up a worker; non-blocking.
 	select {
@@ -133,13 +140,22 @@ func (q *Queue) worker(ctx context.Context) {
 
 // processNext claims the oldest pending job and runs its handler.
 func (q *Queue) processNext(ctx context.Context) {
+	var err error
+	ctx, span := telemetry.StartSpan(ctx, "service.queue.next")
+	defer telemetry.EndSpan(span, err)
+
 	job, err := q.db.ClaimNextJob(ctx)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			slog.Error("queue: claim job", "error", err)
+			span.SetStatus(codes.Error, err.Error())
+			slog.ErrorContext(ctx, "queue: claim job", "error", err)
 		}
 		return
 	}
+
+	span.SetAttributes(attribute.String("damask.job.id", job.ID))
+	span.SetAttributes(attribute.String("damask.job.type", job.Type))
+	span.SetAttributes(attribute.String("damask.job.workspace_id", job.WorkspaceID))
 
 	// For transcode jobs, enforce concurrency limit of 2.
 	if job.Type == JobTypeVideoTranscode {
@@ -155,7 +171,8 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			slog.Error("queue: job panicked", "job_id", job.ID, "job_type", job.Type, "panic", r, "stack", string(debug.Stack()))
+			span.SetStatus(codes.Error, "queue: job panicked")
+			slog.ErrorContext(ctx, "queue: job panicked", "job_id", job.ID, "job_type", job.Type, "panic", r, "stack", string(debug.Stack()))
 			errMsg := fmt.Sprintf("panic: %v", r)
 			_ = q.db.FailJob(ctx, dbgen.FailJobParams{
 				Error: &errMsg,
@@ -166,7 +183,8 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	h, ok := q.handlers[job.Type]
 	if !ok {
-		slog.Error("queue: no handler for job type", "job_type", job.Type, "job_id", job.ID)
+		slog.ErrorContext(ctx, "queue: no handler for job type", "job_type", job.Type, "job_id", job.ID)
+		span.SetStatus(codes.Error, "queue: no handler registered")
 		errMsg := "no handler registered"
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
 			Error: &errMsg,
@@ -175,18 +193,16 @@ func (q *Queue) processNext(ctx context.Context) {
 		return
 	}
 
-	jobCtx := auth.WithActor(ctx, auth.Actor{Type: "system"})
-	jobCtx, span := telemetry.Tracer("damask/internal/queue").Start(jobCtx, "job."+job.Type,
-		trace.WithAttributes(
-			attribute.String("job.id", job.ID),
-			attribute.String("job.type", job.Type),
-			attribute.Int64("job.attempt", job.Attempts),
-		),
+	ctx = auth.WithActor(ctx, auth.Actor{Type: "system"})
+	ctx, jobSpan := telemetry.StartSpan(ctx, "service.queue.job."+job.Type,
+		attribute.String("job.id", job.ID),
+		attribute.String("job.type", job.Type),
+		attribute.Int64("job.attempt", job.Attempts),
 	)
-	defer span.End()
-	if err := h(jobCtx, job); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+	defer jobSpan.End()
+	if err := h(ctx, job); err != nil {
+		jobSpan.RecordError(err)
+		jobSpan.SetStatus(codes.Error, err.Error())
 		slog.Error("queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
 		errMsg := err.Error()
 		_ = q.db.FailJob(ctx, dbgen.FailJobParams{

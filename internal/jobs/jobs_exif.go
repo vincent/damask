@@ -97,7 +97,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 	defer r.Close()
 
 	// Extract EXIF.
-	result, err := exifextract.Extract(r, keepGPS)
+	result, err := exifextract.Extract(ctx, r, keepGPS)
 	if err != nil {
 		slog.Warn("exif: extract error — writing tombstone", "asset_id", p.AssetID, "error", err)
 	}

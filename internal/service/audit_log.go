@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +13,9 @@ import (
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	dbgen "damask/server/internal/db/gen"
+	apptelemetry "damask/server/internal/telemetry"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // AuditEventActorDTO is the actor embedded in each audit event.
@@ -23,12 +27,12 @@ type AuditEventActorDTO struct {
 
 // AuditEventDTO is a single audit event returned by the service.
 type AuditEventDTO struct {
-	ID            string              `json:"id"`
-	EventType     string              `json:"event_type"`
-	Actor         AuditEventActorDTO  `json:"actor"`
-	Payload       json.RawMessage     `json:"payload"`
-	CreatedAt     string              `json:"created_at"`
-	HumanReadable string              `json:"human_readable"`
+	ID            string             `json:"id"`
+	EventType     string             `json:"event_type"`
+	Actor         AuditEventActorDTO `json:"actor"`
+	Payload       json.RawMessage    `json:"payload"`
+	CreatedAt     string             `json:"created_at"`
+	HumanReadable string             `json:"human_readable"`
 }
 
 // ActivityEventDTO extends AuditEventDTO with entity context for the workspace feed.
@@ -155,7 +159,24 @@ func (s *auditLogService) ListProjectEvents(ctx context.Context, p ListProjectEv
 	return paginateAuditEvents(events, limit), nil
 }
 
-func (s *auditLogService) ListWorkspaceActivity(ctx context.Context, p ListWorkspaceActivityParams) (*ActivityListDTO, error) {
+func (s *auditLogService) ListWorkspaceActivity(ctx context.Context, p ListWorkspaceActivityParams) (out *ActivityListDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.audit.list_workspace_activity",
+		attribute.String("damask.workspace_id", p.WorkspaceID),
+		attribute.Int64("damask.audit.limit", p.Limit),
+		attribute.Bool("damask.audit.has_cursor", p.Cursor != ""),
+		attribute.Bool("damask.audit.has_user_filter", p.UserID != ""),
+		attribute.Int("damask.audit.type_filter_count", len(p.Types)),
+	)
+	defer func() {
+		if out != nil {
+			span.SetAttributes(attribute.Int("damask.audit.result_count", len(out.Events)))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "audit activity list failed", "workspace_id", p.WorkspaceID, "error", err)
+		}
+	}()
+
 	limit := clampLimit(p.Limit, 20, 100)
 	typesFilter := makeTypesFilter(p.Types)
 
@@ -228,10 +249,24 @@ func (s *auditLogService) ListWorkspaceActivity(ctx context.Context, p ListWorks
 	if merged == nil {
 		merged = []ActivityEventDTO{}
 	}
-	return &ActivityListDTO{Events: merged, NextCursor: nextCursor, HasMore: hasMore}, nil
+	out = &ActivityListDTO{Events: merged, NextCursor: nextCursor, HasMore: hasMore}
+	return out, nil
 }
 
-func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityParams) (string, error) {
+func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityParams) (csv string, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.audit.export_activity",
+		attribute.String("damask.workspace_id", p.WorkspaceID),
+		attribute.Bool("damask.audit.has_since", p.Since != ""),
+		attribute.Bool("damask.audit.has_until", p.Until != ""),
+	)
+	defer func() {
+		span.SetAttributes(attribute.Int("damask.audit.export_bytes", len(csv)))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "audit activity export failed", "workspace_id", p.WorkspaceID, "error", err)
+		}
+	}()
+
 	var cursorArg interface{}
 	if p.Until != "" {
 		cursorArg = p.Until + " 23:59:59"
@@ -283,7 +318,8 @@ func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityPa
 	for _, r := range projectRows {
 		writeRow(r.ID, r.EventType, "project", r.ProjectID, r.ActorType, r.UserName, r.Payload, r.CreatedAt)
 	}
-	return sb.String(), nil
+	csv = sb.String()
+	return csv, nil
 }
 
 // -- helpers --

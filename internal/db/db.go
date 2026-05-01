@@ -4,13 +4,19 @@ import (
 	db "damask/server/internal/db/gen"
 	"database/sql"
 	"fmt"
+	"path/filepath"
 
+	"github.com/uptrace/opentelemetry-go-extra/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	_ "modernc.org/sqlite"
 )
 
 // Open opens the SQLite database, runs migrations, and returns a Queries instance.
 func Open(dbPath string) (*db.Queries, *sql.DB, error) {
-	sqlDB, err := sql.Open("sqlite", dbPath)
+	sqlDB, err := otelsql.Open("sqlite", dbPath,
+		otelsql.WithAttributes(semconv.DBSystemSqlite),
+		otelsql.WithDBName(filepath.Base(dbPath)),
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open db: %w", err)
 	}

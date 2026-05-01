@@ -15,10 +15,12 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	apptelemetry "damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // ---- Response types ----
@@ -220,7 +222,13 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		Params:      params,
 	})
 
+	_, enqueueSpan := apptelemetry.StartSpan(c.Context(), "api.variants.enqueue_create",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.job.type", body.Type),
+	)
 	job, err := s.queue.Enqueue(c.Context(), claims.WorkspaceID, body.Type, string(payload))
+	apptelemetry.EndSpan(enqueueSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not enqueue job")
 	}
@@ -377,7 +385,15 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		"manual", variantID[:8], ext,
 	)
 
-	if err := s.storage.Put(storageKey, f); err != nil {
+	_, putSpan := apptelemetry.StartSpan(c.Context(), "api.variants.manual_storage_put",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.storage.key", storageKey),
+		attribute.Int64("damask.upload.bytes", fh.Size),
+	)
+	err = s.storage.Put(storageKey, f)
+	apptelemetry.EndSpan(putSpan, err)
+	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not store file")
 	}
 
@@ -431,7 +447,12 @@ func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status": "processing"})
 	}
 
+	_, getSpan := apptelemetry.StartSpan(c.Context(), "api.variants.thumbnail_storage_get",
+		attribute.String("damask.variant_id", variantID),
+		attribute.String("damask.storage.key", *variant.ThumbnailKey),
+	)
 	rc, err := s.storage.Get(*variant.ThumbnailKey)
+	apptelemetry.EndSpan(getSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
@@ -495,12 +516,24 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 		return c.Send(cached)
 	}
 
+	_, getSpan := apptelemetry.StartSpan(c.Context(), "api.variants.preview_storage_get",
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.storage.key", asset.StorageKey),
+	)
 	rc, err := s.storage.Get(asset.StorageKey)
+	apptelemetry.EndSpan(getSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "asset file not found")
 	}
 	defer rc.Close()
 
+	_, previewSpan := apptelemetry.StartSpan(c.Context(), "api.variants.preview_transform",
+		attribute.String("damask.asset_id", assetID),
+		attribute.Int("damask.preview.width", w),
+		attribute.Int("damask.preview.height", h),
+		attribute.String("damask.preview.fit", fit),
+		attribute.String("damask.preview.format", format),
+	)
 	data, ct, err := s.trf.ImagePreview(rc, transform.PreviewParams{
 		Width:   w,
 		Height:  h,
@@ -508,6 +541,8 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 		Quality: q,
 		Format:  format,
 	})
+	previewSpan.SetAttributes(attribute.Int("damask.preview.bytes", len(data)))
+	apptelemetry.EndSpan(previewSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "preview generation failed")
 	}

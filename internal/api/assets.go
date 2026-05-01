@@ -13,9 +13,11 @@ import (
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
+	apptelemetry "damask/server/internal/telemetry"
 
 	"github.com/gofiber/fiber/v3"
-	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type AssetResponse struct {
@@ -110,8 +112,20 @@ func dtoToDBAsset(d *service.AssetDTO) dbgen.Asset {
 // @Failure 400 {object} ErrorResponse "file field is required"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Router /api/v1/assets [post]
-func (s *Server) handleUploadAsset(c fiber.Ctx) error {
+func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
+	var asset *service.AssetDTO
+
+	ctx, rootSpan := apptelemetry.StartSpan(c.Context(), "api.assets.upload",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(rootSpan, err)
+		if err != nil {
+			rootSpan.SetStatus(codes.Error, err.Error())
+			slog.ErrorContext(ctx, "uploaded asset", "workspace_id", claims.WorkspaceID, "asset_id", asset.ID, "error", err)
+		}
+	}()
 
 	// Demo upload cap enforcement (DM-4.2) — no-op in non-demo builds
 	if blocked, err := s.checkDemoUploadCap(c, claims); err != nil || blocked {
@@ -132,14 +146,16 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 	var uploadProjectID *string
 	if pid := c.FormValue("project_id"); pid != "" {
 		uploadProjectID = &pid
+		rootSpan.SetAttributes(attribute.String("damask.project_id", pid))
 	}
 
 	var uploadFolderID *string
 	if fid := c.FormValue("folder_id"); fid != "" {
 		uploadFolderID = &fid
+		rootSpan.SetAttributes(attribute.String("damask.folder_id", fid))
 	}
 
-	asset, err := s.upload.Ingest(c.Context(), claims.WorkspaceID, f, service.UploadMeta{
+	asset, err = s.upload.Ingest(c.Context(), claims.WorkspaceID, f, service.UploadMeta{
 		OriginalFilename: fh.Filename,
 		ProjectID:        uploadProjectID,
 		FolderID:         uploadFolderID,
@@ -173,18 +189,15 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Router /api/v1/assets [get]
 func (s *Server) handleListAssets(c fiber.Ctx) error {
-	tracer := otel.Tracer("handleListAssets")
 	claims := auth.GetClaims(c)
 
-	ctx, span := tracer.Start(c.Context(), "parse.args")
+	_, span := apptelemetry.StartSpan(c.Context(), "parse.args")
 	limit := int64(50)
 	if l := c.Query("limit"); l != "" {
 		if n, err := strconv.ParseInt(l, 10, 64); err == nil && n > 0 && n <= 100 {
 			limit = n
 		}
 	}
-
-	slog.InfoContext(ctx, "log from handleListAssets")
 
 	// Field value filter — handled separately (different pagination scheme).
 	if hasFieldFilters(c) {
@@ -270,7 +283,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 	span.End()
 
-	_, span = tracer.Start(c.Context(), "fetch")
+	_, span = apptelemetry.StartSpan(c.Context(), "fetch")
 	assets, err := s.assets.List(c.Context(), lp)
 	if err != nil {
 		slog.Error("could not list assets", "error", err)
@@ -278,7 +291,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 	span.End()
 
-	_, span = tracer.Start(c.Context(), "batch.counts")
+	_, span = apptelemetry.StartSpan(c.Context(), "batch.counts")
 	ids := make([]string, len(assets))
 	for i, a := range assets {
 		ids[i] = a.ID
@@ -489,7 +502,12 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		return nil
 	}
 
+	_, storageSpan := apptelemetry.StartSpan(c.Context(), "api.assets.storage_get",
+		attribute.String("damask.asset_id", id),
+		attribute.String("damask.storage.key", version.StorageKey),
+	)
 	rc, err := s.storage.Get(version.StorageKey)
+	apptelemetry.EndSpan(storageSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
@@ -536,7 +554,12 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 		return nil
 	}
 
+	_, storageSpan := apptelemetry.StartSpan(c.Context(), "api.assets.thumbnail_storage_get",
+		attribute.String("damask.asset_id", id),
+		attribute.String("damask.storage.key", *dto.ThumbnailKey),
+	)
 	rc, err := s.storage.Get(*dto.ThumbnailKey)
+	apptelemetry.EndSpan(storageSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}

@@ -3,11 +3,13 @@ package mail
 import (
 	"bytes"
 	"context"
+	"damask/server/internal/telemetry"
 	"embed"
 	"html/template"
 	"log/slog"
 
 	"github.com/wneessen/go-mail"
+	"go.opentelemetry.io/otel/codes"
 )
 
 //go:embed templates/*.html
@@ -60,7 +62,10 @@ type MailerImpl struct {
 	client *mail.Client
 }
 
-func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateName string, to, subject string, data map[string]string) error {
+func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateName string, to, subject string, data map[string]string) (err error) {
+	ctx, span := telemetry.StartSpan(ctx, "mail.send")
+	defer telemetry.EndSpan(span, err)
+
 	content, err := templates.ReadFile("templates/" + templateName + ".html")
 	if err != nil {
 		slog.ErrorContext(ctx, "mailer: failed to load mail template", "error", err)
@@ -122,8 +127,10 @@ func (m *MailerImpl) Prepare(to, subject, body string) (message *mail.Msg, err e
 	return message, nil
 }
 
-func (m *MailerImpl) Send(ctx context.Context, message *mail.Msg) error {
-	var err error
+func (m *MailerImpl) Send(ctx context.Context, message *mail.Msg) (err error) {
+	ctx, span := telemetry.StartSpan(ctx, "mail.send")
+	defer telemetry.EndSpan(span, err)
+
 	if m.client != nil {
 		if err := m.client.DialAndSendWithContext(ctx, message); err != nil {
 			slog.ErrorContext(ctx, "mailer: failed to deliver mail", "error", err)
@@ -135,6 +142,8 @@ func (m *MailerImpl) Send(ctx context.Context, message *mail.Msg) error {
 			slog.ErrorContext(ctx, "mailer: failed to deliver mail with local sendmail", "error", err)
 		}
 	}
+
+	span.SetStatus(codes.Ok, "mail sent")
 
 	return err
 }

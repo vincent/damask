@@ -3,12 +3,16 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/repository"
+	apptelemetry "damask/server/internal/telemetry"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // VariantDTO is the output of VariantService methods.
@@ -56,7 +60,23 @@ func (s *variantService) Get(ctx context.Context, workspaceID, id string) (*Vari
 	return toVariantDTO(v), nil
 }
 
-func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error) {
+func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto *VariantDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.variants.create",
+		attribute.String("damask.workspace_id", p.WorkspaceID),
+		attribute.String("damask.asset_id", p.AssetID),
+		attribute.String("damask.version_id", p.AssetVersionID),
+		attribute.String("damask.variant.type", p.Type),
+	)
+	defer func() {
+		if dto != nil {
+			span.SetAttributes(attribute.String("damask.variant_id", dto.ID))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "variant create failed", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "type", p.Type, "error", err)
+		}
+	}()
+
 	v, err := s.variants.Create(ctx, repository.Variant{
 		ID:              p.ID,
 		WorkspaceID:     p.WorkspaceID,
@@ -69,7 +89,7 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (*Va
 	if err != nil {
 		return nil, err
 	}
-	dto := toVariantDTO(v)
+	dto = toVariantDTO(v)
 	// Only emit audit for manual uploads (job-queued variants are audited via WriteVariantQueued).
 	if p.AssetID != "" {
 		actor := auth.ActorFromCtx(ctx)
@@ -110,7 +130,19 @@ func (s *variantService) WriteVariantDownloadedAsync(workspaceID, assetID, varia
 }
 
 // Delete deletes a variant. Only variants attached to the asset's current version may be deleted.
-func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, variantID string) error {
+func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, variantID string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.variants.delete",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.variant_id", variantID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "variant delete failed", "workspace_id", workspaceID, "asset_id", assetID, "variant_id", variantID, "error", err)
+		}
+	}()
+
 	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 	if err != nil {
 		return err

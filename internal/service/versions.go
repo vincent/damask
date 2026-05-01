@@ -3,12 +3,16 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/repository"
+	apptelemetry "damask/server/internal/telemetry"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // VersionDTO is the output of VersionService methods.
@@ -97,7 +101,23 @@ func (s *versionService) NextVersionNum(ctx context.Context, assetID string) (in
 	return s.versions.NextVersionNum(ctx, assetID)
 }
 
-func (s *versionService) Create(ctx context.Context, v *VersionDTO) (*VersionDTO, error) {
+func (s *versionService) Create(ctx context.Context, v *VersionDTO) (out *VersionDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.create",
+		attribute.String("damask.workspace_id", v.WorkspaceID),
+		attribute.String("damask.asset_id", v.AssetID),
+		attribute.Int64("damask.version.number", v.VersionNum),
+		attribute.Int64("damask.version.size", v.Size),
+	)
+	defer func() {
+		if out != nil {
+			span.SetAttributes(attribute.String("damask.version_id", out.ID))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "version create failed", "workspace_id", v.WorkspaceID, "asset_id", v.AssetID, "error", err)
+		}
+	}()
+
 	created, err := s.versions.Create(ctx, repository.AssetVersion{
 		ID:          v.ID,
 		AssetID:     v.AssetID,
@@ -119,7 +139,12 @@ func (s *versionService) Create(ctx context.Context, v *VersionDTO) (*VersionDTO
 	return toVersionDTO(created), nil
 }
 
-func (s *versionService) SetCurrent(ctx context.Context, assetID, versionID string) error {
+func (s *versionService) SetCurrent(ctx context.Context, assetID, versionID string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.set_current",
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.version_id", versionID),
+	)
+	defer func() { apptelemetry.EndSpan(span, err) }()
 	return s.versions.SetCurrent(ctx, assetID, versionID)
 }
 
@@ -128,7 +153,19 @@ func (s *versionService) SetAssetThumbnail(ctx context.Context, assetID string, 
 }
 
 // Delete soft-deletes a non-current version that is not in use as a cover.
-func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versionID string) error {
+func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versionID string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.delete",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.version_id", versionID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "version delete failed", "workspace_id", workspaceID, "asset_id", assetID, "version_id", versionID, "error", err)
+		}
+	}()
+
 	v, err := s.versions.GetByIDForWorkspace(ctx, workspaceID, versionID)
 	if err != nil {
 		return err

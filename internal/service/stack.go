@@ -13,6 +13,9 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
+	apptelemetry "damask/server/internal/telemetry"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // ExportZipParams is the input for StackService.ExportZip.
@@ -63,7 +66,20 @@ func NewStackService(assets repository.AssetRepository, versions repository.Vers
 
 // ExportZip streams a ZIP archive of the given assets into w.
 // All asset IDs must belong to workspaceID; if any are missing the call returns ErrForbidden.
-func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p ExportZipParams, w io.Writer) error {
+func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p ExportZipParams, w io.Writer) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.stack.export_zip",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(p.AssetIDs)),
+	)
+	var written int
+	defer func() {
+		span.SetAttributes(attribute.Int("damask.stack.entries_written", written))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "stack export failed", "workspace_id", workspaceID, "asset_count", len(p.AssetIDs), "error", err)
+		}
+	}()
+
 	if len(p.AssetIDs) == 0 {
 		return fmt.Errorf("asset_ids must not be empty: %w", apperr.ErrInvalidInput)
 	}
@@ -134,6 +150,7 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 		if _, err := io.Copy(fw, rc); err != nil {
 			slog.WarnContext(ctx, "zip copy error", "name", e.name, "err", err)
 		}
+		written++
 		_ = rc.Close()
 	}
 
@@ -151,7 +168,22 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 
 // EnqueueMerge enqueues a stack_merge job and returns the job ID.
 // All asset IDs must belong to workspaceID.
-func (s *stackService) EnqueueMerge(ctx context.Context, workspaceID, userID string, p MergeParams) (string, error) {
+func (s *stackService) EnqueueMerge(ctx context.Context, workspaceID, userID string, p MergeParams) (jobID string, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.stack.enqueue_merge",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(p.AssetIDs)),
+		attribute.String("damask.stack.output_type", p.OutputType),
+	)
+	defer func() {
+		if jobID != "" {
+			span.SetAttributes(attribute.String("damask.job_id", jobID))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "stack merge enqueue failed", "workspace_id", workspaceID, "asset_count", len(p.AssetIDs), "output_type", p.OutputType, "error", err)
+		}
+	}()
+
 	if err := p.Validate(); err != nil {
 		return "", err
 	}

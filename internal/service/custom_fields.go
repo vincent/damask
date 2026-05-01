@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -12,8 +13,10 @@ import (
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/repository"
+	apptelemetry "damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
@@ -230,7 +233,18 @@ func (s *fieldService) Reorder(ctx context.Context, workspaceID string, items []
 	return nil
 }
 
-func (s *fieldService) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error {
+func (s *fieldService) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.fields.inherit_project_fields",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.project_id", projectID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "field inheritance failed", "workspace_id", workspaceID, "asset_id", assetID, "project_id", projectID, "error", err)
+		}
+	}()
 	return s.fields.InheritProjectFields(ctx, workspaceID, assetID, projectID, userID)
 }
 
@@ -371,7 +385,20 @@ func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID,
 	return dtos, nil
 }
 
-func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (int64, error) {
+func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (updatedCount int64, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.asset_fields.bulk_set_values",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(assetIDs)),
+		attribute.Int("damask.fields.input_count", len(inputs)),
+	)
+	defer func() {
+		span.SetAttributes(attribute.Int64("damask.assets.updated_count", updatedCount))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset fields bulk set failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "input_count", len(inputs), "error", err)
+		}
+	}()
+
 	// Validate values once (same fields for all assets).
 	type resolvedInput struct {
 		fieldID string
@@ -406,8 +433,7 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 		}
 	}
 
-	var updatedCount int64
-	err := s.assetFields.RunInTx(ctx, func(tx repository.AssetFieldRepository) error {
+	err = s.assetFields.RunInTx(ctx, func(tx repository.AssetFieldRepository) error {
 		for _, assetID := range validIDs {
 			assetOK := true
 			for _, r := range resolved {

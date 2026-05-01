@@ -12,12 +12,14 @@ import (
 
 	"damask/server/internal/auth"
 	"damask/server/internal/jobs"
-	"damask/server/internal/transform"
 	"damask/server/internal/service"
+	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // --- Response types ---
@@ -125,7 +127,13 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 
 	tmpFile := filepath.Join(os.TempDir(), uuid.NewString()+"_"+fh.Filename)
-	if err := c.SaveFile(fh, tmpFile); err != nil {
+	_, saveSpan := apptelemetry.StartSpan(c.Context(), "api.versions.save_upload_temp",
+		attribute.String("damask.asset_id", assetID),
+		attribute.Int64("damask.upload.bytes", fh.Size),
+	)
+	err = c.SaveFile(fh, tmpFile)
+	apptelemetry.EndSpan(saveSpan, err)
+	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "cannot save uploaded file")
 	}
 	defer os.Remove(tmpFile)
@@ -136,7 +144,12 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 	defer f.Close()
 
+	_, hashSpan := apptelemetry.StartSpan(c.Context(), "api.versions.hash_upload",
+		attribute.String("damask.asset_id", assetID),
+	)
 	hash, size, err := versioning.HashReader(f)
+	hashSpan.SetAttributes(attribute.Int64("damask.upload.bytes", size))
+	apptelemetry.EndSpan(hashSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash file")
 	}
@@ -161,7 +174,15 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	if mimeType == "" {
 		mimeType = fh.Header.Get("Content-Type")
 	}
-	meta, _ := s.media.ExtractMeta(c.Context(), tmpFile, mimeType)
+	metaCtx, metaSpan := apptelemetry.StartSpan(c.Context(), "api.versions.extract_metadata",
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.mime_type", mimeType),
+	)
+	meta, metaErr := s.media.ExtractMeta(metaCtx, tmpFile, mimeType)
+	apptelemetry.EndSpan(metaSpan, metaErr)
+	if metaErr != nil {
+		slog.WarnContext(metaCtx, "version metadata extraction failed", "asset_id", assetID, "mime_type", mimeType, "error", metaErr)
+	}
 
 	storageKey := fmt.Sprintf("%s/%s/v%d/%s", claims.WorkspaceID, assetID, nextNum, fh.Filename)
 
@@ -169,7 +190,14 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not rewind file")
 		}
-		if err := s.storage.Put(storageKey, f); err != nil {
+		_, putSpan := apptelemetry.StartSpan(c.Context(), "api.versions.storage_put",
+			attribute.String("damask.asset_id", assetID),
+			attribute.String("damask.storage.key", storageKey),
+			attribute.Int64("damask.upload.bytes", size),
+		)
+		err = s.storage.Put(storageKey, f)
+		apptelemetry.EndSpan(putSpan, err)
+		if err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not store file")
 		}
 	} else {
