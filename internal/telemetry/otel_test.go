@@ -10,7 +10,7 @@ import (
 )
 
 func TestSetup_Disabled(t *testing.T) {
-	shutdown, err := Setup(context.Background(), Config{Enabled: false})
+	shutdown, err := SetupTraces(context.Background(), Config{Enabled: false})
 	if err != nil {
 		t.Fatalf("Setup disabled: %v", err)
 	}
@@ -23,7 +23,7 @@ func TestSetup_Disabled(t *testing.T) {
 }
 
 func TestSetup_EnabledUnreachableEndpoint(t *testing.T) {
-	shutdown, err := Setup(context.Background(), Config{
+	shutdown, err := SetupTraces(context.Background(), Config{
 		Enabled:     true,
 		Endpoint:    "http://127.0.0.1:1/v1/traces",
 		Token:       "test-token",
@@ -40,7 +40,7 @@ func TestSetup_EnabledUnreachableEndpoint(t *testing.T) {
 }
 
 func TestSetup_ShutdownIdempotent(t *testing.T) {
-	shutdown, err := Setup(context.Background(), Config{Enabled: false})
+	shutdown, err := SetupTraces(context.Background(), Config{Enabled: false})
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}

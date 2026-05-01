@@ -108,24 +108,21 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	otelTracesShutdown, err := telemetry.Setup(ctx, telemetry.Config{
+	tmConfig := telemetry.Config{
 		Enabled:     cfg.Telemetry.Enabled,
 		Endpoint:    cfg.Telemetry.Endpoint,
 		Token:       cfg.Telemetry.Token,
 		ServiceName: cfg.Telemetry.ServiceName,
 		Env:         cfg.Telemetry.Env,
-	})
+	}
+	telemetry.SetupMetrics(tmConfig)
+
+	otelTracesShutdown, err := telemetry.SetupTraces(ctx, tmConfig)
 	if err != nil {
 		slog.Warn("otel setup failed; continuing without sending traces", "error", err)
 	}
 
-	otelLogsShutdown, err := telemetry.InitLogs(ctx, telemetry.Config{
-		Enabled:     cfg.Telemetry.Enabled,
-		Endpoint:    cfg.Telemetry.Endpoint,
-		Token:       cfg.Telemetry.Token,
-		ServiceName: cfg.Telemetry.ServiceName,
-		Env:         cfg.Telemetry.Env,
-	})
+	otelLogsShutdown, err := telemetry.SetupLogs(ctx, tmConfig)
 	if err != nil {
 		slog.Warn("otel setup failed; continuing without sending logs", "error", err)
 	}
