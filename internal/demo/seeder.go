@@ -132,7 +132,7 @@ func (s *Seeder) SeedIfEmpty(ctx context.Context) error {
 // Call this only after Wipe() or on first boot.
 // The workspace and user rows must already exist (created by EnsureWorkspace).
 func (s *Seeder) Seed(ctx context.Context) error {
-	slog.Info("demo: seed started")
+	slog.InfoContext(ctx, "demo: seed started")
 	start := time.Now()
 
 	var d ids
@@ -216,7 +216,7 @@ func (s *Seeder) Seed(ctx context.Context) error {
 		slog.Warn("demo: seed events (non-fatal)", "error", err)
 	}
 
-	slog.Info("demo: seed complete", "assets_created", len(d.allAssets), "duration_ms", time.Since(start).Milliseconds())
+	slog.InfoContext(ctx, "demo: seed complete", "assets_created", len(d.allAssets), "duration_ms", time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -1040,7 +1040,7 @@ func (s *Seeder) seedEvents(ctx context.Context, d *ids) error {
 		}
 	}
 
-	slog.Info("demo: seed complete events", "events_created", eventCount)
+	slog.InfoContext(ctx, "demo: seed complete events", "events_created", eventCount)
 	return nil
 }
 

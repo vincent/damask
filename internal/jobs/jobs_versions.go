@@ -54,19 +54,19 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
-	slog.Debug("generate thumbnail", "mime_type", p.MimeType, "storage_key", p.StorageKey)
+	slog.DebugContext(ctx, "generate thumbnail", "mime_type", p.MimeType, "storage_key", p.StorageKey)
 
 	thumbData, thumbExt, err := s.tmb.GenerateThumbnailData(ctx, s.storage, p.MimeType, p.StorageKey)
 	if err != nil {
 		return fmt.Errorf("generate thumbnail: %w", err)
 	}
 	if thumbData == nil {
-		slog.Debug("generate thumbnail: unsupported file", "format", p.MimeType, "storedKey", p.StorageKey)
+		slog.DebugContext(ctx, "generate thumbnail: unsupported file", "format", p.MimeType, "storedKey", p.StorageKey)
 		return nil // unsupported or skipped (e.g. no ffmpeg)
 	}
 
 	thumbKey := fmt.Sprintf("%s/%s/versions/%s/thumb%s", p.WorkspaceID, p.AssetID, p.VersionID, thumbExt)
-	slog.Debug("generate thumbnail: store in", "thumbKey", thumbKey)
+	slog.DebugContext(ctx, "generate thumbnail: store in", "thumbKey", thumbKey)
 
 	if err := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
 		return fmt.Errorf("store thumb: %w", err)
@@ -88,7 +88,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 	// If this version is still current, sync the asset thumbnail too.
 	ver, err := s.db.GetVersionByIDUnchecked(ctx, p.VersionID)
 	if err == nil && ver.IsCurrent == 1 {
-		slog.Debug("generate thumbnail: update current thumbnail", "assetID", p.AssetID, "thumbKey", thumbKey)
+		slog.DebugContext(ctx, "generate thumbnail: update current thumbnail", "assetID", p.AssetID, "thumbKey", thumbKey)
 		if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 			ThumbnailKey:         &thumbKey,
 			ThumbnailContentType: thumbContentType,

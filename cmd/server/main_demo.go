@@ -27,6 +27,6 @@ func initDemoSeeder(ctx context.Context, cfg *config.Config, sqlDB *sql.DB, stor
 		slog.Warn("demo: initial seed failed (non-fatal)", "error", err)
 	}
 	seeder.StartResetLoop(ctx)
-	slog.Info("demo: mode enabled", "reset_interval_hours", cfg.Demo.ResetIntervalHours)
+	slog.InfoContext(ctx, "demo: mode enabled", "reset_interval_hours", cfg.Demo.ResetIntervalHours)
 	return seeder
 }

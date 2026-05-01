@@ -29,9 +29,9 @@ func (r *RetentionScheduler) Start(ctx context.Context) {
 				return
 			case <-time.After(time.Until(next)):
 				if _, err := r.queue.Enqueue(ctx, "system", queue.JobTypeEnforceVersionRetention, "{}"); err != nil {
-					slog.Error("retention scheduler: enqueue", "error", err)
+					slog.ErrorContext(ctx, "retention scheduler: enqueue", "error", err)
 				} else {
-					slog.Info("retention scheduler: enqueued enforce_version_retention")
+					slog.InfoContext(ctx, "retention scheduler: enqueued enforce_version_retention")
 				}
 			}
 		}

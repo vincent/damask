@@ -172,7 +172,7 @@ func (s *GDriveSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.R
 
 	resp, err := svc.Files.Get(fileID).Context(ctx).Download()
 	if err != nil {
-		slog.Error("gdrive: cannot download item", "item", item, "error", err)
+		slog.ErrorContext(ctx, "gdrive: cannot download item", "item", item, "error", err)
 		return nil, fmt.Errorf("gdrive: download [%s]: %w", fileID, err)
 	}
 	return resp.Body, nil

@@ -163,7 +163,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 		InheritFields:    s.newInheritProjectFieldsFunc(),
 	})
 	if err != nil {
-		slog.Error("cannot create asset", "error", err)
+		slog.ErrorContext(c, "cannot create asset", "error", err)
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -283,13 +283,13 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 	span.End()
 
-	_, span = apptelemetry.StartSpan(c.Context(), "fetch")
+	ctx, span := apptelemetry.StartSpan(c.Context(), "fetch")
 	assets, err := s.assets.List(c.Context(), lp)
 	if err != nil {
-		slog.Error("could not list assets", "error", err)
+		slog.ErrorContext(ctx, "could not list assets", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
-	span.End()
+	apptelemetry.EndSpan(span, err)
 
 	_, span = apptelemetry.StartSpan(c.Context(), "batch.counts")
 	ids := make([]string, len(assets))

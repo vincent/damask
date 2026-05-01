@@ -72,7 +72,7 @@ func (q *Queue) Register(jobType string, h HandlerFunc) {
 func (q *Queue) Start(ctx context.Context) {
 	// Re-queue jobs that were 'processing' when the server last crashed.
 	if err := q.db.RequeueStalledJobs(ctx); err != nil {
-		slog.Error("queue: requeue stalled", "error", err)
+		slog.ErrorContext(ctx, "queue: requeue stalled", "error", err)
 	}
 
 	for i := 0; i < q.workers; i++ {
@@ -210,7 +210,7 @@ func (q *Queue) processNext(ctx context.Context) {
 		if err := h(jobCtx, job); err != nil {
 			jobFailed = true
 			telemetry.RecordError(jobSpan, err)
-			slog.Error("queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
+			slog.ErrorContext(ctx, "queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
 			errMsg := err.Error()
 			_ = q.db.FailJob(ctx, dbgen.FailJobParams{
 				Error: &errMsg,
@@ -228,7 +228,7 @@ func (q *Queue) processNext(ctx context.Context) {
 	span.SetStatus(codes.Ok, "")
 
 	if err := q.db.CompleteJob(ctx, job.ID); err != nil {
-		slog.Error("queue: complete job", "job_id", job.ID, "error", err)
+		slog.ErrorContext(ctx, "queue: complete job", "job_id", job.ID, "error", err)
 	}
 
 	// Signal other workers to check for more work.

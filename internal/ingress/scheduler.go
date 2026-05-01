@@ -44,7 +44,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 func (s *Scheduler) tick(ctx context.Context) {
 	sources, err := s.db.ListDueIngressSources(ctx)
 	if err != nil {
-		slog.Error("ingress scheduler: list due sources", "error", err)
+		slog.ErrorContext(ctx, "ingress scheduler: list due sources", "error", err)
 		return
 	}
 
@@ -54,13 +54,13 @@ func (s *Scheduler) tick(ctx context.Context) {
 			WorkspaceID: src.WorkspaceID,
 		})
 		if _, err := s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestPoll, string(payload)); err != nil {
-			slog.Error("ingress scheduler: enqueue poll", "source_id", src.ID, "error", err)
+			slog.ErrorContext(ctx, "ingress scheduler: enqueue poll", "source_id", src.ID, "error", err)
 			continue
 		}
 		// Mark last_polled_at immediately to prevent double-scheduling.
 		// error_count and last_error are untouched here; the poll worker updates them.
 		if err := s.db.MarkIngressSourceScheduled(ctx, src.ID); err != nil {
-			slog.Error("ingress scheduler: mark scheduled", "source_id", src.ID, "error", err)
+			slog.ErrorContext(ctx, "ingress scheduler: mark scheduled", "source_id", src.ID, "error", err)
 		}
 	}
 }

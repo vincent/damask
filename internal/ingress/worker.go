@@ -286,7 +286,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 		UserID:    src.CreatedBy,
 	})
 	if err != nil {
-		slog.Error("ingest_fetch: cannot create asset", "error", err)
+		slog.ErrorContext(ctx, "ingest_fetch: cannot create asset", "error", err)
 		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create asset: %w", err))
 	}
 

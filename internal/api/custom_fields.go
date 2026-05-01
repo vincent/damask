@@ -38,7 +38,7 @@ type fieldFilterDef struct {
 func (s *Server) newInheritProjectFieldsFunc() assetio.FieldInheritanceFunc {
 	return func(ctx context.Context, workspaceID, assetID, projectID, userID string) {
 		if err := s.fields.InheritProjectFields(ctx, workspaceID, assetID, projectID, userID); err != nil {
-			slog.Error("field inheritance", "workspace_id", workspaceID, "asset_id", assetID,
+			slog.ErrorContext(ctx, "field inheritance", "workspace_id", workspaceID, "asset_id", assetID,
 				"project_id", projectID, "error", err)
 		}
 	}

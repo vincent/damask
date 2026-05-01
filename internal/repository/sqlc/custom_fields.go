@@ -9,6 +9,7 @@ import (
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
+
 	"github.com/google/uuid"
 )
 
@@ -196,7 +197,7 @@ func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, asset
 			ValueBoolean: pv.ValueBoolean,
 			CreatedBy:    userID,
 		}); err != nil {
-			slog.Error("field inheritance: upsert asset field",
+			slog.ErrorContext(ctx, "field inheritance: upsert asset field",
 				"workspace_id", workspaceID, "asset_id", assetID,
 				"project_id", projectID, "field_id", def.ID, "error", err)
 		}
@@ -318,4 +319,3 @@ func toFieldValue(fieldID, fieldKey, fieldName, fieldType string, fieldOptions *
 		DefinitionDeleted: definitionDeleted != 0,
 	}
 }
-

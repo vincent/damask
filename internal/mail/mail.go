@@ -96,7 +96,7 @@ func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateNam
 		return err
 
 	} else {
-		slog.Info("mailer: send mail", "to", to)
+		slog.InfoContext(ctx, "mailer: send mail", "to", to)
 		err = m.Send(ctx, msg)
 		if err != nil {
 			slog.ErrorContext(ctx, "mailer: failed to send mail", "error", err, "host", m.config.Host, "port", m.config.Port)

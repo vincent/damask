@@ -30,7 +30,7 @@ func (s *FieldCleanupScheduler) Start(ctx context.Context) {
 				return
 			case <-time.After(time.Until(next)):
 				if _, err := s.queue.Enqueue(ctx, "system", queue.JobTypePurgeDeletedFields, "{}"); err != nil {
-					slog.Error("field cleanup scheduler: enqueue purge", "error", err)
+					slog.ErrorContext(ctx, "field cleanup scheduler: enqueue purge", "error", err)
 				}
 			}
 		}
@@ -72,6 +72,6 @@ func (s *JobServer) jobPurgeDeletedFields(ctx context.Context, job dbgen.Job) er
 		return err
 	}
 
-	slog.Info("field cleanup: purged expired field definitions", "count", len(ids))
+	slog.InfoContext(ctx, "field cleanup: purged expired field definitions", "count", len(ids))
 	return nil
 }

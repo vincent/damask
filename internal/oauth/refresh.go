@@ -63,7 +63,7 @@ func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, conn
 		WorkspaceID: workspaceID,
 	})
 	if err != nil {
-		slog.Error("oauth/refresh: cannot get connection", "connID", connID, "workspaceID", workspaceID, "error", err)
+		slog.ErrorContext(ctx, "oauth/refresh: cannot get connection", "connID", connID, "workspaceID", workspaceID, "error", err)
 		return "", fmt.Errorf("oauth/refresh: get connection: %w", err)
 	}
 

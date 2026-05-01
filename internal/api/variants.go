@@ -78,7 +78,7 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 func (s *Server) isRebuildingVariants(c fiber.Ctx, versionID string) bool {
 	rebuilding, err := s.assets.IsRebuildingVariants(c.Context(), versionID)
 	if err != nil {
-		slog.Error("is_rebuilding_variants", "error", err)
+		slog.ErrorContext(c, "is_rebuilding_variants", "error", err)
 	}
 	return rebuilding
 }

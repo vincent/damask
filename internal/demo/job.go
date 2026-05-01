@@ -36,7 +36,7 @@ func (s *Seeder) StartResetLoop(ctx context.Context) {
 	jitter := time.Duration(rand.Intn(15)) * time.Minute //nolint:gosec
 
 	go func() {
-		slog.Info("demo: reset loop started", "interval", interval, "jitter", jitter)
+		slog.InfoContext(ctx, "demo: reset loop started", "interval", interval, "jitter", jitter)
 
 		select {
 		case <-time.After(jitter):
@@ -60,7 +60,7 @@ func (s *Seeder) StartResetLoop(ctx context.Context) {
 
 // runReset wipes and reseeds the demo workspace, with retry on failure.
 func (s *Seeder) runReset(ctx context.Context) {
-	slog.Info("demo: reset started")
+	slog.InfoContext(ctx, "demo: reset started")
 	start := time.Now()
 
 	// Signal that a reset is in progress
@@ -73,28 +73,28 @@ func (s *Seeder) runReset(ctx context.Context) {
 	}
 
 	if err := s.Wipe(ctx); err != nil {
-		slog.Error("demo: reset failed", "step", "wipe", "error", err)
+		slog.ErrorContext(ctx, "demo: reset failed", "step", "wipe", "error", err)
 		s.scheduleRetry(ctx, 30*time.Minute)
 		return
 	}
 
 	if err := s.Seed(ctx); err != nil {
-		slog.Error("demo: reset failed", "step", "seed", "error", err)
+		slog.ErrorContext(ctx, "demo: reset failed", "step", "seed", "error", err)
 		s.scheduleRetry(ctx, 30*time.Minute)
 		return
 	}
 
 	s.lastResetAt = time.Now()
-	slog.Info("demo: reset complete", "duration_ms", time.Since(start).Milliseconds())
+	slog.InfoContext(ctx, "demo: reset complete", "duration_ms", time.Since(start).Milliseconds())
 }
 
 // scheduleRetry schedules a single retry after the given delay.
 func (s *Seeder) scheduleRetry(ctx context.Context, delay time.Duration) {
-	slog.Info("demo: retry scheduled", "in", delay)
+	slog.InfoContext(ctx, "demo: retry scheduled", "in", delay)
 	go func() {
 		select {
 		case <-time.After(delay):
-			slog.Info("demo: reset started (retry)")
+			slog.InfoContext(ctx, "demo: reset started (retry)")
 			start := time.Now()
 
 			// Check if reset is already in progress
@@ -106,14 +106,14 @@ func (s *Seeder) scheduleRetry(ctx context.Context, delay time.Duration) {
 			}
 
 			if err := s.Wipe(ctx); err != nil {
-				slog.Error("demo: retry failed", "step", "wipe", "error", err)
+				slog.ErrorContext(ctx, "demo: retry failed", "step", "wipe", "error", err)
 				return
 			}
 			if err := s.Seed(ctx); err != nil {
-				slog.Error("demo: retry failed", "step", "seed", "error", err)
+				slog.ErrorContext(ctx, "demo: retry failed", "step", "seed", "error", err)
 				return
 			}
-			slog.Info("demo: retry complete", "duration_ms", time.Since(start).Milliseconds())
+			slog.InfoContext(ctx, "demo: retry complete", "duration_ms", time.Since(start).Milliseconds())
 		case <-ctx.Done():
 		}
 	}()

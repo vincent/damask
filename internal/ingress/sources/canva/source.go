@@ -262,7 +262,7 @@ func (s *CanvaSource) doGet(ctx context.Context, token, url string) ([]byte, err
 		return nil, err
 	}
 	defer resp.Body.Close()
-	// slog.Info("get canva", "url", url, "token", token)
+	// slog.InfoContext(ctx, "get canva", "url", url, "token", token)
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("canva API %s: status %d", url, resp.StatusCode)
 	}
@@ -278,7 +278,7 @@ func (s *CanvaSource) doPost(ctx context.Context, token, url string, body []byte
 		return nil, err
 	}
 	defer resp.Body.Close()
-	// slog.Info("post canva", "url", url, "token", token, "body", string(body))
+	// slog.InfoContext(ctx, "post canva", "url", url, "token", token, "body", string(body))
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("canva API %s: status %d", url, resp.StatusCode)
 	}

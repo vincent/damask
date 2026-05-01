@@ -355,14 +355,14 @@ func (r *assetRepo) RefreshFTS(ctx context.Context, assetID string) error {
 		INSERT INTO assets_fts(assets_fts, rowid, original_filename)
 		SELECT 'delete', rowid, original_filename FROM assets WHERE id = ?
 	`, assetID); err != nil {
-		slog.Error("fts refresh delete", "asset_id", assetID, "error", err)
+		slog.ErrorContext(ctx, "fts refresh delete", "asset_id", assetID, "error", err)
 		return err
 	}
 	if _, err := r.sqlDB.ExecContext(ctx, `
 		INSERT INTO assets_fts(rowid, original_filename)
 		SELECT rowid, ? FROM assets WHERE id = ?
 	`, combined, assetID); err != nil {
-		slog.Error("fts refresh insert", "asset_id", assetID, "error", err)
+		slog.ErrorContext(ctx, "fts refresh insert", "asset_id", assetID, "error", err)
 		return err
 	}
 	return nil

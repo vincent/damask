@@ -72,7 +72,7 @@ func (s *Session) Data(r io.Reader) error {
 		src, err := s.db.GetIngressSourceByPublicToken(ctx, token)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				slog.Error("mailserver: lookup source token", "token_prefix", safePrefix(token), "error", err)
+				slog.ErrorContext(ctx, "mailserver: lookup source token", "token_prefix", safePrefix(token), "error", err)
 			}
 			return nil
 		}
@@ -96,7 +96,7 @@ func (s *Session) Data(r io.Reader) error {
 
 		for _, att := range email.Attachments {
 			if err := s.ingestAttachment(ctx, src, att, overrideFolderID); err != nil {
-				slog.Error("mailserver: ingest attachment", "filename", att.Filename, "source_id", src.ID, "error", err)
+				slog.ErrorContext(ctx, "mailserver: ingest attachment", "filename", att.Filename, "source_id", src.ID, "error", err)
 			}
 		}
 	}

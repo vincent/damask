@@ -32,7 +32,7 @@ func (t *thumbnailer) GenerateThumbnailData(ctx context.Context, storage storage
 		}
 		defer rc.Close()
 		if !t.transformer.FFmpegAvailable() {
-			slog.Debug("thumbnail: ffmpeg not available, falling back to static thumbnail for gif", "storage_key", storageKey)
+			slog.DebugContext(ctx, "thumbnail: ffmpeg not available, falling back to static thumbnail for gif", "storage_key", storageKey)
 			return t.ThumbnailFromImage(rc)
 		}
 		return t.ThumbnailFromVideo(ctx, rc, mimeType)
@@ -52,7 +52,7 @@ func (t *thumbnailer) GenerateThumbnailData(ctx context.Context, storage storage
 		}
 		defer rc.Close()
 		if !t.transformer.FFmpegAvailable() {
-			slog.Debug("thumbnail: ffmpeg not available, skipping video", "storage_key", storageKey)
+			slog.DebugContext(ctx, "thumbnail: ffmpeg not available, skipping video", "storage_key", storageKey)
 			return nil, "", nil
 		}
 		return t.ThumbnailFromVideo(ctx, rc, mimeType)
@@ -80,7 +80,7 @@ func (t *thumbnailer) GenerateThumbnailData(ctx context.Context, storage storage
 		}
 		defer rc.Close()
 		if !t.transformer.LibreOfficeAvailable() {
-			slog.Debug("thumbnail: soffice not available, skipping document", "storage_key", storageKey)
+			slog.DebugContext(ctx, "thumbnail: soffice not available, skipping document", "storage_key", storageKey)
 			return nil, "", nil
 		}
 		return t.ThumbnailFromDocument(ctx, rc, mimeType)
@@ -102,7 +102,7 @@ func (t *thumbnailer) GenerateThumbnailData(ctx context.Context, storage storage
 		return t.ThumbnailFromFontFile(ctx, rc, mimeType, storageKey)
 
 	default:
-		slog.Debug("thumbnail: unsupported MIME type, skipping", "mime_type", mimeType)
+		slog.DebugContext(ctx, "thumbnail: unsupported MIME type, skipping", "mime_type", mimeType)
 		return nil, "", nil
 	}
 }
@@ -163,7 +163,7 @@ func (t *thumbnailer) ThumbnailFromVideo(ctx context.Context, rc io.ReadCloser, 
 
 func (t *thumbnailer) ThumbnailFromPDF(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {
 	if !t.transformer.ImageMagickAvailable() || !t.transformer.FFmpegAvailable() {
-		slog.Debug("thumbnail: convert or ffmpeg not available, skipping PDF slideshow")
+		slog.DebugContext(ctx, "thumbnail: convert or ffmpeg not available, skipping PDF slideshow")
 		return nil, "", nil
 	}
 	data, err := t.transformer.PDFSlideshowThumbnail(ctx, rc, mimeType)

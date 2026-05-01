@@ -38,7 +38,7 @@ func InitOIDCProviders(cfg *Config) {
 
 func InitOIDCProvidersWithContext(ctx context.Context, cfg *Config) {
 	if cfg.OIDC.IssuerURL != "" {
-		slog.Info("register OIDC auth provider", "url", cfg.OIDC.IssuerURL)
+		slog.InfoContext(ctx, "register OIDC auth provider", "url", cfg.OIDC.IssuerURL)
 		go discoverWithRetry(ctx, "oidc", cfg.OIDC.IssuerURL, cfg.OIDC.ClientID, cfg.OIDC.ClientSecret,
 			cfg.BaseURL.String()+"/auth/oidc/callback",
 			func(rt *OIDCRuntime) {
@@ -48,7 +48,7 @@ func InitOIDCProvidersWithContext(ctx context.Context, cfg *Config) {
 			})
 	}
 	if cfg.Google.ClientID != "" {
-		slog.Info("register Google auth provider")
+		slog.InfoContext(ctx, "register Google auth provider")
 		go discoverWithRetry(ctx, "google", googleIssuer, cfg.Google.ClientID, cfg.Google.ClientSecret,
 			cfg.BaseURL.String()+"/auth/google/callback",
 			func(rt *OIDCRuntime) {
@@ -86,7 +86,7 @@ func discoverWithRetry(ctx context.Context, name, issuerURL, clientID, clientSec
 			continue
 		}
 		set(rt)
-		slog.Info("oidc provider ready", "provider", name, "issuer", issuerURL)
+		slog.InfoContext(ctx, "oidc provider ready", "provider", name, "issuer", issuerURL)
 		return
 	}
 }

@@ -71,7 +71,7 @@ func (w *EventWriter) WriteAsset(ctx context.Context, e AssetEvent) {
 
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
-		slog.Error("audit: marshal asset event", "event_type", e.EventType, "error", err)
+		slog.ErrorContext(ctx, "audit: marshal asset event", "event_type", e.EventType, "error", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (w *EventWriter) WriteAsset(ctx context.Context, e AssetEvent) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
 	`, uuid.NewString(), e.WorkspaceID, e.AssetID, e.UserID, e.ActorType, e.EventType, string(payload))
 	if err != nil {
-		slog.Error("audit: insert asset event", "event_type", e.EventType, "asset_id", e.AssetID, "error", err)
+		slog.ErrorContext(ctx, "audit: insert asset event", "event_type", e.EventType, "asset_id", e.AssetID, "error", err)
 	}
 }
 
@@ -102,7 +102,7 @@ func (w *EventWriter) WriteProject(ctx context.Context, e ProjectEvent) {
 
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
-		slog.Error("audit: marshal project event", "event_type", e.EventType, "error", err)
+		slog.ErrorContext(ctx, "audit: marshal project event", "event_type", e.EventType, "error", err)
 		return
 	}
 
@@ -114,6 +114,6 @@ func (w *EventWriter) WriteProject(ctx context.Context, e ProjectEvent) {
 		VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
 	`, uuid.NewString(), e.WorkspaceID, e.ProjectID, e.UserID, e.ActorType, e.EventType, string(payload))
 	if err != nil {
-		slog.Error("audit: insert project event", "event_type", e.EventType, "project_id", e.ProjectID, "error", err)
+		slog.ErrorContext(ctx, "audit: insert project event", "event_type", e.EventType, "project_id", e.ProjectID, "error", err)
 	}
 }

@@ -230,13 +230,13 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 
 	if err := s.versions.SetCurrent(c.Context(), assetID, newVersion.ID); err != nil {
-		slog.Error("set current version", "error", err)
+		slog.ErrorContext(c.Context(), "set current version", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "could not promote version")
 	}
 	newVersion.IsCurrent = true
 
 	if err := s.versions.SetAssetThumbnail(c.Context(), assetID, nil); err != nil {
-		slog.Error("clear asset thumbnail", "error", err)
+		slog.ErrorContext(c.Context(), "clear asset thumbnail", "error", err)
 	}
 
 	s.enqueueVersionThumbnail(c.Context(), asset, newVersion)
@@ -245,7 +245,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		c.Context(), s.queue,
 		claims.WorkspaceID, assetID, newVersion.ID, prevVersionID,
 	); err != nil {
-		slog.Error("enqueue rebuild variants", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
+		slog.ErrorContext(c.Context(), "enqueue rebuild variants", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
 	}
 
 	updatedAsset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
@@ -370,7 +370,7 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	}
 
 	if err := s.versions.SetAssetThumbnail(c.Context(), assetID, target.ThumbnailKey); err != nil {
-		slog.Error("restore: sync thumbnail", "error", err)
+		slog.ErrorContext(c.Context(), "restore: sync thumbnail", "error", err)
 	}
 
 	updatedAsset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
@@ -548,6 +548,6 @@ func (s *Server) enqueueVersionThumbnail(ctx context.Context, asset *service.Ass
 		MimeType:    version.MimeType,
 	}
 	if err := jobs.EnqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
-		slog.Error("enqueue version thumbnail", "asset_id", asset.ID, "version_id", version.ID, "error", err)
+		slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "version_id", version.ID, "error", err)
 	}
 }

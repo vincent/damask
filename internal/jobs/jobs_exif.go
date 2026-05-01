@@ -114,7 +114,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 		}); uErr != nil {
 			return fmt.Errorf("write tombstone: %w", uErr)
 		}
-		slog.Debug("exif: no data — tombstone written", "asset_id", p.AssetID)
+		slog.DebugContext(ctx, "exif: no data — tombstone written", "asset_id", p.AssetID)
 		return nil
 	}
 
@@ -204,7 +204,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 		}
 	}
 
-	slog.Debug("exif: extracted", "asset_id", p.AssetID, "make", ptrStr(result.Make), "model", ptrStr(result.Model), "gps", result.GPS != nil)
+	slog.DebugContext(ctx, "exif: extracted", "asset_id", p.AssetID, "make", ptrStr(result.Make), "model", ptrStr(result.Model), "gps", result.GPS != nil)
 	return nil
 }
 

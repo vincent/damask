@@ -90,7 +90,7 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 		slog.Warn("demo: wipe storage delete", "error", err)
 	}
 
-	slog.Info("demo: wipe complete", "assets_deleted", assetsDeleted, "versions_deleted", versionsDeleted, "storage_files_deleted", len(storageKeys))
+	slog.InfoContext(ctx, "demo: wipe complete", "assets_deleted", assetsDeleted, "versions_deleted", versionsDeleted, "storage_files_deleted", len(storageKeys))
 	return nil
 }
 
