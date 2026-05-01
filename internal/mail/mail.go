@@ -63,7 +63,7 @@ type MailerImpl struct {
 }
 
 func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateName string, to, subject string, data map[string]string) (err error) {
-	ctx, span := telemetry.StartSpan(ctx, "mail.send")
+	ctx, span := telemetry.StartSpan(ctx, "mail.prepare")
 	defer telemetry.EndSpan(span, err)
 
 	content, err := templates.ReadFile("templates/" + templateName + ".html")

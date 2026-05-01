@@ -169,18 +169,6 @@ func (q *Queue) processNext(ctx context.Context) {
 		defer func() { <-q.rebuildSem }()
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			span.SetStatus(codes.Error, "queue: job panicked")
-			slog.ErrorContext(ctx, "queue: job panicked", "job_id", job.ID, "job_type", job.Type, "panic", r, "stack", string(debug.Stack()))
-			errMsg := fmt.Sprintf("panic: %v", r)
-			_ = q.db.FailJob(ctx, dbgen.FailJobParams{
-				Error: &errMsg,
-				ID:    job.ID,
-			})
-		}
-	}()
-
 	h, ok := q.handlers[job.Type]
 	if !ok {
 		slog.ErrorContext(ctx, "queue: no handler for job type", "job_type", job.Type, "job_id", job.ID)
@@ -193,24 +181,50 @@ func (q *Queue) processNext(ctx context.Context) {
 		return
 	}
 
-	ctx = auth.WithActor(ctx, auth.Actor{Type: "system"})
-	ctx, jobSpan := telemetry.StartSpan(ctx, "service.queue.job."+job.Type,
+	jobCtx := auth.WithActor(ctx, auth.Actor{Type: "system"})
+	jobCtx, jobSpan := telemetry.StartBackgroundSpan(jobCtx, "service.queue.job."+job.Type,
 		attribute.String("job.id", job.ID),
 		attribute.String("job.type", job.Type),
 		attribute.Int64("job.attempt", job.Attempts),
+		attribute.String("damask.workspace_id", job.WorkspaceID),
 	)
-	defer jobSpan.End()
-	if err := h(ctx, job); err != nil {
-		jobSpan.RecordError(err)
-		jobSpan.SetStatus(codes.Error, err.Error())
-		slog.Error("queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
-		errMsg := err.Error()
-		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
-			Error: &errMsg,
-			ID:    job.ID,
-		})
+
+	var jobFailed bool
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				jobFailed = true
+				panicErr := fmt.Errorf("panic: %v", r)
+				telemetry.RecordError(jobSpan, panicErr)
+				span.SetStatus(codes.Error, "queue: job panicked")
+				slog.ErrorContext(ctx, "queue: job panicked", "job_id", job.ID, "job_type", job.Type, "panic", r, "stack", string(debug.Stack()))
+				errMsg := panicErr.Error()
+				_ = q.db.FailJob(ctx, dbgen.FailJobParams{
+					Error: &errMsg,
+					ID:    job.ID,
+				})
+			}
+			jobSpan.End()
+		}()
+
+		if err := h(jobCtx, job); err != nil {
+			jobFailed = true
+			telemetry.RecordError(jobSpan, err)
+			slog.Error("queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
+			errMsg := err.Error()
+			_ = q.db.FailJob(ctx, dbgen.FailJobParams{
+				Error: &errMsg,
+				ID:    job.ID,
+			})
+			return
+		}
+		jobSpan.SetStatus(codes.Ok, "")
+	}()
+
+	if jobFailed {
 		return
 	}
+
 	span.SetStatus(codes.Ok, "")
 
 	if err := q.db.CompleteJob(ctx, job.ID); err != nil {
