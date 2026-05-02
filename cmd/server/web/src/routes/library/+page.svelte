@@ -229,9 +229,7 @@
       a.download = selectedAsset.original_filename
       a.click()
     },
-    'lightbox.zoom-in':       () => { /* stub */ },
-    'lightbox.zoom-out':      () => { /* stub */ },
-    'selection.move-right':   () => moveSelection(+1),
+'selection.move-right':   () => moveSelection(+1),
     'selection.move-left':    () => moveSelection(-1),
     'selection.move-up':      () => moveSelection(-cols),
     'selection.move-down':    () => moveSelection(+cols),

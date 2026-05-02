@@ -10,6 +10,7 @@
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
+  import PreviewToolbar from './ui/PreviewToolbar.svelte'
   import { Inbox, RefreshCw, Share, Upload } from '@lucide/svelte'
   import AssetTags from './AssetTags.svelte';
   import AssetMetadata from './AssetMetadata.svelte';
@@ -39,6 +40,7 @@
   import ButtonCopy from './ui/ButtonCopy.svelte'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
+  import { useShortcuts } from '$lib/shortcuts'
 
   interface Props {
     asset: Asset | null
@@ -48,6 +50,23 @@
   }
 
   let { asset = $bindable(), onclose, ondeleted, onassetupdated }: Props = $props()
+
+  // --- Zoom/rotate refs bound to SharedAsset ---
+  let zoomIn = $state<(() => void) | undefined>(undefined)
+  let zoomOut = $state<(() => void) | undefined>(undefined)
+  let zoomReset = $state<(() => void) | undefined>(undefined)
+  let zoomWheel = $state<((e: WheelEvent) => void) | undefined>(undefined)
+  let rotateRight = $state<(() => void) | undefined>(undefined)
+
+  // --- Toolbar ---
+  let showToolbar = $state<(() => void) | undefined>(undefined)
+  let previewContainer = $state<HTMLElement | null>(null)
+
+  useShortcuts({
+    'lightbox.zoom-in':  () => zoomIn?.(),
+    'lightbox.zoom-out': () => zoomOut?.(),
+    'view.zoom-reset':   () => { if (asset) zoomReset?.() },
+  })
 
   // --- Panel tabs ---
   const panelTabs = {
@@ -169,6 +188,13 @@
     }
   }
 
+  function handleClose(e: MouseEvent) {
+    const src = (e.target as HTMLElement)
+    if (src.classList.contains('asset-preview-full')) return;
+    if (src.classList.contains('asset-preview-toolbar')) return;
+    onclose?.()
+  }
+
   async function handleRegenerateThumbnail() {
     if (!asset) return
     regenThumbLoading = true
@@ -207,18 +233,33 @@
 {#if asset}
   <Backdrop class="asset-lightbox-bg w-screen" {onclose}>
     <div
-      class="fixed w-[75%] grid place-items-center p-40 inset-0"
+      bind:this={previewContainer}
+      class="asset-preview-container fixed w-[75%] grid place-items-center p-40 inset-0"
       role="button"
       tabindex="-1"
-      onclick={onclose}
+      onclick={handleClose}
       onkeydown={(e) => e.key === 'Enter' && onclose()}
+      onwheel={(e) => zoomWheel?.(e)}
+      onmousemove={() => showToolbar?.()}
       aria-label={m.close()}
     >
       <SharedAsset
         {asset} {category}
         thumbUrl={category === 'image' ? assetApi.fileUrl(asset.id) : assetApi.thumbUrl(asset.id)}
         assetUrl={assetApi.fileUrl(asset.id)}
+        bind:zoomIn
+        bind:zoomOut
+        bind:zoomReset
+        bind:onwheel={zoomWheel}
+        bind:rotateRight
       />
+      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
+        <PreviewToolbar
+          {zoomIn} {zoomOut} {rotateRight}
+          fullscreenTarget={previewContainer}
+          bind:show={showToolbar}
+        />
+      </div>
     </div>
   </Backdrop>
 
