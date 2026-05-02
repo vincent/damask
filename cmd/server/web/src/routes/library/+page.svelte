@@ -26,6 +26,7 @@
   import { collectionsStore } from '$lib/stores/collections.svelte'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
   import { useShortcuts, setShortcutContext } from '$lib/shortcuts'
+  import GridModeButtons from '$lib/components/GridModeButtons.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
@@ -38,6 +39,7 @@
 
   let sort = $state<'mimetype' | 'created_at' | 'size'>('created_at')
   let asc = $state(false)
+
 
   const activeProject = $derived(
     navigationStore.activeProjectId
@@ -229,7 +231,7 @@
       a.download = selectedAsset.original_filename
       a.click()
     },
-'selection.move-right':   () => moveSelection(+1),
+    'selection.move-right':   () => moveSelection(+1),
     'selection.move-left':    () => moveSelection(-1),
     'selection.move-up':      () => moveSelection(-cols),
     'selection.move-down':    () => moveSelection(+cols),
@@ -252,27 +254,31 @@
   onShareProject={() => { showProjectShareModal = true }}
 >
   {#snippet prefix()}
-    {#if activeProject}
-      <div role="img" class={`rounded border-1 transition-colors ${draggingProjectCover ? 'border-green-500' : 'border-transparent'} `}
-        ondragleave={onDragLeaveProjectCover}
-        ondragover={onDraggingProjectCover}
-        ondrop={onDropProjectCover}
-      >
-        {#if activeProject?.cover_asset_id}
-          <img
-            src={assetApi.thumbUrl(activeProject.cover_asset_id)}
-            class="h-10 w-10 rounded object-cover"
-            alt="Project cover"
-          />
-        {:else}
-          <Box class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
-        {/if}
-      </div>
-    {:else if activeCollection}
-      <Book class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
-    {:else}
-      <LibraryBig class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
-    {/if}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div onclick={() => navigationStore.toggleSidebarVisible()}>
+      {#if activeProject}
+        <div role="img" class={`rounded border-1 transition-colors ${draggingProjectCover ? 'border-green-500' : 'border-transparent'} `}
+          ondragleave={onDragLeaveProjectCover}
+          ondragover={onDraggingProjectCover}
+          ondrop={onDropProjectCover}
+        >
+          {#if activeProject?.cover_asset_id}
+            <img
+              src={assetApi.thumbUrl(activeProject.cover_asset_id)}
+              class="h-10 w-10 rounded object-cover"
+              alt="Project cover"
+            />
+          {:else}
+            <Box class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+          {/if}
+        </div>
+      {:else if activeCollection}
+        <Book class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+      {:else}
+        <LibraryBig class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+      {/if}
+    </div>
   {/snippet}
 </LibraryHeader>
 
@@ -296,10 +302,16 @@
   </div>
 {/if}
 
-<TagFilterBar
-  activeTags={assetsStore.activeTags}
-  onchange={(tags) => assetsStore.setActiveTags(tags)}
-/>
+<div class="flex flex-wrap items-center gap-1.5 border-t border-gray-100 bg-white dark:bg-gray-900 dark:border-gray-800 px-6 py-2">
+  <TagFilterBar
+    activeTags={assetsStore.activeTags}
+    onchange={(tags) => assetsStore.setActiveTags(tags)}
+  />
+  <GridModeButtons
+    mode={statusBarStore.gridMode}
+    onchange={(m) => { statusBarStore.gridMode = m }}
+  />
+</div>
 
 <CustomFieldFilters
   activeFilters={assetsStore.fieldFilters}
@@ -313,6 +325,7 @@
 <AssetGrid
   bind:mainEl
   {sort}
+  gridMode={statusBarStore.gridMode}
   {isDraggingFiles}
   {seenSplashScreen}
   onCardClick={handleCardClick}

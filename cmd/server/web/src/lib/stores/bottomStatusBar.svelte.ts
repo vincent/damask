@@ -2,10 +2,26 @@ let slot1 = $state<string | null>(null)
 let slot2 = $state<string | null>(null)
 let slot3 = $state<string | null>(null)
 
-const ZOOM_DEFAULT = 10
+export type GridMode = 'compact' | 'spaced' | 'table'
+type ZoomGridMode = 'compact' | 'spaced'
+type ZoomConfig = { default: number; max: number }
+
+const ZOOM_CONFIG: Record<ZoomGridMode, ZoomConfig> = {
+    compact: { default: 10, max: 20 },
+    spaced:  { default: 4,  max: 8  },
+}
+
 let showZoom = $state(false)
-let maxZoom = $state(20)
-let zoom = $state(ZOOM_DEFAULT)
+let gridMode = $state<GridMode>('compact')
+let zoomByMode = $state<Record<ZoomGridMode, number>>({
+    compact: ZOOM_CONFIG.compact.default,
+    spaced:  ZOOM_CONFIG.spaced.default,
+})
+
+const activeZoomMode = $derived<ZoomGridMode>(gridMode === 'table' ? 'compact' : gridMode)
+const cfg      = $derived(ZOOM_CONFIG[activeZoomMode])
+const zoom     = $derived(zoomByMode[activeZoomMode])
+const sliderMax = $derived(cfg.max - 1)
 
 export const statusBarStore = {
     get slots(){ return [slot1, slot2, slot3].filter(Boolean) },
@@ -18,17 +34,27 @@ export const statusBarStore = {
 
     get showZoom(){ return showZoom },
     set showZoom(z){ showZoom = z },
-    get maxZoom() { return maxZoom; },
-    get sliderMax() { return maxZoom - 1; },
+
+    get gridMode() { return gridMode },
+    set gridMode(m: GridMode) {
+        if (gridMode !== 'table' && m !== 'table') {
+            const ratio = zoomByMode[gridMode as ZoomGridMode] / ZOOM_CONFIG[gridMode as ZoomGridMode].max
+            zoomByMode[m as ZoomGridMode] = Math.round(ratio * ZOOM_CONFIG[m as ZoomGridMode].max)
+        }
+        gridMode = m
+    },
+
+    get maxZoom() { return cfg.max },
+    get sliderMax() { return sliderMax },
     get zoom(){ return zoom },
-    set zoom(z){ zoom = z },
+    set zoom(z){ zoomByMode[activeZoomMode] = z },
     zoomReset() {
-        zoom = ZOOM_DEFAULT
+        zoomByMode[activeZoomMode] = cfg.default
     },
     zoomDecrease() {
-        zoom = Math.min(statusBarStore.sliderMax, zoom - 2)
+        zoomByMode[activeZoomMode] = Math.max(0, zoom - 2)
     },
     zoomIncrease() {
-        zoom = Math.min(statusBarStore.sliderMax, zoom + 2)
+        zoomByMode[activeZoomMode] = Math.min(sliderMax, zoom + 2)
     },
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type Asset } from '$lib/api'
+  import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { selectionStore } from '$lib/stores/selection.svelte'
   import { uploadsStore } from '$lib/stores/uploads.svelte'
@@ -17,6 +17,7 @@
   import AssetStateSelected from './AssetStateSelected.svelte'
   import AssetStateStackable from './AssetStateStackable.svelte'
   import { scale } from 'svelte/transition'
+  import AssetThumbnail from './AssetThumbnail.svelte'
 
   const fmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
 
@@ -60,6 +61,7 @@
   type Props = {
     seenSplashScreen: boolean
     sort: 'mimetype' | 'created_at' | 'size' | 'taken_at'
+    gridMode: 'compact' | 'spaced' | 'table'
     isDraggingFiles: boolean
     mainEl?: HTMLElement
     onCardClick: (asset: Asset, index: number, event: MouseEvent) => void
@@ -73,6 +75,7 @@
   let {
     seenSplashScreen,
     sort,
+    gridMode = 'compact',
     isDraggingFiles,
     mainEl = $bindable(),
     onCardClick,
@@ -113,12 +116,16 @@
   })
 
   onMount(() => {
-    statusBarStore.showZoom = true
+    statusBarStore.showZoom = gridMode !== 'table'
   })
 
   onDestroy(() => {
     statusBarStore.showZoom = false
     statusBarStore.slot1 = null
+  })
+
+  $effect(() => {
+    statusBarStore.showZoom = gridMode !== 'table'
   })
 </script>
 
@@ -132,7 +139,7 @@
   onmousedown={onMouseDown}
 >
   {#snippet assetCardGrid(assets: Asset[])}
-    <div class="pt-2 grid gap-4 grid-cols-{1 + maxZoom - Math.floor(zoom)}">
+    <div class="pt-2 grid {gridMode == 'compact' ? 'gap-4' : 'gap-30'} grid-cols-{1 + maxZoom - Math.floor(zoom)}">
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
         <div in:scale={{ start: .5, duration: 30 }} class="relative group" data-asset-id={asset.id}>
@@ -151,6 +158,63 @@
         </div>
       {/each}
     </div>
+  {/snippet}
+
+  {#snippet assetTable(assets: Asset[])}
+    <table class="pt-2 w-full text-sm text-left border-separate border-spacing-0">
+      <thead>
+        <tr class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          <th class="py-2 pr-4 pl-1 w-8"></th>
+          <th class="py-2 pr-4">Name</th>
+          <th class="py-2 pr-4">Type</th>
+          <th class="py-2 pr-4">Size</th>
+          <th class="py-2 pr-4">Dimensions</th>
+          <th class="py-2">Added</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each assets as asset (asset.id)}
+          {@const globalIndex = assetsStore.assets.indexOf(asset)}
+          {@const category = mimeCategory(asset.mime_type)}
+          {@const isSelected = selectionStore.selectedIds.has(asset.id)}
+          <tr
+            data-asset-id={asset.id}
+            class="group cursor-pointer border-t border-gray-100 dark:border-gray-800 transition-colors {isSelected ? 'bg-indigo-50 dark:bg-indigo-950/40' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}"
+            onclick={(e) => onCardClick(asset, globalIndex, e as unknown as MouseEvent)}
+          >
+            <td class="py-2 pl-1 pr-4 w-8">
+              <div class="h-8 w-8 rounded overflow-hidden flex items-center justify-center {CATEGORY_ICON_BG[category].light} {CATEGORY_ICON_BG[category].dark}">
+                {#if (category === 'image' || category === 'video' || category === 'audio' || category === 'document')}
+                  <AssetThumbnail
+                    src={assetApi.thumbUrl(asset.id)}
+                    contentType={asset.thumbnail_content_type ? asset.thumbnail_content_type : (asset.thumbnail_key?.includes('.mp4') ? 'video/mp4' : 'image/jpeg')}
+                    alt={asset.original_filename}
+                    class="h-full w-full object-cover"
+                    assetId={asset.id}
+                  />
+                {:else}
+                  <AssetIcon {category} class="h-4 w-4" />
+                {/if}
+              </div>
+            </td>
+            <td class="py-2 pr-4 max-w-xs">
+              <span class="truncate block font-medium text-gray-900 dark:text-gray-100">{asset.original_filename}</span>
+              {#if asset.tags.length > 0}
+                <span class="text-xs text-gray-400 dark:text-gray-500">{asset.tags.join(', ')}</span>
+              {/if}
+            </td>
+            <td class="py-2 pr-4 text-gray-500 dark:text-gray-400">{asset.mime_type}</td>
+            <td class="py-2 pr-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatBytes(asset.size)}</td>
+            <td class="py-2 pr-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+              {#if asset.width && asset.height}{asset.width}×{asset.height}{:else}—{/if}
+            </td>
+            <td class="py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+              {new Date(asset.created_at).toLocaleDateString()}
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
   {/snippet}
 
   {#if isDraggingFiles}
@@ -173,6 +237,13 @@
     >
       {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
     </EmptyState>
+  {:else if gridMode === 'table'}
+    {@render assetTable(assetsStore.assets)}
+    <div bind:this={sentinel} class="flex justify-center py-6">
+      {#if assetsStore.loading && assetsStore.nextCursor}
+        <Loader class="h-6 w-6 animate-spin text-gray-400" />
+      {/if}
+    </div>
   {:else if sort === 'mimetype'}
     {#each CATEGORY_ORDER as cat}
       {@const group = assetsStore.assetsByCategory[cat]}

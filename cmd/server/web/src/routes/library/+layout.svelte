@@ -11,7 +11,7 @@
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
-  import { Activity, LogOut, Plus, Settings2, Tag, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft, Gauge, Tags } from '@lucide/svelte'
+  import { Activity, LogOut, Plus, Settings2, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft, Tags } from '@lucide/svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
@@ -31,7 +31,6 @@
   let { children }: { data: any, children: Snippet } = $props()
 
   let sidebarCreating = $state(false)
-  let sidebarVisible = $state(browserDetectStore.onWideDevice)
 
   const profileSections = [
     { id: 'account',       label: () => m.settings_auth_title(), path: '/library/settings/account',     icon: User },
@@ -59,7 +58,7 @@
   useShortcuts({
     'search.focus':      () => document.querySelector<HTMLInputElement>('[data-search]')?.focus(),
     'upload.open':       () => document.querySelector<HTMLInputElement>('[data-upload-trigger]')?.click(),
-    'sidebar.toggle':    () => { sidebarVisible = !sidebarVisible },
+    'sidebar.toggle':    () => navigationStore.toggleSidebarVisible(),
     'navigate.library':  () => { clearGMode(); goto('/library') },
     'navigate.tags':     () => { clearGMode(); goto('/library/settings/tags') },
     'navigate.settings': () => { clearGMode(); goto('/library/settings/members') },
@@ -153,7 +152,7 @@
 
 <div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
-  {#if sidebarVisible && isSettings}
+  {#if navigationStore.sidebarVisible && isSettings}
     <aside
       in:fly={{ x: -256, duration: 150, delay: 150 }}
       out:fly={{ x: -256, duration: 150 }}
@@ -239,7 +238,7 @@
       </nav>
 
     </aside>
-  {:else if sidebarVisible}
+  {:else if navigationStore.sidebarVisible}
     <aside
       in:fly={{ x: -256, duration: 150, delay: 150 }}
       out:fly={{ x: -256, duration: 150 }}

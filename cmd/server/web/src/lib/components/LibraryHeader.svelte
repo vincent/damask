@@ -6,7 +6,7 @@
   import SortButtons from '$lib/components/SortButtons.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
-  import { Share2, Upload, ChevronDown, Database, Users, Tag, Columns3, Plus, Settings, Tags } from '@lucide/svelte'
+  import { Share2, ChevronDown, Database, Users, Plus, Settings, Tags } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'
   import UndoRedo from './UndoRedo.svelte'
   import Button from './ui/Button.svelte'
