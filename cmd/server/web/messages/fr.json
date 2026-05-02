@@ -568,5 +568,7 @@
   "thumbnail_video_preview": "Aperçu vidéo",
   "thumbnail_pdf_preview": "Aperçu du document",
   "variant_thumbnail_generating": "Génération de l'aperçu…",
-  "variant_no_preview": "Aperçu non disponible"
+  "variant_no_preview": "Aperçu non disponible",
+  "tags_manage": "Ajouter une étiquette",
+  "fields_manage": "Ajouter un champ"
 }

@@ -582,5 +582,7 @@
   "thumbnail_video_preview": "Video preview",
   "thumbnail_pdf_preview": "Document preview",
   "variant_thumbnail_generating": "Generating preview…",
-  "variant_no_preview": "No preview available"
+  "variant_no_preview": "No preview available",
+  "tags_manage": "Add tags",
+  "fields_manage": "Add custom fields"
 }

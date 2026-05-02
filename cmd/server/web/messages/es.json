@@ -567,5 +567,7 @@
   "thumbnail_video_preview": "Vista previa de vídeo",
   "thumbnail_pdf_preview": "Vista previa del documento",
   "variant_thumbnail_generating": "Generando vista previa…",
-  "variant_no_preview": "Vista previa no disponible"
+  "variant_no_preview": "Vista previa no disponible",
+  "tags_manage": "Añadir etiquetas",
+  "fields_manage": "Añadir campos personalizados"
 }

@@ -11,7 +11,7 @@
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
-  import { Activity, LogOut, Plus, Settings2, Tag, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft, Gauge } from '@lucide/svelte'
+  import { Activity, LogOut, Plus, Settings2, Tag, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft, Gauge, Tags } from '@lucide/svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
@@ -39,7 +39,7 @@
 
   const settingsSections = [
     { id: 'members',       label: () => m.tab_members(),                 path: '/library/settings/members',       icon: Users },
-    { id: 'tags',          label: () => m.tags(),                           path: '/library/settings/tags',          icon: Tag },
+    { id: 'tags',          label: () => m.tags(),                           path: '/library/settings/tags',          icon: Tags },
     { id: 'custom-fields', label: () => m.custom_fields_title(),   path: '/library/settings/custom-fields', icon: Settings2 },
     { id: 'ingress',       label: () => m.tab_ingress(),                 path: '/library/settings/ingress',       icon: Download },
     { id: 'integrations',  label: () => m.integrations_title(),     path: '/library/settings/integrations',  icon: Plug },
