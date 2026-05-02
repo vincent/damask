@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
@@ -279,7 +280,7 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "variant file not found")
 	}
 
-	if c.Get("Sec-Fetch-Dest") != "image" {
+	if !audit.IsBrowserPrefetch(c.Get("Sec-Fetch-Dest")) {
 		s.variants.WriteVariantDownloadedAsync(claims.WorkspaceID, assetID, variantID, variant.Type)
 	}
 

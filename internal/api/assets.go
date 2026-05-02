@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
@@ -512,7 +513,7 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
 
-	if c.Get("Sec-Fetch-Dest") != "image" {
+	if !audit.IsBrowserPrefetch(c.Get("Sec-Fetch-Dest")) {
 		s.assets.WriteAssetDownloadedAsync(claims.WorkspaceID, assetDTO.ID, claims.UserID)
 	}
 

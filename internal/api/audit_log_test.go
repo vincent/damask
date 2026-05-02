@@ -505,6 +505,117 @@ func TestGetVariantFile_AuditEvent_SkippedForImageFetch(t *testing.T) {
 	}
 }
 
+func TestGetAssetFile_AuditEvent_SkippedForVideoFetch(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+
+	code := downloadAssetFile(t, env, assetID, owner.Cookie, "video")
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", code)
+	}
+
+	code, body := getAssetEvents(t, env, assetID, owner.Cookie, "types=asset_downloaded")
+	if code != http.StatusOK {
+		t.Fatalf("events: expected 200, got %d", code)
+	}
+	if len(body.Events) != 0 {
+		t.Fatalf("expected no asset_downloaded event for Sec-Fetch-Dest: video, got %d", len(body.Events))
+	}
+}
+
+func TestGetVariantFile_AuditEvent_SkippedForVideoFetch(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	variant := insertVariantDirectly(t, env, assetID, owner.WorkspaceID)
+
+	code := downloadVariantFile(t, env, assetID, variant.ID, owner.Cookie, "video")
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", code)
+	}
+
+	code, body := getAssetEvents(t, env, assetID, owner.Cookie, "types=asset_variant_downloaded")
+	if code != http.StatusOK {
+		t.Fatalf("events: expected 200, got %d", code)
+	}
+	if len(body.Events) != 0 {
+		t.Fatalf("expected no asset_variant_downloaded event for Sec-Fetch-Dest: video, got %d", len(body.Events))
+	}
+}
+
+func TestGetAssetFile_AuditEvent_SkippedForDocumentFetch(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+
+	code := downloadAssetFile(t, env, assetID, owner.Cookie, "document")
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", code)
+	}
+
+	code, body := getAssetEvents(t, env, assetID, owner.Cookie, "types=asset_downloaded")
+	if code != http.StatusOK {
+		t.Fatalf("events: expected 200, got %d", code)
+	}
+	if len(body.Events) != 0 {
+		t.Fatalf("expected no asset_downloaded event for Sec-Fetch-Dest: document, got %d", len(body.Events))
+	}
+}
+
+func TestGetAssetFile_AuditEvent_SkippedForIframeFetch(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+
+	code := downloadAssetFile(t, env, assetID, owner.Cookie, "iframe")
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", code)
+	}
+
+	code, body := getAssetEvents(t, env, assetID, owner.Cookie, "types=asset_downloaded")
+	if code != http.StatusOK {
+		t.Fatalf("events: expected 200, got %d", code)
+	}
+	if len(body.Events) != 0 {
+		t.Fatalf("expected no asset_downloaded event for Sec-Fetch-Dest: iframe, got %d", len(body.Events))
+	}
+}
+
+func TestGetVariantFile_AuditEvent_SkippedForDocumentFetch(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	variant := insertVariantDirectly(t, env, assetID, owner.WorkspaceID)
+
+	code := downloadVariantFile(t, env, assetID, variant.ID, owner.Cookie, "document")
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", code)
+	}
+
+	code, body := getAssetEvents(t, env, assetID, owner.Cookie, "types=asset_variant_downloaded")
+	if code != http.StatusOK {
+		t.Fatalf("events: expected 200, got %d", code)
+	}
+	if len(body.Events) != 0 {
+		t.Fatalf("expected no asset_variant_downloaded event for Sec-Fetch-Dest: document, got %d", len(body.Events))
+	}
+}
+
+func TestGetVariantFile_AuditEvent_SkippedForIframeFetch(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	variant := insertVariantDirectly(t, env, assetID, owner.WorkspaceID)
+
+	code := downloadVariantFile(t, env, assetID, variant.ID, owner.Cookie, "iframe")
+	if code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", code)
+	}
+
+	code, body := getAssetEvents(t, env, assetID, owner.Cookie, "types=asset_variant_downloaded")
+	if code != http.StatusOK {
+		t.Fatalf("events: expected 200, got %d", code)
+	}
+	if len(body.Events) != 0 {
+		t.Fatalf("expected no asset_variant_downloaded event for Sec-Fetch-Dest: iframe, got %d", len(body.Events))
+	}
+}
+
 func TestCreateVariant_AuditEvent_Written(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
