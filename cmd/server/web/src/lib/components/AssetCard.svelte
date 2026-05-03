@@ -1,7 +1,7 @@
 <script lang="ts">
   import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
-  import { File, Loader, Play, TriangleAlert } from '@lucide/svelte'
+  import { Check, File, Loader, Play, TriangleAlert } from '@lucide/svelte'
   import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
   import { mount, unmount } from 'svelte'
@@ -17,6 +17,7 @@
     requiresFields?: boolean
     /** All selected IDs when this card is part of a multi-selection drag; empty for solo drag */
     draggedIds?: string[]
+    isSelected?: boolean
   }
 
   let {
@@ -26,6 +27,7 @@
     onclick,
     requiresFields = false,
     draggedIds = [],
+    isSelected = false,
   }: Props = $props()
 
   const hasRequiredFields = $derived(
@@ -43,7 +45,7 @@
 <button
   type="button"
   draggable="true"
-  class="asset-card group flex w-full flex-col rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-[var(--bg-surface)] dark:shadow-none dark:ring-inset dark:hover:shadow-none dark:focus-visible:ring-indigo-500"
+  class="asset-card group relative flex w-full flex-col rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-[var(--bg-surface)] dark:shadow-none dark:ring-inset dark:hover:shadow-none dark:focus-visible:ring-indigo-500 {isSelected ? 'selected' : ''}"
   onclick={(e) => onclick(e)}
   ondragstart={(e) => {
     e.dataTransfer?.setData('text/plain', asset.id)
@@ -190,11 +192,36 @@
       </div>
     {/if}
   </div>
+
+  {#if isSelected}
+    <div class="pointer-events-none absolute top-1.5 right-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
+      <Check class="h-3 w-3 text-white" />
+    </div>
+  {/if}
 </button>
 
 <style>
+  .asset-card {
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease-out;
+  }
+  :global(.group:hover) .asset-card,
+  :global(.group.is-selected) .asset-card {
+    transform: scale(1.04);
+    box-shadow: 0 12px 32px -6px oklch(20% 0.03 264 / 0.32);
+    position: relative;
+    z-index: 10;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .asset-card { transition: none !important; transform: none !important; }
+  }
+
   .asset-card img {
     pointer-events: none;
+  }
+
+  .asset-card.selected {
+    outline: 2px solid #6366f1;
+    outline-offset: 0px;
   }
 
   .card-shadow + .card-shadow {

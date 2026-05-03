@@ -12,7 +12,7 @@
 <div
   role="button"
   tabindex="0"
-  class="absolute top-1.5 right-1.5 flex cursor-pointer items-center justify-center rounded-md p-1 transition-colors transition-opacity {stacked
+  class="absolute top-1.5 right-1.5 z-20 flex cursor-pointer items-center justify-center rounded-md p-1 transition-colors transition-opacity {stacked
     ? 'bg-amber-400 text-white opacity-100 shadow'
     : 'bg-black/40 text-white opacity-0 group-hover:opacity-100'}"
   onclick={(e) => {

@@ -18,7 +18,6 @@
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
   import { onDestroy, onMount } from 'svelte'
-  import AssetStateSelected from './AssetStateSelected.svelte'
   import AssetStateStackable from './AssetStateStackable.svelte'
   import { scale } from 'svelte/transition'
   import AssetThumbnail from './AssetThumbnail.svelte'
@@ -167,7 +166,7 @@
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
         <div
           in:scale={{ start: 0.5, duration: 30 }}
-          class="group relative"
+          class="group relative {selectionStore.selectedIds.has(asset.id) ? 'is-selected' : ''}"
           data-asset-id={asset.id}
         >
           <AssetCard
@@ -177,14 +176,13 @@
               ? [...selectionStore.selectedIds]
               : []}
             requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)}
+            isSelected={selectionStore.selectedIds.has(asset.id)}
             onclick={(e) => onCardClick(asset, globalIndex, e)}
           />
 
-          <!-- Stack/Selection indicator -->
+          <!-- Stack indicator -->
           {#if stackStore.active}
             <AssetStateStackable {asset} />
-          {:else if selectionStore.selectedIds.has(asset.id)}
-            <AssetStateSelected />
           {/if}
         </div>
       {/each}
