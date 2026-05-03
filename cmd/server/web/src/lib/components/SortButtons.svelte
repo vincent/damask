@@ -15,21 +15,35 @@
   }
 </script>
 
+<style>
+  button :global(.ghost-icon) {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+  button:hover :global(.ghost-icon) {
+    opacity: 0.4;
+  }
+</style>
+
 {#each Object.entries(keys) as [key, label] (key)}
+  {@const active = value === key}
   <button
     type="button"
-    class="text-md flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-gray-600 transition-colors dark:text-gray-400 {value !==
-    key
-      ? ''
-      : 'border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400'}"
+    class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors {active
+      ? 'border border-[var(--border-default)] bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)]'
+      : 'border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]'}"
     onclick={() => onSort(key)}
     title={label}
   >
-    {#if value === key && asc}
-      <SortAsc class="me-2 h-4 w-4 text-gray-600 dark:text-gray-400" />
-    {:else if value === key && !asc}
-      <SortDesc class="me-2 h-4 w-4 text-gray-600 dark:text-gray-400" />
-    {/if}
+    <span class="sort-icon flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+      {#if active && asc}
+        <SortAsc class="h-3.5 w-3.5 text-[var(--accent)]" />
+      {:else if active && !asc}
+        <SortDesc class="h-3.5 w-3.5 text-[var(--accent)]" />
+      {:else}
+        <SortAsc class="ghost-icon h-3.5 w-3.5 text-[var(--text-muted)]" />
+      {/if}
+    </span>
     {label}
   </button>
 {/each}

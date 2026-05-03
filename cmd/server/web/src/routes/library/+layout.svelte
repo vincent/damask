@@ -254,93 +254,87 @@
   <title>Workspace — Damask</title>
 </svelte:head>
 
-<div class="flex h-screen bg-[var(--bg-app)] bg-gray-50 dark:bg-gray-950">
+<div class="flex h-screen bg-[var(--bg-app)]">
   <!-- Sidebar -->
   {#if navigationStore.sidebarVisible && isSettings}
     <aside
       in:fly={{ x: -256, duration: 150, delay: 150 }}
       out:fly={{ x: -256, duration: 150 }}
-      class="damask-texture flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+      class="damask-texture relative flex w-64 shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)]"
     >
       <WorkspaceSwitcher class="px-3 py-3" />
 
-      <div class="px-3 pb-3">
+      <div class="px-3 pb-2">
         <a
           href="/library"
-          class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
         >
           <ArrowLeft class="h-4 w-4 shrink-0" />
           <span>{m.back_to_library()}</span>
         </a>
       </div>
 
-      <div class="border-t border-gray-100 px-3 pt-1 pb-2 dark:border-gray-800">
-        <span
-          class="px-3 text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
-        >
+      <div class="border-t border-[var(--border-subtle)] px-3 pt-3 pb-1.5">
+        <span class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
           {m.user_profile()}
         </span>
       </div>
 
-      <nav class="flex flex-col gap-0.5 px-3 pb-4">
+      <nav class="flex flex-col gap-0.5 px-3 pb-3">
         {#each profileSections as section}
           {@const Icon = section.icon}
           <a
             href={section.path}
-            class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
               {activeSettingsSection === section.id
-              ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+              ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           >
-            <Icon class="h-4 w-4 shrink-0 text-gray-400" />
+            <Icon class="h-4 w-4 shrink-0 {activeSettingsSection === section.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
             <span class="flex-1 text-left">{section.label()}</span>
           </a>
         {/each}
       </nav>
 
-      <div class="border-t border-gray-100 px-3 pt-1 pb-2 dark:border-gray-800">
-        <span
-          class="px-3 text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
-        >
+      <div class="border-t border-[var(--border-subtle)] px-3 pt-3 pb-1.5">
+        <span class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
           {m.settings()}
         </span>
       </div>
 
-      <nav class="flex flex-col gap-0.5 px-3 pb-4">
+      <nav class="flex flex-col gap-0.5 px-3 pb-3">
         {#each settingsSections as section}
           {@const Icon = section.icon}
           <a
             href={section.path}
-            class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
               {activeSettingsSection === section.id
-              ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+              ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           >
-            <Icon class="h-4 w-4 shrink-0 text-gray-400" />
+            <Icon class="h-4 w-4 shrink-0 {activeSettingsSection === section.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
             <span class="flex-1 text-left">{section.label()}</span>
           </a>
         {/each}
       </nav>
 
-      <div class="border-t border-gray-100 px-3 pt-1 pb-2 dark:border-gray-800">
-        <span
-          class="px-3 text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
-        >
+      <div class="border-t border-[var(--border-subtle)] px-3 pt-3 pb-1.5">
+        <span class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
           {m.privacy_audit_logs()}
         </span>
       </div>
 
-      <nav class="flex flex-col gap-0.5 px-3 pb-4">
+      <nav class="flex flex-col gap-0.5 px-3 pb-3">
         {#each securitySections as section}
           {@const Icon = section.icon}
           <a
             href={section.path}
-            class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
               {activeSettingsSection === section.id
-              ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+              ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           >
-            <Icon class="h-4 w-4 shrink-0 text-gray-400" />
+            <Icon class="h-4 w-4 shrink-0 {activeSettingsSection === section.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
             <span class="flex-1 text-left">{section.label()}</span>
           </a>
         {/each}
@@ -350,7 +344,7 @@
     <aside
       in:fly={{ x: -256, duration: 150, delay: 150 }}
       out:fly={{ x: -256, duration: 150 }}
-      class="damask-texture relative flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+      class="damask-texture relative flex w-64 shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)]"
     >
       <!-- Workspace switcher -->
       <WorkspaceSwitcher class="px-3 py-3" />
@@ -358,38 +352,28 @@
       <!-- All Assets button -->
       <div class="px-3 pb-2">
         <button
-          class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
-            {page.route.id === '/library' &&
-          navigationStore.activeProjectId === null
-            ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-            : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+          class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
+            {page.route.id === '/library' && navigationStore.activeProjectId === null
+            ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
+            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           onclick={() => handleProjectSelect(null)}
         >
-          <LibraryBig class="h-4 w-4 shrink-0 text-gray-400" />
+          <LibraryBig class="h-4 w-4 shrink-0 {page.route.id === '/library' && navigationStore.activeProjectId === null ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
           <span class="flex-1 text-left">{m.all_assets()}</span>
           {#if authStore.totalAssetCount > 0}
-            <span class="shrink-0 text-sm text-gray-400"
-              >{authStore.totalAssetCount}</span
-            >
+            <span class="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{authStore.totalAssetCount}</span>
           {/if}
         </button>
       </div>
 
       <!-- Projects section -->
-      <div
-        class="flex flex-1 flex-col overflow-hidden border-t border-gray-100 px-3 pt-4 dark:border-gray-800"
-      >
+      <div class="flex flex-1 flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3">
         <div class="mb-2 flex items-center justify-between px-2">
-          <span
-            class="text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
-            >{m.projects()}</span
-          >
+          <span class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">{m.projects()}</span>
           {#if authStore.role !== 'viewer'}
             <button
-              class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              onclick={() => {
-                sidebarCreating = true
-              }}
+              class="rounded p-0.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
+              onclick={() => { sidebarCreating = true }}
               aria-label={m.new_project()}
             >
               <Plus class="h-3.5 w-3.5" />
@@ -401,9 +385,7 @@
           <ProjectSidebar
             selectedAssetIds={selectionStore.selectedIds}
             creating={sidebarCreating}
-            onCreatingChange={(v) => {
-              sidebarCreating = v
-            }}
+            onCreatingChange={(v) => { sidebarCreating = v }}
             onSelect={handleProjectSelect}
             onFolderSelect={handleFolderSelect}
             onAssetsFolderDropped={handleAssetsDropped}
@@ -414,51 +396,37 @@
 
       <!-- Collections section -->
       {#if collectionsStore.collections.length > 0}
-        <div
-          class="flex flex-col overflow-hidden border-t-2 border-gray-100 px-3 pt-4 dark:border-gray-800"
-        >
-          <div class="mb-2 flex items-center gap-2 px-2">
-            <span
-              class="text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
-              >{m.collections()}</span
-            >
+        <div class="flex flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3">
+          <div class="mb-2 flex items-center px-2">
+            <span class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">{m.collections()}</span>
           </div>
           <CollectionsSidebar onSelect={handleCollectionSelect} />
         </div>
       {/if}
 
-      <div
-        class="flex items-center justify-start border-t-2 border-gray-200 px-4 py-3 dark:border-gray-800"
-      >
-        <Info class="h-3.5 w-3.5 text-gray-400" />
+      <!-- Footer links + logout -->
+      <div class="mt-auto border-t border-[var(--border-subtle)] px-3 py-2">
         <a
           href="https://docs.damask.studio"
           target="_blank"
-          class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
         >
-          <span class="text-sm">{m.help_docs()}</span>
+          <Info class="h-3.5 w-3.5 shrink-0" />
+          <span>{m.help_docs()}</span>
         </a>
-      </div>
-      <div class="flex items-center justify-start px-4 py-3">
-        <Megaphone class="h-3.5 w-3.5 text-gray-400" />
         <a
           href="https://github.com/vincent/damask/discussions"
           target="_blank"
-          class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
         >
-          <span class="text-sm">{m.help_feedback()}</span>
+          <Megaphone class="h-3.5 w-3.5 shrink-0" />
+          <span>{m.help_feedback()}</span>
         </a>
-      </div>
-
-      <!-- Bottom sign out + theme toggle -->
-      <div
-        class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800"
-      >
         <a
           href="/logout"
-          class="text-md flex items-center gap-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
         >
-          <LogOut class="h-3.5 w-3.5" />
+          <LogOut class="h-3.5 w-3.5 shrink-0" />
           <Hint class="text-sm">{m.logout()}</Hint>
         </a>
       </div>

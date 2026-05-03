@@ -13,10 +13,9 @@
   type Props = {
     asset: Asset
     category: string
-    previewBg: Record<string, string>
   }
 
-  let { asset, category, previewBg }: Props = $props()
+  let { asset, category }: Props = $props()
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString('en-US', {
@@ -56,7 +55,7 @@
       {/if}
     </div>
     <!-- Author + date -->
-    <p class="text-md mt-0.5 text-gray-400 dark:text-gray-500">
+    <p class="text-md mt-0.5 text-[#8ba4c4] dark:text-[#5f7590]">
       {formatDate(asset.created_at)}
     </p>
   </div>
@@ -64,9 +63,7 @@
   <a
     href={assetApi.fileUrl(asset.id)}
     download={asset.original_filename}
-    class="flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 p-2.5 text-white transition-colors hover:bg-indigo-700 {previewBg[
-      category
-    ]}"
+    class="flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 p-2.5 text-white transition-colors hover:bg-indigo-700"
     aria-label="Download original"
   >
     <Download class="h-4 w-4" />

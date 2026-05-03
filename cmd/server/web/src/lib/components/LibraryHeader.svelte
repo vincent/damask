@@ -50,7 +50,7 @@
 </script>
 
 <header
-  class="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900"
+  class="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-4"
 >
   <div class="flex items-center gap-3">
     {@render prefix?.()}
@@ -107,7 +107,7 @@
     {#if authStore.role !== 'viewer'}
       <div class="relative flex">
         <label
-          class="text-md flex cursor-pointer items-center gap-2 rounded-l-lg bg-indigo-600 px-3 py-2 font-medium text-white hover:bg-indigo-700"
+          class="flex cursor-pointer items-center gap-2 rounded-l-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           <Plus class="h-4 w-4" />
           {m.add()}
@@ -144,37 +144,37 @@
           <div
             role="menu"
             tabindex="-1"
-            class="absolute top-full right-0 z-50 mt-1 min-w-[280px] rounded-lg border border-gray-200 bg-indigo-600 py-1 shadow-lg dark:border-gray-700 dark:bg-indigo-600"
+            class="absolute top-full right-0 z-50 mt-1 min-w-[200px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-xl"
             onmouseleave={() => {
               addMenuOpen = false
             }}
           >
             <a
               href="/library/settings/ingress"
-              class="text-md flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-indigo-700 dark:text-gray-200 dark:hover:bg-indigo-700"
+              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
-              <Database class="h-4 w-4" />
+              <Database class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
               {m.add_ingress_source()}
             </a>
             <a
               href="/library/settings/members"
-              class="text-md flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-indigo-700 dark:text-gray-200 dark:hover:bg-indigo-700"
+              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
-              <Users class="h-4 w-4" />
+              <Users class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
               {m.member_invite()}
             </a>
             <a
               href="/library/settings/tags"
-              class="text-md flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-indigo-700 dark:text-gray-200 dark:hover:bg-indigo-700"
+              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
-              <Tags class="h-4 w-4" />
+              <Tags class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
               {m.tags_manage()}
             </a>
             <a
               href="/library/settings/custom-fields"
-              class="text-md flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-indigo-700 dark:text-gray-200 dark:hover:bg-indigo-700"
+              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
             >
-              <Settings class="h-4 w-4" />
+              <Settings class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
               {m.fields_manage()}
             </a>
           </div>

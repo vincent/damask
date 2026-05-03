@@ -322,14 +322,14 @@
               alt="Project cover"
             />
           {:else}
-            <Box class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+            <Box class="h-10 w-10 rounded text-[var(--text-secondary)]" />
           {/if}
         </div>
       {:else if activeCollection}
-        <Book class="h-10 w-10 rounded text-gray-800 dark:text-gray-500" />
+        <Book class="h-10 w-10 rounded text-[var(--text-secondary)]" />
       {:else}
         <LibraryBig
-          class="h-10 w-10 rounded text-gray-800 dark:text-gray-500"
+          class="h-10 w-10 rounded text-[var(--text-secondary)]"
         />
       {/if}
     </div>
@@ -342,13 +342,11 @@
 
 {#if activeCollection}
   <div
-    class="flex items-center gap-2 border-t border-gray-100 bg-white px-6 py-2 dark:border-gray-800 dark:bg-gray-900"
+    class="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-2"
   >
-    <LibraryBig class="h-4 w-4 text-indigo-500" />
-    <span class="text-sm font-medium text-indigo-700 dark:text-indigo-300"
-      >{activeCollection.name}</span
-    >
-    <span class="text-xs text-gray-400"
+    <LibraryBig class="h-4 w-4 text-[var(--accent)]" />
+    <span class="text-sm font-medium text-[var(--accent-text)]">{activeCollection.name}</span>
+    <span class="text-xs text-[var(--text-muted)]"
       >{m.assets_count({ count: activeCollection.asset_count })}</span
     >
     <button
@@ -357,7 +355,7 @@
         navigationStore.selectCollection(null)
         assetsStore.invalidate()
       }}
-      class="ml-1 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+      class="ml-1 rounded p-0.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
       aria-label="Clear collection filter"
     >
       <X class="h-3.5 w-3.5" />
@@ -366,7 +364,7 @@
 {/if}
 
 <div
-  class="flex flex-wrap items-center gap-1.5 border-t border-gray-100 bg-white px-6 py-2 dark:border-gray-800 dark:bg-gray-900"
+  class="flex flex-wrap items-center gap-1.5 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-2"
 >
   <TagFilterBar
     activeTags={assetsStore.activeTags}

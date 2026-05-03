@@ -49,30 +49,30 @@
 {#if allTags.length > 0}
   <!-- Active chips -->
   {#each activeTags as tag}
-    <Chip label={tag} onremove={() => dismiss(tag)} color="#3b82f6" />
+    <Chip label={tag} onremove={() => dismiss(tag)} color="#4f46e5" />
   {/each}
 
   {#if activeTags.length > 0}
-    <span class="text-sm text-gray-300">|</span>
+    <span class="h-4 w-px shrink-0 bg-[var(--border-default)]"></span>
   {/if}
 
   <!-- All available tags -->
   {#each allTags as tag}
     {#if !activeTags.includes(tag.name)}
       <button
-        class="rounded-full border border-indigo-500 bg-indigo-50 px-3 py-1 text-sm text-indigo-700 transition-colors dark:border-indigo-400 dark:bg-indigo-950/40 dark:text-indigo-300"
+        class="rounded-full border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-text)]"
         onclick={(e) => toggle(tag.name, e)}
         title="Shift+click to add to filter"
       >
         {tag.name}
-        <span class="ml-1 text-gray-400">{tag.asset_count}</span>
+        <span class="ml-1 tabular-nums text-[var(--text-muted)]">{tag.asset_count}</span>
       </button>
     {/if}
   {/each}
 
   {#if activeTags.length > 0}
     <button
-      class="ml-1 text-sm text-gray-400 hover:text-gray-600"
+      class="rounded px-1.5 py-0.5 text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
       onclick={() => onchange([])}>Clear</button
     >
   {/if}

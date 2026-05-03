@@ -309,14 +309,14 @@
     aria-modal="true"
     aria-label={asset.original_filename}
   >
-    <!-- Preview (h-20) -->
+    <!-- Header -->
     <div
-      class="damask-texture damask-texture-strong relative flex h-20 flex-shrink-0 items-center justify-center {ASSET_BACKGROUND_COLORS[
+      class="damask-texture damask-texture-strong relative flex h-24 flex-shrink-0 items-center justify-center px-4 {ASSET_BACKGROUND_COLORS[
         category
       ]}"
     >
       {#if renamingAsset}
-        <div class="flex max-w-[500px] items-center gap-1">
+        <div class="flex w-full items-center gap-1 pr-10">
           <InlineEditForm
             value={stemOf(asset.original_filename)}
             busy={renameBusy}
@@ -325,14 +325,14 @@
             size="md"
             autofocus
           />
-          <span class="text-md flex-shrink-0 text-gray-400 dark:text-gray-500"
+          <span class="flex-shrink-0 text-sm text-black/50 dark:text-white/40"
             >{extOf(asset.original_filename)}</span
           >
         </div>
       {:else}
         <button
           type="button"
-          class="damask-asset-name max-w-[500px] cursor-pointer text-left text-xl leading-tight font-bold break-all text-black hover:underline dark:text-gray-50"
+          class="damask-asset-name w-full cursor-pointer pr-10 text-left text-base leading-snug font-semibold break-words text-[#1a2744] hover:underline dark:text-[#e3e9f2]"
           title="Click to rename"
           onclick={() => (renamingAsset = true)}
         >
@@ -341,7 +341,14 @@
       {/if}
       <!-- Top-right controls -->
       <div class="absolute top-3 right-3 flex items-center gap-1.5">
-        <Close close={onclose} />
+        <button
+          type="button"
+          class="flex h-8 w-8 items-center justify-center rounded-lg text-black/50 transition-colors hover:bg-black/10 hover:text-black/80 dark:text-white/50 dark:hover:bg-black/20 dark:hover:text-white/90"
+          onclick={onclose}
+          aria-label="Close panel"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     </div>
 
@@ -351,7 +358,6 @@
       <AssetMetadataPills
         {asset}
         {category}
-        previewBg={ASSET_BACKGROUND_COLORS}
       />
     </div>
 
@@ -359,15 +365,15 @@
     <div
       class="relative flex-shrink-0 border-b border-gray-100 dark:border-gray-800"
     >
-      <div class="flex">
+      <div class="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {#each Object.keys(panelTabs) as tab}
           {@const tabInfo = panelTabs[tab as PanelTab]}
           <button
             type="button"
-            class="relative flex-1 py-3 text-sm font-medium transition-colors {activeTab ===
+            class="relative flex-1 min-w-fit whitespace-nowrap px-2 py-2.5 text-xs font-medium transition-colors {activeTab ===
             tab
               ? 'text-indigo-600 dark:text-indigo-400'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+              : 'text-[#8ba4c4] hover:text-[#4a6b8a] dark:text-[#5f7590] dark:hover:text-[#8ba4c4]'}"
             onclick={() => {
               activeTab = tab as PanelTab
               createError = ''
@@ -379,7 +385,7 @@
             {/if}
             {#if tab === 'history' && (asset?.version_count ?? 0) > 1}
               <span
-                class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
+                class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
               >
                 {asset.version_count}
               </span>

@@ -82,22 +82,22 @@
           </div>
         {:else}
           <button
-            class="text-md flex w-full items-center gap-2 rounded-lg px-2 py-1.5 transition-colors
+            class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors
               {navigationStore.activeCollectionId === col.id
-              ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-gray-100'
-              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
+              ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
             onclick={() => onSelect(col.id)}
           >
-            <LibraryBig class="h-4 w-4 shrink-0 text-gray-400" />
+            <LibraryBig class="h-4 w-4 shrink-0 {navigationStore.activeCollectionId === col.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
             <span class="min-w-0 flex-1 truncate text-left">{col.name}</span>
-            <span class="ml-auto shrink-0 p-1 text-sm text-gray-400"
+            <span class="ml-auto shrink-0 p-1 text-xs tabular-nums text-[var(--text-muted)]"
               >{col.asset_count || ''}</span
             >
           </button>
 
           {#if authStore.role !== 'viewer'}
             <button
-              class="absolute top-2.5 right-7 rounded p-0.5 text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-400"
+              class="absolute top-2 right-7 rounded p-0.5 text-[var(--text-muted)] opacity-0 transition-colors group-hover:opacity-100 hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
               onclick={(e) => {
                 e.stopPropagation()
                 menuOpenId = menuOpenId === col.id ? null : col.id

@@ -198,9 +198,7 @@
       class="w-full border-separate border-spacing-0 pt-2 text-left text-sm"
     >
       <thead>
-        <tr
-          class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400"
-        >
+        <tr class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
           <th class="w-8 py-2 pr-4 pl-1"></th>
           <th class="py-2 pr-4">Name</th>
           <th class="py-2 pr-4">Type</th>
@@ -216,9 +214,9 @@
           {@const isSelected = selectionStore.selectedIds.has(asset.id)}
           <tr
             data-asset-id={asset.id}
-            class="group cursor-pointer border-t border-gray-100 transition-colors dark:border-gray-800 {isSelected
-              ? 'bg-indigo-50 dark:bg-indigo-950/40'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}"
+            class="group cursor-pointer border-t border-[var(--border-subtle)] transition-colors {isSelected
+              ? 'bg-[var(--accent-soft)]'
+              : 'hover:bg-[var(--bg-hover)]'}"
             onclick={(e) =>
               onCardClick(asset, globalIndex, e as unknown as MouseEvent)}
           >
@@ -246,29 +244,26 @@
               </div>
             </td>
             <td class="max-w-xs py-2 pr-4">
-              <span
-                class="block truncate font-medium text-gray-900 dark:text-gray-100"
+              <span class="block truncate font-medium text-[var(--text-primary)]"
                 >{asset.original_filename}</span
               >
               {#if asset.tags.length > 0}
-                <span class="text-xs text-gray-400 dark:text-gray-500"
-                  >{asset.tags.join(', ')}</span
-                >
+                <span class="text-xs text-[var(--text-muted)]">{asset.tags.join(', ')}</span>
               {/if}
             </td>
-            <td class="py-2 pr-4 text-gray-500 dark:text-gray-400"
+            <td class="py-2 pr-4 text-[var(--text-muted)]"
               >{asset.mime_type}</td
             >
             <td
-              class="py-2 pr-4 whitespace-nowrap text-gray-500 dark:text-gray-400"
+              class="py-2 pr-4 whitespace-nowrap text-[var(--text-muted)]"
               >{formatBytes(asset.size)}</td
             >
             <td
-              class="py-2 pr-4 whitespace-nowrap text-gray-500 dark:text-gray-400"
+              class="py-2 pr-4 whitespace-nowrap text-[var(--text-muted)]"
             >
               {#if asset.width && asset.height}{asset.width}×{asset.height}{:else}—{/if}
             </td>
-            <td class="py-2 whitespace-nowrap text-gray-500 dark:text-gray-400">
+            <td class="py-2 whitespace-nowrap text-[var(--text-muted)]">
               {new Date(asset.created_at).toLocaleDateString()}
             </td>
           </tr>
@@ -285,7 +280,7 @@
         class="flex flex-col items-center gap-2 text-indigo-600 dark:text-indigo-400"
       >
         <CloudUpload class="h-10 w-10" />
-        <p class="text-md font-medium">{m.drop_to_upload()}</p>
+        <p class="text-sm font-medium">{m.drop_to_upload()}</p>
       </div>
     </div>
   {/if}
@@ -318,24 +313,20 @@
       {#if group.length > 0}
         <div class="mb-10">
           <div
-            class="sticky top-[-25px] z-10 flex items-center gap-3 bg-gray-50 py-2 dark:bg-gray-950"
+            class="sticky top-[-25px] z-10 flex items-center gap-3 bg-[var(--bg-app)] py-2"
           >
             <AssetIcon
               category={cat}
-              class="h-8 w-8 items-center justify-center rounded-lg {CATEGORY_ICON_BG[
+              class="h-7 w-7 items-center justify-center rounded-lg {CATEGORY_ICON_BG[
                 cat
               ].light} {CATEGORY_ICON_BG[cat].dark}"
             />
-            <h2 class="text-md font-semibold text-gray-900 dark:text-gray-50">
+            <h2 class="text-sm font-semibold text-[var(--text-primary)]">
               {CATEGORY_LABELS[cat]}
             </h2>
-            <span class="text-md text-gray-400 dark:text-gray-500"
-              >{group.length}</span
-            >
+            <span class="text-xs tabular-nums text-[var(--text-muted)]">{group.length}</span>
           </div>
-          <div class="border-l-2 {CATEGORY_BORDER[cat]} pl-4">
-            {@render assetCardGrid(group)}
-          </div>
+          {@render assetCardGrid(group)}
         </div>
       {/if}
     {/each}
@@ -355,14 +346,12 @@
     {#each assetsByMonth as group}
       <div class="mb-10">
         <div
-          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-gray-50 py-2 dark:bg-gray-950"
+          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-app)] py-2"
         >
-          <h2 class="text-md font-semibold text-gray-900 dark:text-gray-50">
+          <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
           </h2>
-          <span class="text-md text-gray-400 dark:text-gray-500"
-            >{group.assets.length}</span
-          >
+          <span class="text-xs tabular-nums text-[var(--text-muted)]">{group.assets.length}</span>
         </div>
         {@render assetCardGrid(group.assets)}
       </div>
@@ -376,14 +365,12 @@
     {#each assetsBySize as group}
       <div class="mb-10">
         <div
-          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-gray-50 py-2 dark:bg-gray-950"
+          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-app)] py-2"
         >
-          <h2 class="text-md font-semibold text-gray-900 dark:text-gray-50">
+          <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
           </h2>
-          <span class="text-md text-gray-400 dark:text-gray-500"
-            >{group.assets.length}</span
-          >
+          <span class="text-xs tabular-nums text-[var(--text-muted)]">{group.assets.length}</span>
         </div>
         {@render assetCardGrid(group.assets)}
       </div>

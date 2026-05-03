@@ -143,10 +143,10 @@
         </div>
       {:else}
         <button
-          class="text-md flex w-full items-center gap-2 rounded-lg px-2 py-1.5 font-medium transition-colors
+          class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors
             {navigationStore.activeProjectId === project.id
-            ? 'bg-gray-100 focus-visible:ring-gray-300 dark:bg-gray-700 dark:text-gray-300'
-            : 'hover:bg-gray-100 focus-visible:ring-gray-300 dark:text-gray-300 dark:hover:bg-gray-700'}
+            ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)] focus-visible:ring-[var(--accent)]'
+            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:ring-[var(--accent)]'}
             {dropTargetProjectId === project.id
             ? 'bg-green-50 ring-1 ring-green-400 dark:bg-green-900/30'
             : ''}"
@@ -178,19 +178,19 @@
             />
           {:else}
             <Box
-              class="h-4 w-4 shrink-0 text-gray-400"
+              class="h-4 w-4 shrink-0"
               style="color: {getProjectColor(project)}"
             />
           {/if}
           <span class="min-w-0 flex-1 truncate text-left">{project.name}</span>
-          <span class="ml-auto shrink-0 p-1 text-sm text-gray-400"
+          <span class="ml-auto shrink-0 p-1 text-xs tabular-nums text-[var(--text-muted)]"
             >{project.asset_count || ''}</span
           >
         </button>
 
         {#if authStore.role !== 'viewer'}
           <button
-            class="absolute top-2.5 right-7 rounded p-0.5 text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-400"
+            class="absolute top-2 right-7 rounded p-0.5 text-[var(--text-muted)] opacity-0 transition-colors group-hover:opacity-100 hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
             onclick={(e) => {
               e.stopPropagation()
               menuOpenId = menuOpenId === project.id ? null : project.id
@@ -242,7 +242,7 @@
           {#if authStore.role !== 'viewer'}
             {#if creatingFolderForProject === project.id}
               <form
-                class="mt-1 flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-800"
+                class="mt-1 flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1"
                 onsubmit={(e) => {
                   e.preventDefault()
                   submitCreateFolder(project.id)
@@ -251,14 +251,14 @@
                 <input
                   bind:value={newFolderName}
                   placeholder="Folder name"
-                  class="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-100"
+                  class="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none"
                   onblur={() => {
                     if (!newFolderName.trim()) creatingFolderForProject = null
                   }}
                 />
                 <button
                   type="submit"
-                  class="shrink-0 text-sm text-indigo-600 hover:text-indigo-800"
+                  class="shrink-0 text-sm text-[var(--accent)] hover:text-[var(--accent-hover)]"
                   >{m.add()}</button
                 >
               </form>
@@ -289,7 +289,7 @@
   {#if authStore.role !== 'viewer'}
     {#if creating}
       <form
-        class="mt-1 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800"
+        class="mt-1 flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-2"
         onsubmit={(e) => {
           e.preventDefault()
           submitCreate()
@@ -298,7 +298,7 @@
         <input
           bind:value={newName}
           placeholder={m.project_name()}
-          class="text-md rounded border border-gray-300 bg-white px-2 py-1 text-gray-900 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+          class="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-sm text-[var(--text-primary)] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
         />
         <div class="flex flex-wrap gap-1">
           {#each COLORS as c}
