@@ -50,9 +50,7 @@
               class="h-11 w-11 shrink-0 rounded-xl bg-[var(--bg-elevated)]"
             ></div>
             <div class="flex-1 space-y-2">
-              <div
-                class="h-3.5 w-32 rounded bg-[var(--bg-elevated)]"
-              ></div>
+              <div class="h-3.5 w-32 rounded bg-[var(--bg-elevated)]"></div>
               <div class="h-3 w-56 rounded bg-[var(--bg-elevated)]"></div>
             </div>
             <div

@@ -84,8 +84,10 @@
   }
 
   const selectedAssetNames = $derived(
-    [...selectedIds]
-      .map((id) => assetsStore.assets.find((a) => a.id === id)?.original_filename ?? id)
+    [...selectedIds].map(
+      (id) =>
+        assetsStore.assets.find((a) => a.id === id)?.original_filename ?? id
+    )
   )
 
   async function bulkDelete() {

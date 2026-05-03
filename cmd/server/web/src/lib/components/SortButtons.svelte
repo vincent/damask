@@ -33,7 +33,10 @@
       {:else if active && !asc}
         <SortDesc class="h-3.5 w-3.5 text-[var(--accent)]" />
       {:else}
-        <SortAsc aria-hidden="true" class="ghost-icon h-3.5 w-3.5 text-[var(--text-muted)]" />
+        <SortAsc
+          aria-hidden="true"
+          class="ghost-icon h-3.5 w-3.5 text-[var(--text-muted)]"
+        />
       {/if}
     </span>
     {label}

@@ -45,7 +45,9 @@
 <button
   type="button"
   draggable="true"
-  class="asset-card group relative flex w-full flex-col rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-[var(--bg-surface)] dark:shadow-none dark:ring-inset dark:hover:shadow-none dark:focus-visible:ring-indigo-500 {isSelected ? 'selected' : ''}"
+  class="asset-card group relative flex w-full flex-col rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-[var(--bg-surface)] dark:shadow-none dark:ring-inset dark:hover:shadow-none dark:focus-visible:ring-indigo-500 {isSelected
+    ? 'selected'
+    : ''}"
   onclick={(e) => onclick(e)}
   ondragstart={(e) => {
     e.dataTransfer?.setData('text/plain', asset.id)
@@ -178,8 +180,12 @@
       {asset.original_filename}
     </p>
     <div class="flex items-center justify-between">
-      <span class="text-xs text-[var(--text-muted)] tabular-nums">{formatBytes(asset.size)}</span>
-      <span class="text-xs text-[var(--text-muted)] tabular-nums">{formatDate(asset.created_at)}</span>
+      <span class="text-xs text-[var(--text-muted)] tabular-nums"
+        >{formatBytes(asset.size)}</span
+      >
+      <span class="text-xs text-[var(--text-muted)] tabular-nums"
+        >{formatDate(asset.created_at)}</span
+      >
     </div>
     {#if asset.tags && asset.tags.length > 0}
       <div class="flex flex-wrap gap-1">
@@ -194,7 +200,9 @@
   </div>
 
   {#if isSelected}
-    <div class="pointer-events-none absolute top-1.5 right-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600">
+    <div
+      class="pointer-events-none absolute top-1.5 right-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600"
+    >
       <Check class="h-3 w-3 text-white" />
     </div>
   {/if}
@@ -202,7 +210,9 @@
 
 <style>
   .asset-card {
-    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease-out;
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 220ms ease-out;
   }
   :global(.group:hover) .asset-card,
   :global(.group.is-selected) .asset-card {
@@ -212,7 +222,10 @@
     z-index: 10;
   }
   @media (prefers-reduced-motion: reduce) {
-    .asset-card { transition: none !important; transform: none !important; }
+    .asset-card {
+      transition: none !important;
+      transform: none !important;
+    }
   }
 
   .asset-card img {

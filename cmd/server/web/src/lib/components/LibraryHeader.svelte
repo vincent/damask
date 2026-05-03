@@ -115,7 +115,9 @@
           onclick={() => {
             addMenuOpen = !addMenuOpen
           }}
-          onkeydown={(e) => { if (e.key === 'Escape') addMenuOpen = false }}
+          onkeydown={(e) => {
+            if (e.key === 'Escape') addMenuOpen = false
+          }}
           aria-label="More add options"
           aria-expanded={addMenuOpen}
           aria-haspopup="menu"
@@ -128,8 +130,12 @@
             role="menu"
             tabindex="-1"
             class="absolute top-full right-0 z-50 mt-1 min-w-[200px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-xl"
-            onmouseleave={() => { addMenuOpen = false }}
-            onkeydown={(e) => { if (e.key === 'Escape') addMenuOpen = false }}
+            onmouseleave={() => {
+              addMenuOpen = false
+            }}
+            onkeydown={(e) => {
+              if (e.key === 'Escape') addMenuOpen = false
+            }}
           >
             <a
               href="/library/settings/ingress"

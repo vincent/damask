@@ -160,13 +160,17 @@
   {#snippet assetCardGrid(assets: Asset[])}
     <div
       class="grid pt-2 {gridMode == 'compact' ? 'gap-4' : 'gap-30'}"
-      style="grid-template-columns: repeat({1 + maxZoom - Math.floor(zoom)}, minmax(0, 1fr))"
+      style="grid-template-columns: repeat({1 +
+        maxZoom -
+        Math.floor(zoom)}, minmax(0, 1fr))"
     >
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
         <div
           in:scale={{ start: 0.5, duration: 30 }}
-          class="group relative {selectionStore.selectedIds.has(asset.id) ? 'is-selected' : ''}"
+          class="group relative {selectionStore.selectedIds.has(asset.id)
+            ? 'is-selected'
+            : ''}"
           data-asset-id={asset.id}
         >
           <AssetCard
@@ -384,5 +388,4 @@
       {/if}
     </div>
   {/if}
-
 </main>

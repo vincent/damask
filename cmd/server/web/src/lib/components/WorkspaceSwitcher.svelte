@@ -97,11 +97,15 @@
         {initials}
       </div>
       <div class="flex flex-1 flex-col truncate text-left">
-        <span class="truncate text-base font-semibold text-[var(--text-primary)]">
+        <span
+          class="truncate text-base font-semibold text-[var(--text-primary)]"
+        >
           {authStore.workspace?.name ?? 'Workspace'}
         </span>
         {#if activeWs}
-          <span class="text-xs text-[var(--text-muted)] tabular-nums">{activeWs.member_count} {m.members()}</span>
+          <span class="text-xs text-[var(--text-muted)] tabular-nums"
+            >{activeWs.member_count} {m.members()}</span
+          >
         {/if}
       </div>
       <ChevronDown

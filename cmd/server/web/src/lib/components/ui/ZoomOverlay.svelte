@@ -10,7 +10,9 @@
   let { src, vars, asset }: Props = $props()
 </script>
 
-<div class="zoom-overlay-bg fixed inset-0 z-40 w-screen bg-black/70 backdrop-blur-lg"></div>
+<div
+  class="zoom-overlay-bg fixed inset-0 z-40 w-screen bg-black/70 backdrop-blur-lg"
+></div>
 <div
   class="zoom-overlay fixed inset-0 z-42 grid w-[75%] place-items-center p-40"
   style={vars}
@@ -35,10 +37,18 @@
   }
 
   @keyframes bg-fade-in {
-    from { opacity: 0; }
-    30% { opacity: 1; }
-    85% { opacity: 1; }
-    to { opacity: 0; }
+    from {
+      opacity: 0;
+    }
+    30% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
   }
 
   @keyframes card-zoom-in {
