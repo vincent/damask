@@ -49,6 +49,7 @@
   --text-muted: theme(colors.gray.500); */
 
   --bg-app: #1c2433;
+  --bg-asset-grid: #101828;
   --bg-surface: #252d3e;
   --bg-sidebar: #1a2130;
   --bg-elevated: #2f3a4f;

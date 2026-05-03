@@ -148,7 +148,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main
   bind:this={mainEl}
-  class="library-content relative flex-1 overflow-y-auto px-6 py-6 {stackStore.count >
+  class="library-content relative flex-1 overflow-y-auto bg-[var(--bg-asset-grid)] px-6 py-6 {stackStore.count >
   0
     ? 'pb-20'
     : ''}"
@@ -176,6 +176,7 @@
           <AssetCard
             {asset}
             {zoom}
+            {gridMode}
             draggedIds={selectionStore.selectedIds.has(asset.id)
               ? [...selectionStore.selectedIds]
               : []}
@@ -349,7 +350,7 @@
     {#each assetsByMonth as group}
       <div class="mb-10">
         <div
-          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-app)] py-2"
+          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-asset-grid)] py-2"
         >
           <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
@@ -370,7 +371,7 @@
     {#each assetsBySize as group}
       <div class="mb-10">
         <div
-          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-app)] py-2"
+          class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-asset-grid)] py-2"
         >
           <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
