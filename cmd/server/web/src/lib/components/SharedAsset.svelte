@@ -182,7 +182,7 @@
       title={asset.original_filename}
     ></iframe>
   {:else if category === 'video'}
-    <video class="w-full" controls>
+    <video class="max-h-[80vh] w-full object-contain" controls>
       <source
         data-asset-dynamic-resource={asset.id}
         src={assetUrl}
