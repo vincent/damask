@@ -30,6 +30,15 @@
     thumbUrl && (category === 'audio' || (category === 'document' && !isPdf))
   )
 
+  let audioEl: HTMLAudioElement | undefined = $state()
+  let audioProgress = $state(0)
+
+  function onAudioTimeUpdate() {
+    if (audioEl && audioEl.duration) {
+      audioProgress = audioEl.currentTime / audioEl.duration
+    }
+  }
+
   // Progressive image load: show thumb immediately, crossfade to full once loaded
   let fullLoaded = $state(false)
   let fullSrc = $state('')
@@ -156,7 +165,10 @@
       src={thumbUrl}
       alt={asset.original_filename}
       data-asset-dynamic-resource={asset.id}
-      class="min-w-xl object-cover {category === 'audio' ? 'invert' : ''}"
+      class="asset-splash min-w-xl object-cover {category === 'audio'
+        ? 'invert'
+        : ''}"
+      style={category === 'audio' ? `--progress: ${audioProgress}` : undefined}
       loading="lazy"
       onerror={(e) => {
         ;(e.currentTarget as HTMLImageElement).style.display = 'none'
@@ -179,7 +191,12 @@
       Your browser does not support the video tag.
     </video>
   {:else if category === 'audio'}
-    <audio class="w-full" controls>
+    <audio
+      class="w-full"
+      controls
+      bind:this={audioEl}
+      ontimeupdate={onAudioTimeUpdate}
+    >
       <source
         data-asset-dynamic-resource={asset.id}
         src={assetUrl}
@@ -225,6 +242,22 @@
 
   @media (prefers-reduced-motion: reduce) {
     .image-crossfade .thumb-overlay {
+      transition: none;
+    }
+  }
+
+  .asset-splash {
+    mask-image: linear-gradient(
+      to right,
+      black calc(var(--progress, 0) * 100%),
+      rgba(0, 0, 0, 0.3) calc(var(--progress, 0) * 100%)
+    );
+    mask-mode: alpha;
+    transition: mask-image 0.1s linear;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .asset-splash {
       transition: none;
     }
   }
