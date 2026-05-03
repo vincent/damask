@@ -12,7 +12,7 @@
 
     let { asset, creating, handleCreate }: Props = $props()
 
-    const kind = 'video_thumbnail'
+    const kind = 'video_capture_image'
 
   // Video params
   let videoTimestamp = $state(1)

@@ -225,7 +225,7 @@
     ] : []),
     ...(isVideo ? [
       { id: 'video_transcode' as VariantTab, label: m.transcode() },
-      { id: 'video_thumbnail' as VariantTab, label: m.thumbnail() },
+      { id: 'video_capture_image' as VariantTab, label: m.thumbnail() },
     ] : []),
   ])
 </script>

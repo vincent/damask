@@ -9,7 +9,7 @@
     import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
     import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
   
-    export type VariantTab = 'all' | 'resize' | 'watermark' | 'convert' | 'smart_crop' | 'crop' | 'bg_remove' | 'video_transcode' | 'video_thumbnail'
+    export type VariantTab = 'all' | 'resize' | 'watermark' | 'convert' | 'smart_crop' | 'crop' | 'bg_remove' | 'video_transcode' | 'video_capture_image'
 
     interface Props {
         asset: Asset
@@ -35,6 +35,6 @@
     <VariantCreateSmartCrop {asset} {creating} {handleCreate} />
 {:else if tool === 'video_transcode'}
     <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
-{:else if tool === 'video_thumbnail'}
+{:else if tool === 'video_capture_image'}
     <VariantCreateVideoThumbnail {asset} {creating} {handleCreate} />
 {/if}

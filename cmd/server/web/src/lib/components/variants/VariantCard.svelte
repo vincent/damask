@@ -71,7 +71,7 @@
 
 <div class="group flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
   <!-- Thumbnail -->
-  <div class="relative flex h-28 items-center justify-center overflow-hidden bg-gray-100 dark:bg-gray-800">
+  <div class="relative flex h-40 items-center justify-center overflow-hidden bg-gray-100 dark:bg-gray-800">
     {#if thumbUrl}
       <AssetThumbnail
         src={thumbUrl}
@@ -95,18 +95,21 @@
     <a
       href={variantApi.fileUrl(assetId, variant.id)}
       download
-      class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white dark:bg-gray-800/70 dark:text-gray-300"
+      class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 transition-colors transition-opacity group-hover:opacity-100 hover:bg-white dark:hover:bg-gray-500/20 dark:bg-gray-800/70 dark:text-gray-300"
       aria-label={m.download()}
     >
       <Download class="h-3.5 w-3.5" />
     </a>
 
     {#if authStore.role !== 'viewer'}
-      <ButtonDelete
+      <button
+        type="button"
         title={m.variant_delete_confirm()}
-        class="absolute right-2 top-6 dark:hover:bg-transparent hover:bg-transparent"
+        class="absolute right-2 top-10 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 group-hover:opacity-100 dark:text-gray-300 dark:bg-gray-800/70 transition-colors transition-opacity hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
         onclick={handleDelete}
-      />
+      >
+        <Trash2 class="h-3.5 w-3.5" />
+      </button>
     {/if}
   </div>
 
