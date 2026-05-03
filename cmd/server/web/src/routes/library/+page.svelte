@@ -38,7 +38,8 @@
 
   const pendingDeleteNames = $derived(
     pendingDeleteIds.map(
-      (id) => assetsStore.assets.find((a) => a.id === id)?.original_filename ?? id
+      (id) =>
+        assetsStore.assets.find((a) => a.id === id)?.original_filename ?? id
     )
   )
   let seenSplashScreen = $state(false)
@@ -102,6 +103,10 @@
       const rect = cardEl?.getBoundingClientRect()
 
       if (rect && imgEl?.src) {
+        // Flash the card: scale up briefly so it feels tapped
+        cardEl?.classList.add('asset-card--opening')
+        setTimeout(() => cardEl?.classList.remove('asset-card--opening'), 300)
+
         const ow = window.innerWidth * 0.7
         const oh = window.innerHeight * 0.7
         const sx = rect.width / ow
@@ -115,10 +120,11 @@
           vars: `--tx:${tx}px; --ty:${ty}px; --sx:${sx}; --sy:${sy}`,
           asset,
         }
+        // Match panel slide delay: panel starts at ~280ms, overlay fades by ~420ms
         setTimeout(() => {
           selectedAsset = asset
           zoomOverlay = null
-        }, 380)
+        }, 280)
       } else {
         selectedAsset = asset
       }

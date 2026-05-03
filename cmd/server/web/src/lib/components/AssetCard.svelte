@@ -209,4 +209,33 @@
     top: -8px;
     right: -8px;
   }
+
+  /* Tap highlight: brief scale-up + brightness flash on card open */
+  :global(.asset-card--opening) {
+    animation: card-tap-open 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: transform, box-shadow;
+    z-index: 20;
+    position: relative;
+  }
+
+  @keyframes card-tap-open {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    }
+    35% {
+      transform: scale(1.06);
+      box-shadow: 0 20px 40px -8px rgb(0 0 0 / 0.28);
+    }
+    100% {
+      transform: scale(1.03);
+      box-shadow: 0 8px 20px -4px rgb(0 0 0 / 0.18);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.asset-card--opening) {
+      animation: none;
+    }
+  }
 </style>

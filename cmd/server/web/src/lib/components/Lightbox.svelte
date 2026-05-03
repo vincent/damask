@@ -34,6 +34,7 @@
   import { RenameAsset } from '$lib/commands/RenameAsset'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import { fly } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import AssetComments from './AssetComments.svelte'
   import Backdrop from './ui/Backdrop.svelte'
@@ -277,9 +278,7 @@
       <SharedAsset
         {asset}
         {category}
-        thumbUrl={category === 'image'
-          ? assetApi.fileUrl(asset.id)
-          : assetApi.thumbUrl(asset.id)}
+        thumbUrl={assetApi.thumbUrl(asset.id)}
         assetUrl={assetApi.fileUrl(asset.id)}
         bind:zoomIn
         bind:zoomOut
@@ -303,7 +302,7 @@
 
   <!-- Panel: fixed 25% -->
   <div
-    transition:fly={{ x: '50%', duration: 100 }}
+    transition:fly={{ x: 420, duration: 380, easing: cubicOut }}
     class="asset-lightbox fixed inset-y-0 right-0 z-50 flex w-3xl w-[25%] flex-col bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
     aria-modal="true"

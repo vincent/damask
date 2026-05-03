@@ -30,6 +30,28 @@
     thumbUrl && (category === 'audio' || (category === 'document' && !isPdf))
   )
 
+  // Progressive image load: show thumb immediately, crossfade to full once loaded
+  let fullLoaded = $state(false)
+  let fullSrc = $state('')
+
+  $effect(() => {
+    // Reset on asset change
+    fullLoaded = false
+    fullSrc = ''
+    if (category !== 'image') return
+    const url = assetUrl
+    const img = new Image()
+    img.onload = () =>
+      setTimeout(() => {
+        fullSrc = url
+        setTimeout(() => (fullLoaded = true), 10)
+      }, 10)
+    img.src = url
+    return () => {
+      img.onload = null
+    }
+  })
+
   const MIN_SCALE = 1
   const MAX_SCALE = 5
   const STEP = 0.05
@@ -108,16 +130,26 @@
     : 'none'}; cursor: {scale > 1 ? 'grab' : 'default'};"
 >
   {#if category === 'image'}
-    <img
-      src={assetUrl}
-      alt={asset.original_filename}
-      data-asset-dynamic-resource={asset.id}
-      class="pointer-events-none h-full w-full object-cover"
-      loading="lazy"
-      onerror={(e) => {
-        ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-      }}
-    />
+    <div class="image-crossfade pointer-events-none h-full w-full">
+      <img
+        src={thumbUrl}
+        alt={asset.original_filename}
+        class="layer h-full w-full object-cover"
+        style="opacity: 1;"
+      />
+      {#if fullSrc}
+        <img
+          src={fullSrc}
+          alt={asset.original_filename}
+          data-asset-dynamic-resource={asset.id}
+          class="layer h-full w-full object-cover"
+          style="opacity: {fullLoaded ? 1 : 0};"
+          onerror={(e) => {
+            ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+          }}
+        />
+      {/if}
+    </div>
   {:else if haveSplashImage}
     <img
       src={thumbUrl}
@@ -164,3 +196,26 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .image-crossfade {
+    position: relative;
+  }
+
+  .image-crossfade .layer {
+    position: absolute;
+    inset: 0;
+    transition: opacity 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* first layer (thumb) is relative to give the container its size */
+  .image-crossfade .layer:first-child {
+    position: relative;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .image-crossfade .layer {
+      transition: none;
+    }
+  }
+</style>
