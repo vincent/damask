@@ -584,5 +584,9 @@
   "variant_thumbnail_generating": "Generating preview…",
   "variant_no_preview": "No preview available",
   "tags_manage": "Add tags",
-  "fields_manage": "Add custom fields"
+  "fields_manage": "Add custom fields",
+  "cannot_be_undone": "This cannot be undone.",
+  "delete_n_assets": "Delete {count} assets",
+  "delete_ingress_source": "Delete source",
+  "delete_ingress_source_message": "This will also remove all log entries for this source."
 }

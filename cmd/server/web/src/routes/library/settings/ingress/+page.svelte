@@ -11,11 +11,14 @@
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
   import { m } from '$lib/paraglide/messages'
 
   let showAddModal = $state(false)
   let editingSource = $state<IngressSource | null>(null)
   let detailSource = $state<IngressSource | null>(null)
+  let pendingDeleteSource = $state<IngressSource | null>(null)
+  let showDeleteConfirm = $state(false)
 
   onMount(() => {
     ingressStore.loadSources()
@@ -31,13 +34,15 @@
     }, 300)
   }
 
-  async function handleDelete(source: IngressSource) {
-    if (
-      !confirm(
-        `Delete "${source.label}"? This will also remove all its log entries.`
-      )
-    )
-      return
+  function handleDelete(source: IngressSource) {
+    pendingDeleteSource = source
+    showDeleteConfirm = true
+  }
+
+  async function confirmDelete() {
+    if (!pendingDeleteSource) return
+    const source = pendingDeleteSource
+    pendingDeleteSource = null
     const ok = await ingressStore.deleteSource(source.id)
     if (ok && detailSource?.id === source.id) detailSource = null
   }
@@ -135,3 +140,15 @@
     }}
   />
 {/if}
+
+<ConfirmModal
+  bind:open={showDeleteConfirm}
+  title={m.delete_ingress_source()}
+  items={pendingDeleteSource ? [pendingDeleteSource.label] : []}
+  message={m.delete_ingress_source_message()}
+  onConfirm={confirmDelete}
+  onCancel={() => {
+    showDeleteConfirm = false
+    pendingDeleteSource = null
+  }}
+/>

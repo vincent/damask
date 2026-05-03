@@ -3,7 +3,6 @@
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
-  import SortButtons from '$lib/components/SortButtons.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import {
@@ -17,26 +16,15 @@
   } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'
   import UndoRedo from './UndoRedo.svelte'
-  import Button from './ui/Button.svelte'
-  import Title from './ui/Title.svelte'
   import type { Snippet } from 'svelte'
-  import Hint from './ui/Hint.svelte'
 
   type Props = {
     prefix?: Snippet
-    sort: 'mimetype' | 'created_at' | 'size' | 'taken_at'
-    asc: boolean
     onShareProject?: () => void
     showShareButton?: boolean
   }
 
-  let {
-    sort = $bindable(),
-    asc = $bindable(),
-    onShareProject,
-    showShareButton = false,
-    prefix,
-  }: Props = $props()
+  let { onShareProject, showShareButton = false, prefix }: Props = $props()
 
   let addMenuOpen = $state(false)
 
@@ -50,59 +38,51 @@
 </script>
 
 <header
-  class="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-4"
+  class="flex items-center gap-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3"
 >
-  <div class="flex items-center gap-3">
+  <!-- LEFT: breadcrumb / title -->
+  <div class="flex shrink-0 items-center gap-2">
     {@render prefix?.()}
     <div>
-      <Title>{projectsStore.activeProjectName ?? m.library()}</Title>
-      <Hint>
+      <p class="text-sm font-semibold text-[var(--text-primary)]">
+        {projectsStore.activeProjectName ?? m.library()}
+      </p>
+      <p class="text-xs text-[var(--text-muted)]">
         {#if activeCollection}{m.collection_id({
             id: activeCollection.name,
           })}{:else if projectsStore.activeProjectName}{m.project_id({
             name: projectsStore.activeProjectName,
           })}{:else}{m.all_assets()}{/if}
-      </Hint>
+      </p>
     </div>
-    {#if showShareButton}
-      <Button
-        size="md"
-        variant="outline"
-        class="ms-3 flex items-center gap-1.5"
-        onclick={onShareProject}
-        title="Share this project"
-      >
-        <Share2 class="h-3.5 w-3.5" />
-        {m.share()}
-      </Button>
-    {/if}
   </div>
 
-  <div class="flex items-center gap-2">
-    <SortButtons
-      sort={(key, a) => assetsStore.sort(key, a)}
-      bind:value={sort}
-      bind:asc
-      keys={{
-        created_at: m.sort_date(),
-        mimetype: m.sort_mimetype(),
-        size: m.sort_weight(),
-        taken_at: m.sort_date_taken(),
-      }}
-    />
-  </div>
-
-  <div class="flex items-center gap-2">
-    <UndoRedo />
-
+  <!-- CENTER: search -->
+  <div class="mx-auto w-full max-w-md flex-1">
     <SearchInput
-      class="w-64"
       value={assetsStore.query}
       placeholder={m.search_anything()}
       onchange={(q) => {
         assetsStore.search(q)
       }}
     />
+  </div>
+
+  <!-- RIGHT: secondary actions + primary CTA -->
+  <div class="flex shrink-0 items-center gap-2">
+    <UndoRedo />
+
+    {#if showShareButton}
+      <button
+        type="button"
+        class="flex items-center rounded-lg p-2 text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
+        onclick={onShareProject}
+        title={m.share()}
+        aria-label={m.share()}
+      >
+        <Share2 class="h-4 w-4" />
+      </button>
+    {/if}
 
     {#if authStore.role !== 'viewer'}
       <div class="relative flex">
@@ -135,7 +115,10 @@
           onclick={() => {
             addMenuOpen = !addMenuOpen
           }}
+          onkeydown={(e) => { if (e.key === 'Escape') addMenuOpen = false }}
           aria-label="More add options"
+          aria-expanded={addMenuOpen}
+          aria-haspopup="menu"
         >
           <ChevronDown class="h-4 w-4" />
         </button>
@@ -145,9 +128,8 @@
             role="menu"
             tabindex="-1"
             class="absolute top-full right-0 z-50 mt-1 min-w-[200px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-xl"
-            onmouseleave={() => {
-              addMenuOpen = false
-            }}
+            onmouseleave={() => { addMenuOpen = false }}
+            onkeydown={(e) => { if (e.key === 'Escape') addMenuOpen = false }}
           >
             <a
               href="/library/settings/ingress"

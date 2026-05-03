@@ -567,5 +567,9 @@
   "thumbnail_video_preview": "Previsualització de vídeo",
   "thumbnail_pdf_preview": "Previsualització del document",
   "variant_thumbnail_generating": "Generant la previsualització…",
-  "variant_no_preview": "Previsualització no disponible"
+  "variant_no_preview": "Previsualització no disponible",
+  "cannot_be_undone": "Aquesta acció no es pot desfer.",
+  "delete_n_assets": "Eliminar {count} elements",
+  "delete_ingress_source": "Eliminar la font",
+  "delete_ingress_source_message": "Això també eliminarà totes les entrades del registre d'aquesta font."
 }

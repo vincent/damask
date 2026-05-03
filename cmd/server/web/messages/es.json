@@ -569,5 +569,9 @@
   "variant_thumbnail_generating": "Generando vista previa…",
   "variant_no_preview": "Vista previa no disponible",
   "tags_manage": "Añadir etiquetas",
-  "fields_manage": "Añadir campos personalizados"
+  "fields_manage": "Añadir campos personalizados",
+  "cannot_be_undone": "Esta acción no se puede deshacer.",
+  "delete_n_assets": "Eliminar {count} elementos",
+  "delete_ingress_source": "Eliminar fuente",
+  "delete_ingress_source_message": "También se eliminarán todas las entradas del registro de esta fuente."
 }

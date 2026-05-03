@@ -570,5 +570,9 @@
   "variant_thumbnail_generating": "Génération de l'aperçu…",
   "variant_no_preview": "Aperçu non disponible",
   "tags_manage": "Ajouter une étiquette",
-  "fields_manage": "Ajouter un champ"
+  "fields_manage": "Ajouter un champ",
+  "cannot_be_undone": "Cette action est irréversible.",
+  "delete_n_assets": "Supprimer {count} éléments",
+  "delete_ingress_source": "Supprimer la source",
+  "delete_ingress_source_message": "Les entrées du journal de cette source seront également supprimées."
 }

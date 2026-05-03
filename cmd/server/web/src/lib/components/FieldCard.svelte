@@ -71,7 +71,7 @@
       </p>
       {#if def.inherit_from_project}
         <span
-          class="inline-flex items-center gap-0.5 rounded bg-indigo-50 px-1 py-0.5 text-[9px] font-medium text-indigo-500 dark:bg-indigo-950/40 dark:text-indigo-400"
+          class="inline-flex items-center gap-0.5 rounded bg-indigo-50 px-1 py-0.5 text-[9px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400"
           title={m.auto_fill_assets_desc()}
         >
           <ArrowDownToLine class="h-2.5 w-2.5" />

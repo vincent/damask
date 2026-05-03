@@ -7,6 +7,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
+  import ConfirmModal from './ui/ConfirmModal.svelte'
   import { m } from '$lib/paraglide/messages'
   import { stackStore, assetToStack } from '$lib/stores/stack.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
@@ -39,6 +40,7 @@
   let tagInput = $state('')
   let busy = $state(false)
   let activePanel = $state<'tags' | 'projects' | null>(null)
+  let showDeleteConfirm = $state(false)
 
   async function bulkTag() {
     const name = tagInput.trim().toLowerCase()
@@ -81,9 +83,17 @@
     }
   }
 
+  const selectedAssetNames = $derived(
+    [...selectedIds]
+      .map((id) => assetsStore.assets.find((a) => a.id === id)?.original_filename ?? id)
+  )
+
   async function bulkDelete() {
     if (selectedIds.size === 0) return
-    if (!confirm(m.delete_assets({ count: selectedIds.size }))) return
+    showDeleteConfirm = true
+  }
+
+  async function confirmBulkDelete() {
     busy = true
     try {
       await assetApi.bulkDelete([...selectedIds])
@@ -203,3 +213,13 @@
     </div>
   </div>
 {/if}
+
+<ConfirmModal
+  bind:open={showDeleteConfirm}
+  title={m.delete_n_assets({ count: selectedIds.size })}
+  items={selectedAssetNames}
+  onConfirm={confirmBulkDelete}
+  onCancel={() => {
+    showDeleteConfirm = false
+  }}
+/>

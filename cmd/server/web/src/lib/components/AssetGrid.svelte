@@ -9,7 +9,6 @@
   import AssetIcon from '$lib/components/AssetIcon.svelte'
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import {
-    CATEGORY_BORDER,
     CATEGORY_ICON_BG,
     CATEGORY_LABELS,
     CATEGORY_ORDER,
@@ -161,9 +160,8 @@
 >
   {#snippet assetCardGrid(assets: Asset[])}
     <div
-      class="grid pt-2 {gridMode == 'compact'
-        ? 'gap-4'
-        : 'gap-30'} grid-cols-{1 + maxZoom - Math.floor(zoom)}"
+      class="grid pt-2 {gridMode == 'compact' ? 'gap-4' : 'gap-30'}"
+      style="grid-template-columns: repeat({1 + maxZoom - Math.floor(zoom)}, minmax(0, 1fr))"
     >
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
@@ -218,7 +216,7 @@
             data-asset-id={asset.id}
             class="group cursor-pointer border-t border-[var(--border-subtle)] transition-colors {isSelected
               ? 'bg-[var(--accent-soft)]'
-              : 'hover:bg-[var(--bg-hover)]'}"
+              : 'even:bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)]'}"
             onclick={(e) =>
               onCardClick(asset, globalIndex, e as unknown as MouseEvent)}
           >
@@ -389,12 +387,4 @@
     </div>
   {/if}
 
-  <div
-    class="force-tailwind-to-include-these hidden
-    grid-cols-1 grid-cols-2 grid-cols-3 grid-cols-4 grid-cols-5
-    grid-cols-6 grid-cols-7 grid-cols-8 grid-cols-9 grid-cols-10
-    grid-cols-11 grid-cols-12 grid-cols-13 grid-cols-14 grid-cols-15
-    grid-cols-16 grid-cols-17 grid-cols-18 grid-cols-19 grid-cols-20 grid-cols-21
-  "
-  ></div>
 </main>

@@ -98,7 +98,7 @@
           <button
             class="text-md flex w-full items-center gap-3 px-4 py-2.5 transition-colors {i ===
             activeIndex
-              ? 'bg-blue-50 text-blue-700'
+              ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
               : 'text-gray-700 hover:bg-gray-50'}"
             onclick={() => {
               onselect(item)

@@ -12,31 +12,24 @@
   const cards = [
     {
       icon: Upload,
-      iconClass:
-        'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400',
       title: m.onboard_upload(),
       body: m.onboard_upload_body(),
       hint: m.onboard_upload_hint(),
     },
     {
       icon: FolderOpen,
-      iconClass:
-        'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400',
       title: m.onboard_project(),
       body: m.onboard_project_body(),
       hint: m.onboard_project_hint(),
     },
     {
       icon: Tag,
-      iconClass:
-        'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
       title: m.onboard_tags(),
       body: m.onboard_tags_body(),
       hint: m.onboard_tags_hint(),
     },
     {
       icon: Share2,
-      iconClass: 'bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400',
       title: m.onboard_share(),
       body: m.onboard_share_body(),
       hint: m.onboard_share_hint(),
@@ -49,7 +42,7 @@
 >
   <!-- Header -->
   <p
-    class="text-md font-semibold tracking-widest text-indigo-500 uppercase dark:text-indigo-400"
+    class="text-md font-semibold tracking-widest text-[var(--accent)] uppercase"
   >
     {m.workspace_ready()}
   </p>
@@ -65,11 +58,11 @@
     {#each cards as card}
       {@const Icon = card.icon}
       <div
-        class="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800/60 dark:hover:border-indigo-700"
+        class="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-[var(--bg-elevated)] p-5 transition-colors hover:border-[var(--accent)] dark:border-gray-700 dark:bg-[var(--bg-elevated)] dark:hover:border-[var(--accent)]"
       >
         <div class="flex items-center justify-start gap-3">
           <div
-            class="flex h-9 w-9 items-center justify-center rounded-xl {card.iconClass}"
+            class="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]"
           >
             <Icon class="h-4 w-4" />
           </div>

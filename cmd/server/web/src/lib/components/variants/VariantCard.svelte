@@ -7,6 +7,7 @@
   import { m } from '$lib/paraglide/messages'
   import AssetThumbnail from '$lib/components/AssetThumbnail.svelte'
   import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
+  import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
 
   interface Props {
     variant: Variant
@@ -70,10 +71,10 @@
     if (pollTimer) clearTimeout(pollTimer)
   })
 
+  let showDeleteConfirm = $state(false)
+
   function handleDelete() {
-    if (confirm(m.variant_delete_confirm())) {
-      onDelete()
-    }
+    showDeleteConfirm = true
   }
 </script>
 
@@ -147,3 +148,13 @@
     </p>
   </div>
 </div>
+
+<ConfirmModal
+  bind:open={showDeleteConfirm}
+  title={m.variant_delete_confirm()}
+  items={[variant.type]}
+  onConfirm={onDelete}
+  onCancel={() => {
+    showDeleteConfirm = false
+  }}
+/>

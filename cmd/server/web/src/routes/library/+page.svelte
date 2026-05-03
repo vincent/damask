@@ -27,10 +27,20 @@
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
   import { useShortcuts, setShortcutContext } from '$lib/shortcuts'
   import GridModeButtons from '$lib/components/GridModeButtons.svelte'
+  import SortButtons from '$lib/components/SortButtons.svelte'
+  import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
   let showProjectShareModal = $state(false)
+  let pendingDeleteIds = $state<string[]>([])
+  let showDeleteConfirm = $state(false)
+
+  const pendingDeleteNames = $derived(
+    pendingDeleteIds.map(
+      (id) => assetsStore.assets.find((a) => a.id === id)?.original_filename ?? id
+    )
+  )
   let seenSplashScreen = $state(false)
   let isDraggingFiles = $state(false)
   let mainEl = $state<HTMLElement | undefined>(undefined)
@@ -126,6 +136,13 @@
     assetsStore.invalidate()
   }
 
+  async function confirmDeleteAssets() {
+    const ids = pendingDeleteIds
+    pendingDeleteIds = []
+    await assetApi.bulkDelete(ids)
+    handleBulkDone()
+  }
+
   function handleDeleted(id: string) {
     assetsStore.remove(id)
     selectionStore.remove(id)
@@ -219,17 +236,10 @@
         selectedAsset = assetsStore.assets.find((a) => a.id === id) ?? null
       }
     },
-    'asset.delete': async () => {
+    'asset.delete': () => {
       if (selectionStore.selectedIds.size === 0) return
-      const ids = [...selectionStore.selectedIds]
-      if (
-        !confirm(
-          `Delete ${ids.length} asset${ids.length > 1 ? 's' : ''}? This cannot be undone.`
-        )
-      )
-        return
-      await assetApi.bulkDelete(ids)
-      handleBulkDone()
+      pendingDeleteIds = [...selectionStore.selectedIds]
+      showDeleteConfirm = true
     },
     'asset.download': () => {
       const asset =
@@ -296,8 +306,6 @@
 />
 
 <LibraryHeader
-  bind:sort
-  bind:asc
   showShareButton={!!activeProject}
   onShareProject={() => {
     showProjectShareModal = true
@@ -370,12 +378,26 @@
     activeTags={assetsStore.activeTags}
     onchange={(tags) => assetsStore.setActiveTags(tags)}
   />
-  <GridModeButtons
-    mode={statusBarStore.gridMode}
-    onchange={(m) => {
-      statusBarStore.gridMode = m
-    }}
-  />
+  <div class="ml-auto flex items-center gap-2">
+    <SortButtons
+      sort={(key, a) => assetsStore.sort(key, a)}
+      bind:value={sort}
+      bind:asc
+      keys={{
+        created_at: m.sort_date(),
+        mimetype: m.sort_mimetype(),
+        size: m.sort_weight(),
+        taken_at: m.sort_date_taken(),
+      }}
+    />
+    <div class="h-4 w-px bg-[var(--border-default)]"></div>
+    <GridModeButtons
+      mode={statusBarStore.gridMode}
+      onchange={(m) => {
+        statusBarStore.gridMode = m
+      }}
+    />
+  </div>
 </div>
 
 <CustomFieldFilters
@@ -458,3 +480,14 @@
     }}
   />
 {/if}
+
+<ConfirmModal
+  bind:open={showDeleteConfirm}
+  title={m.delete_n_assets({ count: pendingDeleteIds.length })}
+  items={pendingDeleteNames}
+  onConfirm={confirmDeleteAssets}
+  onCancel={() => {
+    showDeleteConfirm = false
+    pendingDeleteIds = []
+  }}
+/>
