@@ -130,25 +130,26 @@
     : 'none'}; cursor: {scale > 1 ? 'grab' : 'default'};"
 >
   {#if category === 'image'}
-    <div class="image-crossfade pointer-events-none h-full w-full">
+    <div class="image-crossfade pointer-events-none">
+      <!-- full-res: layout anchor, drives container size via width/height attrs -->
+      <img
+        src={fullSrc || thumbUrl}
+        alt={asset.original_filename}
+        data-asset-dynamic-resource={asset.id}
+        width={'width' in asset && asset.width ? asset.width : undefined}
+        height={'height' in asset && asset.height ? asset.height : undefined}
+        class="anchor"
+        onerror={(e) => {
+          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+        }}
+      />
+      <!-- thumb: absolute overlay, fades out once full-res is ready -->
       <img
         src={thumbUrl}
         alt={asset.original_filename}
-        class="layer h-full w-full object-cover"
-        style="opacity: 1;"
+        class="thumb-overlay"
+        style="opacity: {fullLoaded ? 0 : 1};"
       />
-      {#if fullSrc}
-        <img
-          src={fullSrc}
-          alt={asset.original_filename}
-          data-asset-dynamic-resource={asset.id}
-          class="layer h-full w-full object-cover"
-          style="opacity: {fullLoaded ? 1 : 0};"
-          onerror={(e) => {
-            ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-          }}
-        />
-      {/if}
     </div>
   {:else if haveSplashImage}
     <img
@@ -200,21 +201,30 @@
 <style>
   .image-crossfade {
     position: relative;
+    max-width: 100%;
+    max-height: 80vh;
   }
 
-  .image-crossfade .layer {
+  /* layout anchor: full-res image, sizes the container */
+  .image-crossfade .anchor {
+    display: block;
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+  }
+
+  /* thumb: absolute overlay covering the anchor exactly, fades out on load */
+  .image-crossfade .thumb-overlay {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
     transition: opacity 400ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* first layer (thumb) is relative to give the container its size */
-  .image-crossfade .layer:first-child {
-    position: relative;
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .image-crossfade .layer {
+    .image-crossfade .thumb-overlay {
       transition: none;
     }
   }
