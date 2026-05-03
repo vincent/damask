@@ -1,7 +1,7 @@
-import type { Command } from '$lib/commands/types'
-import { toastStore } from '$lib/stores/toast.svelte'
-import { m } from '$lib/paraglide/messages'
 import { ApiError } from '$lib/api/client'
+import type { Command } from '$lib/commands/types'
+import { m } from '$lib/paraglide/messages'
+import { toastStore } from '$lib/stores/toast.svelte'
 
 const MAX_STACK = 50
 
@@ -9,10 +9,18 @@ let undoStack = $state<Command[]>([])
 let redoStack = $state<Command[]>([])
 
 export const undoStore = {
-  get canUndo() { return undoStack.length > 0 },
-  get canRedo() { return redoStack.length > 0 },
-  get undoLabel() { return undoStack.at(-1)?.label() ?? null },
-  get redoLabel() { return redoStack.at(-1)?.label() ?? null },
+  get canUndo() {
+    return undoStack.length > 0
+  },
+  get canRedo() {
+    return redoStack.length > 0
+  },
+  get undoLabel() {
+    return undoStack.at(-1)?.label() ?? null
+  },
+  get redoLabel() {
+    return redoStack.at(-1)?.label() ?? null
+  },
 
   async execute(cmd: Command): Promise<void> {
     try {
@@ -38,9 +46,10 @@ export const undoStore = {
       redoStack = [...redoStack, cmd]
       toastStore.show(m.undone({ action: cmd.label() }))
     } catch (e) {
-      const msg = e instanceof ApiError && e.status === 409
-        ? m.undo_conflict()
-        : m.undo_failed()
+      const msg =
+        e instanceof ApiError && e.status === 409
+          ? m.undo_conflict()
+          : m.undo_failed()
       toastStore.show(msg, 'error')
     }
   },

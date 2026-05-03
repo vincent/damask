@@ -8,7 +8,9 @@
 
   $effect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    dark = stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    dark =
+      stored === 'dark' ||
+      (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)
     applyTheme(dark)
   })
 

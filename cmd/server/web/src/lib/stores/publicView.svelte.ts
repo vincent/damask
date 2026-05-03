@@ -59,12 +59,15 @@ function createPublicViewStore() {
 
   function fileUrlWithToken(shareId: string, assetId: string) {
     const base = fileUrl(shareId, assetId)
-    return sessionToken ? `${base}?token=${encodeURIComponent(sessionToken)}` : base
+    return sessionToken
+      ? `${base}?token=${encodeURIComponent(sessionToken)}`
+      : base
   }
 
   // ---- Actions ----
   async function init(shareId: string) {
-    sessionToken = (await cookieStore.get(`share_token_${shareId}`))?.value ?? null
+    sessionToken =
+      (await cookieStore.get(`share_token_${shareId}`))?.value ?? null
     commentName = sessionStorage.getItem('damask_comment_name') ?? ''
     commentEmail = sessionStorage.getItem('damask_comment_email') ?? ''
   }
@@ -97,11 +100,19 @@ function createPublicViewStore() {
   async function loadComments(shareId: string, assetId: string) {
     loadingComments = true
     try {
-      const res = await fetch(`${API_BASE}/shared/${shareId}/comments?asset_id=${assetId}`, {
-        headers: authHeaders(),
-      })
+      const res = await fetch(
+        `${API_BASE}/shared/${shareId}/comments?asset_id=${assetId}`,
+        {
+          headers: authHeaders(),
+        }
+      )
       comments = res.ok
-        ? await res.json().then((data: any[]) => data.find((d) => d.asset_id === assetId)?.comments ?? [])
+        ? await res
+            .json()
+            .then(
+              (data: any[]) =>
+                data.find((d) => d.asset_id === assetId)?.comments ?? []
+            )
         : []
     } catch {
       comments = []
@@ -129,14 +140,21 @@ function createPublicViewStore() {
     if (!selectedAsset) return
     const idx = assets.findIndex((a) => a.id === selectedAsset!.id)
     if (direction === 'prev' && idx > 0) openAsset(shareId, assets[idx - 1])
-    if (direction === 'next' && idx < assets.length - 1) openAsset(shareId, assets[idx + 1])
+    if (direction === 'next' && idx < assets.length - 1)
+      openAsset(shareId, assets[idx + 1])
   }
 
   async function postComment(shareId: string) {
     commentNameError = ''
     commentBodyError = ''
-    if (!commentName.trim()) { commentNameError = 'Name is required'; return }
-    if (!commentBody.trim()) { commentBodyError = 'Message is required'; return }
+    if (!commentName.trim()) {
+      commentNameError = 'Name is required'
+      return
+    }
+    if (!commentBody.trim()) {
+      commentBodyError = 'Message is required'
+      return
+    }
 
     postingComment = true
     try {
@@ -181,27 +199,67 @@ function createPublicViewStore() {
 
   return {
     // State (getters)
-    get sessionToken() { return sessionToken },
-    get share() { return share },
-    get assets() { return assets },
-    get loadingGallery() { return loadingGallery },
-    get galleryError() { return galleryError },
-    get selectedAsset() { return selectedAsset },
-    get panelOpen() { return panelOpen },
-    get comments() { return comments },
-    get loadingComments() { return loadingComments },
-    get commentName() { return commentName },
-    set commentName(v: string) { commentName = v },
-    get commentEmail() { return commentEmail },
-    set commentEmail(v: string) { commentEmail = v },
-    get commentBody() { return commentBody },
-    set commentBody(v: string) { commentBody = v },
-    get commentNameError() { return commentNameError },
-    get commentBodyError() { return commentBodyError },
-    get postingComment() { return postingComment },
-    get commentPosted() { return commentPosted },
+    get sessionToken() {
+      return sessionToken
+    },
+    get share() {
+      return share
+    },
+    get assets() {
+      return assets
+    },
+    get loadingGallery() {
+      return loadingGallery
+    },
+    get galleryError() {
+      return galleryError
+    },
+    get selectedAsset() {
+      return selectedAsset
+    },
+    get panelOpen() {
+      return panelOpen
+    },
+    get comments() {
+      return comments
+    },
+    get loadingComments() {
+      return loadingComments
+    },
+    get commentName() {
+      return commentName
+    },
+    set commentName(v: string) {
+      commentName = v
+    },
+    get commentEmail() {
+      return commentEmail
+    },
+    set commentEmail(v: string) {
+      commentEmail = v
+    },
+    get commentBody() {
+      return commentBody
+    },
+    set commentBody(v: string) {
+      commentBody = v
+    },
+    get commentNameError() {
+      return commentNameError
+    },
+    get commentBodyError() {
+      return commentBodyError
+    },
+    get postingComment() {
+      return postingComment
+    },
+    get commentPosted() {
+      return commentPosted
+    },
     // Derived
-    get expiryWarning() { return expiryWarning },
+    get expiryWarning() {
+      return expiryWarning
+    },
     // Helpers
     thumbUrl,
     fileUrl,

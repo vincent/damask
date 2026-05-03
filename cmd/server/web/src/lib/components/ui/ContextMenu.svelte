@@ -24,10 +24,10 @@
   {#each items as item}
     <button
       type="button"
-      class="flex w-full items-center gap-2 px-3 py-1.5 text-md
+      class="text-md flex w-full items-center gap-2 px-3 py-1.5
         {item.danger
-          ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30'
-          : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700'}"
+        ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30'
+        : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700'}"
       onclick={item.onclick}
     >
       {item.label}

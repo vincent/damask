@@ -1,4 +1,16 @@
-import type { Asset, AssetFieldsResponse, AssetVersion, AuthResponse, BulkDeleteTagsResult, CreateIngressRuleParams, CreateIngressSourceParams, CreateShareParams, CreateVariantResponse, DuplicateTagPair, FieldDefinition, FieldDefinitionStats, FieldFilter, FieldScope, Folder, IngressLogEntry, IngressRule, IngressSource, ListVariantsResponse, MergeTagsResult, Project, ProjectFieldsResponse, RestoreVersionResponse, Share, ShareComment, Tag, UpdateIngressSourceParams, UpdateShareParams, UploadVersionResponse, Variant, Workspace, WorkspaceMeResponse, WorkspaceMember, WorkspaceInvite, Config, Collection } from "./models"
+import type {
+  AuthResponse,
+  Config,
+  CreateIngressRuleParams,
+  CreateIngressSourceParams,
+  CreateVariantResponse,
+  IngressLogEntry,
+  IngressRule,
+  IngressSource,
+  ListVariantsResponse,
+  UpdateIngressSourceParams,
+  Variant,
+} from './models'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -35,7 +47,11 @@ async function handleResponse<T>(res: Response): Promise<T> {
  * @param init Fetch request options
  * @param fetch Optional custom fetch implementation (defaults to window.fetch)
  */
-export async function apiFetch<T>(path: string, init: RequestInit = {}, fetch = window.fetch): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  fetch = window.fetch
+): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...init.headers },
@@ -52,12 +68,12 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, fetch = 
 
 /** Server configuration — fetch public config flags (e.g. demo mode). GET /config (public) */
 export const configApi = {
-  load: () => apiFetch<Config>('/config')
-    .catch(() => {
+  load: () =>
+    apiFetch<Config>('/config').catch(() => {
       console.warn('unable to load config')
       return {
         demo: false,
-        mailHost: ''
+        mailHost: '',
       }
     }),
 }
@@ -79,10 +95,17 @@ export const authApi = {
     }),
 
   /** POST /auth/refresh — refresh the JWT token (requires auth). */
-  refresh: () => apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' }),
+  refresh: () =>
+    apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' }),
 
   /** POST /demo/session (demo build only) — create a demo session. */
-  demoSession: () => apiFetch<{ token: string; workspace_id: string; user_id: string; is_demo: boolean }>('/demo/session', { method: 'POST' }),
+  demoSession: () =>
+    apiFetch<{
+      token: string
+      workspace_id: string
+      user_id: string
+      is_demo: boolean
+    }>('/demo/session', { method: 'POST' }),
 
   /** GET /auth/me — current user profile + linked identities. */
   me: () => apiFetch<MeResponse>('/auth/me'),
@@ -140,11 +163,15 @@ export const ingressApi = {
 
   /** POST /api/v1/ingress/sources/:id/test (editor+) — test connection to source. */
   test: (id: string) =>
-    apiFetch<{ ok: boolean }>(`/api/v1/ingress/sources/${id}/test`, { method: 'POST' }),
+    apiFetch<{ ok: boolean }>(`/api/v1/ingress/sources/${id}/test`, {
+      method: 'POST',
+    }),
 
   /** POST /api/v1/ingress/sources/:id/poll (editor+) — manually trigger a poll job. */
   poll: (id: string) =>
-    apiFetch<{ job_id: string }>(`/api/v1/ingress/sources/${id}/poll`, { method: 'POST' }),
+    apiFetch<{ job_id: string }>(`/api/v1/ingress/sources/${id}/poll`, {
+      method: 'POST',
+    }),
 
   // Rules
   /** GET /api/v1/ingress/sources/:id/rules — list rules for a source. */
@@ -159,28 +186,45 @@ export const ingressApi = {
     }),
 
   /** PUT /api/v1/ingress/sources/:id/rules/:rid (editor+) — update an ingress rule. */
-  updateRule: (sourceId: string, ruleId: string, params: Partial<CreateIngressRuleParams>) =>
-    apiFetch<IngressRule>(`/api/v1/ingress/sources/${sourceId}/rules/${ruleId}`, {
-      method: 'PUT',
-      body: JSON.stringify(params),
-    }),
+  updateRule: (
+    sourceId: string,
+    ruleId: string,
+    params: Partial<CreateIngressRuleParams>
+  ) =>
+    apiFetch<IngressRule>(
+      `/api/v1/ingress/sources/${sourceId}/rules/${ruleId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(params),
+      }
+    ),
 
   /** DELETE /api/v1/ingress/sources/:id/rules/:rid (editor+) — delete an ingress rule. */
   deleteRule: (sourceId: string, ruleId: string) =>
-    apiFetch<void>(`/api/v1/ingress/sources/${sourceId}/rules/${ruleId}`, { method: 'DELETE' }),
+    apiFetch<void>(`/api/v1/ingress/sources/${sourceId}/rules/${ruleId}`, {
+      method: 'DELETE',
+    }),
 
   /** PUT /api/v1/ingress/sources/:id/rules/reorder (editor+) — reorder rules by position. */
-  reorderRules: (sourceId: string, entries: { id: string; position: number }[]) =>
-    apiFetch<IngressRule[]>(`/api/v1/ingress/sources/${sourceId}/rules/reorder`, {
-      method: 'PUT',
-      body: JSON.stringify(entries),
-    }),
+  reorderRules: (
+    sourceId: string,
+    entries: { id: string; position: number }[]
+  ) =>
+    apiFetch<IngressRule[]>(
+      `/api/v1/ingress/sources/${sourceId}/rules/reorder`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(entries),
+      }
+    ),
 
   // Log
   /** GET /api/v1/ingress/sources/:id/log — list ingress log entries for a source (filter by status). */
   getSourceLog: (sourceId: string, status?: string) => {
     const qs = status ? `?status=${status}` : ''
-    return apiFetch<IngressLogEntry[]>(`/api/v1/ingress/sources/${sourceId}/log${qs}`)
+    return apiFetch<IngressLogEntry[]>(
+      `/api/v1/ingress/sources/${sourceId}/log${qs}`
+    )
   },
 
   /** GET /api/v1/ingress/log — list workspace-wide ingress log entries (filter by status). */
@@ -195,7 +239,9 @@ export const ingressApi = {
 
   /** POST /api/v1/ingress/log/:id/retry (editor+) — retry a failed ingestion job. */
   retryLogEntry: (entryId: string) =>
-    apiFetch<{ job_id: string }>(`/api/v1/ingress/log/${entryId}/retry`, { method: 'POST' }),
+    apiFetch<{ job_id: string }>(`/api/v1/ingress/log/${entryId}/retry`, {
+      method: 'POST',
+    }),
 }
 
 /** Variant management endpoints — list, create, upload, delete, file/preview URLs. */
@@ -237,13 +283,16 @@ export const variantApi = {
     `${API_BASE}/api/v1/assets/${assetId}/variants/${variantId}/thumb`,
 
   /** GET /api/v1/assets/:id/preview — in-memory cached preview transform URL (query params: w, h, fit, format, q). */
-  previewUrl: (assetId: string, params: {
-    w?: number
-    h?: number
-    fit?: string
-    format?: string
-    q?: number
-  }): string => {
+  previewUrl: (
+    assetId: string,
+    params: {
+      w?: number
+      h?: number
+      fit?: string
+      format?: string
+      q?: number
+    }
+  ): string => {
     const qs = new URLSearchParams()
     if (params.w) qs.set('w', String(params.w))
     if (params.h) qs.set('h', String(params.h))
@@ -262,34 +311,53 @@ export function openThumbnailEvents(): EventSource {
 /** Activity log and audit event endpoints — list asset/project/workspace events, export. */
 export const activityApi = {
   /** GET /api/v1/assets/:id/events — list audit events for an asset (paginated). */
-  listAssetEvents: (assetId: string, params: { limit?: number; cursor?: string; types?: string } = {}) => {
+  listAssetEvents: (
+    assetId: string,
+    params: { limit?: number; cursor?: string; types?: string } = {}
+  ) => {
     const q = new URLSearchParams()
     if (params.limit) q.set('limit', String(params.limit))
     if (params.cursor) q.set('cursor', params.cursor)
     if (params.types) q.set('types', params.types)
     const qs = q.toString()
-    return apiFetch<import('./models').AuditLogResponse>(`/api/v1/assets/${assetId}/events${qs ? '?' + qs : ''}`)
+    return apiFetch<import('./models').AuditLogResponse>(
+      `/api/v1/assets/${assetId}/events${qs ? '?' + qs : ''}`
+    )
   },
 
   /** GET /api/v1/projects/:id/events — list audit events for a project (paginated). */
-  listProjectEvents: (projectId: string, params: { limit?: number; cursor?: string; types?: string } = {}) => {
+  listProjectEvents: (
+    projectId: string,
+    params: { limit?: number; cursor?: string; types?: string } = {}
+  ) => {
     const q = new URLSearchParams()
     if (params.limit) q.set('limit', String(params.limit))
     if (params.cursor) q.set('cursor', params.cursor)
     if (params.types) q.set('types', params.types)
     const qs = q.toString()
-    return apiFetch<import('./models').AuditLogResponse>(`/api/v1/projects/${projectId}/events${qs ? '?' + qs : ''}`)
+    return apiFetch<import('./models').AuditLogResponse>(
+      `/api/v1/projects/${projectId}/events${qs ? '?' + qs : ''}`
+    )
   },
 
   /** GET /api/v1/activity — list workspace-wide activity feed (paginated, filterable by user and event type). */
-  listWorkspaceActivity: (params: { limit?: number; cursor?: string; types?: string; user_id?: string } = {}) => {
+  listWorkspaceActivity: (
+    params: {
+      limit?: number
+      cursor?: string
+      types?: string
+      user_id?: string
+    } = {}
+  ) => {
     const q = new URLSearchParams()
     if (params.limit) q.set('limit', String(params.limit))
     if (params.cursor) q.set('cursor', params.cursor)
     if (params.types) q.set('types', params.types)
     if (params.user_id) q.set('user_id', params.user_id)
     const qs = q.toString()
-    return apiFetch<import('./models').ActivityFeedResponse>(`/api/v1/activity${qs ? '?' + qs : ''}`)
+    return apiFetch<import('./models').ActivityFeedResponse>(
+      `/api/v1/activity${qs ? '?' + qs : ''}`
+    )
   },
 
   /** GET /api/v1/activity/export — export workspace activity as CSV (optionally filtered by date range). */
@@ -304,7 +372,10 @@ export const activityApi = {
 /** Stack endpoints — export as ZIP or merge into GIF/PDF. */
 export const stackApi = {
   /** POST /api/v1/stack/export — download stacked assets as a ZIP file. */
-  exportZip: async (assetIds: string[], filename = 'stack-export'): Promise<void> => {
+  exportZip: async (
+    assetIds: string[],
+    filename = 'stack-export'
+  ): Promise<void> => {
     const res = await fetch(`${API_BASE}/api/v1/stack/export`, {
       method: 'POST',
       credentials: 'include',
@@ -325,11 +396,21 @@ export const stackApi = {
   },
 
   /** POST /api/v1/stack/merge — enqueue a GIF or PDF merge job. Returns job_id. */
-  merge: async (assetIds: string[], outputType: 'gif' | 'pdf', filename = 'stack-merge', gifFrameMs = 500): Promise<string> => {
+  merge: async (
+    assetIds: string[],
+    outputType: 'gif' | 'pdf',
+    filename = 'stack-merge',
+    gifFrameMs = 500
+  ): Promise<string> => {
     const res = await apiFetch<{ job_id: string }>('/api/v1/stack/merge', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ asset_ids: assetIds, output_type: outputType, filename, gif_frame_ms: gifFrameMs }),
+      body: JSON.stringify({
+        asset_ids: assetIds,
+        output_type: outputType,
+        filename,
+        gif_frame_ms: gifFrameMs,
+      }),
     })
     return res.job_id
   },
@@ -344,7 +425,8 @@ export interface OAuthConnection {
 }
 
 export const integrationsApi = {
-  list: (): Promise<OAuthConnection[]> => apiFetch('/api/v1/integrations/connections'),
+  list: (): Promise<OAuthConnection[]> =>
+    apiFetch('/api/v1/integrations/connections'),
   disconnect: (id: string): Promise<void> =>
     apiFetch(`/api/v1/integrations/connections/${id}`, { method: 'DELETE' }),
 }
@@ -365,7 +447,9 @@ export function formatBytes(bytes: number): string {
  * @param mimeType MIME type string (e.g., "image/jpeg")
  * @returns Category: 'image' | 'video' | 'audio' | 'document'
  */
-export function mimeCategory(mimeType: string): 'image' | 'video' | 'audio' | 'document' {
+export function mimeCategory(
+  mimeType: string
+): 'image' | 'video' | 'audio' | 'document' {
   if (mimeType.startsWith('image/')) return 'image'
   if (mimeType.startsWith('video/')) return 'video'
   if (mimeType.startsWith('audio/')) return 'audio'

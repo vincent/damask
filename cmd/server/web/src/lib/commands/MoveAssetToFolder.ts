@@ -1,8 +1,8 @@
-import type { Command } from './types'
 import { assetApi } from '$lib/api'
+import { m } from '$lib/paraglide/messages'
 import { assetsStore } from '$lib/stores/assets.svelte'
 import { foldersStore } from '$lib/stores/folders.svelte'
-import { m } from '$lib/paraglide/messages'
+import type { Command } from './types'
 
 export class MoveAssetToFolder implements Command {
   constructor(
@@ -11,10 +11,12 @@ export class MoveAssetToFolder implements Command {
     private beforeName: string | null,
     private after: string | null,
     private afterName: string | null,
-    private projectId: string | null = null,
+    private projectId: string | null = null
   ) {}
 
-  label() { return m.cmd_move_folder({ to: this.afterName ?? '—' }) }
+  label() {
+    return m.cmd_move_folder({ to: this.afterName ?? '—' })
+  }
 
   async apply() {
     await assetApi.updateFolder(this.assetId, this.after)

@@ -44,12 +44,16 @@
     if (!nextCursor || loadingMore) return
     loadingMore = true
     try {
-      const res = await activityApi.listAssetEvents(asset.id, { limit: 50, cursor: nextCursor })
+      const res = await activityApi.listAssetEvents(asset.id, {
+        limit: 50,
+        cursor: nextCursor,
+      })
       events = [...events, ...res.events]
       nextCursor = res.next_cursor
       hasMore = res.has_more
-    } catch { /* silently ignore */ }
-    finally {
+    } catch {
+      /* silently ignore */
+    } finally {
       loadingMore = false
     }
   }

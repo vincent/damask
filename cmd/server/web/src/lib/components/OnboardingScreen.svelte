@@ -12,21 +12,24 @@
   const cards = [
     {
       icon: Upload,
-      iconClass: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400',
+      iconClass:
+        'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400',
       title: m.onboard_upload(),
       body: m.onboard_upload_body(),
       hint: m.onboard_upload_hint(),
     },
     {
       icon: FolderOpen,
-      iconClass: 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400',
+      iconClass:
+        'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400',
       title: m.onboard_project(),
       body: m.onboard_project_body(),
       hint: m.onboard_project_hint(),
     },
     {
       icon: Tag,
-      iconClass: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
+      iconClass:
+        'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400',
       title: m.onboard_tags(),
       body: m.onboard_tags_body(),
       hint: m.onboard_tags_hint(),
@@ -41,31 +44,45 @@
   ]
 </script>
 
-<div class="flex flex-col items-center justify-center py-16 px-8 max-w-3xl mx-auto">
+<div
+  class="mx-auto flex max-w-3xl flex-col items-center justify-center px-8 py-16"
+>
   <!-- Header -->
-  <p class="text-md font-semibold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">
+  <p
+    class="text-md font-semibold tracking-widest text-indigo-500 uppercase dark:text-indigo-400"
+  >
     {m.workspace_ready()}
   </p>
   <h1 class="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
     {m.onboard_start_building()}
   </h1>
-  <p class="mt-2 text-lg text-gray-500 dark:text-gray-400 max-w-md text-center">
+  <p class="mt-2 max-w-md text-center text-lg text-gray-500 dark:text-gray-400">
     {m.onboard_what_to_do()}
   </p>
 
   <!-- Feature cards -->
-  <div class="grid grid-cols-2 gap-4 mt-8 w-full">
+  <div class="mt-8 grid w-full grid-cols-2 gap-4">
     {#each cards as card}
       {@const Icon = card.icon}
-      <div class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/60 p-5 flex flex-col gap-3 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+      <div
+        class="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800/60 dark:hover:border-indigo-700"
+      >
         <div class="flex items-center justify-start gap-3">
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center {card.iconClass}">
+          <div
+            class="flex h-9 w-9 items-center justify-center rounded-xl {card.iconClass}"
+          >
             <Icon class="h-4 w-4" />
           </div>
-          <p class="text-lg font-semibold text-gray-900 dark:text-gray-50">{card.title}</p>
+          <p class="text-lg font-semibold text-gray-900 dark:text-gray-50">
+            {card.title}
+          </p>
         </div>
-        <p class="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">{card.body}</p>
-        <p class="text-md text-gray-400 dark:text-gray-500 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700/60">
+        <p class="text-lg leading-relaxed text-gray-500 dark:text-gray-400">
+          {card.body}
+        </p>
+        <p
+          class="text-md mt-auto border-t border-gray-100 pt-2 text-gray-400 dark:border-gray-700/60 dark:text-gray-500"
+        >
           {card.hint}
         </p>
       </div>
@@ -76,7 +93,10 @@
   <div class="mt-10 flex items-center gap-4">
     <Button onclick={onDismiss}>{m.get_started()}</Button>
     <span class="text-md text-gray-400 dark:text-gray-500">
-      Tip: press <kbd class="rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 font-mono text-md text-gray-500 dark:text-gray-400">⌘K</kbd> to quickly jump between projects
+      Tip: press <kbd
+        class="text-md rounded bg-gray-100 px-1.5 py-0.5 font-mono text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+        >⌘K</kbd
+      > to quickly jump between projects
     </span>
   </div>
 </div>

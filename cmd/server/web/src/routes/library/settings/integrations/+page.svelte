@@ -8,19 +8,24 @@
   let loading = $state(true)
 
   $effect(() => {
-    integrationsApi.list()
-      .then(c => { connections = c })
+    integrationsApi
+      .list()
+      .then((c) => {
+        connections = c
+      })
       .catch(() => {})
-      .finally(() => { loading = false })
+      .finally(() => {
+        loading = false
+      })
   })
 
   function connectionFor(provider: string): OAuthConnection | undefined {
-    return connections.find(c => c.provider === provider)
+    return connections.find((c) => c.provider === provider)
   }
 
   async function disconnect(id: string) {
     await integrationsApi.disconnect(id)
-    connections = connections.filter(c => c.id !== id)
+    connections = connections.filter((c) => c.id !== id)
   }
 </script>
 
@@ -29,19 +34,30 @@
 </svelte:head>
 
 <div class="flex-1 overflow-y-auto">
-  <PageHeader title={m.integrations_title()} description={m.integrations_subtitle()} />
+  <PageHeader
+    title={m.integrations_title()}
+    description={m.integrations_subtitle()}
+  />
 
   <div class="mx-auto w-full max-w-4xl py-8">
     {#if loading}
       <div class="space-y-3">
         {#each [0, 1] as _}
-          <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5 flex items-center gap-5 animate-pulse">
-            <div class="w-11 h-11 rounded-xl bg-zinc-100 dark:bg-zinc-800 shrink-0"></div>
+          <div
+            class="flex animate-pulse items-center gap-5 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <div
+              class="h-11 w-11 shrink-0 rounded-xl bg-zinc-100 dark:bg-zinc-800"
+            ></div>
             <div class="flex-1 space-y-2">
-              <div class="h-3.5 w-32 rounded bg-zinc-100 dark:bg-zinc-800"></div>
+              <div
+                class="h-3.5 w-32 rounded bg-zinc-100 dark:bg-zinc-800"
+              ></div>
               <div class="h-3 w-56 rounded bg-zinc-100 dark:bg-zinc-800"></div>
             </div>
-            <div class="h-8 w-20 rounded-lg bg-zinc-100 dark:bg-zinc-800 shrink-0"></div>
+            <div
+              class="h-8 w-20 shrink-0 rounded-lg bg-zinc-100 dark:bg-zinc-800"
+            ></div>
           </div>
         {/each}
       </div>

@@ -23,9 +23,17 @@
     onassetsDropped: (assetIds: string[], folderId: string | null) => void
   }
 
-  let { folders, activeFolderId, projectId, selectedAssetIds, ingestToken = null, onselect, onassetsDropped }: Props = $props()
+  let {
+    folders,
+    activeFolderId,
+    projectId,
+    selectedAssetIds,
+    ingestToken = null,
+    onselect,
+    onassetsDropped,
+  }: Props = $props()
 
-  let project = $derived(projectsStore.projects.find(p => p.id === projectId))
+  let project = $derived(projectsStore.projects.find((p) => p.id === projectId))
 
   async function copyIngestAddress(folder: Folder) {
     if (!ingestToken || !folder.slug) return
@@ -66,13 +74,20 @@
   function toggleOpen(id: string, e: MouseEvent) {
     e.stopPropagation()
     const next = new Set(openFolderIds)
-    if (next.has(id)) { next.delete(id) } else { next.add(id) }
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
     openFolderIds = next
     saveOpenIds(next)
   }
 
   async function submitRename(id: string, name: string) {
-    if (!name) { editingId = null; return }
+    if (!name) {
+      editingId = null
+      return
+    }
     try {
       await foldersStore.rename(id, projectId, name)
       editingId = null
@@ -92,7 +107,10 @@
 
   async function submitCreate(parentId: string | null) {
     const name = newFolderName.trim()
-    if (!name) { creatingUnder = null; return }
+    if (!name) {
+      creatingUnder = null
+      return
+    }
     try {
       const data: { name: string; parent_id?: string } = { name }
       if (parentId) data.parent_id = parentId
@@ -118,9 +136,10 @@
     dropTargetId = null
     const assetId = e.dataTransfer?.getData('text/plain')
     if (!assetId) return
-    const assetIds = selectedAssetIds.has(assetId) && selectedAssetIds.size > 1
-      ? [...selectedAssetIds]
-      : [assetId]
+    const assetIds =
+      selectedAssetIds.has(assetId) && selectedAssetIds.size > 1
+        ? [...selectedAssetIds]
+        : [assetId]
     onassetsDropped(assetIds, folderId)
   }
 
@@ -141,9 +160,13 @@
     <div
       class="group relative flex items-center rounded-md transition-colors
         {activeFolderId === folder.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''}
-        {dropTargetId === folder.id ? 'bg-blue-100 ring-1 ring-blue-400 dark:bg-blue-900/40' : ''}
+        {dropTargetId === folder.id
+        ? 'bg-blue-100 ring-1 ring-blue-400 dark:bg-blue-900/40'
+        : ''}
       "
-      style="{ (activeFolderId === folder.id) ? `background-color: ${getProjectColor(project, '22')};` : '' }"
+      style={activeFolderId === folder.id
+        ? `background-color: ${getProjectColor(project, '22')};`
+        : ''}
       ondragover={(e) => handleDragOver(e, folder.id)}
       ondragleave={handleDragLeave}
       ondrop={(e) => handleDrop(e, folder.id)}
@@ -155,12 +178,17 @@
           aria-label="Toggle folder"
         >
           <ChevronRight
-            class="h-4 w-4 transition-transform {openFolderIds.has(folder.id) ? 'rotate-90' : ''}"
+            class="h-4 w-4 transition-transform {openFolderIds.has(folder.id)
+              ? 'rotate-90'
+              : ''}"
             color={getProjectColor(project)}
           />
         </button>
       {:else}
-        <Dot class="h-4 w-6 shrink-0" style="color: {getProjectColor(project)};" />
+        <Dot
+          class="h-4 w-6 shrink-0"
+          style="color: {getProjectColor(project)};"
+        />
       {/if}
 
       {#if editingId === folder.id}
@@ -168,29 +196,41 @@
           <InlineEditForm
             bind:value={editName}
             onsubmit={(v) => submitRename(folder.id, v)}
-            oncancel={() => { editingId = null }}
+            oncancel={() => {
+              editingId = null
+            }}
             size="sm"
           />
         </div>
       {:else}
         <button
-          class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-3 text-left text-md {activeFolderId === folder.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
+          class="text-md flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-3 text-left {activeFolderId ===
+          folder.id
+            ? 'font-medium text-blue-700 dark:text-blue-400'
+            : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
           onclick={() => onselect(folder.id)}
         >
-          <span class="min-w-0 flex-1 truncate text-md"
-                style="{ (activeFolderId === folder.id) ? `color: ${getProjectColor(project)}` : '' }"
-
-          >{folder.name}</span>
+          <span
+            class="text-md min-w-0 flex-1 truncate"
+            style={activeFolderId === folder.id
+              ? `color: ${getProjectColor(project)}`
+              : ''}>{folder.name}</span
+          >
           {#if folder.asset_count > 0}
-            <span class="shrink-0 text-md text-gray-400">{folder.asset_count}</span>
+            <span class="text-md shrink-0 text-gray-400"
+              >{folder.asset_count}</span
+            >
           {/if}
         </button>
       {/if}
 
       {#if authStore.role !== 'viewer'}
         <button
-          class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-          onclick={(e) => { e.stopPropagation(); contextMenuId = contextMenuId === folder.id ? null : folder.id }}
+          class="absolute top-1/2 right-7 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+          onclick={(e) => {
+            e.stopPropagation()
+            contextMenuId = contextMenuId === folder.id ? null : folder.id
+          }}
           aria-label="Folder menu"
         >
           <EllipsisVertical class="h-3.5 w-3.5" />
@@ -198,15 +238,53 @@
       {/if}
 
       {#if contextMenuId === folder.id}
-        <div class="absolute right-0 top-full z-30 mt-0.5">
+        <div class="absolute top-full right-0 z-30 mt-0.5">
           <ContextMenu
             items={[
-              { label: m.rename(), onclick: () => { editingId = folder.id; editName = folder.name; contextMenuId = null } },
-              ...(folder.parent_id == null ? [{ label: m.add_subfolder(), onclick: () => { creatingUnder = folder.id; contextMenuId = null; newFolderName = '' } }] : []),
-              ...(ingestToken && folder.slug ? [{ label: m.copy_address(), onclick: () => { copyIngestAddress(folder); contextMenuId = null } }] : []),
-              ...(authStore.role === 'owner' ? [{ label: m.delete(), onclick: () => deleteFolder(folder.id), danger: true }] : [])
+              {
+                label: m.rename(),
+                onclick: () => {
+                  editingId = folder.id
+                  editName = folder.name
+                  contextMenuId = null
+                },
+              },
+              ...(folder.parent_id == null
+                ? [
+                    {
+                      label: m.add_subfolder(),
+                      onclick: () => {
+                        creatingUnder = folder.id
+                        contextMenuId = null
+                        newFolderName = ''
+                      },
+                    },
+                  ]
+                : []),
+              ...(ingestToken && folder.slug
+                ? [
+                    {
+                      label: m.copy_address(),
+                      onclick: () => {
+                        copyIngestAddress(folder)
+                        contextMenuId = null
+                      },
+                    },
+                  ]
+                : []),
+              ...(authStore.role === 'owner'
+                ? [
+                    {
+                      label: m.delete(),
+                      onclick: () => deleteFolder(folder.id),
+                      danger: true,
+                    },
+                  ]
+                : []),
             ]}
-            onclose={() => { contextMenuId = null }}
+            onclose={() => {
+              contextMenuId = null
+            }}
           />
         </div>
       {/if}
@@ -216,30 +294,41 @@
       <div class="ml-5">
         <form
           class="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-700 dark:bg-gray-800"
-          onsubmit={(e) => { e.preventDefault(); submitCreate(folder.id) }}
+          onsubmit={(e) => {
+            e.preventDefault()
+            submitCreate(folder.id)
+          }}
         >
           <input
             bind:value={newFolderName}
             placeholder={m.name()}
-            class="min-w-0 flex-1 bg-transparent text-md text-gray-900 outline-none dark:text-gray-100"
-            onblur={() => { if (!newFolderName.trim()) creatingUnder = null }}
+            class="text-md min-w-0 flex-1 bg-transparent text-gray-900 outline-none dark:text-gray-100"
+            onblur={() => {
+              if (!newFolderName.trim()) creatingUnder = null
+            }}
           />
-          <Button type="submit" variant="ghost" size="sm" class="shrink-0">{m.add()}</Button>
+          <Button type="submit" variant="ghost" size="sm" class="shrink-0"
+            >{m.add()}</Button
+          >
         </form>
       </div>
     {/if}
 
     {#if openFolderIds.has(folder.id) && folder.children && folder.children.length > 0}
       <div
-        class="ml-4 border-l border-gray-100 dark:border-gray-600 pl-1"
+        class="ml-4 border-l border-gray-100 pl-1 dark:border-gray-600"
         style="border-color: {getProjectColor(project)}"
       >
         {#each folder.children as child (child.id)}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="group relative flex items-center rounded-md transition-colors
-              {activeFolderId === child.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''}
-              {dropTargetId === child.id ? 'bg-blue-100 ring-1 ring-blue-400 dark:bg-blue-900/40' : ''}
+              {activeFolderId === child.id
+              ? 'bg-blue-50 dark:bg-blue-900/30'
+              : ''}
+              {dropTargetId === child.id
+              ? 'bg-blue-100 ring-1 ring-blue-400 dark:bg-blue-900/40'
+              : ''}
             "
             ondragover={(e) => handleDragOver(e, child.id)}
             ondragleave={handleDragLeave}
@@ -251,26 +340,37 @@
                 <InlineEditForm
                   bind:value={editName}
                   onsubmit={(v) => submitRename(child.id, v)}
-                  oncancel={() => { editingId = null }}
+                  oncancel={() => {
+                    editingId = null
+                  }}
                   size="sm"
                 />
               </div>
             {:else}
               <button
-                class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-3.5 text-left {activeFolderId === child.id ? 'text-blue-700 font-medium dark:text-blue-400' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
+                class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-3.5 text-left {activeFolderId ===
+                child.id
+                  ? 'font-medium text-blue-700 dark:text-blue-400'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'}"
                 onclick={() => onselect(child.id)}
               >
-                <span class="min-w-0 flex-1 truncate text-md">{child.name}</span>
+                <span class="text-md min-w-0 flex-1 truncate">{child.name}</span
+                >
                 {#if child.asset_count > 0}
-                  <span class="shrink-0 text-md text-gray-400">{child.asset_count}</span>
+                  <span class="text-md shrink-0 text-gray-400"
+                    >{child.asset_count}</span
+                  >
                 {/if}
               </button>
             {/if}
 
             {#if authStore.role !== 'viewer'}
               <button
-                class="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                onclick={(e) => { e.stopPropagation(); contextMenuId = contextMenuId === child.id ? null : child.id }}
+                class="absolute top-1/2 right-7 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                onclick={(e) => {
+                  e.stopPropagation()
+                  contextMenuId = contextMenuId === child.id ? null : child.id
+                }}
                 aria-label="Folder menu"
               >
                 <EllipsisVertical class="h-3.5 w-3.5" />
@@ -278,14 +378,41 @@
             {/if}
 
             {#if contextMenuId === child.id}
-              <div class="absolute right-0 top-full z-30 mt-0.5">
+              <div class="absolute top-full right-0 z-30 mt-0.5">
                 <ContextMenu
                   items={[
-                    { label: m.rename(), onclick: () => { editingId = child.id; editName = child.name; contextMenuId = null } },
-                    ...(ingestToken && child.slug ? [{ label: m.copy_address(), onclick: () => { copyIngestAddress(child); contextMenuId = null } }] : []),
-                    ...(authStore.role === 'owner' ? [{ label: m.delete(), onclick: () => deleteFolder(child.id), danger: true }] : [])
+                    {
+                      label: m.rename(),
+                      onclick: () => {
+                        editingId = child.id
+                        editName = child.name
+                        contextMenuId = null
+                      },
+                    },
+                    ...(ingestToken && child.slug
+                      ? [
+                          {
+                            label: m.copy_address(),
+                            onclick: () => {
+                              copyIngestAddress(child)
+                              contextMenuId = null
+                            },
+                          },
+                        ]
+                      : []),
+                    ...(authStore.role === 'owner'
+                      ? [
+                          {
+                            label: m.delete(),
+                            onclick: () => deleteFolder(child.id),
+                            danger: true,
+                          },
+                        ]
+                      : []),
                   ]}
-                  onclose={() => { contextMenuId = null }}
+                  onclose={() => {
+                    contextMenuId = null
+                  }}
                 />
               </div>
             {/if}

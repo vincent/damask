@@ -42,8 +42,7 @@
     danger:
       'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-400 dark:bg-red-500 dark:hover:bg-red-600',
     outline:
-      'flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-md text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400'
-
+      'flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-md text-gray-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400',
   }
 
   const sizes: Record<string, string> = {
@@ -62,7 +61,14 @@
 >
   {#if loading}
     <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+      <circle
+        class="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        stroke-width="4"
+      />
       <path
         class="opacity-75"
         fill="currentColor"

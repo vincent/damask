@@ -1,5 +1,9 @@
 import { fieldDefinitionApi } from '$lib/api'
-import type { AssetFieldValue, FieldDefinition, FieldScope } from '$lib/api/models'
+import type {
+  AssetFieldValue,
+  FieldDefinition,
+  FieldScope,
+} from '$lib/api/models'
 
 class CustomFieldsStore {
   assetFields = $state<FieldDefinition[]>([])
@@ -12,10 +16,16 @@ class CustomFieldsStore {
     return this.fieldValues.get(assetId)
   }
 
-  patchField(assetId: string, fieldId: string, value: string | number | boolean | null) {
+  patchField(
+    assetId: string,
+    fieldId: string,
+    value: string | number | boolean | null
+  ) {
     const current = this.fieldValues.get(assetId)
     if (!current) return
-    const updated = current.map((v) => v.field_id === fieldId ? { ...v, value } : v)
+    const updated = current.map((v) =>
+      v.field_id === fieldId ? { ...v, value } : v
+    )
     this.fieldValues = new Map(this.fieldValues).set(assetId, updated)
   }
 

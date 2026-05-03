@@ -15,18 +15,25 @@
   let activeIndex = $state(0)
   let inputEl = $state<HTMLInputElement | undefined>(undefined)
 
-  let items = $derived<MenuItem[]>([
-    { id: null, label: m.all_assets(), url: '/library' },
-    { id: null, label: m.all_shares(), url: '/library/shares' },
-    ...projects
-      .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
-      .map((p) => ({
-        id: p.id,
-        label: p.name,
-        color: p.color ?? '#9ca3af',
-        count: p.asset_count,
-      })),
-  ].filter((item) => item.id === null || query === '' || item.label.toLowerCase().includes(query.toLowerCase())))
+  let items = $derived<MenuItem[]>(
+    [
+      { id: null, label: m.all_assets(), url: '/library' },
+      { id: null, label: m.all_shares(), url: '/library/shares' },
+      ...projects
+        .filter((p) => p.name.toLowerCase().includes(query.toLowerCase()))
+        .map((p) => ({
+          id: p.id,
+          label: p.name,
+          color: p.color ?? '#9ca3af',
+          count: p.asset_count,
+        })),
+    ].filter(
+      (item) =>
+        item.id === null ||
+        query === '' ||
+        item.label.toLowerCase().includes(query.toLowerCase())
+    )
+  )
 
   $effect(() => {
     activeIndex = 0
@@ -76,9 +83,12 @@
         bind:this={inputEl}
         bind:value={query}
         placeholder={m.jump_project()}
-        class="flex-1 text-md outline-none placeholder-gray-400"
+        class="text-md flex-1 placeholder-gray-400 outline-none"
       />
-      <kbd class="rounded border border-gray-200 px-1.5 py-0.5 text-sm text-gray-400">Esc</kbd>
+      <kbd
+        class="rounded border border-gray-200 px-1.5 py-0.5 text-sm text-gray-400"
+        >Esc</kbd
+      >
     </div>
 
     <!-- Results -->
@@ -86,12 +96,23 @@
       {#each items as item, i}
         <li>
           <button
-            class="flex w-full items-center gap-3 px-4 py-2.5 text-md transition-colors {i === activeIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}"
-            onclick={() => { onselect(item); onclose() }}
-            onmouseenter={() => { activeIndex = i }}
+            class="text-md flex w-full items-center gap-3 px-4 py-2.5 transition-colors {i ===
+            activeIndex
+              ? 'bg-blue-50 text-blue-700'
+              : 'text-gray-700 hover:bg-gray-50'}"
+            onclick={() => {
+              onselect(item)
+              onclose()
+            }}
+            onmouseenter={() => {
+              activeIndex = i
+            }}
           >
             {#if item.color}
-              <span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background-color: {item.color}"></span>
+              <span
+                class="h-2.5 w-2.5 shrink-0 rounded-full"
+                style="background-color: {item.color}"
+              ></span>
             {:else}
               <ChevronUp class="h-4 w-4 shrink-0 text-gray-400" />
             {/if}
@@ -103,7 +124,7 @@
         </li>
       {/each}
       {#if items.length === 0}
-        <li class="px-4 py-3 text-md text-gray-400">{m.no_results()}</li>
+        <li class="text-md px-4 py-3 text-gray-400">{m.no_results()}</li>
       {/if}
     </ul>
   </div>

@@ -68,7 +68,11 @@
   }
 
   async function drop() {
-    if (dragIndex === null || dragOverIndex === null || dragIndex === dragOverIndex) {
+    if (
+      dragIndex === null ||
+      dragOverIndex === null ||
+      dragIndex === dragOverIndex
+    ) {
       dragIndex = null
       dragOverIndex = null
       return
@@ -88,8 +92,12 @@
 
   function fieldTypeBadge(type: string): string {
     const map: Record<string, string> = {
-      text: m.f_text(), number: m.f_number(), date: m.f_date(),
-      boolean: m.f_bool(), select: m.f_select(), url: m.f_url(),
+      text: m.f_text(),
+      number: m.f_number(),
+      date: m.f_date(),
+      boolean: m.f_bool(),
+      select: m.f_select(),
+      url: m.f_url(),
     }
     return map[type] ?? type
   }
@@ -104,7 +112,13 @@
     title={m.custom_fields_title()}
     description={m.custom_fields_desc()}
   >
-    <Button variant="primary" onclick={() => { editingField = null; showCreateModal = true }}>
+    <Button
+      variant="primary"
+      onclick={() => {
+        editingField = null
+        showCreateModal = true
+      }}
+    >
       {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
       {m.add_field()}
     </Button>
@@ -112,18 +126,22 @@
 
   <!-- Scope tabs -->
   <div class="flex border-b border-gray-100 px-6 dark:border-gray-800">
-    {#each (['asset', 'project'] as FieldScope[]) as scope}
+    {#each ['asset', 'project'] as FieldScope[] as scope}
       <button
         type="button"
-        class="relative py-3 pr-6 text-md font-medium transition-colors
+        class="text-md relative py-3 pr-6 font-medium transition-colors
           {activeScope === scope
-            ? 'text-indigo-600 dark:text-indigo-400'
-            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
-        onclick={() => { activeScope = scope }}
+          ? 'text-indigo-600 dark:text-indigo-400'
+          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+        onclick={() => {
+          activeScope = scope
+        }}
       >
         {scope === 'asset' ? m.asset_fields() : m.project_fields()}
         {#if activeScope === scope}
-          <span class="absolute bottom-0 left-0 right-4 h-0.5 rounded-t bg-indigo-600 dark:bg-indigo-400"></span>
+          <span
+            class="absolute right-4 bottom-0 left-0 h-0.5 rounded-t bg-indigo-600 dark:bg-indigo-400"
+          ></span>
         {/if}
       </button>
     {/each}
@@ -139,35 +157,58 @@
       {:else if fields.length === 0}
         <EmptyState
           title="No {activeScope} fields yet"
-          description="Add custom metadata fields to collect structured data on your {activeScope === 'asset' ? 'assets' : 'projects'}."
+          description="Add custom metadata fields to collect structured data on your {activeScope ===
+          'asset'
+            ? 'assets'
+            : 'projects'}."
         />
       {:else}
-        <p class="my-3 text-sm text-gray-400 dark:text-gray-600">{m.drag_row_reorder()}</p>
+        <p class="my-3 text-sm text-gray-400 dark:text-gray-600">
+          {m.drag_row_reorder()}
+        </p>
         <ul class="space-y-3">
           {#each fields as field, i (field.id)}
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <li
               class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 transition-colors dark:bg-gray-900
-                {dragOverIndex === i ? 'border-indigo-400 dark:border-indigo-500' : 'border-gray-200 dark:border-gray-700'}"
+                {dragOverIndex === i
+                ? 'border-indigo-400 dark:border-indigo-500'
+                : 'border-gray-200 dark:border-gray-700'}"
               draggable="true"
               ondragstart={() => dragStart(i)}
               ondragover={(e) => dragOver(e, i)}
               ondrop={drop}
-              ondragend={() => { dragIndex = null; dragOverIndex = null }}
+              ondragend={() => {
+                dragIndex = null
+                dragOverIndex = null
+              }}
             >
               <!-- Drag handle -->
-              <GripVertical class="h-4 w-4 shrink-0 cursor-grab text-gray-300 dark:text-gray-600" />
+              <GripVertical
+                class="h-4 w-4 shrink-0 cursor-grab text-gray-300 dark:text-gray-600"
+              />
 
               <!-- Field info -->
-              <div class="flex flex-1 flex-wrap items-center gap-2 min-w-0">
-                <span class="text-md font-medium text-gray-900 dark:text-gray-100">{field.name}</span>
+              <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <span
+                  class="text-md font-medium text-gray-900 dark:text-gray-100"
+                  >{field.name}</span
+                >
                 <Badge>{fieldTypeBadge(field.field_type)}</Badge>
-                <span class="font-mono text-[11px] text-gray-400 dark:text-gray-500">{field.key}</span>
+                <span
+                  class="font-mono text-[11px] text-gray-400 dark:text-gray-500"
+                  >{field.key}</span
+                >
                 {#if field.required}
-                  <span class="text-[11px] font-medium text-orange-500 dark:text-orange-400">{m.required()}</span>
+                  <span
+                    class="text-[11px] font-medium text-orange-500 dark:text-orange-400"
+                    >{m.required()}</span
+                  >
                 {/if}
                 {#if field.inherit_from_project && activeScope === 'asset'}
-                  <span class="text-[11px] text-gray-400 dark:text-gray-500">{m.auto_fill_assets()}</span>
+                  <span class="text-[11px] text-gray-400 dark:text-gray-500"
+                    >{m.auto_fill_assets()}</span
+                  >
                 {/if}
               </div>
 
@@ -176,18 +217,29 @@
                 {@const opts = JSON.parse(field.options) as string[]}
                 <div class="flex flex-wrap gap-1">
                   {#each opts.slice(0, 4) as opt}
-                    <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">{opt}</span>
+                    <span
+                      class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      >{opt}</span
+                    >
                   {/each}
                   {#if opts.length > 4}
-                    <span class="text-[11px] text-gray-400">+{opts.length - 4}</span>
+                    <span class="text-[11px] text-gray-400"
+                      >+{opts.length - 4}</span
+                    >
                   {/if}
                 </div>
               {/if}
 
               <!-- Actions -->
               <div class="flex shrink-0 items-center gap-1">
-                <ButtonEdit title="{m.edit()} {field.name}" onclick={() => handleEdit(field)} />
-                <ButtonDelete title="{m.delete()} {field.name}" onclick={() => handleDelete(field)} />
+                <ButtonEdit
+                  title="{m.edit()} {field.name}"
+                  onclick={() => handleEdit(field)}
+                />
+                <ButtonDelete
+                  title="{m.delete()} {field.name}"
+                  onclick={() => handleDelete(field)}
+                />
               </div>
             </li>
           {/each}
@@ -201,13 +253,19 @@
   bind:open={showCreateModal}
   scope={activeScope}
   editing={editingField}
-  onclose={() => { showCreateModal = false; editingField = null }}
+  onclose={() => {
+    showCreateModal = false
+    editingField = null
+  }}
   onsaved={handleSaved}
 />
 
 <FieldDeleteModal
   bind:open={showDeleteModal}
   field={deletingField}
-  onclose={() => { showDeleteModal = false; deletingField = null }}
+  onclose={() => {
+    showDeleteModal = false
+    deletingField = null
+  }}
   ondeleted={handleDeleted}
 />

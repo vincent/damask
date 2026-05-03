@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { m } from "$lib/paraglide/messages"
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     value?: string
@@ -18,7 +18,7 @@
 
 <div class="relative {extraClass}">
   <svg
-    class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+    class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -39,9 +39,9 @@
       value = e.currentTarget.value
       onchange?.(value)
     }}
-    class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-md
-      placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400
-      dark:focus:bg-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:placeholder-gray-500 dark:text-gray-100
-      dark:focus:border-indigo-500 dark:focus:bg-gray-750"
+    class="text-md dark:focus:bg-gray-750 w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pr-3
+      pl-9 placeholder-gray-400 focus:border-indigo-400 focus:bg-white focus:ring-1 focus:ring-indigo-400
+      focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500
+      dark:focus:border-indigo-500 dark:focus:bg-gray-900"
   />
 </div>

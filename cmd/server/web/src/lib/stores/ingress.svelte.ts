@@ -1,5 +1,9 @@
 import { ingressApi } from '$lib/api'
-import type { IngressLogEntry, IngressRule, IngressSource } from '$lib/api/models'
+import type {
+  IngressLogEntry,
+  IngressRule,
+  IngressSource,
+} from '$lib/api/models'
 import { toastStore } from './toast.svelte'
 
 // ---- Sources ----
@@ -20,16 +24,32 @@ let loadingRules = $state(false)
 let rulesSourceId = $state<string | null>(null)
 
 export const ingressStore = {
-  get sources() { return sources },
-  get loadingSources() { return loadingSources },
+  get sources() {
+    return sources
+  },
+  get loadingSources() {
+    return loadingSources
+  },
 
-  get log() { return log },
-  get loadingLog() { return loadingLog },
-  get logSourceId() { return logSourceId },
+  get log() {
+    return log
+  },
+  get loadingLog() {
+    return loadingLog
+  },
+  get logSourceId() {
+    return logSourceId
+  },
 
-  get rules() { return rules },
-  get loadingRules() { return loadingRules },
-  get rulesSourceId() { return rulesSourceId },
+  get rules() {
+    return rules
+  },
+  get loadingRules() {
+    return loadingRules
+  },
+  get rulesSourceId() {
+    return rulesSourceId
+  },
 
   async loadSources() {
     loadingSources = true
@@ -42,7 +62,9 @@ export const ingressStore = {
     }
   },
 
-  async createSource(params: Parameters<typeof ingressApi.create>[0]): Promise<IngressSource | null> {
+  async createSource(
+    params: Parameters<typeof ingressApi.create>[0]
+  ): Promise<IngressSource | null> {
     try {
       const src = await ingressApi.create(params)
       sources = [src, ...sources]
@@ -54,7 +76,10 @@ export const ingressStore = {
     }
   },
 
-  async updateSource(id: string, params: Parameters<typeof ingressApi.update>[1]): Promise<IngressSource | null> {
+  async updateSource(
+    id: string,
+    params: Parameters<typeof ingressApi.update>[1]
+  ): Promise<IngressSource | null> {
     try {
       const src = await ingressApi.update(id, params)
       sources = sources.map((s) => (s.id === id ? src : s))
@@ -144,7 +169,10 @@ export const ingressStore = {
     }
   },
 
-  async createRule(sourceId: string, params: Parameters<typeof ingressApi.createRule>[1]): Promise<IngressRule | null> {
+  async createRule(
+    sourceId: string,
+    params: Parameters<typeof ingressApi.createRule>[1]
+  ): Promise<IngressRule | null> {
     try {
       const rule = await ingressApi.createRule(sourceId, params)
       rules = [...rules, rule].sort((a, b) => a.position - b.position)
@@ -156,7 +184,11 @@ export const ingressStore = {
     }
   },
 
-  async updateRule(sourceId: string, ruleId: string, params: Parameters<typeof ingressApi.updateRule>[2]): Promise<void> {
+  async updateRule(
+    sourceId: string,
+    ruleId: string,
+    params: Parameters<typeof ingressApi.updateRule>[2]
+  ): Promise<void> {
     try {
       const rule = await ingressApi.updateRule(sourceId, ruleId, params)
       rules = rules.map((r) => (r.id === ruleId ? rule : r))

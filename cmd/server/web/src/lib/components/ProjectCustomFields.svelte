@@ -58,7 +58,12 @@
     saveError = null
     saveSuccess = null
     if (fv && fv.value !== null && fv.value !== undefined) {
-      editValue = def.field_type === 'boolean' ? (fv.value ? 'true' : 'false') : String(fv.value)
+      editValue =
+        def.field_type === 'boolean'
+          ? fv.value
+            ? 'true'
+            : 'false'
+          : String(fv.value)
     } else {
       editValue = def.field_type === 'boolean' ? 'false' : ''
     }
@@ -75,7 +80,11 @@
         parsedValue = null
       } else if (def.field_type === 'number') {
         const n = parseFloat(editValue)
-        if (isNaN(n)) { saveError = m.digit_required(); savingFieldId = null; return }
+        if (isNaN(n)) {
+          saveError = m.digit_required()
+          savingFieldId = null
+          return
+        }
         parsedValue = n
       } else if (def.field_type === 'boolean') {
         parsedValue = editValue === 'true'
@@ -83,11 +92,15 @@
         parsedValue = editValue
       }
 
-      const result = await projectFieldApi.patch(projectId, [{ field_id: def.id, value: parsedValue }])
+      const result = await projectFieldApi.patch(projectId, [
+        { field_id: def.id, value: parsedValue },
+      ])
       values = result.fields
       editingFieldId = null
       saveSuccess = def.id
-      setTimeout(() => { if (saveSuccess === def.id) saveSuccess = null }, 2000)
+      setTimeout(() => {
+        if (saveSuccess === def.id) saveSuccess = null
+      }, 2000)
     } catch (e: unknown) {
       saveError = e instanceof Error ? e.message : m.save_failed()
     } finally {
@@ -115,7 +128,9 @@
     saveField(def)
   }
 
-  const activeDefinitions = $derived(definitions.filter((d) => !d.deleted_at && !d.key.startsWith('_exif_')))
+  const activeDefinitions = $derived(
+    definitions.filter((d) => !d.deleted_at && !d.key.startsWith('_exif_'))
+  )
   const orphanedValues = $derived(values.filter((v) => v.definition_deleted))
 </script>
 
@@ -127,7 +142,9 @@
       <Spinner size="sm" />
     </div>
   {:else if activeDefinitions.length === 0}
-    <p class="text-sm text-gray-400 dark:text-gray-500">{m.no_project_fields_yet()}</p>
+    <p class="text-sm text-gray-400 dark:text-gray-500">
+      {m.no_project_fields_yet()}
+    </p>
   {:else}
     <div class="space-y-2">
       {#each activeDefinitions as def (def.id)}
@@ -144,7 +161,9 @@
           onCancel={cancelEdit}
           onKeydown={(e) => handleKeydown(e, def)}
           onToggle={() => toggleBoolean(def)}
-          onEditValueChange={(v) => { editValue = v }}
+          onEditValueChange={(v) => {
+            editValue = v
+          }}
         />
       {/each}
     </div>
@@ -154,7 +173,9 @@
     <div class="mt-4">
       <button
         class="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        onclick={() => { showDeprecated = !showDeprecated }}
+        onclick={() => {
+          showDeprecated = !showDeprecated
+        }}
       >
         {#if showDeprecated}
           <ChevronDown class="h-3.5 w-3.5" />
@@ -167,11 +188,20 @@
       {#if showDeprecated}
         <div class="mt-2 space-y-1.5">
           {#each orphanedValues as fv}
-            <div class="rounded-lg border border-dashed border-gray-200 px-3 py-2 dark:border-gray-700">
-              <p class="text-xs font-semibold uppercase tracking-widest text-gray-300 dark:text-gray-600">
-                {fv.name} <span class="ml-1 normal-case text-gray-300 dark:text-gray-600">({m.deleted()})</span>
+            <div
+              class="rounded-lg border border-dashed border-gray-200 px-3 py-2 dark:border-gray-700"
+            >
+              <p
+                class="text-xs font-semibold tracking-widest text-gray-300 uppercase dark:text-gray-600"
+              >
+                {fv.name}
+                <span class="ml-1 text-gray-300 normal-case dark:text-gray-600"
+                  >({m.deleted()})</span
+                >
               </p>
-              <p class="mt-0.5 text-md text-gray-400 dark:text-gray-500">{displayValue(fv)}</p>
+              <p class="text-md mt-0.5 text-gray-400 dark:text-gray-500">
+                {displayValue(fv)}
+              </p>
             </div>
           {/each}
         </div>

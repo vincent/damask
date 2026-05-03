@@ -1,4 +1,4 @@
-import { shareApi, type Share, type CreateShareParams } from '$lib/api'
+import { shareApi, type CreateShareParams, type Share } from '$lib/api'
 import { toastStore } from './toast.svelte'
 
 let shares = $state<Share[]>([])
@@ -12,13 +12,20 @@ export const EXPIRY_OPTIONS: { label: string; value: number | null }[] = [
 ]
 
 export const sharesStore = {
-  get shares() { return shares },
-  get loading() { return loading },
+  get shares() {
+    return shares
+  },
+  get loading() {
+    return loading
+  },
 
   /** Return shares for a specific target (type + id). */
   forTarget(targetType: string, targetId: string): Share[] {
     return shares.filter(
-      (s) => s.target_type === targetType && s.target_id === targetId && !s.revoked_at,
+      (s) =>
+        s.target_type === targetType &&
+        s.target_id === targetId &&
+        !s.revoked_at
     )
   },
 
@@ -49,7 +56,7 @@ export const sharesStore = {
     try {
       await shareApi.revoke(id)
       shares = shares.map((s) =>
-        s.id === id ? { ...s, revoked_at: new Date().toISOString() } : s,
+        s.id === id ? { ...s, revoked_at: new Date().toISOString() } : s
       )
       toastStore.show('Share revoked')
     } catch {

@@ -22,18 +22,24 @@
   }: Props = $props()
 </script>
 
-<div class="flex items-center justify-between gap-4 py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+<div
+  class="flex items-center justify-between gap-4 border-b border-zinc-100 py-4 last:border-0 dark:border-zinc-800"
+>
   <div class="min-w-0">
     <p class="font-medium text-zinc-900 dark:text-zinc-100">{label}</p>
     {#if linked && email}
-      <p class="text-sm text-zinc-500 dark:text-zinc-400">{m.settings_auth_connected_as({ email })}</p>
+      <p class="text-sm text-zinc-500 dark:text-zinc-400">
+        {m.settings_auth_connected_as({ email })}
+      </p>
     {:else if linked}
-      <p class="text-sm text-zinc-500 dark:text-zinc-400">{m.settings_auth_connected_as({ email: label })}</p>
+      <p class="text-sm text-zinc-500 dark:text-zinc-400">
+        {m.settings_auth_connected_as({ email: label })}
+      </p>
     {:else if provider !== 'password'}
       <p class="text-sm text-zinc-400 dark:text-zinc-500">—</p>
     {/if}
     {#if disconnectError}
-      <p class="text-sm text-red-500 mt-0.5">{disconnectError}</p>
+      <p class="mt-0.5 text-sm text-red-500">{disconnectError}</p>
     {/if}
   </div>
 
@@ -45,12 +51,14 @@
         type="button"
         onclick={onDisconnect}
         class="text-sm text-red-500 hover:underline"
-      >{m.settings_auth_disconnect()}</button>
+        >{m.settings_auth_disconnect()}</button
+      >
     {:else if connectHref}
       <a
         href={connectHref}
-        class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-      >{m.settings_auth_connect()}</a>
+        class="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >{m.settings_auth_connect()}</a
+      >
     {/if}
   </div>
 </div>

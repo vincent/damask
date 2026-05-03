@@ -36,8 +36,12 @@
   <title>{m.accept_invite()} — Damask</title>
 </svelte:head>
 
-<div class="damask-texture-strong relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-  <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
+<div
+  class="damask-texture-strong relative flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950"
+>
+  <div
+    class="z-1 w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow dark:bg-gray-900"
+  >
     {#if token.trim() === ''}
       <div>
         <Title>{m.invalid_invite()}</Title>
@@ -51,9 +55,26 @@
 
       <form onsubmit={handleSubmit} class="space-y-4">
         <Feedback {error} />
-        <Input id="name" type="text" label={m.name()} bind:value={name} required autocomplete="name" />
-        <Input id="password" type="password" label={m.password()} bind:value={password} required autocomplete="new-password" placeholder={m.min_8_chars()} />
-        <Button type="submit" {loading} class="w-full">{loading ? m.joining() : m.join_workspace()}</Button>
+        <Input
+          id="name"
+          type="text"
+          label={m.name()}
+          bind:value={name}
+          required
+          autocomplete="name"
+        />
+        <Input
+          id="password"
+          type="password"
+          label={m.password()}
+          bind:value={password}
+          required
+          autocomplete="new-password"
+          placeholder={m.min_8_chars()}
+        />
+        <Button type="submit" {loading} class="w-full"
+          >{loading ? m.joining() : m.join_workspace()}</Button
+        >
       </form>
     {/if}
   </div>

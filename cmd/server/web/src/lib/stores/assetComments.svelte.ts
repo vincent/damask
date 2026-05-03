@@ -4,10 +4,14 @@ let comments = $state<ShareComment[]>([])
 let loading = $state(false)
 
 export const assetCommentsStore = {
-  get loading() { return loading },
-  get comments() { return comments },
+  get loading() {
+    return loading
+  },
+  get comments() {
+    return comments
+  },
 
-  async load(assetId: string) {    
+  async load(assetId: string) {
     if (loading) return
     loading = true
     try {

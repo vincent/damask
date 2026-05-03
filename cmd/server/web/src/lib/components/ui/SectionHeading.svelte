@@ -21,7 +21,11 @@
       {@render icon()}
     </div>
   {/if}
-  <h2 class={`text-md font-semibold text-gray-900 dark:text-gray-100 ${titleClass}`}>{title}</h2>
+  <h2
+    class={`text-md font-semibold text-gray-900 dark:text-gray-100 ${titleClass}`}
+  >
+    {title}
+  </h2>
   {#if count !== undefined}
     <span class="text-md text-gray-400 dark:text-gray-500">{count}</span>
   {/if}

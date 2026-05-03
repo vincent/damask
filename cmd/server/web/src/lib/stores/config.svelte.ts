@@ -6,6 +6,11 @@ let state = $state<Config>({
 })
 
 export const configStore = {
-  get state() { return state },
-  load: () => configApi.load().then(c => { state = c }),
+  get state() {
+    return state
+  },
+  load: () =>
+    configApi.load().then((c) => {
+      state = c
+    }),
 }

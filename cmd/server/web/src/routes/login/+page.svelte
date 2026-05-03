@@ -29,15 +29,20 @@
 
   $effect(() => {
     fetch('/config/auth')
-      .then(r => r.json())
-      .then(d => { authConfig = d })
-      .catch(() => { authConfig = { ...authConfig, password_auth: true } })
+      .then((r) => r.json())
+      .then((d) => {
+        authConfig = d
+      })
+      .catch(() => {
+        authConfig = { ...authConfig, password_auth: true }
+      })
   })
 
   const ssoErrorMessages: Record<string, string> = {
     oidc_error: 'The identity provider returned an error.',
     oidc_exchange: 'Could not complete sign-in. Please try again.',
-    email_not_verified: 'Your email address is not verified with your identity provider.',
+    email_not_verified:
+      'Your email address is not verified with your identity provider.',
   }
 
   const ssoError = $derived(
@@ -48,7 +53,9 @@
   )
 
   const hasSSOProviders = $derived(
-    authConfig.oidc_enabled || authConfig.google_enabled || authConfig.canva_enabled
+    authConfig.oidc_enabled ||
+      authConfig.google_enabled ||
+      authConfig.canva_enabled
   )
 
   let email = $state('')
@@ -89,12 +96,19 @@
   <title>{m.signin()} — Damask</title>
 </svelte:head>
 
-<div class="damask-texture-strong relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-  <div class="z-1 w-full max-w-md space-y-8 p-8 bg-white dark:bg-gray-900 rounded-xl shadow">
+<div
+  class="damask-texture-strong relative flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950"
+>
+  <div
+    class="z-1 w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow dark:bg-gray-900"
+  >
     <div>
       <Title>{m.signin()}</Title>
       <Hint>
-        {m.no_account_question()} <a href="/register" class="text-blue-600 hover:underline">{m.register()}</a>
+        {m.no_account_question()}
+        <a href="/register" class="text-blue-600 hover:underline"
+          >{m.register()}</a
+        >
       </Hint>
     </div>
 
@@ -105,13 +119,25 @@
     {#if hasSSOProviders}
       <div class="space-y-2">
         {#if authConfig.oidc_enabled}
-          <OAuthButton provider="oidc" label={authConfig.oidc_label} href="/auth/oidc/login" />
+          <OAuthButton
+            provider="oidc"
+            label={authConfig.oidc_label}
+            href="/auth/oidc/login"
+          />
         {/if}
         {#if authConfig.google_enabled}
-          <OAuthButton provider="google" label={m.auth_sso_google()} href="/auth/google/login" />
+          <OAuthButton
+            provider="google"
+            label={m.auth_sso_google()}
+            href="/auth/google/login"
+          />
         {/if}
         {#if authConfig.canva_enabled}
-          <OAuthButton provider="canva" label={m.auth_sso_canva()} href="/auth/canva/login" />
+          <OAuthButton
+            provider="canva"
+            label={m.auth_sso_canva()}
+            href="/auth/canva/login"
+          />
         {/if}
       </div>
     {/if}
@@ -127,15 +153,35 @@
     {#if authConfig.password_auth}
       <form onsubmit={handleSubmit} class="space-y-4">
         <Feedback {error} />
-        <Input id="email" type="email" label={m.email()} bind:value={email} required autocomplete="email" />
-        <Input id="password" type="password" label={m.password()} bind:value={password} required autocomplete="current-password" />
-        <Button type="submit" {loading} class="w-full">{loading ? m.signin_in() : m.signin()}</Button>
+        <Input
+          id="email"
+          type="email"
+          label={m.email()}
+          bind:value={email}
+          required
+          autocomplete="email"
+        />
+        <Input
+          id="password"
+          type="password"
+          label={m.password()}
+          bind:value={password}
+          required
+          autocomplete="current-password"
+        />
+        <Button type="submit" {loading} class="w-full"
+          >{loading ? m.signin_in() : m.signin()}</Button
+        >
       </form>
     {/if}
 
     {#if configStore.state.demo}
       <div class="text-center">
-        <button onclick={handleDemo} disabled={demoLoading} class="text-md text-blue-600 dark:text-gray-50 hover:underline disabled:opacity-50">
+        <button
+          onclick={handleDemo}
+          disabled={demoLoading}
+          class="text-md text-blue-600 hover:underline disabled:opacity-50 dark:text-gray-50"
+        >
           {demoLoading ? m.starting_demo() : m.try_demo()}
         </button>
       </div>

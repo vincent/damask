@@ -1,16 +1,16 @@
-import type { Command } from './types'
 import { assetApi } from '$lib/api'
-import { assetsStore } from '$lib/stores/assets.svelte'
-import { projectsStore } from '$lib/stores/projects.svelte'
-import { foldersStore } from '$lib/stores/folders.svelte'
 import { m } from '$lib/paraglide/messages'
+import { assetsStore } from '$lib/stores/assets.svelte'
+import { foldersStore } from '$lib/stores/folders.svelte'
+import { projectsStore } from '$lib/stores/projects.svelte'
+import type { Command } from './types'
 
 export class BulkAssignAssetToProject implements Command {
   constructor(
     private assetIds: string[],
     private beforeProjectIds: Map<string, string | null>,
     private afterProjectId: string,
-    private afterProjectName: string | null,
+    private afterProjectName: string | null
   ) {}
 
   label() {

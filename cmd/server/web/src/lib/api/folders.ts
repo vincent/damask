@@ -3,10 +3,14 @@ import type { Folder } from './models'
 
 export const folderApi = {
   /** GET /api/v1/projects/:id/folders — list folders (hierarchy tree) in a project. */
-  list: (projectId: string) => apiFetch<Folder[]>(`/api/v1/projects/${projectId}/folders`),
+  list: (projectId: string) =>
+    apiFetch<Folder[]>(`/api/v1/projects/${projectId}/folders`),
 
   /** POST /api/v1/projects/:id/folders (editor+) — create a new folder. */
-  create: (projectId: string, data: { name: string; parent_id?: string; position?: number }) =>
+  create: (
+    projectId: string,
+    data: { name: string; parent_id?: string; position?: number }
+  ) =>
     apiFetch<Folder>(`/api/v1/projects/${projectId}/folders`, {
       method: 'POST',
       body: JSON.stringify(data),

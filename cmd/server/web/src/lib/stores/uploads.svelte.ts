@@ -10,7 +10,7 @@ export interface UploadItem {
   error?: string
 }
 
-let timer: number | null = null;
+let timer: number | null = null
 let items = $state<UploadItem[]>([])
 // IDs of assets completed in this session — used for the required-fields nudge
 let recentlyUploadedIds = $state(new SvelteSet<string>())
@@ -33,9 +33,12 @@ export const uploadsStore = {
     items = items.map((item) => (item.id === id ? { ...item, ...patch } : item))
     // Track newly completed uploads by their asset ID
     if (patch.status === 'done' && patch.asset) {
-      recentlyUploadedIds = new SvelteSet([...recentlyUploadedIds, patch.asset.id])
+      recentlyUploadedIds = new SvelteSet([
+        ...recentlyUploadedIds,
+        patch.asset.id,
+      ])
     }
-    if (items.every(i => i.status === 'done')) {
+    if (items.every((i) => i.status === 'done')) {
       timer = setTimeout(() => uploadsStore.clear(), 10_000)
     }
   },
@@ -45,7 +48,9 @@ export const uploadsStore = {
   },
 
   clear() {
-    items = items.filter((item) => item.status === 'uploading' || item.status === 'processing')
+    items = items.filter(
+      (item) => item.status === 'uploading' || item.status === 'processing'
+    )
   },
 
   clearRecentlyUploaded() {

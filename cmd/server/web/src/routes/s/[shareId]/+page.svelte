@@ -19,7 +19,8 @@
 
   onMount(async () => {
     // Check if we already have a session token
-    const existing = (await cookieStore.get(`share_token_${shareId}`))?.value || null
+    const existing =
+      (await cookieStore.get(`share_token_${shareId}`))?.value || null
     if (existing) {
       goto(`/s/${shareId}/view`, { replaceState: true })
       return
@@ -82,36 +83,62 @@
   <title>{shareLabel} — Damask</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+<div
+  class="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 dark:bg-gray-950"
+>
   {#if checking}
     <div class="flex items-center gap-3 text-gray-500 dark:text-gray-400">
       <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        />
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        />
       </svg>
       <span class="text-md">{m.loading()}</span>
     </div>
   {:else if error && !password}
-    <div class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-8 shadow-sm text-center">
-      <p class="text-gray-600 dark:text-gray-400 text-md">{error}</p>
+    <div
+      class="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm dark:bg-gray-900"
+    >
+      <p class="text-md text-gray-600 dark:text-gray-400">{error}</p>
     </div>
   {:else}
-    <div class="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-8 shadow-sm">
+    <div
+      class="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm dark:bg-gray-900"
+    >
       <!-- Lock icon -->
       <div class="mb-5 flex justify-center">
-        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
+        <div
+          class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50"
+        >
           <Lock class="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
         </div>
       </div>
 
-      <h1 class="mb-2 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+      <h1
+        class="mb-2 text-center text-2xl font-bold text-gray-900 dark:text-gray-100"
+      >
         {shareLabel}
       </h1>
-      <p class="mb-6 text-center text-md text-gray-500 dark:text-gray-400">
+      <p class="text-md mb-6 text-center text-gray-500 dark:text-gray-400">
         {m.gallery_is_password_protected()}
       </p>
 
-      <form onsubmit={(e) => { e.preventDefault(); handleAccess() }}>
+      <form
+        onsubmit={(e) => {
+          e.preventDefault()
+          handleAccess()
+        }}
+      >
         <Input
           label={m.password()}
           type="password"
@@ -121,16 +148,21 @@
           autofocus
         />
 
-        <Button
-          type="submit"
-          variant="primary"
-          {loading}
-          class="mt-4 w-full"
-        >
+        <Button type="submit" variant="primary" {loading} class="mt-4 w-full">
           {#snippet icon()}
             {#if !loading}
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M5 12h14M12 5l7 7-7 7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             {/if}
           {/snippet}

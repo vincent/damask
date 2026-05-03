@@ -16,7 +16,7 @@
   function handleDragOver(e: DragEvent) {
     e.preventDefault()
     if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "copy";
+      e.dataTransfer.dropEffect = 'copy'
     }
     isDragging = true
   }
@@ -46,9 +46,15 @@
       uploadsStore.add({ id, file, progress: 0, status: 'uploading' })
 
       assetApi
-        .upload(file, null, null, (pct) => uploadsStore.update(id, { progress: pct }))
+        .upload(file, null, null, (pct) =>
+          uploadsStore.update(id, { progress: pct })
+        )
         .then((asset) => {
-          uploadsStore.update(id, { status: 'processing', asset, progress: 100 })
+          uploadsStore.update(id, {
+            status: 'processing',
+            asset,
+            progress: 100,
+          })
           onuploaded(asset)
           pollUntilReady(id, asset.id)
         })
@@ -114,9 +120,13 @@
 {#if uploadsStore.items.length > 0}
   <div class="mt-3 flex flex-col gap-2">
     {#each uploadsStore.items as item (item.id)}
-      <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+      <div
+        class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+      >
         <div class="min-w-0 flex-1">
-          <p class="truncate text-md font-medium text-gray-800">{item.file.name}</p>
+          <p class="text-md truncate font-medium text-gray-800">
+            {item.file.name}
+          </p>
           {#if item.status === 'uploading'}
             <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
               <div

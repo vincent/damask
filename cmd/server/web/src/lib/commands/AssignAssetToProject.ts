@@ -1,8 +1,8 @@
-import type { Command } from './types'
 import { assetApi } from '$lib/api'
+import { m } from '$lib/paraglide/messages'
 import { assetsStore } from '$lib/stores/assets.svelte'
 import { projectsStore } from '$lib/stores/projects.svelte'
-import { m } from '$lib/paraglide/messages'
+import type { Command } from './types'
 
 export class AssignAssetToProject implements Command {
   constructor(
@@ -10,7 +10,7 @@ export class AssignAssetToProject implements Command {
     private before: string | null,
     private beforeName: string | null,
     private after: string | null,
-    private afterName: string | null,
+    private afterName: string | null
   ) {}
 
   label() {

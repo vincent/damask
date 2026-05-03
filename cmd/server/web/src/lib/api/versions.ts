@@ -1,5 +1,9 @@
-import { apiFetch, ApiError } from './client'
-import type { AssetVersion, UploadVersionResponse, RestoreVersionResponse } from './models'
+import { ApiError, apiFetch } from './client'
+import type {
+  AssetVersion,
+  RestoreVersionResponse,
+  UploadVersionResponse,
+} from './models'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -9,14 +13,20 @@ export const versionApi = {
     apiFetch<AssetVersion[]>(`/api/v1/assets/${assetId}/versions`),
 
   /** POST /api/v1/assets/:id/versions (editor+) — upload a new version via XHR (with progress). */
-  upload(assetId: string, file: File, comment: string, onProgress?: (pct: number) => void): Promise<UploadVersionResponse> {
+  upload(
+    assetId: string,
+    file: File,
+    comment: string,
+    onProgress?: (pct: number) => void
+  ): Promise<UploadVersionResponse> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `${API_BASE}/api/v1/assets/${assetId}/versions`)
       xhr.withCredentials = true
       if (onProgress) {
         xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+          if (e.lengthComputable)
+            onProgress(Math.round((e.loaded / e.total) * 100))
         })
       }
       xhr.addEventListener('load', () => {
@@ -30,7 +40,9 @@ export const versionApi = {
           reject(new ApiError(xhr.status, body.error ?? xhr.statusText))
         }
       })
-      xhr.addEventListener('error', () => reject(new ApiError(0, 'Network error')))
+      xhr.addEventListener('error', () =>
+        reject(new ApiError(0, 'Network error'))
+      )
       const fd = new FormData()
       fd.append('file', file)
       if (comment) fd.append('comment', comment)
@@ -40,11 +52,16 @@ export const versionApi = {
 
   /** POST /api/v1/assets/:id/versions/:vid/restore (editor+) — restore a previous version as current. */
   restore: (assetId: string, versionId: string) =>
-    apiFetch<RestoreVersionResponse>(`/api/v1/assets/${assetId}/versions/${versionId}/restore`, { method: 'POST' }),
+    apiFetch<RestoreVersionResponse>(
+      `/api/v1/assets/${assetId}/versions/${versionId}/restore`,
+      { method: 'POST' }
+    ),
 
   /** DELETE /api/v1/assets/:id/versions/:vid (owner only) — delete a version. */
   delete: (assetId: string, versionId: string) =>
-    apiFetch<void>(`/api/v1/assets/${assetId}/versions/${versionId}`, { method: 'DELETE' }),
+    apiFetch<void>(`/api/v1/assets/${assetId}/versions/${versionId}`, {
+      method: 'DELETE',
+    }),
 
   /** GET /api/v1/assets/:id/versions/:vid/file — file URL for a specific version. */
   fileUrl: (assetId: string, versionId: string): string =>

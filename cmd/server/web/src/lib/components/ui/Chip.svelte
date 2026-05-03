@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X } from "@lucide/svelte"
+  import { X } from '@lucide/svelte'
 
   interface Props {
     label: string
@@ -15,8 +15,8 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <span
   {onclick}
-  class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium
-    bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+  class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-sm
+    font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
   style={color ? `background-color: ${color}20; color: ${color}` : ''}
 >
   {label}
@@ -24,7 +24,7 @@
     <button
       type="button"
       onclick={onremove}
-      class="ml-0.5 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10 focus:outline-none"
+      class="ml-0.5 rounded-full p-0.5 hover:bg-black/10 focus:outline-none dark:hover:bg-white/10"
       aria-label="Remove {label}"
     >
       <X class="h-3 w-3" />

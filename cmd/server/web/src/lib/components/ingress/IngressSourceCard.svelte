@@ -33,7 +33,7 @@
   const destProject = $derived(
     source.dest_project_id
       ? projectsStore.projects.find((p) => p.id === source.dest_project_id)
-      : null,
+      : null
   )
 
   function formatRelative(iso: string | null): string {
@@ -55,10 +55,14 @@
   }
 </script>
 
-<div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900">
+<div
+  class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900"
+>
   <div class="flex items-start gap-4 px-5 py-4">
     <!-- Icon -->
-    <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400">
+    <div
+      class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400"
+    >
       <SourceTypeIcon type={source.type} class="h-5 w-5" />
     </div>
 
@@ -67,15 +71,19 @@
       <div class="flex flex-wrap items-center gap-2">
         <SectionHeading title={source.label} />
         <Hint>{SOURCE_LABELS[source.type] ?? source.type}</Hint>
-        <StatusBadge status={
-          !source.enabled ? 'disabled' :
-          source.last_error ? 'error' :
-          'healthy'
-        } />
+        <StatusBadge
+          status={!source.enabled
+            ? 'disabled'
+            : source.last_error
+              ? 'error'
+              : 'healthy'}
+        />
       </div>
 
       <!-- Destination + last polled -->
-      <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
+      <div
+        class="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-400 dark:text-gray-500"
+      >
         {#if destProject}
           <span>→ {destProject.name}</span>
         {/if}

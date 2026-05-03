@@ -1,4 +1,4 @@
-import { apiFetch, ApiError } from './client'
+import { ApiError, apiFetch } from './client'
 import type { Asset, FieldFilter, ShareComment } from './models'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
@@ -10,7 +10,12 @@ export interface AssetListResponse {
 
 export const assetApi = {
   /** POST /api/v1/assets (editor+) — upload a new asset via XHR (with progress callback). */
-  upload(file: File, projectId: string|null, folderId: string|null, onProgress?: (pct: number) => void): Promise<Asset> {
+  upload(
+    file: File,
+    projectId: string | null,
+    folderId: string | null,
+    onProgress?: (pct: number) => void
+  ): Promise<Asset> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `${API_BASE}/api/v1/assets`)
@@ -36,7 +41,9 @@ export const assetApi = {
         }
       })
 
-      xhr.addEventListener('error', () => reject(new ApiError(0, 'Network error')))
+      xhr.addEventListener('error', () =>
+        reject(new ApiError(0, 'Network error'))
+      )
 
       const fd = new FormData()
       fd.append('file', file)
@@ -47,37 +54,44 @@ export const assetApi = {
   },
 
   /** GET /api/v1/assets — list assets with pagination, search, filtering, sorting. */
-  list(params: {
-    cursor?: string
-    limit?: number
-    sortKey?: string
-    sortAsc?: boolean
-    q?: string
-    project_id?: string
-    mime?: string
-    tags?: string[]
-    folder_id?: string
-    collection_id?: string
-    fieldFilters?: FieldFilter[]
-  } = {}): Promise<AssetListResponse> {
+  list(
+    params: {
+      cursor?: string
+      limit?: number
+      sortKey?: string
+      sortAsc?: boolean
+      q?: string
+      project_id?: string
+      mime?: string
+      tags?: string[]
+      folder_id?: string
+      collection_id?: string
+      fieldFilters?: FieldFilter[]
+    } = {}
+  ): Promise<AssetListResponse> {
     const qs = new URLSearchParams()
-    if (params.sortKey) qs.set('sort', `${params.sortKey}_${params.sortAsc ? 'asc' : 'desc'}`)
+    if (params.sortKey)
+      qs.set('sort', `${params.sortKey}_${params.sortAsc ? 'asc' : 'desc'}`)
     if (params.cursor) qs.set('cursor', params.cursor)
     if (params.limit) qs.set('limit', String(params.limit))
     if (params.q) qs.set('q', params.q)
     if (params.project_id) qs.set('project_id', params.project_id)
     if (params.mime) qs.set('mime', params.mime)
-    if (params.tags && params.tags.length > 0) qs.set('tags', params.tags.join(','))
+    if (params.tags && params.tags.length > 0)
+      qs.set('tags', params.tags.join(','))
     if (params.folder_id) qs.set('folder_id', params.folder_id)
     if (params.collection_id) qs.set('collection_id', params.collection_id)
     if (params.fieldFilters) {
       for (const f of params.fieldFilters) {
-        const paramKey = f.op === 'eq' ? `field[${f.key}]` : `field[${f.key}][${f.op}]`
+        const paramKey =
+          f.op === 'eq' ? `field[${f.key}]` : `field[${f.key}][${f.op}]`
         qs.set(paramKey, f.value)
       }
     }
     const query = qs.toString()
-    return apiFetch<AssetListResponse>(`/api/v1/assets${query ? '?' + query : ''}`)
+    return apiFetch<AssetListResponse>(
+      `/api/v1/assets${query ? '?' + query : ''}`
+    )
   },
 
   /** GET /api/v1/assets/:id — fetch asset metadata by ID. */
@@ -140,7 +154,10 @@ export const assetApi = {
 
   /** POST /api/v1/assets/:id/thumb/regenerate (editor+) — requeue the thumbnail generation job. */
   regenerateThumbnail: (id: string) =>
-    apiFetch<{ job_id: string; status: string; message: string }>(`/api/v1/assets/${id}/thumb/regenerate`, {
-      method: 'POST',
-    }),
+    apiFetch<{ job_id: string; status: string; message: string }>(
+      `/api/v1/assets/${id}/thumb/regenerate`,
+      {
+        method: 'POST',
+      }
+    ),
 }

@@ -18,7 +18,9 @@
   aria-valuemax={100}
 >
   <div
-    class="h-full rounded-full transition-all duration-300 {color ? '' : 'bg-indigo-600 dark:bg-indigo-500'}"
+    class="h-full rounded-full transition-all duration-300 {color
+      ? ''
+      : 'bg-indigo-600 dark:bg-indigo-500'}"
     style="width: {clamped}%; {color ? `background-color: ${color}` : ''}"
   ></div>
 </div>

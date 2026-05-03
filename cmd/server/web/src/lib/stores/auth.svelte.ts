@@ -17,11 +17,21 @@ const state = $state<AuthState>({
 })
 
 export const authStore = {
-  get user() { return state.user },
-  get workspace() { return state.workspace },
-  get role() { return state.role },
-  get isAuthenticated() { return state.isAuthenticated },
-  get totalAssetCount() { return state.totalAssetCount },
+  get user() {
+    return state.user
+  },
+  get workspace() {
+    return state.workspace
+  },
+  get role() {
+    return state.role
+  },
+  get isAuthenticated() {
+    return state.isAuthenticated
+  },
+  get totalAssetCount() {
+    return state.totalAssetCount
+  },
 
   login(user: User, workspace: Workspace, role: string, totalAssetCount = 0) {
     state.user = user

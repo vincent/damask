@@ -15,7 +15,9 @@
       confirmClear = false
     } else {
       confirmClear = true
-      setTimeout(() => { confirmClear = false }, 2500)
+      setTimeout(() => {
+        confirmClear = false
+      }, 2500)
     }
   }
 </script>
@@ -23,23 +25,34 @@
 {#if stackStore.count > 0}
   <div
     transition:slide={{ duration: 200, axis: 'y' }}
-    class="fixed bottom-10 left-64 right-0 z-40 flex h-14 items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 shadow-lg dark:border-amber-800 dark:bg-amber-950 opacity-[92%]"
+    class="fixed right-0 bottom-10 left-64 z-40 flex h-14 items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 opacity-[92%] shadow-lg dark:border-amber-800 dark:bg-amber-950"
   >
     <!-- Thumbnail strip -->
     <div class="flex items-center -space-x-2">
       {#each stackStore.assets.slice(0, MAX_THUMBS) as asset (asset.id)}
-        <div class="h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 border-amber-100 dark:border-amber-900" title={asset.name}>
+        <div
+          class="h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 border-amber-100 dark:border-amber-900"
+          title={asset.name}
+        >
           {#if asset.thumbnailUrl}
-            <img src={asset.thumbnailUrl} alt={asset.name} class="h-full w-full object-cover" />
+            <img
+              src={asset.thumbnailUrl}
+              alt={asset.name}
+              class="h-full w-full object-cover"
+            />
           {:else}
-            <div class="flex h-full w-full items-center justify-center bg-amber-200 dark:bg-amber-800">
+            <div
+              class="flex h-full w-full items-center justify-center bg-amber-200 dark:bg-amber-800"
+            >
               <Layers class="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </div>
           {/if}
         </div>
       {/each}
       {#if stackStore.count > MAX_THUMBS}
-        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-2 border-amber-100 bg-amber-200 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-800 dark:text-amber-300">
+        <div
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-2 border-amber-100 bg-amber-200 text-xs font-semibold text-amber-700 dark:border-amber-900 dark:bg-amber-800 dark:text-amber-300"
+        >
           +{stackStore.count - MAX_THUMBS}
         </div>
       {/if}
@@ -63,12 +76,14 @@
       type="button"
       class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-medium transition-colors
         {confirmClear
-          ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'
-          : 'text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900'}"
+        ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'
+        : 'text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900'}"
       onclick={handleClear}
     >
       <X class="h-4 w-4" />
-      {confirmClear ? m.clear_items({ count: stackStore.count }) : m.clear_all()}
+      {confirmClear
+        ? m.clear_items({ count: stackStore.count })
+        : m.clear_all()}
     </button>
   </div>
 {/if}

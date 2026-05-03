@@ -1,12 +1,16 @@
 import { apiFetch } from './client'
-import type { Collection, Asset } from './models'
+import type { Asset, Collection } from './models'
 
 export const collectionApi = {
   /** GET /api/v1/collections — list collections in the workspace. */
   list: (): Promise<Collection[]> => apiFetch('/api/v1/collections'),
 
   /** POST /api/v1/collections (editor+) — create a new collection. */
-  create: (name: string, description = '', assetIds: string[] = []): Promise<Collection> =>
+  create: (
+    name: string,
+    description = '',
+    assetIds: string[] = []
+  ): Promise<Collection> =>
     apiFetch('/api/v1/collections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -26,15 +30,20 @@ export const collectionApi = {
     }),
 
   /** DELETE /api/v1/collections/:id (owner only) — delete a collection. */
-  delete: (id: string): Promise<void> => apiFetch(`/api/v1/collections/${id}`, { method: 'DELETE' }),
+  delete: (id: string): Promise<void> =>
+    apiFetch(`/api/v1/collections/${id}`, { method: 'DELETE' }),
 
   /** POST /api/v1/collections/:id/assets/:aid (editor+) — add an asset to a collection. */
   addAsset: (collectionId: string, assetId: string): Promise<void> =>
-    apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, { method: 'POST' }),
+    apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, {
+      method: 'POST',
+    }),
 
   /** DELETE /api/v1/collections/:id/assets/:aid (editor+) — remove an asset from a collection. */
   removeAsset: (collectionId: string, assetId: string): Promise<void> =>
-    apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, { method: 'DELETE' }),
+    apiFetch(`/api/v1/collections/${collectionId}/assets/${assetId}`, {
+      method: 'DELETE',
+    }),
 
   /** GET /api/v1/assets/:id/collections — list collections an asset belongs to. */
   forAsset: (assetId: string): Promise<Collection[]> =>

@@ -1,5 +1,14 @@
 <script lang="ts">
-  import { Mail, Server, HardDrive, Cloud, Inbox, ChevronLeft, FolderOpen, Palette } from '@lucide/svelte'
+  import {
+    Mail,
+    Server,
+    HardDrive,
+    Cloud,
+    Inbox,
+    ChevronLeft,
+    FolderOpen,
+    Palette,
+  } from '@lucide/svelte'
   import type { IngressSource, IngressSourceType } from '$lib/api/models'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
@@ -22,14 +31,54 @@
 
   type Step = 'pick' | 'configure'
 
-  const SOURCE_TYPES: { type: IngressSourceType; label: string; desc: string; icon: typeof Mail }[] = [
-    { type: 'email_api', label: m.ingress_own_mail(), desc: m.ingress_own_mail_desc(), icon: Mail },
-    { type: 'imap', label: m.ingress_imap(), desc: m.ingress_imap_desc(), icon: Inbox },
-    { type: 'sftp', label: m.ingress_sftp(), desc: m.ingress_sftp_desc(), icon: Server },
-    { type: 'dav', label: m.ingress_dav(), desc: m.ingress_dav_desc(), icon: HardDrive },
-    { type: 's3', label: m.ingress_s3(), desc: m.ingress_s3_desc(), icon: Cloud },
-    { type: 'gdrive', label: m.ingress_gdrive_label(), desc: m.ingress_gdrive_folder_id_hint(), icon: FolderOpen },
-    { type: 'canva', label: m.ingress_canva_label(), desc: m.ingress_canva_export_format(), icon: Palette },
+  const SOURCE_TYPES: {
+    type: IngressSourceType
+    label: string
+    desc: string
+    icon: typeof Mail
+  }[] = [
+    {
+      type: 'email_api',
+      label: m.ingress_own_mail(),
+      desc: m.ingress_own_mail_desc(),
+      icon: Mail,
+    },
+    {
+      type: 'imap',
+      label: m.ingress_imap(),
+      desc: m.ingress_imap_desc(),
+      icon: Inbox,
+    },
+    {
+      type: 'sftp',
+      label: m.ingress_sftp(),
+      desc: m.ingress_sftp_desc(),
+      icon: Server,
+    },
+    {
+      type: 'dav',
+      label: m.ingress_dav(),
+      desc: m.ingress_dav_desc(),
+      icon: HardDrive,
+    },
+    {
+      type: 's3',
+      label: m.ingress_s3(),
+      desc: m.ingress_s3_desc(),
+      icon: Cloud,
+    },
+    {
+      type: 'gdrive',
+      label: m.ingress_gdrive_label(),
+      desc: m.ingress_gdrive_folder_id_hint(),
+      icon: FolderOpen,
+    },
+    {
+      type: 'canva',
+      label: m.ingress_canva_label(),
+      desc: m.ingress_canva_export_format(),
+      icon: Palette,
+    },
   ]
 
   const POLL_INTERVALS = [
@@ -157,14 +206,18 @@
     }
   }
 
-  const selectedTypeMeta = $derived(SOURCE_TYPES.find((t) => t.type === selectedType))
+  const selectedTypeMeta = $derived(
+    SOURCE_TYPES.find((t) => t.type === selectedType)
+  )
 </script>
 
 <Modal bind:open {onclose}>
   {#if step === 'pick'}
     <!-- Step 1: Type picker -->
     <div class="px-6 py-5">
-      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">{m.add_ingress_source()}</h2>
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-50">
+        {m.add_ingress_source()}
+      </h2>
       <Hint>{m.add_ingress_subtitle()}</Hint>
     </div>
 
@@ -177,7 +230,9 @@
             dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/20"
           onclick={() => pickType(type)}
         >
-          <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400">
+          <div
+            class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400"
+          >
             <Icon class="h-5 w-5" />
           </div>
           <div>
@@ -187,10 +242,11 @@
         </button>
       {/each}
     </div>
-
   {:else}
     <!-- Step 2: Configure -->
-    <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+    <div
+      class="flex items-center gap-3 border-b border-gray-100 px-6 py-4 dark:border-gray-800"
+    >
       <button
         type="button"
         class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -220,13 +276,16 @@
       <div class="grid grid-cols-2 gap-4">
         <!-- Destination project -->
         <div>
-          <label for="dest-project" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+          <label
+            for="dest-project"
+            class="text-md mb-1 block font-medium text-gray-700 dark:text-gray-300"
+          >
             {m.dest_project()}
           </label>
           <select
             id="dest-project"
             bind:value={destProjectId}
-            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
+            class="text-md w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
           >
             <option value="">{m.none_choice()}</option>
             {#each projectsStore.projects as p (p.id)}
@@ -239,13 +298,16 @@
         <!-- Poll interval (hidden for email_api) -->
         {#if selectedType !== 'email_api'}
           <div>
-            <label for="poll-interval" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+            <label
+              for="poll-interval"
+              class="text-md mb-1 block font-medium text-gray-700 dark:text-gray-300"
+            >
               {m.poll_interval()}
             </label>
             <select
               id="poll-interval"
               bind:value={pollIntervalMin}
-              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
+              class="text-md w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
             >
               {#each POLL_INTERVALS as opt (opt.value)}
                 <option value={opt.value}>{opt.label}</option>
@@ -260,7 +322,9 @@
 
       <!-- Test connection -->
       {#if selectedType !== 'email_api'}
-        <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
+        <div
+          class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50"
+        >
           <div class="flex items-center justify-between gap-3">
             <div class="text-md text-gray-600 dark:text-gray-300">
               {#if testStatus === 'idle'}
@@ -268,7 +332,10 @@
               {:else if testStatus === 'testing'}
                 {m.testing_connection()}
               {:else if testStatus === 'ok'}
-                <Feedback class="mt-0 bg-transparent" success="Connection successful" />
+                <Feedback
+                  class="mt-0 bg-transparent"
+                  success="Connection successful"
+                />
               {:else}
                 <Feedback class="mt-0 bg-transparent" error={testError} />
               {/if}
@@ -287,13 +354,11 @@
     </div>
 
     <!-- Footer actions -->
-    <div class="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+    <div
+      class="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4 dark:border-gray-800"
+    >
       <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
-      <Button
-        variant="primary"
-        loading={saving}
-        onclick={handleSave}
-      >
+      <Button variant="primary" loading={saving} onclick={handleSave}>
         {m.save()}
       </Button>
     </div>

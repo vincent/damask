@@ -17,7 +17,13 @@
     onsaved: (def: FieldDefinition) => void
   }
 
-  let { open = $bindable(false), scope, editing = null, onclose, onsaved }: Props = $props()
+  let {
+    open = $bindable(false),
+    scope,
+    editing = null,
+    onclose,
+    onsaved,
+  }: Props = $props()
 
   // Step: 'pick-type' | 'configure'
   let step = $state<'pick-type' | 'configure'>('pick-type')
@@ -71,17 +77,25 @@
     }
   }
 
-  const fieldTypes: { type: FieldType; label: string; description: string }[] = [
-    { type: 'text',    label: m.f_text(),      description: m.f_text_desc() },
-    { type: 'number',  label: m.f_number(),  description: m.f_number_desc() },
-    { type: 'date',    label: m.f_date(),      description: m.f_date_desc() },
-    { type: 'boolean', label: m.f_bool(),  description: m.f_bool_desc() },
-    { type: 'select',  label: m.f_select(),  description: m.f_select_desc() },
-    { type: 'url',     label: m.f_url(),        description: m.f_url_desc() },
-  ]
+  const fieldTypes: { type: FieldType; label: string; description: string }[] =
+    [
+      { type: 'text', label: m.f_text(), description: m.f_text_desc() },
+      { type: 'number', label: m.f_number(), description: m.f_number_desc() },
+      { type: 'date', label: m.f_date(), description: m.f_date_desc() },
+      { type: 'boolean', label: m.f_bool(), description: m.f_bool_desc() },
+      { type: 'select', label: m.f_select(), description: m.f_select_desc() },
+      { type: 'url', label: m.f_url(), description: m.f_url_desc() },
+    ]
 
   function typeIcon(type: FieldType) {
-    return { text: Type, number: Hash, date: Calendar, boolean: ToggleLeft, select: List, url: Link }[type]
+    return {
+      text: Type,
+      number: Hash,
+      date: Calendar,
+      boolean: ToggleLeft,
+      select: List,
+      url: Link,
+    }[type]
   }
 
   function addOption() {
@@ -98,11 +112,20 @@
 
   async function handleSubmit() {
     error = ''
-    if (!name.trim()) { error = m.name_required(); return }
-    if (!generatedKey) { error = m.key_required(); return }
+    if (!name.trim()) {
+      error = m.name_required()
+      return
+    }
+    if (!generatedKey) {
+      error = m.key_required()
+      return
+    }
     if (selectedType === 'select') {
       const cleaned = optionItems.filter((o) => o.trim())
-      if (cleaned.length === 0) { error = m.select_one_required(); return }
+      if (cleaned.length === 0) {
+        error = m.select_one_required()
+        return
+      }
     }
 
     saving = true
@@ -124,9 +147,10 @@
           name: name.trim(),
           key: generatedKey,
           field_type: selectedType,
-          options: selectedType === 'select'
-            ? JSON.stringify(optionItems.filter((o) => o.trim()))
-            : null,
+          options:
+            selectedType === 'select'
+              ? JSON.stringify(optionItems.filter((o) => o.trim()))
+              : null,
           required,
           inherit_from_project: inheritFromProject,
         })
@@ -144,7 +168,11 @@
 <Modal bind:open {onclose}>
   <div class="p-6">
     <h2 class="mb-5 text-base font-semibold text-gray-900 dark:text-gray-100">
-      {editing ? 'Edit field' : step === 'pick-type' ? m.field_type_choose() : m.field_config()}
+      {editing
+        ? 'Edit field'
+        : step === 'pick-type'
+          ? m.field_type_choose()
+          : m.field_config()}
     </h2>
 
     {#if step === 'pick-type'}
@@ -156,16 +184,22 @@
             type="button"
             class="flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-colors
               {selectedType === ft.type
-                ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40'
-                : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
-            onclick={() => { selectedType = ft.type }}
+              ? 'border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40'
+              : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'}"
+            onclick={() => {
+              selectedType = ft.type
+            }}
           >
             <div class="flex items-center">
-              <Icon class="h-5 w-5 me-3 text-indigo-500 dark:text-indigo-400" />
-              <p class="text-md font-medium text-gray-900 dark:text-gray-100">{ft.label}</p>
+              <Icon class="me-3 h-5 w-5 text-indigo-500 dark:text-indigo-400" />
+              <p class="text-md font-medium text-gray-900 dark:text-gray-100">
+                {ft.label}
+              </p>
             </div>
             <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">{ft.description}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {ft.description}
+              </p>
             </div>
           </button>
         {/each}
@@ -173,9 +207,12 @@
 
       <div class="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
-        <Button onclick={() => { step = 'configure' }}>{m.continue()}</Button>
+        <Button
+          onclick={() => {
+            step = 'configure'
+          }}>{m.continue()}</Button
+        >
       </div>
-
     {:else}
       <!-- Configure form -->
       <div class="space-y-4">
@@ -189,13 +226,19 @@
 
         <!-- Generated key (read-only after create) -->
         <div>
-          <label for="field-generated-key" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+          <label
+            for="field-generated-key"
+            class="text-md mb-1 block font-medium text-gray-700 dark:text-gray-300"
+          >
             Key
             {#if editing}
               <span class="ml-1 text-sm text-gray-400">(immutable)</span>
             {/if}
           </label>
-          <div id="field-generated-key" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-md text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div
+            id="field-generated-key"
+            class="text-md rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+          >
             {generatedKey || '—'}
           </div>
         </div>
@@ -203,11 +246,18 @@
         {#if editing}
           <!-- Show field type as read-only -->
           <div>
-            <label for="field-type" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+            <label
+              for="field-type"
+              class="text-md mb-1 block font-medium text-gray-700 dark:text-gray-300"
+            >
               Type <span class="ml-1 text-sm text-gray-400">(immutable)</span>
             </label>
-            <div id="field-type"  class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-md text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-              {fieldTypes.find((f) => f.type === selectedType)?.label ?? selectedType}
+            <div
+              id="field-type"
+              class="text-md rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+            >
+              {fieldTypes.find((f) => f.type === selectedType)?.label ??
+                selectedType}
             </div>
           </div>
         {/if}
@@ -215,22 +265,30 @@
         <!-- Select options -->
         {#if selectedType === 'select'}
           <div>
-            <label for={generatedKey + "-field-select-value"} class="mb-2 block text-md font-medium text-gray-700 dark:text-gray-300">{m.f_options()}</label>
-            <div id={generatedKey + "-field-select-value"} class="space-y-2">
+            <label
+              for={generatedKey + '-field-select-value'}
+              class="text-md mb-2 block font-medium text-gray-700 dark:text-gray-300"
+              >{m.f_options()}</label
+            >
+            <div id={generatedKey + '-field-select-value'} class="space-y-2">
               {#each optionItems as opt, i}
                 <div class="flex items-center gap-2">
                   <input
                     type="text"
                     value={opt}
                     placeholder="Option {i + 1}"
-                    oninput={(e) => updateOption(i, (e.target as HTMLInputElement).value)}
-                    class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 placeholder-gray-400
-                      focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
+                    oninput={(e) =>
+                      updateOption(i, (e.target as HTMLInputElement).value)}
+                    class="text-md flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400
+                      focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none
                       dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500
                       dark:focus:border-indigo-500 dark:focus:ring-indigo-900"
                   />
                   {#if optionItems.length > 1}
-                    <ButtonDelete title={m.delete()} onclick={() => removeOption(i)} />
+                    <ButtonDelete
+                      title={m.delete()}
+                      onclick={() => removeOption(i)}
+                    />
                   {/if}
                 </div>
               {/each}
@@ -252,7 +310,9 @@
             bind:checked={required}
             class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
           />
-          <span class="text-md text-gray-700 dark:text-gray-300">{m.required()}</span>
+          <span class="text-md text-gray-700 dark:text-gray-300"
+            >{m.required()}</span
+          >
         </label>
 
         <!-- Inherit from project (only for asset scope) -->
@@ -265,7 +325,9 @@
             />
             <span class="text-md text-gray-700 dark:text-gray-300">
               {m.f_inherit_default_project()}
-              <span class="ml-1 text-sm text-gray-400">{m.f_inherit_default_project_new()}</span>
+              <span class="ml-1 text-sm text-gray-400"
+                >{m.f_inherit_default_project_new()}</span
+              >
             </span>
           </label>
         {/if}
@@ -275,7 +337,13 @@
 
       <div class="mt-5 flex justify-between gap-2">
         {#if !editing}
-          <Button variant="secondary" onclick={() => { step = 'pick-type'; error = '' }}>{m.back()}</Button>
+          <Button
+            variant="secondary"
+            onclick={() => {
+              step = 'pick-type'
+              error = ''
+            }}>{m.back()}</Button
+          >
         {:else}
           <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
         {/if}

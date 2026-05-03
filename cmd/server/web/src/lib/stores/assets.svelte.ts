@@ -1,4 +1,9 @@
-import { assetApi, mimeCategory, openThumbnailEvents, type Asset } from '$lib/api'
+import {
+  assetApi,
+  mimeCategory,
+  openThumbnailEvents,
+  type Asset,
+} from '$lib/api'
 import type { FieldFilter } from '$lib/api/models'
 import { navigationStore } from './navigation.svelte'
 import { uploadsStore } from './uploads.svelte'
@@ -35,7 +40,14 @@ const SSE_MAX_ATTEMPTS = 10
 // Maps assetId -> uploadId for in-flight thumbnail waits
 const pendingThumbnails = new Map<string, string>()
 
-export const sseEvents = $state<{ last: { type: string; asset_id: string; thumbnail_key: string; job_id?: string } | null }>({ last: null })
+export const sseEvents = $state<{
+  last: {
+    type: string
+    asset_id: string
+    thumbnail_key: string
+    job_id?: string
+  } | null
+}>({ last: null })
 
 function patchAsset(assetId: string, patch: Partial<Asset>) {
   assets = assets.map((a) => (a.id === assetId ? { ...a, ...patch } : a))
@@ -43,7 +55,9 @@ function patchAsset(assetId: string, patch: Partial<Asset>) {
 
 function reloadAssetResources(assetId: string) {
   const ts = Date.now()
-  const els = document.querySelectorAll<HTMLElement>(`[data-asset-dynamic-resource="${assetId}"]`)
+  const els = document.querySelectorAll<HTMLElement>(
+    `[data-asset-dynamic-resource="${assetId}"]`
+  )
   const mediaToReload = new Set<HTMLMediaElement>()
 
   for (const el of els) {
@@ -51,8 +65,8 @@ function reloadAssetResources(assetId: string) {
     if (tag === 'img' || tag === 'iframe') {
       const current = (el as HTMLImageElement | HTMLIFrameElement).src
       const url = new URL(current, window.location.href)
-      url.searchParams.set('t', String(ts));
-      (el as HTMLImageElement | HTMLIFrameElement).src = url.toString()
+      url.searchParams.set('t', String(ts))
+      ;(el as HTMLImageElement | HTMLIFrameElement).src = url.toString()
     } else if (tag === 'source') {
       const current = (el as HTMLSourceElement).src
       const url = new URL(current, window.location.href)
@@ -76,7 +90,12 @@ function connectSSE() {
 
   sseSource.addEventListener('message', (e: MessageEvent) => {
     try {
-      const event = JSON.parse(e.data) as { type: string; asset_id: string; thumbnail_key: string; job_id?: string }
+      const event = JSON.parse(e.data) as {
+        type: string
+        asset_id: string
+        thumbnail_key: string
+        job_id?: string
+      }
       sseEvents.last = event
       sseReconnectDelay = 1000
       sseReconnectAttempts = 0
@@ -166,19 +185,43 @@ async function load(reset = false) {
 }
 
 export const assetsStore = {
-  get assets() { return assets },
-  get nextCursor() { return nextCursor },
-  get loading() { return loading },
-  get initialLoad() { return initialLoad },
-  get stale() { return stale },
-  get query() { return query },
-  set query(v: string) { query = v },
-  get activeTags() { return activeTags },
-  get fieldFilters() { return fieldFilters },
-  get assetsByCategory() { return assetsByCategory },
-  get resetDone() { return resetDone },
+  get assets() {
+    return assets
+  },
+  get nextCursor() {
+    return nextCursor
+  },
+  get loading() {
+    return loading
+  },
+  get initialLoad() {
+    return initialLoad
+  },
+  get stale() {
+    return stale
+  },
+  get query() {
+    return query
+  },
+  set query(v: string) {
+    query = v
+  },
+  get activeTags() {
+    return activeTags
+  },
+  get fieldFilters() {
+    return fieldFilters
+  },
+  get assetsByCategory() {
+    return assetsByCategory
+  },
+  get resetDone() {
+    return resetDone
+  },
 
-  invalidate() { load(true) },
+  invalidate() {
+    load(true)
+  },
 
   load,
 
@@ -217,12 +260,14 @@ export const assetsStore = {
     assets = assets.filter((a) => a.id !== id)
   },
 
-  upload(files: File[], projectId: string|null, folderId: string|null) {
+  upload(files: File[], projectId: string | null, folderId: string | null) {
     for (const file of files) {
       const id = crypto.randomUUID()
       uploadsStore.add({ id, file, progress: 0, status: 'uploading' })
       assetApi
-        .upload(file, projectId, folderId, (pct) => uploadsStore.update(id, { progress: pct }))
+        .upload(file, projectId, folderId, (pct) =>
+          uploadsStore.update(id, { progress: pct })
+        )
         .then((asset) => {
           assetsStore.prepend(asset)
           uploadsStore.update(id, { status: 'processing', asset })
@@ -244,7 +289,9 @@ export const assetsStore = {
             }
           }, 30_000)
         })
-        .catch((err: Error) => uploadsStore.update(id, { status: 'error', error: err.message }))
+        .catch((err: Error) =>
+          uploadsStore.update(id, { status: 'error', error: err.message })
+        )
     }
   },
 
@@ -261,14 +308,16 @@ export const assetsStore = {
   },
 
   addTag(assetId: string, tag: string) {
-    assets = assets.map(a => a.id === assetId
-      ? { ...a, tags: [...(a.tags ?? []), tag] }
-      : a)
+    assets = assets.map((a) =>
+      a.id === assetId ? { ...a, tags: [...(a.tags ?? []), tag] } : a
+    )
   },
 
   removeTag(assetId: string, tag: string) {
-    assets = assets.map(a => a.id === assetId
-      ? { ...a, tags: (a.tags ?? []).filter(t => t !== tag) }
-      : a)
+    assets = assets.map((a) =>
+      a.id === assetId
+        ? { ...a, tags: (a.tags ?? []).filter((t) => t !== tag) }
+        : a
+    )
   },
 }

@@ -280,7 +280,14 @@ export interface UpdateShareParams {
 
 // ---- Ingress ----
 
-export type IngressSourceType = 'email_api' | 'imap' | 'sftp' | 'dav' | 's3' | 'gdrive' | 'canva'
+export type IngressSourceType =
+  | 'email_api'
+  | 'imap'
+  | 'sftp'
+  | 'dav'
+  | 's3'
+  | 'gdrive'
+  | 'canva'
 
 export interface IngressSource {
   id: string
@@ -350,7 +357,13 @@ export interface CreateIngressRuleParams {
 
 // ---- Custom Fields ----
 
-export type FieldType = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'url'
+export type FieldType =
+  | 'text'
+  | 'number'
+  | 'date'
+  | 'boolean'
+  | 'select'
+  | 'url'
 export type FieldScope = 'asset' | 'project'
 
 export interface FieldDefinition {
@@ -360,7 +373,7 @@ export interface FieldDefinition {
   name: string
   key: string
   field_type: FieldType
-  options: string | null  // JSON array string for select type
+  options: string | null // JSON array string for select type
   required: boolean
   position: number
   inherit_from_project: boolean
@@ -387,7 +400,14 @@ export interface AssetFieldsResponse {
   fields: AssetFieldValue[]
 }
 
-export type FieldFilterOp = 'eq' | 'lt' | 'lte' | 'gt' | 'gte' | 'contains' | 'starts_with'
+export type FieldFilterOp =
+  | 'eq'
+  | 'lt'
+  | 'lte'
+  | 'gt'
+  | 'gte'
+  | 'contains'
+  | 'starts_with'
 
 export interface FieldFilter {
   key: string

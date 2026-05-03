@@ -32,7 +32,12 @@
   }
 
   async function handleDelete(source: IngressSource) {
-    if (!confirm(`Delete "${source.label}"? This will also remove all its log entries.`)) return
+    if (
+      !confirm(
+        `Delete "${source.label}"? This will also remove all its log entries.`
+      )
+    )
+      return
     const ok = await ingressStore.deleteSource(source.id)
     if (ok && detailSource?.id === source.id) detailSource = null
   }
@@ -48,21 +53,22 @@
 </svelte:head>
 
 <div class="flex flex-1 flex-col overflow-hidden">
-  <PageHeader
-    title={m.ingress_sources()}
-    description={m.ingress_description()}
-  >
-    <Button variant="primary" onclick={() => { showAddModal = true }}>
+  <PageHeader title={m.ingress_sources()} description={m.ingress_description()}>
+    <Button
+      variant="primary"
+      onclick={() => {
+        showAddModal = true
+      }}
+    >
       {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
       {m.add_ingress_source()}
     </Button>
   </PageHeader>
   <div class="flex overflow-y-auto">
     <!-- Source list -->
-    <main class="flex-1 mx-auto mb-20 px-6 py-6">
+    <main class="mx-auto mb-20 flex-1 px-6 py-6">
       {#if ingressStore.loadingSources}
         <GridSkeleton lines={4} />
-
       {:else if ingressStore.sources.length === 0}
         <EmptyState
           title={m.no_sources_yet()}
@@ -72,19 +78,27 @@
             <Rss class="h-10 w-10" />
           {/snippet}
           {#snippet action()}
-            <Button variant="primary" onclick={() => { showAddModal = true }}>
+            <Button
+              variant="primary"
+              onclick={() => {
+                showAddModal = true
+              }}
+            >
               {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
               {m.add_first_ingress_source()}
             </Button>
           {/snippet}
         </EmptyState>
-
       {:else}
         <div class="space-y-3">
           {#each ingressStore.sources as source (source.id)}
             <button
               type="button"
-              class="w-full text-left focus:outline-none {!detailSource ? '' : (detailSource != source) ? 'opacity-60' : ''}"
+              class="w-full text-left focus:outline-none {!detailSource
+                ? ''
+                : detailSource != source
+                  ? 'opacity-60'
+                  : ''}"
             >
               <IngressSourceCard
                 {source}
@@ -101,8 +115,12 @@
     {#if detailSource}
       <SourceDetailPanel
         source={detailSource}
-        onclose={() => { detailSource = null }}
-        onupdated={(s) => { detailSource = s }}
+        onclose={() => {
+          detailSource = null
+        }}
+        onupdated={(s) => {
+          detailSource = s
+        }}
       />
     {/if}
   </div>
@@ -112,6 +130,8 @@
   <AddSourceModal
     bind:open={showAddModal}
     onadded={handleAdded}
-    onclose={() => { showAddModal = false }}
+    onclose={() => {
+      showAddModal = false
+    }}
   />
 {/if}

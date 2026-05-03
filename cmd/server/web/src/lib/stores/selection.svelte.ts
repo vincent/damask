@@ -4,19 +4,27 @@ let selectedIds = $state(new Set<string>())
 let lastSelectedIndex = $state(-1)
 
 export const selectionStore = {
-  get selectedIds() { return selectedIds },
-  get lastSelectedIndex() { return lastSelectedIndex },
+  get selectedIds() {
+    return selectedIds
+  },
+  get lastSelectedIndex() {
+    return lastSelectedIndex
+  },
 
   handleCardClick(
     asset: Asset,
     index: number,
     assets: Asset[],
     event: MouseEvent,
-    isEditor: boolean,
+    isEditor: boolean
   ): boolean {
     if (!isEditor) return false
 
-    if (event.shiftKey && lastSelectedIndex >= 0 && lastSelectedIndex !== index) {
+    if (
+      event.shiftKey &&
+      lastSelectedIndex >= 0 &&
+      lastSelectedIndex !== index
+    ) {
       const next = new Set(selectedIds)
       const lo = Math.min(lastSelectedIndex, index)
       const hi = Math.max(lastSelectedIndex, index)

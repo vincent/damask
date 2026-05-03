@@ -21,10 +21,17 @@
   let { selectedIds, projects, ondone, onclear }: Props = $props()
 
   function promoteToStack() {
-    const resolved = [...selectedIds].map(id => assetsStore.assets.find(a => a.id === id))
-    const missing = resolved.filter(a => a == null).length
-    if (missing > 0) console.warn(`promoteToStack: ${missing} selected asset(s) not in loaded list — skipped`)
-    const stackAssets = resolved.filter(a => a != null).map(a => assetToStack(a, assetApi.thumbUrl(a.id)))
+    const resolved = [...selectedIds].map((id) =>
+      assetsStore.assets.find((a) => a.id === id)
+    )
+    const missing = resolved.filter((a) => a == null).length
+    if (missing > 0)
+      console.warn(
+        `promoteToStack: ${missing} selected asset(s) not in loaded list — skipped`
+      )
+    const stackAssets = resolved
+      .filter((a) => a != null)
+      .map((a) => assetToStack(a, assetApi.thumbUrl(a.id)))
     stackStore.fromSelection(stackAssets)
     onclear()
   }
@@ -53,10 +60,20 @@
     try {
       const ids = [...selectedIds]
       const beforeProjectIds = new Map(
-        ids.map(id => [id, assetsStore.assets.find(a => a.id === id)?.project_id ?? null])
+        ids.map((id) => [
+          id,
+          assetsStore.assets.find((a) => a.id === id)?.project_id ?? null,
+        ])
       )
-      const afterProject = projects.find(p => p.id === projectId) ?? null
-      await undoStore.execute(new BulkAssignAssetToProject(ids, beforeProjectIds, projectId ?? '', afterProject?.name ?? null))
+      const afterProject = projects.find((p) => p.id === projectId) ?? null
+      await undoStore.execute(
+        new BulkAssignAssetToProject(
+          ids,
+          beforeProjectIds,
+          projectId ?? '',
+          afterProject?.name ?? null
+        )
+      )
       ondone()
     } finally {
       activePanel = null
@@ -79,8 +96,12 @@
 
 {#if selectedIds.size > 0}
   <div class="fixed bottom-10 left-1/2 z-30 -translate-x-1/2">
-    <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-      <span class="text-md font-medium text-gray-700 dark:text-gray-300">{selectedIds.size} selected</span>
+    <div
+      class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+    >
+      <span class="text-md font-medium text-gray-700 dark:text-gray-300"
+        >{selectedIds.size} selected</span
+      >
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
       <!-- Tag -->
@@ -89,7 +110,9 @@
           variant="ghost"
           size="sm"
           disabled={busy}
-          onclick={() => { activePanel = activePanel === 'tags' ? null : 'tags' }}
+          onclick={() => {
+            activePanel = activePanel === 'tags' ? null : 'tags'
+          }}
         >
           {#snippet icon()}<Tag class="h-4 w-4" />{/snippet}
           {m.tag()}
@@ -97,14 +120,19 @@
         {#if activePanel === 'tags'}
           <form
             class="absolute bottom-full mb-2 flex gap-1"
-            onsubmit={(e) => { e.preventDefault(); bulkTag() }}
+            onsubmit={(e) => {
+              e.preventDefault()
+              bulkTag()
+            }}
           >
             <input
               bind:value={tagInput}
               placeholder={m.tag_name()}
-              class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-md shadow-lg focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              class="text-md rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 shadow-lg focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
-            <Button type="submit" variant="primary" size="sm" disabled={busy}>{m.add()}</Button>
+            <Button type="submit" variant="primary" size="sm" disabled={busy}
+              >{m.add()}</Button
+            >
           </form>
         {/if}
       </div>
@@ -115,23 +143,28 @@
           variant="ghost"
           size="sm"
           disabled={busy}
-          onclick={() => { activePanel = activePanel === 'projects' ? null : 'projects' }}
+          onclick={() => {
+            activePanel = activePanel === 'projects' ? null : 'projects'
+          }}
         >
           {#snippet icon()}<SquareArrowRightExit class="h-4 w-4" />{/snippet}
           {m.project()}
         </Button>
         {#if activePanel === 'projects'}
-          <div class="absolute bottom-full mb-2 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <div
+            class="absolute bottom-full mb-2 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+          >
             <button
-              class="flex w-full items-center gap-2 px-3 py-1.5 text-md text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+              class="text-md flex w-full items-center gap-2 px-3 py-1.5 text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
               onclick={() => bulkProject(null)}
             >
-              <span class="h-2.5 w-2.5 rounded-full border border-gray-300"></span>
+              <span class="h-2.5 w-2.5 rounded-full border border-gray-300"
+              ></span>
               {m.none()}
             </button>
             {#each projects as p}
               <button
-                class="flex w-full items-center gap-2 px-3 py-1.5 text-md text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                class="text-md flex w-full items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                 onclick={() => bulkProject(p.id)}
               >
                 <span
@@ -154,7 +187,12 @@
 
       <div class="h-5 w-px bg-gray-200 dark:bg-gray-700"></div>
 
-      <Button variant="ghost" size="sm" disabled={busy || stackStore.active} onclick={promoteToStack}>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={busy || stackStore.active}
+        onclick={promoteToStack}
+      >
         {#snippet icon()}<Layers class="h-4 w-4" />{/snippet}
         {m.stack_create()} ({selectedIds.size}) →
       </Button>

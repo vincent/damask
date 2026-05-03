@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { Share, CreateShareParams, UpdateShareParams } from './models'
+import type { CreateShareParams, Share, UpdateShareParams } from './models'
 
 export const shareApi = {
   /** GET /api/v1/shares — list all shares in the workspace. */

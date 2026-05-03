@@ -8,7 +8,12 @@
     children: Snippet
   }
 
-  let { open = $bindable(false), onclose, side = 'center', children }: Props = $props()
+  let {
+    open = $bindable(false),
+    onclose,
+    side = 'center',
+    children,
+  }: Props = $props()
 
   function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) {
@@ -39,8 +44,8 @@
     <div
       class="relative bg-white shadow-xl dark:bg-gray-900
         {side === 'right'
-          ? 'h-full w-full max-w-xl overflow-y-auto'
-          : 'max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl'}"
+        ? 'h-full w-full max-w-xl overflow-y-auto'
+        : 'max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl'}"
     >
       {@render children()}
     </div>

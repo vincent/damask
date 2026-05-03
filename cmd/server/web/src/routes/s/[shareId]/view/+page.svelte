@@ -8,7 +8,10 @@
   import Input from '$lib/components/ui/Input.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SharedAsset from '$lib/components/SharedAsset.svelte'
-  import { publicViewStore as store, TYPES_BACKGROUNDS } from '$lib/stores/publicView.svelte'
+  import {
+    publicViewStore as store,
+    TYPES_BACKGROUNDS,
+  } from '$lib/stores/publicView.svelte'
   import PublicAssetCard from '$lib/components/PublicAssetCard.svelte'
   import PublicFooter from '$lib/components/PublicFooter.svelte'
   import AssetIcon from '$lib/components/AssetIcon.svelte'
@@ -45,13 +48,16 @@
 
   function avatarColor(name: string) {
     let hash = 0
-    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffffff
+    for (let i = 0; i < name.length; i++)
+      hash = (hash * 31 + name.charCodeAt(i)) & 0xffffff
     return avatarColors[hash % avatarColors.length]
   }
 
   onMount(async () => {
     await store.init(shareId)
-    store.loadGallery(shareId, () => goto(`/s/${shareId}`, { replaceState: true }))
+    store.loadGallery(shareId, () =>
+      goto(`/s/${shareId}`, { replaceState: true })
+    )
   })
 
   function handleWindowKeydown(e: KeyboardEvent) {
@@ -69,34 +75,62 @@
 </svelte:head>
 
 <div class="damask-texture relative flex min-h-screen flex-col">
-
   <!-- Header -->
-  <header class="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+  <header
+    class="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900"
+  >
     <div class="mx-auto flex max-w-6xl items-center justify-between">
       <div>
         {#if store.share}
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{store.share.label}</h1>
-          <div class="mt-0.5 flex items-center gap-2 text-md text-gray-500 dark:text-gray-400">
-            <span>{store.assets.length} asset{store.assets.length === 1 ? '' : 's'}</span>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {store.share.label}
+          </h1>
+          <div
+            class="text-md mt-0.5 flex items-center gap-2 text-gray-500 dark:text-gray-400"
+          >
+            <span
+              >{store.assets.length} asset{store.assets.length === 1
+                ? ''
+                : 's'}</span
+            >
             {#if store.expiryWarning}
               <span class="text-gray-300 dark:text-gray-600">•</span>
-              <span class="flex items-center gap-1 text-amber-500 dark:text-amber-400">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" stroke-linecap="round" />
+              <span
+                class="flex items-center gap-1 text-amber-500 dark:text-amber-400"
+              >
+                <svg
+                  class="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10" /><path
+                    d="M12 6v6l4 2"
+                    stroke-linecap="round"
+                  />
                 </svg>
                 {store.expiryWarning}
               </span>
             {/if}
           </div>
         {:else if store.loadingGallery}
-          <div class="h-5 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-          <div class="mt-1 h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+          <div
+            class="h-5 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+          ></div>
+          <div
+            class="mt-1 h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+          ></div>
         {/if}
       </div>
 
       <div class="flex items-center gap-2">
         {#if store.share?.allow_download && store.assets.length > 0}
-          <Button variant="secondary" onclick={() => store.downloadAll(shareId)} size="md">
+          <Button
+            variant="secondary"
+            onclick={() => store.downloadAll(shareId)}
+            size="md"
+          >
             {#snippet icon()}
               <Download class="h-4 w-4" />
             {/snippet}
@@ -136,7 +170,7 @@
     {/if}
   </main>
 
-  <PublicFooter/>
+  <PublicFooter />
 </div>
 
 <!-- Review Panel (S12) -->
@@ -144,14 +178,15 @@
   {@const category = mimeCategory(store.selectedAsset.mime_type)}
   <!-- Backdrop -->
   <div
-    class="fixed hidden md:grid md:w-[75%] inset-0 z-40 bg-black/40 backdrop-blur-sm grid place-items-center p-40"
+    class="fixed inset-0 z-40 grid hidden place-items-center bg-black/40 p-40 backdrop-blur-sm md:grid md:w-[75%]"
     role="button"
     tabindex="-1"
     onclick={store.closePanel}
     onkeydown={(e) => e.key === 'Escape' && store.closePanel()}
   >
     <SharedAsset
-      {category} asset={store.selectedAsset}
+      {category}
+      asset={store.selectedAsset}
       thumbUrl={store.thumbUrl(shareId, store.selectedAsset.id)}
       assetUrl={store.fileUrlWithToken(shareId, store.selectedAsset.id)}
     />
@@ -160,15 +195,20 @@
   <!-- Panel -->
   <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
   <aside
-    class="fixed w-full md:w-[25%] max-w-full md:max-w-2xl inset-y-0 right-0 z-50 flex flex-col bg-white shadow-2xl dark:bg-gray-900"
+    class="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col bg-white shadow-2xl md:w-[25%] md:max-w-2xl dark:bg-gray-900"
     role="dialog"
     aria-label="Asset review"
   >
     <!-- Panel header -->
-    <div class="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+    <div
+      class="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800"
+    >
       <AssetIcon {category} />
       <div class="min-w-0 flex-1">
-        <p class="truncate text-md font-semibold text-gray-900 dark:text-gray-100" title={store.selectedAsset.original_filename}>
+        <p
+          class="text-md truncate font-semibold text-gray-900 dark:text-gray-100"
+          title={store.selectedAsset.original_filename}
+        >
           {store.selectedAsset.original_filename}
         </p>
         <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -186,16 +226,20 @@
             <Download class="h-4 w-4" />
           </a>
         {/if}
-        
+
         <Close close={store.closePanel} />
       </div>
     </div>
 
     <!-- Mobile Preview area -->
-    <div class="block md:hidden flex-shrink-0 {TYPES_BACKGROUNDS[category]}" style="height: 220px">
+    <div
+      class="block flex-shrink-0 md:hidden {TYPES_BACKGROUNDS[category]}"
+      style="height: 220px"
+    >
       <div class="flex h-full items-center justify-center">
         <SharedAsset
-          {category} asset={store.selectedAsset}
+          {category}
+          asset={store.selectedAsset}
           thumbUrl={store.thumbUrl(shareId, store.selectedAsset.id)}
           assetUrl={store.fileUrlWithToken(shareId, store.selectedAsset.id)}
         />
@@ -208,9 +252,13 @@
         <!-- Comments header -->
         <div class="flex items-center gap-2 px-4 py-3">
           <MessageSquare class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-          <span class="text-md font-semibold text-gray-900 dark:text-gray-100">Comments</span>
+          <span class="text-md font-semibold text-gray-900 dark:text-gray-100"
+            >Comments</span
+          >
           {#if store.comments.length > 0}
-            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <span
+              class="rounded-full bg-gray-100 px-2 py-0.5 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+            >
               {store.comments.length}
             </span>
           {/if}
@@ -223,22 +271,35 @@
               <Spinner size="sm" />
             </div>
           {:else if store.comments.length === 0}
-            <p class="py-4 text-center text-md text-gray-400 dark:text-gray-600">{m.comment_first()}</p>
+            <p
+              class="text-md py-4 text-center text-gray-400 dark:text-gray-600"
+            >
+              {m.comment_first()}
+            </p>
           {:else}
             <div class="flex flex-col gap-4 pb-4">
               {#each store.comments as comment}
                 <div class="flex gap-3">
                   <div
-                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold {avatarColor(comment.author_name)}"
+                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold {avatarColor(
+                      comment.author_name
+                    )}"
                   >
                     {initials(comment.author_name)}
                   </div>
                   <div class="flex-1">
                     <div class="flex items-center gap-2">
-                      <span class="text-md font-medium text-gray-900 dark:text-gray-100">{comment.author_name}</span>
-                      <span class="text-sm text-gray-400">{formatDateTime(comment.created_at)}</span>
+                      <span
+                        class="text-md font-medium text-gray-900 dark:text-gray-100"
+                        >{comment.author_name}</span
+                      >
+                      <span class="text-sm text-gray-400"
+                        >{formatDateTime(comment.created_at)}</span
+                      >
                     </div>
-                    <div class="mt-1 rounded-xl rounded-tl-sm bg-gray-50 px-3 py-2 text-md text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                    <div
+                      class="text-md mt-1 rounded-xl rounded-tl-sm bg-gray-50 px-3 py-2 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    >
                       {comment.body}
                     </div>
                   </div>
@@ -250,14 +311,23 @@
 
         <!-- Comment form -->
         <div class="border-t border-gray-200 px-4 py-4 dark:border-gray-800">
-          <p class="mb-3 text-md font-medium text-gray-700 dark:text-gray-300">{m.add_comment()}</p>
+          <p class="text-md mb-3 font-medium text-gray-700 dark:text-gray-300">
+            {m.add_comment()}
+          </p>
 
           {#if store.commentPosted}
-            <div class="rounded-lg bg-emerald-50 px-3 py-2 text-md text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+            <div
+              class="text-md rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+            >
               {m.comment_posted()}
             </div>
           {:else}
-            <form onsubmit={(e) => { e.preventDefault(); store.postComment(shareId) }}>
+            <form
+              onsubmit={(e) => {
+                e.preventDefault()
+                store.postComment(shareId)
+              }}
+            >
               <div class="mb-2 grid grid-cols-2 gap-2">
                 <Input
                   placeholder={m.your_name()}
@@ -275,7 +345,10 @@
                 />
               </div>
               <div class="mb-3">
-                <label for="comment-body" class="mb-1 block text-md font-medium text-gray-700 dark:text-gray-300">
+                <label
+                  for="comment-body"
+                  class="text-md mb-1 block font-medium text-gray-700 dark:text-gray-300"
+                >
                   {m.message()} *
                 </label>
                 <textarea
@@ -283,12 +356,19 @@
                   placeholder={m.add_feedback()}
                   id="comment-body"
                   rows="3"
-                  class="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-md text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {store.commentBodyError ? 'border-red-400 focus:ring-red-200 dark:border-red-500' : ''}"
+                  class="text-md w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {store.commentBodyError
+                    ? 'border-red-400 focus:ring-red-200 dark:border-red-500'
+                    : ''}"
                 ></textarea>
                 <Feedback error={store.commentBodyError} />
               </div>
               <div class="flex justify-end">
-                <Button type="submit" variant="primary" loading={store.postingComment} size="md">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={store.postingComment}
+                  size="md"
+                >
                   {#snippet icon()}
                     {#if !store.postingComment}
                       <Send class="h-3.5 w-3.5" />

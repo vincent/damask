@@ -16,7 +16,15 @@ export const projectApi = {
     }),
 
   /** PUT /api/v1/projects/:id (editor+) — update project metadata. */
-  update: (id: string, data: { name?: string; description?: string; color?: string; cover_asset_id?: string }) =>
+  update: (
+    id: string,
+    data: {
+      name?: string
+      description?: string
+      color?: string
+      cover_asset_id?: string
+    }
+  ) =>
     apiFetch<Project>(`/api/v1/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

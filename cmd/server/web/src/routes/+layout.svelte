@@ -12,16 +12,25 @@
   let { children, data }: { children: any; data: LayoutData } = $props()
 
   // Referencing the store ensures the module loads and initDispatcher fires on first value.
-  $keymap;
+  $keymap
 
   useShortcuts({
-    'history.undo': () => { undoStore.undo() },
-    'history.redo': () => { undoStore.redo() },
-  });
+    'history.undo': () => {
+      undoStore.undo()
+    },
+    'history.redo': () => {
+      undoStore.redo()
+    },
+  })
 
   $effect.pre(() => {
     if (data?.user && data?.workspace && data?.role) {
-      authStore.login(data.user, data.workspace, data.role, data.totalAssetCount ?? 0)
+      authStore.login(
+        data.user,
+        data.workspace,
+        data.role,
+        data.totalAssetCount ?? 0
+      )
     }
     configStore.load()
   })

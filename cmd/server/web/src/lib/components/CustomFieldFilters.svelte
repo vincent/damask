@@ -35,9 +35,15 @@
     for (const def of definitions) {
       if (def.key in local) continue
       switch (def.field_type) {
-        case 'number': local[def.key] = { min: '', max: '' }; break
-        case 'date':   local[def.key] = { from: '', to: '' }; break
-        default:       local[def.key] = ''; break
+        case 'number':
+          local[def.key] = { min: '', max: '' }
+          break
+        case 'date':
+          local[def.key] = { from: '', to: '' }
+          break
+        default:
+          local[def.key] = ''
+          break
       }
     }
   })
@@ -57,8 +63,10 @@
         }
         case 'number': {
           const { min, max } = v as { min: string; max: string }
-          if (min.trim()) filters.push({ key: def.key, op: 'gte', value: min.trim() })
-          if (max.trim()) filters.push({ key: def.key, op: 'lte', value: max.trim() })
+          if (min.trim())
+            filters.push({ key: def.key, op: 'gte', value: min.trim() })
+          if (max.trim())
+            filters.push({ key: def.key, op: 'lte', value: max.trim() })
           break
         }
         case 'date': {
@@ -69,8 +77,10 @@
         }
         case 'boolean': {
           const s = v as string
-          if (s === 'true') filters.push({ key: def.key, op: 'eq', value: 'true' })
-          else if (s === 'false') filters.push({ key: def.key, op: 'eq', value: 'false' })
+          if (s === 'true')
+            filters.push({ key: def.key, op: 'eq', value: 'true' })
+          else if (s === 'false')
+            filters.push({ key: def.key, op: 'eq', value: 'false' })
           break
         }
         case 'select': {
@@ -93,11 +103,22 @@
     const def = definitions.find((d) => d.key === key)
     if (!def) return
     switch (def.field_type) {
-      case 'text': case 'url': local[key] = ''; break
-      case 'number': local[key] = { min: '', max: '' }; break
-      case 'date': local[key] = { from: '', to: '' }; break
-      case 'boolean': local[key] = ''; break
-      case 'select': local[key] = ''; break
+      case 'text':
+      case 'url':
+        local[key] = ''
+        break
+      case 'number':
+        local[key] = { min: '', max: '' }
+        break
+      case 'date':
+        local[key] = { from: '', to: '' }
+        break
+      case 'boolean':
+        local[key] = ''
+        break
+      case 'select':
+        local[key] = ''
+        break
     }
     emit()
   }
@@ -106,7 +127,15 @@
   function chipLabel(f: FieldFilter): string {
     const def = definitions.find((d) => d.key === f.key)
     const name = def?.name ?? f.key
-    const opLabels: Record<string, string> = { eq: '=', lt: '<', lte: '≤', gt: '>', gte: '≥', contains: '~', starts_with: '^' }
+    const opLabels: Record<string, string> = {
+      eq: '=',
+      lt: '<',
+      lte: '≤',
+      gt: '>',
+      gte: '≥',
+      contains: '~',
+      starts_with: '^',
+    }
     return `${name} ${opLabels[f.op] ?? f.op} ${f.value}`
   }
 
@@ -114,19 +143,30 @@
     clearField(f.key)
   }
 
-  const activeDefinitions = $derived(definitions.filter((d) => !d.deleted_at && !d.key.startsWith('_exif_')))
-  const exifDefinitions = $derived(definitions.filter((d) => !d.deleted_at && d.key.startsWith('_exif_')))
+  const activeDefinitions = $derived(
+    definitions.filter((d) => !d.deleted_at && !d.key.startsWith('_exif_'))
+  )
+  const exifDefinitions = $derived(
+    definitions.filter((d) => !d.deleted_at && d.key.startsWith('_exif_'))
+  )
   const hasFilters = $derived(activeFilters.length > 0)
 </script>
 
 {#if activeDefinitions.length > 0 || exifDefinitions.length > 0}
-  <div class="border-t border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
-
+  <div
+    class="border-t border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+  >
     <!-- Active filter chips -->
     {#if hasFilters}
-      <div class="flex flex-wrap items-center gap-1.5 px-6 py-2 border-b border-gray-100 dark:border-gray-800">
+      <div
+        class="flex flex-wrap items-center gap-1.5 border-b border-gray-100 px-6 py-2 dark:border-gray-800"
+      >
         {#each activeFilters as f}
-          <Chip label={chipLabel(f)} onremove={() => removeChip(f)} color="#6366f1" />
+          <Chip
+            label={chipLabel(f)}
+            onremove={() => removeChip(f)}
+            color="#6366f1"
+          />
         {/each}
         <button
           class="ml-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -143,25 +183,36 @@
     {#if activeDefinitions.length > 0}
       <div class="flex flex-wrap items-end gap-x-6 gap-y-3 px-6 py-3">
         {#each activeDefinitions as def}
-          <FieldFilterInput {def} {local} onchange={emit} ondebouncedchange={debouncedEmit} />
+          <FieldFilterInput
+            {def}
+            {local}
+            onchange={emit}
+            ondebouncedchange={debouncedEmit}
+          />
         {/each}
 
         <!-- EXIF fields (collapsed by default) -->
         {#if exifDefinitions.length > 0}
-            {#if !showExif}
-              <button
-                class="flex items-center gap-1 pb-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                onclick={() => { showExif = !showExif }}
-              >
-                {m.exif_fields()}
-              </button>
-            {:else}
-                {#each exifDefinitions as def}
-                  <FieldFilterInput {def} {local} onchange={emit} ondebouncedchange={debouncedEmit} />
-                {/each}
-            {/if}
+          {#if !showExif}
+            <button
+              class="flex items-center gap-1 pb-1 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              onclick={() => {
+                showExif = !showExif
+              }}
+            >
+              {m.exif_fields()}
+            </button>
+          {:else}
+            {#each exifDefinitions as def}
+              <FieldFilterInput
+                {def}
+                {local}
+                onchange={emit}
+                ondebouncedchange={debouncedEmit}
+              />
+            {/each}
+          {/if}
         {/if}
-
       </div>
     {/if}
   </div>

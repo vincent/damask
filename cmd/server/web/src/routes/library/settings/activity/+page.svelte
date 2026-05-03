@@ -25,7 +25,8 @@
 
   const typesParam: Record<string, string> = {
     uploads: 'asset_created',
-    changes: 'asset_renamed,asset_moved,asset_tagged,asset_untagged,asset_field_set,asset_field_cleared',
+    changes:
+      'asset_renamed,asset_moved,asset_tagged,asset_untagged,asset_field_set,asset_field_cleared',
     shares: 'asset_shared,asset_share_revoked',
   }
 
@@ -68,8 +69,11 @@
       events = [...events, ...res.events]
       nextCursor = res.next_cursor
       hasMore = res.has_more
-    } catch { /* silently ignore */ }
-    finally { loadingMore = false }
+    } catch {
+      /* silently ignore */
+    } finally {
+      loadingMore = false
+    }
   }
 
   const csvUrl = $derived(activityApi.exportCSV())
@@ -88,15 +92,28 @@
   </PageHeader>
 
   <!-- Filter bar -->
-  <div class="flex flex-shrink-0 gap-2 border-b border-zinc-100 px-6 py-2 dark:border-zinc-800">
+  <div
+    class="flex flex-shrink-0 gap-2 border-b border-zinc-100 px-6 py-2 dark:border-zinc-800"
+  >
     {#each typeFFilters as [val, label]}
       <Chip
-        {label} onclick={() => { typeFilter = val as typeof typeFilter }}
-        color={typeFilter === val ? "#6366f1": "#000"}
+        {label}
+        onclick={() => {
+          typeFilter = val as typeof typeFilter
+        }}
+        color={typeFilter === val ? '#6366f1' : '#000'}
       />
     {/each}
   </div>
 
   <!-- Content -->
-  <ActivityList class="overflow-y-auto" {loading} {error} {events} {hasMore} {loadMore} {loadingMore} />
+  <ActivityList
+    class="overflow-y-auto"
+    {loading}
+    {error}
+    {events}
+    {hasMore}
+    {loadMore}
+    {loadingMore}
+  />
 </PageContainer>

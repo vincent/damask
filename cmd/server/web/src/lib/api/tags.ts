@@ -1,5 +1,10 @@
 import { apiFetch } from './client'
-import type { Tag, BulkDeleteTagsResult, MergeTagsResult, DuplicateTagPair } from './models'
+import type {
+  BulkDeleteTagsResult,
+  DuplicateTagPair,
+  MergeTagsResult,
+  Tag,
+} from './models'
 
 export const tagApi = {
   /** GET /api/v1/tags — list all tags in the workspace (with usage counts). */
@@ -13,7 +18,10 @@ export const tagApi = {
     }),
 
   /** PATCH /api/v1/tags/:name (editor+) — rename, recolor, or regroup a tag. */
-  patch: (name: string, fields: { name?: string; color?: string | null; group_name?: string | null }) =>
+  patch: (
+    name: string,
+    fields: { name?: string; color?: string | null; group_name?: string | null }
+  ) =>
     apiFetch<Tag>(`/api/v1/tags/${encodeURIComponent(name)}`, {
       method: 'PATCH',
       body: JSON.stringify(fields),
@@ -34,10 +42,12 @@ export const tagApi = {
     }),
 
   /** GET /api/v1/tags/suggestions/duplicates — near-duplicate tag pairs. */
-  duplicateSuggestions: () => apiFetch<DuplicateTagPair[]>('/api/v1/tags/suggestions/duplicates'),
+  duplicateSuggestions: () =>
+    apiFetch<DuplicateTagPair[]>('/api/v1/tags/suggestions/duplicates'),
 
   /** GET /api/v1/assets/:id/tags — fetch tags assigned to a specific asset. */
-  getForAsset: (assetId: string) => apiFetch<string[]>(`/api/v1/assets/${assetId}/tags`),
+  getForAsset: (assetId: string) =>
+    apiFetch<string[]>(`/api/v1/assets/${assetId}/tags`),
 
   /** POST /api/v1/assets/:id/tags (editor+) — add a tag to an asset (auto-creates if needed). */
   addToAsset: (assetId: string, name: string) =>
@@ -48,9 +58,12 @@ export const tagApi = {
 
   /** DELETE /api/v1/assets/:id/tags/:name (editor+) — remove a tag from an asset. */
   removeFromAsset: (assetId: string, name: string) =>
-    apiFetch<void>(`/api/v1/assets/${assetId}/tags/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    }),
+    apiFetch<void>(
+      `/api/v1/assets/${assetId}/tags/${encodeURIComponent(name)}`,
+      {
+        method: 'DELETE',
+      }
+    ),
 
   /** POST /api/v1/assets/bulk/tag (editor+) — apply a tag to multiple assets. */
   bulkTag: (assetIds: string[], tagName: string) =>

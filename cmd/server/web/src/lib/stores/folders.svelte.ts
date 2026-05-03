@@ -1,17 +1,25 @@
-import { folderApi, assetApi, type Folder } from '$lib/api'
+import { assetApi, folderApi, type Folder } from '$lib/api'
 import { navigationStore } from './navigation.svelte'
 
 let foldersByProject = $state<Record<string, Folder[]>>({})
 let staleProjects = $state(new Set<string>())
 
 const foldersForActiveProject = $derived(
-  navigationStore.activeProjectId ? (foldersByProject[navigationStore.activeProjectId] ?? []) : [],
+  navigationStore.activeProjectId
+    ? (foldersByProject[navigationStore.activeProjectId] ?? [])
+    : []
 )
 
 export const foldersStore = {
-  get foldersByProject() { return foldersByProject },
-  get foldersForActiveProject() { return foldersForActiveProject },
-  get staleProjects() { return staleProjects },
+  get foldersByProject() {
+    return foldersByProject
+  },
+  get foldersForActiveProject() {
+    return foldersForActiveProject
+  },
+  get staleProjects() {
+    return staleProjects
+  },
 
   invalidateForProject(projectId: string) {
     if (!(projectId in foldersByProject)) return
@@ -19,7 +27,7 @@ export const foldersStore = {
   },
 
   async loadForProject(projectId: string) {
-    staleProjects = new Set([...staleProjects].filter(id => id !== projectId))
+    staleProjects = new Set([...staleProjects].filter((id) => id !== projectId))
     try {
       const data = await folderApi.list(projectId)
       foldersByProject = { ...foldersByProject, [projectId]: data }
@@ -43,7 +51,11 @@ export const foldersStore = {
     await foldersStore.loadForProject(projectId)
   },
 
-  async moveAssets(assetIds: string[], folderId: string | null, projectId: string) {
+  async moveAssets(
+    assetIds: string[],
+    folderId: string | null,
+    projectId: string
+  ) {
     await Promise.all(assetIds.map((id) => assetApi.updateFolder(id, folderId)))
     await foldersStore.loadForProject(projectId)
   },

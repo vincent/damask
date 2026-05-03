@@ -29,29 +29,40 @@
   let confirming = $state(false)
 </script>
 
-<div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-gray-900 p-5 flex items-top gap-5 transition-shadow hover:shadow-sm">
+<div
+  class="items-top flex gap-5 rounded-xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-sm dark:border-zinc-800 dark:bg-gray-900"
+>
   <!-- Provider icon -->
-  <div class="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+  <div
+    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
+  >
     {#if provider === 'google'}
       <GoogleIcon size={8} />
     {:else if provider === 'canva'}
       <img src="/canva.logo.svg" width="30" alt="canva logo" />
     {:else}
-      <span class="text-zinc-400 text-sm font-medium">{label[0]}</span>
+      <span class="text-sm font-medium text-zinc-400">{label[0]}</span>
     {/if}
   </div>
 
   <!-- Label + description -->
-  <div class="flex-1 min-w-0">
-    <div class="flex items-center gap-2 flex-wrap">
-      <p class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{label}</p>
+  <div class="min-w-0 flex-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        {label}
+      </p>
       {#if connected}
-        <StatusBadge status="healthy" text={m.integrations_connected_as({ email: providerEmail ?? label })} />
+        <StatusBadge
+          status="healthy"
+          text={m.integrations_connected_as({ email: providerEmail ?? label })}
+        />
       {:else}
         <StatusBadge status="disabled" text={m.integrations_not_connected()} />
       {/if}
     </div>
-    <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1.5 truncate">{description}</p>
+    <p class="mt-1.5 truncate text-sm text-zinc-500 dark:text-zinc-400">
+      {description}
+    </p>
 
     {#if connected && (setupSourceHref || onDisconnect)}
       <div class="mt-4 flex flex-wrap items-center gap-3">
@@ -59,19 +70,24 @@
           <button
             onclick={() => (confirming = true)}
             class="flex items-center gap-1.5 text-sm text-red-500 hover:underline"
-          ><X class="h-3 w-3" /> {m.integrations_disconnect()}</button>
+            ><X class="h-3 w-3" /> {m.integrations_disconnect()}</button
+          >
         {:else}
           <span class="text-sm text-zinc-500 dark:text-zinc-400">
             {m.integrations_disconnect_confirm({ provider: label })}
           </span>
           <button
-            onclick={() => { confirming = false; onDisconnect?.() }}
+            onclick={() => {
+              confirming = false
+              onDisconnect?.()
+            }}
             class="text-sm font-semibold text-red-600 hover:underline"
-          >{m.integrations_disconnect()}</button>
+            >{m.integrations_disconnect()}</button
+          >
           <button
             onclick={() => (confirming = false)}
-            class="text-sm text-zinc-500 hover:underline"
-          >Cancel</button>
+            class="text-sm text-zinc-500 hover:underline">Cancel</button
+          >
         {/if}
       </div>
     {/if}
@@ -82,12 +98,16 @@
     {#if connected}
       {#if setupSourceHref}
         <a href={setupSourceHref}>
-          <Button variant="secondary" size="sm">{m.integrations_setup_source().replace(' →', '')}</Button>
+          <Button variant="secondary" size="sm"
+            >{m.integrations_setup_source().replace(' →', '')}</Button
+          >
         </a>
       {/if}
     {:else}
       <a href={connectHref}>
-        <Button variant="outline" size="sm">{m.integrations_connect({ provider: label })}</Button>
+        <Button variant="outline" size="sm"
+          >{m.integrations_connect({ provider: label })}</Button
+        >
       </a>
     {/if}
   </div>

@@ -56,10 +56,14 @@
   }
 </script>
 
-<div class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50">
+<div
+  class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50"
+>
   <div class="flex items-center justify-between gap-2">
     <div class="flex items-center gap-1.5">
-      <p class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+      <p
+        class="text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+      >
         {label}
         {#if def.required && (!fv || fv.value === null)}
           <span class="ml-1 text-orange-400">*</span>
@@ -84,28 +88,54 @@
     <div class="mt-1.5">
       {#if def.field_type === 'boolean'}
         <div class="flex gap-3">
-          <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-            <input type="radio" checked={editValue === 'true'} onchange={() => onEditValueChange('true')} class="text-indigo-600" /> {m.yes()}
+          <label
+            class="text-md flex items-center gap-1.5 text-gray-700 dark:text-gray-300"
+          >
+            <input
+              type="radio"
+              checked={editValue === 'true'}
+              onchange={() => onEditValueChange('true')}
+              class="text-indigo-600"
+            />
+            {m.yes()}
           </label>
-          <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-            <input type="radio" checked={editValue === 'false'} onchange={() => onEditValueChange('false')} class="text-indigo-600" /> {m.no()}
+          <label
+            class="text-md flex items-center gap-1.5 text-gray-700 dark:text-gray-300"
+          >
+            <input
+              type="radio"
+              checked={editValue === 'false'}
+              onchange={() => onEditValueChange('false')}
+              class="text-indigo-600"
+            />
+            {m.no()}
           </label>
           {#if showUnset}
-            <label class="flex items-center gap-1.5 text-md text-gray-700 dark:text-gray-300">
-              <input type="radio" checked={editValue === ''} onchange={() => onEditValueChange('')} disabled class="text-indigo-600" /> {m.unset()}
+            <label
+              class="text-md flex items-center gap-1.5 text-gray-700 dark:text-gray-300"
+            >
+              <input
+                type="radio"
+                checked={editValue === ''}
+                onchange={() => onEditValueChange('')}
+                disabled
+                class="text-indigo-600"
+              />
+              {m.unset()}
             </label>
           {/if}
         </div>
       {:else if def.field_type === 'select'}
         <select
           value={editValue}
-          onchange={(e) => onEditValueChange((e.target as HTMLSelectElement).value)}
-          class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-            focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
+          onchange={(e) =>
+            onEditValueChange((e.target as HTMLSelectElement).value)}
+          class="text-md w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-gray-900
+            focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none
             dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
         >
           <option value="">— clear —</option>
-          {#each (def.options ? JSON.parse(def.options) as string[] : []) as opt}
+          {#each def.options ? (JSON.parse(def.options) as string[]) : [] as opt}
             <option value={opt}>{opt}</option>
           {/each}
         </select>
@@ -113,10 +143,11 @@
         <input
           type="date"
           value={editValue}
-          oninput={(e) => onEditValueChange((e.target as HTMLInputElement).value)}
+          oninput={(e) =>
+            onEditValueChange((e.target as HTMLInputElement).value)}
           onkeydown={onKeydown}
-          class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-            focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
+          class="text-md w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-gray-900
+            focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none
             dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
         />
       {:else if def.field_type === 'number'}
@@ -124,10 +155,11 @@
           type="number"
           step="any"
           value={editValue}
-          oninput={(e) => onEditValueChange((e.target as HTMLInputElement).value)}
+          oninput={(e) =>
+            onEditValueChange((e.target as HTMLInputElement).value)}
           onkeydown={onKeydown}
-          class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-            focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
+          class="text-md w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-gray-900
+            focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none
             dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
         />
       {:else if def.field_type === 'url'}
@@ -135,20 +167,22 @@
           type="url"
           value={editValue}
           placeholder="https://"
-          oninput={(e) => onEditValueChange((e.target as HTMLInputElement).value)}
+          oninput={(e) =>
+            onEditValueChange((e.target as HTMLInputElement).value)}
           onkeydown={onKeydown}
-          class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-            focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
+          class="text-md w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-gray-900
+            focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none
             dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
         />
       {:else}
         <input
           type="text"
           value={editValue}
-          oninput={(e) => onEditValueChange((e.target as HTMLInputElement).value)}
+          oninput={(e) =>
+            onEditValueChange((e.target as HTMLInputElement).value)}
           onkeydown={onKeydown}
-          class="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-md text-gray-900
-            focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
+          class="text-md w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-gray-900
+            focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none
             dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
         />
       {/if}
@@ -157,7 +191,7 @@
 
       <div class="mt-1.5 flex gap-2">
         <button
-          class="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 disabled:opacity-50"
+          class="text-sm font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 dark:text-indigo-400 dark:hover:text-indigo-300"
           disabled={isSaving}
           onclick={onSave}
         >
@@ -171,30 +205,45 @@
         </button>
       </div>
     </div>
-
   {:else if def.field_type === 'boolean' && fv}
     <button
-      class="mt-1 flex items-center gap-2 text-md font-medium
-        {fv.value ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}"
+      class="text-md mt-1 flex items-center gap-2 font-medium
+        {fv.value
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : 'text-gray-400 dark:text-gray-500'}"
       onclick={onToggle}
     >
-      <span class="h-4 w-7 rounded-full transition-colors {fv.value ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'} relative">
-        <span class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform {fv.value ? 'left-3.5' : 'left-0.5'}"></span>
+      <span
+        class="h-4 w-7 rounded-full transition-colors {fv.value
+          ? 'bg-emerald-500'
+          : 'bg-gray-300 dark:bg-gray-600'} relative"
+      >
+        <span
+          class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform {fv.value
+            ? 'left-3.5'
+            : 'left-0.5'}"
+        ></span>
       </span>
       {fv.value ? m.yes : m.no()}
     </button>
-
   {:else if fv && fv.value !== null && fv.value !== undefined}
     <button
       class="mt-1 flex w-full items-center justify-between text-left"
       onclick={onStartEdit}
     >
-      <span class="text-md font-semibold text-gray-900 dark:text-gray-100 {def.field_type === 'url' ? 'truncate text-indigo-600 dark:text-indigo-400' : ''}">
+      <span
+        class="text-md font-semibold text-gray-900 dark:text-gray-100 {def.field_type ===
+        'url'
+          ? 'truncate text-indigo-600 dark:text-indigo-400'
+          : ''}"
+      >
         {displayValue(fv)}
       </span>
-      <span class="shrink-0 text-sm text-gray-400 opacity-0 transition-opacity hover:opacity-100">{m.edit()}</span>
+      <span
+        class="shrink-0 text-sm text-gray-400 opacity-0 transition-opacity hover:opacity-100"
+        >{m.edit()}</span
+      >
     </button>
-
   {:else}
     <button
       class="mt-1 text-sm text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"

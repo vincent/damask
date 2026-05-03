@@ -4,20 +4,33 @@ import { navigationStore } from './navigation.svelte'
 let projects = $state<Project[]>([])
 let stale = $state(false)
 
-const projectAssetCount = $derived(projects.reduce((sum, p) => sum + p.asset_count, 0))
+const projectAssetCount = $derived(
+  projects.reduce((sum, p) => sum + p.asset_count, 0)
+)
 const activeProjectName = $derived(
   navigationStore.activeProjectId
-    ? (projects.find((p) => p.id === navigationStore.activeProjectId)?.name ?? 'Project')
-    : null,
+    ? (projects.find((p) => p.id === navigationStore.activeProjectId)?.name ??
+        'Project')
+    : null
 )
 
 export const projectsStore = {
-  get projects() { return projects },
-  get projectAssetCount() { return projectAssetCount },
-  get activeProjectName() { return activeProjectName },
-  get stale() { return stale },
+  get projects() {
+    return projects
+  },
+  get projectAssetCount() {
+    return projectAssetCount
+  },
+  get activeProjectName() {
+    return activeProjectName
+  },
+  get stale() {
+    return stale
+  },
 
-  invalidate() { stale = true },
+  invalidate() {
+    stale = true
+  },
 
   async load() {
     stale = false
@@ -33,10 +46,13 @@ export const projectsStore = {
     await projectsStore.load()
   },
 
-  async update(id: string, data: {
-    name?: string,
-    cover_asset_id?: string,
-  }) {
+  async update(
+    id: string,
+    data: {
+      name?: string
+      cover_asset_id?: string
+    }
+  ) {
     await projectApi.update(id, data)
     await projectsStore.load()
   },

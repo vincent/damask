@@ -1,10 +1,10 @@
 export function isMac(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  if (typeof navigator === 'undefined') return false
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform)
 }
 
 export function modKey(): string {
-  return isMac() ? '⌘' : 'Ctrl';
+  return isMac() ? '⌘' : 'Ctrl'
 }
 
 export function formatKey(key: string): string {
@@ -18,5 +18,5 @@ export function formatKey(key: string): string {
     .replace('ArrowDown', '↓')
     .replace('Escape', 'Esc')
     .replace('Delete', '⌫')
-    .replace('Backspace', '⌫');
+    .replace('Backspace', '⌫')
 }

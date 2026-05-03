@@ -52,5 +52,11 @@
     <source data-asset-dynamic-resource={assetId} {src} type={contentType} />
   </video>
 {:else}
-  <img {src} {alt} class={className} loading="lazy" data-asset-dynamic-resource={assetId} />
+  <img
+    {src}
+    {alt}
+    class={className}
+    loading="lazy"
+    data-asset-dynamic-resource={assetId}
+  />
 {/if}

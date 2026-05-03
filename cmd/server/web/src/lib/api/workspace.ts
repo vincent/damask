@@ -1,5 +1,11 @@
 import { apiFetch } from './client'
-import type { Workspace, WorkspaceMeResponse, WorkspaceMember, WorkspaceInvite, AuthResponse } from './models'
+import type {
+  AuthResponse,
+  Workspace,
+  WorkspaceInvite,
+  WorkspaceMeResponse,
+  WorkspaceMember,
+} from './models'
 
 export interface WorkspaceWithRole extends Workspace {
   role: string
@@ -15,13 +21,24 @@ export interface SwitchWorkspaceResponse {
 
 export const workspaceApi = {
   fetch: window.fetch,
-  useFetch: (f: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) => workspaceApi.fetch = f,
+  useFetch: (
+    f: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  ) => (workspaceApi.fetch = f),
 
   /** GET /api/v1/workspace/me — fetch current workspace info. */
-  me: () => apiFetch<WorkspaceMeResponse>('/api/v1/workspace/me', undefined, workspaceApi.fetch),
+  me: () =>
+    apiFetch<WorkspaceMeResponse>(
+      '/api/v1/workspace/me',
+      undefined,
+      workspaceApi.fetch
+    ),
 
   /** PUT /api/v1/workspace/settings (owner only) — update workspace settings. */
-  updateSettings: (settings: { version_retention_count: number; exif_keep?: boolean; exif_keep_gps?: boolean }) =>
+  updateSettings: (settings: {
+    version_retention_count: number
+    exif_keep?: boolean
+    exif_keep_gps?: boolean
+  }) =>
     apiFetch<Workspace>('/api/v1/workspace/settings', {
       method: 'PUT',
       body: JSON.stringify(settings),
@@ -29,7 +46,9 @@ export const workspaceApi = {
 
   /** POST /api/v1/workspace/jobs/:type/trigger (owner only) — trigger a predefined background job. */
   triggerJob: (type: string) =>
-    apiFetch<{ enqueued: number }>(`/api/v1/workspace/jobs/${type}/trigger`, { method: 'POST' }),
+    apiFetch<{ enqueued: number }>(`/api/v1/workspace/jobs/${type}/trigger`, {
+      method: 'POST',
+    }),
 
   /** GET /api/v1/workspaces — list all workspaces the user is a member of. */
   list: () => apiFetch<WorkspaceWithRole[]>('/api/v1/workspaces'),
@@ -81,5 +100,7 @@ export const workspaceApi = {
 
   /** DELETE /api/v1/workspace/invites/:inviteId (owner only) — cancel an invite. */
   deleteInvite: (inviteId: string) =>
-    apiFetch<void>(`/api/v1/workspace/invites/${inviteId}`, { method: 'DELETE' }),
+    apiFetch<void>(`/api/v1/workspace/invites/${inviteId}`, {
+      method: 'DELETE',
+    }),
 }

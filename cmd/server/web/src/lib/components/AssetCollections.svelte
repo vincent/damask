@@ -35,9 +35,11 @@
 
   async function handleRemove(col: Collection) {
     // Optimistic remove
-    memberships = memberships.filter(c => c.id !== col.id)
+    memberships = memberships.filter((c) => c.id !== col.id)
     try {
-      await undoStore.execute(new RemoveAssetFromCollection(asset.id, col.id, col.name))
+      await undoStore.execute(
+        new RemoveAssetFromCollection(asset.id, col.id, col.name)
+      )
     } catch {
       memberships = [...memberships, col]
       toastStore.show(m.save_failed(), 'error')
@@ -55,7 +57,9 @@
     <SubSectionTitle>{m.in_collections()}</SubSectionTitle>
     <div class="mt-2 flex flex-wrap gap-2">
       {#each memberships as col (col.id)}
-        <div class="flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-sm dark:border-indigo-800 dark:bg-indigo-950">
+        <div
+          class="flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-sm dark:border-indigo-800 dark:bg-indigo-950"
+        >
           <button
             type="button"
             onclick={() => handleNavigate(col)}

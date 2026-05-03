@@ -43,7 +43,10 @@
         workspaceApi.listInvites(),
       ])
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : m.members_load_failed(), 'error')
+      toastStore.show(
+        e instanceof Error ? e.message : m.members_load_failed(),
+        'error'
+      )
     } finally {
       loading = false
     }
@@ -55,10 +58,15 @@
     updatingRole = userId
     try {
       await workspaceApi.updateMemberRole(userId, role)
-      members = members.map(mb => mb.user_id === userId ? { ...mb, role } : mb)
+      members = members.map((mb) =>
+        mb.user_id === userId ? { ...mb, role } : mb
+      )
       toastStore.show('Role updated')
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : m.role_update_failed(), 'error')
+      toastStore.show(
+        e instanceof Error ? e.message : m.role_update_failed(),
+        'error'
+      )
     } finally {
       updatingRole = null
     }
@@ -68,10 +76,13 @@
     removingID = userId
     try {
       await workspaceApi.removeMember(userId)
-      members = members.filter(mb => mb.user_id !== userId)
+      members = members.filter((mb) => mb.user_id !== userId)
       toastStore.show('Member removed')
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : m.member_remove_failed(), 'error')
+      toastStore.show(
+        e instanceof Error ? e.message : m.member_remove_failed(),
+        'error'
+      )
     } finally {
       removingID = null
       confirmRemoveID = null
@@ -82,10 +93,13 @@
     deletingInviteID = inviteId
     try {
       await workspaceApi.deleteInvite(inviteId)
-      invites = invites.filter(i => i.id !== inviteId)
+      invites = invites.filter((i) => i.id !== inviteId)
       toastStore.show('Invite cancelled')
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : m.invite_cancel_failed(), 'error')
+      toastStore.show(
+        e instanceof Error ? e.message : m.invite_cancel_failed(),
+        'error'
+      )
     } finally {
       deletingInviteID = null
     }
@@ -102,7 +116,10 @@
       showInviteForm = false
       invites = await workspaceApi.listInvites()
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : m.invite_sent_failed(), 'error')
+      toastStore.show(
+        e instanceof Error ? e.message : m.invite_sent_failed(),
+        'error'
+      )
     } finally {
       inviting = false
     }
@@ -115,8 +132,7 @@
 
 <div class="flex-1 overflow-y-auto">
   <PageHeader title={m.tab_members()} />
-  <div class="mx-auto w-full max-w-3xl px-8 py-10 space-y-8">
-
+  <div class="mx-auto w-full max-w-3xl space-y-8 px-8 py-10">
     {#if !isOwner}
       <EmptyState
         title={m.owner_access_required()}
@@ -127,13 +143,21 @@
         <Spinner />
       </div>
     {:else}
-
       <!-- Members -->
       <section>
         <div class="flex-1">
           <div class="mb-3 flex items-center justify-between">
-            <SectionHeading titleClass="text-xl" title={m.members()} count={members.length} />
-            <Button variant="primary" onclick={() => { showInviteForm = !showInviteForm }}>
+            <SectionHeading
+              titleClass="text-xl"
+              title={m.members()}
+              count={members.length}
+            />
+            <Button
+              variant="primary"
+              onclick={() => {
+                showInviteForm = !showInviteForm
+              }}
+            >
               <UserPlus class="mr-1.5 h-3.5 w-3.5" />
               {m.member_invite()}
             </Button>
@@ -144,7 +168,9 @@
 
       <section>
         {#if showInviteForm}
-          <div class="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-gray-900/50">
+          <div
+            class="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-gray-900/50"
+          >
             <div class="flex gap-2">
               <Input
                 type="email"
@@ -155,50 +181,74 @@
               <select
                 bind:value={inviteRole}
                 class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700
-                       focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500
+                       focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
                        dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
               >
                 <option value="editor">{m.editor()}</option>
                 <option value="viewer">{m.viewer()}</option>
               </select>
-              <Button onclick={sendInvite} loading={inviting} disabled={!inviteEmail.trim()}>
+              <Button
+                onclick={sendInvite}
+                loading={inviting}
+                disabled={!inviteEmail.trim()}
+              >
                 {m.send()}
               </Button>
-              <ButtonCancel x onclick={() => { showInviteForm = false }} />
+              <ButtonCancel
+                x
+                onclick={() => {
+                  showInviteForm = false
+                }}
+              />
             </div>
           </div>
         {/if}
 
-        <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900">
+        <div
+          class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900"
+        >
           {#each members as member (member.user_id)}
             <div class="flex items-center gap-3 px-4 py-3">
               <!-- Avatar -->
-              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+              <div
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
+              >
                 {member.name.slice(0, 2).toUpperCase()}
               </div>
 
               <!-- Info -->
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{member.name}</span>
+                  <span
+                    class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                    >{member.name}</span
+                  >
                   {#if member.user_id === currentUserID}
                     <span class="text-xs text-zinc-400">(you)</span>
                   {/if}
                 </div>
-                <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">{member.email}</div>
+                <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                  {member.email}
+                </div>
               </div>
 
               <!-- Role -->
               {#if member.user_id === currentUserID || member.role === 'owner'}
-                <Badge variant={member.role as 'owner' | 'editor' | 'viewer'}>{member.role}</Badge>
+                <Badge variant={member.role as 'owner' | 'editor' | 'viewer'}
+                  >{member.role}</Badge
+                >
               {:else if updatingRole === member.user_id}
                 <Spinner size="sm" />
               {:else}
                 <select
                   value={member.role}
-                  onchange={e => changeRole(member.user_id, (e.target as HTMLSelectElement).value)}
-                  class="rounded border border-zinc-300 bg-white py-0.5 pl-2 pr-6 text-xs text-zinc-700
-                         focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500
+                  onchange={(e) =>
+                    changeRole(
+                      member.user_id,
+                      (e.target as HTMLSelectElement).value
+                    )}
+                  class="rounded border border-zinc-300 bg-white py-0.5 pr-6 pl-2 text-xs text-zinc-700
+                         focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
                          dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
                 >
                   <option value="owner">{m.owner()}</option>
@@ -211,19 +261,38 @@
               {#if member.user_id !== currentUserID}
                 {#if confirmRemoveID === member.user_id}
                   <div class="flex items-center gap-1.5">
-                    <span class="text-xs text-zinc-500 dark:text-zinc-400">{m.remove()}?</span>
-                    <ButtonDelete title="Remove member" onclick={() => removeMember(member.user_id)}>{m.yes()}</ButtonDelete>
-                    <ButtonCancel onclick={() => { confirmRemoveID = null }}/>
+                    <span class="text-xs text-zinc-500 dark:text-zinc-400"
+                      >{m.remove()}?</span
+                    >
+                    <ButtonDelete
+                      title="Remove member"
+                      onclick={() => removeMember(member.user_id)}
+                      >{m.yes()}</ButtonDelete
+                    >
+                    <ButtonCancel
+                      onclick={() => {
+                        confirmRemoveID = null
+                      }}
+                    />
                   </div>
                 {:else}
-                  <ButtonDelete title="Remove member" onclick={() => { confirmRemoveID = member.user_id }} />
+                  <ButtonDelete
+                    title="Remove member"
+                    onclick={() => {
+                      confirmRemoveID = member.user_id
+                    }}
+                  />
                 {/if}
               {/if}
             </div>
           {/each}
 
           {#if members.length === 0}
-            <div class="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">{m.no_members_yet()}</div>
+            <div
+              class="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500"
+            >
+              {m.no_members_yet()}
+            </div>
           {/if}
         </div>
       </section>
@@ -231,27 +300,46 @@
       <!-- Pending invites -->
       {#if invites.length > 0}
         <section>
-          <SectionHeading titleClass="text-xl" title={m.pending_invites()} count={invites.length} />
+          <SectionHeading
+            titleClass="text-xl"
+            title={m.pending_invites()}
+            count={invites.length}
+          />
           <Hint>{m.pending_invites_description()}</Hint>
         </section>
         <section>
-          <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900">
+          <div
+            class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900"
+          >
             {#each invites as invite (invite.id)}
               <div class="flex items-center gap-3 px-4 py-3">
                 <div class="min-w-0 flex-1">
-                  <div class="truncate text-sm text-zinc-900 dark:text-zinc-100">{invite.email}</div>
+                  <div
+                    class="truncate text-sm text-zinc-900 dark:text-zinc-100"
+                  >
+                    {invite.email}
+                  </div>
                   <div class="text-xs text-zinc-500 dark:text-zinc-400">
-                    Expires {formatDistanceToNowStrict(new Date(invite.expires_at), { addSuffix: true })}
+                    Expires {formatDistanceToNowStrict(
+                      new Date(invite.expires_at),
+                      { addSuffix: true }
+                    )}
                   </div>
                 </div>
-                <Badge variant={invite.role as 'editor' | 'viewer'}>{invite.role}</Badge>
-                <ButtonDelete x title={m.cancel()} onclick={() => cancelInvite(invite.id)} loading={deletingInviteID === invite.id} />
+                <Badge variant={invite.role as 'editor' | 'viewer'}
+                  >{invite.role}</Badge
+                >
+                <ButtonDelete
+                  x
+                  title={m.cancel()}
+                  onclick={() => cancelInvite(invite.id)}
+                  loading={deletingInviteID === invite.id}
+                />
               </div>
             {/each}
           </div>
         </section>
       {/if}
-
     {/if}
   </div>
 </div>

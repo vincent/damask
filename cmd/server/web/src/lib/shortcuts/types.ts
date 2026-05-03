@@ -31,29 +31,29 @@ export type ShortcutAction =
   | 'selection.move-up'
   | 'selection.move-down'
   | 'history.undo'
-  | 'history.redo';
+  | 'history.redo'
 
-export type KeyMap = Record<ShortcutAction, string[]>;
+export type KeyMap = Record<ShortcutAction, string[]>
 
 export interface ActionMeta {
-  context?: string;
+  context?: string
 }
 
-export type ActionMetaMap = Partial<Record<ShortcutAction, ActionMeta>>;
+export type ActionMetaMap = Partial<Record<ShortcutAction, ActionMeta>>
 
-export type ShortcutHandler = (action: ShortcutAction) => boolean | void;
+export type ShortcutHandler = (action: ShortcutAction) => boolean | void
 
 export interface HandlerRegistration {
-  action: ShortcutAction;
-  handler: ShortcutHandler;
-  label: string;
+  action: ShortcutAction
+  handler: ShortcutHandler
+  label: string
 }
 
 export interface ShortcutGroup {
-  title: string;
+  title: string
   actions: Array<{
-    action: ShortcutAction;
-    label: string;
-    contextual?: boolean;
-  }>;
+    action: ShortcutAction
+    label: string
+    contextual?: boolean
+  }>
 }

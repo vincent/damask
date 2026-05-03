@@ -1,7 +1,7 @@
-export { useShortcut, useShortcuts } from './context';
-export { setShortcutContext, triggerAction } from './dispatcher';
-export { DEFAULT_KEYMAP, SHORTCUT_GROUPS } from './registry';
-export { formatKey, modKey, isMac } from './platform';
-export { findConflicts } from './conflicts';
-export type { Conflict } from './conflicts';
-export type { ShortcutAction, KeyMap, ShortcutGroup } from './types';
+export { findConflicts } from './conflicts'
+export type { Conflict } from './conflicts'
+export { useShortcut, useShortcuts } from './context'
+export { setShortcutContext, triggerAction } from './dispatcher'
+export { formatKey, isMac, modKey } from './platform'
+export { DEFAULT_KEYMAP, SHORTCUT_GROUPS } from './registry'
+export type { KeyMap, ShortcutAction, ShortcutGroup } from './types'

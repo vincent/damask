@@ -22,7 +22,9 @@ function createTagsManagementStore() {
     }
   }
 
-  function invalidate() { stale = true }
+  function invalidate() {
+    stale = true
+  }
 
   async function loadDuplicates() {
     try {
@@ -32,7 +34,11 @@ function createTagsManagementStore() {
     }
   }
 
-  async function createTag(name: string, color?: string | null, groupName?: string | null) {
+  async function createTag(
+    name: string,
+    color?: string | null,
+    groupName?: string | null
+  ) {
     const tag = await tagApi.create(name, color, groupName)
     tags = [...tags, tag].sort((a, b) => a.name.localeCompare(b.name))
     return tag
@@ -45,17 +51,18 @@ function createTagsManagementStore() {
     // Optimistic update
     const prev = tags.find((t) => t.name === name)
     if (prev) {
-      tags = tags.map((t) =>
-        t.name === name ? { ...t, ...fields } : t
-      )
+      tags = tags.map((t) => (t.name === name ? { ...t, ...fields } : t))
     }
     try {
       const updated = await tagApi.patch(name, fields)
-      tags = tags.map((t) => (t.name === updated.name || t.name === name ? updated : t))
+      tags = tags.map((t) =>
+        t.name === updated.name || t.name === name ? updated : t
+      )
       return updated
     } catch (e) {
       // Revert
-      if (prev) tags = tags.map((t) => (t.name === (fields.name ?? name) ? prev : t))
+      if (prev)
+        tags = tags.map((t) => (t.name === (fields.name ?? name) ? prev : t))
       throw e
     }
   }
@@ -80,7 +87,9 @@ function createTagsManagementStore() {
       .map((t) => (t.name === target ? result.target : t))
     // If target was new, add it
     if (!tags.find((t) => t.name === target)) {
-      tags = [...tags, result.target].sort((a, b) => a.name.localeCompare(b.name))
+      tags = [...tags, result.target].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
     }
     // Remove resolved duplicate pairs
     duplicates = duplicates.filter(
@@ -98,10 +107,18 @@ function createTagsManagementStore() {
   )
 
   return {
-    get tags() { return tags },
-    get loading() { return loading },
-    get stale() { return stale },
-    get duplicates() { return visibleDuplicates },
+    get tags() {
+      return tags
+    },
+    get loading() {
+      return loading
+    },
+    get stale() {
+      return stale
+    },
+    get duplicates() {
+      return visibleDuplicates
+    },
     get allGroups() {
       const groups = new Set<string>()
       for (const t of tags) if (t.group_name) groups.add(t.group_name)

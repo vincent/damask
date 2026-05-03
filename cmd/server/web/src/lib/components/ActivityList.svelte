@@ -7,10 +7,28 @@
   import type { AuditEvent } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
 
-  let { loading, error, events, hasMore, loadMore, loadingMore, class: extraClass }: { loading: boolean; error: string; events: AuditEvent[]; hasMore: boolean; loadMore: () => void; loadingMore: boolean; class?: string } = $props()
+  let {
+    loading,
+    error,
+    events,
+    hasMore,
+    loadMore,
+    loadingMore,
+    class: extraClass,
+  }: {
+    loading: boolean
+    error: string
+    events: AuditEvent[]
+    hasMore: boolean
+    loadMore: () => void
+    loadingMore: boolean
+    class?: string
+  } = $props()
 
   function relativeTime(isoOrSqlite: string): string {
-    const date = new Date(isoOrSqlite.replace(' ', 'T') + (isoOrSqlite.includes('T') ? '' : 'Z'))
+    const date = new Date(
+      isoOrSqlite.replace(' ', 'T') + (isoOrSqlite.includes('T') ? '' : 'Z')
+    )
     const diffMs = Date.now() - date.getTime()
     const diffSec = Math.floor(diffMs / 1000)
     if (diffSec < 60) return m.just_now()
@@ -26,20 +44,19 @@
     <div class="flex justify-center py-12">
       <Spinner size="md" />
     </div>
-
   {:else if error}
     <Feedback {error} />
-
   {:else if events.length === 0}
-    <div class="flex flex-col items-center gap-3 py-12 text-center text-zinc-400 dark:text-zinc-500">
+    <div
+      class="flex flex-col items-center gap-3 py-12 text-center text-zinc-400 dark:text-zinc-500"
+    >
       <Inbox class="h-10 w-10" />
       <p class="text-md">{m.no_activity_yet()}</p>
     </div>
-
   {:else}
     <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
       {#each events as event (event.id)}
-        <li class="px-5 py-3 flex gap-3 items-start">
+        <li class="flex items-start gap-3 px-5 py-3">
           <Actor type={event.actor.type} />
           <div class="min-w-0 flex-1">
             <p class="text-md text-zinc-800 dark:text-zinc-200">
@@ -47,10 +64,15 @@
                 <span class="font-medium">{event.actor.name}</span>
                 {' '}
               {:else if event.actor.type === 'system'}
-                <span class="font-medium italic text-zinc-500 dark:text-zinc-400">{m.system()}</span>
+                <span
+                  class="font-medium text-zinc-500 italic dark:text-zinc-400"
+                  >{m.system()}</span
+                >
                 {' '}
               {/if}
-              <span class="text-zinc-600 dark:text-zinc-400">{event.human_readable}</span>
+              <span class="text-zinc-600 dark:text-zinc-400"
+                >{event.human_readable}</span
+              >
             </p>
             <p class="mt-0.5 text-sm text-zinc-400 dark:text-zinc-500">
               {relativeTime(event.created_at)}

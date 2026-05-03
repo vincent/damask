@@ -11,7 +11,23 @@
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
-  import { Activity, LogOut, Plus, Settings2, Megaphone, Info, LibraryBig, Users, Download, Plug, History, Shield, User, ArrowLeft, Tags } from '@lucide/svelte'
+  import {
+    Activity,
+    LogOut,
+    Plus,
+    Settings2,
+    Megaphone,
+    Info,
+    LibraryBig,
+    Users,
+    Download,
+    Plug,
+    History,
+    Shield,
+    User,
+    ArrowLeft,
+    Tags,
+  } from '@lucide/svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
@@ -28,41 +44,104 @@
   import { BulkAssignAssetToFolder } from '$lib/commands/BulkAssignAssetToFolder'
   import { browserDetectStore } from '$lib/stores/browserDetect.svelte'
 
-  let { children }: { data: any, children: Snippet } = $props()
+  let { children }: { data: any; children: Snippet } = $props()
 
   let sidebarCreating = $state(false)
 
   const profileSections = [
-    { id: 'account',       label: () => m.settings_auth_title(), path: '/library/settings/account',     icon: User },
+    {
+      id: 'account',
+      label: () => m.settings_auth_title(),
+      path: '/library/settings/account',
+      icon: User,
+    },
   ]
 
   const settingsSections = [
-    { id: 'members',       label: () => m.tab_members(),                 path: '/library/settings/members',       icon: Users },
-    { id: 'tags',          label: () => m.tags(),                           path: '/library/settings/tags',          icon: Tags },
-    { id: 'custom-fields', label: () => m.custom_fields_title(),   path: '/library/settings/custom-fields', icon: Settings2 },
-    { id: 'ingress',       label: () => m.tab_ingress(),                 path: '/library/settings/ingress',       icon: Download },
-    { id: 'integrations',  label: () => m.integrations_title(),     path: '/library/settings/integrations',  icon: Plug },
-    { id: 'versioning',    label: () => m.tab_history(),                 path: '/library/settings/versioning',    icon: History },
+    {
+      id: 'members',
+      label: () => m.tab_members(),
+      path: '/library/settings/members',
+      icon: Users,
+    },
+    {
+      id: 'tags',
+      label: () => m.tags(),
+      path: '/library/settings/tags',
+      icon: Tags,
+    },
+    {
+      id: 'custom-fields',
+      label: () => m.custom_fields_title(),
+      path: '/library/settings/custom-fields',
+      icon: Settings2,
+    },
+    {
+      id: 'ingress',
+      label: () => m.tab_ingress(),
+      path: '/library/settings/ingress',
+      icon: Download,
+    },
+    {
+      id: 'integrations',
+      label: () => m.integrations_title(),
+      path: '/library/settings/integrations',
+      icon: Plug,
+    },
+    {
+      id: 'versioning',
+      label: () => m.tab_history(),
+      path: '/library/settings/versioning',
+      icon: History,
+    },
   ]
-  
+
   const securitySections = [
-    { id: 'privacy',       label: () => m.tab_exif_privacy(),     path: '/library/settings/privacy',       icon: Shield },
-    { id: 'activity',      label: () => m.activity(),                   path: '/library/settings/activity',      icon: Activity },
+    {
+      id: 'privacy',
+      label: () => m.tab_exif_privacy(),
+      path: '/library/settings/privacy',
+      icon: Shield,
+    },
+    {
+      id: 'activity',
+      label: () => m.activity(),
+      path: '/library/settings/activity',
+      icon: Activity,
+    },
   ]
 
   const isSettings = $derived(page.url.pathname.startsWith('/library/settings'))
   const activeSettingsSection = $derived(
-    [...profileSections, ...settingsSections, ...securitySections].find(s => page.url.pathname.startsWith(s.path))?.id ?? null
+    [...profileSections, ...settingsSections, ...securitySections].find((s) =>
+      page.url.pathname.startsWith(s.path)
+    )?.id ?? null
   )
 
   useShortcuts({
-    'search.focus':      () => document.querySelector<HTMLInputElement>('[data-search]')?.focus(),
-    'upload.open':       () => document.querySelector<HTMLInputElement>('[data-upload-trigger]')?.click(),
-    'sidebar.toggle':    () => navigationStore.toggleSidebarVisible(),
-    'navigate.library':  () => { clearGMode(); goto('/library') },
-    'navigate.tags':     () => { clearGMode(); goto('/library/settings/tags') },
-    'navigate.settings': () => { clearGMode(); goto('/library/settings/members') },
-    'navigate.shares':   () => { clearGMode(); goto('/library/shares') },
+    'search.focus': () =>
+      document.querySelector<HTMLInputElement>('[data-search]')?.focus(),
+    'upload.open': () =>
+      document
+        .querySelector<HTMLInputElement>('[data-upload-trigger]')
+        ?.click(),
+    'sidebar.toggle': () => navigationStore.toggleSidebarVisible(),
+    'navigate.library': () => {
+      clearGMode()
+      goto('/library')
+    },
+    'navigate.tags': () => {
+      clearGMode()
+      goto('/library/settings/tags')
+    },
+    'navigate.settings': () => {
+      clearGMode()
+      goto('/library/settings/members')
+    },
+    'navigate.shares': () => {
+      clearGMode()
+      goto('/library/shares')
+    },
   })
 
   async function handleProjectSelect(id: string | null) {
@@ -71,33 +150,58 @@
     goto('/library')
   }
 
-  async function handleFolderSelect(_projectId: string, folderId: string | null) {
+  async function handleFolderSelect(
+    _projectId: string,
+    folderId: string | null
+  ) {
     navigationStore.selectFolder(folderId)
     goto('/library')
   }
 
-  async function handleAssetsDropped(assetIds: string[], folderId: string | null, projectId: string) {
+  async function handleAssetsDropped(
+    assetIds: string[],
+    folderId: string | null,
+    projectId: string
+  ) {
     try {
-      const folder = foldersStore.foldersForActiveProject.find(f => f.id === folderId) ?? null
-      await undoStore.execute(new BulkAssignAssetToFolder(
-        assetsStore.assets.filter(sa => assetIds.includes(sa.id)),
-        folderId ?? null,
-        folder?.name ?? null,
-        projectId,
-      ))
+      const folder =
+        foldersStore.foldersForActiveProject.find((f) => f.id === folderId) ??
+        null
+      await undoStore.execute(
+        new BulkAssignAssetToFolder(
+          assetsStore.assets.filter((sa) => assetIds.includes(sa.id)),
+          folderId ?? null,
+          folder?.name ?? null,
+          projectId
+        )
+      )
       selectionStore.clear()
     } catch {
       toastStore.show(m.cannot_move_assets(), 'error')
     }
   }
 
-  async function handleAssetsProjectDropped(assetIds: string[], projectId: string) {
+  async function handleAssetsProjectDropped(
+    assetIds: string[],
+    projectId: string
+  ) {
     const beforeProjectIds = new Map(
-      assetIds.map(id => [id, assetsStore.assets.find(a => a.id === id)?.project_id ?? null])
+      assetIds.map((id) => [
+        id,
+        assetsStore.assets.find((a) => a.id === id)?.project_id ?? null,
+      ])
     )
-    const projectName = projectsStore.projects.find(p => p.id === projectId)?.name ?? null
+    const projectName =
+      projectsStore.projects.find((p) => p.id === projectId)?.name ?? null
     try {
-      await undoStore.execute(new BulkAssignAssetToProject(assetIds, beforeProjectIds, projectId, projectName))
+      await undoStore.execute(
+        new BulkAssignAssetToProject(
+          assetIds,
+          beforeProjectIds,
+          projectId,
+          projectName
+        )
+      )
       selectionStore.clear()
     } catch {
       toastStore.show(m.cannot_move_assets(), 'error')
@@ -150,7 +254,7 @@
   <title>Workspace — Damask</title>
 </svelte:head>
 
-<div class="bg-[var(--bg-app)] flex h-screen bg-gray-50 dark:bg-gray-950">
+<div class="flex h-screen bg-[var(--bg-app)] bg-gray-50 dark:bg-gray-950">
   <!-- Sidebar -->
   {#if navigationStore.sidebarVisible && isSettings}
     <aside
@@ -163,15 +267,17 @@
       <div class="px-3 pb-3">
         <a
           href="/library"
-          class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
         >
           <ArrowLeft class="h-4 w-4 shrink-0" />
           <span>{m.back_to_library()}</span>
         </a>
       </div>
 
-      <div class="px-3 pb-2 pt-1 border-t border-gray-100 dark:border-gray-800">
-        <span class="px-3 text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+      <div class="border-t border-gray-100 px-3 pt-1 pb-2 dark:border-gray-800">
+        <span
+          class="px-3 text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+        >
           {m.user_profile()}
         </span>
       </div>
@@ -181,10 +287,10 @@
           {@const Icon = section.icon}
           <a
             href={section.path}
-            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+            class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
               {activeSettingsSection === section.id
-                ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-                : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+              ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
+              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
           >
             <Icon class="h-4 w-4 shrink-0 text-gray-400" />
             <span class="flex-1 text-left">{section.label()}</span>
@@ -192,8 +298,10 @@
         {/each}
       </nav>
 
-      <div class="px-3 pb-2 pt-1 border-t border-gray-100 dark:border-gray-800">
-        <span class="px-3 text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+      <div class="border-t border-gray-100 px-3 pt-1 pb-2 dark:border-gray-800">
+        <span
+          class="px-3 text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+        >
           {m.settings()}
         </span>
       </div>
@@ -203,10 +311,10 @@
           {@const Icon = section.icon}
           <a
             href={section.path}
-            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+            class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
               {activeSettingsSection === section.id
-                ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-                : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+              ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
+              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
           >
             <Icon class="h-4 w-4 shrink-0 text-gray-400" />
             <span class="flex-1 text-left">{section.label()}</span>
@@ -214,9 +322,10 @@
         {/each}
       </nav>
 
-
-      <div class="px-3 pb-2 pt-1 border-t border-gray-100 dark:border-gray-800">
-        <span class="px-3 text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+      <div class="border-t border-gray-100 px-3 pt-1 pb-2 dark:border-gray-800">
+        <span
+          class="px-3 text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+        >
           {m.privacy_audit_logs()}
         </span>
       </div>
@@ -226,23 +335,22 @@
           {@const Icon = section.icon}
           <a
             href={section.path}
-            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
+            class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
               {activeSettingsSection === section.id
-                ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
-                : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+              ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
+              : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
           >
             <Icon class="h-4 w-4 shrink-0 text-gray-400" />
             <span class="flex-1 text-left">{section.label()}</span>
           </a>
         {/each}
       </nav>
-
     </aside>
   {:else if navigationStore.sidebarVisible}
     <aside
       in:fly={{ x: -256, duration: 150, delay: 150 }}
       out:fly={{ x: -256, duration: 150 }}
-      class="damask-texture flex relative w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+      class="damask-texture relative flex w-64 shrink-0 flex-col border-r border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
     >
       <!-- Workspace switcher -->
       <WorkspaceSwitcher class="px-3 py-3" />
@@ -250,26 +358,38 @@
       <!-- All Assets button -->
       <div class="px-3 pb-2">
         <button
-          class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-md transition-colors
-            {(page.route.id === '/library' && navigationStore.activeProjectId === null) ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+          class="text-md flex w-full items-center gap-2.5 rounded-lg px-3 py-2 transition-colors
+            {page.route.id === '/library' &&
+          navigationStore.activeProjectId === null
+            ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-50'
+            : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
           onclick={() => handleProjectSelect(null)}
         >
           <LibraryBig class="h-4 w-4 shrink-0 text-gray-400" />
           <span class="flex-1 text-left">{m.all_assets()}</span>
           {#if authStore.totalAssetCount > 0}
-            <span class="shrink-0 text-sm text-gray-400">{authStore.totalAssetCount}</span>
+            <span class="shrink-0 text-sm text-gray-400"
+              >{authStore.totalAssetCount}</span
+            >
           {/if}
         </button>
       </div>
 
       <!-- Projects section -->
-      <div class="flex flex-1 flex-col overflow-hidden px-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+      <div
+        class="flex flex-1 flex-col overflow-hidden border-t border-gray-100 px-3 pt-4 dark:border-gray-800"
+      >
         <div class="mb-2 flex items-center justify-between px-2">
-          <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{m.projects()}</span>
+          <span
+            class="text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+            >{m.projects()}</span
+          >
           {#if authStore.role !== 'viewer'}
             <button
               class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              onclick={() => { sidebarCreating = true }}
+              onclick={() => {
+                sidebarCreating = true
+              }}
               aria-label={m.new_project()}
             >
               <Plus class="h-3.5 w-3.5" />
@@ -281,7 +401,9 @@
           <ProjectSidebar
             selectedAssetIds={selectionStore.selectedIds}
             creating={sidebarCreating}
-            onCreatingChange={(v) => { sidebarCreating = v }}
+            onCreatingChange={(v) => {
+              sidebarCreating = v
+            }}
             onSelect={handleProjectSelect}
             onFolderSelect={handleFolderSelect}
             onAssetsFolderDropped={handleAssetsDropped}
@@ -292,30 +414,50 @@
 
       <!-- Collections section -->
       {#if collectionsStore.collections.length > 0}
-        <div class="flex flex-col overflow-hidden px-3 pt-4 border-t-2 border-gray-100 dark:border-gray-800">
+        <div
+          class="flex flex-col overflow-hidden border-t-2 border-gray-100 px-3 pt-4 dark:border-gray-800"
+        >
           <div class="mb-2 flex items-center gap-2 px-2">
-            <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">{m.collections()}</span>
+            <span
+              class="text-sm font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+              >{m.collections()}</span
+            >
           </div>
           <CollectionsSidebar onSelect={handleCollectionSelect} />
         </div>
       {/if}
 
-      <div class="flex items-center justify-start border-t-2 border-gray-200 px-4 py-3 dark:border-gray-800">
+      <div
+        class="flex items-center justify-start border-t-2 border-gray-200 px-4 py-3 dark:border-gray-800"
+      >
         <Info class="h-3.5 w-3.5 text-gray-400" />
-        <a href="https://docs.damask.studio" target="_blank" class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        <a
+          href="https://docs.damask.studio"
+          target="_blank"
+          class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+        >
           <span class="text-sm">{m.help_docs()}</span>
         </a>
       </div>
       <div class="flex items-center justify-start px-4 py-3">
         <Megaphone class="h-3.5 w-3.5 text-gray-400" />
-        <a href="https://github.com/vincent/damask/discussions" target="_blank" class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+        <a
+          href="https://github.com/vincent/damask/discussions"
+          target="_blank"
+          class="flex items-center gap-2 rounded-lg px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+        >
           <span class="text-sm">{m.help_feedback()}</span>
         </a>
       </div>
 
       <!-- Bottom sign out + theme toggle -->
-      <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
-        <a href="/logout" class="flex items-center gap-2 rounded-lg text-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+      <div
+        class="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800"
+      >
+        <a
+          href="/logout"
+          class="text-md flex items-center gap-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+        >
           <LogOut class="h-3.5 w-3.5" />
           <Hint class="text-sm">{m.logout()}</Hint>
         </a>

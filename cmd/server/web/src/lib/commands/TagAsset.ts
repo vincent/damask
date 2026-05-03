@@ -1,14 +1,14 @@
-import type { Command } from './types'
 import { tagApi } from '$lib/api'
+import { m } from '$lib/paraglide/messages'
 import { assetsStore } from '$lib/stores/assets.svelte'
 import { tagsManagementStore } from '$lib/stores/tagsManagement.svelte'
-import { m } from '$lib/paraglide/messages'
+import type { Command } from './types'
 
 export class TagAsset implements Command {
   constructor(
     private assetId: string,
     private tag: string,
-    private direction: 'add' | 'remove',
+    private direction: 'add' | 'remove'
   ) {}
 
   label() {
@@ -29,8 +29,11 @@ export class TagAsset implements Command {
   }
 
   async revert() {
-    const inverse = new TagAsset(this.assetId, this.tag,
-      this.direction === 'add' ? 'remove' : 'add')
+    const inverse = new TagAsset(
+      this.assetId,
+      this.tag,
+      this.direction === 'add' ? 'remove' : 'add'
+    )
     await inverse.apply()
   }
 }

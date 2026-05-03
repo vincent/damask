@@ -18,7 +18,13 @@
 
   // Local reactive thumbnail state — updated by the polling loop.
   let thumbUrl = $state<string | null>(variant.thumbnail_url)
-  let thumbContentType = $state(variant.thumbnail_content_type ? variant.thumbnail_content_type : (variant.thumbnail_url?.includes('.mp4') ? 'video/mp4' : 'image/jpeg'))
+  let thumbContentType = $state(
+    variant.thumbnail_content_type
+      ? variant.thumbnail_content_type
+      : variant.thumbnail_url?.includes('.mp4')
+        ? 'video/mp4'
+        : 'image/jpeg'
+  )
   let noPreview = $state(false)
 
   const MAX_POLL = 30
@@ -38,7 +44,9 @@
     pollCount++
 
     try {
-      const res = await fetch(variantApi.thumbUrl(assetId, variant.id), { credentials: 'include' })
+      const res = await fetch(variantApi.thumbUrl(assetId, variant.id), {
+        credentials: 'include',
+      })
       if (res.status === 202) {
         pollTimer = setTimeout(poll, 2000)
       } else if (res.ok) {
@@ -69,9 +77,13 @@
   }
 </script>
 
-<div class="group flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+<div
+  class="group flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
+>
   <!-- Thumbnail -->
-  <div class="relative flex h-40 items-center justify-center overflow-hidden bg-gray-100 dark:bg-gray-800">
+  <div
+    class="relative flex h-40 items-center justify-center overflow-hidden bg-gray-100 dark:bg-gray-800"
+  >
     {#if thumbUrl}
       <AssetThumbnail
         src={thumbUrl}
@@ -80,13 +92,19 @@
         class="h-full w-full object-cover"
       />
     {:else if noPreview}
-      <div class="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-600">
+      <div
+        class="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-600"
+      >
         <ImageOff class="h-5 w-5" />
         <span class="text-[11px]">{m.variant_no_preview()}</span>
       </div>
     {:else}
-      <div class="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-600">
-        <div class="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-sky-500 dark:border-gray-600 dark:border-t-sky-400"></div>
+      <div
+        class="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-600"
+      >
+        <div
+          class="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-sky-500 dark:border-gray-600 dark:border-t-sky-400"
+        ></div>
         <span class="text-[11px]">{m.variant_thumbnail_generating()}</span>
       </div>
     {/if}
@@ -95,7 +113,7 @@
     <a
       href={variantApi.fileUrl(assetId, variant.id)}
       download
-      class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 transition-colors transition-opacity group-hover:opacity-100 hover:bg-white dark:hover:bg-gray-500/20 dark:bg-gray-800/70 dark:text-gray-300"
+      class="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 transition-colors transition-opacity group-hover:opacity-100 hover:bg-white dark:bg-gray-800/70 dark:text-gray-300 dark:hover:bg-gray-500/20"
       aria-label={m.download()}
     >
       <Download class="h-3.5 w-3.5" />
@@ -105,7 +123,7 @@
       <button
         type="button"
         title={m.variant_delete_confirm()}
-        class="absolute right-2 top-10 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 group-hover:opacity-100 dark:text-gray-300 dark:bg-gray-800/70 transition-colors transition-opacity hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+        class="absolute top-10 right-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/70 text-gray-600 opacity-0 transition-colors transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 dark:bg-gray-800/70 dark:text-gray-300 dark:hover:bg-red-900/20 dark:hover:text-red-400"
         onclick={handleDelete}
       >
         <Trash2 class="h-3.5 w-3.5" />
@@ -115,9 +133,17 @@
 
   <!-- Info -->
   <div class="px-3 py-2.5">
-    <p class="truncate text-sm font-semibold text-gray-800 dark:text-gray-200">{variant.type}</p>
+    <p class="truncate text-sm font-semibold text-gray-800 dark:text-gray-200">
+      {variant.type}
+    </p>
     <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-      {variant.size != null ? formatBytes(variant.size) + ' · ' : ''}{new Date(variant.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+      {variant.size != null ? formatBytes(variant.size) + ' · ' : ''}{new Date(
+        variant.created_at
+      ).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}
     </p>
   </div>
 </div>

@@ -1,4 +1,4 @@
-import { browserDetectStore } from "./browserDetect.svelte"
+import { browserDetectStore } from './browserDetect.svelte'
 
 let activeProjectId = $state<string | null>(null)
 let activeFolderId = $state<string | null>(null)
@@ -6,11 +6,21 @@ let activeCollectionId = $state<string | null>(null)
 let sidebarVisible = $state(browserDetectStore.onWideDevice)
 
 export const navigationStore = {
-  get activeProjectId() { return activeProjectId },
-  get activeFolderId() { return activeFolderId },
-  get activeCollectionId() { return activeCollectionId },
-  get sidebarVisible() { return sidebarVisible },
-  set sidebarVisible(v) { sidebarVisible = v },
+  get activeProjectId() {
+    return activeProjectId
+  },
+  get activeFolderId() {
+    return activeFolderId
+  },
+  get activeCollectionId() {
+    return activeCollectionId
+  },
+  get sidebarVisible() {
+    return sidebarVisible
+  },
+  set sidebarVisible(v) {
+    sidebarVisible = v
+  },
 
   toggleSidebarVisible() {
     sidebarVisible = !sidebarVisible

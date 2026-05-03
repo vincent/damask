@@ -16,7 +16,9 @@
 
   let { open = $bindable(false), field, onclose, ondeleted }: Props = $props()
 
-  let stats = $state<{ asset_count: number; project_count: number } | null>(null)
+  let stats = $state<{ asset_count: number; project_count: number } | null>(
+    null
+  )
   let statsLoading = $state(false)
   let deleting = $state(false)
   let error = $state('')
@@ -26,13 +28,17 @@
       stats = null
       error = ''
       statsLoading = true
-      fieldDefinitionApi.stats(field.id).then((s) => {
-        stats = s
-      }).catch(() => {
-        stats = { asset_count: 0, project_count: 0 }
-      }).finally(() => {
-        statsLoading = false
-      })
+      fieldDefinitionApi
+        .stats(field.id)
+        .then((s) => {
+          stats = s
+        })
+        .catch(() => {
+          stats = { asset_count: 0, project_count: 0 }
+        })
+        .finally(() => {
+          statsLoading = false
+        })
     }
   })
 
@@ -67,11 +73,21 @@
         {#if stats.asset_count > 0 || stats.project_count > 0}
           This field has values set on
           {#if stats.asset_count > 0}
-            <strong class="text-gray-900 dark:text-gray-100">{stats.asset_count} asset{stats.asset_count !== 1 ? 's' : ''}</strong>
+            <strong class="text-gray-900 dark:text-gray-100"
+              >{stats.asset_count} asset{stats.asset_count !== 1
+                ? 's'
+                : ''}</strong
+            >
           {/if}
-          {#if stats.asset_count > 0 && stats.project_count > 0} and {/if}
+          {#if stats.asset_count > 0 && stats.project_count > 0}
+            and
+          {/if}
           {#if stats.project_count > 0}
-            <strong class="text-gray-900 dark:text-gray-100">{stats.project_count} project{stats.project_count !== 1 ? 's' : ''}</strong>
+            <strong class="text-gray-900 dark:text-gray-100"
+              >{stats.project_count} project{stats.project_count !== 1
+                ? 's'
+                : ''}</strong
+            >
           {/if}.
           {m.field_values_grace_period()}
         {:else}
@@ -84,7 +100,9 @@
 
     <div class="mt-5 flex justify-end gap-2">
       <Button variant="secondary" onclick={onclose}>{m.cancel()}</Button>
-      <Button variant="danger" loading={deleting} onclick={handleDelete}>{m.delete_field()}</Button>
+      <Button variant="danger" loading={deleting} onclick={handleDelete}
+        >{m.delete_field()}</Button
+      >
     </div>
   </div>
 </Modal>

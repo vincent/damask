@@ -1,15 +1,18 @@
 import { browser } from '$app/environment'
 import { replaceState } from '$app/navigation'
+import type { User, Workspace } from '$lib/api'
+import { workspaceApi } from '$lib/api'
 import { redirect } from '@sveltejs/kit'
 import type { LayoutLoad } from './$types'
-import { workspaceApi } from '$lib/api'
-import type { User, Workspace } from '$lib/api'
 
 const PUBLIC_PATHS = ['/login', '/register', '/invite', '/s/', '/demo/']
 
 export const ssr = false
 
-export const load: LayoutLoad = async ({ url, fetch }): Promise<{
+export const load: LayoutLoad = async ({
+  url,
+  fetch,
+}): Promise<{
   user?: User
   workspace?: Workspace
   role?: string
@@ -23,10 +26,20 @@ export const load: LayoutLoad = async ({ url, fetch }): Promise<{
 
   workspaceApi.useFetch(fetch)
 
-  let result: { user?: User; workspace?: Workspace; role?: string; totalAssetCount?: number } = {}
+  let result: {
+    user?: User
+    workspace?: Workspace
+    role?: string
+    totalAssetCount?: number
+  } = {}
   try {
     const me = await workspaceApi.me()
-    result = { user: me.user, workspace: me.workspace, role: me.role, totalAssetCount: me.total_asset_count }
+    result = {
+      user: me.user,
+      workspace: me.workspace,
+      role: me.role,
+      totalAssetCount: me.total_asset_count,
+    }
   } catch {
     redirect(303, '/login')
   }
@@ -36,7 +49,12 @@ export const load: LayoutLoad = async ({ url, fetch }): Promise<{
     try {
       const switched = await workspaceApi.switch(wsParam)
       const refreshed = await workspaceApi.me().catch(() => null)
-      result = { user: result.user, workspace: switched.workspace, role: switched.role, totalAssetCount: refreshed?.total_asset_count ?? result.totalAssetCount }
+      result = {
+        user: result.user,
+        workspace: switched.workspace,
+        role: switched.role,
+        totalAssetCount: refreshed?.total_asset_count ?? result.totalAssetCount,
+      }
       const clean = new URL(url)
       clean.searchParams.delete('ws')
       replaceState(clean.pathname + clean.search, {})
