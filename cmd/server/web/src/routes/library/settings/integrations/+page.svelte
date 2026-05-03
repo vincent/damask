@@ -39,24 +39,24 @@
     description={m.integrations_subtitle()}
   />
 
-  <div class="mx-auto w-full max-w-4xl py-8">
+  <div class="mx-auto w-full max-w-4xl px-8 py-8">
     {#if loading}
       <div class="space-y-3">
         {#each [0, 1] as _}
           <div
-            class="flex animate-pulse items-center gap-5 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900"
+            class="flex animate-pulse items-center gap-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5"
           >
             <div
-              class="h-11 w-11 shrink-0 rounded-xl bg-zinc-100 dark:bg-zinc-800"
+              class="h-11 w-11 shrink-0 rounded-xl bg-[var(--bg-elevated)]"
             ></div>
             <div class="flex-1 space-y-2">
               <div
-                class="h-3.5 w-32 rounded bg-zinc-100 dark:bg-zinc-800"
+                class="h-3.5 w-32 rounded bg-[var(--bg-elevated)]"
               ></div>
-              <div class="h-3 w-56 rounded bg-zinc-100 dark:bg-zinc-800"></div>
+              <div class="h-3 w-56 rounded bg-[var(--bg-elevated)]"></div>
             </div>
             <div
-              class="h-8 w-20 shrink-0 rounded-lg bg-zinc-100 dark:bg-zinc-800"
+              class="h-8 w-20 shrink-0 rounded-lg bg-[var(--bg-elevated)]"
             ></div>
           </div>
         {/each}

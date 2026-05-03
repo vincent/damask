@@ -328,9 +328,7 @@
       {:else if activeCollection}
         <Book class="h-10 w-10 rounded text-[var(--text-secondary)]" />
       {:else}
-        <LibraryBig
-          class="h-10 w-10 rounded text-[var(--text-secondary)]"
-        />
+        <LibraryBig class="h-10 w-10 rounded text-[var(--text-secondary)]" />
       {/if}
     </div>
   {/snippet}
@@ -345,7 +343,9 @@
     class="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-2"
   >
     <LibraryBig class="h-4 w-4 text-[var(--accent)]" />
-    <span class="text-sm font-medium text-[var(--accent-text)]">{activeCollection.name}</span>
+    <span class="text-sm font-medium text-[var(--accent-text)]"
+      >{activeCollection.name}</span
+    >
     <span class="text-xs text-[var(--text-muted)]"
       >{m.assets_count({ count: activeCollection.asset_count })}</span
     >

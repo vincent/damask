@@ -183,7 +183,8 @@
             />
           {/if}
           <span class="min-w-0 flex-1 truncate text-left">{project.name}</span>
-          <span class="ml-auto shrink-0 p-1 text-xs tabular-nums text-[var(--text-muted)]"
+          <span
+            class="ml-auto shrink-0 p-1 text-xs text-[var(--text-muted)] tabular-nums"
             >{project.asset_count || ''}</span
           >
         </button>
@@ -298,7 +299,7 @@
         <input
           bind:value={newName}
           placeholder={m.project_name()}
-          class="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-sm text-[var(--text-primary)] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          class="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-sm text-[var(--text-primary)] focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
         />
         <div class="flex flex-wrap gap-1">
           {#each COLORS as c}

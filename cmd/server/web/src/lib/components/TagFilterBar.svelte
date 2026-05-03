@@ -65,7 +65,9 @@
         title="Shift+click to add to filter"
       >
         {tag.name}
-        <span class="ml-1 tabular-nums text-[var(--text-muted)]">{tag.asset_count}</span>
+        <span class="ml-1 text-[var(--text-muted)] tabular-nums"
+          >{tag.asset_count}</span
+        >
       </button>
     {/if}
   {/each}

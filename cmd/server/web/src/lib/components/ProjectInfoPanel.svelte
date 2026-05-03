@@ -27,9 +27,13 @@
       class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]"
       style="color: {project.color ?? 'var(--text-muted)'}"
     />
-    <span class="flex-1 font-medium text-[var(--text-primary)]">{project.name}</span>
+    <span class="flex-1 font-medium text-[var(--text-primary)]"
+      >{project.name}</span
+    >
     {#if project.description}
-      <span class="max-w-xs truncate text-[var(--text-muted)]">{project.description}</span>
+      <span class="max-w-xs truncate text-[var(--text-muted)]"
+        >{project.description}</span
+      >
     {/if}
     {#if expanded}
       <ChevronDown class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />

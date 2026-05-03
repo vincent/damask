@@ -15,16 +15,6 @@
   }
 </script>
 
-<style>
-  button :global(.ghost-icon) {
-    opacity: 0;
-    transition: opacity 150ms ease-out;
-  }
-  button:hover :global(.ghost-icon) {
-    opacity: 0.4;
-  }
-</style>
-
 {#each Object.entries(keys) as [key, label] (key)}
   {@const active = value === key}
   <button
@@ -35,7 +25,9 @@
     onclick={() => onSort(key)}
     title={label}
   >
-    <span class="sort-icon flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+    <span
+      class="sort-icon flex h-3.5 w-3.5 shrink-0 items-center justify-center"
+    >
       {#if active && asc}
         <SortAsc class="h-3.5 w-3.5 text-[var(--accent)]" />
       {:else if active && !asc}
@@ -47,3 +39,13 @@
     {label}
   </button>
 {/each}
+
+<style>
+  button :global(.ghost-icon) {
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+  }
+  button:hover :global(.ghost-icon) {
+    opacity: 0.4;
+  }
+</style>

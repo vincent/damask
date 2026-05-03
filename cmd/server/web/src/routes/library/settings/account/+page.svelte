@@ -45,10 +45,10 @@
   <PageHeader title={m.settings_auth_title()} />
   <div class="mx-auto w-full max-w-3xl space-y-8 px-8 py-10">
     {#if loading}
-      <div class="text-sm text-zinc-400 dark:text-zinc-500">Loading…</div>
+      <div class="text-sm text-[var(--text-muted)]">Loading…</div>
     {:else if me}
       <div
-        class="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white px-5 dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900"
+        class="divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5"
       >
         <LinkedIdentityRow
           provider="password"

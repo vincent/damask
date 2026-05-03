@@ -332,7 +332,7 @@
       {:else}
         <button
           type="button"
-          class="damask-asset-name w-full cursor-pointer pr-10 text-left text-base leading-snug font-semibold break-words text-[#1a2744] hover:underline dark:text-[#e3e9f2]"
+          class="damask-asset-name w-full cursor-pointer pr-10 text-left text-base leading-snug font-semibold break-words text-[var(--text-primary)] hover:underline"
           title="Click to rename"
           onclick={() => (renamingAsset = true)}
         >
@@ -347,7 +347,23 @@
           onclick={onclose}
           aria-label="Close panel"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            ><line x1="18" y1="6" x2="6" y2="18" /><line
+              x1="6"
+              y1="6"
+              x2="18"
+              y2="18"
+            /></svg
+          >
         </button>
       </div>
     </div>
@@ -355,25 +371,24 @@
     <div
       class="flex-shrink-0 border-b border-gray-100 px-5 py-3 dark:border-gray-800"
     >
-      <AssetMetadataPills
-        {asset}
-        {category}
-      />
+      <AssetMetadataPills {asset} {category} />
     </div>
 
     <!-- Animated tab bar -->
     <div
       class="relative flex-shrink-0 border-b border-gray-100 dark:border-gray-800"
     >
-      <div class="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        class="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {#each Object.keys(panelTabs) as tab}
           {@const tabInfo = panelTabs[tab as PanelTab]}
           <button
             type="button"
-            class="relative flex-1 min-w-fit whitespace-nowrap px-2 py-2.5 text-xs font-medium transition-colors {activeTab ===
+            class="relative min-w-fit flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors {activeTab ===
             tab
               ? 'text-indigo-600 dark:text-indigo-400'
-              : 'text-[#8ba4c4] hover:text-[#4a6b8a] dark:text-[#5f7590] dark:hover:text-[#8ba4c4]'}"
+              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}"
             onclick={() => {
               activeTab = tab as PanelTab
               createError = ''

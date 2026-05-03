@@ -88,9 +88,15 @@
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
             onclick={() => onSelect(col.id)}
           >
-            <LibraryBig class="h-4 w-4 shrink-0 {navigationStore.activeCollectionId === col.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
+            <LibraryBig
+              class="h-4 w-4 shrink-0 {navigationStore.activeCollectionId ===
+              col.id
+                ? 'text-[var(--accent)]'
+                : 'text-[var(--text-muted)]'}"
+            />
             <span class="min-w-0 flex-1 truncate text-left">{col.name}</span>
-            <span class="ml-auto shrink-0 p-1 text-xs tabular-nums text-[var(--text-muted)]"
+            <span
+              class="ml-auto shrink-0 p-1 text-xs text-[var(--text-muted)] tabular-nums"
               >{col.asset_count || ''}</span
             >
           </button>

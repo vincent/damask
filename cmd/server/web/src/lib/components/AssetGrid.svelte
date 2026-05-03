@@ -198,7 +198,9 @@
       class="w-full border-separate border-spacing-0 pt-2 text-left text-sm"
     >
       <thead>
-        <tr class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
+        <tr
+          class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase"
+        >
           <th class="w-8 py-2 pr-4 pl-1"></th>
           <th class="py-2 pr-4">Name</th>
           <th class="py-2 pr-4">Type</th>
@@ -244,23 +246,22 @@
               </div>
             </td>
             <td class="max-w-xs py-2 pr-4">
-              <span class="block truncate font-medium text-[var(--text-primary)]"
+              <span
+                class="block truncate font-medium text-[var(--text-primary)]"
                 >{asset.original_filename}</span
               >
               {#if asset.tags.length > 0}
-                <span class="text-xs text-[var(--text-muted)]">{asset.tags.join(', ')}</span>
+                <span class="text-xs text-[var(--text-muted)]"
+                  >{asset.tags.join(', ')}</span
+                >
               {/if}
             </td>
-            <td class="py-2 pr-4 text-[var(--text-muted)]"
-              >{asset.mime_type}</td
+            <td class="py-2 pr-4 text-[var(--text-muted)]">{asset.mime_type}</td
             >
-            <td
-              class="py-2 pr-4 whitespace-nowrap text-[var(--text-muted)]"
+            <td class="py-2 pr-4 whitespace-nowrap text-[var(--text-muted)]"
               >{formatBytes(asset.size)}</td
             >
-            <td
-              class="py-2 pr-4 whitespace-nowrap text-[var(--text-muted)]"
-            >
+            <td class="py-2 pr-4 whitespace-nowrap text-[var(--text-muted)]">
               {#if asset.width && asset.height}{asset.width}×{asset.height}{:else}—{/if}
             </td>
             <td class="py-2 whitespace-nowrap text-[var(--text-muted)]">
@@ -324,7 +325,9 @@
             <h2 class="text-sm font-semibold text-[var(--text-primary)]">
               {CATEGORY_LABELS[cat]}
             </h2>
-            <span class="text-xs tabular-nums text-[var(--text-muted)]">{group.length}</span>
+            <span class="text-xs text-[var(--text-muted)] tabular-nums"
+              >{group.length}</span
+            >
           </div>
           {@render assetCardGrid(group)}
         </div>
@@ -351,7 +354,9 @@
           <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
           </h2>
-          <span class="text-xs tabular-nums text-[var(--text-muted)]">{group.assets.length}</span>
+          <span class="text-xs text-[var(--text-muted)] tabular-nums"
+            >{group.assets.length}</span
+          >
         </div>
         {@render assetCardGrid(group.assets)}
       </div>
@@ -370,7 +375,9 @@
           <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
           </h2>
-          <span class="text-xs tabular-nums text-[var(--text-muted)]">{group.assets.length}</span>
+          <span class="text-xs text-[var(--text-muted)] tabular-nums"
+            >{group.assets.length}</span
+          >
         </div>
         {@render assetCardGrid(group.assets)}
       </div>

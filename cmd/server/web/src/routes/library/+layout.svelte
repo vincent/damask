@@ -275,7 +275,9 @@
       </div>
 
       <div class="border-t border-[var(--border-subtle)] px-3 pt-3 pb-1.5">
-        <span class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
+        <span
+          class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase"
+        >
           {m.user_profile()}
         </span>
       </div>
@@ -290,14 +292,20 @@
               ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           >
-            <Icon class="h-4 w-4 shrink-0 {activeSettingsSection === section.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
+            <Icon
+              class="h-4 w-4 shrink-0 {activeSettingsSection === section.id
+                ? 'text-[var(--accent)]'
+                : 'text-[var(--text-muted)]'}"
+            />
             <span class="flex-1 text-left">{section.label()}</span>
           </a>
         {/each}
       </nav>
 
       <div class="border-t border-[var(--border-subtle)] px-3 pt-3 pb-1.5">
-        <span class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
+        <span
+          class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase"
+        >
           {m.settings()}
         </span>
       </div>
@@ -312,14 +320,20 @@
               ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           >
-            <Icon class="h-4 w-4 shrink-0 {activeSettingsSection === section.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
+            <Icon
+              class="h-4 w-4 shrink-0 {activeSettingsSection === section.id
+                ? 'text-[var(--accent)]'
+                : 'text-[var(--text-muted)]'}"
+            />
             <span class="flex-1 text-left">{section.label()}</span>
           </a>
         {/each}
       </nav>
 
       <div class="border-t border-[var(--border-subtle)] px-3 pt-3 pb-1.5">
-        <span class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">
+        <span
+          class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase"
+        >
           {m.privacy_audit_logs()}
         </span>
       </div>
@@ -334,7 +348,11 @@
               ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           >
-            <Icon class="h-4 w-4 shrink-0 {activeSettingsSection === section.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
+            <Icon
+              class="h-4 w-4 shrink-0 {activeSettingsSection === section.id
+                ? 'text-[var(--accent)]'
+                : 'text-[var(--text-muted)]'}"
+            />
             <span class="flex-1 text-left">{section.label()}</span>
           </a>
         {/each}
@@ -353,27 +371,42 @@
       <div class="px-3 pb-2">
         <button
           class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
-            {page.route.id === '/library' && navigationStore.activeProjectId === null
+            {page.route.id === '/library' &&
+          navigationStore.activeProjectId === null
             ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
           onclick={() => handleProjectSelect(null)}
         >
-          <LibraryBig class="h-4 w-4 shrink-0 {page.route.id === '/library' && navigationStore.activeProjectId === null ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}" />
+          <LibraryBig
+            class="h-4 w-4 shrink-0 {page.route.id === '/library' &&
+            navigationStore.activeProjectId === null
+              ? 'text-[var(--accent)]'
+              : 'text-[var(--text-muted)]'}"
+          />
           <span class="flex-1 text-left">{m.all_assets()}</span>
           {#if authStore.totalAssetCount > 0}
-            <span class="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{authStore.totalAssetCount}</span>
+            <span class="shrink-0 text-xs text-[var(--text-muted)] tabular-nums"
+              >{authStore.totalAssetCount}</span
+            >
           {/if}
         </button>
       </div>
 
       <!-- Projects section -->
-      <div class="flex flex-1 flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3">
+      <div
+        class="flex flex-1 flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3"
+      >
         <div class="mb-2 flex items-center justify-between px-2">
-          <span class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">{m.projects()}</span>
+          <span
+            class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase"
+            >{m.projects()}</span
+          >
           {#if authStore.role !== 'viewer'}
             <button
               class="rounded p-0.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
-              onclick={() => { sidebarCreating = true }}
+              onclick={() => {
+                sidebarCreating = true
+              }}
               aria-label={m.new_project()}
             >
               <Plus class="h-3.5 w-3.5" />
@@ -385,7 +418,9 @@
           <ProjectSidebar
             selectedAssetIds={selectionStore.selectedIds}
             creating={sidebarCreating}
-            onCreatingChange={(v) => { sidebarCreating = v }}
+            onCreatingChange={(v) => {
+              sidebarCreating = v
+            }}
             onSelect={handleProjectSelect}
             onFolderSelect={handleFolderSelect}
             onAssetsFolderDropped={handleAssetsDropped}
@@ -396,9 +431,14 @@
 
       <!-- Collections section -->
       {#if collectionsStore.collections.length > 0}
-        <div class="flex flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3">
+        <div
+          class="flex flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3"
+        >
           <div class="mb-2 flex items-center px-2">
-            <span class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase">{m.collections()}</span>
+            <span
+              class="text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase"
+              >{m.collections()}</span
+            >
           </div>
           <CollectionsSidebar onSelect={handleCollectionSelect} />
         </div>

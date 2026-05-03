@@ -65,6 +65,12 @@
   --panel-backdrop: rgba(28, 36, 51, 0.7);
 }
 
+/* text-md: 16px body copy — sits between text-sm (14px) and text-lg (18px) */
+@utility text-md {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
 .damask-texture::before,
 .damask-texture-strong::before {
   content: '';

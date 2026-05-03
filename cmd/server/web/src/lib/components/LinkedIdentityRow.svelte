@@ -23,20 +23,20 @@
 </script>
 
 <div
-  class="flex items-center justify-between gap-4 border-b border-zinc-100 py-4 last:border-0 dark:border-zinc-800"
+  class="flex items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-4 last:border-0"
 >
   <div class="min-w-0">
-    <p class="font-medium text-zinc-900 dark:text-zinc-100">{label}</p>
+    <p class="font-medium text-[var(--text-primary)]">{label}</p>
     {#if linked && email}
-      <p class="text-sm text-zinc-500 dark:text-zinc-400">
+      <p class="text-sm text-[var(--text-muted)]">
         {m.settings_auth_connected_as({ email })}
       </p>
     {:else if linked}
-      <p class="text-sm text-zinc-500 dark:text-zinc-400">
+      <p class="text-sm text-[var(--text-muted)]">
         {m.settings_auth_connected_as({ email: label })}
       </p>
     {:else if provider !== 'password'}
-      <p class="text-sm text-zinc-400 dark:text-zinc-500">—</p>
+      <p class="text-sm text-[var(--text-muted)]">—</p>
     {/if}
     {#if disconnectError}
       <p class="mt-0.5 text-sm text-red-500">{disconnectError}</p>
@@ -45,7 +45,7 @@
 
   <div class="shrink-0">
     {#if provider === 'password'}
-      <!-- password row: no connect/disconnect, just a placeholder -->
+      <!-- password row: no connect/disconnect -->
     {:else if linked}
       <button
         type="button"
@@ -54,9 +54,7 @@
         >{m.settings_auth_disconnect()}</button
       >
     {:else if connectHref}
-      <a
-        href={connectHref}
-        class="text-sm text-blue-600 hover:underline dark:text-blue-400"
+      <a href={connectHref} class="text-sm text-[var(--accent)] hover:underline"
         >{m.settings_auth_connect()}</a
       >
     {/if}

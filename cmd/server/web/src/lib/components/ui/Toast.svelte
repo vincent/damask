@@ -4,7 +4,7 @@
 
 {#if toastStore.current}
   <div
-    class="text-md fixed right-4 bottom-4 z-500 flex items-center gap-3 rounded-lg px-4 py-3 font-medium shadow-lg transition-all
+    class="text-md fixed right-4 bottom-4 z-500 flex items-center gap-3 rounded-lg px-4 py-3 font-medium shadow-lg transition-colors
       {toastStore.current.type === 'error'
       ? 'bg-red-600 text-white'
       : 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'}"

@@ -2,9 +2,10 @@
   import { workspaceApi } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
-  import Spinner from '$lib/components/ui/Spinner.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import PageContainer from '$lib/components/ui/PageContainer.svelte'
+  import Button from '$lib/components/ui/Button.svelte'
   import { m } from '$lib/paraglide/messages'
 
   const ws = $derived(authStore.workspace)
@@ -80,7 +81,7 @@
   <title>{m.tab_exif_privacy()} — Damask</title>
 </svelte:head>
 
-<div class="flex-1 overflow-y-auto">
+<PageContainer>
   <PageHeader
     title={m.tab_exif_privacy()}
     description={m.tab_exif_privacy_description()}
@@ -95,15 +96,15 @@
     {/if}
 
     <div
-      class="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+      class="space-y-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
     >
       <!-- EXIF extraction toggle -->
       <div class="flex items-start justify-between gap-4">
         <div class="flex-1">
-          <p class="text-md font-medium text-gray-900 dark:text-gray-100">
+          <p class="text-md font-medium text-[var(--text-primary)]">
             {m.extract_exif()}
           </p>
-          <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+          <p class="mt-0.5 text-sm text-[var(--text-muted)]">
             {m.extract_exif_description()}
           </p>
         </div>
@@ -129,13 +130,13 @@
       <!-- GPS toggle — only shown when EXIF enabled -->
       {#if exifKeep}
         <div
-          class="flex items-start justify-between gap-4 border-t border-gray-100 pt-6 dark:border-gray-800"
+          class="flex items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-6"
         >
           <div class="flex-1">
-            <p class="text-md font-medium text-gray-900 dark:text-gray-100">
+            <p class="text-md font-medium text-[var(--text-primary)]">
               {m.keep_gps()}
             </p>
-            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+            <p class="mt-0.5 text-sm text-[var(--text-muted)]">
               {m.keep_gps_description()}
             </p>
           </div>
@@ -162,54 +163,44 @@
 
     {#if isOwner}
       <div class="flex items-center justify-between">
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           disabled={backfilling || !exifKeep}
-          onclick={() => (showBackfillConfirm = true)}
-          class="text-md flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+          loading={backfilling}
           title={!exifKeep ? m.extract_exif_first() : undefined}
+          onclick={() => (showBackfillConfirm = true)}
         >
-          {#if backfilling}<Spinner size="sm" />{/if}
           {m.extract_exif_again()}
-        </button>
+        </Button>
 
-        <button
-          type="button"
-          disabled={!isDirty || saving}
+        <Button
+          variant="primary"
+          disabled={!isDirty}
+          loading={saving}
           onclick={save}
-          class="text-md flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
-          {#if saving}<Spinner size="sm" />{/if}
           {m.save()}
-        </button>
+        </Button>
       </div>
     {/if}
   </div>
-</div>
+</PageContainer>
 
 {#if showBackfillConfirm}
   <Modal onclose={() => (showBackfillConfirm = false)}>
-    <h2 class="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
+    <h2 class="mb-3 text-lg font-semibold text-[var(--text-primary)]">
       {m.extract_exif_again()}?
     </h2>
-    <p class="text-md text-gray-600 dark:text-gray-400">
+    <p class="text-md text-[var(--text-secondary)]">
       {m.extract_exif_again_description()}
     </p>
     <div class="mt-6 flex justify-end gap-3">
-      <button
-        type="button"
-        onclick={() => (showBackfillConfirm = false)}
-        class="text-md rounded-xl border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
-      >
+      <Button variant="secondary" onclick={() => (showBackfillConfirm = false)}>
         {m.cancel()}
-      </button>
-      <button
-        type="button"
-        onclick={triggerBackfill}
-        class="text-md rounded-xl bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
-      >
+      </Button>
+      <Button variant="primary" onclick={triggerBackfill}>
         {m.reextract()}
-      </button>
+      </Button>
     </div>
   </Modal>
 {/if}

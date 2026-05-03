@@ -43,7 +43,7 @@
 <button
   type="button"
   draggable="true"
-  class="asset-card group flex w-full flex-col rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-gray-800 dark:shadow-none dark:ring-inset dark:hover:shadow-none dark:focus-visible:ring-indigo-500"
+  class="asset-card group flex w-full flex-col rounded-lg bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-[var(--bg-surface)] dark:shadow-none dark:ring-inset dark:hover:shadow-none dark:focus-visible:ring-indigo-500"
   onclick={(e) => onclick(e)}
   ondragstart={(e) => {
     e.dataTransfer?.setData('text/plain', asset.id)
@@ -119,7 +119,7 @@
       </div>
     {:else if asset.version_count > 1}
       <div
-        class="absolute top-2 right-2 rounded-full bg-black/50 px-1.5 py-0.5 text-white backdrop-blur-sm"
+        class="absolute top-2 right-2 rounded-full bg-gray-900/60 px-1.5 py-0.5 text-white backdrop-blur-sm"
         title="{asset.version_count} versions"
       >
         <span class="text-xs leading-none font-bold"
@@ -176,14 +176,14 @@
       {asset.original_filename}
     </p>
     <div class="flex items-center justify-between">
-      <span class="text-xs text-gray-400">{formatBytes(asset.size)}</span>
-      <span class="text-xs text-gray-400">{formatDate(asset.created_at)}</span>
+      <span class="text-xs text-[var(--text-muted)] tabular-nums">{formatBytes(asset.size)}</span>
+      <span class="text-xs text-[var(--text-muted)] tabular-nums">{formatDate(asset.created_at)}</span>
     </div>
     {#if asset.tags && asset.tags.length > 0}
       <div class="flex flex-wrap gap-1">
         {#each asset.tags.slice(0, 3) as tag}
           <span
-            class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+            class="rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-xs text-[var(--text-muted)]"
             >{tag}</span
           >
         {/each}

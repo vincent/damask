@@ -2,8 +2,9 @@
   import { workspaceApi } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
-  import Spinner from '$lib/components/ui/Spinner.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
+  import PageContainer from '$lib/components/ui/PageContainer.svelte'
+  import Button from '$lib/components/ui/Button.svelte'
   import { m } from '$lib/paraglide/messages'
 
   type RetentionMode = 'unlimited' | 'capped'
@@ -14,7 +15,6 @@
   let capValue = $state(10)
   let saving = $state(false)
 
-  // Initialise from workspace once available
   $effect(() => {
     if (ws) {
       if (ws.version_retention_count > 0) {
@@ -61,12 +61,12 @@
   <title>{m.version_history()} — Damask</title>
 </svelte:head>
 
-<div class="flex-1 overflow-y-auto">
+<PageContainer>
   <PageHeader
     title={m.version_history()}
     description={m.version_history_page_description()}
   />
-  <div class="mx-auto w-full max-w-4xl space-y-8 px-8 py-10">
+  <div class="mx-auto w-full max-w-3xl space-y-8 px-8 py-10">
     {#if authStore.role !== 'owner'}
       <p
         class="text-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
@@ -76,7 +76,7 @@
     {/if}
 
     <div
-      class="space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+      class="space-y-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
     >
       <!-- Keep all -->
       <label class="flex cursor-pointer items-start gap-3">
@@ -88,11 +88,11 @@
           bind:group={mode}
           disabled={authStore.role !== 'owner'}
         />
-        <div class="flex-1 space-y-2">
-          <p class="text-md font-medium text-gray-900 dark:text-gray-100">
+        <div class="flex-1 space-y-1.5">
+          <p class="text-md font-medium text-[var(--text-primary)]">
             {m.keep_all_versions()}
           </p>
-          <p class="text-sm text-gray-500 dark:text-gray-400">
+          <p class="text-sm text-[var(--text-muted)]">
             {m.keep_all_versions_description()}
           </p>
         </div>
@@ -108,24 +108,25 @@
           bind:group={mode}
           disabled={authStore.role !== 'owner'}
         />
-        <div class="flex-1 space-y-2">
-          <p class="text-md font-medium text-gray-900 dark:text-gray-100">
+        <div class="flex-1 space-y-1.5">
+          <p class="text-md font-medium text-[var(--text-primary)]">
             {m.keep_n_versions()}
           </p>
-          <p class="text-sm text-gray-500 dark:text-gray-400">
+          <p class="text-sm text-[var(--text-muted)]">
             {m.keep_n_versions_description()}
           </p>
           {#if mode === 'capped'}
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 pt-1">
               <input
                 type="number"
                 min="1"
                 max="50"
-                class="text-md w-24 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-gray-800 focus:border-indigo-400 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                class="text-md w-24 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-[var(--text-primary)] focus:border-indigo-400 focus:outline-none"
                 bind:value={capValue}
                 disabled={authStore.role !== 'owner'}
               />
-              <span class="text-sm text-gray-400">{m.keep_n_versions_ex()}</span
+              <span class="text-sm text-[var(--text-muted)]"
+                >{m.keep_n_versions_ex()}</span
               >
             </div>
           {/if}
@@ -135,16 +136,15 @@
 
     {#if authStore.role === 'owner'}
       <div class="flex justify-end">
-        <button
-          type="button"
-          class="text-md flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          disabled={!isDirty || saving}
+        <Button
+          variant="primary"
+          disabled={!isDirty}
+          loading={saving}
           onclick={save}
         >
-          {#if saving}<Spinner size="sm" />{/if}
           {m.save()}
-        </button>
+        </Button>
       </div>
     {/if}
   </div>
-</div>
+</PageContainer>

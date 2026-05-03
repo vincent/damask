@@ -7,12 +7,14 @@
 
 <!-- Header -->
 <header
-  class="border-b border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900"
+  class="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-4"
 >
   <div class="flex items-center justify-between">
     <div>
       <Title>{title}</Title>
-      <Hint>{description}</Hint>
+      {#if description}
+        <Hint>{description}</Hint>
+      {/if}
     </div>
     {@render children?.()}
   </div>

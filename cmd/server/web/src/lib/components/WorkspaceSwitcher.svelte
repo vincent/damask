@@ -92,18 +92,18 @@
   >
     <div class="flex items-center gap-2">
       <div
-        class="text-md flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 font-bold text-white"
+        class="text-md flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white dark:bg-indigo-500"
       >
         {initials}
       </div>
-      <span
-        class="flex-1 truncate text-left text-xl font-semibold text-gray-900 dark:text-gray-50"
-      >
-        {authStore.workspace?.name ?? 'Workspace'}
-        {#if activeWs}<span class="flex text-sm text-gray-400"
-            >{activeWs.member_count} {m.members()}</span
-          >{/if}
-      </span>
+      <div class="flex flex-1 flex-col truncate text-left">
+        <span class="truncate text-base font-semibold text-[var(--text-primary)]">
+          {authStore.workspace?.name ?? 'Workspace'}
+        </span>
+        {#if activeWs}
+          <span class="text-xs text-[var(--text-muted)] tabular-nums">{activeWs.member_count} {m.members()}</span>
+        {/if}
+      </div>
       <ChevronDown
         class="h-4 w-4 shrink-0 text-gray-400 transition-transform {open
           ? 'rotate-180'
@@ -122,13 +122,13 @@
         <div class="mx-2 mb-2 rounded-lg bg-indigo-50 p-3 dark:bg-indigo-950">
           <div class="mb-2 flex items-center gap-2">
             <div
-              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white"
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white dark:bg-indigo-500"
             >
               {activeWs.name[0]?.toUpperCase()}
             </div>
 
             <div
-              class="my-1 flex-1 truncate font-semibold text-indigo-900 dark:text-indigo-100"
+              class="my-1 flex-1 truncate text-sm font-semibold text-indigo-900 dark:text-indigo-100"
             >
               {activeWs.name}
             </div>
@@ -188,7 +188,7 @@
             role="menuitem"
           >
             <div
-              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white"
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white dark:bg-indigo-500"
             >
               {ws.name[0]?.toUpperCase()}
             </div>

@@ -101,7 +101,7 @@
         onclick={() => {
           typeFilter = val as typeof typeFilter
         }}
-        color={typeFilter === val ? '#6366f1' : '#000'}
+        color={typeFilter === val ? '#6366f1' : undefined}
       />
     {/each}
   </div>

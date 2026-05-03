@@ -169,7 +169,7 @@
       <section>
         {#if showInviteForm}
           <div
-            class="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-gray-900/50"
+            class="mb-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4"
           >
             <div class="flex gap-2">
               <Input
@@ -180,9 +180,8 @@
               />
               <select
                 bind:value={inviteRole}
-                class="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700
-                       focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
-                       dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
+                class="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)]
+                       focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
               >
                 <option value="editor">{m.editor()}</option>
                 <option value="viewer">{m.viewer()}</option>
@@ -205,7 +204,7 @@
         {/if}
 
         <div
-          class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900"
+          class="divide-y divide-[var(--border-subtle)] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
         >
           {#each members as member (member.user_id)}
             <div class="flex items-center gap-3 px-4 py-3">
@@ -220,14 +219,14 @@
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
                   <span
-                    class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                    class="truncate text-sm font-medium text-[var(--text-primary)]"
                     >{member.name}</span
                   >
                   {#if member.user_id === currentUserID}
-                    <span class="text-xs text-zinc-400">(you)</span>
+                    <span class="text-xs text-[var(--text-muted)]">(you)</span>
                   {/if}
                 </div>
-                <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                <div class="truncate text-xs text-[var(--text-muted)]">
                   {member.email}
                 </div>
               </div>
@@ -247,9 +246,8 @@
                       member.user_id,
                       (e.target as HTMLSelectElement).value
                     )}
-                  class="rounded border border-zinc-300 bg-white py-0.5 pr-6 pl-2 text-xs text-zinc-700
-                         focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
-                         dark:border-zinc-600 dark:bg-gray-900 dark:text-zinc-200"
+                  class="rounded border border-[var(--border)] bg-[var(--bg-surface)] py-0.5 pr-6 pl-2 text-xs text-[var(--text-primary)]
+                         focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                 >
                   <option value="owner">{m.owner()}</option>
                   <option value="editor">{m.editor()}</option>
@@ -261,7 +259,7 @@
               {#if member.user_id !== currentUserID}
                 {#if confirmRemoveID === member.user_id}
                   <div class="flex items-center gap-1.5">
-                    <span class="text-xs text-zinc-500 dark:text-zinc-400"
+                    <span class="text-xs text-[var(--text-muted)]"
                       >{m.remove()}?</span
                     >
                     <ButtonDelete
@@ -288,9 +286,7 @@
           {/each}
 
           {#if members.length === 0}
-            <div
-              class="px-4 py-8 text-center text-sm text-zinc-400 dark:text-zinc-500"
-            >
+            <div class="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
               {m.no_members_yet()}
             </div>
           {/if}
@@ -309,17 +305,15 @@
         </section>
         <section>
           <div
-            class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-gray-900"
+            class="divide-y divide-[var(--border-subtle)] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
           >
             {#each invites as invite (invite.id)}
               <div class="flex items-center gap-3 px-4 py-3">
                 <div class="min-w-0 flex-1">
-                  <div
-                    class="truncate text-sm text-zinc-900 dark:text-zinc-100"
-                  >
+                  <div class="truncate text-sm text-[var(--text-primary)]">
                     {invite.email}
                   </div>
-                  <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                  <div class="text-xs text-[var(--text-muted)]">
                     Expires {formatDistanceToNowStrict(
                       new Date(invite.expires_at),
                       { addSuffix: true }

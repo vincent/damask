@@ -125,14 +125,14 @@
   </PageHeader>
 
   <!-- Scope tabs -->
-  <div class="flex border-b border-gray-100 px-6 dark:border-gray-800">
+  <div class="flex border-b border-[var(--border-subtle)] px-6">
     {#each ['asset', 'project'] as FieldScope[] as scope}
       <button
         type="button"
         class="text-md relative py-3 pr-6 font-medium transition-colors
           {activeScope === scope
           ? 'text-indigo-600 dark:text-indigo-400'
-          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+          : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}"
         onclick={() => {
           activeScope = scope
         }}
@@ -163,17 +163,17 @@
             : 'projects'}."
         />
       {:else}
-        <p class="my-3 text-sm text-gray-400 dark:text-gray-600">
+        <p class="my-3 text-sm text-[var(--text-muted)]">
           {m.drag_row_reorder()}
         </p>
         <ul class="space-y-3">
           {#each fields as field, i (field.id)}
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
             <li
-              class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 transition-colors dark:bg-gray-900
+              class="flex items-center gap-3 rounded-xl border bg-[var(--bg-surface)] px-4 py-3 transition-colors
                 {dragOverIndex === i
                 ? 'border-indigo-400 dark:border-indigo-500'
-                : 'border-gray-200 dark:border-gray-700'}"
+                : 'border-[var(--border-subtle)]'}"
               draggable="true"
               ondragstart={() => dragStart(i)}
               ondragover={(e) => dragOver(e, i)}
@@ -185,28 +185,26 @@
             >
               <!-- Drag handle -->
               <GripVertical
-                class="h-4 w-4 shrink-0 cursor-grab text-gray-300 dark:text-gray-600"
+                class="h-4 w-4 shrink-0 cursor-grab text-[var(--text-muted)] opacity-50"
               />
 
               <!-- Field info -->
               <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                <span
-                  class="text-md font-medium text-gray-900 dark:text-gray-100"
+                <span class="text-md font-medium text-[var(--text-primary)]"
                   >{field.name}</span
                 >
                 <Badge>{fieldTypeBadge(field.field_type)}</Badge>
-                <span
-                  class="font-mono text-[11px] text-gray-400 dark:text-gray-500"
+                <span class="font-mono text-xs text-[var(--text-muted)]"
                   >{field.key}</span
                 >
                 {#if field.required}
                   <span
-                    class="text-[11px] font-medium text-orange-500 dark:text-orange-400"
+                    class="text-xs font-medium text-orange-500 dark:text-orange-400"
                     >{m.required()}</span
                   >
                 {/if}
                 {#if field.inherit_from_project && activeScope === 'asset'}
-                  <span class="text-[11px] text-gray-400 dark:text-gray-500"
+                  <span class="text-xs text-[var(--text-muted)]"
                     >{m.auto_fill_assets()}</span
                   >
                 {/if}
@@ -218,12 +216,12 @@
                 <div class="flex flex-wrap gap-1">
                   {#each opts.slice(0, 4) as opt}
                     <span
-                      class="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      class="rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-xs text-[var(--text-secondary)]"
                       >{opt}</span
                     >
                   {/each}
                   {#if opts.length > 4}
-                    <span class="text-[11px] text-gray-400"
+                    <span class="text-xs text-[var(--text-muted)]"
                       >+{opts.length - 4}</span
                     >
                   {/if}
