@@ -19,33 +19,29 @@
 </script>
 
 <div class="space-y-6">
-  <div
-    class="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700"
-  >
-    <h3 class="text-md font-semibold text-gray-800 dark:text-gray-200">
-      {m.extract_frame()}
-    </h3>
-    <div>
-      <label
-        for="variant-{kind}-timestamp"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-        >{m.timestamp_seconds()}</label
-      >
-      <input
-        id="variant-{kind}-timestamp"
-        type="number"
-        min="0"
-        step="0.1"
-        bind:value={videoTimestamp}
-        class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-      />
-    </div>
-    <Button
-      disabled={creating || authStore.role === 'viewer'}
-      onclick={() => handleCreate(kind, { timestamp: videoTimestamp })}
-      class="w-full"
+  <h3 class="text-md font-semibold text-gray-800 dark:text-gray-200">
+    {m.extract_frame()}
+  </h3>
+  <div>
+    <label
+      for="variant-{kind}-timestamp"
+      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+      >{m.timestamp_seconds()}</label
     >
-      {creating ? m.queuing_() : m.extract_frame()}
-    </Button>
+    <input
+      id="variant-{kind}-timestamp"
+      type="number"
+      min="0"
+      step="0.1"
+      bind:value={videoTimestamp}
+      class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+    />
   </div>
+  <Button
+    disabled={creating || authStore.role === 'viewer'}
+    onclick={() => handleCreate(kind, { timestamp: videoTimestamp })}
+    class="w-full"
+  >
+    {creating ? m.queuing_() : m.extract_frame()}
+  </Button>
 </div>

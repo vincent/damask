@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"mime"
@@ -171,45 +172,25 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return nil
 	}
 
-	validTypes := map[string]bool{
-		queue.JobTypeImageResize:       true,
-		queue.JobTypeImageWatermark:    true,
-		queue.JobTypeImageConvert:      true,
-		queue.JobTypeImageCrop:         true,
-		queue.JobTypeVideoCaptureImage: true,
-		queue.JobTypeVideoTranscode:    true,
-		queue.JobTypeImageBgRemove:     true,
-		queue.JobTypeImageSmartCrop:    true,
-	}
-	if !validTypes[body.Type] {
-		return errRes(c, fiber.StatusBadRequest, "invalid variant type")
-	}
-
-	if (body.Type == queue.JobTypeVideoCaptureImage || body.Type == queue.JobTypeVideoTranscode) &&
-		!strings.HasPrefix(asset.MimeType, "video/") {
-		return errRes(c, fiber.StatusBadRequest, "video transforms require a video asset")
-	}
-	if (body.Type == queue.JobTypeImageResize || body.Type == queue.JobTypeImageConvert || body.Type == queue.JobTypeImageCrop || body.Type == queue.JobTypeImageWatermark || body.Type == queue.JobTypeImageSmartCrop) &&
-		!strings.HasPrefix(asset.MimeType, "image/") {
-		return errRes(c, fiber.StatusBadRequest, "image transforms require an image asset")
-	}
-	if body.Type == queue.JobTypeImageBgRemove {
-		if s.cfg.RemoveBgAPIKey == "" {
-			return errRes(c, fiber.StatusBadRequest, "background removal requires REMOVEBG_API_KEY to be configured")
-		}
-		if !strings.HasPrefix(asset.MimeType, "image/") {
-			return errRes(c, fiber.StatusBadRequest, "background removal requires an image asset")
-		}
-	}
-
 	currentVer, err := s.versions.GetCurrentByAsset(c.Context(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
 	}
 
-	params := json.RawMessage("{}")
-	if len(body.Params) > 0 {
-		params = body.Params
+	prepared, err := s.variants.PrepareCreate(c.Context(), service.PrepareCreateVariantParams{
+		Type:              body.Type,
+		Params:            body.Params,
+		AssetMimeType:     asset.MimeType,
+		RemoveBgAvailable: s.cfg.RemoveBgAPIKey != "",
+	})
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidVariantType) {
+			return errRes(c, fiber.StatusBadRequest, "invalid variant type")
+		}
+		if errors.Is(err, service.ErrInvalidVariantReq) {
+			return errRes(c, fiber.StatusBadRequest, err.Error())
+		}
+		return ErrorStatusResponse(c, err)
 	}
 
 	payload, _ := json.Marshal(jobs.VariantJobPayload{
@@ -219,22 +200,22 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		VersionNum:  currentVer.VersionNum,
 		StorageKey:  currentVer.StorageKey,
 		MimeType:    currentVer.MimeType,
-		Type:        body.Type,
-		Params:      params,
+		Type:        prepared.Type,
+		Params:      prepared.Params,
 	})
 
 	_, enqueueSpan := apptelemetry.StartSpan(c.Context(), "api.variants.enqueue_create",
 		attribute.String("damask.workspace_id", claims.WorkspaceID),
 		attribute.String("damask.asset_id", assetID),
-		attribute.String("damask.job.type", body.Type),
+		attribute.String("damask.job.type", prepared.Type),
 	)
-	job, err := s.queue.Enqueue(c.Context(), claims.WorkspaceID, body.Type, string(payload))
+	job, err := s.queue.Enqueue(c.Context(), claims.WorkspaceID, prepared.Type, string(payload))
 	apptelemetry.EndSpan(enqueueSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not enqueue job")
 	}
 
-	s.variants.WriteVariantQueued(c.Context(), claims.WorkspaceID, assetID, body.Type)
+	s.variants.WriteVariantQueued(c.Context(), claims.WorkspaceID, assetID, prepared.Type)
 
 	return c.Status(fiber.StatusAccepted).JSON(CreateVariantResponse{
 		JobID:   job.ID,

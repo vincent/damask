@@ -8,6 +8,9 @@
   import VariantCreateSmartCrop from './VariantCreateSmartCrop.svelte'
   import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
   import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
+  import VariantCreateAudioExtract from './VariantCreateAudioExtract.svelte'
+  import VariantCreateAudioTranscode from './VariantCreateAudioTranscode.svelte'
+  import VariantCreateAudioNormalize from './VariantCreateAudioNormalize.svelte'
 
   export type VariantTab =
     | 'all'
@@ -19,6 +22,9 @@
     | 'bg_remove'
     | 'video_transcode'
     | 'video_capture_image'
+    | 'audio_extract'
+    | 'audio_transcode'
+    | 'audio_normalize'
 
   interface Props {
     asset: Asset
@@ -45,4 +51,10 @@
   <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
 {:else if tool === 'video_capture_image'}
   <VariantCreateVideoThumbnail {asset} {creating} {handleCreate} />
+{:else if tool === 'audio_extract'}
+  <VariantCreateAudioExtract {asset} {creating} {handleCreate} />
+{:else if tool === 'audio_transcode'}
+  <VariantCreateAudioTranscode {asset} {creating} {handleCreate} />
+{:else if tool === 'audio_normalize'}
+  <VariantCreateAudioNormalize {asset} {creating} {handleCreate} />
 {/if}

@@ -28,6 +28,9 @@ type Transformer interface {
 	RemoveBackground(ctx context.Context, imageData []byte, apiKey string) ([]byte, error)
 
 	AudioWaveform(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error)
+	ExtractAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error
+	TranscodeAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error
+	NormalizeAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error
 
 	VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResolution, error)
 	VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error)

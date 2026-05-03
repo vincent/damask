@@ -2,14 +2,18 @@ package service_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
+	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
+	"damask/server/internal/transform"
 )
 
 func newVariantSvc(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
@@ -66,6 +70,116 @@ func TestVariantService_Get_OK(t *testing.T) {
 	}
 	if dto.Type != "image_resize" {
 		t.Errorf("Type: got %q, want %q", dto.Type, "image_resize")
+	}
+}
+
+// --- PrepareCreate ---
+
+func TestVariantService_PrepareCreate_ExtractAudioDefaults(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeExtractAudio,
+		Params:        json.RawMessage(`{}`),
+		AssetMimeType: "video/mp4",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var params transform.AudioParams
+	if err := json.Unmarshal(prepared.Params, &params); err != nil {
+		t.Fatalf("decode params: %v", err)
+	}
+	if params.OutputFormat != "aac" || params.Bitrate != "192k" {
+		t.Fatalf("unexpected params: %+v", params)
+	}
+}
+
+func TestVariantService_PrepareCreate_TranscodeAudioDefaultsBitrate(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeTranscodeAudio,
+		Params:        json.RawMessage(`{"format":"opus"}`),
+		AssetMimeType: "audio/mpeg",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var params transform.AudioParams
+	if err := json.Unmarshal(prepared.Params, &params); err != nil {
+		t.Fatalf("decode params: %v", err)
+	}
+	if params.OutputFormat != "opus" || params.Bitrate != "192k" {
+		t.Fatalf("unexpected params: %+v", params)
+	}
+}
+
+func TestVariantService_PrepareCreate_NormalizeAudioSourceM4A(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeNormalizeAudio,
+		Params:        json.RawMessage(`{"format":"source"}`),
+		AssetMimeType: "audio/mp4",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var params transform.AudioParams
+	if err := json.Unmarshal(prepared.Params, &params); err != nil {
+		t.Fatalf("decode params: %v", err)
+	}
+	if params.OutputFormat != "aac" || params.TargetLUFS != -16 {
+		t.Fatalf("unexpected params: %+v", params)
+	}
+}
+
+func TestVariantService_PrepareCreate_RejectsUnsupportedAudioBitrate(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeTranscodeAudio,
+		Params:        json.RawMessage(`{"format":"mp3","bitrate":"500k"}`),
+		AssetMimeType: "audio/mpeg",
+	})
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "unsupported audio bitrate") {
+		t.Fatalf("expected unsupported bitrate invalid input, got %v", err)
+	}
+}
+
+func TestVariantService_PrepareCreate_RejectsWrongMimeFamilies(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	tests := []struct {
+		name        string
+		variantType string
+		mimeType    string
+		wantMessage string
+		wantErr     error
+	}{
+		{"image transform on audio", queue.JobTypeImageResize, "audio/mpeg", "image transforms require an image asset", service.ErrInvalidVariantReq},
+		{"video transform on image", queue.JobTypeVideoTranscode, "image/jpeg", "video transforms require a video asset", service.ErrInvalidVariantReq},
+		{"extract audio on image", queue.JobTypeExtractAudio, "image/jpeg", "asset_not_video", apperr.ErrInvalidInput},
+		{"audio transform on video", queue.JobTypeTranscodeAudio, "video/mp4", "asset_not_audio", apperr.ErrInvalidInput},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+				Type:          tt.variantType,
+				Params:        json.RawMessage(`{"format":"mp3"}`),
+				AssetMimeType: tt.mimeType,
+			})
+			if !errors.Is(err, tt.wantErr) || !strings.Contains(err.Error(), tt.wantMessage) {
+				t.Fatalf("expected %q invalid input, got %v", tt.wantMessage, err)
+			}
+		})
+	}
+}
+
+func TestVariantService_PrepareCreate_RejectsInvalidType(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          "not_a_variant",
+		AssetMimeType: "image/jpeg",
+	})
+	if !errors.Is(err, service.ErrInvalidVariantType) {
+		t.Fatalf("expected ErrInvalidVariantType, got %v", err)
 	}
 }
 

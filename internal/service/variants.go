@@ -2,18 +2,40 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
+	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/transform"
 
 	"go.opentelemetry.io/otel/attribute"
 )
+
+var (
+	ErrInvalidVariantType = errors.New("invalid variant type")
+	ErrInvalidVariantReq  = errors.New("invalid variant request")
+)
+
+type invalidVariantInput string
+
+func (e invalidVariantInput) Error() string { return string(e) }
+
+func (e invalidVariantInput) Unwrap() error { return apperr.ErrInvalidInput }
+
+type invalidVariantRequest string
+
+func (e invalidVariantRequest) Error() string { return string(e) }
+
+func (e invalidVariantRequest) Unwrap() error { return ErrInvalidVariantReq }
 
 // VariantDTO is the output of VariantService methods.
 type VariantDTO struct {
@@ -60,6 +82,40 @@ func (s *variantService) Get(ctx context.Context, workspaceID, id string) (*Vari
 	return toVariantDTO(v), nil
 }
 
+func (s *variantService) PrepareCreate(_ context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error) {
+	params := json.RawMessage("{}")
+	if len(p.Params) > 0 {
+		params = p.Params
+	}
+
+	if !validVariantType(p.Type) {
+		return PreparedCreateVariant{}, ErrInvalidVariantType
+	}
+
+	switch {
+	case requiresVideoAsset(p.Type) && !strings.HasPrefix(p.AssetMimeType, "video/"):
+		if p.Type == queue.JobTypeExtractAudio {
+			return PreparedCreateVariant{}, invalidVariantInput("asset_not_video")
+		}
+		return PreparedCreateVariant{}, invalidVariantRequest("video transforms require a video asset")
+	case requiresImageAsset(p.Type) && !strings.HasPrefix(p.AssetMimeType, "image/"):
+		return PreparedCreateVariant{}, invalidVariantRequest("image transforms require an image asset")
+	case requiresAudioAsset(p.Type) && !strings.HasPrefix(p.AssetMimeType, "audio/"):
+		return PreparedCreateVariant{}, invalidVariantInput("asset_not_audio")
+	}
+
+	if p.Type == queue.JobTypeImageBgRemove && !p.RemoveBgAvailable {
+		return PreparedCreateVariant{}, invalidVariantRequest("background removal requires REMOVEBG_API_KEY to be configured")
+	}
+
+	normalized, err := validateAudioVariantParams(p.Type, p.AssetMimeType, params)
+	if err != nil {
+		return PreparedCreateVariant{}, err
+	}
+
+	return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+}
+
 func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto *VariantDTO, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.variants.create",
 		attribute.String("damask.workspace_id", p.WorkspaceID),
@@ -103,6 +159,132 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto
 		})
 	}
 	return dto, nil
+}
+
+func validVariantType(variantType string) bool {
+	switch variantType {
+	case queue.JobTypeImageResize,
+		queue.JobTypeImageWatermark,
+		queue.JobTypeImageConvert,
+		queue.JobTypeImageCrop,
+		queue.JobTypeVideoCaptureImage,
+		queue.JobTypeVideoTranscode,
+		queue.JobTypeImageBgRemove,
+		queue.JobTypeImageSmartCrop,
+		queue.JobTypeExtractAudio,
+		queue.JobTypeTranscodeAudio,
+		queue.JobTypeNormalizeAudio:
+		return true
+	default:
+		return false
+	}
+}
+
+func requiresVideoAsset(variantType string) bool {
+	return variantType == queue.JobTypeVideoCaptureImage ||
+		variantType == queue.JobTypeVideoTranscode ||
+		variantType == queue.JobTypeExtractAudio
+}
+
+func requiresImageAsset(variantType string) bool {
+	return variantType == queue.JobTypeImageResize ||
+		variantType == queue.JobTypeImageConvert ||
+		variantType == queue.JobTypeImageCrop ||
+		variantType == queue.JobTypeImageWatermark ||
+		variantType == queue.JobTypeImageSmartCrop ||
+		variantType == queue.JobTypeImageBgRemove
+}
+
+func requiresAudioAsset(variantType string) bool {
+	return variantType == queue.JobTypeTranscodeAudio ||
+		variantType == queue.JobTypeNormalizeAudio
+}
+
+func validateAudioVariantParams(variantType, mimeType string, raw json.RawMessage) (json.RawMessage, error) {
+	switch variantType {
+	case queue.JobTypeExtractAudio:
+		var p transform.AudioParams
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, invalidVariantInput("invalid audio params")
+		}
+		if p.OutputFormat == "" {
+			p.OutputFormat = "aac"
+		}
+		if p.Bitrate == "" {
+			p.Bitrate = "192k"
+		}
+		if !isAllowedAudioBitrate(p.Bitrate) {
+			return nil, invalidVariantInput("unsupported audio bitrate")
+		}
+		if !isAllowedAudioFormat(p.OutputFormat, "aac", "mp3", "opus", "flac") {
+			return nil, invalidVariantInput("unsupported audio format")
+		}
+		return marshalRaw(p), nil
+	case queue.JobTypeTranscodeAudio:
+		var p transform.AudioParams
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, invalidVariantInput("invalid audio params")
+		}
+		if p.OutputFormat == "" {
+			return nil, invalidVariantInput("format is required")
+		}
+		if p.Bitrate == "" {
+			p.Bitrate = "192k"
+		}
+		if !isAllowedAudioBitrate(p.Bitrate) {
+			return nil, invalidVariantInput("unsupported audio bitrate")
+		}
+		if !isAllowedAudioFormat(p.OutputFormat, "mp3", "aac", "opus", "ogg", "flac", "wav") {
+			return nil, invalidVariantInput("unsupported audio format")
+		}
+		return marshalRaw(p), nil
+	case queue.JobTypeNormalizeAudio:
+		var p transform.AudioParams
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil, invalidVariantInput("invalid audio params")
+		}
+		if p.OutputFormat == "" {
+			p.OutputFormat = "source"
+		}
+		if p.OutputFormat == "source" {
+			p.OutputFormat = transform.AudioFormatFromMimeType(mimeType)
+		}
+		if p.TargetLUFS == 0 {
+			p.TargetLUFS = -16
+		}
+		if p.TargetLUFS < -70 || p.TargetLUFS > 0 {
+			return nil, invalidVariantInput("target_lufs must be between -70 and 0")
+		}
+		if !isAllowedAudioFormat(p.OutputFormat, "mp3", "aac", "wav", "ogg", "flac") {
+			return nil, invalidVariantInput("unsupported audio format")
+		}
+		return marshalRaw(p), nil
+	default:
+		return raw, nil
+	}
+}
+
+func marshalRaw(v any) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+func isAllowedAudioFormat(format string, allowed ...string) bool {
+	for _, a := range allowed {
+		if strings.EqualFold(format, a) {
+			return true
+		}
+	}
+	return false
+}
+
+func isAllowedAudioBitrate(bitrate string) bool {
+	switch bitrate {
+	case "64k", "96k", "128k", "192k", "256k", "320k":
+		return true
+	default:
+		return false
+	}
 }
 
 // WriteVariantQueued emits asset_variant_created for job-queued variants (before the job runs).

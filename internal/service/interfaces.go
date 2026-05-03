@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"time"
 )
@@ -66,10 +67,23 @@ type CreateVariantParams struct {
 	Size            *int64
 }
 
+type PrepareCreateVariantParams struct {
+	Type              string
+	Params            json.RawMessage
+	AssetMimeType     string
+	RemoveBgAvailable bool
+}
+
+type PreparedCreateVariant struct {
+	Type   string
+	Params json.RawMessage
+}
+
 // VariantService handles business logic for asset variant records.
 type VariantService interface {
 	List(ctx context.Context, workspaceID, assetID string) ([]*VariantDTO, error)
 	Get(ctx context.Context, workspaceID, id string) (*VariantDTO, error)
+	PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error)
 	Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error)
 	Delete(ctx context.Context, workspaceID, assetID, variantID string) error
 	// WriteVariantQueued emits asset_variant_created for job-queued variants.

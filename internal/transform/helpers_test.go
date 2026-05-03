@@ -84,6 +84,15 @@ func (t *mockTransformer) RemoveBackground(ctx context.Context, imageData []byte
 func (t *mockTransformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
 	return t.pixel(imaging.JPEG), "image/jpeg", nil
 }
+func (t *mockTransformer) ExtractAudio(ctx context.Context, srcPath, dstPath string, p transform.AudioParams) error {
+	return nil
+}
+func (t *mockTransformer) TranscodeAudio(ctx context.Context, srcPath, dstPath string, p transform.AudioParams) error {
+	return nil
+}
+func (t *mockTransformer) NormalizeAudio(ctx context.Context, srcPath, dstPath string, p transform.AudioParams) error {
+	return nil
+}
 func (t *mockTransformer) VideoExtractResolution(ctx context.Context, srcPath string) (*transform.VideoResolution, error) {
 	return &transform.VideoResolution{Width: 1, Height: 1}, nil
 }

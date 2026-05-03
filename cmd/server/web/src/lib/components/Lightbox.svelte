@@ -42,6 +42,10 @@
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
   import { useShortcuts } from '$lib/shortcuts'
+  import {
+    isAudio as mimeIsAudio,
+    isVideo as mimeIsVideo,
+  } from '$lib/utils/mime'
 
   interface Props {
     asset: Asset | null
@@ -141,7 +145,8 @@
 
   const category = $derived(asset ? mimeCategory(asset.mime_type) : 'document')
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
-  const isVideo = $derived(asset?.mime_type?.startsWith('video/') ?? false)
+  const isVideo = $derived(asset ? mimeIsVideo(asset.mime_type) : false)
+  const isAudio = $derived(asset ? mimeIsAudio(asset.mime_type) : false)
 
   $effect(() => {
     if (!asset) {
@@ -257,6 +262,19 @@
       ? [
           { id: 'video_transcode' as VariantTab, label: m.transcode() },
           { id: 'video_capture_image' as VariantTab, label: m.thumbnail() },
+          { id: 'audio_extract' as VariantTab, label: m.audio_extract_tab() },
+        ]
+      : []),
+    ...(isAudio
+      ? [
+          {
+            id: 'audio_transcode' as VariantTab,
+            label: m.audio_transcode_tab(),
+          },
+          {
+            id: 'audio_normalize' as VariantTab,
+            label: m.audio_normalize_tab(),
+          },
         ]
       : []),
   ])

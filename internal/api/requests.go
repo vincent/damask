@@ -457,6 +457,9 @@ func (r *CreateVariantRequest) Valid(_ context.Context) map[string]string {
 	if r.Type == "" {
 		p["type"] = "required"
 	}
+	if len(r.Params) > 0 && !json.Valid(r.Params) {
+		p["params"] = "invalid json"
+	}
 	return p
 }
 

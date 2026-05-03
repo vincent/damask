@@ -107,6 +107,9 @@ func (s *JobServer) RegisterJobHandlers() {
 	reg(queue.JobTypeImageWatermark, s.jobImageTransform)
 	reg(queue.JobTypeImageSmartCrop, s.jobImageTransform)
 	reg(queue.JobTypeImageBgRemove, s.jobImageBgRemove)
+	reg(queue.JobTypeExtractAudio, s.jobAudioTransform)
+	reg(queue.JobTypeTranscodeAudio, s.jobAudioTransform)
+	reg(queue.JobTypeNormalizeAudio, s.jobAudioTransform)
 
 	// Rebuild jobs — system-triggered on version upload.
 	reg(queue.JobTypeRebuildVariants, s.jobRebuildVariants)

@@ -100,10 +100,11 @@ func (m *MockVersionService) WriteVersionRestored(_ context.Context, _, _ string
 
 // MockVariantService is a no-op implementation of service.VariantService.
 type MockVariantService struct {
-	ListFn   func(ctx context.Context, workspaceID, assetID string) ([]*service.VariantDTO, error)
-	GetFn    func(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error)
-	CreateFn func(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error)
-	DeleteFn func(ctx context.Context, workspaceID, assetID, variantID string) error
+	ListFn          func(ctx context.Context, workspaceID, assetID string) ([]*service.VariantDTO, error)
+	GetFn           func(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error)
+	PrepareCreateFn func(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error)
+	CreateFn        func(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error)
+	DeleteFn        func(ctx context.Context, workspaceID, assetID, variantID string) error
 }
 
 func NewVariantService() *MockVariantService { return &MockVariantService{} }
@@ -120,6 +121,13 @@ func (m *MockVariantService) Get(ctx context.Context, workspaceID, id string) (*
 		return m.GetFn(ctx, workspaceID, id)
 	}
 	return nil, nil
+}
+
+func (m *MockVariantService) PrepareCreate(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error) {
+	if m.PrepareCreateFn != nil {
+		return m.PrepareCreateFn(ctx, p)
+	}
+	return service.PreparedCreateVariant{Type: p.Type, Params: p.Params}, nil
 }
 
 func (m *MockVariantService) Create(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error) {

@@ -252,6 +252,9 @@ const (
 	JobTypeImageWatermark    = "image_watermark"
 	JobTypeImageBgRemove     = "image_bg_remove"
 	JobTypeImageSmartCrop    = "image_smartcrop"
+	JobTypeExtractAudio      = "extract_audio"
+	JobTypeTranscodeAudio    = "transcode_audio"
+	JobTypeNormalizeAudio    = "normalize_audio"
 
 	// Ingress jobs.
 	JobTypeIngestPoll  = "ingest_poll"
