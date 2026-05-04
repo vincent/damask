@@ -68,8 +68,8 @@ export async function apiFetch<T>(
 
 /** Server configuration — fetch public config flags (e.g. demo mode). GET /config (public) */
 export const configApi = {
-  load: () =>
-    apiFetch<Config>('/config').catch(() => {
+  load: (fetch?: typeof window.fetch) =>
+    apiFetch<Config>('/config', undefined, fetch).catch(() => {
       console.warn('unable to load config')
       return {
         demo: false,

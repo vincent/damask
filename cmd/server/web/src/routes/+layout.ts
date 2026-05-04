@@ -5,7 +5,7 @@ import { workspaceApi } from '$lib/api'
 import { redirect } from '@sveltejs/kit'
 import type { LayoutLoad } from './$types'
 
-const PUBLIC_PATHS = ['/login', '/register', '/invite', '/s/', '/demo/']
+const PUBLIC_PATHS = ['/', '/login', '/register', '/invite', '/s/', '/demo/', '/welcome']
 
 export const ssr = false
 
@@ -18,20 +18,21 @@ export const load: LayoutLoad = async ({
   role?: string
   totalAssetCount?: number
 }> => {
-  if (!browser) return {}
-
-  if (PUBLIC_PATHS.some((p) => url.pathname.startsWith(p))) {
-    return {}
-  }
-
-  workspaceApi.useFetch(fetch)
-
   let result: {
     user?: User
     workspace?: Workspace
     role?: string
     totalAssetCount?: number
   } = {}
+
+  if (!browser) return result
+
+  if (PUBLIC_PATHS.some((p) => url.pathname.startsWith(p))) {
+    return result
+  }
+
+  workspaceApi.useFetch(fetch)
+
   try {
     const me = await workspaceApi.me()
     result = {

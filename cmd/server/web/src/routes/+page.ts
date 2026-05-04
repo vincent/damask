@@ -1,4 +1,7 @@
 import { redirect } from '@sveltejs/kit'
-import type { PageLoad } from './$types'
 
-export const load: PageLoad = () => redirect(303, '/library')
+export const prerender = false
+
+export function load() {
+  redirect(303, '/library')
+}
