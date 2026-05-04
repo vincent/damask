@@ -12,6 +12,7 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import { m } from '$lib/paraglide/messages'
   import { undoStore } from '$lib/stores/undo.svelte'
+  import { onMount } from 'svelte'
 
   let open = $state(false)
   let workspaces = $state<WorkspaceWithRole[]>([])
@@ -23,12 +24,16 @@
 
   let { class: extraClass = '' }: Props = $props()
 
-  const activeWs = $derived(
-    workspaces.find((w) => w.id === authStore.workspace?.id)
-  )
-  const otherWs = $derived(
-    workspaces.filter((w) => w.id !== authStore.workspace?.id)
-  )
+  const activeWs = $derived.by(() => {
+    const id = authStore.workspace?.id
+    return workspaces.find((w) => w.id === id)
+  })
+  const otherWs = $derived.by(() => {
+    const id = authStore.workspace?.id
+    return workspaces.filter((w) => w.id !== id)
+  })
+
+  onMount(loadWorkspaces)
 
   async function loadWorkspaces() {
     try {
