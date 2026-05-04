@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import HomepageDiagram from '$lib/components/HomepageDiagram.svelte'
 
   let scrolled = $state(false)
 
@@ -288,6 +289,9 @@
     </div>
   </div>
 </section>
+
+<!-- DIAGRAM -->
+<HomepageDiagram />
 
 <!-- TECH -->
 <section class="hp-tech">
@@ -708,10 +712,10 @@
     padding: 0 clamp(1.25rem, 4vw, 2.5rem);
     display: flex;
     justify-content: center;
-    margin-bottom: 2em;
+    padding-bottom: 2em;
   }
   .hp-screenshot {
-    max-width: 1060px;
+    max-width: 1160px;
     width: 100%;
     border-radius: 14px;
     overflow: hidden;
@@ -719,7 +723,7 @@
       0 2px 4px oklch(20% 0.08 260 / 0.06),
       0 8px 24px oklch(20% 0.08 260 / 0.1),
       0 32px 64px oklch(20% 0.08 260 / 0.12);
-    border: 1px solid var(--hp-neutral-border);
+    border: 1px solid var(--hp-dark-bg);
     transform: translateY(3rem);
     margin-bottom: 3rem;
   }
