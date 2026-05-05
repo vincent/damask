@@ -1,6 +1,5 @@
 <script lang="ts">
   import {
-    Check,
     ChevronDown,
     Plus,
     Settings,
@@ -13,10 +12,41 @@
   import { m } from '$lib/paraglide/messages'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { onMount } from 'svelte'
+  import { fly } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
+  import DiamondIcon from './DiamondIcon.svelte'
+
+  // Deterministic color pair from workspace name
+  const PALETTES: [string, string][] = [
+    ['#4f46e5', '#a5b4fc'], // indigo
+    ['#0d9488', '#5eead4'], // teal
+    ['#9333ea', '#d8b4fe'], // purple
+    ['#db2777', '#fbcfe8'], // pink
+    ['#d97706', '#fcd34d'], // amber
+    ['#0891b2', '#a5f3fc'], // cyan
+    ['#16a34a', '#86efac'], // green
+    ['#dc2626', '#fca5a5'], // red
+  ]
+
+  function wsColor(name: string): [string, string] {
+    let h = 0
+    for (let i = 0; i < name.length; i++)
+      h = (h * 31 + name.charCodeAt(i)) >>> 0
+    return PALETTES[h % PALETTES.length]
+  }
+
+  // hex → "r g g" for use in rgba()
+  function hexToRGB(hex: string): string {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `${r} ${g} ${b}`
+  }
 
   let open = $state(false)
   let workspaces = $state<WorkspaceWithRole[]>([])
   let switching = $state(false)
+  let visibleItems = $state<boolean[]>([])
 
   interface Props {
     class?: string
@@ -44,8 +74,21 @@
   }
 
   function toggle() {
-    if (!open) loadWorkspaces()
+    if (!open) {
+      loadWorkspaces()
+      visibleItems = []
+      scheduleStagger()
+    }
     open = !open
+  }
+
+  function scheduleStagger() {
+    const delays = [60, ...otherWs.map((_, i) => 90 + i * 28), 90 + otherWs.length * 28]
+    delays.forEach((delay) => {
+      setTimeout(() => {
+        visibleItems = [...visibleItems, true]
+      }, delay)
+    })
   }
 
   function handleOutsideClick(e: MouseEvent) {
@@ -95,16 +138,22 @@
     class="flex w-full items-center gap-2.5 rounded-lg px-1 py-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
     aria-expanded={open}
   >
-    <div class="flex items-center gap-2">
+    <div class="flex w-full items-center gap-2">
+      <!-- Trigger diamond: pulse-open + hover glow keyed to workspace color -->
       <div
-        class="text-md flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white dark:bg-indigo-500"
+        class="ws-diamond-trigger ws-gem shrink-0"
+        class:ws-diamond-open={open}
+        style="--gem-rgb: {hexToRGB(wsColor(authStore.workspace?.name ?? 'W')[1])}"
       >
-        {initials}
+        <DiamondIcon
+          letter={initials}
+          color={wsColor(authStore.workspace?.name ?? 'W')[0]}
+          bright={wsColor(authStore.workspace?.name ?? 'W')[1]}
+          size={32}
+        />
       </div>
       <div class="flex flex-1 flex-col truncate text-left">
-        <span
-          class="truncate text-base font-semibold text-[var(--text-primary)]"
-        >
+        <span class="truncate text-base font-semibold text-[var(--text-primary)]">
           {authStore.workspace?.name ?? 'Workspace'}
         </span>
         {#if activeWs}
@@ -114,9 +163,7 @@
         {/if}
       </div>
       <ChevronDown
-        class="h-4 w-4 shrink-0 text-gray-400 transition-transform {open
-          ? 'rotate-180'
-          : ''}"
+        class="mr-1 h-4 w-4 shrink-0 text-gray-400 ws-chevron {open ? 'ws-chevron-open' : ''}"
       />
     </div>
   </button>
@@ -125,31 +172,49 @@
     <div
       class="absolute top-full left-1 z-50 w-80 rounded-xl border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-900"
       role="menu"
+      transition:fly={{ y: -6, duration: 200, easing: cubicOut }}
     >
       <!-- Active workspace — tall card -->
       {#if activeWs}
-        <div class="mx-2 mb-2 rounded-lg bg-indigo-50 p-3 dark:bg-indigo-950">
+        {@const [color, bright] = wsColor(activeWs.name)}
+        <div
+          class="mx-2 mb-2 rounded-lg bg-indigo-50 p-3 dark:bg-indigo-950 ws-stagger-item"
+          class:ws-stagger-visible={visibleItems[0]}
+        >
           <div class="mb-2 flex items-center gap-2">
+            <!-- Active gem: slow ambient pulse -->
             <div
-              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white dark:bg-indigo-500"
+              class="ws-gem ws-gem-active shrink-0"
+              style="--gem-rgb: {hexToRGB(bright)}"
             >
-              {activeWs.name[0]?.toUpperCase()}
+              <DiamondIcon letter={activeWs.name[0]?.toUpperCase() ?? 'W'} {color} {bright} size={28} />
             </div>
 
-            <div
-              class="my-1 flex-1 truncate text-sm font-semibold text-indigo-900 dark:text-indigo-100"
-            >
+            <div class="my-1 flex-1 truncate text-sm font-semibold text-indigo-900 dark:text-indigo-100">
               {activeWs.name}
             </div>
 
-            <Check
-              class="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400"
-            />
+            <!-- Animated check mark draw-on -->
+            <svg
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              class="ws-check shrink-0 text-indigo-600 dark:text-indigo-400"
+              aria-hidden="true"
+            >
+              <polyline
+                points="2.5,8.5 6.5,12.5 13.5,4.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="ws-check-path"
+              />
+            </svg>
           </div>
 
-          <div
-            class="my-3 flex gap-3 text-xs text-indigo-700 dark:text-indigo-300"
-          >
+          <div class="my-3 flex gap-3 text-xs text-indigo-700 dark:text-indigo-300">
             <span class="flex items-center gap-1">
               <Users class="h-3.5 w-3.5" />
               {activeWs.member_count}
@@ -184,27 +249,29 @@
 
       <!-- Other workspaces — compact rows -->
       {#if otherWs.length > 0}
-        <p
-          class="px-3 pt-0.5 pb-1 text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
-        >
+        <p class="px-3 pt-0.5 pb-1 text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500">
           {m.workspaces()}
         </p>
-        {#each otherWs as ws (ws.id)}
+        {#each otherWs as ws, idx (ws.id)}
+          {@const [color, bright] = wsColor(ws.name)}
           <button
             onclick={() => switchTo(ws)}
             disabled={switching}
-            class="text-md flex w-full items-center gap-3 px-5 py-3 text-left text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+            class="ws-ws-row text-md flex w-full items-center gap-3 px-5 py-3 text-left text-gray-700 transition-colors dark:text-gray-300 ws-stagger-item"
+            class:ws-stagger-visible={visibleItems[idx + 1]}
+            style="--row-rgb: {hexToRGB(bright)}"
             role="menuitem"
           >
-            <div
-              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white dark:bg-indigo-500"
-            >
-              {ws.name[0]?.toUpperCase()}
+            <div class="ws-gem shrink-0" style="--gem-rgb: {hexToRGB(bright)}">
+              <DiamondIcon
+                letter={ws.name[0]?.toUpperCase() ?? 'W'}
+                {color}
+                {bright}
+                size={28}
+              />
             </div>
             <span class="flex-1 truncate font-medium">{ws.name}</span>
-            <span
-              class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500"
-            >
+            <span class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
               <Users class="h-3 w-3" />
               {ws.member_count}
             </span>
@@ -214,14 +281,14 @@
 
       <div class="my-1 border-t border-gray-100 dark:border-gray-800"></div>
 
+      <!-- Add workspace row -->
       <button
         onclick={createNew}
-        class="text-md flex w-full items-center gap-3 px-5 py-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+        class="ws-add-row text-md flex w-full items-center gap-3 px-5 py-2 text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 ws-stagger-item"
+        class:ws-stagger-visible={visibleItems[otherWs.length + 1]}
         role="menuitem"
       >
-        <div
-          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600"
-        >
+        <div class="ws-add-ring flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
           <Plus class="h-3.5 w-3.5" />
         </div>
         <span>{m.add_new_workspace()}</span>
@@ -229,3 +296,121 @@
     </div>
   {/if}
 </div>
+
+<style>
+  /* ── Chevron ─────────────────────────────────────────────── */
+  :global(.ws-chevron) {
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  :global(.ws-chevron-open) {
+    transform: rotate(180deg);
+  }
+
+  /* ── Trigger diamond pulse on open ──────────────────────── */
+  .ws-diamond-trigger {
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ws-diamond-open {
+    animation: ws-diamond-pulse 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes ws-diamond-pulse {
+    0%   { transform: scale(1); }
+    38%  { transform: scale(0.86); }
+    100% { transform: scale(1); }
+  }
+
+  /* ── Gem glow — shared by trigger, active card, list rows ── */
+  /*
+   * --gem-rgb is "r g b" passed inline from the workspace bright color.
+   * On hover the diamond gets a radial drop-shadow in its own accent.
+   */
+  .ws-gem {
+    transition: filter 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ws-gem:hover {
+    filter: drop-shadow(0 0 6px rgba(var(--gem-rgb) / 0.7))
+            drop-shadow(0 0 12px rgba(var(--gem-rgb) / 0.35));
+  }
+
+  /* Active workspace gem: slow ambient breathe, always on */
+  .ws-gem-active {
+    animation: ws-gem-breathe 3s ease-in-out infinite;
+  }
+  @keyframes ws-gem-breathe {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(var(--gem-rgb) / 0.3)); }
+    50%      { filter: drop-shadow(0 0 8px rgba(var(--gem-rgb) / 0.65))
+                       drop-shadow(0 0 16px rgba(var(--gem-rgb) / 0.25)); }
+  }
+
+  /* ── Check mark draw-on ─────────────────────────────────── */
+  .ws-check-path {
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    animation: ws-check-draw 280ms 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes ws-check-draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* ── Workspace row: tinted hover bg from own accent color ── */
+  .ws-ws-row {
+    /* fallback for browsers without color-mix */
+    background-color: transparent;
+    transition: background-color 160ms ease-out;
+  }
+  .ws-ws-row:hover {
+    background-color: rgba(var(--row-rgb) / 0.08);
+  }
+
+  /* ── "Add workspace" ring spin on hover ─────────────────── */
+  .ws-add-ring {
+    transition:
+      border-color 200ms ease-out,
+      transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ws-add-row:hover .ws-add-ring {
+    border-color: oklch(55% 0.18 264);
+    transform: rotate(90deg);
+  }
+  .ws-add-row:hover .ws-add-ring :global(svg) {
+    color: oklch(55% 0.18 264);
+    transition: color 200ms ease-out;
+  }
+
+  /* ── Stagger entrance ───────────────────────────────────── */
+  .ws-stagger-item {
+    opacity: 0;
+    transform: translateY(5px);
+    transition:
+      opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ws-stagger-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Reduced motion ─────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .ws-gem,
+    .ws-gem-active,
+    .ws-diamond-trigger,
+    .ws-diamond-open,
+    .ws-stagger-item,
+    .ws-add-ring {
+      animation: none !important;
+      transition: none !important;
+    }
+    .ws-stagger-item {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .ws-check-path {
+      animation: none !important;
+      stroke-dashoffset: 0 !important;
+    }
+    :global(.ws-chevron) {
+      transition: none !important;
+    }
+  }
+</style>
