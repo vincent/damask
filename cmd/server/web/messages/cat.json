@@ -595,7 +595,6 @@
   "audio_format_source": "Igual que la font",
   "audio_normalize_explainer": "La normalització EBU R128 ajusta la sonoritat percebuda a un nivell coherent. -16 LUFS és estàndard per a la majoria de plataformes de streaming.",
   "audio_normalize_submit": "Normalitzar",
-
   "hp_meta_title": "Damask: Gestió d'actius digitals autoallotjada",
   "hp_meta_description": "Damask és un sistema de gestió d'actius digitals autoallotjat per a equips creatius que volen un control total sobre els seus arxius i metadades.",
   "hp_nav_docs": "Docs",
@@ -687,7 +686,6 @@
   "hp_selfhost_cta_docs": "Documentació d'instal·lació",
   "hp_selfhost_cta_docker": "Imatge Docker",
   "hp_footer_license": "Llicència APL2",
-
   "hp_diag_eyebrow": "Com funciona",
   "hp_diag_headline": "Un fitxer. Tots els formats. Totes les destinacions.",
   "hp_diag_subline": "Connecta les teves fonts, defineix les teves variants, comparteix amb qui ho necessiti.",
@@ -698,7 +696,6 @@
   "hp_diag_legend_ingress": "Entrada — fitxers obtinguts de qualsevol font",
   "hp_diag_legend_variants": "Variants — formats amb nom per fitxer",
   "hp_diag_legend_distrib": "Distribució — comparteix, descarrega o integra",
-
   "hp_diag_src_email_label": "Email ingress",
   "hp_diag_src_email_sub": "ws@ingest.damask",
   "hp_diag_src_s3_label": "S3 / Cloud",
@@ -709,7 +706,6 @@
   "hp_diag_src_webdav_sub": "Nextcloud · ownCloud",
   "hp_diag_src_imap_label": "IMAP",
   "hp_diag_src_imap_sub": "qualsevol bústia",
-
   "hp_diag_out_web_label": "Web",
   "hp_diag_out_web_sub": "variants adaptables",
   "hp_diag_out_cdn_label": "CDN / API",
@@ -720,7 +716,6 @@
   "hp_diag_out_downloads_sub": "directe · enllaços de descàrrega",
   "hp_diag_out_integrations_label": "Integracions",
   "hp_diag_out_integrations_sub": "connectors",
-
   "hp_diag_pill_thumbnail": "miniatura",
   "hp_diag_pill_watermark": "filigrana",
   "hp_diag_pill_convert": "convertir",

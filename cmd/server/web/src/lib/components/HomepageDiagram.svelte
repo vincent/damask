@@ -758,7 +758,7 @@
       (entries) => {
         if (entries[0].isIntersecting) {
           observer.disconnect()
-          // rafId = requestAnimationFrame(frame)
+          rafId = requestAnimationFrame(frame)
         }
       },
       { threshold: 0.1 }

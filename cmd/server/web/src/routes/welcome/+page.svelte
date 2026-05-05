@@ -2,10 +2,17 @@
   import { onMount } from 'svelte'
   import HomepageDiagram from '$lib/components/HomepageDiagram.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { authStore } from '$lib/stores/auth.svelte'
+  import { workspaceApi } from '$lib/api'
 
   let scrolled = $state(false)
 
   onMount(() => {
+    if (!authStore.isAuthenticated) {
+      workspaceApi.me().then((me) => {
+        authStore.login(me.user, me.workspace, me.role, me.total_asset_count ?? 0)
+      }).catch(() => {/* not logged in */})
+    }
     const onScroll = () => {
       scrolled = window.scrollY > 60
     }
@@ -63,14 +70,20 @@
       >
         {m.hp_nav_docs()}
       </a>
-      <a
-        href="https://docs.damask.studio/getting-started"
-        class="hp-btn-primary"
-        target="_blank"
-        rel="noopener"
-      >
-        {m.hp_nav_get_started()}
-      </a>
+      {#if authStore.isAuthenticated}
+        <a href="/library" class="hp-btn-primary">
+          {'Your workspace'}
+        </a>
+      {:else}
+        <a
+          href="https://docs.damask.studio/getting-started"
+          class="hp-btn-primary"
+          target="_blank"
+          rel="noopener"
+        >
+          {m.hp_nav_get_started()}
+        </a>
+      {/if}
     </div>
   </div>
 </header>
@@ -88,12 +101,14 @@
     </p>
     <div class="hp-hero-ctas reveal">
       <a
-        href="https://docs.damask.studio/getting-started"
+        href={authStore.isAuthenticated
+          ? '/library'
+          : 'https://docs.damask.studio/getting-started'}
         class="hp-hero-btn-primary"
-        target="_blank"
-        rel="noopener"
+        target={authStore.isAuthenticated ? undefined : '_blank'}
+        rel={authStore.isAuthenticated ? undefined : 'noopener'}
       >
-        {m.hp_hero_cta_primary()}
+        {authStore.isAuthenticated ? 'Your workspace' : m.hp_hero_cta_primary()}
       </a>
       <a
         href="https://github.com/vincent/damask"

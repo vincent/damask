@@ -353,12 +353,16 @@
   /* ── Gem glow — shared by trigger, active card, list rows ── */
   /*
    * --gem-rgb is "r g b" passed inline from the workspace bright color.
-   * On hover the diamond gets a radial drop-shadow in its own accent.
+   * Glow fires when the parent interactive element (button/row) is hovered,
+   * not just the small icon itself.
    */
   .ws-gem {
     transition: filter 240ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .ws-gem:hover {
+  /* Trigger button: hovering anywhere on the button glows the gem */
+  button:hover .ws-diamond-trigger,
+  /* Dropdown rows: hovering the row glows its gem */
+  .ws-ws-row:hover .ws-gem {
     filter: drop-shadow(0 0 6px rgba(var(--gem-rgb) / 0.7))
       drop-shadow(0 0 12px rgba(var(--gem-rgb) / 0.35));
   }

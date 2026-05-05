@@ -13,6 +13,9 @@
     Plus,
     Settings,
     Tags,
+    Upload,
+    Download,
+    Settings2,
   } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'
   import UndoRedo from './UndoRedo.svelte'
@@ -27,6 +30,23 @@
   let { onShareProject, showShareButton = false, prefix }: Props = $props()
 
   let addMenuOpen = $state(false)
+  let addMenuEl: HTMLDivElement | undefined = $state()
+
+  function handleClickOutside(e: MouseEvent) {
+    if (addMenuEl && !addMenuEl.contains(e.target as Node)) {
+      addMenuOpen = false
+    }
+  }
+
+  $effect(() => {
+    if (addMenuOpen) {
+      document.addEventListener('click', handleClickOutside, { capture: true })
+      return () =>
+        document.removeEventListener('click', handleClickOutside, {
+          capture: true,
+        })
+    }
+  })
 
   const activeCollection = $derived(
     navigationStore.activeCollectionId
@@ -85,11 +105,10 @@
     {/if}
 
     {#if authStore.role !== 'viewer'}
-      <div class="relative flex">
-        <label
-          class="flex cursor-pointer items-center gap-2 rounded-l-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          <Plus class="h-4 w-4" />
+      <div class="add-btn-group relative flex" bind:this={addMenuEl}>
+        <!-- Primary: upload files -->
+        <label class="add-btn-primary">
+          <Plus class="add-plus-icon h-4 w-4" />
           {m.add()}
           <input
             type="file"
@@ -109,9 +128,11 @@
             }}
           />
         </label>
+
+        <!-- Chevron toggle -->
         <button
           type="button"
-          class="flex items-center rounded-r-lg border-l border-indigo-500 bg-indigo-600 px-2 py-2 text-white hover:bg-indigo-700"
+          class="add-btn-chevron"
           onclick={() => {
             addMenuOpen = !addMenuOpen
           }}
@@ -122,47 +143,98 @@
           aria-expanded={addMenuOpen}
           aria-haspopup="menu"
         >
-          <ChevronDown class="h-4 w-4" />
+          <ChevronDown
+            class="chevron-icon h-4 w-4 {addMenuOpen ? 'open' : ''}"
+          />
         </button>
+
+        <!-- Dropdown -->
         {#if addMenuOpen}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             role="menu"
             tabindex="-1"
-            class="absolute top-full right-0 z-50 mt-1 min-w-[200px] rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-1 shadow-xl"
-            onmouseleave={() => {
-              addMenuOpen = false
-            }}
+            class="add-dropdown"
             onkeydown={(e) => {
-              if (e.key === 'Escape') addMenuOpen = false
+              if (e.key === 'Escape') {
+                addMenuOpen = false
+              }
             }}
           >
+            <!-- Upload -->
+            <label class="add-dropdown-item">
+              <Upload class="add-dropdown-icon" />
+              {m.upload_files()}
+              <input
+                type="file"
+                multiple
+                data-upload-trigger
+                class="hidden"
+                onchange={(e) => {
+                  const files = Array.from(
+                    (e.target as HTMLInputElement).files ?? []
+                  )
+                  assetsStore.upload(
+                    files,
+                    navigationStore.activeProjectId,
+                    navigationStore.activeFolderId
+                  )
+                  ;(e.target as HTMLInputElement).value = ''
+                  addMenuOpen = false
+                }}
+              />
+            </label>
+
+            <div class="add-dropdown-divider"></div>
+
+            <!-- Workspace actions -->
+            <p class="add-dropdown-group-label">Workspace</p>
             <a
               href="/library/settings/ingress"
-              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              role="menuitem"
+              class="add-dropdown-item"
+              onclick={() => {
+                addMenuOpen = false
+              }}
             >
-              <Database class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <Download class="add-dropdown-icon" />
               {m.add_ingress_source()}
             </a>
             <a
               href="/library/settings/members"
-              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              role="menuitem"
+              class="add-dropdown-item"
+              onclick={() => {
+                addMenuOpen = false
+              }}
             >
-              <Users class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <Users class="add-dropdown-icon" />
               {m.member_invite()}
             </a>
+
+            <div class="add-dropdown-divider"></div>
+
+            <!-- Schema actions -->
+            <p class="add-dropdown-group-label">Schema</p>
             <a
               href="/library/settings/tags"
-              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              role="menuitem"
+              class="add-dropdown-item"
+              onclick={() => {
+                addMenuOpen = false
+              }}
             >
-              <Tags class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <Tags class="add-dropdown-icon" />
               {m.tags_manage()}
             </a>
             <a
               href="/library/settings/custom-fields"
-              class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              role="menuitem"
+              class="add-dropdown-item"
+              onclick={() => {
+                addMenuOpen = false
+              }}
             >
-              <Settings class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+              <Settings2 class="add-dropdown-icon" />
               {m.fields_manage()}
             </a>
           </div>
@@ -171,3 +243,167 @@
     {/if}
   </div>
 </header>
+
+<style>
+  /* ── Split button shell ── */
+  .add-btn-group {
+    display: flex;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.08);
+  }
+
+  /* ── Primary upload label ── */
+  .add-btn-primary {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: 6px;
+    border-radius: 8px 0 0 8px;
+    background: var(--accent-cta);
+    padding: 7px 13px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #fff;
+    transition:
+      background 0.15s ease,
+      transform 0.08s ease;
+    user-select: none;
+  }
+  .add-btn-primary:hover {
+    background: var(--accent-cta-hover);
+  }
+  .add-btn-primary:active {
+    transform: translateY(1px);
+    background: var(--accent-cta-active);
+  }
+
+  /* Plus icon: subtle spin on hover to signal "adding" */
+  .add-plus-icon {
+    transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .add-btn-primary:hover .add-plus-icon {
+    transform: rotate(90deg);
+  }
+
+  /* ── Chevron toggle ── */
+  .add-btn-chevron {
+    display: flex;
+    align-items: center;
+    border-radius: 0 8px 8px 0;
+    border-left: 1px solid rgba(255 255 255 / 0.18);
+    background: var(--accent-cta);
+    padding: 7px 8px;
+    color: #fff;
+    transition:
+      background 0.15s ease,
+      transform 0.08s ease;
+    cursor: pointer;
+  }
+  .add-btn-chevron:hover {
+    background: var(--accent-cta-hover);
+  }
+  .add-btn-chevron:active {
+    transform: translateY(1px);
+  }
+
+  /* Chevron rotates when menu is open */
+  .chevron-icon {
+    transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .chevron-icon.open {
+    transform: rotate(180deg);
+  }
+
+  /* ── Dropdown panel ── */
+  .add-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 50;
+    min-width: 220px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    padding: 4px 0;
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.04),
+      0 4px 8px -2px rgb(0 0 0 / 0.12),
+      0 16px 32px -8px rgb(0 0 0 / 0.18);
+    animation: dropdown-in 0.14s cubic-bezier(0.25, 1, 0.5, 1) both;
+    transform-origin: top right;
+  }
+
+  :global(.dark) .add-dropdown {
+    border-color: var(--border);
+    background: var(--bg-surface);
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.3),
+      0 4px 8px -2px rgb(0 0 0 / 0.4),
+      0 16px 32px -8px rgb(0 0 0 / 0.5);
+  }
+
+  @keyframes dropdown-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Group label */
+  .add-dropdown-group-label {
+    padding: 8px 12px 3px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Divider */
+  .add-dropdown-divider {
+    margin: 4px 0;
+    height: 1px;
+    background: var(--border-subtle);
+  }
+
+  :global(.dark) .add-dropdown-divider {
+    background: var(--bg-elevated);
+  }
+
+  /* Item row */
+  .add-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: background 0.08s ease;
+    cursor: pointer;
+  }
+  .add-dropdown-item:hover {
+    background: var(--bg-hover);
+  }
+
+  :global(.dark) .add-dropdown-item:hover {
+    background: var(--bg-elevated);
+  }
+
+  /* Inline icon */
+  :global(.add-dropdown-icon) {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: color 0.08s ease;
+  }
+  .add-dropdown-item:hover :global(.add-dropdown-icon) {
+    color: var(--accent-cta);
+  }
+</style>

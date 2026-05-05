@@ -598,7 +598,6 @@
   "audio_format_source": "Identique à la source",
   "audio_normalize_explainer": "La normalisation EBU R128 ajuste le volume perçu à un niveau cohérent. -16 LUFS est standard pour la plupart des plateformes de streaming.",
   "audio_normalize_submit": "Normaliser",
-
   "hp_meta_title": "Damask : Gestion d'assets numériques auto-hébergée",
   "hp_meta_description": "Damask est un système de gestion d'assets numériques auto-hébergé pour les équipes créatives qui veulent un contrôle total sur leurs fichiers et métadonnées.",
   "hp_nav_docs": "Docs",
@@ -690,7 +689,6 @@
   "hp_selfhost_cta_docs": "Documentation d'installation",
   "hp_selfhost_cta_docker": "Image Docker",
   "hp_footer_license": "Licence APL2",
-
   "hp_diag_eyebrow": "Comment ça marche",
   "hp_diag_headline": "Un fichier. Tous les formats. Toutes les destinations.",
   "hp_diag_subline": "Connectez vos sources, définissez vos variantes, partagez avec qui en a besoin.",
@@ -701,7 +699,6 @@
   "hp_diag_legend_ingress": "Entrée — fichiers récupérés depuis n'importe quelle source",
   "hp_diag_legend_variants": "Variantes — formats nommés par fichier",
   "hp_diag_legend_distrib": "Distribution — partage, téléchargement ou intégration",
-
   "hp_diag_src_email_label": "Email public",
   "hp_diag_src_email_sub": "ws@ingest.damask",
   "hp_diag_src_s3_label": "S3 / Cloud",
@@ -712,7 +709,6 @@
   "hp_diag_src_webdav_sub": "Nextcloud · ownCloud",
   "hp_diag_src_imap_label": "IMAP",
   "hp_diag_src_imap_sub": "toute boîte mail",
-
   "hp_diag_out_web_label": "Web",
   "hp_diag_out_web_sub": "variantes responsives",
   "hp_diag_out_cdn_label": "CDN / API",
@@ -723,7 +719,6 @@
   "hp_diag_out_downloads_sub": "direct · partages",
   "hp_diag_out_integrations_label": "Intégrations",
   "hp_diag_out_integrations_sub": "connecteurs",
-
   "hp_diag_pill_thumbnail": "miniature",
   "hp_diag_pill_watermark": "filigrane",
   "hp_diag_pill_convert": "convertir",

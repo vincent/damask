@@ -219,7 +219,7 @@
             data-asset-id={asset.id}
             class="group cursor-pointer border-t border-[var(--border-subtle)] transition-colors {isSelected
               ? 'bg-[var(--accent-soft)]'
-              : 'even:bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)]'}"
+              : 'even:bg-[var(--bg-stripe)] hover:bg-[var(--bg-hover)]'}"
             onclick={(e) =>
               onCardClick(asset, globalIndex, e as unknown as MouseEvent)}
           >

@@ -20,7 +20,7 @@
   <button
     type="button"
     class="sort-btn flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors {active
-      ? 'border border-[var(--border-subtle)] bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)]'
+      ? 'border border-[var(--border-subtle)] bg-[var(--bg-app)] font-medium text-[var(--text-primary)]'
       : 'border border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]'}"
     onclick={() => onSort(key)}
     title={label}

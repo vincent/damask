@@ -612,7 +612,6 @@
   "audio_format_source": "Same as source",
   "audio_normalize_explainer": "EBU R128 normalization adjusts perceived loudness to a consistent level. -16 LUFS is standard for most streaming platforms.",
   "audio_normalize_submit": "Normalize",
-
   "hp_meta_title": "Damask: Self-hosted digital asset management",
   "hp_meta_description": "Damask is a self-hosted digital asset management system for creative teams that want full control over their files and metadata.",
   "hp_nav_docs": "Docs",
@@ -704,7 +703,6 @@
   "hp_selfhost_cta_docs": "Installation docs",
   "hp_selfhost_cta_docker": "Docker image",
   "hp_footer_license": "APL2 License",
-
   "hp_diag_eyebrow": "How it works",
   "hp_diag_headline": "One asset. Every format. Every destination.",
   "hp_diag_subline": "Connect your sources, define your variants, share with whoever needs them.",
@@ -715,7 +713,6 @@
   "hp_diag_legend_ingress": "Ingress — files pulled from any source",
   "hp_diag_legend_variants": "Variants — named formats per asset",
   "hp_diag_legend_distrib": "Distribution — share, download, or integrate",
-
   "hp_diag_src_email_label": "Email ingress",
   "hp_diag_src_email_sub": "ws@ingest.damask",
   "hp_diag_src_s3_label": "S3 / Cloud",
@@ -726,7 +723,6 @@
   "hp_diag_src_webdav_sub": "Nextcloud · ownCloud",
   "hp_diag_src_imap_label": "IMAP",
   "hp_diag_src_imap_sub": "any mailbox",
-
   "hp_diag_out_web_label": "Web delivery",
   "hp_diag_out_web_sub": "responsive variants",
   "hp_diag_out_cdn_label": "CDN / API",
@@ -737,7 +733,6 @@
   "hp_diag_out_downloads_sub": "direct · share links",
   "hp_diag_out_integrations_label": "Integrations",
   "hp_diag_out_integrations_sub": "connectors",
-
   "hp_diag_pill_thumbnail": "thumbnail",
   "hp_diag_pill_watermark": "watermark",
   "hp_diag_pill_convert": "convert",
@@ -746,5 +741,6 @@
   "hp_diag_pill_transcode": "transcode",
   "hp_diag_pill_normalize": "normalize",
   "hp_diag_pill_extract_audio": "extract audio",
-  "hp_diag_pill_bg_remove": "bg remove"
+  "hp_diag_pill_bg_remove": "bg remove",
+  "upload_files": "Upload files"
 }
