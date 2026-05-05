@@ -1,7 +1,7 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import { variantApi, type Asset } from '$lib/api'
+  import { type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
 
   interface Props {
@@ -14,7 +14,6 @@
 
   const kind = 'image_watermark'
 
-  // Watermark params
   let watermarkOpacity = $state(50)
   let watermarkQuality = $state(80)
   let watermarkFormat = $state<'jpeg' | 'png' | 'tiff'>('jpeg')
@@ -23,51 +22,42 @@
 <div class="space-y-5">
   <div class="grid grid-cols-2 gap-4">
     <div>
-      <label
-        for="variant-{kind}-width"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-        >{m.opacity()} ({watermarkOpacity}%)</label
+      <label for="variant-{kind}-opacity" class="field-label"
+        >{m.opacity()}:
+        <span class="quality-val">{watermarkOpacity}%</span></label
       >
       <input
-        id="variant-{kind}-width"
+        id="variant-{kind}-opacity"
         type="range"
         min="1"
         max="100"
         bind:value={watermarkOpacity}
-        class="w-full accent-indigo-500"
+        class="range-input"
       />
     </div>
     <div>
-      <label
-        for="variant-{kind}-height"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-        >{m.quality()}: {watermarkQuality}%</label
+      <label for="variant-{kind}-quality" class="field-label"
+        >{m.quality()}:
+        <span class="quality-val">{watermarkQuality}%</span></label
       >
       <input
-        id="variant-{kind}-height"
+        id="variant-{kind}-quality"
         type="range"
         min="1"
         max="100"
         bind:value={watermarkQuality}
-        class="w-full accent-indigo-500"
+        class="range-input"
       />
     </div>
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-format"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >{m.format()}</label
-    >
+    <label class="field-label">{m.format()}</label>
     <div class="flex gap-2">
       {#each ['jpeg', 'png', 'tiff'] as fmt}
         <button
           type="button"
-          class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {watermarkFormat ===
-          fmt
-            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
+          class="toggle-btn flex-1 {watermarkFormat === fmt ? 'active' : ''}"
           onclick={() => {
             watermarkFormat = fmt as typeof watermarkFormat
           }}>{fmt.toUpperCase()}</button
@@ -89,3 +79,45 @@
     {creating ? m.queuing_() : m.variant_create_watermark()}
   </Button>
 </div>
+
+<style>
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .toggle-btn {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    padding: 7px 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .toggle-btn:hover {
+    border-color: var(--accent-cta);
+    color: var(--text-primary);
+  }
+  .toggle-btn.active {
+    border-color: var(--accent-cta);
+    background: oklch(93% 0.04 270);
+    color: oklch(40% 0.18 270);
+  }
+  :global(.dark) .toggle-btn.active {
+    background: oklch(30% 0.08 270 / 0.4);
+    color: oklch(78% 0.12 270);
+  }
+  .range-input {
+    width: 100%;
+    accent-color: var(--accent-cta);
+  }
+  .quality-val {
+    font-weight: 600;
+    color: var(--accent-cta);
+  }
+</style>

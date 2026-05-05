@@ -15,19 +15,16 @@
 
   const kind = 'image_resize'
 
-  // Resize params
   let resizeWidth = $state(800)
   let resizeHeight = $state(0)
   let resizeFit = $state<'contain' | 'cover' | 'fill'>('contain')
   let resizeQuality = $state(85)
   let resizeFormat = $state<'jpeg' | 'png' | 'tiff'>('jpeg')
 
-  // Live preview
   let previewUrl = $state('')
   let previewTimeout: ReturnType<typeof setTimeout>
 
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
-  const isVideo = $derived(asset?.mime_type?.startsWith('video/') ?? false)
 
   function useResolution(e: Event) {
     const o = (e.target as HTMLSelectElement)?.selectedOptions
@@ -56,44 +53,35 @@
 </script>
 
 <div class="space-y-5">
-  {#if previewUrl}
-    <div
-      class="flex justify-center rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
-      style="min-height:120px"
-    >
+  <div class="preview-area">
+    {#if previewUrl}
       <img
         src={previewUrl}
         alt="Preview"
         class="max-h-48 max-w-full rounded object-contain"
       />
-    </div>
-  {:else}
-    <div
-      class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 py-8 text-sm text-gray-400 dark:border-gray-600 dark:bg-gray-800"
-    >
-      Preview will appear after changing parameters
-    </div>
-  {/if}
+    {:else}
+      <span class="preview-hint"
+        >Preview will appear after changing parameters</span
+      >
+    {/if}
+  </div>
 
   <div class="grid grid-cols-3 gap-3">
     <div>
-      <label
-        for="variant-{kind}-resolution"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+      <label for="variant-{kind}-resolution" class="field-label"
         >{m.resolution()}</label
       >
       <select
         id="variant-{kind}-resolution"
         onchange={useResolution}
-        class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="field-input"
       >
         <ResolutionOptions />
       </select>
     </div>
     <div>
-      <label
-        for="variant-{kind}-width"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+      <label for="variant-{kind}-width" class="field-label"
         >{m.width()} (px)</label
       >
       <input
@@ -103,14 +91,13 @@
         max="8000"
         bind:value={resizeWidth}
         oninput={updatePreview}
-        class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="field-input"
       />
     </div>
     <div>
-      <label
-        for="variant-{kind}-height"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-        >{m.height()} <span class="text-gray-400">(0=auto)</span></label
+      <label for="variant-{kind}-height" class="field-label"
+        >{m.height()}
+        <span class="text-[var(--text-muted)]">(0=auto)</span></label
       >
       <input
         id="variant-{kind}-height"
@@ -119,25 +106,18 @@
         max="8000"
         bind:value={resizeHeight}
         oninput={updatePreview}
-        class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="field-input"
       />
     </div>
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-fit"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >Fit</label
-    >
+    <label class="field-label">Fit</label>
     <div class="flex gap-2">
       {#each ['contain', 'cover', 'fill'] as f}
         <button
           type="button"
-          class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {resizeFit ===
-          f
-            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
+          class="toggle-btn flex-1 {resizeFit === f ? 'active' : ''}"
           onclick={() => {
             resizeFit = f as typeof resizeFit
             updatePreview()
@@ -148,10 +128,8 @@
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-quality"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >{m.quality()}: {resizeQuality}%</label
+    <label for="variant-{kind}-quality" class="field-label"
+      >{m.quality()}: <span class="quality-val">{resizeQuality}%</span></label
     >
     <input
       id="variant-{kind}-quality"
@@ -160,24 +138,17 @@
       max="100"
       bind:value={resizeQuality}
       oninput={updatePreview}
-      class="w-full accent-indigo-500"
+      class="range-input"
     />
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-format"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >{m.format()}</label
-    >
+    <label class="field-label">{m.format()}</label>
     <div class="flex gap-2">
       {#each ['jpeg', 'png', 'tiff'] as fmt}
         <button
           type="button"
-          class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {resizeFormat ===
-          fmt
-            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
+          class="toggle-btn flex-1 {resizeFormat === fmt ? 'active' : ''}"
           onclick={() => {
             resizeFormat = fmt as typeof resizeFormat
             updatePreview()
@@ -202,3 +173,73 @@
     {creating ? m.queuing_() : m.variant_create_resize()}
   </Button>
 </div>
+
+<style>
+  .preview-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    border-radius: 10px;
+    border: 1.5px dashed var(--border);
+    background: var(--bg-app);
+    padding: 12px;
+  }
+  .preview-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.12s ease;
+  }
+  .field-input:focus {
+    border-color: var(--accent-cta);
+  }
+  .toggle-btn {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    padding: 7px 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .toggle-btn:hover {
+    border-color: var(--accent-cta);
+    color: var(--text-primary);
+  }
+  .toggle-btn.active {
+    border-color: var(--accent-cta);
+    background: oklch(93% 0.04 270);
+    color: oklch(40% 0.18 270);
+  }
+  :global(.dark) .toggle-btn.active {
+    background: oklch(30% 0.08 270 / 0.4);
+    color: oklch(78% 0.12 270);
+  }
+  .range-input {
+    width: 100%;
+    accent-color: var(--accent-cta);
+  }
+  .quality-val {
+    font-weight: 600;
+    color: var(--accent-cta);
+  }
+</style>

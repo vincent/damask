@@ -9,9 +9,19 @@
 
   onMount(() => {
     if (!authStore.isAuthenticated) {
-      workspaceApi.me().then((me) => {
-        authStore.login(me.user, me.workspace, me.role, me.total_asset_count ?? 0)
-      }).catch(() => {/* not logged in */})
+      workspaceApi
+        .me()
+        .then((me) => {
+          authStore.login(
+            me.user,
+            me.workspace,
+            me.role,
+            me.total_asset_count ?? 0
+          )
+        })
+        .catch(() => {
+          /* not logged in */
+        })
     }
     const onScroll = () => {
       scrolled = window.scrollY > 60

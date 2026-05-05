@@ -32,13 +32,8 @@
 </script>
 
 <div class="space-y-5">
-  <div>
-    <h3 class="text-md font-semibold text-gray-800 dark:text-gray-200">
-      {m.audio_transcode_title()}
-    </h3>
-    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-      {m.audio_transcode_description()}
-    </p>
+  <div class="form-header">
+    <p class="form-desc">{m.audio_transcode_description()}</p>
   </div>
 
   <VariantFormatSelect
@@ -50,10 +45,7 @@
   />
 
   {#if lossless}
-    <p
-      transition:fly={{ y: -6, duration: 140 }}
-      class="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-    >
+    <p transition:fly={{ y: -6, duration: 140 }} class="explainer">
       {m.audio_lossless_note()}
     </p>
   {:else}
@@ -67,10 +59,8 @@
     </div>
   {/if}
 
-  <label
-    class="text-md flex items-center gap-2 text-gray-700 dark:text-gray-300"
-  >
-    <input type="checkbox" bind:checked={mono} class="rounded" />
+  <label class="checkbox-label">
+    <input type="checkbox" bind:checked={mono} class="checkbox" />
     {m.audio_mono_label()}
   </label>
 
@@ -87,3 +77,33 @@
     {creating ? m.queuing_() : m.audio_transcode_submit()}
   </Button>
 </div>
+
+<style>
+  .form-header {
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .form-desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .explainer {
+    border-radius: 8px;
+    background: var(--bg-app);
+    padding: 10px 12px;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .checkbox {
+    border-radius: 4px;
+    accent-color: var(--accent-cta);
+  }
+</style>

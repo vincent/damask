@@ -470,14 +470,22 @@
                   <Spinner size="md" />
                 </div>
               {:else if variants.length === 0}
-                <div
-                  class="flex flex-col items-center gap-3 py-12 text-center text-gray-400"
-                >
-                  <Inbox class="h-10 w-10" />
-                  <p class="text-md">{m.no_variants_yet()}</p>
-                  {#if authStore.role !== 'viewer' && (isImage || isVideo)}
-                    <p class="text-sm">{m.variant_use_tabs()}</p>
-                  {/if}
+                <div class="flex flex-col items-center gap-4 py-10 text-center">
+                  <div
+                    class="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-400 dark:bg-indigo-900/25 dark:text-indigo-400"
+                  >
+                    <Inbox class="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p class="text-md font-medium text-[var(--text-primary)]">
+                      {m.no_variants_yet()}
+                    </p>
+                    {#if authStore.role !== 'viewer' && (isImage || isVideo)}
+                      <p class="mt-1 text-sm text-[var(--text-muted)]">
+                        {m.variant_use_tabs()}
+                      </p>
+                    {/if}
+                  </div>
                 </div>
               {:else}
                 <AssetVariantsGrid

@@ -19,17 +19,12 @@
 </script>
 
 <div class:opacity-50={disabled}>
-  <label
-    for={id}
-    class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-  >
-    {label}
-  </label>
+  <label for={id} class="field-label">{label}</label>
   <select
     {id}
     {disabled}
     {value}
-    class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+    class="field-input"
     onchange={(e) => onchange((e.currentTarget as HTMLSelectElement).value)}
   >
     {#each bitrates as bitrate}
@@ -37,3 +32,30 @@
     {/each}
   </select>
 </div>
+
+<style>
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.12s ease;
+  }
+  .field-input:focus {
+    border-color: var(--accent-cta);
+  }
+  .field-input:disabled {
+    cursor: not-allowed;
+  }
+</style>

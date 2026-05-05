@@ -33,30 +33,26 @@
 
 <div class="space-y-5">
   {#if asset.width != null && asset.height != null}
-    <p class="text-sm text-gray-400 dark:text-gray-500">
+    <p class="text-sm text-[var(--text-muted)]">
       Original: {asset.width} × {asset.height} px
     </p>
   {/if}
 
   <div class="grid grid-cols-3 gap-4">
     <div>
-      <label
-        for="variant-{kind}-resolution"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+      <label for="variant-{kind}-resolution" class="field-label"
         >{m.resolution()}</label
       >
       <select
         id="variant-{kind}-resolution"
         onchange={useResolution}
-        class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="field-input"
       >
         <ResolutionOptions />
       </select>
     </div>
     <div>
-      <label
-        for="variant-{kind}-width"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+      <label for="variant-{kind}-width" class="field-label"
         >{m.width()} (px)</label
       >
       <input
@@ -65,13 +61,11 @@
         min="1"
         max="8000"
         bind:value={width}
-        class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="field-input"
       />
     </div>
     <div>
-      <label
-        for="variant-{kind}-height"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+      <label for="variant-{kind}-height" class="field-label"
         >{m.height()} (px)</label
       >
       <input
@@ -80,25 +74,18 @@
         min="1"
         max="8000"
         bind:value={height}
-        class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+        class="field-input"
       />
     </div>
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-format"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >{m.format()}</label
-    >
+    <label class="field-label">{m.format()}</label>
     <div class="flex gap-2">
       {#each ['jpeg', 'png', 'tiff'] as fmt}
         <button
           type="button"
-          class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {format ===
-          fmt
-            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
+          class="toggle-btn flex-1 {format === fmt ? 'active' : ''}"
           onclick={() => {
             format = fmt as typeof format
           }}>{fmt.toUpperCase()}</button
@@ -108,10 +95,8 @@
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-quality"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >{m.quality()}: {quality}%</label
+    <label for="variant-{kind}-quality" class="field-label"
+      >{m.quality()}: <span class="quality-val">{quality}%</span></label
     >
     <input
       id="variant-{kind}-quality"
@@ -119,7 +104,7 @@
       min="1"
       max="100"
       bind:value={quality}
-      class="w-full accent-indigo-500"
+      class="range-input"
     />
   </div>
 
@@ -131,3 +116,59 @@
     {creating ? m.queuing_() : m.variant_create_smartcrop()}
   </Button>
 </div>
+
+<style>
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.12s ease;
+  }
+  .field-input:focus {
+    border-color: var(--accent-cta);
+  }
+  .toggle-btn {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    padding: 7px 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .toggle-btn:hover {
+    border-color: var(--accent-cta);
+    color: var(--text-primary);
+  }
+  .toggle-btn.active {
+    border-color: var(--accent-cta);
+    background: oklch(93% 0.04 270);
+    color: oklch(40% 0.18 270);
+  }
+  :global(.dark) .toggle-btn.active {
+    background: oklch(30% 0.08 270 / 0.4);
+    color: oklch(78% 0.12 270);
+  }
+  .range-input {
+    width: 100%;
+    accent-color: var(--accent-cta);
+  }
+  .quality-val {
+    font-weight: 600;
+    color: var(--accent-cta);
+  }
+</style>

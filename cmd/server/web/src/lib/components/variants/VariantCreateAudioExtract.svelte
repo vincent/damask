@@ -27,13 +27,8 @@
 </script>
 
 <div class="space-y-5">
-  <div>
-    <h3 class="text-md font-semibold text-gray-800 dark:text-gray-200">
-      {m.audio_extract_title()}
-    </h3>
-    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-      {m.audio_extract_description()}
-    </p>
+  <div class="form-header">
+    <p class="form-desc">{m.audio_extract_description()}</p>
   </div>
 
   <VariantFormatSelect
@@ -59,3 +54,14 @@
     {creating ? m.queuing_() : m.audio_extract_submit()}
   </Button>
 </div>
+
+<style>
+  .form-header {
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .form-desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+</style>

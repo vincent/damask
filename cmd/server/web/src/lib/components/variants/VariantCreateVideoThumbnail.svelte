@@ -14,18 +14,12 @@
 
   const kind = 'video_capture_image'
 
-  // Video params
   let videoTimestamp = $state(1)
 </script>
 
-<div class="space-y-6">
-  <h3 class="text-md font-semibold text-gray-800 dark:text-gray-200">
-    {m.extract_frame()}
-  </h3>
+<div class="space-y-5">
   <div>
-    <label
-      for="variant-{kind}-timestamp"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+    <label for="variant-{kind}-timestamp" class="field-label"
       >{m.timestamp_seconds()}</label
     >
     <input
@@ -34,7 +28,7 @@
       min="0"
       step="0.1"
       bind:value={videoTimestamp}
-      class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+      class="field-input"
     />
   </div>
   <Button
@@ -45,3 +39,27 @@
     {creating ? m.queuing_() : m.extract_frame()}
   </Button>
 </div>
+
+<style>
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.12s ease;
+  }
+  .field-input:focus {
+    border-color: var(--accent-cta);
+  }
+</style>

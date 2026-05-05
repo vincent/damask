@@ -19,13 +19,11 @@
   let img = $state<HTMLImageElement>()
   let imgLoaded = $state(false)
 
-  // Displayed image dimensions (updated on load and resize)
   let dispW = $state(0)
   let dispH = $state(0)
   let scaleX = $state(1)
   let scaleY = $state(1)
 
-  // Drag state in display coords (relative to image top-left)
   let dragging = $state(false)
   let startX = $state(0)
   let startY = $state(0)
@@ -105,9 +103,7 @@
 </script>
 
 <div class="space-y-5">
-  <div
-    class="flex min-h-40 justify-center rounded-xl border border-gray-200 bg-gray-50 p-3 select-none dark:border-gray-700 dark:bg-gray-800"
-  >
+  <div class="canvas-area">
     <div class="relative">
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <img
@@ -191,30 +187,21 @@
     </div>
   </div>
 
-  {#if crop}
-    <p class="text-sm text-gray-400 dark:text-gray-500">
+  <p class="crop-hint">
+    {#if crop}
       {crop.x}, {crop.y} — {crop.width} × {crop.height} px
-    </p>
-  {:else}
-    <p class="text-sm text-gray-400 dark:text-gray-500">
+    {:else}
       Draw a selection on the image
-    </p>
-  {/if}
+    {/if}
+  </p>
 
   <div>
-    <label
-      for="crop-format"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >{m.format()}</label
-    >
+    <label class="field-label">{m.format()}</label>
     <div id="crop-format" class="flex gap-2">
       {#each ['jpeg', 'png'] as fmt}
         <button
           type="button"
-          class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {cropFormat ===
-          fmt
-            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
+          class="toggle-btn flex-1 {cropFormat === fmt ? 'active' : ''}"
           onclick={() => {
             cropFormat = fmt as typeof cropFormat
           }}>{fmt.toUpperCase()}</button
@@ -236,3 +223,51 @@
     {creating ? m.queuing_() : m.variant_create_crop()}
   </Button>
 </div>
+
+<style>
+  .canvas-area {
+    display: flex;
+    justify-content: center;
+    min-height: 160px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-app);
+    padding: 12px;
+    user-select: none;
+  }
+  .crop-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .toggle-btn {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    padding: 7px 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .toggle-btn:hover {
+    border-color: var(--accent-cta);
+    color: var(--text-primary);
+  }
+  .toggle-btn.active {
+    border-color: var(--accent-cta);
+    background: oklch(93% 0.04 270);
+    color: oklch(40% 0.18 270);
+  }
+  :global(.dark) .toggle-btn.active {
+    background: oklch(30% 0.08 270 / 0.4);
+    color: oklch(78% 0.12 270);
+  }
+</style>

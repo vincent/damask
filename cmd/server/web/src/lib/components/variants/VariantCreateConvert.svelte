@@ -14,26 +14,20 @@
 
   const kind = 'image_convert'
 
-  // Convert params
   let convertFormat = $state<'jpeg' | 'png' | 'tiff'>('png')
   let convertQuality = $state(90)
 </script>
 
 <div class="space-y-5">
   <div>
-    <label
-      for="variant-{kind}-format"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+    <label for="variant-{kind}-format" class="field-label"
       >{m.output_format()}</label
     >
     <div class="flex gap-2">
       {#each ['jpeg', 'png', 'tiff'] as fmt}
         <button
           type="button"
-          class="text-md flex-1 rounded-lg border py-2.5 font-medium transition-colors {convertFormat ===
-          fmt
-            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
+          class="toggle-btn flex-1 {convertFormat === fmt ? 'active' : ''}"
           onclick={() => {
             convertFormat = fmt as typeof convertFormat
           }}>{fmt.toUpperCase()}</button
@@ -44,10 +38,9 @@
 
   {#if convertFormat === 'jpeg'}
     <div>
-      <label
-        for="variant-{kind}-quality"
-        class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-        >{m.quality()}: {convertQuality}%</label
+      <label for="variant-{kind}-quality" class="field-label"
+        >{m.quality()}:
+        <span class="quality-val">{convertQuality}%</span></label
       >
       <input
         id="variant-{kind}-quality"
@@ -55,7 +48,7 @@
         min="1"
         max="100"
         bind:value={convertQuality}
-        class="w-full accent-indigo-500"
+        class="range-input"
       />
     </div>
   {/if}
@@ -71,3 +64,45 @@
       : m.convert_to_format({ format: convertFormat.toUpperCase() })}
   </Button>
 </div>
+
+<style>
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .toggle-btn {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    padding: 9px 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .toggle-btn:hover {
+    border-color: var(--accent-cta);
+    color: var(--text-primary);
+  }
+  .toggle-btn.active {
+    border-color: var(--accent-cta);
+    background: oklch(93% 0.04 270);
+    color: oklch(40% 0.18 270);
+  }
+  :global(.dark) .toggle-btn.active {
+    background: oklch(30% 0.08 270 / 0.4);
+    color: oklch(78% 0.12 270);
+  }
+  .range-input {
+    width: 100%;
+    accent-color: var(--accent-cta);
+  }
+  .quality-val {
+    font-weight: 600;
+    color: var(--accent-cta);
+  }
+</style>

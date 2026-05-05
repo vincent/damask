@@ -15,32 +15,25 @@
 
   const kind = 'video_transcode'
 
-  // Video params
   let transcodeFormat = $state<'mp4' | 'webm'>('mp4')
   let transcodeResolution = $state<'' | '1080p' | '720p' | '480p'>('')
   let transcodeStripAudio = $state(false)
 </script>
 
-<div class="space-y-6">
-  <h3 class="text-md font-semibold text-gray-800 dark:text-gray-200">
-    {m.transcode()}
-  </h3>
-  <p class="text-sm text-gray-500 dark:text-gray-400">{m.transcode_hint()}</p>
+<div class="space-y-5">
+  <div class="form-header">
+    <p class="form-desc">{m.transcode_hint()}</p>
+  </div>
 
   <div>
-    <label
-      for="variant-{kind}-format"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+    <label for="variant-{kind}-format" class="field-label"
       >{m.output_format()}</label
     >
     <div class="flex gap-2">
       {#each ['mp4', 'webm'] as fmt}
         <button
           type="button"
-          class="flex-1 rounded-lg border py-2 text-sm font-medium transition-colors {transcodeFormat ===
-          fmt
-            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-            : 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400'}"
+          class="toggle-btn flex-1 {transcodeFormat === fmt ? 'active' : ''}"
           onclick={() => {
             transcodeFormat = fmt as typeof transcodeFormat
           }}>{fmt.toUpperCase()}</button
@@ -50,25 +43,24 @@
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-resolution"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
-      >{m.resolution()}
-      <span class="text-gray-400">({m.optional()})</span></label
+    <label for="variant-{kind}-resolution" class="field-label"
+      >{m.resolution()} <span class="optional">({m.optional()})</span></label
     >
     <select
       id="variant-{kind}-resolution"
       bind:value={transcodeResolution}
-      class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+      class="field-input"
     >
       <ResolutionOptions />
     </select>
   </div>
 
-  <label
-    class="text-md flex items-center gap-2 text-gray-700 dark:text-gray-300"
-  >
-    <input type="checkbox" bind:checked={transcodeStripAudio} class="rounded" />
+  <label class="checkbox-label">
+    <input
+      type="checkbox"
+      bind:checked={transcodeStripAudio}
+      class="checkbox"
+    />
     {m.strip_audio()}
   </label>
 
@@ -85,3 +77,75 @@
     {creating ? m.queuing_() : m.transcode()}
   </Button>
 </div>
+
+<style>
+  .form-header {
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .form-desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .optional {
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.12s ease;
+  }
+  .field-input:focus {
+    border-color: var(--accent-cta);
+  }
+  .toggle-btn {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    padding: 7px 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .toggle-btn:hover {
+    border-color: var(--accent-cta);
+    color: var(--text-primary);
+  }
+  .toggle-btn.active {
+    border-color: var(--accent-cta);
+    background: oklch(93% 0.04 270);
+    color: oklch(40% 0.18 270);
+  }
+  :global(.dark) .toggle-btn.active {
+    background: oklch(30% 0.08 270 / 0.4);
+    color: oklch(78% 0.12 270);
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .checkbox {
+    border-radius: 4px;
+    accent-color: var(--accent-cta);
+  }
+</style>

@@ -31,26 +31,18 @@
 </script>
 
 <div class="space-y-5">
-  <div>
-    <h3 class="text-md font-semibold text-gray-800 dark:text-gray-200">
-      {m.audio_normalize_title()}
-    </h3>
-    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-      {m.audio_normalize_description()}
-    </p>
+  <div class="form-header">
+    <p class="form-desc">{m.audio_normalize_description()}</p>
   </div>
 
   <div>
-    <label
-      for="variant-{kind}-target"
-      class="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400"
+    <label for="variant-{kind}-target" class="field-label"
+      >{m.audio_target_label()}</label
     >
-      {m.audio_target_label()}
-    </label>
     <select
       id="variant-{kind}-target"
       value={targetLUFS}
-      class="text-md w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-400 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+      class="field-input"
       onchange={(e) =>
         (targetLUFS = Number((e.currentTarget as HTMLSelectElement).value))}
     >
@@ -68,11 +60,7 @@
     onchange={(next) => (format = next)}
   />
 
-  <p
-    class="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-  >
-    {m.audio_normalize_explainer()}
-  </p>
+  <p class="explainer">{m.audio_normalize_explainer()}</p>
 
   <Button
     disabled={creating || authStore.role === 'viewer'}
@@ -82,3 +70,42 @@
     {creating ? m.queuing_() : m.audio_normalize_submit()}
   </Button>
 </div>
+
+<style>
+  .form-header {
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .form-desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.12s ease;
+  }
+  .field-input:focus {
+    border-color: var(--accent-cta);
+  }
+  .explainer {
+    border-radius: 8px;
+    background: var(--bg-app);
+    padding: 10px 12px;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+</style>
