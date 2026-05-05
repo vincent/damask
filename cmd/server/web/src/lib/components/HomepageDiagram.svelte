@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let svgEl: SVGSVGElement
   let legendEl: HTMLDivElement
@@ -16,36 +17,36 @@
 
     const SRC = [
       {
-        label: 'Email ingress',
-        sub: 'ws@ingest.damask',
+        label: m.hp_diag_src_email_label(),
+        sub: m.hp_diag_src_email_sub(),
         c1: '#D4A017',
         b1: '#FCD34D',
         c2: '#7c6db3',
       },
       {
-        label: 'S3 / Cloud',
-        sub: 'compatible bucket',
+        label: m.hp_diag_src_s3_label(),
+        sub: m.hp_diag_src_s3_sub(),
         c1: '#0D9488',
         b1: '#2DD4BF',
         c2: '#7c6db3',
       },
       {
-        label: 'SFTP',
-        sub: 'secure transfer',
+        label: m.hp_diag_src_sftp_label(),
+        sub: m.hp_diag_src_sftp_sub(),
         c1: '#9333EA',
         b1: '#D8B4FE',
         c2: '#7c6db3',
       },
       {
-        label: 'WebDAV',
-        sub: 'Nextcloud · ownCloud',
+        label: m.hp_diag_src_webdav_label(),
+        sub: m.hp_diag_src_webdav_sub(),
         c1: '#DC2626',
         b1: '#FCA5A5',
         c2: '#7c6db3',
       },
       {
-        label: 'IMAP',
-        sub: 'any mailbox',
+        label: m.hp_diag_src_imap_label(),
+        sub: m.hp_diag_src_imap_sub(),
         c1: '#059669',
         b1: '#6EE7B7',
         c2: '#7c6db3',
@@ -53,36 +54,36 @@
     ]
     const OUT = [
       {
-        label: 'Web delivery',
-        sub: 'responsive variants',
+        label: m.hp_diag_out_web_label(),
+        sub: m.hp_diag_out_web_sub(),
         c1: '#2563EB',
         b1: '#93C5FD',
         c2: '#4a4870',
       },
       {
-        label: 'CDN / API',
-        sub: 'public URLs · tokens',
+        label: m.hp_diag_out_cdn_label(),
+        sub: m.hp_diag_out_cdn_sub(),
         c1: '#EA580C',
         b1: '#FED7AA',
         c2: '#4a4870',
       },
       {
-        label: 'Team shares',
-        sub: 'collections · roles',
+        label: m.hp_diag_out_shares_label(),
+        sub: m.hp_diag_out_shares_sub(),
         c1: '#7C3AED',
         b1: '#DDD6FE',
         c2: '#4a4870',
       },
       {
-        label: 'Downloads',
-        sub: 'direct · share links',
+        label: m.hp_diag_out_downloads_label(),
+        sub: m.hp_diag_out_downloads_sub(),
         c1: '#DB2777',
         b1: '#FBCFE8',
         c2: '#4a4870',
       },
       {
-        label: 'Integrations',
-        sub: 'connectors',
+        label: m.hp_diag_out_integrations_label(),
+        sub: m.hp_diag_out_integrations_sub(),
         c1: '#0891B2',
         b1: '#A5F3FC',
         c2: '#4a4870',
@@ -179,46 +180,81 @@
       }
     }
 
+    const PILL_LABELS = [
+      m.hp_diag_pill_thumbnail(),
+      m.hp_diag_pill_watermark(),
+      m.hp_diag_pill_convert(),
+      m.hp_diag_pill_resize(),
+      m.hp_diag_pill_crop(),
+      m.hp_diag_pill_transcode(),
+      m.hp_diag_pill_normalize(),
+      m.hp_diag_pill_extract_audio(),
+      m.hp_diag_pill_bg_remove(),
+    ]
+    const PILL_N = PILL_LABELS.length
+    const PILL_CYCLE = 3200
+    const PILL_FADE = 280
+
+    let pillTexts: SVGTextElement[] = []
+    let pillRects: SVGRectElement[] = []
+    let pillWindowStart = 0
+    let replaceSlot = 0
+    let pillTimer = PILL_CYCLE
+    let pillFading = false
+    let pillFadeT = 0
+
     function buildPills() {
       const g = svgEl.getElementById('pills')
+      // 2×2 grid in hub phase 2: centered horizontally on CX=480,
+      // vertically between separator (y=219) and VARIANTS label (y=278)
+      // grid center at y=248: topY=226, botY=248
+      const PW = 80,
+        PH = 16,
+        GAP_X = 8,
+        GAP_Y = 6
+      const GRID_CY = 248
+      const leftX = CX - PW - GAP_X / 2
+      const rightX = CX + GAP_X / 2
+      const topY = GRID_CY - PH - GAP_Y / 2
+      const botY = GRID_CY + GAP_Y / 2
       ;(
         [
-          ['thumb', 420, 226],
-          ['web', 490, 226],
-          ['print', 420, 246],
-          ['transcode', 490, 246],
-        ] as [string, number, number][]
-      ).forEach(([lbl, x, y], i) => {
+          [leftX, topY],
+          [rightX, topY],
+          [leftX, botY],
+          [rightX, botY],
+        ] as [number, number][]
+      ).forEach(([x, y], i) => {
         const pg = mk('g', { class: 'dm-pill' })
         ;(pg as unknown as HTMLElement).style.animationDelay = `${i * 0.55}s`
-        pg.appendChild(
-          mk('rect', {
-            x,
-            y,
-            width: 60,
-            height: 16,
-            rx: 3.5,
-            fill: '#1e1b3a',
-            stroke: '#9580ff',
-            'stroke-width': 0.8,
-            'stroke-opacity': 0.7,
-          })
-        )
-        pg.appendChild(
-          mk(
-            'text',
-            {
-              x: x + 28,
-              y: y + 11.5,
-              'text-anchor': 'middle',
-              fill: '#c4b5fd',
-              'font-size': 8.5,
-              'font-family': 'monospace',
-              'letter-spacing': '.02em',
-            },
-            lbl
-          )
-        )
+        const rect = mk('rect', {
+          x,
+          y,
+          width: PW,
+          height: PH,
+          rx: 3.5,
+          fill: '#1e1b3a',
+          stroke: '#9580ff',
+          'stroke-width': 0.8,
+          'stroke-opacity': 0.7,
+        }) as SVGRectElement
+        pg.appendChild(rect)
+        pillRects.push(rect)
+        const txt = mk(
+          'text',
+          {
+            x: x + PW / 2,
+            y: y + PH - 3.5,
+            'text-anchor': 'middle',
+            fill: '#c4b5fd',
+            'font-size': 8.5,
+            'font-family': 'monospace',
+            'letter-spacing': '.02em',
+          },
+          PILL_LABELS[i]
+        ) as SVGTextElement
+        pg.appendChild(txt)
+        pillTexts.push(txt)
         g!.appendChild(pg)
       })
     }
@@ -378,7 +414,7 @@
           'letter-spacing': '.12em',
           opacity: 0,
         },
-        'INGRESS SOURCES'
+        m.hp_diag_lbl_ingress()
       )
       g!.appendChild(sl)
       const ol = mk(
@@ -394,7 +430,7 @@
           'letter-spacing': '.12em',
           opacity: 0,
         },
-        'DISTRIBUTE'
+        m.hp_diag_lbl_distribute()
       )
       g!.appendChild(ol)
     }
@@ -675,6 +711,38 @@
           cpPool[i].tick(dt)
           if (!cpPool[i].alive) cpPool.splice(i, 1)
         }
+
+        // pill rotation
+        pillTimer -= dt
+        if (!pillFading && pillTimer <= 0) {
+          pillFading = true
+          pillFadeT = 0
+        }
+        if (pillFading) {
+          pillFadeT += dt
+          if (pillFadeT < PILL_FADE) {
+            const a = 1 - pillFadeT / PILL_FADE
+            pillTexts[replaceSlot].setAttribute('opacity', String(a))
+            pillRects[replaceSlot].setAttribute('opacity', String(a))
+          } else if (pillFadeT < PILL_FADE * 2) {
+            if (pillFadeT - dt < PILL_FADE) {
+              const nextLabel = PILL_LABELS[(pillWindowStart + 4) % PILL_N]
+              pillTexts[replaceSlot].textContent = nextLabel
+              pillWindowStart = (pillWindowStart + 1) % PILL_N
+              replaceSlot = (replaceSlot + 1) % 4
+            }
+            const prevSlot = (replaceSlot + 3) % 4
+            const a = (pillFadeT - PILL_FADE) / PILL_FADE
+            pillTexts[prevSlot].setAttribute('opacity', String(a))
+            pillRects[prevSlot].setAttribute('opacity', String(a))
+          } else {
+            const prevSlot = (replaceSlot + 3) % 4
+            pillFading = false
+            pillTimer = PILL_CYCLE
+            pillTexts[prevSlot].setAttribute('opacity', '1')
+            pillRects[prevSlot].setAttribute('opacity', '1')
+          }
+        }
       }
       rafId = requestAnimationFrame(frame)
     }
@@ -690,7 +758,7 @@
       (entries) => {
         if (entries[0].isIntersecting) {
           observer.disconnect()
-          rafId = requestAnimationFrame(frame)
+          // rafId = requestAnimationFrame(frame)
         }
       },
       { threshold: 0.1 }
@@ -707,12 +775,9 @@
 <section class="dm-diagram-section">
   <div class="dm-diagram-inner">
     <div class="dm-diagram-header reveal">
-      <span class="dm-eyebrow">How it works</span>
-      <h2 class="dm-headline">One asset. Every format. Every destination.</h2>
-      <p class="dm-subline">
-        Connect your sources, define your variants, share with whoever needs
-        them.
-      </p>
+      <span class="dm-eyebrow">{m.hp_diag_eyebrow()}</span>
+      <h2 class="dm-headline">{m.hp_diag_headline()}</h2>
+      <p class="dm-subline">{m.hp_diag_subline()}</p>
     </div>
 
     <div class="dm-svg-wrap reveal" style="--delay: 80ms">
@@ -720,7 +785,7 @@
         bind:this={svgEl}
         viewBox="0 0 960 468"
         xmlns="http://www.w3.org/2000/svg"
-        aria-label="Damask architecture diagram"
+        aria-label={m.hp_diag_aria()}
         role="img"
       >
         <defs>
@@ -918,7 +983,7 @@
           <circle
             cx="480"
             cy="234"
-            r="96"
+            r="116"
             fill="none"
             stroke="#9580ff"
             stroke-width=".6"
@@ -927,7 +992,7 @@
           <circle
             cx="480"
             cy="234"
-            r="82"
+            r="102"
             fill="#1e1b3a"
             stroke="#9580ff"
             stroke-width="1.5"
@@ -942,10 +1007,10 @@
             letter-spacing="-.01em">damask</text
           >
           <line
-            x1="432"
-            y1="219"
-            x2="528"
-            y2="219"
+            x1="396"
+            y1="222"
+            x2="564"
+            y2="222"
             stroke="#9580ff"
             stroke-width=".6"
             stroke-opacity=".35"
@@ -957,7 +1022,7 @@
             text-anchor="middle"
             fill="#6e6a9a"
             font-size="7.5"
-            letter-spacing=".12em">VARIANTS</text
+            letter-spacing=".12em">{m.hp_diag_lbl_variants()}</text
           >
         </g>
 
@@ -972,15 +1037,15 @@
     <div class="dm-legend reveal" style="--delay: 140ms" bind:this={legendEl}>
       <div class="dm-legend-item">
         <div class="dm-leg-line dm-in"></div>
-        <span>Ingress — files pulled from any source</span>
+        <span>{m.hp_diag_legend_ingress()}</span>
       </div>
       <div class="dm-legend-item">
         <div class="dm-leg-pill"></div>
-        <span>Variants — named formats per asset</span>
+        <span>{m.hp_diag_legend_variants()}</span>
       </div>
       <div class="dm-legend-item">
         <div class="dm-leg-line dm-out"></div>
-        <span>Distribution — share, download, or integrate</span>
+        <span>{m.hp_diag_legend_distrib()}</span>
       </div>
     </div>
   </div>

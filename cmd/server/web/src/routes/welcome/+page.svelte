@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import HomepageDiagram from '$lib/components/HomepageDiagram.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let scrolled = $state(false)
 
@@ -15,14 +16,12 @@
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('visible')
-            // observer.unobserve(entry.target)
           }
         })
       },
       { threshold: 0.1, rootMargin: '0px 0px -60px 0px' }
     )
 
-    // defer so Svelte has flushed the DOM and elements are measurable
     requestAnimationFrame(() => {
       document.querySelectorAll('.reveal').forEach((el) => observer.observe(el))
     })
@@ -35,11 +34,8 @@
 </script>
 
 <svelte:head>
-  <title>Damask: Self-hosted digital asset management</title>
-  <meta
-    name="description"
-    content="Damask is a self-hosted digital asset management system for creative teams that want full control over their files and metadata."
-  />
+  <title>{m.hp_meta_title()}</title>
+  <meta name="description" content={m.hp_meta_description()} />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"
@@ -65,7 +61,7 @@
         target="_blank"
         rel="noopener"
       >
-        Docs
+        {m.hp_nav_docs()}
       </a>
       <a
         href="https://docs.damask.studio/getting-started"
@@ -73,7 +69,7 @@
         target="_blank"
         rel="noopener"
       >
-        Get started
+        {m.hp_nav_get_started()}
       </a>
     </div>
   </div>
@@ -83,13 +79,12 @@
 <section class="hp-hero">
   <div class="hp-hero-texture" aria-hidden="true"></div>
   <div class="hp-hero-inner">
-    <p class="hp-hero-eyebrow reveal">Self-hosted DAM</p>
+    <p class="hp-hero-eyebrow reveal">{m.hp_hero_eyebrow()}</p>
     <h1 class="hp-hero-headline reveal">
-      Your assets.<br />Your server.
+      {m.hp_hero_headline()}
     </h1>
     <p class="hp-hero-sub reveal">
-      Damask is a self-hosted digital asset management system for creative teams
-      that want full control over their files and metadata.
+      {m.hp_meta_description()}
     </p>
     <div class="hp-hero-ctas reveal">
       <a
@@ -98,7 +93,7 @@
         target="_blank"
         rel="noopener"
       >
-        Get started
+        {m.hp_hero_cta_primary()}
       </a>
       <a
         href="https://github.com/vincent/damask"
@@ -117,7 +112,7 @@
             d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"
           />
         </svg>
-        View on GitHub
+        {m.hp_hero_cta_github()}
       </a>
       <a
         href="https://staging.damask.studio/login"
@@ -126,27 +121,26 @@
         target="_blank"
         rel="noopener"
       >
-        or try the demo !
+        {m.hp_hero_cta_demo()}
       </a>
     </div>
     <p class="hp-hero-note reveal">
-      Runs on your hardware. No usage caps. No per-seat tiers.
+      {m.hp_hero_note()}
     </p>
   </div>
 </section>
+
+<!-- DIAGRAM -->
+<HomepageDiagram />
 
 <!-- PROBLEM -->
 <section class="hp-problem">
   <div class="hp-problem-inner reveal">
     <p class="hp-problem-text">
-      Cloud DAM tools work until they don't: the pricing jumps, the contract
-      ends, or the upload quota runs out. And even when they work, your files
-      sit on someone else's server, behind a third-party login, in a format you
-      didn't choose.
+      {m.hp_problem_text()}
     </p>
     <p class="hp-problem-answer">
-      Damask runs on your machine or your server. Your storage, your rules, your
-      backups.
+      {m.hp_problem_answer()}
     </p>
   </div>
 </section>
@@ -156,7 +150,7 @@
   <div class="hp-screenshot reveal">
     <img
       src="/screenshot.webp"
-      alt="Damask asset library interface"
+      alt={m.hp_screenshot_alt()}
       class="hp-screenshot-img"
     />
   </div>
@@ -166,30 +160,24 @@
 <section class="hp-who">
   <div class="hp-who-inner">
     <div class="hp-who-profile reveal" style="--delay: 0ms">
-      <span class="hp-who-label">Solo creators</span>
-      <h2 class="hp-who-heading">One person,<br />thousands of files.</h2>
+      <span class="hp-who-label">{m.hp_who_solo_label()}</span>
+      <h2 class="hp-who-heading">{m.hp_who_solo_heading()}</h2>
       <p class="hp-who-body">
-        Damask replaces a folder structure that stopped making sense two years
-        ago. Fast upload, instant search, and a clean way to find the right
-        version of anything.
+        {m.hp_who_solo_body()}
       </p>
     </div>
     <div class="hp-who-profile reveal" style="--delay: 80ms">
-      <span class="hp-who-label">Creative teams</span>
-      <h2 class="hp-who-heading">Shared work,<br />clear boundaries.</h2>
+      <span class="hp-who-label">{m.hp_who_teams_label()}</span>
+      <h2 class="hp-who-heading">{m.hp_who_teams_heading()}</h2>
       <p class="hp-who-body">
-        Designers, photographers, video editors working on shared projects.
-        Roles and permissions keep work organized without locking people out.
-        Everyone sees what they need, nothing more.
+        {m.hp_who_teams_body()}
       </p>
     </div>
     <div class="hp-who-profile reveal" style="--delay: 160ms">
-      <span class="hp-who-label">Studios and agencies</span>
-      <h2 class="hp-who-heading">Every delivery,<br />every version.</h2>
+      <span class="hp-who-label">{m.hp_who_studios_label()}</span>
+      <h2 class="hp-who-heading">{m.hp_who_studios_heading()}</h2>
       <p class="hp-who-body">
-        Client deliverables, brand assets, production libraries. Damask tracks
-        who uploaded what, when, and what changed. Share work with clients
-        without giving them an account. Keep the audit trail in-house.
+        {m.hp_who_studios_body()}
       </p>
     </div>
   </div>
@@ -199,111 +187,105 @@
 <section class="hp-features">
   <div class="hp-features-inner">
     <div class="hp-features-header reveal">
-      <h2 class="hp-features-title">Everything a DAM should do.</h2>
+      <h2 class="hp-features-title">{m.hp_features_title()}</h2>
       <p class="hp-features-sub">
-        Not a simplified version of it. The full thing.
+        {m.hp_features_sub()}
       </p>
     </div>
 
     <div class="hp-features-grid">
       <div class="hp-feature-group reveal" style="--delay: 0ms">
-        <h3 class="hp-feature-group-name">Asset library</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_library_name()}</h3>
         <ul class="hp-feature-list">
-          <li>Drag-and-drop upload, multiple files at once</li>
-          <li>Background thumbnail generation</li>
-          <li>List and grid views, compact or spaced</li>
-          <li>Full-text search across filenames and custom fields</li>
-          <li>Filter by type, project, folder, tag, date, or custom field</li>
-          <li>EXIF extracted on ingest, GPS stripped by default</li>
+          <li>{m.hp_feat_library_1()}</li>
+          <li>{m.hp_feat_library_2()}</li>
+          <li>{m.hp_feat_library_3()}</li>
+          <li>{m.hp_feat_library_4()}</li>
+          <li>{m.hp_feat_library_5()}</li>
+          <li>{m.hp_feat_library_6()}</li>
         </ul>
       </div>
 
       <div class="hp-feature-group reveal" style="--delay: 60ms">
-        <h3 class="hp-feature-group-name">Organization</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_org_name()}</h3>
         <ul class="hp-feature-list">
-          <li>Projects: group by client, campaign, or shoot</li>
-          <li>Folders: two-level depth, drag assets between them</li>
-          <li>Tags: workspace-scoped, auto-created on first use</li>
-          <li>Collections: cross-project named sets</li>
-          <li>Custom fields: text, number, date, single/multi-select</li>
+          <li>{m.hp_feat_org_1()}</li>
+          <li>{m.hp_feat_org_2()}</li>
+          <li>{m.hp_feat_org_3()}</li>
+          <li>{m.hp_feat_org_4()}</li>
+          <li>{m.hp_feat_org_5()}</li>
         </ul>
       </div>
 
       <div class="hp-feature-group reveal" style="--delay: 120ms">
-        <h3 class="hp-feature-group-name">Variants and transforms</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_variants_name()}</h3>
         <ul class="hp-feature-list">
-          <li>Non-destructive: the original is never touched</li>
-          <li>Resize, format conversion</li>
-          <li>Manual crop or smart content-aware crop</li>
-          <li>Watermark overlay</li>
-          <li>Background removal via Remove.bg API</li>
-          <li>Video transcoding, frame capture, audio normalization</li>
+          <li>{m.hp_feat_variants_1()}</li>
+          <li>{m.hp_feat_variants_2()}</li>
+          <li>{m.hp_feat_variants_3()}</li>
+          <li>{m.hp_feat_variants_4()}</li>
+          <li>{m.hp_feat_variants_5()}</li>
+          <li>{m.hp_feat_variants_6()}</li>
         </ul>
       </div>
 
       <div class="hp-feature-group reveal" style="--delay: 0ms">
-        <h3 class="hp-feature-group-name">Versioning</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_versioning_name()}</h3>
         <ul class="hp-feature-list">
-          <li>Upload a new file: previous version is preserved</li>
-          <li>One-click rollback with full ownership history</li>
-          <li>Share links always point to the current version</li>
+          <li>{m.hp_feat_versioning_1()}</li>
+          <li>{m.hp_feat_versioning_2()}</li>
+          <li>{m.hp_feat_versioning_3()}</li>
         </ul>
       </div>
 
       <div class="hp-feature-group reveal" style="--delay: 60ms">
-        <h3 class="hp-feature-group-name">Sharing</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_sharing_name()}</h3>
         <ul class="hp-feature-list">
-          <li>No account required for recipients</li>
-          <li>Password protection and expiry dates on any share</li>
-          <li>Client review mode: view and comment without a Damask account</li>
+          <li>{m.hp_feat_sharing_1()}</li>
+          <li>{m.hp_feat_sharing_2()}</li>
+          <li>{m.hp_feat_sharing_3()}</li>
         </ul>
       </div>
 
       <div class="hp-feature-group reveal" style="--delay: 120ms">
-        <h3 class="hp-feature-group-name">Ingress</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_ingress_name()}</h3>
         <ul class="hp-feature-list">
-          <li>Email ingest: attach files, route via subaddressing</li>
-          <li>SFTP, WebDAV, S3-compatible sources</li>
-          <li>Google Drive and Canva OAuth connections</li>
-          <li>Pull on a schedule or trigger via webhook</li>
+          <li>{m.hp_feat_ingress_1()}</li>
+          <li>{m.hp_feat_ingress_2()}</li>
+          <li>{m.hp_feat_ingress_3()}</li>
+          <li>{m.hp_feat_ingress_4()}</li>
         </ul>
       </div>
 
       <div class="hp-feature-group reveal" style="--delay: 0ms">
-        <h3 class="hp-feature-group-name">Audit log</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_audit_name()}</h3>
         <ul class="hp-feature-list">
-          <li>Every metadata change leaves a record</li>
-          <li>Renames, retags, moves, uploads, restores, share</li>
-          <li>Append-only, configurable retention period</li>
+          <li>{m.hp_feat_audit_1()}</li>
+          <li>{m.hp_feat_audit_2()}</li>
+          <li>{m.hp_feat_audit_3()}</li>
         </ul>
       </div>
 
       <div class="hp-feature-group reveal" style="--delay: 60ms">
-        <h3 class="hp-feature-group-name">Access control</h3>
+        <h3 class="hp-feature-group-name">{m.hp_feat_access_name()}</h3>
         <ul class="hp-feature-list">
-          <li>Three roles: owner, editor, viewer</li>
-          <li>Workspace invites via short-lived token</li>
-          <li>OIDC login: Keycloak, Authelia, Authentik, Okta, Auth0</li>
+          <li>{m.hp_feat_access_1()}</li>
+          <li>{m.hp_feat_access_2()}</li>
+          <li>{m.hp_feat_access_3()}</li>
         </ul>
       </div>
     </div>
   </div>
 </section>
 
-<!-- DIAGRAM -->
-<HomepageDiagram />
-
 <!-- TECH -->
 <section class="hp-tech">
   <div class="hp-tech-inner">
     <div class="hp-tech-left reveal">
-      <span class="hp-tech-eyebrow">For the technical evaluator</span>
-      <h2 class="hp-tech-title">One binary.<br />No other service.</h2>
+      <span class="hp-tech-eyebrow">{m.hp_tech_eyebrow()}</span>
+      <h2 class="hp-tech-title">{m.hp_tech_title()}</h2>
       <p class="hp-tech-body">
-        A single Go binary. Few free external runtime dependencies: FFmpeg,
-        ImageMagick. <br />Runs on Linux, macOS, or a cheap VPS. SQLite by
-        default : the storage layer is an interface, swap in S3-compatible
-        storage in config, no code changes.
+        {m.hp_tech_body()}
       </p>
       <a
         href="https://docs.damask.studio/"
@@ -311,7 +293,7 @@
         target="_blank"
         rel="noopener"
       >
-        Read the docs
+        {m.hp_tech_link()}
         <svg
           width="14"
           height="14"
@@ -330,28 +312,28 @@
     <div class="hp-tech-right reveal" style="--delay: 100ms">
       <ul class="hp-tech-facts">
         <li>
-          <span class="hp-tech-fact-name">Backend</span>
-          <span class="hp-tech-fact-value">Go + Fiber</span>
+          <span class="hp-tech-fact-name">{m.hp_tech_backend()}</span>
+          <span class="hp-tech-fact-value">{m.hp_tech_backend_val()}</span>
         </li>
         <li>
-          <span class="hp-tech-fact-name">Frontend</span>
-          <span class="hp-tech-fact-value">SvelteKit</span>
+          <span class="hp-tech-fact-name">{m.hp_tech_frontend()}</span>
+          <span class="hp-tech-fact-value">{m.hp_tech_frontend_val()}</span>
         </li>
         <li>
-          <span class="hp-tech-fact-name">Database</span>
-          <span class="hp-tech-fact-value">SQLite with FTS5</span>
+          <span class="hp-tech-fact-name">{m.hp_tech_database()}</span>
+          <span class="hp-tech-fact-value">{m.hp_tech_database_val()}</span>
         </li>
         <li>
-          <span class="hp-tech-fact-name">Job queue</span>
-          <span class="hp-tech-fact-value">In-process, no Redis</span>
+          <span class="hp-tech-fact-name">{m.hp_tech_jobqueue()}</span>
+          <span class="hp-tech-fact-value">{m.hp_tech_jobqueue_val()}</span>
         </li>
         <li>
-          <span class="hp-tech-fact-name">Multi-tenancy</span>
-          <span class="hp-tech-fact-value">One binary, many workspaces</span>
+          <span class="hp-tech-fact-name">{m.hp_tech_multitenancy()}</span>
+          <span class="hp-tech-fact-value">{m.hp_tech_multitenancy_val()}</span>
         </li>
         <li>
-          <span class="hp-tech-fact-name">Platforms</span>
-          <span class="hp-tech-fact-value">Linux, macOS, ARM</span>
+          <span class="hp-tech-fact-name">{m.hp_tech_platforms()}</span>
+          <span class="hp-tech-fact-value">{m.hp_tech_platforms_val()}</span>
         </li>
       </ul>
     </div>
@@ -362,37 +344,34 @@
 <section class="hp-selfhost">
   <div class="hp-selfhost-inner">
     <h2 class="hp-selfhost-title reveal">
-      Self-hosting, without the ceremony.
+      {m.hp_selfhost_title()}
     </h2>
     <div class="hp-selfhost-panels">
       <div class="hp-selfhost-panel reveal" style="--delay: 0ms">
         <div class="flex items-center gap-3">
           <span class="hp-selfhost-num">1</span>
-          <h3 class="hp-selfhost-panel-title">What you need</h3>
+          <h3 class="hp-selfhost-panel-title">{m.hp_selfhost_step1_title()}</h3>
         </div>
         <p class="hp-selfhost-panel-body">
-          A Linux server or local machine, Docker or a compiled binary, and a
-          storage path.<br />That's it.
+          {m.hp_selfhost_step1_body()}
         </p>
       </div>
       <div class="hp-selfhost-panel reveal" style="--delay: 80ms">
         <div class="flex items-center gap-3">
           <span class="hp-selfhost-num">2</span>
-          <h3 class="hp-selfhost-panel-title">What you keep</h3>
+          <h3 class="hp-selfhost-panel-title">{m.hp_selfhost_step2_title()}</h3>
         </div>
         <p class="hp-selfhost-panel-body">
-          All files. All metadata. All audit history. No usage caps, no per-seat
-          pricing tiers, no data retention clauses.
+          {m.hp_selfhost_step2_body()}
         </p>
       </div>
       <div class="hp-selfhost-panel reveal" style="--delay: 160ms">
         <div class="flex items-center gap-3">
           <span class="hp-selfhost-num">3</span>
-          <h3 class="hp-selfhost-panel-title">When you upgrade</h3>
+          <h3 class="hp-selfhost-panel-title">{m.hp_selfhost_step3_title()}</h3>
         </div>
         <p class="hp-selfhost-panel-body">
-          Schema migrations run at startup. No manual steps. No downtime window.
-          No migration scripts to run by hand.
+          {m.hp_selfhost_step3_body()}
         </p>
       </div>
     </div>
@@ -403,7 +382,7 @@
         target="_blank"
         rel="noopener"
       >
-        Installation docs
+        {m.hp_selfhost_cta_docs()}
       </a>
       <a
         href="https://github.com/vincent/damask/pkgs/container/damask"
@@ -411,7 +390,7 @@
         target="_blank"
         rel="noopener"
       >
-        Docker image
+        {m.hp_selfhost_cta_docker()}
       </a>
     </div>
   </div>
@@ -426,7 +405,7 @@
         >GitHub</a
       >
       <span class="hp-footer-sep" aria-hidden="true">·</span>
-      <span class="hp-footer-license">APL<small>2</small> License</span>
+      <span class="hp-footer-license">{m.hp_footer_license()}</span>
     </div>
   </div>
 </footer>
@@ -612,9 +591,9 @@
     font-size: clamp(3.5rem, 8vw, 7rem);
     font-weight: 800;
     line-height: 0.95;
-    /* letter-spacing: -0.04em; */
     color: var(--hp-violet-text);
     margin: 0 0 clamp(1.25rem, 3vw, 2rem);
+    white-space: pre-line;
   }
   .hp-hero-sub {
     font-family: var(--hp-font-body);
@@ -706,6 +685,10 @@
     margin: 0;
   }
 
+  :global(.dm-diagram-inner) {
+    max-width: 65svw !important;
+  }
+
   /* ─── Screenshot ────────────────────────────────────────── */
   .hp-screenshot-wrap {
     background: var(--hp-neutral-bg);
@@ -768,6 +751,7 @@
     letter-spacing: -0.03em;
     color: oklch(98% 0.01 155);
     margin: 0;
+    white-space: pre-line;
   }
   .hp-who-body {
     font-family: var(--hp-font-body);
@@ -882,6 +866,7 @@
     letter-spacing: -0.035em;
     color: var(--hp-dark-text);
     margin: 0 0 1.25rem;
+    white-space: pre-line;
   }
   .hp-tech-body {
     font-family: var(--hp-font-body);
@@ -978,7 +963,6 @@
     font-weight: 800;
     line-height: 1;
     color: oklch(82% 0.12 65);
-    /* letter-spacing: -0.04em; */
   }
   .hp-selfhost-panel-title {
     font-family: var(--hp-font-display);
@@ -993,6 +977,7 @@
     line-height: 1.7;
     color: oklch(42% 0.08 65);
     margin: 0;
+    white-space: pre-line;
   }
   .hp-selfhost-ctas {
     display: flex;
