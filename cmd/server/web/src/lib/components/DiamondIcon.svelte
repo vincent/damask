@@ -94,6 +94,6 @@
     font-size={size * 0.34}
     font-weight="700"
     font-family="system-ui, sans-serif"
-    letter-spacing="0"
-  >{letter}</text>
+    letter-spacing="0">{letter}</text
+  >
 </svg>

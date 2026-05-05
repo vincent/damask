@@ -5,7 +5,14 @@ import { workspaceApi } from '$lib/api'
 import { redirect } from '@sveltejs/kit'
 import type { LayoutLoad } from './$types'
 
-const PUBLIC_PATHS = ['/login', '/register', '/invite', '/s/', '/demo/', '/welcome']
+const PUBLIC_PATHS = [
+  '/login',
+  '/register',
+  '/invite',
+  '/s/',
+  '/demo/',
+  '/welcome',
+]
 
 export const ssr = false
 

@@ -18,10 +18,16 @@
         8-pointed star (khatam) tile — the namesake Damascus pattern.
         72×72 unit cell: outer octagon → inner star traces → corner diamonds.
       -->
-      <pattern id="khatam" x="0" y="0" width="72" height="72" patternUnits="userSpaceOnUse">
+      <pattern
+        id="khatam"
+        x="0"
+        y="0"
+        width="72"
+        height="72"
+        patternUnits="userSpaceOnUse"
+      >
         <!-- Cell ground -->
         <rect width="72" height="72" fill="transparent" />
-
 
         <!-- Outer octagon -->
         <polygon
@@ -62,7 +68,11 @@
         <polygon points="0,0 3,3 0,6 -3,3" fill="#c9a87c" opacity="0.20" />
         <polygon points="72,0 75,3 72,6 69,3" fill="#c9a87c" opacity="0.20" />
         <polygon points="0,72 3,75 0,78 -3,75" fill="#c9a87c" opacity="0.20" />
-        <polygon points="72,72 75,75 72,78 69,75" fill="#c9a87c" opacity="0.20" />
+        <polygon
+          points="72,72 75,75 72,78 69,75"
+          fill="#c9a87c"
+          opacity="0.20"
+        />
 
         <!-- Center medallion dot -->
         <circle cx="36" cy="36" r="1.4" fill="#b8936a" opacity="0.22" />
@@ -77,7 +87,9 @@
       <!-- Soft glow for the center star -->
       <filter id="err-glow" x="-40%" y="-40%" width="180%" height="180%">
         <feGaussianBlur stdDeviation="6" result="b" />
-        <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        <feMerge
+          ><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge
+        >
       </filter>
     </defs>
 
@@ -90,8 +102,21 @@
     <!-- Positioned at 50% 50% via foreignObject trick — use a centered <g> via CSS transform -->
     <g class="err-star-group">
       <!-- Outer ring -->
-      <circle r="96" fill="none" stroke="#b8936a" stroke-width="0.7" opacity="0.18" />
-      <circle r="72" fill="none" stroke="#b8936a" stroke-width="0.5" stroke-dasharray="3 6" opacity="0.14" />
+      <circle
+        r="96"
+        fill="none"
+        stroke="#b8936a"
+        stroke-width="0.7"
+        opacity="0.18"
+      />
+      <circle
+        r="72"
+        fill="none"
+        stroke="#b8936a"
+        stroke-width="0.5"
+        stroke-dasharray="3 6"
+        opacity="0.14"
+      />
 
       <!-- Large 8-pointed star -->
       <polygon
@@ -133,17 +158,26 @@
     <div class="err-divider">
       <div class="err-divider-line"></div>
       <svg width="10" height="10" viewBox="-5 -5 10 10" aria-hidden="true">
-        <polygon points="0,-4.5 4.5,0 0,4.5 -4.5,0" fill="#b8936a" opacity="0.7" />
+        <polygon
+          points="0,-4.5 4.5,0 0,4.5 -4.5,0"
+          fill="#b8936a"
+          opacity="0.7"
+        />
       </svg>
       <div class="err-divider-line"></div>
     </div>
 
     {#if is404}
       <h1 class="err-heading">Page not found</h1>
-      <p class="err-body">This path doesn't exist in your library. It may have been moved or deleted.</p>
+      <p class="err-body">
+        This path doesn't exist in your library. It may have been moved or
+        deleted.
+      </p>
     {:else}
       <h1 class="err-heading">Something went wrong</h1>
-      <p class="err-body">{page.error?.message ?? 'An unexpected error occurred.'}</p>
+      <p class="err-body">
+        {page.error?.message ?? 'An unexpected error occurred.'}
+      </p>
     {/if}
 
     <div class="err-actions">
@@ -152,7 +186,10 @@
         Back to library
       </a>
       {#if !is404}
-        <button onclick={() => window.location.reload()} class="err-btn-secondary">
+        <button
+          onclick={() => window.location.reload()}
+          class="err-btn-secondary"
+        >
           Reload page
         </button>
       {/if}
@@ -263,7 +300,9 @@
     background: #b8936a;
     color: #0f0c08;
     text-decoration: none;
-    transition: background 0.15s ease, opacity 0.15s ease;
+    transition:
+      background 0.15s ease,
+      opacity 0.15s ease;
   }
   .err-btn-primary:hover {
     background: #c9a87c;
@@ -285,7 +324,9 @@
     color: #7a6a55;
     border: 1px solid #2a2240;
     cursor: pointer;
-    transition: border-color 0.15s ease, color 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease;
   }
   .err-btn-secondary:hover {
     border-color: #b8936a55;
