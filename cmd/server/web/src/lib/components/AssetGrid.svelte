@@ -289,19 +289,21 @@
 
   {#if assetsStore.initialLoad}
     <GridSkeleton x={7} y={3} {zoom} {maxZoom} />
-  {:else if !seenSplashScreen}
-    <OnboardingScreen onDismiss={onDismissOnboarding} />
   {:else if assetsStore.assets.length === 0}
-    <EmptyState
-      title={assetsStore.query
-        ? `No results for "${assetsStore.query}"`
-        : m.no_assets_yet()}
-      description={assetsStore.query
-        ? m.search_try_different()
-        : m.upload_get_started()}
-    >
-      {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
-    </EmptyState>
+    {#if !seenSplashScreen}
+      <OnboardingScreen onDismiss={onDismissOnboarding} />
+    {:else}
+      <EmptyState
+        title={assetsStore.query
+          ? `No results for "${assetsStore.query}"`
+          : m.no_assets_yet()}
+        description={assetsStore.query
+          ? m.search_try_different()
+          : m.upload_get_started()}
+      >
+        {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
+      </EmptyState>
+    {/if}
   {:else if gridMode === 'table'}
     {@render assetTable(assetsStore.assets)}
     <div bind:this={sentinel} class="flex justify-center py-6">

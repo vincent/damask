@@ -551,11 +551,6 @@
                 />
                 {m.share()}
               </button>
-              <ButtonCopy
-                copied={linkCopied}
-                onclick={copyShareLink}
-                text="Copy Share Link"
-              />
               {#if authStore.role !== 'viewer'}
                 <button
                   class="text-md flex w-full items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
