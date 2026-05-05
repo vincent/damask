@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
+	_ "modernc.org/sqlite"
 )
 
 func TestWorker_FailedJobRecordsSpanError(t *testing.T) {
@@ -89,15 +91,18 @@ func newTelemetryQueue(t *testing.T) (*Queue, *tracetest.SpanRecorder) {
 	otel.SetTracerProvider(tp)
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
 
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	sqlDB, err := sql.Open("sqlite", ":memory:?_foreign_keys=ON")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
+	if err := dbpkg.RunMigrations(sqlDB); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
 	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_1', 'Test')`); err != nil {
 		t.Fatalf("insert workspace: %v", err)
 	}
-	return New(queries, 1), recorder
+	return New(dbgen.New(sqlDB), 1), recorder
 }
 
 func mustEnqueue(t *testing.T, q *Queue, jobType string) {
