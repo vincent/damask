@@ -10,6 +10,7 @@ import type {
   ListVariantsResponse,
   UpdateIngressSourceParams,
   Variant,
+  WatermarkAsset,
 } from './models'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
@@ -256,6 +257,10 @@ export const variantApi = {
       method: 'POST',
       body: JSON.stringify({ type, params }),
     }),
+
+  /** GET /api/v1/assets/:id/variants/watermark — resolve the watermark asset selected by backend fallback rules. */
+  resolveWatermark: (assetId: string) =>
+    apiFetch<WatermarkAsset>(`/api/v1/assets/${assetId}/variants/watermark`),
 
   /** POST /api/v1/assets/:id/variants/upload (editor+) — upload a manually-created variant. */
   uploadManual: (assetId: string, file: File) => {

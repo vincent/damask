@@ -207,6 +207,22 @@ export interface CreateVariantResponse {
   message: string
 }
 
+export interface WatermarkAsset {
+  id: string
+  name: string
+  storage_key: string
+  mime_type: string
+  thumbnail_url: string | null
+  scope: 'folder' | 'project' | 'workspace'
+}
+
+export interface WatermarkParams {
+  watermark_asset_id?: string
+  opacity?: number
+  format?: 'jpeg' | 'png' | 'tiff'
+  quality?: number
+}
+
 export interface ResizeParams {
   width?: number
   height?: number

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -16,11 +17,29 @@ import (
 	"damask/server/internal/transform"
 )
 
+type watermarkServiceStub struct {
+	resolveFn func(ctx context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error)
+}
+
+func (s watermarkServiceStub) ResolveWatermarkAsset(ctx context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error) {
+	if s.resolveFn != nil {
+		return s.resolveFn(ctx, workspaceID, assetID)
+	}
+	return nil, nil
+}
+
 func newVariantSvc(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
 	t.Helper()
 	varRepo := memory.NewRealVariantRepo()
 	assetRepo := memory.NewAssetRepo()
-	return service.NewVariantService(varRepo, assetRepo, audit.NopWriter{}), varRepo, assetRepo
+	return service.NewVariantService(varRepo, assetRepo, nil, audit.NopWriter{}), varRepo, assetRepo
+}
+
+func newVariantSvcWithWatermarks(t *testing.T, wm service.WatermarkService) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
+	t.Helper()
+	varRepo := memory.NewRealVariantRepo()
+	assetRepo := memory.NewAssetRepo()
+	return service.NewVariantService(varRepo, assetRepo, wm, audit.NopWriter{}), varRepo, assetRepo
 }
 
 func newVariantSvcSpy(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo, *spyWriter) {
@@ -28,7 +47,7 @@ func newVariantSvcSpy(t *testing.T) (service.VariantService, *memory.RealVariant
 	spy := newSpy()
 	varRepo := memory.NewRealVariantRepo()
 	assetRepo := memory.NewAssetRepo()
-	return service.NewVariantService(varRepo, assetRepo, spy), varRepo, assetRepo, spy
+	return service.NewVariantService(varRepo, assetRepo, nil, spy), varRepo, assetRepo, spy
 }
 
 // --- List ---
@@ -181,6 +200,62 @@ func TestVariantService_PrepareCreate_RejectsInvalidType(t *testing.T) {
 	if !errors.Is(err, service.ErrInvalidVariantType) {
 		t.Fatalf("expected ErrInvalidVariantType, got %v", err)
 	}
+}
+
+func TestVariantService_PrepareCreate_WatermarkInjectsAssetID(t *testing.T) {
+	svc, _, _ := newVariantSvcWithWatermarks(t, watermarkServiceStub{
+		resolveFn: func(_ context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error) {
+			if workspaceID != "ws_1" || assetID != "ast_1" {
+				t.Fatalf("unexpected lookup args workspace=%s asset=%s", workspaceID, assetID)
+			}
+			return &service.WatermarkAssetDTO{ID: "wm_1"}, nil
+		},
+	})
+
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		WorkspaceID:   "ws_1",
+		AssetID:       "ast_1",
+		Type:          queue.JobTypeImageWatermark,
+		Params:        json.RawMessage(`{"opacity":0.4}`),
+		AssetMimeType: "image/jpeg",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var params transform.WatermarkParams
+	if err := json.Unmarshal(prepared.Params, &params); err != nil {
+		t.Fatalf("decode params: %v", err)
+	}
+	if params.WatermarkAssetID != "wm_1" {
+		t.Fatalf("expected watermark asset id wm_1, got %s", params.WatermarkAssetID)
+	}
+	if params.Opacity != 0.4 {
+		t.Fatalf("unexpected params: %+v", params)
+	}
+}
+
+func TestVariantService_PrepareCreate_WatermarkMissingReturnsInvalidInput(t *testing.T) {
+	svc, _, _ := newVariantSvcWithWatermarks(t, watermarkServiceStub{
+		resolveFn: func(_ context.Context, _, _ string) (*service.WatermarkAssetDTO, error) {
+			return nil, invalidWatermarkNotFound()
+		},
+	})
+
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		WorkspaceID:   "ws_1",
+		AssetID:       "ast_1",
+		Type:          queue.JobTypeImageWatermark,
+		Params:        json.RawMessage(`{}`),
+		AssetMimeType: "image/jpeg",
+	})
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "no watermark asset found") {
+		t.Fatalf("expected watermark missing invalid input, got %v", err)
+	}
+}
+
+func invalidWatermarkNotFound() error {
+	return fmt.Errorf("%w: %w", service.ErrNoWatermarkAsset, apperr.ErrInvalidInput)
 }
 
 // --- Delete ---

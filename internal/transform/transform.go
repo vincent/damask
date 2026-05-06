@@ -19,7 +19,7 @@ type Transformer interface {
 	PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error)
 	DocumentThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error)
 
-	ImageWatermark(src io.Reader, p WatermarkParams) ([]byte, string, error)
+	ImageWatermark(src io.Reader, wm io.Reader, p WatermarkParams) ([]byte, string, error)
 	ImageResize(src io.Reader, p ResizeParams) ([]byte, string, error)
 	ImageConvert(src io.Reader, p ConvertParams) ([]byte, string, error)
 	ImageCrop(src io.Reader, p CropParams) ([]byte, string, error)

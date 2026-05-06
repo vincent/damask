@@ -68,6 +68,8 @@ type CreateVariantParams struct {
 }
 
 type PrepareCreateVariantParams struct {
+	WorkspaceID       string
+	AssetID           string
 	Type              string
 	Params            json.RawMessage
 	AssetMimeType     string
@@ -77,6 +79,15 @@ type PrepareCreateVariantParams struct {
 type PreparedCreateVariant struct {
 	Type   string
 	Params json.RawMessage
+}
+
+type WatermarkAssetDTO struct {
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	StorageKey   string  `json:"storage_key"`
+	MimeType     string  `json:"mime_type"`
+	ThumbnailURL *string `json:"thumbnail_url"`
+	Scope        string  `json:"scope"`
 }
 
 // VariantService handles business logic for asset variant records.
@@ -90,6 +101,10 @@ type VariantService interface {
 	WriteVariantQueued(ctx context.Context, workspaceID, assetID, variantType string)
 	// WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.
 	WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType string)
+}
+
+type WatermarkService interface {
+	ResolveWatermarkAsset(ctx context.Context, workspaceID, assetID string) (*WatermarkAssetDTO, error)
 }
 
 // WorkspaceService handles business logic for workspace settings, members, and invites.

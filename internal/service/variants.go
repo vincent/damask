@@ -54,12 +54,13 @@ type VariantDTO struct {
 type variantService struct {
 	variants repository.VariantRepository
 	assets   repository.AssetRepository
+	wm       WatermarkService
 	audit    audit.Writer
 }
 
 // NewVariantService returns a VariantService.
-func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository, aw audit.Writer) VariantService {
-	return &variantService{variants: variants, assets: assets, audit: aw}
+func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository, wm WatermarkService, aw audit.Writer) VariantService {
+	return &variantService{variants: variants, assets: assets, wm: wm, audit: aw}
 }
 
 func (s *variantService) List(ctx context.Context, workspaceID, assetID string) ([]*VariantDTO, error) {
@@ -82,7 +83,7 @@ func (s *variantService) Get(ctx context.Context, workspaceID, id string) (*Vari
 	return toVariantDTO(v), nil
 }
 
-func (s *variantService) PrepareCreate(_ context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error) {
+func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error) {
 	params := json.RawMessage("{}")
 	if len(p.Params) > 0 {
 		params = p.Params
@@ -108,12 +109,40 @@ func (s *variantService) PrepareCreate(_ context.Context, p PrepareCreateVariant
 		return PreparedCreateVariant{}, invalidVariantRequest("background removal requires REMOVEBG_API_KEY to be configured")
 	}
 
-	normalized, err := validateAudioVariantParams(p.Type, p.AssetMimeType, params)
+	if p.Type == queue.JobTypeImageWatermark {
+		normalized, err := s.prepareWatermarkParams(ctx, p, params)
+		if err != nil {
+			return PreparedCreateVariant{}, err
+		}
+		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+	}
+
+	normalized, err := prepareAudioVariantParams(p.Type, p.AssetMimeType, params)
 	if err != nil {
 		return PreparedCreateVariant{}, err
 	}
 
 	return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+}
+
+func (s *variantService) prepareWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+	if s.wm == nil {
+		return nil, fmt.Errorf("watermark service unavailable")
+	}
+
+	var params transform.WatermarkParams
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return nil, invalidVariantInput("invalid watermark params")
+	}
+	params.WatermarkAssetID = ""
+	params.Normalize()
+
+	wm, err := s.wm.ResolveWatermarkAsset(ctx, p.WorkspaceID, p.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	params.WatermarkAssetID = wm.ID
+	return marshalRaw(params), nil
 }
 
 func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto *VariantDTO, err error) {
@@ -200,7 +229,7 @@ func requiresAudioAsset(variantType string) bool {
 		variantType == queue.JobTypeNormalizeAudio
 }
 
-func validateAudioVariantParams(variantType, mimeType string, raw json.RawMessage) (json.RawMessage, error) {
+func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage) (json.RawMessage, error) {
 	switch variantType {
 	case queue.JobTypeExtractAudio:
 		var p transform.AudioParams

@@ -25,7 +25,11 @@ import (
 func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *http.Cookie) {
 	t.Helper()
 	res := th.Register(t, env, "User", "user@test.com", "password123")
+	return uploadTestVariantAsset(t, env, "test.png", res.Cookie), res.Cookie
+}
 
+func uploadTestVariantAsset(t *testing.T, env *th.TestEnv, filename string, cookie *http.Cookie) string {
+	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, 10, 10))
 	img.Set(5, 5, color.RGBA{R: 255, G: 0, B: 0, A: 255})
 	var buf bytes.Buffer
@@ -33,7 +37,7 @@ func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *htt
 		t.Fatalf("encode test png: %v", err)
 	}
 
-	req := th.BuildUploadRequest(t, "test.png", buf.Bytes(), res.Cookie)
+	req := th.BuildUploadRequest(t, filename, buf.Bytes(), cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
 	if err != nil {
 		t.Fatalf("upload asset: %v", err)
@@ -46,7 +50,7 @@ func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *htt
 	if err := json.NewDecoder(resp.Body).Decode(&a); err != nil {
 		t.Fatalf("decode asset: %v", err)
 	}
-	return a.ID, res.Cookie
+	return a.ID
 }
 
 // insertVariantDirectly inserts a variant row into the DB bypassing the queue.
@@ -185,8 +189,9 @@ func TestCreateVariant_VideoOnImage(t *testing.T) {
 func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
+	watermarkID := uploadTestVariantAsset(t, env, "brand-watermark.png", cookie)
 
-	paramsData := json.RawMessage(`{"opacity":50,"quality":80,"format":"jpeg"}`)
+	paramsData := json.RawMessage(`{"opacity":0.5,"format":"jpeg"}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
 		th.JsonBody(api.CreateVariantRequest{Type: "image_watermark", Params: paramsData}), cookie)
 	resp, err := env.App.Test(req)
@@ -204,6 +209,66 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	}
 	if result.Status != "pending" {
 		t.Errorf("expected status=pending, got %v", result.Status)
+	}
+
+	var payload string
+	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+		t.Fatalf("load job payload: %v", err)
+	}
+	var jobPayload map[string]any
+	if err := json.Unmarshal([]byte(payload), &jobPayload); err != nil {
+		t.Fatalf("decode job payload: %v", err)
+	}
+	params, ok := jobPayload["params"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected params object in payload, got %#v", jobPayload["params"])
+	}
+	if got := params["watermark_asset_id"]; got != watermarkID {
+		t.Fatalf("expected injected watermark_asset_id=%s, got %#v", watermarkID, got)
+	}
+}
+
+func TestCreateVariant_WatermarkMissingReturns422(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{
+			Type:   "image_watermark",
+			Params: json.RawMessage(`{"opacity":0.5}`),
+		}), cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestResolveWatermarkAsset(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+	watermarkID := uploadTestVariantAsset(t, env, "brand-watermark.png", cookie)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants/watermark", nil, cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result api.WatermarkAssetResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if result.ID != watermarkID {
+		t.Fatalf("expected watermark id %s, got %s", watermarkID, result.ID)
+	}
+	if result.Scope != "workspace" {
+		t.Fatalf("expected workspace scope, got %s", result.Scope)
 	}
 }
 

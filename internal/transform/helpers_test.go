@@ -60,7 +60,7 @@ func (t *mockTransformer) PDFSlideshowThumbnail(ctx context.Context, src io.Read
 func (t *mockTransformer) DocumentThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error) {
 	return t.pixel(imaging.JPEG), nil
 }
-func (t *mockTransformer) ImageWatermark(src io.Reader, p transform.WatermarkParams) ([]byte, string, error) {
+func (t *mockTransformer) ImageWatermark(src io.Reader, wm io.Reader, p transform.WatermarkParams) ([]byte, string, error) {
 	return t.pixel(imaging.JPEG), "image/jpeg", nil
 }
 func (t *mockTransformer) ImageResize(src io.Reader, p transform.ResizeParams) ([]byte, string, error) {

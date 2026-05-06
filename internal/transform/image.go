@@ -3,11 +3,14 @@ package transform
 
 import (
 	"bytes"
-	_ "embed"
+	"context"
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
 	"io"
+	"math"
 	"strings"
 
 	"github.com/disintegration/imaging"
@@ -15,14 +18,29 @@ import (
 	"github.com/muesli/smartcrop/nfnt"
 )
 
-//go:embed watermark.png
-var watermarkBytes []byte
-
-// WatermarkParams defines parameters for image resize/fit transforms.
+// WatermarkParams defines parameters for image watermark transforms.
 type WatermarkParams struct {
-	Opacity int    `json:"opacity"` // 0–100, default 50
-	Format  string `json:"format"`  // jpeg | png | tiff
-	Quality int    `json:"quality"` // 1–100 (for jpeg)
+	WatermarkAssetID string            `json:"watermark_asset_id"`
+	Opacity          float64           `json:"opacity"`
+	Format           string            `json:"format"`  // jpeg | png | tiff
+	Quality          int               `json:"quality"` // 1–100 (for jpeg)
+}
+
+func (p *WatermarkParams) normalize() {
+	if p.Opacity <= 0 || p.Opacity > 1 {
+		p.Opacity = 0.5
+	}
+	if p.Quality <= 0 || p.Quality > 100 {
+		p.Quality = 85
+	}
+	if p.Format == "" {
+		p.Format = "jpeg"
+	}
+}
+
+// Normalize applies default values to watermark params.
+func (p *WatermarkParams) Normalize() {
+	p.normalize()
 }
 
 // ResizeParams defines parameters for image resize/fit transforms.
@@ -67,38 +85,61 @@ type PreviewParams struct {
 	Format  string `json:"format"`
 }
 
-// ImageWatermark reads an image, resizes it according to params, and returns encoded bytes.
-func (t *transformer) ImageWatermark(src io.Reader, p WatermarkParams) ([]byte, string, error) {
-	if p.Opacity <= 0 || p.Opacity > 100 {
-		p.Opacity = 50
-	}
+// ApplyWatermark decodes, composites, and returns the final NRGBA image.
+func ApplyWatermark(_ context.Context, srcReader io.Reader, wmReader io.Reader, params WatermarkParams) (*image.NRGBA, error) {
+	params.normalize()
 
-	watermarkImg, err := imaging.Decode(bytes.NewReader(watermarkBytes), imaging.AutoOrientation(true))
+	srcImg, err := imaging.Decode(srcReader, imaging.AutoOrientation(true))
 	if err != nil {
-		return nil, "", fmt.Errorf("decode watermark: %w", err)
+		return nil, fmt.Errorf("decode source image: %w", err)
 	}
 
-	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	wmImg, err := imaging.Decode(wmReader, imaging.AutoOrientation(true))
 	if err != nil {
-		return nil, "", fmt.Errorf("decode image: %w", err)
+		return nil, fmt.Errorf("decode watermark image: %w", err)
 	}
 
-	result := overlayWatermark(img, watermarkImg, float64(p.Opacity)/100.0)
+	wmOpacity := applyWatermarkOpacity(wmImg, params.Opacity)
+	wmBounds := wmOpacity.Bounds()
+	if wmBounds.Dx() == 0 || wmBounds.Dy() == 0 {
+		return nil, errors.New("watermark image has invalid dimensions")
+	}
+
+	dst := imaging.Clone(srcImg)
+	for y := dst.Bounds().Min.Y; y < dst.Bounds().Max.Y; y += wmBounds.Dy() {
+		for x := dst.Bounds().Min.X; x < dst.Bounds().Max.X; x += wmBounds.Dx() {
+			tileRect := image.Rect(x, y, x+wmBounds.Dx(), y+wmBounds.Dy())
+			draw.Draw(dst, tileRect, wmOpacity, wmBounds.Min, draw.Over)
+		}
+	}
+	return dst, nil
+}
+
+// ImageWatermark reads an image, applies a watermark, and returns encoded bytes.
+func (t *transformer) ImageWatermark(src io.Reader, wm io.Reader, p WatermarkParams) ([]byte, string, error) {
+	if strings.TrimSpace(p.WatermarkAssetID) == "" {
+		return nil, "", errors.New("watermark asset id is required")
+	}
+
+	result, err := ApplyWatermark(context.Background(), src, wm, p)
+	if err != nil {
+		return nil, "", err
+	}
 
 	return encodeImage(result, p.Format, p.Quality)
 }
 
-func overlayWatermark(originalImg, watermarkImg image.Image, opacity float64) image.Image {
-
-	halfImageWidth := int(float64(originalImg.Bounds().Dx()) * 0.50)
-	halfImageHeight := int(float64(originalImg.Bounds().Dy()) * 0.50)
-
-	watermarkResized := imaging.Fit(watermarkImg, halfImageWidth, halfImageHeight, imaging.Lanczos)
-
-	offsetX := int(halfImageWidth / 2)
-	offsetY := int(halfImageHeight / 2)
-
-	return imaging.Overlay(originalImg, watermarkResized, image.Pt(offsetX, offsetY), opacity)
+func applyWatermarkOpacity(img image.Image, opacity float64) *image.NRGBA {
+	src := imaging.Clone(img)
+	dst := image.NewNRGBA(src.Bounds())
+	for y := src.Bounds().Min.Y; y < src.Bounds().Max.Y; y++ {
+		for x := src.Bounds().Min.X; x < src.Bounds().Max.X; x++ {
+			c := color.NRGBAModel.Convert(src.At(x, y)).(color.NRGBA)
+			c.A = uint8(math.Round(float64(c.A) * opacity))
+			dst.SetNRGBA(x, y, c)
+		}
+	}
+	return dst
 }
 
 // ImageResize reads an image, resizes it according to params, and returns encoded bytes.

@@ -51,6 +51,15 @@ type CreateVariantResponse struct {
 	Message string `json:"message"`
 }
 
+type WatermarkAssetResponse struct {
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	StorageKey   string  `json:"storage_key"`
+	MimeType     string  `json:"mime_type"`
+	ThumbnailURL *string `json:"thumbnail_url"`
+	Scope        string  `json:"scope"`
+}
+
 func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
@@ -72,6 +81,24 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 		ThumbnailURL:         thumbURL,
 		ThumbnailContentType: ct,
 		CreatedAt:            v.CreatedAt,
+	}
+}
+
+func watermarkDTOToResponse(assetID string, v *service.WatermarkAssetDTO) WatermarkAssetResponse {
+	var thumbURL *string
+	if v.ThumbnailURL != nil {
+		thumbURL = v.ThumbnailURL
+	} else {
+		u := fmt.Sprintf("/api/v1/assets/%s/thumb", v.ID)
+		thumbURL = &u
+	}
+	return WatermarkAssetResponse{
+		ID:           v.ID,
+		Name:         v.Name,
+		StorageKey:   v.StorageKey,
+		MimeType:     v.MimeType,
+		ThumbnailURL: thumbURL,
+		Scope:        v.Scope,
 	}
 }
 
@@ -131,10 +158,28 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 	})
 }
 
+func (s *Server) handleResolveWatermarkAsset(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+
+	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	if s.watermarks == nil {
+		return errRes(c, fiber.StatusInternalServerError, "watermark service unavailable")
+	}
+
+	wm, err := s.watermarks.ResolveWatermarkAsset(c.Context(), claims.WorkspaceID, assetID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	return c.JSON(watermarkDTOToResponse(assetID, wm))
+}
+
 // handleCreateVariant enqueues a transform job to produce a new variant.
 //
 // @Summary Create a variant
-// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code></li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"text": "...", "position": "..."}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — requires <code>REMOVEBG_API_KEY</code> env var</li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
+// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code></li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — requires <code>REMOVEBG_API_KEY</code> env var</li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
 // @Tags Variants
 // @Accept json
 // @Produce json
@@ -178,6 +223,8 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	}
 
 	prepared, err := s.variants.PrepareCreate(c.Context(), service.PrepareCreateVariantParams{
+		WorkspaceID:       claims.WorkspaceID,
+		AssetID:           assetID,
 		Type:              body.Type,
 		Params:            body.Params,
 		AssetMimeType:     asset.MimeType,

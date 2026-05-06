@@ -126,6 +126,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		projectFields: cfg.ProjectFields,
 		versions:      cfg.Versions,
 		variants:      cfg.Variants,
+		watermarks:    nil,
 		auditLog:      cfg.AuditLog,
 		workspace:     cfg.Workspace,
 		users:         cfg.Users,
@@ -328,6 +329,7 @@ func buildTestApp(s *Server) *fiber.App {
 
 	// Variants
 	api.Get("/assets/:id/variants", s.handleListVariants)
+	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)
 	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadManualVariant)
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)

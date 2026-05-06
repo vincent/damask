@@ -78,7 +78,22 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		if err := json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
-		data, contentType, err = s.trf.ImageWatermark(rc, params)
+		if params.WatermarkAssetID == "" {
+			return fmt.Errorf("watermark asset id is required")
+		}
+		wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+			ID:          params.WatermarkAssetID,
+			WorkspaceID: p.WorkspaceID,
+		})
+		if err != nil {
+			return fmt.Errorf("get watermark asset: %w", err)
+		}
+		wmRC, err := s.storage.Get(wm.StorageKey)
+		if err != nil {
+			return fmt.Errorf("get watermark file: %w", err)
+		}
+		data, contentType, err = s.trf.ImageWatermark(rc, wmRC, params)
+		_ = wmRC.Close()
 	case queue.JobTypeImageSmartCrop:
 		var params transform.SmartCropParams
 		if err := json.Unmarshal(p.Params, &params); err != nil {
@@ -206,7 +221,22 @@ func (s *JobServer) rebuildImageVariant(
 		if err := json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
-		data, contentType, err = s.trf.ImageWatermark(rc, params)
+		if params.WatermarkAssetID == "" {
+			return fmt.Errorf("watermark asset id is required")
+		}
+		wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+			ID:          params.WatermarkAssetID,
+			WorkspaceID: ver.WorkspaceID,
+		})
+		if err != nil {
+			return fmt.Errorf("get watermark asset: %w", err)
+		}
+		wmRC, err := s.storage.Get(wm.StorageKey)
+		if err != nil {
+			return fmt.Errorf("get watermark file: %w", err)
+		}
+		data, contentType, err = s.trf.ImageWatermark(rc, wmRC, params)
+		_ = wmRC.Close()
 	case queue.JobTypeImageSmartCrop:
 		var params transform.SmartCropParams
 		if err := json.Unmarshal(rawParams, &params); err != nil {
