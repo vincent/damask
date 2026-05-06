@@ -8,6 +8,7 @@
   import VariantCreateSmartCrop from './VariantCreateSmartCrop.svelte'
   import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
   import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
+  import VariantCreateVideoWatermark from './VariantCreateVideoWatermark.svelte'
   import VariantCreateAudioExtract from './VariantCreateAudioExtract.svelte'
   import VariantCreateAudioTranscode from './VariantCreateAudioTranscode.svelte'
   import VariantCreateAudioNormalize from './VariantCreateAudioNormalize.svelte'
@@ -21,6 +22,7 @@
     | 'crop'
     | 'bg_remove'
     | 'video_transcode'
+    | 'video_watermark'
     | 'video_capture_image'
     | 'audio_extract'
     | 'audio_transcode'
@@ -49,6 +51,8 @@
   <VariantCreateSmartCrop {asset} {creating} {handleCreate} />
 {:else if tool === 'video_transcode'}
   <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
+{:else if tool === 'video_watermark'}
+  <VariantCreateVideoWatermark {asset} {creating} {handleCreate} />
 {:else if tool === 'video_capture_image'}
   <VariantCreateVideoThumbnail {asset} {creating} {handleCreate} />
 {:else if tool === 'audio_extract'}

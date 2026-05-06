@@ -10,6 +10,8 @@ import (
 	"image/png"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -26,6 +28,12 @@ func createTestAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *htt
 	t.Helper()
 	res := th.Register(t, env, "User", "user@test.com", "password123")
 	return uploadTestVariantAsset(t, env, "test.png", res.Cookie), res.Cookie
+}
+
+func createTestVideoAsset(t *testing.T, env *th.TestEnv) (assetID string, cookie *http.Cookie) {
+	t.Helper()
+	res := th.Register(t, env, "Video User", "video@test.com", "password123")
+	return uploadTestVideoAsset(t, env, "clip.mp4", res.Cookie), res.Cookie
 }
 
 func uploadTestVariantAsset(t *testing.T, env *th.TestEnv, filename string, cookie *http.Cookie) string {
@@ -49,6 +57,29 @@ func uploadTestVariantAsset(t *testing.T, env *th.TestEnv, filename string, cook
 	var a api.AssetResponse
 	if err := json.NewDecoder(resp.Body).Decode(&a); err != nil {
 		t.Fatalf("decode asset: %v", err)
+	}
+	return a.ID
+}
+
+func uploadTestVideoAsset(t *testing.T, env *th.TestEnv, filename string, cookie *http.Cookie) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "transform", "testdata", "sample_video_with_audio.mp4"))
+	if err != nil {
+		t.Fatalf("read sample video: %v", err)
+	}
+
+	req := th.BuildUploadRequest(t, filename, data, cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
+	if err != nil {
+		t.Fatalf("upload video asset: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("upload video asset: expected 201, got %d", resp.StatusCode)
+	}
+
+	var a api.AssetResponse
+	if err := json.NewDecoder(resp.Body).Decode(&a); err != nil {
+		t.Fatalf("decode video asset: %v", err)
 	}
 	return a.ID
 }
@@ -209,6 +240,45 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	}
 	if result.Status != "pending" {
 		t.Errorf("expected status=pending, got %v", result.Status)
+	}
+
+	var payload string
+	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+		t.Fatalf("load job payload: %v", err)
+	}
+	var jobPayload map[string]any
+	if err := json.Unmarshal([]byte(payload), &jobPayload); err != nil {
+		t.Fatalf("decode job payload: %v", err)
+	}
+	params, ok := jobPayload["params"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected params object in payload, got %#v", jobPayload["params"])
+	}
+	if got := params["watermark_asset_id"]; got != watermarkID {
+		t.Fatalf("expected injected watermark_asset_id=%s, got %#v", watermarkID, got)
+	}
+}
+
+func TestCreateVariant_VideoWatermarkQueued(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestVideoAsset(t, env)
+	watermarkID := uploadTestVariantAsset(t, env, "brand-watermark.png", cookie)
+
+	paramsData := json.RawMessage(`{"opacity":0.35,"format":"webm","strip_audio":true}`)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{Type: "video_watermark", Params: paramsData}), cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", resp.StatusCode)
+	}
+
+	var result api.CreateVariantResponse
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if result.JobID == "" {
+		t.Error("expected job_id in response")
 	}
 
 	var payload string

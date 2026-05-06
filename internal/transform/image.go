@@ -20,10 +20,10 @@ import (
 
 // WatermarkParams defines parameters for image watermark transforms.
 type WatermarkParams struct {
-	WatermarkAssetID string            `json:"watermark_asset_id"`
-	Opacity          float64           `json:"opacity"`
-	Format           string            `json:"format"`  // jpeg | png | tiff
-	Quality          int               `json:"quality"` // 1–100 (for jpeg)
+	WatermarkAssetID string  `json:"watermark_asset_id"`
+	Opacity          float64 `json:"opacity"`
+	Format           string  `json:"format"`  // jpeg | png | tiff
+	Quality          int     `json:"quality"` // 1–100 (for jpeg)
 }
 
 func (p *WatermarkParams) normalize() {
@@ -41,6 +41,28 @@ func (p *WatermarkParams) normalize() {
 // Normalize applies default values to watermark params.
 func (p *WatermarkParams) Normalize() {
 	p.normalize()
+}
+
+func renderWatermarkOverlay(wmReader io.Reader, bounds image.Rectangle, opacity float64) (*image.NRGBA, error) {
+	wmImg, err := imaging.Decode(wmReader, imaging.AutoOrientation(true))
+	if err != nil {
+		return nil, fmt.Errorf("decode watermark image: %w", err)
+	}
+
+	wmOpacity := applyWatermarkOpacity(wmImg, opacity)
+	wmBounds := wmOpacity.Bounds()
+	if wmBounds.Dx() == 0 || wmBounds.Dy() == 0 {
+		return nil, errors.New("watermark image has invalid dimensions")
+	}
+
+	dst := image.NewNRGBA(bounds)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y += wmBounds.Dy() {
+		for x := bounds.Min.X; x < bounds.Max.X; x += wmBounds.Dx() {
+			tileRect := image.Rect(x, y, x+wmBounds.Dx(), y+wmBounds.Dy())
+			draw.Draw(dst, tileRect, wmOpacity, wmBounds.Min, draw.Over)
+		}
+	}
+	return dst, nil
 }
 
 // ResizeParams defines parameters for image resize/fit transforms.
@@ -94,24 +116,12 @@ func ApplyWatermark(_ context.Context, srcReader io.Reader, wmReader io.Reader, 
 		return nil, fmt.Errorf("decode source image: %w", err)
 	}
 
-	wmImg, err := imaging.Decode(wmReader, imaging.AutoOrientation(true))
-	if err != nil {
-		return nil, fmt.Errorf("decode watermark image: %w", err)
-	}
-
-	wmOpacity := applyWatermarkOpacity(wmImg, params.Opacity)
-	wmBounds := wmOpacity.Bounds()
-	if wmBounds.Dx() == 0 || wmBounds.Dy() == 0 {
-		return nil, errors.New("watermark image has invalid dimensions")
-	}
-
 	dst := imaging.Clone(srcImg)
-	for y := dst.Bounds().Min.Y; y < dst.Bounds().Max.Y; y += wmBounds.Dy() {
-		for x := dst.Bounds().Min.X; x < dst.Bounds().Max.X; x += wmBounds.Dx() {
-			tileRect := image.Rect(x, y, x+wmBounds.Dx(), y+wmBounds.Dy())
-			draw.Draw(dst, tileRect, wmOpacity, wmBounds.Min, draw.Over)
-		}
+	overlay, err := renderWatermarkOverlay(wmReader, dst.Bounds(), params.Opacity)
+	if err != nil {
+		return nil, err
 	}
+	draw.Draw(dst, dst.Bounds(), overlay, overlay.Bounds().Min, draw.Over)
 	return dst, nil
 }
 

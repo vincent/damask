@@ -158,7 +158,7 @@ func (q *Queue) processNext(ctx context.Context) {
 	span.SetAttributes(attribute.String("damask.job.workspace_id", job.WorkspaceID))
 
 	// For transcode jobs, enforce concurrency limit of 2.
-	if job.Type == JobTypeVideoTranscode {
+	if job.Type == JobTypeVideoTranscode || job.Type == JobTypeVideoWatermark {
 		q.transcodeSem <- struct{}{}
 		defer func() { <-q.transcodeSem }()
 	}
@@ -246,6 +246,7 @@ const (
 	// Variant jobs — user-triggered, each creates a variants row.
 	JobTypeVideoCaptureImage = "video_capture_image"
 	JobTypeVideoTranscode    = "video_transcode"
+	JobTypeVideoWatermark    = "video_watermark"
 	JobTypeImageResize       = "image_resize"
 	JobTypeImageConvert      = "image_convert"
 	JobTypeImageCrop         = "image_crop"

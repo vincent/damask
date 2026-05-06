@@ -105,3 +105,6 @@ func (t *mockTransformer) VideoClipThumbnail(ctx context.Context, srcPath string
 func (t *mockTransformer) VideoTranscode(ctx context.Context, srcPath, dstPath string, p transform.TranscodeParams) error {
 	return nil
 }
+func (t *mockTransformer) VideoWatermark(ctx context.Context, srcPath, dstPath string, wm io.Reader, p transform.VideoWatermarkParams) error {
+	return nil
+}

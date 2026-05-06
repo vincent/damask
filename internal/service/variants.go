@@ -110,7 +110,15 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 	}
 
 	if p.Type == queue.JobTypeImageWatermark {
-		normalized, err := s.prepareWatermarkParams(ctx, p, params)
+		normalized, err := s.prepareImageWatermarkParams(ctx, p, params)
+		if err != nil {
+			return PreparedCreateVariant{}, err
+		}
+		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+	}
+
+	if p.Type == queue.JobTypeVideoWatermark {
+		normalized, err := s.prepareVideoWatermarkParams(ctx, p, params)
 		if err != nil {
 			return PreparedCreateVariant{}, err
 		}
@@ -125,12 +133,32 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 	return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
 }
 
-func (s *variantService) prepareWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+func (s *variantService) prepareImageWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
 	if s.wm == nil {
 		return nil, fmt.Errorf("watermark service unavailable")
 	}
 
 	var params transform.WatermarkParams
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return nil, invalidVariantInput("invalid watermark params")
+	}
+	params.WatermarkAssetID = ""
+	params.Normalize()
+
+	wm, err := s.wm.ResolveWatermarkAsset(ctx, p.WorkspaceID, p.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	params.WatermarkAssetID = wm.ID
+	return marshalRaw(params), nil
+}
+
+func (s *variantService) prepareVideoWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+	if s.wm == nil {
+		return nil, fmt.Errorf("watermark service unavailable")
+	}
+
+	var params transform.VideoWatermarkParams
 	if err := json.Unmarshal(raw, &params); err != nil {
 		return nil, invalidVariantInput("invalid watermark params")
 	}
@@ -198,6 +226,7 @@ func validVariantType(variantType string) bool {
 		queue.JobTypeImageCrop,
 		queue.JobTypeVideoCaptureImage,
 		queue.JobTypeVideoTranscode,
+		queue.JobTypeVideoWatermark,
 		queue.JobTypeImageBgRemove,
 		queue.JobTypeImageSmartCrop,
 		queue.JobTypeExtractAudio,
@@ -212,6 +241,7 @@ func validVariantType(variantType string) bool {
 func requiresVideoAsset(variantType string) bool {
 	return variantType == queue.JobTypeVideoCaptureImage ||
 		variantType == queue.JobTypeVideoTranscode ||
+		variantType == queue.JobTypeVideoWatermark ||
 		variantType == queue.JobTypeExtractAudio
 }
 

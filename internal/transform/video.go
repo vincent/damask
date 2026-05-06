@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/png"
+	"io"
 	"math"
 	"os"
 	"os/exec"
@@ -28,6 +31,27 @@ type TranscodeParams struct {
 	Format     string `json:"format"`     // mp4 | webm
 	Resolution string `json:"resolution"` // 1080p | 720p | 480p | "" (unchanged)
 	StripAudio bool   `json:"strip_audio"`
+}
+
+type VideoWatermarkParams struct {
+	WatermarkAssetID string  `json:"watermark_asset_id"`
+	Opacity          float64 `json:"opacity"`
+	Format           string  `json:"format"`     // mp4 | webm
+	Resolution       string  `json:"resolution"` // 1080p | 720p | 480p | "" (unchanged)
+	StripAudio       bool    `json:"strip_audio"`
+}
+
+func (p *VideoWatermarkParams) normalize() {
+	if p.Opacity <= 0 || p.Opacity > 1 {
+		p.Opacity = 0.5
+	}
+	if p.Format == "" {
+		p.Format = "mp4"
+	}
+}
+
+func (p *VideoWatermarkParams) Normalize() {
+	p.normalize()
 }
 
 // VideoExtractResolution runs ffprobe to extract a single frame from a video file.
@@ -242,9 +266,8 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 		}
 	}
 
-	// Resolution scaling
-	if scale := ffmpegResolutionScale(p.Resolution); scale != "" {
-		args = append(args, "-vf", "scale="+scale)
+	if filters := ffmpegOutputFilters(p.Format, p.Resolution); filters != "" {
+		args = append(args, "-vf", filters)
 	}
 
 	args = append(args, dstPath)
@@ -257,6 +280,110 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 		return fmt.Errorf("ffmpeg transcode: %w — stderr: %s", err, stderr.String())
 	}
 	return nil
+}
+
+func (t *transformer) VideoWatermark(ctx context.Context, srcPath, dstPath string, wm io.Reader, p VideoWatermarkParams) error {
+	if len(strings.TrimSpace(srcPath)) == 0 {
+		return fmt.Errorf("source path is empty")
+	}
+	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		return fmt.Errorf("source path does not exist: %s", srcPath)
+	}
+	if strings.TrimSpace(p.WatermarkAssetID) == "" {
+		return fmt.Errorf("watermark asset id is required")
+	}
+	p.normalize()
+
+	res, err := t.VideoExtractResolution(ctx, srcPath)
+	if err != nil {
+		return fmt.Errorf("extract resolution: %w", err)
+	}
+	if res.Width <= 0 || res.Height <= 0 {
+		return fmt.Errorf("video has invalid dimensions: %dx%d", res.Width, res.Height)
+	}
+
+	overlay, err := renderWatermarkOverlay(wm, image.Rect(0, 0, int(res.Width), int(res.Height)), p.Opacity)
+	if err != nil {
+		return fmt.Errorf("render watermark overlay: %w", err)
+	}
+
+	overlayFile, err := os.CreateTemp("", "damask-watermark-*.png")
+	if err != nil {
+		return fmt.Errorf("create overlay temp: %w", err)
+	}
+	overlayPath := overlayFile.Name()
+	defer os.Remove(overlayPath)
+	if err := png.Encode(overlayFile, overlay); err != nil {
+		_ = overlayFile.Close()
+		return fmt.Errorf("encode overlay: %w", err)
+	}
+	if err := overlayFile.Close(); err != nil {
+		return fmt.Errorf("close overlay temp: %w", err)
+	}
+
+	filter := "[0:v][1:v]overlay=0:0:shortest=1"
+	if filters := ffmpegOutputFilters(p.Format, p.Resolution); filters != "" {
+		filter += "," + filters
+	}
+	filter += "[v]"
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+
+	args := []string{
+		"-y",
+		"-i", srcPath,
+		"-loop", "1",
+		"-i", overlayPath,
+		"-filter_complex", filter,
+		"-map", "[v]",
+	}
+
+	if p.StripAudio {
+		args = append(args, "-an")
+	} else {
+		args = append(args, "-map", "0:a?")
+	}
+
+	switch p.Format {
+	case "webm":
+		args = append(args, "-c:v", "libvpx-vp9")
+		if !p.StripAudio {
+			args = append(args, "-c:a", "libopus")
+		}
+	default:
+		args = append(args, "-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast")
+		if !p.StripAudio {
+			args = append(args, "-c:a", "aac")
+		}
+	}
+
+	args = append(args, "-shortest", dstPath)
+
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ffmpeg watermark: %w — stderr: %s", err, stderr.String())
+	}
+	return nil
+}
+
+func ffmpegOutputFilters(format, resolution string) string {
+	filters := make([]string, 0, 2)
+	if scale := ffmpegResolutionScale(resolution); scale != "" {
+		filters = append(filters, "scale="+scale)
+	}
+
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "", "mp4":
+		// libx264 requires even dimensions; keep the output bounded by the source
+		// by trimming odd dimensions down to the nearest even pixel.
+		filters = append(filters, "scale=trunc(iw/2)*2:trunc(ih/2)*2")
+	}
+
+	return strings.Join(filters, ",")
 }
 
 // ffmpegResolutionScale returns the ffmpeg scale filter value for a named resolution.

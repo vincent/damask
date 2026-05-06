@@ -171,6 +171,96 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 	return err
 }
 
+func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error {
+	if !s.trf.FFmpegAvailable() {
+		return fmt.Errorf("ffmpeg not found in PATH")
+	}
+
+	var p VariantJobPayload
+	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
+		return fmt.Errorf("parse payload: %w", err)
+	}
+
+	var params transform.VideoWatermarkParams
+	if len(p.Params) > 0 {
+		if err := json.Unmarshal(p.Params, &params); err != nil {
+			return fmt.Errorf("parse watermark params: %w", err)
+		}
+	}
+	params.Normalize()
+	if params.WatermarkAssetID == "" {
+		return fmt.Errorf("watermark asset id is required")
+	}
+
+	rc, err := s.storage.Get(p.StorageKey)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	srcExt := filepath.Ext(p.StorageKey)
+	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
+	if err != nil {
+		return fmt.Errorf("write src temp: %w", err)
+	}
+	defer cleanSrc()
+
+	wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+		ID:          params.WatermarkAssetID,
+		WorkspaceID: p.WorkspaceID,
+	})
+	if err != nil {
+		return fmt.Errorf("get watermark asset: %w", err)
+	}
+	wmRC, err := s.storage.Get(wm.StorageKey)
+	if err != nil {
+		return fmt.Errorf("get watermark file: %w", err)
+	}
+	defer wmRC.Close()
+
+	ext := transform.FormatExtension(params.Format)
+	dstPath := srcPath + "_wm" + ext
+	defer os.Remove(dstPath)
+
+	if err := s.trf.VideoWatermark(ctx, srcPath, dstPath, wmRC, params); err != nil {
+		return fmt.Errorf("watermark: %w", err)
+	}
+
+	dstData, err := os.ReadFile(dstPath)
+	if err != nil {
+		return fmt.Errorf("read output: %w", err)
+	}
+
+	variantID := uuid.NewString()
+	paramsJSON, _ := json.Marshal(params)
+	pj := string(paramsJSON)
+	paramsHash := canonicalParamsHash(pj)
+	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoWatermark, paramsHash, ext)
+
+	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
+		return fmt.Errorf("store variant: %w", err)
+	}
+
+	sz := int64(len(dstData))
+	outputMime := "video/mp4"
+	if params.Format == "webm" {
+		outputMime = "video/webm"
+	}
+	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              variantID,
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
+		Type:            queue.JobTypeVideoWatermark,
+		StorageKey:      storageKey,
+		TransformParams: &pj,
+		Size:            &sz,
+	})
+	if err == nil {
+		s.enqueueVariantThumb(ctx, p, variantID, storageKey, outputMime)
+	}
+	return err
+}
+
 func (s *JobServer) rebuildVideoCaptureVariant(
 	ctx context.Context,
 	ver dbgen.AssetVersion,
@@ -291,6 +381,91 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, outputMime)
+	}
+	return err
+}
+
+func (s *JobServer) rebuildVideoWatermarkVariant(
+	ctx context.Context,
+	ver dbgen.AssetVersion,
+	paramsJSON, paramsHash string,
+) error {
+	if !s.trf.FFmpegAvailable() {
+		return fmt.Errorf("ffmpeg not found in PATH")
+	}
+
+	var params transform.VideoWatermarkParams
+	if paramsJSON != "" && paramsJSON != "{}" {
+		if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+			return fmt.Errorf("parse watermark params: %w", err)
+		}
+	}
+	params.Normalize()
+	if params.WatermarkAssetID == "" {
+		return fmt.Errorf("watermark asset id is required")
+	}
+
+	rc, err := s.storage.Get(ver.StorageKey)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	srcExt := filepath.Ext(ver.StorageKey)
+	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
+	if err != nil {
+		return fmt.Errorf("write src temp: %w", err)
+	}
+	defer cleanSrc()
+
+	wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+		ID:          params.WatermarkAssetID,
+		WorkspaceID: ver.WorkspaceID,
+	})
+	if err != nil {
+		return fmt.Errorf("get watermark asset: %w", err)
+	}
+	wmRC, err := s.storage.Get(wm.StorageKey)
+	if err != nil {
+		return fmt.Errorf("get watermark file: %w", err)
+	}
+	defer wmRC.Close()
+
+	ext := transform.FormatExtension(params.Format)
+	dstPath := srcPath + "_wm" + ext
+	defer os.Remove(dstPath)
+
+	if err := s.trf.VideoWatermark(ctx, srcPath, dstPath, wmRC, params); err != nil {
+		return fmt.Errorf("watermark: %w", err)
+	}
+
+	dstData, err := os.ReadFile(dstPath)
+	if err != nil {
+		return fmt.Errorf("read output: %w", err)
+	}
+
+	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, queue.JobTypeVideoWatermark, paramsHash, ext)
+	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
+		return fmt.Errorf("store variant: %w", err)
+	}
+
+	sz := int64(len(dstData))
+	vid := uuid.NewString()
+	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              vid,
+		WorkspaceID:     ver.WorkspaceID,
+		AssetVersionID:  ver.ID,
+		Type:            queue.JobTypeVideoWatermark,
+		StorageKey:      storageKey,
+		TransformParams: &paramsJSON,
+		Size:            &sz,
+	})
+	if err == nil {
+		outputMime := "video/mp4"
+		if params.Format == "webm" {
+			outputMime = "video/webm"
+		}
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, outputMime)
 	}
 	return err

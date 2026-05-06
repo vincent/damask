@@ -133,6 +133,9 @@ func (s *JobServer) rebuildOneVariant(
 	case queue.JobTypeVideoTranscode:
 		return s.rebuildVideoTranscodeVariant(ctx, ver, paramsJSON, paramsHash)
 
+	case queue.JobTypeVideoWatermark:
+		return s.rebuildVideoWatermarkVariant(ctx, ver, paramsJSON, paramsHash)
+
 	case queue.JobTypeExtractAudio, queue.JobTypeTranscodeAudio, queue.JobTypeNormalizeAudio:
 		return s.rebuildAudioVariant(ctx, ver, variantType, paramsJSON, paramsHash)
 

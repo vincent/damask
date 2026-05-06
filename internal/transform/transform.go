@@ -36,6 +36,7 @@ type Transformer interface {
 	VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error)
 	VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) ([]byte, error)
 	VideoTranscode(ctx context.Context, srcPath, dstPath string, p TranscodeParams) error
+	VideoWatermark(ctx context.Context, srcPath, dstPath string, wm io.Reader, p VideoWatermarkParams) error
 }
 
 func NewTransformer() Transformer {

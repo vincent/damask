@@ -254,6 +254,14 @@ export interface TranscodeParams {
   resolution?: '1080p' | '720p' | '480p'
   strip_audio?: boolean
 }
+
+export interface VideoWatermarkParams {
+  watermark_asset_id?: string
+  opacity?: number
+  format?: 'mp4' | 'webm'
+  resolution?: '1080p' | '720p' | '480p'
+  strip_audio?: boolean
+}
 // ---- Shares ----
 
 export interface Share {

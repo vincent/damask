@@ -235,6 +235,39 @@ func TestVariantService_PrepareCreate_WatermarkInjectsAssetID(t *testing.T) {
 	}
 }
 
+func TestVariantService_PrepareCreate_VideoWatermarkInjectsAssetID(t *testing.T) {
+	svc, _, _ := newVariantSvcWithWatermarks(t, watermarkServiceStub{
+		resolveFn: func(_ context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error) {
+			if workspaceID != "ws_1" || assetID != "vid_1" {
+				t.Fatalf("unexpected lookup args workspace=%s asset=%s", workspaceID, assetID)
+			}
+			return &service.WatermarkAssetDTO{ID: "wm_1"}, nil
+		},
+	})
+
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		WorkspaceID:   "ws_1",
+		AssetID:       "vid_1",
+		Type:          queue.JobTypeVideoWatermark,
+		Params:        json.RawMessage(`{"opacity":0.35,"format":"webm","strip_audio":true}`),
+		AssetMimeType: "video/mp4",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var params transform.VideoWatermarkParams
+	if err := json.Unmarshal(prepared.Params, &params); err != nil {
+		t.Fatalf("decode params: %v", err)
+	}
+	if params.WatermarkAssetID != "wm_1" {
+		t.Fatalf("expected watermark asset id wm_1, got %s", params.WatermarkAssetID)
+	}
+	if params.Opacity != 0.35 || params.Format != "webm" || !params.StripAudio {
+		t.Fatalf("unexpected params: %+v", params)
+	}
+}
+
 func TestVariantService_PrepareCreate_WatermarkMissingReturnsInvalidInput(t *testing.T) {
 	svc, _, _ := newVariantSvcWithWatermarks(t, watermarkServiceStub{
 		resolveFn: func(_ context.Context, _, _ string) (*service.WatermarkAssetDTO, error) {

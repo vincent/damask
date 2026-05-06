@@ -101,6 +101,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	// Variant jobs — user-triggered, each creates a variants row.
 	reg(queue.JobTypeVideoCaptureImage, s.jobVideoCaptureImage)
 	reg(queue.JobTypeVideoTranscode, s.jobVideoTranscode)
+	reg(queue.JobTypeVideoWatermark, s.jobVideoWatermark)
 	reg(queue.JobTypeImageResize, s.jobImageTransform)
 	reg(queue.JobTypeImageConvert, s.jobImageTransform)
 	reg(queue.JobTypeImageCrop, s.jobImageTransform)

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import ResolutionOptions from '../ResolutionOptions.svelte'
   import {
     assetApi,
     variantApi,
@@ -17,14 +18,23 @@
 
   let { asset, creating, handleCreate }: Props = $props()
 
-  const kind = 'image_watermark'
+  const kind = 'video_watermark'
   let opacity = $state(50)
+  let videoFormat = $state<'mp4' | 'webm'>('mp4')
+  let videoResolution = $state<'' | '1080p' | '720p' | '480p'>('')
+  let stripAudio = $state(false)
   let watermarkAsset = $state<WatermarkAsset | null>(null)
   let resolveError = $state('')
   let resolving = $state(false)
   let resolveToken = 0
   let watermarkTileWidth = $state<number | null>(null)
   let watermarkTileHeight = $state<number | null>(null)
+  let previewAspect = $derived(
+    asset.width && asset.height ? asset.width / asset.height : 16 / 9
+  )
+  let previewFrameStyle = $derived(
+    `aspect-ratio: ${asset.width && asset.height ? `${asset.width} / ${asset.height}` : '16 / 9'}; max-width: min(100%, ${220 * previewAspect}px);`
+  )
 
   $effect(() => {
     const assetId = asset.id
@@ -85,12 +95,16 @@
         <span class="scope-pill">{watermarkAsset.scope}</span>
       </div>
       <div class="preview-stage">
-        <div class="preview-frame">
-          <img
-            src={assetApi.thumbUrl(asset.id)}
-            alt={asset.original_filename}
-            class="preview-image"
-          />
+        <div class="preview-frame" style={previewFrameStyle}>
+          <video
+            class="preview-video"
+            src={assetApi.fileUrl(asset.id)}
+            muted
+            autoplay
+            loop
+            playsinline
+            controls={false}
+          ></video>
           <div
             aria-hidden="true"
             class="watermark-overlay"
@@ -122,11 +136,49 @@
     />
   </div>
 
+  <div>
+    <label for="variant-{kind}-format" class="field-label"
+      >{m.output_format()}</label
+    >
+    <div class="flex gap-2">
+      {#each ['mp4', 'webm'] as fmt}
+        <button
+          type="button"
+          class="toggle-btn flex-1 {videoFormat === fmt ? 'active' : ''}"
+          onclick={() => {
+            videoFormat = fmt as typeof videoFormat
+          }}>{fmt.toUpperCase()}</button
+        >
+      {/each}
+    </div>
+  </div>
+
+  <div>
+    <label for="variant-{kind}-resolution" class="field-label"
+      >{m.resolution()} <span class="optional">({m.optional()})</span></label
+    >
+    <select
+      id="variant-{kind}-resolution"
+      bind:value={videoResolution}
+      class="field-input"
+    >
+      <ResolutionOptions />
+    </select>
+  </div>
+
+  <label class="checkbox-label">
+    <input type="checkbox" bind:checked={stripAudio} class="checkbox" />
+    {m.strip_audio()}
+  </label>
+
   <Button
     disabled={creating || authStore.role === 'viewer' || !watermarkAsset}
     onclick={() =>
       handleCreate(kind, {
         opacity: opacity / 100,
+        format: videoFormat,
+        resolution: videoResolution || undefined,
+        strip_audio: stripAudio,
       })}
     class="w-full"
   >
@@ -166,13 +218,6 @@
     font-size: 0.7rem;
     text-transform: capitalize;
   }
-  .preview-image {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 180px;
-    object-fit: contain;
-  }
   .preview-stage {
     display: flex;
     justify-content: center;
@@ -182,12 +227,26 @@
   }
   .preview-frame {
     position: relative;
-    display: inline-block;
+    display: block;
+    width: 100%;
     max-width: 100%;
+    max-height: 220px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #000;
+  }
+  .preview-video {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   .watermark-overlay {
     position: absolute;
     inset: 0;
+    border-radius: 8px;
     background-position: top left;
     background-repeat: repeat;
     pointer-events: none;
@@ -206,6 +265,60 @@
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--text-secondary);
+  }
+  .optional {
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  .field-input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.12s ease;
+  }
+  .field-input:focus {
+    border-color: var(--accent-cta);
+  }
+  .toggle-btn {
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    padding: 7px 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .toggle-btn:hover {
+    border-color: var(--accent-cta);
+    color: var(--text-primary);
+  }
+  .toggle-btn.active {
+    border-color: var(--accent-cta);
+    background: oklch(93% 0.04 270);
+    color: oklch(40% 0.18 270);
+  }
+  :global(.dark) .toggle-btn.active {
+    background: oklch(30% 0.08 270 / 0.4);
+    color: oklch(78% 0.12 270);
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .checkbox {
+    border-radius: 4px;
+    accent-color: var(--accent-cta);
   }
   .range-input {
     width: 100%;
