@@ -37,6 +37,7 @@
   --accent-cta: #4f46e5;
   --accent-cta-hover: #4338ca;
   --accent-cta-active: #3730a3;
+  --accent-danger: #e54646;
   --tag-bg: #ebf0f7;
   --tag-text: #4a6b8a;
   --selection-bar-bg: #1a2744;
@@ -71,6 +72,7 @@
   --accent-cta: #6366f1;
   --accent-cta-hover: #818cf8;
   --accent-cta-active: #4f46e5;
+  --accent-danger: #e54646;
   --tag-bg: #2f3a4f;
   --tag-text: #8ba4c4;
   --selection-bar-bg: #2f3a4f;

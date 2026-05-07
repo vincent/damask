@@ -1,6 +1,6 @@
 -- name: CreateVariant :one
-INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: SetVariantThumbnail :exec
@@ -41,3 +41,24 @@ DELETE FROM variants WHERE id = ? AND workspace_id = ?;
 
 -- name: DeleteVariantsByVersion :exec
 DELETE FROM variants WHERE asset_version_id = ?;
+
+-- name: MarkVariantPending :exec
+UPDATE variants
+SET storage_key = '',
+    transform_params = ?,
+    size = NULL,
+    status = 'pending',
+    thumbnail_key = NULL,
+    thumbnail_content_type = 'image/jpeg'
+WHERE id = ? AND workspace_id = ?;
+
+-- name: UpdateVariantResult :exec
+UPDATE variants
+SET storage_key = ?,
+    transform_params = ?,
+    size = ?,
+    status = 'ready'
+WHERE id = ? AND workspace_id = ?;
+
+-- name: SetVariantStatus :exec
+UPDATE variants SET status = ? WHERE id = ? AND workspace_id = ?;

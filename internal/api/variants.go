@@ -35,6 +35,7 @@ type VariantResponse struct {
 	Type                 string    `json:"type"`
 	TransformParams      *string   `json:"transform_params"`
 	Size                 *int64    `json:"size"`
+	Status               string    `json:"status"`
 	StorageKey           string    `json:"storage_key"`
 	DownloadURL          string    `json:"download_url"`
 	ThumbnailURL         *string   `json:"thumbnail_url"`
@@ -62,6 +63,20 @@ type WatermarkAssetResponse struct {
 	Scope        string  `json:"scope"`
 }
 
+type PromoteVariantResponse struct {
+	AssetID  string `json:"asset_id"`
+	AssetURL string `json:"asset_url"`
+}
+
+type SetVariantThumbnailResponse struct {
+	ThumbnailURL string `json:"thumbnail_url"`
+}
+
+type RerunVariantResponse struct {
+	VariantID string `json:"variant_id"`
+	Status    string `json:"status"`
+}
+
 func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
@@ -72,12 +87,17 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 	if ct == "" {
 		ct = "image/jpeg"
 	}
+	status := v.Status
+	if status == "" {
+		status = "ready"
+	}
 	return VariantResponse{
 		ID:                   v.ID,
 		AssetVersionID:       v.AssetVersionID,
 		Type:                 v.Type,
 		TransformParams:      v.TransformParams,
 		Size:                 v.Size,
+		Status:               status,
 		StorageKey:           v.StorageKey,
 		DownloadURL:          fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", assetID, v.ID),
 		ThumbnailURL:         thumbURL,
@@ -280,6 +300,71 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		JobID:   job.ID,
 		Status:  "pending",
 		Message: "variant creation queued",
+	})
+}
+
+func (s *Server) handlePromoteVariant(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	variantID := c.Params("vid")
+
+	body, ok := decodeAndValidate(c, &PromoteVariantRequest{})
+	if !ok {
+		return nil
+	}
+
+	result, err := s.variants.Promote(c.Context(), service.PromoteVariantParams{
+		AssetID:     assetID,
+		VariantID:   variantID,
+		WorkspaceID: claims.WorkspaceID,
+		Name:        body.Name,
+	})
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(PromoteVariantResponse{
+		AssetID:  result.NewAssetID,
+		AssetURL: result.NewAssetURL,
+	})
+}
+
+func (s *Server) handleSetVariantThumbnail(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	variantID := c.Params("vid")
+
+	if err := s.variants.SetAsThumbnail(c.Context(), claims.WorkspaceID, assetID, variantID); err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	return c.JSON(SetVariantThumbnailResponse{
+		ThumbnailURL: fmt.Sprintf("/api/v1/assets/%s/thumb", assetID),
+	})
+}
+
+func (s *Server) handleRerunVariant(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	variantID := c.Params("vid")
+
+	body, ok := decodeAndValidate(c, &RerunVariantRequest{})
+	if !ok {
+		return nil
+	}
+
+	if err := s.variants.Rerun(c.Context(), service.RerunVariantParams{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		VariantID:   variantID,
+		NewParams:   body.Params,
+	}); err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	return c.Status(fiber.StatusAccepted).JSON(RerunVariantResponse{
+		VariantID: variantID,
+		Status:    "pending",
 	})
 }
 

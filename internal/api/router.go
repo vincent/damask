@@ -85,7 +85,7 @@ func NewHttpServer(
 	userRepo := reposqlc.NewUserRepo(db, sqlDB)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(db, sqlDB)
 	versionRepo := reposqlc.NewVersionRepo(db, sqlDB)
-	variantRepo := reposqlc.NewVariantRepo(db)
+	variantRepo := reposqlc.NewVariantRepo(db, sqlDB)
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
 	media := mediatype.NewRegistry(trf)
@@ -113,7 +113,11 @@ func NewHttpServer(
 		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
 		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
 		versions:      service.NewVersionService(versionRepo, auditWriter),
-		variants:      service.NewVariantService(variantRepo, assetRepo, tagSvc, auditWriter),
+		variants: service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
+			Actions: service.NewSQLVariantActionsStore(sqlDB),
+			Queue:   q,
+			Storage: stor,
+		}),
 		auditLog:      service.NewAuditLogService(db),
 		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo),
 		users:         service.NewUserService(userRepo, workspaceRepo),
@@ -334,6 +338,9 @@ func NewRouter(
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)
 	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadManualVariant)
+	api.Post("/assets/:id/variants/:vid/promote", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePromoteVariant)
+	api.Post("/assets/:id/variants/:vid/set-thumbnail", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleSetVariantThumbnail)
+	api.Post("/assets/:id/variants/:vid/rerun", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRerunVariant)
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
 	api.Get("/assets/:id/variants/:vid/thumb", s.handleGetVariantThumb)
 	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteVariant)

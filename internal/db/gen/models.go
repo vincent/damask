@@ -13,6 +13,7 @@ type Asset struct {
 	WorkspaceID          string    `json:"workspace_id"`
 	ProjectID            *string   `json:"project_id"`
 	FolderID             *string   `json:"folder_id"`
+	DerivedFromAssetID   *string   `json:"derived_from_asset_id"`
 	OriginalFilename     string    `json:"original_filename"`
 	StorageKey           string    `json:"storage_key"`
 	MimeType             string    `json:"mime_type"`

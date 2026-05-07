@@ -159,7 +159,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 		joinSQL = " " + strings.Join(joins, " ")
 	}
 	query := fmt.Sprintf(
-		`SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
+		`SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.derived_from_asset_id, a.original_filename, a.storage_key,
 		        a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		        a.current_version_id, a.created_at, a.updated_at
 		 FROM %s%s
@@ -179,7 +179,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	for rows.Next() {
 		var a repository.Asset
 		if err := rows.Scan(
-			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
+			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.DerivedFromAssetID, &a.OriginalFilename, &a.StorageKey,
 			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
 			&a.CurrentVersionID, &a.CreatedAt, &a.UpdatedAt,
 		); err != nil {
@@ -494,6 +494,7 @@ func toAsset(a dbgen.Asset) repository.Asset {
 		WorkspaceID:          a.WorkspaceID,
 		ProjectID:            a.ProjectID,
 		FolderID:             a.FolderID,
+		DerivedFromAssetID:   a.DerivedFromAssetID,
 		OriginalFilename:     a.OriginalFilename,
 		StorageKey:           a.StorageKey,
 		MimeType:             a.MimeType,

@@ -2,24 +2,27 @@ package audit
 
 // Asset event types
 const (
-	EventAssetCreated           = "asset_created"
-	EventAssetThumbnailRegen    = "asset_thumbnail_regen"
-	EventAssetRenamed           = "asset_renamed"
-	EventAssetMoved             = "asset_moved"
-	EventAssetTagged            = "asset_tagged"
-	EventAssetUntagged          = "asset_untagged"
-	EventAssetFieldSet          = "asset_field_set"
-	EventAssetFieldCleared      = "asset_field_cleared"
-	EventAssetVersionUploaded   = "asset_version_uploaded"
-	EventAssetVersionRestored   = "asset_version_restored"
-	EventAssetVersionDeleted    = "asset_version_deleted"
-	EventAssetShared            = "asset_shared"
-	EventAssetShareRevoked      = "asset_share_revoked"
-	EventAssetDeleted           = "asset_deleted"
-	EventAssetDownloaded        = "asset_downloaded"
-	EventAssetVariantCreated    = "asset_variant_created"
-	EventAssetVariantDownloaded = "asset_variant_downloaded"
-	EventAssetVariantDeleted    = "asset_variant_deleted"
+	EventAssetCreated                 = "asset_created"
+	EventAssetThumbnailRegen          = "asset_thumbnail_regen"
+	EventAssetRenamed                 = "asset_renamed"
+	EventAssetMoved                   = "asset_moved"
+	EventAssetTagged                  = "asset_tagged"
+	EventAssetUntagged                = "asset_untagged"
+	EventAssetFieldSet                = "asset_field_set"
+	EventAssetFieldCleared            = "asset_field_cleared"
+	EventAssetVersionUploaded         = "asset_version_uploaded"
+	EventAssetVersionRestored         = "asset_version_restored"
+	EventAssetVersionDeleted          = "asset_version_deleted"
+	EventAssetShared                  = "asset_shared"
+	EventAssetShareRevoked            = "asset_share_revoked"
+	EventAssetDeleted                 = "asset_deleted"
+	EventAssetDownloaded              = "asset_downloaded"
+	EventAssetVariantCreated          = "asset_variant_created"
+	EventAssetVariantDownloaded       = "asset_variant_downloaded"
+	EventAssetVariantDeleted          = "asset_variant_deleted"
+	EventAssetVariantPromoted         = "asset_variant_promoted"
+	EventAssetThumbnailSetFromVariant = "asset_thumbnail_set_from_variant"
+	EventAssetVariantRerun            = "asset_variant_rerun"
 )
 
 // Project event types
@@ -42,7 +45,7 @@ const (
 type AssetCreatedPayload struct {
 	V        int    `json:"v"`
 	Filename string `json:"filename"`
-	Source   string `json:"source"` // "upload" | "ingress"
+	Source   string `json:"source"` // "upload" | "ingress" | "derived"
 	SourceID string `json:"source_id,omitempty"`
 }
 
@@ -140,6 +143,23 @@ type AssetVariantDeletedPayload struct {
 	V         int    `json:"v"`
 	VariantID string `json:"variant_id"`
 	Type      string `json:"type"`
+}
+
+type AssetVariantPromotedPayload struct {
+	V          int    `json:"v"`
+	VariantID  string `json:"variant_id"`
+	NewAssetID string `json:"new_asset_id"`
+}
+
+type AssetThumbnailSetFromVariantPayload struct {
+	V         int    `json:"v"`
+	VariantID string `json:"variant_id"`
+}
+
+type AssetVariantRerunPayload struct {
+	V         int            `json:"v"`
+	VariantID string         `json:"variant_id"`
+	Params    map[string]any `json:"params"`
 }
 
 // --- Project payload structs ---

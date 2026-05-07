@@ -54,20 +54,21 @@ func commentDTOToResponse(c *service.ShareCommentDTO) CommentResponse {
 
 func publicAssetDTOToResponse(a *service.PublicAssetDTO) AssetResponse {
 	return AssetResponse{
-		ID:               a.ID,
-		WorkspaceID:      a.WorkspaceID,
-		ProjectID:        a.ProjectID,
-		FolderID:         a.FolderID,
-		OriginalFilename: a.OriginalFilename,
-		MimeType:         a.MimeType,
-		Size:             a.Size,
-		Width:            a.Width,
-		Height:           a.Height,
-		ThumbnailKey:     a.ThumbnailKey,
-		Metadata:         a.Metadata,
-		Tags:             []string{},
-		CreatedAt:        a.CreatedAt,
-		UpdatedAt:        a.UpdatedAt,
+		ID:                 a.ID,
+		WorkspaceID:        a.WorkspaceID,
+		ProjectID:          a.ProjectID,
+		FolderID:           a.FolderID,
+		DerivedFromAssetID: nil,
+		OriginalFilename:   a.OriginalFilename,
+		MimeType:           a.MimeType,
+		Size:               a.Size,
+		Width:              a.Width,
+		Height:             a.Height,
+		ThumbnailKey:       a.ThumbnailKey,
+		Metadata:           a.Metadata,
+		Tags:               []string{},
+		CreatedAt:          a.CreatedAt,
+		UpdatedAt:          a.UpdatedAt,
 	}
 }
 

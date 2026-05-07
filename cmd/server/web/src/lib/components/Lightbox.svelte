@@ -22,6 +22,7 @@
   import Pills from './ui/Pills.svelte'
   import Feedback from './ui/Feedback.svelte'
   import AssetVariantsGrid from './AssetVariantsGrid.svelte'
+  import VariantPromoteForm from './variants/VariantPromoteForm.svelte'
   import AssetMetadataPills from './AssetMetadataPills.svelte'
   import AssetExportImage from './AssetExportImage.svelte'
   import AssetDeleteButton from './AssetDeleteButton.svelte'
@@ -45,7 +46,6 @@
     isAudio as mimeIsAudio,
     isVideo as mimeIsVideo,
   } from '$lib/utils/mime'
-  import { onDestroy } from 'svelte'
 
   interface Props {
     asset: Asset | null
@@ -136,6 +136,15 @@
     }
   }
 
+  async function handleDerivedAssetOpen(assetId: string) {
+    const nextAsset =
+      assetsStore.assets.find((candidate) => candidate.id === assetId) ??
+      (await assetApi.get(assetId))
+
+    asset = nextAsset
+    onassetupdated?.(nextAsset)
+  }
+
   // --- Variant state ---
   let variants = $state<Variant[]>([])
   let variantsLoading = $state(false)
@@ -146,6 +155,9 @@
   let createSuccess = $state('')
   let variantRefreshTimer: ReturnType<typeof setInterval> | null = null
   let variantRefreshTimeout: ReturnType<typeof setTimeout> | null = null
+  let variantPanelState = $state<
+    { mode: 'list' } | { mode: 'promote'; variant: Variant }
+  >({ mode: 'list' })
 
   const category = $derived(asset ? mimeCategory(asset.mime_type) : 'document')
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
@@ -155,6 +167,7 @@
   $effect(() => {
     if (!asset) {
       variants = []
+      variantPanelState = { mode: 'list' }
       return
     }
     loadVariants()
@@ -315,6 +328,20 @@
     } catch {
       /* silently ignore */
     }
+  }
+
+  function openPromoteVariant(variant: Variant) {
+    variantPanelState = { mode: 'promote', variant }
+  }
+
+  async function handleThumbnailUpdated() {
+    if (!asset) return
+    asset = { ...asset, thumbnail_key: 'updated' }
+    onassetupdated?.(asset)
+  }
+
+  async function handleRerunRefresh() {
+    await loadVariants()
   }
 
   // Visible variant sub-tabs based on asset type
@@ -514,7 +541,7 @@
       <!-- ═══ DETAILS TAB ═══ -->
       {#if activeTab === 'details'}
         <div class="space-y-6 px-5 py-5">
-          <AssetMetadata {asset} />
+          <AssetMetadata {asset} onOpenAsset={handleDerivedAssetOpen} />
           <AssetTags {asset} />
           <AssetCollections {asset} />
 
@@ -541,7 +568,20 @@
 
           <div class="px-5 py-4">
             <!-- All variants grid -->
-            {#if activeVariantTab === 'all'}
+            {#if activeVariantTab === 'all' && variantPanelState.mode === 'promote'}
+              <VariantPromoteForm
+                assetId={asset.id}
+                assetFilename={asset.original_filename}
+                variant={variantPanelState.variant}
+                onCancel={() => {
+                  variantPanelState = { mode: 'list' }
+                }}
+                onSuccess={async () => {
+                  variantPanelState = { mode: 'list' }
+                  await loadVariants()
+                }}
+              />
+            {:else if activeVariantTab === 'all'}
               {#if variantRefreshProgress > 0}
                 <div class="mb-4 space-y-2">
                   <p
@@ -579,6 +619,9 @@
                   {asset}
                   {variants}
                   deleteVariant={handleDeleteVariant}
+                  promoteVariant={openPromoteVariant}
+                  thumbnailUpdated={handleThumbnailUpdated}
+                  rerunVariant={handleRerunRefresh}
                 />
               {/if}
             {:else}

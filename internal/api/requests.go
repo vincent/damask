@@ -463,6 +463,30 @@ func (r *CreateVariantRequest) Valid(_ context.Context) map[string]string {
 	return p
 }
 
+type PromoteVariantRequest struct {
+	Name string `json:"name"`
+}
+
+func (r *PromoteVariantRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Name = strings.TrimSpace(r.Name)
+	if r.Name == "" {
+		p["name"] = "required"
+	}
+	if len(r.Name) > 255 {
+		p["name"] = "max 255 chars"
+	}
+	return p
+}
+
+type RerunVariantRequest struct {
+	Params map[string]any `json:"params"`
+}
+
+func (r *RerunVariantRequest) Valid(_ context.Context) map[string]string {
+	return map[string]string{}
+}
+
 // -- ingress.go ---------------------------------------------------------------
 
 type IngressRuleReq struct {

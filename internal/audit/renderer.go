@@ -21,6 +21,9 @@ func RenderHumanReadable(eventType string, rawPayload string) string {
 		if p.Source == "ingress" && p.SourceID != "" {
 			return fmt.Sprintf("imported from ingress source %q", p.SourceID)
 		}
+		if p.Source == "derived" && p.SourceID != "" {
+			return fmt.Sprintf("derived from asset %q", p.SourceID)
+		}
 		return "uploaded"
 
 	case EventAssetRenamed:
@@ -138,6 +141,19 @@ func RenderHumanReadable(eventType string, rawPayload string) string {
 			break
 		}
 		return fmt.Sprintf("deleted %s variant", p.Type)
+
+	case EventAssetVariantPromoted:
+		var p AssetVariantPromotedPayload
+		if err := json.Unmarshal(payload, &p); err != nil {
+			break
+		}
+		return fmt.Sprintf("promoted variant to asset %s", p.NewAssetID)
+
+	case EventAssetThumbnailSetFromVariant:
+		return "set asset thumbnail from variant"
+
+	case EventAssetVariantRerun:
+		return "re-ran variant"
 
 	case EventProjectCreated:
 		var p ProjectCreatedPayload

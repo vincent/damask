@@ -60,12 +60,16 @@ func (r *AssetRepo) Create(ctx context.Context, params repository.CreateAssetPar
 		ID:               params.ID,
 		WorkspaceID:      params.WorkspaceID,
 		ProjectID:        params.ProjectID,
+		FolderID:         params.FolderID,
+		DerivedFromAssetID: params.DerivedFromAssetID,
 		OriginalFilename: params.OriginalFilename,
 		StorageKey:       params.StorageKey,
 		MimeType:         params.MimeType,
 		Size:             params.Size,
 		Width:            params.Width,
 		Height:           params.Height,
+		ThumbnailKey:     params.ThumbnailKey,
+		ThumbnailContentType: params.ThumbnailContentType,
 		Metadata:         params.Metadata,
 	}
 	r.assets[a.ID] = a

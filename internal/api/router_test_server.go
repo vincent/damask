@@ -332,6 +332,9 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)
 	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadManualVariant)
+	api.Post("/assets/:id/variants/:vid/promote", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePromoteVariant)
+	api.Post("/assets/:id/variants/:vid/set-thumbnail", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleSetVariantThumbnail)
+	api.Post("/assets/:id/variants/:vid/rerun", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRerunVariant)
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
 	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteVariant)
 

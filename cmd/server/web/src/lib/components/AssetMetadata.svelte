@@ -5,9 +5,10 @@
 
   interface Props {
     asset: Asset
+    onOpenAsset?: (assetId: string) => void | Promise<void>
   }
 
-  let { asset }: Props = $props()
+  let { asset, onOpenAsset }: Props = $props()
 </script>
 
 <div>
@@ -41,6 +42,26 @@
         {new Date(asset.updated_at ?? asset.created_at).toLocaleDateString()}
       </p>
     </div>
+    {#if asset.derived_from_asset_id}
+      <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
+        <p
+          class="mb-1 text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+        >
+          {m.derived_from_asset()}
+        </p>
+        <a
+          class="text-md font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+          href="/library?asset={asset.derived_from_asset_id}"
+          onclick={(event) => {
+            if (!asset.derived_from_asset_id || !onOpenAsset) return
+            event.preventDefault()
+            void onOpenAsset(asset.derived_from_asset_id)
+          }}
+        >
+          {asset.derived_from_asset_id}
+        </a>
+      </div>
+    {/if}
     {#if asset.width != null && asset.height != null}
       <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
         <p

@@ -14,6 +14,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
+	"damask/server/internal/storage"
 	"damask/server/internal/systemtags"
 	apptelemetry "damask/server/internal/telemetry"
 	"damask/server/internal/transform"
@@ -47,6 +48,7 @@ type VariantDTO struct {
 	StorageKey           string
 	TransformParams      *string
 	Size                 *int64
+	Status               string
 	ThumbnailKey         *string
 	ThumbnailContentType string
 	CreatedAt            time.Time
@@ -57,11 +59,34 @@ type variantService struct {
 	assets   repository.AssetRepository
 	tags     TagService
 	audit    audit.Writer
+	actions  VariantActionsStore
+	queue    queue.JobQueue
+	storage  storage.Storage
 }
 
 // NewVariantService returns a VariantService.
 func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository, tags TagService, aw audit.Writer) VariantService {
 	return &variantService{variants: variants, assets: assets, tags: tags, audit: aw}
+}
+
+type VariantServiceDeps struct {
+	Actions VariantActionsStore
+	Queue   queue.JobQueue
+	Storage storage.Storage
+}
+
+// NewVariantServiceWithDeps returns a VariantService with the extra dependencies
+// required by advanced variant actions such as promote and rerun.
+func NewVariantServiceWithDeps(variants repository.VariantRepository, assets repository.AssetRepository, tags TagService, aw audit.Writer, deps VariantServiceDeps) VariantService {
+	return &variantService{
+		variants: variants,
+		assets:   assets,
+		tags:     tags,
+		audit:    aw,
+		actions:  deps.Actions,
+		queue:    deps.Queue,
+		storage:  deps.Storage,
+	}
 }
 
 func (s *variantService) List(ctx context.Context, workspaceID, assetID string) ([]*VariantDTO, error) {
@@ -364,12 +389,14 @@ func marshalRaw(v any) json.RawMessage {
 
 func prepareImageRouterBgRemoveParams(raw json.RawMessage, defaultModel string) (json.RawMessage, error) {
 	var params struct {
-		Model string `json:"model"`
+		Model  string `json:"model"`
+		Prompt string `json:"prompt"`
 	}
 	if err := json.Unmarshal(raw, &params); err != nil {
 		return nil, invalidVariantInput("invalid image background removal params")
 	}
 	params.Model = strings.TrimSpace(params.Model)
+	params.Prompt = strings.TrimSpace(params.Prompt)
 	if params.Model == "" {
 		params.Model = defaultModel
 	}
@@ -484,6 +511,10 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 }
 
 func toVariantDTO(v repository.Variant) *VariantDTO {
+	status := v.Status
+	if status == "" {
+		status = "ready"
+	}
 	return &VariantDTO{
 		ID:                   v.ID,
 		WorkspaceID:          v.WorkspaceID,
@@ -492,6 +523,7 @@ func toVariantDTO(v repository.Variant) *VariantDTO {
 		StorageKey:           v.StorageKey,
 		TransformParams:      v.TransformParams,
 		Size:                 v.Size,
+		Status:               status,
 		ThumbnailKey:         v.ThumbnailKey,
 		ThumbnailContentType: v.ThumbnailContentType,
 		CreatedAt:            v.CreatedAt,

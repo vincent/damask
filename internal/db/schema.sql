@@ -82,6 +82,7 @@ CREATE TABLE assets (
     thumbnail_content_type TEXT NOT NULL DEFAULT 'image/jpeg',
     metadata               TEXT, -- JSON
     current_version_id     TEXT,  -- FK added after asset_versions is created
+    derived_from_asset_id  TEXT REFERENCES assets(id) ON DELETE SET NULL,
     created_at             DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at             DATETIME NOT NULL DEFAULT (datetime('now'))
 );
@@ -139,6 +140,7 @@ CREATE TABLE variants (
     storage_key            TEXT NOT NULL,
     transform_params       TEXT, -- JSON
     size                   INTEGER,
+    status                 TEXT NOT NULL DEFAULT 'ready',
     thumbnail_key          TEXT,
     thumbnail_content_type TEXT NOT NULL DEFAULT 'image/jpeg',
     created_at             DATETIME NOT NULL DEFAULT (datetime('now'))
@@ -162,6 +164,7 @@ CREATE INDEX idx_assets_workspace ON assets(workspace_id);
 CREATE INDEX idx_assets_project ON assets(project_id);
 CREATE INDEX idx_folders_project ON folders(project_id);
 CREATE INDEX idx_assets_folder ON assets(folder_id);
+CREATE INDEX idx_assets_derived_from ON assets(derived_from_asset_id);
 CREATE INDEX idx_tags_workspace ON tags(workspace_id);
 CREATE INDEX idx_variants_version   ON variants(asset_version_id);
 CREATE INDEX idx_variants_workspace ON variants(workspace_id);

@@ -1,35 +1,53 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  import { Download, Trash2, ImageOff } from '@lucide/svelte'
+  import { Download, ImageOff, MoreHorizontal } from '@lucide/svelte'
   import { variantApi, type Variant } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { formatBytes } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
+  import { toastStore } from '$lib/stores/toast.svelte'
   import AssetThumbnail from '$lib/components/AssetThumbnail.svelte'
-  import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
 
   interface Props {
     variant: Variant
     assetId: string
     onDelete: () => void
+    onPromote: () => void
+    onThumbnailUpdated: () => void
+    onRerun: () => void
   }
 
-  let { variant, assetId, onDelete }: Props = $props()
+  let {
+    variant,
+    assetId,
+    onDelete,
+    onPromote,
+    onThumbnailUpdated,
+    onRerun,
+  }: Props = $props()
 
-  let thumbUrl = $state<string | null>(variant.thumbnail_url)
-  let thumbContentType = $state(
-    variant.thumbnail_content_type
-      ? variant.thumbnail_content_type
-      : variant.thumbnail_url?.includes('.mp4')
-        ? 'video/mp4'
-        : 'image/jpeg'
-  )
+  let thumbUrl = $state<string | null>(null)
+  let thumbContentType = $state('image/jpeg')
   let noPreview = $state(false)
+  let menuOpen = $state(false)
 
   const MAX_POLL = 30
   let pollCount = 0
   let pollTimer: ReturnType<typeof setTimeout> | null = null
+
+  $effect(() => {
+    thumbUrl = variant.thumbnail_url
+    thumbContentType = variant.thumbnail_content_type
+      ? variant.thumbnail_content_type
+      : variant.thumbnail_url?.includes('.mp4')
+        ? 'video/mp4'
+        : 'image/jpeg'
+    noPreview = false
+    pollCount = 0
+    if (pollTimer) clearTimeout(pollTimer)
+    startPolling()
+  })
 
   function startPolling() {
     if (thumbUrl || noPreview) return
@@ -66,6 +84,42 @@
   })
 
   let showDeleteConfirm = $state(false)
+
+  async function setAsThumbnail() {
+    try {
+      await variantApi.setThumbnail(assetId, variant.id)
+      toastStore.show('Thumbnail updated', 'success')
+      menuOpen = false
+      onThumbnailUpdated()
+    } catch (e: unknown) {
+      toastStore.show(
+        e instanceof Error ? e.message : 'Failed to update thumbnail.',
+        'error'
+      )
+    }
+  }
+
+  async function rerunVariant() {
+    let params: Record<string, unknown> | undefined
+    if (variant.transform_params) {
+      try {
+        params = JSON.parse(variant.transform_params) as Record<string, unknown>
+      } catch {
+        params = undefined
+      }
+    }
+    try {
+      await variantApi.rerun(assetId, variant.id, params)
+      toastStore.show('Variant queued for re-run', 'success')
+      menuOpen = false
+      onRerun()
+    } catch (e: unknown) {
+      toastStore.show(
+        e instanceof Error ? e.message : 'Failed to re-run variant.',
+        'error'
+      )
+    }
+  }
 </script>
 
 <div class="variant-card group">
@@ -90,27 +144,56 @@
       </div>
     {/if}
 
-    <!-- Download overlay -->
-    <a
-      href={variantApi.fileUrl(assetId, variant.id)}
-      download
-      class="thumb-action top-2 right-2"
-      aria-label={m.download()}
-    >
-      <Download class="h-3.5 w-3.5" />
-    </a>
-
-    {#if authStore.role !== 'viewer'}
-      <button
-        type="button"
-        title={m.variant_delete_confirm()}
-        class="thumb-action danger top-10 right-2"
-        onclick={() => {
-          showDeleteConfirm = true
-        }}
+    <div class="menu-wrap">
+      <a
+        href={variantApi.fileUrl(assetId, variant.id)}
+        download
+        class="thumb-action top-2 right-10"
+        aria-label={m.download()}
       >
-        <Trash2 class="h-3.5 w-3.5" />
-      </button>
+        <Download class="h-3.5 w-3.5" />
+      </a>
+
+      {#if authStore.role !== 'viewer'}
+        <button
+          type="button"
+          class="thumb-action top-2 right-2"
+          aria-label="Variant actions"
+          onclick={() => {
+            menuOpen = !menuOpen
+          }}
+        >
+          <MoreHorizontal class="h-3.5 w-3.5" />
+        </button>
+      {/if}
+    </div>
+
+    {#if menuOpen && authStore.role !== 'viewer'}
+      <div class="variant-menu z-10">
+        <button type="button" onclick={setAsThumbnail}>Set as thumbnail</button>
+        <button
+          type="button"
+          onclick={() => {
+            menuOpen = false
+            onPromote()
+          }}
+        >
+          Create new asset
+        </button>
+        {#if variant.type === 'image_bg_remove'}
+          <button type="button" onclick={rerunVariant}>Re-run</button>
+        {/if}
+        <button
+          type="button"
+          class="danger"
+          onclick={() => {
+            menuOpen = false
+            showDeleteConfirm = true
+          }}
+        >
+          {m.kb_delete()}
+        </button>
+      </div>
     {/if}
   </div>
 
@@ -158,7 +241,7 @@
     height: 160px;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow: visible;
     background: var(--bg-app);
   }
   .thumb-placeholder {
@@ -199,6 +282,37 @@
       opacity 0.15s ease,
       background 0.1s ease;
   }
+  .menu-wrap {
+    position: absolute;
+    inset: 0;
+  }
+  .variant-menu {
+    position: absolute;
+    top: 42px;
+    right: 8px;
+    display: grid;
+    min-width: 170px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-surface);
+    box-shadow: 0 16px 40px rgb(0 0 0 / 0.14);
+    overflow: hidden;
+    z-index: 2;
+  }
+  .variant-menu button {
+    border: 0;
+    background: transparent;
+    padding: 10px 12px;
+    text-align: left;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .variant-menu button:hover {
+    background: var(--bg-app);
+  }
+  .variant-menu button.danger {
+    color: var(--accent-danger);
+  }
   :global(.dark) .thumb-action {
     background: rgb(37 45 62 / 0.8);
     color: var(--text-secondary);
@@ -211,14 +325,6 @@
   }
   :global(.dark) .thumb-action:hover {
     background: var(--bg-elevated);
-  }
-  .thumb-action.danger:hover {
-    background: oklch(97% 0.02 15);
-    color: oklch(50% 0.2 15);
-  }
-  :global(.dark) .thumb-action.danger:hover {
-    background: oklch(28% 0.06 15 / 0.4);
-    color: oklch(68% 0.18 15);
   }
   .card-info {
     padding: 10px 12px;

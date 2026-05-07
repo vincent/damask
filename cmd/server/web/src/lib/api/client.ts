@@ -283,6 +283,37 @@ export const variantApi = {
       method: 'DELETE',
     }),
 
+  /** POST /api/v1/assets/:id/variants/:vid/promote (editor+) — create a new asset from a variant. */
+  promote: (assetId: string, variantId: string, name: string) =>
+    apiFetch<import('./models').PromoteVariantResponse>(
+      `/api/v1/assets/${assetId}/variants/${variantId}/promote`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      }
+    ),
+
+  /** POST /api/v1/assets/:id/variants/:vid/set-thumbnail (editor+) — set the variant file as the asset thumbnail source. */
+  setThumbnail: (assetId: string, variantId: string) =>
+    apiFetch<import('./models').SetVariantThumbnailResponse>(
+      `/api/v1/assets/${assetId}/variants/${variantId}/set-thumbnail`,
+      { method: 'POST' }
+    ),
+
+  /** POST /api/v1/assets/:id/variants/:vid/rerun (editor+) — re-run a supported variant in place. */
+  rerun: (
+    assetId: string,
+    variantId: string,
+    params?: Record<string, unknown>
+  ) =>
+    apiFetch<import('./models').RerunVariantResponse>(
+      `/api/v1/assets/${assetId}/variants/${variantId}/rerun`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ params }),
+      }
+    ),
+
   /** GET /api/v1/assets/:id/variants/:vid/file — file URL for a variant. */
   fileUrl: (assetId: string, variantId: string): string =>
     `${API_BASE}/api/v1/assets/${assetId}/variants/${variantId}/file`,

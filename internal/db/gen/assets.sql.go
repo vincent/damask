@@ -23,7 +23,7 @@ func (q *Queries) CountVersionsForAsset(ctx context.Context, assetID string) (in
 const createAsset = `-- name: CreateAsset :one
 INSERT INTO assets (id, workspace_id, project_id, original_filename, storage_key, mime_type, size, width, height, metadata)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, created_at, updated_at
+RETURNING id, workspace_id, project_id, folder_id, derived_from_asset_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, created_at, updated_at
 `
 
 type CreateAssetParams struct {
@@ -58,6 +58,7 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset
 		&i.WorkspaceID,
 		&i.ProjectID,
 		&i.FolderID,
+		&i.DerivedFromAssetID,
 		&i.OriginalFilename,
 		&i.StorageKey,
 		&i.MimeType,
@@ -89,7 +90,7 @@ func (q *Queries) DeleteAsset(ctx context.Context, arg DeleteAssetParams) error 
 }
 
 const getAssetByID = `-- name: GetAssetByID :one
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, created_at, updated_at FROM assets WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, project_id, folder_id, derived_from_asset_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, created_at, updated_at FROM assets WHERE id = ? AND workspace_id = ?
 `
 
 type GetAssetByIDParams struct {
@@ -105,6 +106,7 @@ func (q *Queries) GetAssetByID(ctx context.Context, arg GetAssetByIDParams) (Ass
 		&i.WorkspaceID,
 		&i.ProjectID,
 		&i.FolderID,
+		&i.DerivedFromAssetID,
 		&i.OriginalFilename,
 		&i.StorageKey,
 		&i.MimeType,
@@ -122,7 +124,7 @@ func (q *Queries) GetAssetByID(ctx context.Context, arg GetAssetByIDParams) (Ass
 }
 
 const listAssets = `-- name: ListAssets :many
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, created_at, updated_at FROM assets
+SELECT id, workspace_id, project_id, folder_id, derived_from_asset_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, created_at, updated_at FROM assets
 WHERE workspace_id = ?1
   AND (?2 IS NULL OR project_id = ?2)
   AND (?3 IS NULL OR mime_type LIKE ?3)
@@ -171,6 +173,7 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 			&i.WorkspaceID,
 			&i.ProjectID,
 			&i.FolderID,
+			&i.DerivedFromAssetID,
 			&i.OriginalFilename,
 			&i.StorageKey,
 			&i.MimeType,

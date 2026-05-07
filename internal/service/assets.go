@@ -498,6 +498,7 @@ func toAssetDTO(a repository.Asset) *AssetDTO {
 		WorkspaceID:          a.WorkspaceID,
 		ProjectID:            a.ProjectID,
 		FolderID:             a.FolderID,
+		DerivedFromAssetID:   a.DerivedFromAssetID,
 		OriginalFilename:     a.OriginalFilename,
 		StorageKey:           a.StorageKey,
 		MimeType:             a.MimeType,

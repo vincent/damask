@@ -38,6 +38,11 @@ func (s *JobServer) wrapVariantJob(h queue.HandlerFunc) queue.HandlerFunc {
 		err := h(ctx, job)
 		if err != nil {
 			slog.Error("variant generation failed", "error", err.Error())
+			if p.VariantID != "" {
+				if _, setErr := s.sqlDB.ExecContext(ctx, `UPDATE variants SET status = 'failed' WHERE id = ? AND workspace_id = ?`, p.VariantID, p.WorkspaceID); setErr != nil {
+					slog.Warn("variant status update failed", "variant_id", p.VariantID, "error", setErr)
+				}
+			}
 			s.publishVariantFailed(ctx, p.WorkspaceID, p.AssetID, job.ID, err.Error())
 		}
 		return err

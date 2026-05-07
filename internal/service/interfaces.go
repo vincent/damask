@@ -83,6 +83,25 @@ type PreparedCreateVariant struct {
 	Params json.RawMessage
 }
 
+type PromoteVariantParams struct {
+	AssetID     string
+	VariantID   string
+	WorkspaceID string
+	Name        string
+}
+
+type PromoteVariantResult struct {
+	NewAssetID  string
+	NewAssetURL string
+}
+
+type RerunVariantParams struct {
+	WorkspaceID string
+	AssetID     string
+	VariantID   string
+	NewParams   map[string]any
+}
+
 type WatermarkAssetDTO struct {
 	ID           string  `json:"id"`
 	Name         string  `json:"name"`
@@ -99,6 +118,9 @@ type VariantService interface {
 	PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error)
 	Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error)
 	Delete(ctx context.Context, workspaceID, assetID, variantID string) error
+	Promote(ctx context.Context, p PromoteVariantParams) (PromoteVariantResult, error)
+	SetAsThumbnail(ctx context.Context, workspaceID, assetID, variantID string) error
+	Rerun(ctx context.Context, p RerunVariantParams) error
 	// WriteVariantQueued emits asset_variant_created for job-queued variants.
 	WriteVariantQueued(ctx context.Context, workspaceID, assetID, variantType string)
 	// WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.

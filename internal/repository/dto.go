@@ -8,6 +8,7 @@ type Asset struct {
 	WorkspaceID          string
 	ProjectID            *string
 	FolderID             *string
+	DerivedFromAssetID   *string
 	OriginalFilename     string
 	StorageKey           string
 	MimeType             string
@@ -293,6 +294,7 @@ type Variant struct {
 	StorageKey           string
 	TransformParams      *string
 	Size                 *int64
+	Status               string
 	ThumbnailKey         *string
 	ThumbnailContentType string
 	CreatedAt            time.Time
@@ -376,12 +378,16 @@ type CreateAssetParams struct {
 	ID               string
 	WorkspaceID      string
 	ProjectID        *string
+	FolderID         *string
+	DerivedFromAssetID *string
 	OriginalFilename string
 	StorageKey       string
 	MimeType         string
 	Size             int64
 	Width            *int64
 	Height           *int64
+	ThumbnailKey     *string
+	ThumbnailContentType string
 	Metadata         *string
 }
 

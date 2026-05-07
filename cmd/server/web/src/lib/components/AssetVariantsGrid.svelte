@@ -6,9 +6,19 @@
     asset: Asset
     variants: Variant[]
     deleteVariant: (variantId: string) => void
+    promoteVariant: (variant: Variant) => void
+    thumbnailUpdated: () => void
+    rerunVariant: () => void
   }
 
-  let { asset, variants, deleteVariant }: Props = $props()
+  let {
+    asset,
+    variants,
+    deleteVariant,
+    promoteVariant,
+    thumbnailUpdated,
+    rerunVariant,
+  }: Props = $props()
 </script>
 
 <div class="grid grid-cols-2 gap-3">
@@ -17,6 +27,9 @@
       variant={v}
       assetId={asset.id}
       onDelete={() => deleteVariant(v.id)}
+      onPromote={() => promoteVariant(v)}
+      onThumbnailUpdated={thumbnailUpdated}
+      onRerun={rerunVariant}
     />
   {/each}
 </div>

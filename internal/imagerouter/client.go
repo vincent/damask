@@ -31,7 +31,8 @@ type Client struct {
 }
 
 type BgRemoveParams struct {
-	Model string
+	Model  string
+	Prompt string
 }
 
 type PromptParams struct {
@@ -95,7 +96,7 @@ func (c *Client) BgRemove(ctx context.Context, imageData []byte, p BgRemoveParam
 	if strings.TrimSpace(p.Model) == "" {
 		return nil, fmt.Errorf("%w: empty model", ErrInvalidModel)
 	}
-	return c.editImage(ctx, imageData, p.Model, "")
+	return c.editImage(ctx, imageData, p.Model, strings.TrimSpace(p.Prompt))
 }
 
 func (c *Client) Transform(ctx context.Context, imageData []byte, p PromptParams) ([]byte, error) {

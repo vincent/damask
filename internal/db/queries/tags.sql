@@ -27,6 +27,10 @@ WHERE at.asset_id = ?;
 -- name: AddTagToAsset :exec
 INSERT OR IGNORE INTO asset_tags (asset_id, tag_id) VALUES (?, ?);
 
+-- name: CopyAssetTags :exec
+INSERT OR IGNORE INTO asset_tags (asset_id, tag_id)
+SELECT ?, tag_id FROM asset_tags WHERE asset_id = ?;
+
 -- name: RemoveTagFromAsset :exec
 DELETE FROM asset_tags
 WHERE asset_id = ?

@@ -1,6 +1,10 @@
 -- name: CreateAsset :one
-INSERT INTO assets (id, workspace_id, project_id, original_filename, storage_key, mime_type, size, width, height, metadata)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO assets (
+  id, workspace_id, project_id, folder_id, original_filename,
+  storage_key, mime_type, size, width, height,
+  thumbnail_key, thumbnail_content_type, metadata, derived_from_asset_id
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetAssetByID :one
@@ -54,4 +58,3 @@ SELECT * FROM share_comments WHERE asset_id = ? ORDER BY created_at ASC;
 
 -- name: ListImageAssetIDs :many
 SELECT id FROM assets WHERE workspace_id = ? AND mime_type LIKE 'image/%' ORDER BY created_at DESC;
-

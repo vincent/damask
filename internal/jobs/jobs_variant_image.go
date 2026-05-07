@@ -24,6 +24,7 @@ type VariantJobPayload struct {
 	WorkspaceID string          `json:"workspace_id"`
 	VersionID   string          `json:"version_id"`
 	VersionNum  int64           `json:"version_num"`
+	VariantID   string          `json:"variant_id,omitempty"`
 	StorageKey  string          `json:"storage_key"`
 	MimeType    string          `json:"mime_type"`
 	Type        string          `json:"type"`
@@ -145,14 +146,18 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 	}
 
 	var params struct {
-		Model string `json:"model"`
+		Model  string `json:"model"`
+		Prompt string `json:"prompt"`
 	}
 	if err := json.Unmarshal(p.Params, &params); err != nil {
 		return fmt.Errorf("parse bg remove params: %w", err)
 	}
 
 	result, err := s.runImageRouterJob(ctx, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
+		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{
+			Model:  params.Model,
+			Prompt: params.Prompt,
+		})
 	})
 	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
 		return fmt.Errorf("The selected model is not available for background removal. Please choose another model and try again")
@@ -171,15 +176,25 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 	}
 
 	sz := int64(len(result))
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              variantID,
-		WorkspaceID:     p.WorkspaceID,
-		AssetVersionID:  p.VersionID,
-		Type:            queue.JobTypeImageBgRemove,
-		StorageKey:      storageKey,
-		TransformParams: &paramsStr,
-		Size:            &sz,
-	})
+	if p.VariantID != "" {
+		variantID = p.VariantID
+		_, err = s.sqlDB.ExecContext(ctx, `
+			UPDATE variants
+			SET storage_key = ?, transform_params = ?, size = ?, status = 'ready'
+			WHERE id = ? AND workspace_id = ?`,
+			storageKey, paramsStr, sz, variantID, p.WorkspaceID,
+		)
+	} else {
+		_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+			ID:              variantID,
+			WorkspaceID:     p.WorkspaceID,
+			AssetVersionID:  p.VersionID,
+			Type:            queue.JobTypeImageBgRemove,
+			StorageKey:      storageKey,
+			TransformParams: &paramsStr,
+			Size:            &sz,
+		})
+	}
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")

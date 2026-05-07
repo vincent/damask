@@ -52,6 +52,7 @@ type AssetDTO struct {
 	WorkspaceID          string
 	ProjectID            *string
 	FolderID             *string
+	DerivedFromAssetID   *string
 	OriginalFilename     string
 	StorageKey           string
 	MimeType             string

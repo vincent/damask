@@ -31,6 +31,25 @@ JOIN field_definitions f ON f.id = v.field_id
 WHERE v.asset_id = ?
 ORDER BY f.position ASC, f.created_at ASC;
 
+-- name: CopyAssetFieldValues :exec
+INSERT OR IGNORE INTO asset_field_values (
+  id, asset_id, field_id, value_text, value_number, value_date, value_boolean,
+  created_by, created_at, updated_at
+)
+SELECT
+  lower(hex(randomblob(16))),
+  ?,
+  field_id,
+  value_text,
+  value_number,
+  value_date,
+  value_boolean,
+  created_by,
+  datetime('now'),
+  datetime('now')
+FROM asset_field_values
+WHERE asset_id = ?;
+
 -- name: DeleteAssetFieldValue :exec
 DELETE FROM asset_field_values WHERE asset_id = ? AND field_id = ?;
 

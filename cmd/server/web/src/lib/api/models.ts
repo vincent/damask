@@ -51,6 +51,7 @@ export interface Asset {
   workspace_id: string
   project_id: string | null
   folder_id: string | null
+  derived_from_asset_id: string | null
   original_filename: string
   mime_type: string
   size: number
@@ -190,6 +191,7 @@ export interface Variant {
   type: string
   transform_params: string | null
   size: number | null
+  status: 'ready' | 'pending' | 'failed'
   storage_key: string
   download_url: string
   thumbnail_url: string | null
@@ -206,6 +208,20 @@ export interface CreateVariantResponse {
   job_id: string
   status: string
   message: string
+}
+
+export interface PromoteVariantResponse {
+  asset_id: string
+  asset_url: string
+}
+
+export interface SetVariantThumbnailResponse {
+  thumbnail_url: string
+}
+
+export interface RerunVariantResponse {
+  variant_id: string
+  status: 'pending'
 }
 
 export interface WatermarkAsset {

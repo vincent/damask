@@ -54,6 +54,9 @@ func (r *RealVariantRepo) ListByAsset(_ context.Context, workspaceID, assetID st
 func (r *RealVariantRepo) Create(_ context.Context, v repository.Variant) (repository.Variant, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if v.Status == "" {
+		v.Status = "ready"
+	}
 	r.variants[v.ID] = v
 	return v, nil
 }

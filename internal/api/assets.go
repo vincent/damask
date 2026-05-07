@@ -26,6 +26,7 @@ type AssetResponse struct {
 	WorkspaceID          string    `json:"workspace_id"`
 	ProjectID            *string   `json:"project_id"`
 	FolderID             *string   `json:"folder_id"`
+	DerivedFromAssetID   *string   `json:"derived_from_asset_id"`
 	OriginalFilename     string    `json:"original_filename"`
 	MimeType             string    `json:"mime_type"`
 	Size                 int64     `json:"size"`
@@ -60,6 +61,7 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 		WorkspaceID:        a.WorkspaceID,
 		ProjectID:          a.ProjectID,
 		FolderID:           a.FolderID,
+		DerivedFromAssetID: a.DerivedFromAssetID,
 		OriginalFilename:   a.OriginalFilename,
 		MimeType:           a.MimeType,
 		Size:               a.Size,
@@ -80,21 +82,22 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 // with response builders that have not yet been migrated to the service layer.
 func dtoToDBAsset(d *service.AssetDTO) dbgen.Asset {
 	return dbgen.Asset{
-		ID:               d.ID,
-		WorkspaceID:      d.WorkspaceID,
-		ProjectID:        d.ProjectID,
-		FolderID:         d.FolderID,
-		OriginalFilename: d.OriginalFilename,
-		StorageKey:       d.StorageKey,
-		MimeType:         d.MimeType,
-		Size:             d.Size,
-		Width:            d.Width,
-		Height:           d.Height,
-		ThumbnailKey:     d.ThumbnailKey,
-		Metadata:         d.Metadata,
-		CurrentVersionID: d.CurrentVersionID,
-		CreatedAt:        d.CreatedAt,
-		UpdatedAt:        d.UpdatedAt,
+		ID:                 d.ID,
+		WorkspaceID:        d.WorkspaceID,
+		ProjectID:          d.ProjectID,
+		FolderID:           d.FolderID,
+		DerivedFromAssetID: d.DerivedFromAssetID,
+		OriginalFilename:   d.OriginalFilename,
+		StorageKey:         d.StorageKey,
+		MimeType:           d.MimeType,
+		Size:               d.Size,
+		Width:              d.Width,
+		Height:             d.Height,
+		ThumbnailKey:       d.ThumbnailKey,
+		Metadata:           d.Metadata,
+		CurrentVersionID:   d.CurrentVersionID,
+		CreatedAt:          d.CreatedAt,
+		UpdatedAt:          d.UpdatedAt,
 	}
 }
 
@@ -320,6 +323,7 @@ func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sor
 			WorkspaceID:          a.WorkspaceID,
 			ProjectID:            a.ProjectID,
 			FolderID:             a.FolderID,
+			DerivedFromAssetID:   a.DerivedFromAssetID,
 			OriginalFilename:     a.OriginalFilename,
 			MimeType:             a.MimeType,
 			Size:                 a.Size,
