@@ -6,7 +6,7 @@ dev:
 
 # Run the Go backend with dev build tag (uses Vite proxy, no embedded SPA)
 dev-server:
-	air --build.cmd "go build -tags=dev,demo -o bin/damask-server-demo ./cmd/server" --build.entrypoint "./bin/damask-server-demo" --build.include_dir cmd,internal --build.exclude_dir cmd/server/web
+	air --build.cmd "go build -tags=dev,demo -o bin/damask-server-demo ./cmd/server" --build.entrypoint "./bin/damask-server-demo" --build.include_dir cmd,internal --build.exclude_dir cmd/server/web --build.stop_on_error "true"
 
 # Run the Svelte frontend
 dev-web:

@@ -207,6 +207,7 @@ func TestVariantService_PrepareCreate_RejectsWrongMimeFamilies(t *testing.T) {
 		wantErr     error
 	}{
 		{"image transform on audio", queue.JobTypeImageResize, "audio/mpeg", "image transforms require an image asset", service.ErrInvalidVariantReq},
+		{"image with prompt on audio", queue.JobTypeImageWithPrompt, "audio/mpeg", "image transforms require an image asset", service.ErrInvalidVariantReq},
 		{"video transform on image", queue.JobTypeVideoTranscode, "image/jpeg", "video transforms require a video asset", service.ErrInvalidVariantReq},
 		{"extract audio on image", queue.JobTypeExtractAudio, "image/jpeg", "asset_not_video", apperr.ErrInvalidInput},
 		{"audio transform on video", queue.JobTypeTranscodeAudio, "video/mp4", "asset_not_audio", apperr.ErrInvalidInput},
@@ -222,6 +223,77 @@ func TestVariantService_PrepareCreate_RejectsWrongMimeFamilies(t *testing.T) {
 				t.Fatalf("expected %q invalid input, got %v", tt.wantMessage, err)
 			}
 		})
+	}
+}
+
+func TestVariantService_PrepareCreate_ImageBgRemoveDefaultsModel(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:                  queue.JobTypeImageBgRemove,
+		Params:                json.RawMessage(`{}`),
+		AssetMimeType:         "image/png",
+		ImageRouterConfigured: true,
+		DefaultBgRemoveModel:  "bria/remove-background",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var params map[string]string
+	if err := json.Unmarshal(prepared.Params, &params); err != nil {
+		t.Fatalf("decode params: %v", err)
+	}
+	if params["model"] != "bria/remove-background" {
+		t.Fatalf("expected default model, got %#v", params)
+	}
+}
+
+func TestVariantService_PrepareCreate_ImageWithPromptNormalizesPrompt(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:                  queue.JobTypeImageWithPrompt,
+		Params:                json.RawMessage(`{"prompt":"  add soft shadows  "}`),
+		AssetMimeType:         "image/png",
+		ImageRouterConfigured: true,
+		DefaultImageModel:     "black-forest-labs/FLUX.1-fill-dev",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var params map[string]string
+	if err := json.Unmarshal(prepared.Params, &params); err != nil {
+		t.Fatalf("decode params: %v", err)
+	}
+	if params["prompt"] != "add soft shadows" {
+		t.Fatalf("expected trimmed prompt, got %#v", params["prompt"])
+	}
+	if params["model"] != "black-forest-labs/FLUX.1-fill-dev" {
+		t.Fatalf("expected default model, got %#v", params["model"])
+	}
+}
+
+func TestVariantService_PrepareCreate_ImageWithPromptRequiresPrompt(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:                  queue.JobTypeImageWithPrompt,
+		Params:                json.RawMessage(`{"prompt":"   "}`),
+		AssetMimeType:         "image/png",
+		ImageRouterConfigured: true,
+		DefaultImageModel:     "black-forest-labs/FLUX.1-fill-dev",
+	})
+	if !errors.Is(err, service.ErrInvalidVariantReq) || !strings.Contains(err.Error(), "prompt_required") {
+		t.Fatalf("expected prompt_required invalid request, got %v", err)
+	}
+}
+
+func TestVariantService_PrepareCreate_ImageRouterRequiresConfig(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeImageBgRemove,
+		Params:        json.RawMessage(`{}`),
+		AssetMimeType: "image/png",
+	})
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "imagerouter_not_configured") {
+		t.Fatalf("expected imagerouter_not_configured invalid input, got %v", err)
 	}
 }
 

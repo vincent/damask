@@ -53,6 +53,7 @@ type TestEnv struct {
 	Maker      *auth.Maker
 	SqlDB      *sql.DB
 	Storage    storage.Storage
+	Config     *config.Config
 }
 
 // SetupTestApp opens a fresh temp-file SQLite DB, runs migrations, and
@@ -65,6 +66,25 @@ func WithBodyLimit(n int) TestOption {
 	return func(cfg *config.Config) { cfg.BodyLimit = n }
 }
 
+func WithImageRouterAPIKey(key string) TestOption {
+	return func(cfg *config.Config) { cfg.ImageRouter.APIKey = key }
+}
+
+func WithImageRouterDefaults(model, bgRemoveModel string) TestOption {
+	return func(cfg *config.Config) {
+		if model != "" {
+			cfg.ImageRouter.DefaultModel = model
+		}
+		if bgRemoveModel != "" {
+			cfg.ImageRouter.DefaultBgRemoveModel = bgRemoveModel
+		}
+	}
+}
+
+func WithImageRouterRetryPaidOnFreeLimit(enabled bool) TestOption {
+	return func(cfg *config.Config) { cfg.ImageRouter.RetryPaidOnFreeLimit = enabled }
+}
+
 func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	t.Helper()
 	u, _ := url.Parse("http://localhost")
@@ -73,6 +93,11 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		AppSecret: "test-app-secret-for-tests!!",
 		AppEnv:    "development",
 		BaseURL:   u,
+		ImageRouter: config.ImageRouterConfig{
+			DefaultModel:         "black-forest-labs/FLUX.1-fill-dev",
+			DefaultBgRemoveModel: "bria/remove-background",
+			RetryPaidOnFreeLimit: false,
+		},
 	}
 	for _, o := range opts {
 		o(cfg)
@@ -111,7 +136,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
 	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor)
 	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
-	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor}
+	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor, Config: cfg}
 }
 
 // AuthResult holds the parsed outcome of a register or login response.

@@ -184,7 +184,7 @@ func (s *Server) handleResolveWatermarkAsset(c fiber.Ctx) error {
 // handleCreateVariant enqueues a transform job to produce a new variant.
 //
 // @Summary Create a variant
-// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code></li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — requires <code>REMOVEBG_API_KEY</code> env var</li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
+// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code></li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong> — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
 // @Tags Variants
 // @Accept json
 // @Produce json
@@ -222,18 +222,24 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return nil
 	}
 
+	if isDemoSession(c) && (body.Type == queue.JobTypeImageBgRemove || body.Type == queue.JobTypeImageWithPrompt) {
+		return c.Status(fiber.StatusForbidden).JSON(demoRestrictedResponse)
+	}
+
 	currentVer, err := s.versions.GetCurrentByAsset(c.Context(), assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
 	}
 
 	prepared, err := s.variants.PrepareCreate(c.Context(), service.PrepareCreateVariantParams{
-		WorkspaceID:       claims.WorkspaceID,
-		AssetID:           assetID,
-		Type:              body.Type,
-		Params:            body.Params,
-		AssetMimeType:     asset.MimeType,
-		RemoveBgAvailable: s.cfg.RemoveBgAPIKey != "",
+		WorkspaceID:           claims.WorkspaceID,
+		AssetID:               assetID,
+		Type:                  body.Type,
+		Params:                body.Params,
+		AssetMimeType:         asset.MimeType,
+		ImageRouterConfigured: s.cfg.ImageRouter.IsConfigured(),
+		DefaultImageModel:     s.cfg.ImageRouter.DefaultModel,
+		DefaultBgRemoveModel:  s.cfg.ImageRouter.DefaultBgRemoveModel,
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidVariantType) {

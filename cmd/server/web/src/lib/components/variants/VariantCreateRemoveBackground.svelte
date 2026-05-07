@@ -1,36 +1,54 @@
 <script lang="ts">
+  import { m } from '$lib/paraglide/messages'
+  import { type Asset, type ImageRouterModelsResponse } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import Spinner from '../ui/Spinner.svelte'
-  import { type Asset } from '$lib/api'
+  import ImageRouterModelSelect from './ImageRouterModelSelect.svelte'
 
   interface Props {
     asset: Asset
     creating: boolean
-    handleCreate: (kind: string, params: Record<string, unknown>) => void
+    handleCreate: (
+      kind: string,
+      params: Record<string, unknown>
+    ) => void | Promise<void>
   }
 
   let { asset, creating, handleCreate }: Props = $props()
 
   const kind = 'image_bg_remove'
+  let model = $state('')
+  let defaultModelId = $state('')
+  let configured = $state(true)
+
+  function handleModelsLoaded(res: ImageRouterModelsResponse) {
+    configured = res.configured
+    defaultModelId = res.default_bg_remove_model
+    if (!model) model = res.default_bg_remove_model
+  }
 </script>
 
 <div class="space-y-5">
   <div class="notice">
-    <p class="notice-title">Requires Remove.bg API key</p>
+    <p class="notice-title">{m.bg_remove()}</p>
     <p class="notice-body">
-      Set <code class="notice-code">REMOVEBG_API_KEY</code> in your server environment.
-      Returns a transparent PNG.
+      Remove the background from this image with AI. Output is always PNG.
     </p>
   </div>
 
+  <ImageRouterModelSelect
+    bind:value={model}
+    {defaultModelId}
+    disabled={creating}
+    onloaded={handleModelsLoaded}
+  />
+
   <Button
-    disabled={creating || authStore.role === 'viewer'}
-    onclick={() => handleCreate(kind, {})}
+    disabled={creating || authStore.role === 'viewer' || !configured}
+    onclick={() => handleCreate(kind, { model })}
     class="w-full"
   >
-    {#if creating}<Spinner size="sm" />{/if}
-    {creating ? 'Queuing…' : 'Remove Background'}
+    {creating ? m.queuing_() : m.bg_remove()}
   </Button>
 </div>
 
@@ -48,26 +66,17 @@
   .notice-title {
     font-size: 0.875rem;
     font-weight: 600;
-    color: oklch(42% 0.1 60);
+    color: var(--text-primary);
     margin-bottom: 4px;
   }
   :global(.dark) .notice-title {
-    color: oklch(72% 0.1 70);
+    color: var(--text-primary);
   }
   .notice-body {
     font-size: 0.8125rem;
-    color: oklch(50% 0.08 60);
+    color: var(--text-muted);
   }
   :global(.dark) .notice-body {
-    color: oklch(62% 0.08 70);
-  }
-  .notice-code {
-    border-radius: 4px;
-    background: oklch(90% 0.05 80);
-    padding: 1px 5px;
-    font-size: 0.75rem;
-  }
-  :global(.dark) .notice-code {
-    background: oklch(35% 0.07 70 / 0.6);
+    color: var(--text-muted);
   }
 </style>

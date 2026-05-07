@@ -68,12 +68,14 @@ type CreateVariantParams struct {
 }
 
 type PrepareCreateVariantParams struct {
-	WorkspaceID       string
-	AssetID           string
-	Type              string
-	Params            json.RawMessage
-	AssetMimeType     string
-	RemoveBgAvailable bool
+	WorkspaceID           string
+	AssetID               string
+	Type                  string
+	Params                json.RawMessage
+	AssetMimeType         string
+	ImageRouterConfigured bool
+	DefaultImageModel     string
+	DefaultBgRemoveModel  string
 }
 
 type PreparedCreateVariant struct {

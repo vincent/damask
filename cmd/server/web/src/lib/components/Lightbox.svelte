@@ -256,6 +256,10 @@
           { id: 'smart_crop' as VariantTab, label: m.smart_crop() },
           { id: 'crop' as VariantTab, label: m.crop() },
           { id: 'bg_remove' as VariantTab, label: m.bg_remove() },
+          {
+            id: 'image_with_prompt' as VariantTab,
+            label: 'AI Transform',
+          },
         ]
       : []),
     ...(isVideo

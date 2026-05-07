@@ -108,6 +108,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	reg(queue.JobTypeImageWatermark, s.jobImageTransform)
 	reg(queue.JobTypeImageSmartCrop, s.jobImageTransform)
 	reg(queue.JobTypeImageBgRemove, s.jobImageBgRemove)
+	reg(queue.JobTypeImageWithPrompt, s.jobImageWithPrompt)
 	reg(queue.JobTypeExtractAudio, s.jobAudioTransform)
 	reg(queue.JobTypeTranscodeAudio, s.jobAudioTransform)
 	reg(queue.JobTypeNormalizeAudio, s.jobAudioTransform)

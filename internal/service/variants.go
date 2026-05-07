@@ -106,8 +106,8 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 		return PreparedCreateVariant{}, invalidVariantInput("asset_not_audio")
 	}
 
-	if p.Type == queue.JobTypeImageBgRemove && !p.RemoveBgAvailable {
-		return PreparedCreateVariant{}, invalidVariantRequest("background removal requires REMOVEBG_API_KEY to be configured")
+	if (p.Type == queue.JobTypeImageBgRemove || p.Type == queue.JobTypeImageWithPrompt) && !p.ImageRouterConfigured {
+		return PreparedCreateVariant{}, invalidVariantInput("imagerouter_not_configured")
 	}
 
 	if p.Type == queue.JobTypeImageWatermark {
@@ -120,6 +120,22 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 
 	if p.Type == queue.JobTypeVideoWatermark {
 		normalized, err := s.prepareVideoWatermarkParams(ctx, p, params)
+		if err != nil {
+			return PreparedCreateVariant{}, err
+		}
+		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+	}
+
+	if p.Type == queue.JobTypeImageBgRemove {
+		normalized, err := prepareImageRouterBgRemoveParams(params, p.DefaultBgRemoveModel)
+		if err != nil {
+			return PreparedCreateVariant{}, err
+		}
+		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+	}
+
+	if p.Type == queue.JobTypeImageWithPrompt {
+		normalized, err := prepareImageRouterPromptParams(params, p.DefaultImageModel)
 		if err != nil {
 			return PreparedCreateVariant{}, err
 		}
@@ -244,6 +260,7 @@ func validVariantType(variantType string) bool {
 		queue.JobTypeVideoTranscode,
 		queue.JobTypeVideoWatermark,
 		queue.JobTypeImageBgRemove,
+		queue.JobTypeImageWithPrompt,
 		queue.JobTypeImageSmartCrop,
 		queue.JobTypeExtractAudio,
 		queue.JobTypeTranscodeAudio,
@@ -267,7 +284,8 @@ func requiresImageAsset(variantType string) bool {
 		variantType == queue.JobTypeImageCrop ||
 		variantType == queue.JobTypeImageWatermark ||
 		variantType == queue.JobTypeImageSmartCrop ||
-		variantType == queue.JobTypeImageBgRemove
+		variantType == queue.JobTypeImageBgRemove ||
+		variantType == queue.JobTypeImageWithPrompt
 }
 
 func requiresAudioAsset(variantType string) bool {
@@ -342,6 +360,45 @@ func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage
 func marshalRaw(v any) json.RawMessage {
 	b, _ := json.Marshal(v)
 	return b
+}
+
+func prepareImageRouterBgRemoveParams(raw json.RawMessage, defaultModel string) (json.RawMessage, error) {
+	var params struct {
+		Model string `json:"model"`
+	}
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return nil, invalidVariantInput("invalid image background removal params")
+	}
+	params.Model = strings.TrimSpace(params.Model)
+	if params.Model == "" {
+		params.Model = defaultModel
+	}
+	if params.Model == "" {
+		return nil, invalidVariantInput("model is required")
+	}
+	return marshalRaw(params), nil
+}
+
+func prepareImageRouterPromptParams(raw json.RawMessage, defaultModel string) (json.RawMessage, error) {
+	var params struct {
+		Prompt string `json:"prompt"`
+		Model  string `json:"model"`
+	}
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return nil, invalidVariantInput("invalid image prompt params")
+	}
+	params.Prompt = strings.TrimSpace(params.Prompt)
+	params.Model = strings.TrimSpace(params.Model)
+	if params.Prompt == "" {
+		return nil, invalidVariantRequest("prompt_required")
+	}
+	if params.Model == "" {
+		params.Model = defaultModel
+	}
+	if params.Model == "" {
+		return nil, invalidVariantInput("model is required")
+	}
+	return marshalRaw(params), nil
 }
 
 func isAllowedAudioFormat(format string, allowed ...string) bool {

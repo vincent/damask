@@ -125,7 +125,10 @@ func (s *JobServer) rebuildOneVariant(
 		return s.rebuildImageVariant(ctx, ver, variantType, paramsJSON, paramsHash)
 
 	case queue.JobTypeImageBgRemove:
-		return s.rebuildBgRemoveVariant(ctx, ver, paramsHash)
+		return s.rebuildBgRemoveVariant(ctx, ver, paramsJSON, paramsHash)
+
+	case queue.JobTypeImageWithPrompt:
+		return s.rebuildImageWithPromptVariant(ctx, ver, paramsJSON, paramsHash)
 
 	case queue.JobTypeVideoCaptureImage:
 		return s.rebuildVideoCaptureVariant(ctx, ver, paramsJSON, paramsHash)

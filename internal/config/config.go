@@ -34,6 +34,19 @@ type CanvaConfig struct {
 	ClientSecret string
 }
 
+// ImageRouterConfig holds credentials and default model selection for the
+// imagerouter.io API.
+type ImageRouterConfig struct {
+	APIKey               string
+	DefaultModel         string
+	DefaultBgRemoveModel string
+	RetryPaidOnFreeLimit bool
+}
+
+func (c ImageRouterConfig) IsConfigured() bool {
+	return strings.TrimSpace(c.APIKey) != ""
+}
+
 type Config struct {
 	MailServerPort   string
 	MailServerHost   string
@@ -48,7 +61,6 @@ type Config struct {
 	AppSecret        string
 	AppEnv           string
 	BaseURL          *url.URL
-	RemoveBgAPIKey   string
 	QueueWorkers     int
 	FrontendPath     string
 	EnableScheduler  bool
@@ -59,6 +71,8 @@ type Config struct {
 	OIDC   OIDCConfig
 	Google GoogleOIDCConfig
 	Canva  CanvaConfig
+
+	ImageRouter ImageRouterConfig
 
 	Telemetry TelemetryConfig
 }
@@ -140,7 +154,6 @@ func Load() (*Config, error) {
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		AppSecret:       os.Getenv("APP_SECRET"),
 		AppEnv:          getEnv("APP_ENV", "development"),
-		RemoveBgAPIKey:  os.Getenv("REMOVEBG_API_KEY"),
 		QueueWorkers:    workers,
 		FrontendPath:    os.Getenv("FRONTEND_PATH"),
 		EnableScheduler: getEnv("ENABLE_SCHEDULER", "true") != "false",
@@ -151,6 +164,12 @@ func Load() (*Config, error) {
 			WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
 			ShowBanner:         demoMode && getEnv("DEMO_BANNER", "true") != "false",
 			SignupURL:          getEnv("DEMO_SIGNUP_URL", "/signup"),
+		},
+		ImageRouter: ImageRouterConfig{
+			APIKey:               os.Getenv("IMAGEROUTER_API_KEY"),
+			DefaultModel:         getEnv("IMAGEROUTER_DEFAULT_MODEL", "black-forest-labs/FLUX.1-fill-dev"),
+			DefaultBgRemoveModel: getEnv("IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL", "bria/remove-background"),
+			RetryPaidOnFreeLimit: getEnv("IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT", "false") == "true",
 		},
 	}
 	cfg.Telemetry = TelemetryConfig{

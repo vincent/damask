@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -390,8 +391,120 @@ func TestCreateVariant_BgRemoveNoKey(t *testing.T) {
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
 		th.JsonBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), cookie)
 	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 (no API key), got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateVariant_ImageBgRemoveQueued(t *testing.T) {
+	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", resp.StatusCode)
+	}
+
+	var result api.CreateVariantResponse
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	var payload string
+	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+		t.Fatalf("load job payload: %v", err)
+	}
+	if !strings.Contains(payload, `"model":"bria/remove-background"`) {
+		t.Fatalf("expected normalized default model in payload, got %s", payload)
+	}
+}
+
+func TestCreateVariant_ImageWithPromptQueued(t *testing.T) {
+	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{
+			Type:   "image_with_prompt",
+			Params: json.RawMessage(`{"prompt":"  add fog  "}`),
+		}), cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", resp.StatusCode)
+	}
+
+	var result api.CreateVariantResponse
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	var payload string
+	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+		t.Fatalf("load job payload: %v", err)
+	}
+	if !strings.Contains(payload, `"prompt":"add fog"`) {
+		t.Fatalf("expected trimmed prompt in payload, got %s", payload)
+	}
+}
+
+func TestCreateVariant_ImageWithPromptMissingPrompt(t *testing.T) {
+	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{
+			Type:   "image_with_prompt",
+			Params: json.RawMessage(`{"prompt":"  "}`),
+		}), cookie)
+	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400 (no API key), got %d", resp.StatusCode)
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateVariant_ImageWithPromptRequiresAPIKey(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{
+			Type:   "image_with_prompt",
+			Params: json.RawMessage(`{"prompt":"add fog"}`),
+		}), cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateVariant_BgRemoveOldTypeRejected(t *testing.T) {
+	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{Type: "bg_remove", Params: json.RawMessage(`{}`)}), cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateVariant_ImageRouterDemoBlocked(t *testing.T) {
+	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	res := th.Register(t, env, "Demo User", "demo-block@test.com", "password123")
+	assetID := uploadTestVariantAsset(t, env, "test.png", res.Cookie)
+	token, err := env.Maker.CreateDemoToken(res.UserID, res.WorkspaceID, time.Hour)
+	if err != nil {
+		t.Fatalf("create demo token: %v", err)
+	}
+
+	req := th.BearerRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JsonBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), token)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
 }
 

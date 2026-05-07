@@ -8,6 +8,7 @@ import (
 	"io"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/imagerouter"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
@@ -141,25 +142,23 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
-	rc, err := s.storage.Get(p.StorageKey)
-	if err != nil {
-		return fmt.Errorf("get file: %w", err)
+	var params struct {
+		Model string `json:"model"`
 	}
-	defer rc.Close()
-
-	imgData, err := io.ReadAll(rc)
-	if err != nil {
-		return fmt.Errorf("read file: %w", err)
+	if err := json.Unmarshal(p.Params, &params); err != nil {
+		return fmt.Errorf("parse bg remove params: %w", err)
 	}
 
-	result, err := s.trf.RemoveBackground(ctx, imgData, s.cfg.RemoveBgAPIKey)
+	result, err := s.runImageRouterJob(ctx, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
+	})
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
 	}
 
 	variantID := uuid.NewString()
-	emptyParams := "{}"
-	paramsHash := canonicalParamsHash(emptyParams)
+	paramsStr := string(p.Params)
+	paramsHash := canonicalParamsHash(paramsStr)
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeImageBgRemove, paramsHash, ".png")
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
@@ -173,7 +172,56 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		AssetVersionID:  p.VersionID,
 		Type:            queue.JobTypeImageBgRemove,
 		StorageKey:      storageKey,
-		TransformParams: &emptyParams,
+		TransformParams: &paramsStr,
+		Size:            &sz,
+	})
+	if err == nil {
+		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")
+	}
+	return err
+}
+
+func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error {
+	var p VariantJobPayload
+	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
+		return fmt.Errorf("parse payload: %w", err)
+	}
+
+	var params struct {
+		Prompt string `json:"prompt"`
+		Model  string `json:"model"`
+	}
+	if err := json.Unmarshal(p.Params, &params); err != nil {
+		return fmt.Errorf("parse image prompt params: %w", err)
+	}
+
+	result, err := s.runImageRouterJob(ctx, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+		return client.Transform(ctx, imageData, imagerouter.PromptParams{
+			Prompt: params.Prompt,
+			Model:  params.Model,
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("image transform with prompt: %w", err)
+	}
+
+	variantID := uuid.NewString()
+	paramsStr := string(p.Params)
+	paramsHash := canonicalParamsHash(paramsStr)
+	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeImageWithPrompt, paramsHash, ".png")
+
+	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
+		return fmt.Errorf("store variant: %w", err)
+	}
+
+	sz := int64(len(result))
+	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              variantID,
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
+		Type:            queue.JobTypeImageWithPrompt,
+		StorageKey:      storageKey,
+		TransformParams: &paramsStr,
 		Size:            &sz,
 	})
 	if err == nil {
@@ -278,24 +326,18 @@ func (s *JobServer) rebuildImageVariant(
 func (s *JobServer) rebuildBgRemoveVariant(
 	ctx context.Context,
 	ver dbgen.AssetVersion,
-	paramsHash string,
+	paramsJSON, paramsHash string,
 ) error {
-	if s.cfg.RemoveBgAPIKey == "" {
-		return fmt.Errorf("REMOVEBG_API_KEY not configured")
+	var params struct {
+		Model string `json:"model"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+		return fmt.Errorf("parse bg remove params: %w", err)
 	}
 
-	rc, err := s.storage.Get(ver.StorageKey)
-	if err != nil {
-		return fmt.Errorf("get source: %w", err)
-	}
-	defer rc.Close()
-
-	imgData, err := io.ReadAll(rc)
-	if err != nil {
-		return fmt.Errorf("read source: %w", err)
-	}
-
-	result, err := s.trf.RemoveBackground(ctx, imgData, s.cfg.RemoveBgAPIKey)
+	result, err := s.runImageRouterJob(ctx, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
+	})
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
 	}
@@ -305,7 +347,6 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		return fmt.Errorf("store variant: %w", err)
 	}
 
-	emptyParams := "{}"
 	sz := int64(len(result))
 	vid := uuid.NewString()
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
@@ -314,11 +355,80 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		AssetVersionID:  ver.ID,
 		Type:            queue.JobTypeImageBgRemove,
 		StorageKey:      storageKey,
-		TransformParams: &emptyParams,
+		TransformParams: &paramsJSON,
 		Size:            &sz,
 	})
 	if err == nil {
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/png")
 	}
 	return err
+}
+
+func (s *JobServer) rebuildImageWithPromptVariant(
+	ctx context.Context,
+	ver dbgen.AssetVersion,
+	paramsJSON, paramsHash string,
+) error {
+	var params struct {
+		Prompt string `json:"prompt"`
+		Model  string `json:"model"`
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+		return fmt.Errorf("parse image prompt params: %w", err)
+	}
+
+	result, err := s.runImageRouterJob(ctx, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+		return client.Transform(ctx, imageData, imagerouter.PromptParams{
+			Prompt: params.Prompt,
+			Model:  params.Model,
+		})
+	})
+	if err != nil {
+		return fmt.Errorf("image transform with prompt: %w", err)
+	}
+
+	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, queue.JobTypeImageWithPrompt, paramsHash, ".png")
+	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
+		return fmt.Errorf("store variant: %w", err)
+	}
+
+	sz := int64(len(result))
+	vid := uuid.NewString()
+	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              vid,
+		WorkspaceID:     ver.WorkspaceID,
+		AssetVersionID:  ver.ID,
+		Type:            queue.JobTypeImageWithPrompt,
+		StorageKey:      storageKey,
+		TransformParams: &paramsJSON,
+		Size:            &sz,
+	})
+	if err == nil {
+		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/png")
+	}
+	return err
+}
+
+func (s *JobServer) runImageRouterJob(
+	ctx context.Context,
+	sourceKey string,
+	callFn func(*imagerouter.Client, []byte) ([]byte, error),
+) ([]byte, error) {
+	rc, err := s.storage.Get(sourceKey)
+	if err != nil {
+		return nil, fmt.Errorf("get source: %w", err)
+	}
+	defer rc.Close()
+
+	imageData, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, fmt.Errorf("read source: %w", err)
+	}
+
+	client := imagerouter.NewClient(s.cfg.ImageRouter.APIKey, s.cfg.ImageRouter.RetryPaidOnFreeLimit)
+	result, err := callFn(client, imageData)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

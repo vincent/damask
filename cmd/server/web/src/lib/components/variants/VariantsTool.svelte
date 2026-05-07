@@ -5,6 +5,7 @@
   import VariantCreateConvert from './VariantCreateConvert.svelte'
   import VariantCreateCrop from './VariantCreateCrop.svelte'
   import VariantCreateRemoveBackground from './VariantCreateRemoveBackground.svelte'
+  import VariantCreateImageWithPrompt from './VariantCreateImageWithPrompt.svelte'
   import VariantCreateSmartCrop from './VariantCreateSmartCrop.svelte'
   import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
   import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
@@ -21,6 +22,7 @@
     | 'smart_crop'
     | 'crop'
     | 'bg_remove'
+    | 'image_with_prompt'
     | 'video_transcode'
     | 'video_watermark'
     | 'video_capture_image'
@@ -47,6 +49,8 @@
   <VariantCreateCrop {asset} {creating} {handleCreate} />
 {:else if tool === 'bg_remove'}
   <VariantCreateRemoveBackground {asset} {creating} {handleCreate} />
+{:else if tool === 'image_with_prompt'}
+  <VariantCreateImageWithPrompt {asset} {creating} {handleCreate} />
 {:else if tool === 'smart_crop'}
   <VariantCreateSmartCrop {asset} {creating} {handleCreate} />
 {:else if tool === 'video_transcode'}

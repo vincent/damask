@@ -327,6 +327,7 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Delete("/assets/:id/tags/:name", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRemoveTagFromAsset)
 
 	// Variants
+	api.Get("/imagerouter/models", s.handleListImageRouterModels)
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)

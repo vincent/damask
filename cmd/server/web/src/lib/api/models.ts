@@ -217,6 +217,20 @@ export interface WatermarkAsset {
   scope: 'folder' | 'project' | 'workspace'
 }
 
+export interface ImageRouterModel {
+  id: string
+  name: string
+  provider: string
+  price_per_image: number
+}
+
+export interface ImageRouterModelsResponse {
+  models: ImageRouterModel[]
+  configured: boolean
+  default_model: string
+  default_bg_remove_model: string
+}
+
 export interface WatermarkParams {
   watermark_asset_id?: string
   opacity?: number

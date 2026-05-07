@@ -1,11 +1,41 @@
 import { ApiError, apiFetch } from './client'
-import type { Asset, FieldFilter, ShareComment } from './models'
+import type {
+  Asset,
+  FieldFilter,
+  ImageRouterModelsResponse,
+  ShareComment,
+} from './models'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 export interface AssetListResponse {
   assets: Asset[]
   next_cursor: string | null
+}
+
+let imageRouterModelsCache: ImageRouterModelsResponse | null = null
+let imageRouterModelsPromise: Promise<ImageRouterModelsResponse> | null = null
+
+async function fetchImageRouterModelsCached(): Promise<ImageRouterModelsResponse> {
+  if (imageRouterModelsCache) return imageRouterModelsCache
+  if (imageRouterModelsPromise) return imageRouterModelsPromise
+
+  imageRouterModelsPromise = apiFetch<ImageRouterModelsResponse>(
+    '/api/v1/imagerouter/models'
+  )
+
+  try {
+    const response = await imageRouterModelsPromise
+    imageRouterModelsCache = response
+    return response
+  } catch (error) {
+    imageRouterModelsPromise = null
+    throw error
+  } finally {
+    if (imageRouterModelsCache) {
+      imageRouterModelsPromise = null
+    }
+  }
 }
 
 export const assetApi = {
@@ -160,4 +190,7 @@ export const assetApi = {
         method: 'POST',
       }
     ),
+
+  /** GET /api/v1/imagerouter/models — list image-to-image models via the authenticated backend proxy. */
+  fetchImageRouterModels: () => fetchImageRouterModelsCached(),
 }
