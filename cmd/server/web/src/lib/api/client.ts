@@ -59,7 +59,11 @@ export async function apiFetch<T>(
     ...init,
   })
 
-  if (res.status === 401 && typeof window !== 'undefined' && path !== '/api/v1/workspace/me') {
+  if (
+    res.status === 401 &&
+    typeof window !== 'undefined' &&
+    path !== '/api/v1/workspace/me'
+  ) {
     window.location.href = '/login'
     throw new ApiError(401, 'Unauthorized')
   }

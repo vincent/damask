@@ -57,38 +57,40 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 	switch job.Type {
 	case queue.JobTypeImageResize:
 		var params transform.ResizeParams
-		if err := json.Unmarshal(p.Params, &params); err != nil {
+		if err = json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse resize params: %w", err)
 		}
 		data, contentType, err = s.trf.ImageResize(rc, params)
 	case queue.JobTypeImageConvert:
 		var params transform.ConvertParams
-		if err := json.Unmarshal(p.Params, &params); err != nil {
+		if err = json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse convert params: %w", err)
 		}
 		data, contentType, err = s.trf.ImageConvert(rc, params)
 	case queue.JobTypeImageCrop:
 		var params transform.CropParams
-		if err := json.Unmarshal(p.Params, &params); err != nil {
+		if err = json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse crop params: %w", err)
 		}
 		data, contentType, err = s.trf.ImageCrop(rc, params)
 	case queue.JobTypeImageWatermark:
 		var params transform.WatermarkParams
-		if err := json.Unmarshal(p.Params, &params); err != nil {
+		if err = json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
 		if params.WatermarkAssetID == "" {
 			return fmt.Errorf("watermark asset id is required")
 		}
-		wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+		var wm dbgen.Asset
+		wm, err = s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 			ID:          params.WatermarkAssetID,
 			WorkspaceID: p.WorkspaceID,
 		})
 		if err != nil {
 			return fmt.Errorf("get watermark asset: %w", err)
 		}
-		wmRC, err := s.storage.Get(wm.StorageKey)
+		var wmRC io.ReadCloser
+		wmRC, err = s.storage.Get(wm.StorageKey)
 		if err != nil {
 			return fmt.Errorf("get watermark file: %w", err)
 		}
@@ -96,7 +98,7 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		_ = wmRC.Close()
 	case queue.JobTypeImageSmartCrop:
 		var params transform.SmartCropParams
-		if err := json.Unmarshal(p.Params, &params); err != nil {
+		if err = json.Unmarshal(p.Params, &params); err != nil {
 			return fmt.Errorf("parse smartcrop params: %w", err)
 		}
 		data, contentType, err = s.trf.ImageSmartCrop(rc, params)
@@ -200,13 +202,13 @@ func (s *JobServer) rebuildImageVariant(
 	switch variantType {
 	case queue.JobTypeImageResize:
 		var params transform.ResizeParams
-		if err := json.Unmarshal(rawParams, &params); err != nil {
+		if err = json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse resize params: %w", err)
 		}
 		data, contentType, err = s.trf.ImageResize(rc, params)
 	case queue.JobTypeImageConvert:
 		var params transform.ConvertParams
-		if err := json.Unmarshal(rawParams, &params); err != nil {
+		if err = json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse convert params: %w", err)
 		}
 		data, contentType, err = s.trf.ImageConvert(rc, params)
@@ -218,20 +220,22 @@ func (s *JobServer) rebuildImageVariant(
 		data, contentType, err = s.trf.ImageCrop(rc, params)
 	case queue.JobTypeImageWatermark:
 		var params transform.WatermarkParams
-		if err := json.Unmarshal(rawParams, &params); err != nil {
+		if err = json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
 		if params.WatermarkAssetID == "" {
 			return fmt.Errorf("watermark asset id is required")
 		}
-		wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+		var wm dbgen.Asset
+		wm, err = s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 			ID:          params.WatermarkAssetID,
 			WorkspaceID: ver.WorkspaceID,
 		})
 		if err != nil {
 			return fmt.Errorf("get watermark asset: %w", err)
 		}
-		wmRC, err := s.storage.Get(wm.StorageKey)
+		var wmRC io.ReadCloser
+		wmRC, err = s.storage.Get(wm.StorageKey)
 		if err != nil {
 			return fmt.Errorf("get watermark file: %w", err)
 		}
@@ -239,7 +243,7 @@ func (s *JobServer) rebuildImageVariant(
 		_ = wmRC.Close()
 	case queue.JobTypeImageSmartCrop:
 		var params transform.SmartCropParams
-		if err := json.Unmarshal(rawParams, &params); err != nil {
+		if err = json.Unmarshal(rawParams, &params); err != nil {
 			return fmt.Errorf("parse smartcrop params: %w", err)
 		}
 		data, contentType, err = s.trf.ImageSmartCrop(rc, params)
