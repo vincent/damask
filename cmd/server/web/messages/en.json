@@ -183,6 +183,10 @@
   "tags_merge_description": "Select the target tag to merge into. Source tags will be deleted.",
   "tags_will_be_deleted": "{ids} will be deleted after merge",
   "tags_bulk_delete_description": "This will remove these tags from all assets they are assigned to.",
+  "tags_system_tag_rename_blocked": "System tags cannot be renamed",
+  "tags_system_tag_delete_blocked": "System tags cannot be deleted",
+  "tags_system_group_label": "system",
+  "tags_system_tag_badge_tooltip": "This tag is managed by the system",
   "tags": "Tags",
   "tags_page_description": "Manage tags for your assets. Click a tag to edit its name, color, or group. Drag and drop one tag onto another to merge them.",
   "tag_renamed": "Tag renamed",
@@ -746,5 +750,7 @@
   "hp_diag_pill_normalize": "normalize",
   "hp_diag_pill_extract_audio": "extract audio",
   "hp_diag_pill_bg_remove": "bg remove",
+  "errors_system_tag_protected": "This operation is not allowed on system tags",
+  "errors_no_watermark_asset": "No asset tagged _watermark found in this workspace",
   "upload_files": "Upload files"
 }

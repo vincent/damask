@@ -12,11 +12,14 @@ import (
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/repository"
+	"damask/server/internal/systemtags"
 	apptelemetry "damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
+
+var ErrSystemTagProtected = errors.New("system tags cannot be deleted")
 
 // TagDTO is the output of TagService methods.
 type TagDTO struct {
@@ -73,8 +76,8 @@ func NewTagService(tags repository.TagRepository, aw audit.Writer) TagService {
 	return &tagService{tags: tags, audit: aw}
 }
 
-func (s *tagService) List(ctx context.Context, workspaceID string) ([]*TagDTO, error) {
-	rows, err := s.tags.List(ctx, workspaceID)
+func (s *tagService) List(ctx context.Context, workspaceID string, includeSystem bool) ([]*TagDTO, error) {
+	rows, err := s.tags.List(ctx, workspaceID, includeSystem)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +86,14 @@ func (s *tagService) List(ctx context.Context, workspaceID string) ([]*TagDTO, e
 		out[i] = toTagDTO(r)
 	}
 	return out, nil
+}
+
+func (s *tagService) EnsureSystemTag(ctx context.Context, workspaceID, name string) error {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if !systemtags.IsSystem(name) {
+		return fmt.Errorf("unknown system tag %q: %w", name, apperr.ErrInvalidInput)
+	}
+	return s.tags.EnsureSystemTag(ctx, workspaceID, name)
 }
 
 func (s *tagService) Create(ctx context.Context, workspaceID string, p CreateTagParams) (*TagDTO, error) {
@@ -122,6 +133,9 @@ func (s *tagService) Patch(ctx context.Context, workspaceID, currentName string,
 
 	finalName := existing.Name
 	if p.Name != nil && *p.Name != existing.Name {
+		if existing.GroupName != nil && *existing.GroupName == systemtags.GroupName {
+			return nil, ErrSystemTagProtected
+		}
 		_, err := s.tags.GetByName(ctx, workspaceID, *p.Name)
 		if err == nil {
 			return nil, fmt.Errorf("tag %q already exists: %w", *p.Name, apperr.ErrConflict)
@@ -161,6 +175,9 @@ func (s *tagService) Patch(ctx context.Context, workspaceID, currentName string,
 }
 
 func (s *tagService) Delete(ctx context.Context, workspaceID string, names []string) error {
+	if err := s.guardMutableTags(ctx, workspaceID, names...); err != nil {
+		return err
+	}
 	return s.tags.Delete(ctx, workspaceID, names)
 }
 
@@ -181,6 +198,9 @@ func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names [
 	}()
 
 	err = s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
+		if err := guardMutableTagsRepo(ctx, tx, workspaceID, names...); err != nil {
+			return err
+		}
 		for _, name := range names {
 			tag, err := tx.GetByName(ctx, workspaceID, name)
 			if isNotFound(err) {
@@ -223,6 +243,9 @@ func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []st
 		if err != nil {
 			return err
 		}
+		if err := guardMutableTagsRepo(ctx, tx, workspaceID, sources...); err != nil {
+			return err
+		}
 		for _, src := range sources {
 			srcTag, err := tx.GetByName(ctx, workspaceID, src)
 			if isNotFound(err) {
@@ -258,6 +281,42 @@ func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []st
 	return result, err
 }
 
+func (s *tagService) ResolveSystemTag(ctx context.Context, workspaceID, tagName string, scope SystemTagScope) (*AssetDTO, error) {
+	tagName = strings.ToLower(strings.TrimSpace(tagName))
+	if !systemtags.IsSystem(tagName) {
+		return nil, fmt.Errorf("unknown system tag %q: %w", tagName, apperr.ErrInvalidInput)
+	}
+
+	if scope.FolderID != nil {
+		asset, err := s.tags.FindAssetBySystemTagInFolder(ctx, workspaceID, tagName, *scope.FolderID)
+		if err == nil {
+			return toAssetDTO(asset), nil
+		}
+		if !isNotFound(err) {
+			return nil, err
+		}
+	}
+
+	if scope.ProjectID != nil {
+		asset, err := s.tags.FindAssetBySystemTagInProject(ctx, workspaceID, tagName, *scope.ProjectID)
+		if err == nil {
+			return toAssetDTO(asset), nil
+		}
+		if !isNotFound(err) {
+			return nil, err
+		}
+	}
+
+	asset, err := s.tags.FindAssetBySystemTagInWorkspace(ctx, workspaceID, tagName)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return toAssetDTO(asset), nil
+}
+
 func (s *tagService) TouchLastUsed(ctx context.Context, workspaceID, name string) error {
 	return s.tags.TouchLastUsed(ctx, workspaceID, name)
 }
@@ -278,6 +337,11 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 	tagName = strings.ToLower(strings.TrimSpace(tagName))
 	if tagName == "" {
 		return nil, fmt.Errorf("tag name is required: %w", apperr.ErrInvalidInput)
+	}
+	if systemtags.IsSystem(tagName) {
+		if err := s.tags.EnsureSystemTag(ctx, workspaceID, tagName); err != nil {
+			return nil, err
+		}
 	}
 	tag, err := s.tags.Upsert(ctx, workspaceID, tagName)
 	if err != nil {
@@ -327,11 +391,36 @@ func (s *tagService) UpsertForAsset(ctx context.Context, workspaceID, assetID, t
 	if tagName == "" {
 		return fmt.Errorf("tag name is required: %w", apperr.ErrInvalidInput)
 	}
+	if systemtags.IsSystem(tagName) {
+		if err := s.tags.EnsureSystemTag(ctx, workspaceID, tagName); err != nil {
+			return err
+		}
+	}
 	tag, err := s.tags.Upsert(ctx, workspaceID, tagName)
 	if err != nil {
 		return err
 	}
 	return s.tags.AddToAsset(ctx, assetID, tag.ID)
+}
+
+func (s *tagService) guardMutableTags(ctx context.Context, workspaceID string, names ...string) error {
+	return guardMutableTagsRepo(ctx, s.tags, workspaceID, names...)
+}
+
+func guardMutableTagsRepo(ctx context.Context, repo repository.TagRepository, workspaceID string, names ...string) error {
+	for _, name := range names {
+		tag, err := repo.GetByName(ctx, workspaceID, name)
+		if isNotFound(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if tag.GroupName != nil && *tag.GroupName == systemtags.GroupName {
+			return ErrSystemTagProtected
+		}
+	}
+	return nil
 }
 
 func toTagDTO(t repository.Tag) *TagDTO {

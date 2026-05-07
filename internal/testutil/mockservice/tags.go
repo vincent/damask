@@ -8,24 +8,26 @@ import (
 
 // MockTagService is a no-op implementation of service.TagService.
 type MockTagService struct {
-	ListFn         func(ctx context.Context, workspaceID string) ([]*service.TagDTO, error)
-	CreateFn       func(ctx context.Context, workspaceID string, p service.CreateTagParams) (*service.TagDTO, error)
-	PatchFn        func(ctx context.Context, workspaceID, currentName string, p service.PatchTagParams) (*service.TagDTO, error)
-	DeleteFn       func(ctx context.Context, workspaceID string, names []string) error
-	BulkDeleteFn   func(ctx context.Context, workspaceID string, names []string) (service.BulkDeleteTagsResult, error)
-	MergeFn        func(ctx context.Context, workspaceID string, sources []string, target string) (service.MergeTagsResult, error)
-	TouchLastUsedFn func(ctx context.Context, workspaceID, name string) error
-	ListForAssetFn func(ctx context.Context, assetID string) ([]*service.TagDTO, error)
-	AddToAssetFn   func(ctx context.Context, workspaceID, assetID, tagName string) (*service.TagDTO, error)
-	RemoveFromAssetFn func(ctx context.Context, workspaceID, assetID, tagName string) error
-	UpsertForAssetFn  func(ctx context.Context, workspaceID, assetID, tagName string) error
+	ListFn             func(ctx context.Context, workspaceID string, includeSystem bool) ([]*service.TagDTO, error)
+	CreateFn           func(ctx context.Context, workspaceID string, p service.CreateTagParams) (*service.TagDTO, error)
+	PatchFn            func(ctx context.Context, workspaceID, currentName string, p service.PatchTagParams) (*service.TagDTO, error)
+	EnsureSystemTagFn  func(ctx context.Context, workspaceID, name string) error
+	DeleteFn           func(ctx context.Context, workspaceID string, names []string) error
+	BulkDeleteFn       func(ctx context.Context, workspaceID string, names []string) (service.BulkDeleteTagsResult, error)
+	MergeFn            func(ctx context.Context, workspaceID string, sources []string, target string) (service.MergeTagsResult, error)
+	ResolveSystemTagFn func(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error)
+	TouchLastUsedFn    func(ctx context.Context, workspaceID, name string) error
+	ListForAssetFn     func(ctx context.Context, assetID string) ([]*service.TagDTO, error)
+	AddToAssetFn       func(ctx context.Context, workspaceID, assetID, tagName string) (*service.TagDTO, error)
+	RemoveFromAssetFn  func(ctx context.Context, workspaceID, assetID, tagName string) error
+	UpsertForAssetFn   func(ctx context.Context, workspaceID, assetID, tagName string) error
 }
 
 func NewTagService() *MockTagService { return &MockTagService{} }
 
-func (m *MockTagService) List(ctx context.Context, workspaceID string) ([]*service.TagDTO, error) {
+func (m *MockTagService) List(ctx context.Context, workspaceID string, includeSystem bool) ([]*service.TagDTO, error) {
 	if m.ListFn != nil {
-		return m.ListFn(ctx, workspaceID)
+		return m.ListFn(ctx, workspaceID, includeSystem)
 	}
 	return nil, nil
 }
@@ -42,6 +44,13 @@ func (m *MockTagService) Patch(ctx context.Context, workspaceID, currentName str
 		return m.PatchFn(ctx, workspaceID, currentName, p)
 	}
 	return nil, nil
+}
+
+func (m *MockTagService) EnsureSystemTag(ctx context.Context, workspaceID, name string) error {
+	if m.EnsureSystemTagFn != nil {
+		return m.EnsureSystemTagFn(ctx, workspaceID, name)
+	}
+	return nil
 }
 
 func (m *MockTagService) Delete(ctx context.Context, workspaceID string, names []string) error {
@@ -63,6 +72,13 @@ func (m *MockTagService) Merge(ctx context.Context, workspaceID string, sources 
 		return m.MergeFn(ctx, workspaceID, sources, target)
 	}
 	return service.MergeTagsResult{}, nil
+}
+
+func (m *MockTagService) ResolveSystemTag(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
+	if m.ResolveSystemTagFn != nil {
+		return m.ResolveSystemTagFn(ctx, workspaceID, tagName, scope)
+	}
+	return nil, nil
 }
 
 func (m *MockTagService) TouchLastUsed(ctx context.Context, workspaceID, name string) error {

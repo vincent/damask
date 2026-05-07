@@ -16,7 +16,7 @@ function createTagsManagementStore() {
     stale = false
     loading = true
     try {
-      tags = await tagApi.list()
+      tags = await tagApi.list({ system: true })
     } finally {
       loading = false
     }

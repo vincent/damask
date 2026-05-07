@@ -182,6 +182,10 @@
   "tags_merge_description": "Selecciona la etiqueta de destino en la que combinar. Las etiquetas de origen se eliminarán.",
   "tags_will_be_deleted": "{ids} se eliminarán tras la combinación",
   "tags_bulk_delete_description": "Esto eliminará estas etiquetas de todos los archivos a los que están asignadas.",
+  "tags_system_tag_rename_blocked": "Las etiquetas del sistema no se pueden renombrar",
+  "tags_system_tag_delete_blocked": "Las etiquetas del sistema no se pueden eliminar",
+  "tags_system_group_label": "sistema",
+  "tags_system_tag_badge_tooltip": "Esta etiqueta está gestionada por el sistema",
   "tags": "Etiquetas",
   "tags_page_description": "Gestiona las etiquetas de tus archivos. Haz clic en una etiqueta para editar su nombre, color o grupo. Arrastra una etiqueta sobre otra para combinarlas.",
   "tag_renamed": "Etiqueta renombrada",
@@ -730,5 +734,7 @@
   "hp_diag_pill_transcode": "transcode",
   "hp_diag_pill_normalize": "normalizar",
   "hp_diag_pill_extract_audio": "extraer audio",
-  "hp_diag_pill_bg_remove": "elim. fondo"
+  "hp_diag_pill_bg_remove": "elim. fondo",
+  "errors_system_tag_protected": "Esta operación no está permitida en etiquetas del sistema",
+  "errors_no_watermark_asset": "No se encontró ningún archivo etiquetado como _watermark en este espacio de trabajo"
 }

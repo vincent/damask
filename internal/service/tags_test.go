@@ -9,6 +9,7 @@ import (
 	"damask/server/internal/audit"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
+	"damask/server/internal/systemtags"
 )
 
 func newTagSvc(t *testing.T) (service.TagService, *memory.RealTagRepo) {
@@ -60,9 +61,9 @@ func TestTagService_Create_Conflict(t *testing.T) {
 
 func TestTagService_List_WorkspaceIsolation(t *testing.T) {
 	svc, _ := newTagSvc(t)
-	svc.Create(context.Background(), "ws_A", service.CreateTagParams{Name: "alpha"})  //nolint
-	svc.Create(context.Background(), "ws_B", service.CreateTagParams{Name: "beta"})   //nolint
-	tags, err := svc.List(context.Background(), "ws_A")
+	svc.Create(context.Background(), "ws_A", service.CreateTagParams{Name: "alpha"}) //nolint
+	svc.Create(context.Background(), "ws_B", service.CreateTagParams{Name: "beta"})  //nolint
+	tags, err := svc.List(context.Background(), "ws_A", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -145,9 +146,105 @@ func TestTagService_Delete_OK(t *testing.T) {
 	if err := svc.Delete(context.Background(), "ws_1", []string{"gone"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tags, _ := svc.List(context.Background(), "ws_1")
+	tags, _ := svc.List(context.Background(), "ws_1", false)
 	if len(tags) != 0 {
 		t.Errorf("expected 0 tags after delete, got %d", len(tags))
+	}
+}
+
+func TestTagService_EnsureSystemTag_CreatesRowOnFirstUse(t *testing.T) {
+	svc, repo := newTagSvc(t)
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	tag, err := repo.GetByName(context.Background(), "ws_1", systemtags.Watermark)
+	if err != nil {
+		t.Fatalf("expected tag row: %v", err)
+	}
+	if tag.GroupName == nil || *tag.GroupName != systemtags.GroupName {
+		t.Fatalf("expected group_name=system, got %#v", tag.GroupName)
+	}
+}
+
+func TestTagService_EnsureSystemTag_IdempotentOnRepeat(t *testing.T) {
+	svc, repo := newTagSvc(t)
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("first ensure: %v", err)
+	}
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("second ensure: %v", err)
+	}
+	tags, err := repo.List(context.Background(), "ws_1", true)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(tags) != 1 {
+		t.Fatalf("expected 1 tag row, got %d", len(tags))
+	}
+}
+
+func TestTagService_List_DefaultExcludesSystemTags(t *testing.T) {
+	svc, _ := newTagSvc(t)
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("ensure: %v", err)
+	}
+	if _, err := svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "user-tag"}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	tags, err := svc.List(context.Background(), "ws_1", false)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(tags) != 1 || tags[0].Name != "user-tag" {
+		t.Fatalf("expected only user-tag, got %+v", tags)
+	}
+}
+
+func TestTagService_Delete_SystemTag_ReturnsProtectedError(t *testing.T) {
+	svc, _ := newTagSvc(t)
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("ensure: %v", err)
+	}
+	err := svc.Delete(context.Background(), "ws_1", []string{systemtags.Watermark})
+	if !errors.Is(err, service.ErrSystemTagProtected) {
+		t.Fatalf("expected ErrSystemTagProtected, got %v", err)
+	}
+}
+
+func TestTagService_BulkDelete_SystemTag_ReturnsProtectedError(t *testing.T) {
+	svc, _ := newTagSvc(t)
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("ensure: %v", err)
+	}
+	_, err := svc.BulkDelete(context.Background(), "ws_1", []string{systemtags.Watermark})
+	if !errors.Is(err, service.ErrSystemTagProtected) {
+		t.Fatalf("expected ErrSystemTagProtected, got %v", err)
+	}
+}
+
+func TestTagService_Patch_RenameSystemTag_ReturnsProtectedError(t *testing.T) {
+	svc, _ := newTagSvc(t)
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("ensure: %v", err)
+	}
+	name := "renamed"
+	_, err := svc.Patch(context.Background(), "ws_1", systemtags.Watermark, service.PatchTagParams{Name: &name})
+	if !errors.Is(err, service.ErrSystemTagProtected) {
+		t.Fatalf("expected ErrSystemTagProtected, got %v", err)
+	}
+}
+
+func TestTagService_Merge_SystemTagAsSource_ReturnsProtectedError(t *testing.T) {
+	svc, _ := newTagSvc(t)
+	if err := svc.EnsureSystemTag(context.Background(), "ws_1", systemtags.Watermark); err != nil {
+		t.Fatalf("ensure: %v", err)
+	}
+	if _, err := svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "user-tag"}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	_, err := svc.Merge(context.Background(), "ws_1", []string{systemtags.Watermark}, "user-tag")
+	if !errors.Is(err, service.ErrSystemTagProtected) {
+		t.Fatalf("expected ErrSystemTagProtected, got %v", err)
 	}
 }
 
@@ -170,7 +267,7 @@ func TestTagService_AddToAsset_EmitsAuditEvent(t *testing.T) {
 func TestTagService_RemoveFromAsset_EmitsAuditEvent(t *testing.T) {
 	svc, _, spy := newTagSvcSpy(t)
 	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "nature") //nolint
-	spy.asset = nil                                                    // reset after add
+	spy.asset = nil                                                 // reset after add
 	if err := svc.RemoveFromAsset(context.Background(), "ws_1", "ast_1", "nature"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

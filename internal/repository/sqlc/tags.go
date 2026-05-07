@@ -36,8 +36,11 @@ func (r *tagRepo) GetByName(ctx context.Context, workspaceID, name string) (repo
 	return toTag(row), nil
 }
 
-func (r *tagRepo) List(ctx context.Context, workspaceID string) ([]repository.Tag, error) {
-	rows, err := r.q.ListTagsWithCount(ctx, workspaceID)
+func (r *tagRepo) List(ctx context.Context, workspaceID string, includeSystem bool) ([]repository.Tag, error) {
+	rows, err := r.q.ListTagsWithCount(ctx, dbgen.ListTagsWithCountParams{
+		WorkspaceID:   workspaceID,
+		IncludeSystem: includeSystem,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +58,14 @@ func (r *tagRepo) List(ctx context.Context, workspaceID string) ([]repository.Ta
 		}
 	}
 	return out, nil
+}
+
+func (r *tagRepo) EnsureSystemTag(ctx context.Context, workspaceID, name string) error {
+	return r.q.EnsureSystemTag(ctx, dbgen.EnsureSystemTagParams{
+		ID:          uuid.NewString(),
+		WorkspaceID: workspaceID,
+		Name:        name,
+	})
 }
 
 func (r *tagRepo) Upsert(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
@@ -145,6 +156,50 @@ func (r *tagRepo) TouchLastUsed(ctx context.Context, workspaceID, name string) e
 		WorkspaceID: workspaceID,
 		Name:        name,
 	})
+}
+
+func (r *tagRepo) FindAssetBySystemTagInFolder(ctx context.Context, workspaceID, tagName, folderID string) (repository.Asset, error) {
+	row, err := r.q.FindAssetBySystemTagInFolder(ctx, dbgen.FindAssetBySystemTagInFolderParams{
+		WorkspaceID: workspaceID,
+		Name:        tagName,
+		FolderID:    &folderID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Asset{}, apperr.ErrNotFound
+		}
+		return repository.Asset{}, err
+	}
+	return toAsset(row), nil
+}
+
+func (r *tagRepo) FindAssetBySystemTagInProject(ctx context.Context, workspaceID, tagName, projectID string) (repository.Asset, error) {
+	row, err := r.q.FindAssetBySystemTagInProject(ctx, dbgen.FindAssetBySystemTagInProjectParams{
+		WorkspaceID: workspaceID,
+		Name:        tagName,
+		ProjectID:   &projectID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Asset{}, apperr.ErrNotFound
+		}
+		return repository.Asset{}, err
+	}
+	return toAsset(row), nil
+}
+
+func (r *tagRepo) FindAssetBySystemTagInWorkspace(ctx context.Context, workspaceID, tagName string) (repository.Asset, error) {
+	row, err := r.q.FindAssetBySystemTagInWorkspace(ctx, dbgen.FindAssetBySystemTagInWorkspaceParams{
+		WorkspaceID: workspaceID,
+		Name:        tagName,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Asset{}, apperr.ErrNotFound
+		}
+		return repository.Asset{}, err
+	}
+	return toAsset(row), nil
 }
 
 func (r *tagRepo) RunInTx(ctx context.Context, fn func(tx repository.TagRepository) error) error {

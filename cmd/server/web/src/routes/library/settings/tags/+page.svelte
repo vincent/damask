@@ -28,6 +28,7 @@
   import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
   import ButtonCancel from '$lib/components/ui/ButtonCancel.svelte'
   import PageContainer from '$lib/components/ui/PageContainer.svelte'
+  import SystemTagBadge from '$lib/components/tags/SystemTagBadge.svelte'
   import type { Tag } from '$lib/api'
   import TagsBulkActionBar from '$lib/components/TagsBulkActionBar.svelte'
   import { SvelteSet } from 'svelte/reactivity'
@@ -111,6 +112,8 @@
   }
 
   function toggleSelect(name: string) {
+    const tag = tagsManagementStore.tags.find((t) => t.name === name)
+    if (tag?.is_system) return
     if (selected.has(name)) selected.delete(name)
     else selected.add(name)
   }
@@ -121,6 +124,11 @@
   let editNameError = $state('')
 
   function startEditName(name: string) {
+    const tag = tagsManagementStore.tags.find((t) => t.name === name)
+    if (tag?.is_system) {
+      toastStore.show(m.tags_system_tag_rename_blocked(), 'error')
+      return
+    }
     editingName = name
     editingValue = name
     editNameError = ''
@@ -220,7 +228,7 @@
   // ── Purge unused ─────────────────────────────────────────────────────────────
   let showPurgeModal = $state(false)
   const unusedTags = $derived(
-    tagsManagementStore.tags.filter((t) => t.asset_count === 0)
+    tagsManagementStore.tags.filter((t) => t.asset_count === 0 && !t.is_system)
   )
 
   async function purgeUnused() {
@@ -241,7 +249,10 @@
   let showBulkDeleteModal = $state(false)
 
   async function bulkDeleteSelected() {
-    const names = [...selected]
+    const names = [...selected].filter((name) => {
+      const tag = tagsManagementStore.tags.find((t) => t.name === name)
+      return !tag?.is_system
+    })
     try {
       const res = await tagsManagementStore.bulkDelete(names)
       toastStore.show(
@@ -623,12 +634,16 @@
     ondragend={handleDragEnd}
   >
     <!-- Checkbox -->
-    <input
-      type="checkbox"
-      class="h-4 w-4 rounded border-gray-300 text-indigo-600 dark:border-gray-600"
-      checked={selected.has(tag.name)}
-      onchange={() => toggleSelect(tag.name)}
-    />
+    {#if tag.is_system}
+      <span></span>
+    {:else}
+      <input
+        type="checkbox"
+        class="h-4 w-4 rounded border-gray-300 text-indigo-600 dark:border-gray-600"
+        checked={selected.has(tag.name)}
+        onchange={() => toggleSelect(tag.name)}
+      />
+    {/if}
 
     <!-- Color swatch -->
     <div class="relative flex items-center" data-color-picker>
@@ -695,9 +710,13 @@
         </div>
       {:else}
         <button
-          class="truncate text-left text-sm font-medium text-gray-900 hover:text-indigo-600 dark:text-gray-100 dark:hover:text-indigo-400"
+          class="truncate text-left text-sm font-medium dark:text-gray-100 {tag.is_system
+            ? 'cursor-default text-gray-500 hover:text-gray-500 dark:text-gray-400 dark:hover:text-gray-400'
+            : 'text-gray-900 hover:text-indigo-600 dark:hover:text-indigo-400'}"
           onclick={() => startEditName(tag.name)}
-          title={m.rename()}
+          title={tag.is_system
+            ? m.tags_system_tag_rename_blocked()
+            : m.rename()}
         >
           {tag.name}
         </button>
@@ -706,7 +725,9 @@
 
     <!-- Group inline -->
     <div class="relative" data-group-picker>
-      {#if groupPickerFor === tag.name}
+      {#if tag.is_system}
+        <SystemTagBadge />
+      {:else if groupPickerFor === tag.name}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
           class="absolute top-6 left-0 z-30 w-48 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900"
@@ -803,17 +824,22 @@
     <div
       class="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
     >
-      <ButtonEdit onclick={() => startEditName(tag.name)} title={m.rename()} />
-      <ButtonDelete
-        onclick={async () => {
-          try {
-            await tagsManagementStore.bulkDelete([tag.name])
-            toastStore.show(m.tag_deleted())
-          } catch {
-            toastStore.show(m.tag_delete_failed(), 'error')
-          }
-        }}
-      />
+      {#if !tag.is_system}
+        <ButtonEdit
+          onclick={() => startEditName(tag.name)}
+          title={m.rename()}
+        />
+        <ButtonDelete
+          onclick={async () => {
+            try {
+              await tagsManagementStore.bulkDelete([tag.name])
+              toastStore.show(m.tag_deleted())
+            } catch {
+              toastStore.show(m.tag_delete_failed(), 'error')
+            }
+          }}
+        />
+      {/if}
     </div>
   </div>
 {/snippet}

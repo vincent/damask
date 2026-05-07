@@ -14,6 +14,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
+	"damask/server/internal/systemtags"
 	apptelemetry "damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
@@ -54,13 +55,13 @@ type VariantDTO struct {
 type variantService struct {
 	variants repository.VariantRepository
 	assets   repository.AssetRepository
-	wm       WatermarkService
+	tags     TagService
 	audit    audit.Writer
 }
 
 // NewVariantService returns a VariantService.
-func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository, wm WatermarkService, aw audit.Writer) VariantService {
-	return &variantService{variants: variants, assets: assets, wm: wm, audit: aw}
+func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository, tags TagService, aw audit.Writer) VariantService {
+	return &variantService{variants: variants, assets: assets, tags: tags, audit: aw}
 }
 
 func (s *variantService) List(ctx context.Context, workspaceID, assetID string) ([]*VariantDTO, error) {
@@ -134,10 +135,6 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 }
 
 func (s *variantService) prepareImageWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
-	if s.wm == nil {
-		return nil, fmt.Errorf("watermark service unavailable")
-	}
-
 	var params transform.WatermarkParams
 	if err := json.Unmarshal(raw, &params); err != nil {
 		return nil, invalidVariantInput("invalid watermark params")
@@ -145,7 +142,7 @@ func (s *variantService) prepareImageWatermarkParams(ctx context.Context, p Prep
 	params.WatermarkAssetID = ""
 	params.Normalize()
 
-	wm, err := s.wm.ResolveWatermarkAsset(ctx, p.WorkspaceID, p.AssetID)
+	wm, err := s.resolveSystemTagAsset(ctx, p.WorkspaceID, p.AssetID, systemtags.Watermark)
 	if err != nil {
 		return nil, err
 	}
@@ -154,10 +151,6 @@ func (s *variantService) prepareImageWatermarkParams(ctx context.Context, p Prep
 }
 
 func (s *variantService) prepareVideoWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
-	if s.wm == nil {
-		return nil, fmt.Errorf("watermark service unavailable")
-	}
-
 	var params transform.VideoWatermarkParams
 	if err := json.Unmarshal(raw, &params); err != nil {
 		return nil, invalidVariantInput("invalid watermark params")
@@ -165,12 +158,35 @@ func (s *variantService) prepareVideoWatermarkParams(ctx context.Context, p Prep
 	params.WatermarkAssetID = ""
 	params.Normalize()
 
-	wm, err := s.wm.ResolveWatermarkAsset(ctx, p.WorkspaceID, p.AssetID)
+	wm, err := s.resolveSystemTagAsset(ctx, p.WorkspaceID, p.AssetID, systemtags.Watermark)
 	if err != nil {
 		return nil, err
 	}
 	params.WatermarkAssetID = wm.ID
 	return marshalRaw(params), nil
+}
+
+func (s *variantService) resolveSystemTagAsset(ctx context.Context, workspaceID, assetID, tagName string) (*AssetDTO, error) {
+	if s.tags == nil {
+		return nil, fmt.Errorf("tag service unavailable")
+	}
+
+	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
+	if err != nil {
+		return nil, err
+	}
+
+	resolved, err := s.tags.ResolveSystemTag(ctx, workspaceID, tagName, SystemTagScope{
+		FolderID:  asset.FolderID,
+		ProjectID: asset.ProjectID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if resolved == nil {
+		return nil, invalidVariantInput("no_watermark_asset")
+	}
+	return resolved, nil
 }
 
 func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto *VariantDTO, err error) {

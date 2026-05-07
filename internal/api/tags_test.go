@@ -110,6 +110,55 @@ func TestListTags_WithCounts(t *testing.T) {
 	}
 }
 
+func TestListTags_DefaultExcludesSystemTags(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, assetID, "_watermark")
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	var tags []api.TagResponse
+	_ = json.NewDecoder(resp.Body).Decode(&tags)
+	if len(tags) != 0 {
+		t.Fatalf("expected system tags to be excluded by default, got %+v", tags)
+	}
+}
+
+func TestListTags_SystemTrue_IncludesSystemTags(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, assetID, "_watermark")
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/tags?system=true", nil, owner.Cookie)
+	resp, _ := env.App.Test(req)
+	var tags []api.TagResponse
+	_ = json.NewDecoder(resp.Body).Decode(&tags)
+	if len(tags) != 1 || tags[0].Name != "_watermark" {
+		t.Fatalf("expected _watermark in response, got %+v", tags)
+	}
+	if !tags[0].IsSystem {
+		t.Fatalf("expected is_system=true, got %+v", tags[0])
+	}
+}
+
+func TestAddTag_SystemTag_EnsuresTagRow(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+
+	code := addTag(t, env, owner.Cookie, assetID, "_watermark")
+	if code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", code)
+	}
+
+	var groupName string
+	if err := env.SqlDB.QueryRow(`SELECT group_name FROM tags WHERE workspace_id = ? AND name = ?`, owner.WorkspaceID, "_watermark").Scan(&groupName); err != nil {
+		t.Fatalf("load tag row: %v", err)
+	}
+	if groupName != "system" {
+		t.Fatalf("expected group_name=system, got %q", groupName)
+	}
+}
+
 func TestGetAssetTags(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	assetID := uploadTestAsset(t, env, owner)
@@ -421,6 +470,18 @@ func TestPatchTag_InvalidColor(t *testing.T) {
 	}
 }
 
+func TestPatchTag_RenameSystemTag_Returns422(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, assetID, "_watermark")
+
+	req := th.AuthRequest(http.MethodPatch, "/api/v1/tags/_watermark", strings.NewReader(`{"name":"other"}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+}
+
 // ── handleBulkDeleteTags ─────────────────────────────────────────────────────
 
 func TestBulkDeleteTags_Success(t *testing.T) {
@@ -496,6 +557,18 @@ func TestBulkDeleteTags_RemovesAssetAssociations(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&result)
 	if result["removed_from_assets"] != 1 {
 		t.Errorf("removed_from_assets = %d, want 1", result["removed_from_assets"])
+	}
+}
+
+func TestBulkDeleteTags_SystemTagInList_Returns422(t *testing.T) {
+	env, owner := th.SetupWithOwner(t)
+	assetID := uploadTestAsset(t, env, owner)
+	addTag(t, env, owner.Cookie, assetID, "_watermark")
+
+	req := th.AuthRequest(http.MethodDelete, "/api/v1/tags", strings.NewReader(`{"names":["_watermark"]}`), owner.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

@@ -161,6 +161,7 @@ export interface Tag {
   asset_count: number
   color?: string | null
   group_name?: string | null
+  is_system: boolean
   created_at: string
   last_used_at?: string | null
 }

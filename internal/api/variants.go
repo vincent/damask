@@ -17,6 +17,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/systemtags"
 	apptelemetry "damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
@@ -84,21 +85,15 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 	}
 }
 
-func watermarkDTOToResponse(assetID string, v *service.WatermarkAssetDTO) WatermarkAssetResponse {
-	var thumbURL *string
-	if v.ThumbnailURL != nil {
-		thumbURL = v.ThumbnailURL
-	} else {
-		u := fmt.Sprintf("/api/v1/assets/%s/thumb", v.ID)
-		thumbURL = &u
-	}
+func systemTagAssetToWatermarkResponse(v *service.AssetDTO, scope string) WatermarkAssetResponse {
+	u := fmt.Sprintf("/api/v1/assets/%s/thumb", v.ID)
 	return WatermarkAssetResponse{
 		ID:           v.ID,
-		Name:         v.Name,
+		Name:         v.OriginalFilename,
 		StorageKey:   v.StorageKey,
 		MimeType:     v.MimeType,
-		ThumbnailURL: thumbURL,
-		Scope:        v.Scope,
+		ThumbnailURL: &u,
+		Scope:        scope,
 	}
 }
 
@@ -162,18 +157,28 @@ func (s *Server) handleResolveWatermarkAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
-		return ErrorStatusResponse(c, err)
-	}
-	if s.watermarks == nil {
-		return errRes(c, fiber.StatusInternalServerError, "watermark service unavailable")
-	}
-
-	wm, err := s.watermarks.ResolveWatermarkAsset(c.Context(), claims.WorkspaceID, assetID)
+	asset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	return c.JSON(watermarkDTOToResponse(assetID, wm))
+
+	wm, err := s.tags.ResolveSystemTag(c.Context(), claims.WorkspaceID, systemtags.Watermark, service.SystemTagScope{
+		FolderID:  asset.FolderID,
+		ProjectID: asset.ProjectID,
+	})
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	if wm == nil {
+		return errRes(c, fiber.StatusUnprocessableEntity, "no_watermark_asset")
+	}
+	scope := "workspace"
+	if asset.FolderID != nil && wm.FolderID != nil && *asset.FolderID == *wm.FolderID {
+		scope = "folder"
+	} else if asset.ProjectID != nil && wm.ProjectID != nil && *asset.ProjectID == *wm.ProjectID {
+		scope = "project"
+	}
+	return c.JSON(systemTagAssetToWatermarkResponse(wm, scope))
 }
 
 // handleCreateVariant enqueues a transform job to produce a new variant.

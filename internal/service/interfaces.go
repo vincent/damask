@@ -258,16 +258,23 @@ type MergeTagsResult struct {
 	Target       *TagDTO
 }
 
+type SystemTagScope struct {
+	FolderID  *string
+	ProjectID *string
+}
+
 // TagService handles business logic for tag records.
 type TagService interface {
-	List(ctx context.Context, workspaceID string) ([]*TagDTO, error)
+	List(ctx context.Context, workspaceID string, includeSystem bool) ([]*TagDTO, error)
 	Create(ctx context.Context, workspaceID string, p CreateTagParams) (*TagDTO, error)
 	Patch(ctx context.Context, workspaceID, currentName string, p PatchTagParams) (*TagDTO, error)
+	EnsureSystemTag(ctx context.Context, workspaceID, name string) error
 	Delete(ctx context.Context, workspaceID string, names []string) error
 	// BulkDelete deletes the named tags atomically and returns counts.
 	BulkDelete(ctx context.Context, workspaceID string, names []string) (BulkDeleteTagsResult, error)
 	// Merge reassigns all assets from sources to target (creating it if needed), then deletes sources.
 	Merge(ctx context.Context, workspaceID string, sources []string, target string) (MergeTagsResult, error)
+	ResolveSystemTag(ctx context.Context, workspaceID, tagName string, scope SystemTagScope) (*AssetDTO, error)
 	// TouchLastUsed updates last_used_at for the named tag (fire-and-forget).
 	TouchLastUsed(ctx context.Context, workspaceID, name string) error
 	ListForAsset(ctx context.Context, assetID string) ([]*TagDTO, error)

@@ -30,7 +30,7 @@ func (r *FolderRepo) Create(_ context.Context, f repository.Folder) (repository.
 func (r *FolderRepo) Update(_ context.Context, f repository.Folder) (repository.Folder, error) {
 	return f, nil
 }
-func (r *FolderRepo) Delete(_ context.Context, _, _ string) error           { return nil }
+func (r *FolderRepo) Delete(_ context.Context, _, _ string) error { return nil }
 func (r *FolderRepo) GetChildren(_ context.Context, _, _ string) ([]repository.Folder, error) {
 	return nil, nil
 }
@@ -45,13 +45,16 @@ func NewTagRepo() *TagRepo { return &TagRepo{} }
 func (r *TagRepo) GetByName(_ context.Context, _, _ string) (repository.Tag, error) {
 	return repository.Tag{}, nil
 }
-func (r *TagRepo) List(_ context.Context, _ string) ([]repository.Tag, error) { return nil, nil }
+func (r *TagRepo) List(_ context.Context, _ string, _ bool) ([]repository.Tag, error) {
+	return nil, nil
+}
 func (r *TagRepo) Upsert(_ context.Context, _, _ string) (repository.Tag, error) {
 	return repository.Tag{}, nil
 }
+func (r *TagRepo) EnsureSystemTag(_ context.Context, _, _ string) error              { return nil }
 func (r *TagRepo) UpdateMetadata(_ context.Context, _, _ string, _, _ *string) error { return nil }
-func (r *TagRepo) Rename(_ context.Context, _, _, _ string) error                     { return nil }
-func (r *TagRepo) Delete(_ context.Context, _ string, _ []string) error { return nil }
+func (r *TagRepo) Rename(_ context.Context, _, _, _ string) error                    { return nil }
+func (r *TagRepo) Delete(_ context.Context, _ string, _ []string) error              { return nil }
 func (r *TagRepo) ListForAsset(_ context.Context, _ string) ([]repository.Tag, error) {
 	return nil, nil
 }
@@ -60,6 +63,15 @@ func (r *TagRepo) RemoveFromAsset(_ context.Context, _, _, _ string) error { ret
 func (r *TagRepo) CountAssets(_ context.Context, _ string) (int64, error)  { return 0, nil }
 func (r *TagRepo) ReassignAssets(_ context.Context, _, _ string) error     { return nil }
 func (r *TagRepo) TouchLastUsed(_ context.Context, _, _ string) error      { return nil }
+func (r *TagRepo) FindAssetBySystemTagInFolder(_ context.Context, _, _, _ string) (repository.Asset, error) {
+	return repository.Asset{}, apperr.ErrNotFound
+}
+func (r *TagRepo) FindAssetBySystemTagInProject(_ context.Context, _, _, _ string) (repository.Asset, error) {
+	return repository.Asset{}, apperr.ErrNotFound
+}
+func (r *TagRepo) FindAssetBySystemTagInWorkspace(_ context.Context, _, _ string) (repository.Asset, error) {
+	return repository.Asset{}, apperr.ErrNotFound
+}
 func (r *TagRepo) RunInTx(_ context.Context, fn func(repository.TagRepository) error) error {
 	return fn(r)
 }
@@ -82,9 +94,9 @@ func (r *CollectionRepo) Create(_ context.Context, c repository.Collection) (rep
 func (r *CollectionRepo) Update(_ context.Context, c repository.Collection) (repository.Collection, error) {
 	return c, nil
 }
-func (r *CollectionRepo) Delete(_ context.Context, _, _ string) error   { return nil }
-func (r *CollectionRepo) AddAsset(_ context.Context, _, _ string) error        { return nil }
-func (r *CollectionRepo) RemoveAsset(_ context.Context, _, _ string) error     { return nil }
+func (r *CollectionRepo) Delete(_ context.Context, _, _ string) error      { return nil }
+func (r *CollectionRepo) AddAsset(_ context.Context, _, _ string) error    { return nil }
+func (r *CollectionRepo) RemoveAsset(_ context.Context, _, _ string) error { return nil }
 func (r *CollectionRepo) ListForAsset(_ context.Context, _, _ string) ([]repository.Collection, error) {
 	return nil, nil
 }
@@ -115,7 +127,7 @@ func (r *ShareRepo) Create(_ context.Context, s repository.Share) (repository.Sh
 func (r *ShareRepo) Update(_ context.Context, s repository.Share) (repository.Share, error) {
 	return s, nil
 }
-func (r *ShareRepo) Revoke(_ context.Context, _, _ string) error     { return nil }
+func (r *ShareRepo) Revoke(_ context.Context, _, _ string) error          { return nil }
 func (r *ShareRepo) IncrementViewCount(_ context.Context, _ string) error { return nil }
 func (r *ShareRepo) ListAssetsByTarget(_ context.Context, _, _ string) ([]repository.PublicAsset, error) {
 	return nil, nil
@@ -164,17 +176,17 @@ func (r *VersionRepo) ListByAsset(_ context.Context, _ string) ([]repository.Ass
 func (r *VersionRepo) Create(_ context.Context, v repository.AssetVersion) (repository.AssetVersion, error) {
 	return v, nil
 }
-func (r *VersionRepo) SoftDelete(_ context.Context, _ string) error             { return nil }
-func (r *VersionRepo) Delete(_ context.Context, _ string) error                 { return nil }
-func (r *VersionRepo) CountByAsset(_ context.Context, _ string) (int64, error)  { return 0, nil }
+func (r *VersionRepo) SoftDelete(_ context.Context, _ string) error            { return nil }
+func (r *VersionRepo) Delete(_ context.Context, _ string) error                { return nil }
+func (r *VersionRepo) CountByAsset(_ context.Context, _ string) (int64, error) { return 0, nil }
 func (r *VersionRepo) IsReferencedAsCover(_ context.Context, _ string) (bool, error) {
 	return false, nil
 }
 func (r *VersionRepo) GetByHash(_ context.Context, _, _ string) (repository.AssetVersion, error) {
 	return repository.AssetVersion{}, apperr.ErrNotFound
 }
-func (r *VersionRepo) NextVersionNum(_ context.Context, _ string) (int64, error) { return 1, nil }
-func (r *VersionRepo) SetCurrent(_ context.Context, _, _ string) error           { return nil }
+func (r *VersionRepo) NextVersionNum(_ context.Context, _ string) (int64, error)      { return 1, nil }
+func (r *VersionRepo) SetCurrent(_ context.Context, _, _ string) error                { return nil }
 func (r *VersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *string) error { return nil }
 func (r *VersionRepo) ListWithVariantCount(_ context.Context, _ string) ([]repository.AssetVersionWithCount, error) {
 	return nil, nil
@@ -202,7 +214,7 @@ func (r *FieldRepo) SoftDelete(_ context.Context, _, _ string) error { return ni
 func (r *FieldRepo) CountByWorkspaceAndScope(_ context.Context, _, _ string) (int64, error) {
 	return 0, nil
 }
-func (r *FieldRepo) CountAssetValues(_ context.Context, _ string) (int64, error)  { return 0, nil }
+func (r *FieldRepo) CountAssetValues(_ context.Context, _ string) (int64, error)   { return 0, nil }
 func (r *FieldRepo) CountProjectValues(_ context.Context, _ string) (int64, error) { return 0, nil }
 func (r *FieldRepo) UpdatePosition(_ context.Context, _, _ string, _ int64) error  { return nil }
 func (r *FieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error {
@@ -231,7 +243,7 @@ func (r *WorkspaceRepo) GetMember(_ context.Context, _, _ string) (repository.Me
 func (r *WorkspaceRepo) ListMembers(_ context.Context, _ string) ([]repository.Member, error) {
 	return nil, nil
 }
-func (r *WorkspaceRepo) CountMembers(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *WorkspaceRepo) CountMembers(_ context.Context, _ string) (int64, error)   { return 0, nil }
 func (r *WorkspaceRepo) CreateMember(_ context.Context, _ repository.Member) error { return nil }
 func (r *WorkspaceRepo) DeleteMember(_ context.Context, _, _ string) error         { return nil }
 func (r *WorkspaceRepo) UpdateMemberRole(_ context.Context, _, _, _ string) error  { return nil }
@@ -244,8 +256,8 @@ func (r *WorkspaceRepo) ListPendingInvites(_ context.Context, _ string) ([]repos
 func (r *WorkspaceRepo) GetInviteByToken(_ context.Context, _ string) (repository.Invite, error) {
 	return repository.Invite{}, nil
 }
-func (r *WorkspaceRepo) DeleteInvite(_ context.Context, _, _ string) error  { return nil }
-func (r *WorkspaceRepo) AcceptInvite(_ context.Context, _ string) error     { return nil }
+func (r *WorkspaceRepo) DeleteInvite(_ context.Context, _, _ string) error { return nil }
+func (r *WorkspaceRepo) AcceptInvite(_ context.Context, _ string) error    { return nil }
 func (r *WorkspaceRepo) ListByUserID(_ context.Context, _ string) ([]repository.WorkspaceWithRole, error) {
 	return nil, nil
 }

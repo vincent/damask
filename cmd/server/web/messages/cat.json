@@ -182,6 +182,10 @@
   "tags_merge_description": "Selecciona l'etiqueta de destinació en la qual combinar. Les etiquetes d'origen s'eliminaran.",
   "tags_will_be_deleted": "{ids} s'eliminaran després de la combinació",
   "tags_bulk_delete_description": "Això eliminarà aquestes etiquetes de tots els arxius als quals estan assignades.",
+  "tags_system_tag_rename_blocked": "Les etiquetes del sistema no es poden reanomenar",
+  "tags_system_tag_delete_blocked": "Les etiquetes del sistema no es poden eliminar",
+  "tags_system_group_label": "sistema",
+  "tags_system_tag_badge_tooltip": "Aquesta etiqueta està gestionada pel sistema",
   "tags": "Etiquetes",
   "tags_page_description": "Gestiona les etiquetes dels teus arxius. Fes clic a una etiqueta per editar el seu nom, color o grup. Arrossega una etiqueta sobre una altra per combinar-les.",
   "tag_renamed": "Etiqueta reanomenada",
@@ -728,5 +732,7 @@
   "hp_diag_pill_transcode": "transcode",
   "hp_diag_pill_normalize": "normalitzar",
   "hp_diag_pill_extract_audio": "extreure àudio",
-  "hp_diag_pill_bg_remove": "elim. fons"
+  "hp_diag_pill_bg_remove": "elim. fons",
+  "errors_system_tag_protected": "Aquesta operació no està permesa en etiquetes del sistema",
+  "errors_no_watermark_asset": "No s'ha trobat cap arxiu etiquetat com a _watermark en aquest espai de treball"
 }

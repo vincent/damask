@@ -15,8 +15,8 @@ import (
 // The stub TagRepo in stubs.go remains for cases that just need the interface.
 type RealTagRepo struct {
 	mu        sync.RWMutex
-	tags      map[string]repository.Tag   // key: id
-	assetTags map[string][]string         // key: assetID -> []tagID
+	tags      map[string]repository.Tag // key: id
+	assetTags map[string][]string       // key: assetID -> []tagID
 }
 
 func NewRealTagRepo() *RealTagRepo {
@@ -37,12 +37,15 @@ func (r *RealTagRepo) GetByName(ctx context.Context, workspaceID, name string) (
 	return repository.Tag{}, fmt.Errorf("tag %q: %w", name, apperr.ErrNotFound)
 }
 
-func (r *RealTagRepo) List(ctx context.Context, workspaceID string) ([]repository.Tag, error) {
+func (r *RealTagRepo) List(ctx context.Context, workspaceID string, includeSystem bool) ([]repository.Tag, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []repository.Tag
 	for _, t := range r.tags {
 		if t.WorkspaceID == workspaceID {
+			if !includeSystem && t.GroupName != nil && *t.GroupName == "system" {
+				continue
+			}
 			out = append(out, t)
 		}
 	}
@@ -64,6 +67,29 @@ func (r *RealTagRepo) Upsert(ctx context.Context, workspaceID, name string) (rep
 	}
 	r.tags[t.ID] = t
 	return t, nil
+}
+
+func (r *RealTagRepo) EnsureSystemTag(ctx context.Context, workspaceID, name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	groupName := "system"
+	for id, t := range r.tags {
+		if t.WorkspaceID == workspaceID && t.Name == name {
+			if t.GroupName == nil || *t.GroupName != groupName {
+				t.GroupName = &groupName
+				r.tags[id] = t
+			}
+			return nil
+		}
+	}
+	id := uuid.NewString()
+	r.tags[id] = repository.Tag{
+		ID:          id,
+		WorkspaceID: workspaceID,
+		Name:        name,
+		GroupName:   &groupName,
+	}
+	return nil
 }
 
 func (r *RealTagRepo) UpdateMetadata(_ context.Context, workspaceID, name string, color, groupName *string) error {
@@ -193,6 +219,18 @@ func (r *RealTagRepo) ReassignAssets(_ context.Context, fromTagID, toTagID strin
 }
 
 func (r *RealTagRepo) TouchLastUsed(_ context.Context, _, _ string) error { return nil }
+
+func (r *RealTagRepo) FindAssetBySystemTagInFolder(_ context.Context, _, _, _ string) (repository.Asset, error) {
+	return repository.Asset{}, apperr.ErrNotFound
+}
+
+func (r *RealTagRepo) FindAssetBySystemTagInProject(_ context.Context, _, _, _ string) (repository.Asset, error) {
+	return repository.Asset{}, apperr.ErrNotFound
+}
+
+func (r *RealTagRepo) FindAssetBySystemTagInWorkspace(_ context.Context, _, _ string) (repository.Asset, error) {
+	return repository.Asset{}, apperr.ErrNotFound
+}
 
 func (r *RealTagRepo) RunInTx(_ context.Context, fn func(repository.TagRepository) error) error {
 	return fn(r)

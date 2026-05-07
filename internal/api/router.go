@@ -54,7 +54,6 @@ type Server struct {
 	projectFields service.ProjectFieldService
 	versions      service.VersionService
 	variants      service.VariantService
-	watermarks    service.WatermarkService
 	auditLog      service.AuditLogService
 	workspace     service.WorkspaceService
 	users         service.UserService
@@ -89,9 +88,8 @@ func NewHttpServer(
 	variantRepo := reposqlc.NewVariantRepo(db)
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
-	watermarkSvc := service.NewWatermarkService(db, assetRepo, folderRepo)
-
 	media := mediatype.NewRegistry(trf)
+	tagSvc := service.NewTagService(tagRepo, auditWriter)
 	return &Server{
 		auth:          tokenMaker,
 		storage:       stor,
@@ -106,7 +104,7 @@ func NewHttpServer(
 		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
 		projects:      service.NewProjectService(projectRepo, auditWriter),
 		folders:       service.NewFolderService(folderRepo),
-		tags:          service.NewTagService(tagRepo, auditWriter),
+		tags:          tagSvc,
 		collections:   service.NewCollectionService(collectionRepo, assetRepo),
 		shares:        service.NewShareService(shareRepo, auditWriter),
 		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, mailer),
@@ -115,8 +113,7 @@ func NewHttpServer(
 		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
 		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
 		versions:      service.NewVersionService(versionRepo, auditWriter),
-		variants:      service.NewVariantService(variantRepo, assetRepo, watermarkSvc, auditWriter),
-		watermarks:    watermarkSvc,
+		variants:      service.NewVariantService(variantRepo, assetRepo, tagSvc, auditWriter),
 		auditLog:      service.NewAuditLogService(db),
 		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo),
 		users:         service.NewUserService(userRepo, workspaceRepo),

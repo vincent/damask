@@ -8,7 +8,12 @@ import type {
 
 export const tagApi = {
   /** GET /api/v1/tags — list all tags in the workspace (with usage counts). */
-  list: () => apiFetch<Tag[]>('/api/v1/tags'),
+  list: (opts?: { system?: boolean }) => {
+    const params = new URLSearchParams()
+    if (opts?.system) params.set('system', 'true')
+    const query = params.toString()
+    return apiFetch<Tag[]>(`/api/v1/tags${query ? `?${query}` : ''}`)
+  },
 
   /** POST /api/v1/tags (editor+) — create a tag directly (asset_count = 0). */
   create: (name: string, color?: string | null, group_name?: string | null) =>

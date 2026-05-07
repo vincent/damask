@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -17,15 +16,50 @@ import (
 	"damask/server/internal/transform"
 )
 
-type watermarkServiceStub struct {
-	resolveFn func(ctx context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error)
+type systemTagServiceStub struct {
+	resolveFn func(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error)
 }
 
-func (s watermarkServiceStub) ResolveWatermarkAsset(ctx context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error) {
+func (s systemTagServiceStub) List(context.Context, string, bool) ([]*service.TagDTO, error) {
+	return nil, nil
+}
+
+func (s systemTagServiceStub) Create(context.Context, string, service.CreateTagParams) (*service.TagDTO, error) {
+	return nil, nil
+}
+
+func (s systemTagServiceStub) Patch(context.Context, string, string, service.PatchTagParams) (*service.TagDTO, error) {
+	return nil, nil
+}
+
+func (s systemTagServiceStub) EnsureSystemTag(context.Context, string, string) error { return nil }
+func (s systemTagServiceStub) Delete(context.Context, string, []string) error        { return nil }
+func (s systemTagServiceStub) BulkDelete(context.Context, string, []string) (service.BulkDeleteTagsResult, error) {
+	return service.BulkDeleteTagsResult{}, nil
+}
+func (s systemTagServiceStub) Merge(context.Context, string, []string, string) (service.MergeTagsResult, error) {
+	return service.MergeTagsResult{}, nil
+}
+
+func (s systemTagServiceStub) ResolveSystemTag(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
 	if s.resolveFn != nil {
-		return s.resolveFn(ctx, workspaceID, assetID)
+		return s.resolveFn(ctx, workspaceID, tagName, scope)
 	}
 	return nil, nil
+}
+
+func (s systemTagServiceStub) TouchLastUsed(context.Context, string, string) error { return nil }
+func (s systemTagServiceStub) ListForAsset(context.Context, string) ([]*service.TagDTO, error) {
+	return nil, nil
+}
+func (s systemTagServiceStub) AddToAsset(context.Context, string, string, string) (*service.TagDTO, error) {
+	return nil, nil
+}
+func (s systemTagServiceStub) RemoveFromAsset(context.Context, string, string, string) error {
+	return nil
+}
+func (s systemTagServiceStub) UpsertForAsset(context.Context, string, string, string) error {
+	return nil
 }
 
 func newVariantSvc(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
@@ -35,11 +69,11 @@ func newVariantSvc(t *testing.T) (service.VariantService, *memory.RealVariantRep
 	return service.NewVariantService(varRepo, assetRepo, nil, audit.NopWriter{}), varRepo, assetRepo
 }
 
-func newVariantSvcWithWatermarks(t *testing.T, wm service.WatermarkService) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
+func newVariantSvcWithTags(t *testing.T, tags service.TagService) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
 	t.Helper()
 	varRepo := memory.NewRealVariantRepo()
 	assetRepo := memory.NewAssetRepo()
-	return service.NewVariantService(varRepo, assetRepo, wm, audit.NopWriter{}), varRepo, assetRepo
+	return service.NewVariantService(varRepo, assetRepo, tags, audit.NopWriter{}), varRepo, assetRepo
 }
 
 func newVariantSvcSpy(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo, *spyWriter) {
@@ -203,14 +237,20 @@ func TestVariantService_PrepareCreate_RejectsInvalidType(t *testing.T) {
 }
 
 func TestVariantService_PrepareCreate_WatermarkInjectsAssetID(t *testing.T) {
-	svc, _, _ := newVariantSvcWithWatermarks(t, watermarkServiceStub{
-		resolveFn: func(_ context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error) {
-			if workspaceID != "ws_1" || assetID != "ast_1" {
-				t.Fatalf("unexpected lookup args workspace=%s asset=%s", workspaceID, assetID)
+	svc, _, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
+		resolveFn: func(_ context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
+			if workspaceID != "ws_1" || tagName != "_watermark" {
+				t.Fatalf("unexpected lookup args workspace=%s tag=%s", workspaceID, tagName)
 			}
-			return &service.WatermarkAssetDTO{ID: "wm_1"}, nil
+			if scope.FolderID == nil || *scope.FolderID != "fld_1" {
+				t.Fatalf("unexpected scope: %+v", scope)
+			}
+			return &service.AssetDTO{ID: "wm_1"}, nil
 		},
 	})
+	projectID := "prj_1"
+	folderID := "fld_1"
+	assetRepo.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", ProjectID: &projectID, FolderID: &folderID})
 
 	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
 		WorkspaceID:   "ws_1",
@@ -236,14 +276,19 @@ func TestVariantService_PrepareCreate_WatermarkInjectsAssetID(t *testing.T) {
 }
 
 func TestVariantService_PrepareCreate_VideoWatermarkInjectsAssetID(t *testing.T) {
-	svc, _, _ := newVariantSvcWithWatermarks(t, watermarkServiceStub{
-		resolveFn: func(_ context.Context, workspaceID, assetID string) (*service.WatermarkAssetDTO, error) {
-			if workspaceID != "ws_1" || assetID != "vid_1" {
-				t.Fatalf("unexpected lookup args workspace=%s asset=%s", workspaceID, assetID)
+	svc, _, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
+		resolveFn: func(_ context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
+			if workspaceID != "ws_1" || tagName != "_watermark" {
+				t.Fatalf("unexpected lookup args workspace=%s tag=%s", workspaceID, tagName)
 			}
-			return &service.WatermarkAssetDTO{ID: "wm_1"}, nil
+			if scope.ProjectID == nil || *scope.ProjectID != "prj_1" {
+				t.Fatalf("unexpected scope: %+v", scope)
+			}
+			return &service.AssetDTO{ID: "wm_1"}, nil
 		},
 	})
+	projectID := "prj_1"
+	assetRepo.Seed(repository.Asset{ID: "vid_1", WorkspaceID: "ws_1", ProjectID: &projectID})
 
 	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
 		WorkspaceID:   "ws_1",
@@ -269,11 +314,12 @@ func TestVariantService_PrepareCreate_VideoWatermarkInjectsAssetID(t *testing.T)
 }
 
 func TestVariantService_PrepareCreate_WatermarkMissingReturnsInvalidInput(t *testing.T) {
-	svc, _, _ := newVariantSvcWithWatermarks(t, watermarkServiceStub{
-		resolveFn: func(_ context.Context, _, _ string) (*service.WatermarkAssetDTO, error) {
-			return nil, invalidWatermarkNotFound()
+	svc, _, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
+		resolveFn: func(_ context.Context, _, _ string, _ service.SystemTagScope) (*service.AssetDTO, error) {
+			return nil, nil
 		},
 	})
+	assetRepo.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_1"})
 
 	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
 		WorkspaceID:   "ws_1",
@@ -282,13 +328,9 @@ func TestVariantService_PrepareCreate_WatermarkMissingReturnsInvalidInput(t *tes
 		Params:        json.RawMessage(`{}`),
 		AssetMimeType: "image/jpeg",
 	})
-	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "no watermark asset found") {
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "no_watermark_asset") {
 		t.Fatalf("expected watermark missing invalid input, got %v", err)
 	}
-}
-
-func invalidWatermarkNotFound() error {
-	return fmt.Errorf("%w: %w", service.ErrNoWatermarkAsset, apperr.ErrInvalidInput)
 }
 
 // --- Delete ---

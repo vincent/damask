@@ -1,9 +1,11 @@
 package api
 
 import (
+	"errors"
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -23,6 +25,7 @@ type TagResponse struct {
 	AssetCount int64   `json:"asset_count"`
 	Color      *string `json:"color"`
 	GroupName  *string `json:"group_name"`
+	IsSystem   bool    `json:"is_system"`
 	CreatedAt  string  `json:"created_at"`
 	LastUsedAt *string `json:"last_used_at"`
 }
@@ -34,6 +37,7 @@ func tagDTOToResponse(d *service.TagDTO) TagResponse {
 		AssetCount: d.AssetCount,
 		Color:      d.Color,
 		GroupName:  d.GroupName,
+		IsSystem:   d.GroupName != nil && *d.GroupName == "system",
 		CreatedAt:  d.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
 	if d.LastUsedAt != nil {
@@ -54,8 +58,9 @@ func tagDTOToResponse(d *service.TagDTO) TagResponse {
 // @Router /api/v1/tags [get]
 func (s *Server) handleListTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
+	includeSystem, _ := strconv.ParseBool(c.Query("system", "false"))
 
-	dtos, err := s.tags.List(c.Context(), claims.WorkspaceID)
+	dtos, err := s.tags.List(c.Context(), claims.WorkspaceID, includeSystem)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -131,6 +136,9 @@ func (s *Server) handlePatchTag(c fiber.Ctx) error {
 		GroupName: body.GroupName,
 	})
 	if err != nil {
+		if errors.Is(err, service.ErrSystemTagProtected) {
+			return errRes(c, fiber.StatusUnprocessableEntity, "system_tag_protected")
+		}
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -160,6 +168,9 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 
 	result, err := s.tags.BulkDelete(c.Context(), claims.WorkspaceID, body.Names)
 	if err != nil {
+		if errors.Is(err, service.ErrSystemTagProtected) {
+			return errRes(c, fiber.StatusUnprocessableEntity, "system_tag_protected")
+		}
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -192,6 +203,9 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 
 	result, err := s.tags.Merge(c.Context(), claims.WorkspaceID, body.Sources, body.Target)
 	if err != nil {
+		if errors.Is(err, service.ErrSystemTagProtected) {
+			return errRes(c, fiber.StatusUnprocessableEntity, "system_tag_protected")
+		}
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -214,7 +228,7 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	dtos, err := s.tags.List(c.Context(), claims.WorkspaceID)
+	dtos, err := s.tags.List(c.Context(), claims.WorkspaceID, true)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}

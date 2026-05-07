@@ -84,6 +84,150 @@ func (q *Queries) DeleteTag(ctx context.Context, arg DeleteTagParams) error {
 	return err
 }
 
+const ensureSystemTag = `-- name: EnsureSystemTag :exec
+INSERT INTO tags (id, workspace_id, name, group_name)
+VALUES (?, ?, ?, 'system')
+ON CONFLICT (workspace_id, name) DO NOTHING
+`
+
+type EnsureSystemTagParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+}
+
+func (q *Queries) EnsureSystemTag(ctx context.Context, arg EnsureSystemTagParams) error {
+	_, err := q.db.ExecContext(ctx, ensureSystemTag, arg.ID, arg.WorkspaceID, arg.Name)
+	return err
+}
+
+const findAssetBySystemTagInFolder = `-- name: FindAssetBySystemTagInFolder :one
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.created_at, a.updated_at
+FROM assets a
+JOIN asset_tags at ON at.asset_id = a.id
+JOIN tags t ON t.id = at.tag_id
+WHERE a.workspace_id = ?
+  AND t.name = ?
+  AND t.group_name = 'system'
+  AND a.folder_id = ?
+ORDER BY a.created_at ASC
+LIMIT 1
+`
+
+type FindAssetBySystemTagInFolderParams struct {
+	WorkspaceID string  `json:"workspace_id"`
+	Name        string  `json:"name"`
+	FolderID    *string `json:"folder_id"`
+}
+
+func (q *Queries) FindAssetBySystemTagInFolder(ctx context.Context, arg FindAssetBySystemTagInFolderParams) (Asset, error) {
+	row := q.db.QueryRowContext(ctx, findAssetBySystemTagInFolder, arg.WorkspaceID, arg.Name, arg.FolderID)
+	var i Asset
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.ProjectID,
+		&i.FolderID,
+		&i.OriginalFilename,
+		&i.StorageKey,
+		&i.MimeType,
+		&i.Size,
+		&i.Width,
+		&i.Height,
+		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
+		&i.Metadata,
+		&i.CurrentVersionID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findAssetBySystemTagInProject = `-- name: FindAssetBySystemTagInProject :one
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.created_at, a.updated_at
+FROM assets a
+JOIN asset_tags at ON at.asset_id = a.id
+JOIN tags t ON t.id = at.tag_id
+WHERE a.workspace_id = ?
+  AND t.name = ?
+  AND t.group_name = 'system'
+  AND a.project_id = ?
+ORDER BY a.created_at ASC
+LIMIT 1
+`
+
+type FindAssetBySystemTagInProjectParams struct {
+	WorkspaceID string  `json:"workspace_id"`
+	Name        string  `json:"name"`
+	ProjectID   *string `json:"project_id"`
+}
+
+func (q *Queries) FindAssetBySystemTagInProject(ctx context.Context, arg FindAssetBySystemTagInProjectParams) (Asset, error) {
+	row := q.db.QueryRowContext(ctx, findAssetBySystemTagInProject, arg.WorkspaceID, arg.Name, arg.ProjectID)
+	var i Asset
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.ProjectID,
+		&i.FolderID,
+		&i.OriginalFilename,
+		&i.StorageKey,
+		&i.MimeType,
+		&i.Size,
+		&i.Width,
+		&i.Height,
+		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
+		&i.Metadata,
+		&i.CurrentVersionID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findAssetBySystemTagInWorkspace = `-- name: FindAssetBySystemTagInWorkspace :one
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.created_at, a.updated_at
+FROM assets a
+JOIN asset_tags at ON at.asset_id = a.id
+JOIN tags t ON t.id = at.tag_id
+WHERE a.workspace_id = ?
+  AND t.name = ?
+  AND t.group_name = 'system'
+ORDER BY a.created_at ASC
+LIMIT 1
+`
+
+type FindAssetBySystemTagInWorkspaceParams struct {
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+}
+
+func (q *Queries) FindAssetBySystemTagInWorkspace(ctx context.Context, arg FindAssetBySystemTagInWorkspaceParams) (Asset, error) {
+	row := q.db.QueryRowContext(ctx, findAssetBySystemTagInWorkspace, arg.WorkspaceID, arg.Name)
+	var i Asset
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.ProjectID,
+		&i.FolderID,
+		&i.OriginalFilename,
+		&i.StorageKey,
+		&i.MimeType,
+		&i.Size,
+		&i.Width,
+		&i.Height,
+		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
+		&i.Metadata,
+		&i.CurrentVersionID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getOrCreateTag = `-- name: GetOrCreateTag :one
 INSERT INTO tags (id, workspace_id, name)
 VALUES (?, ?, ?)
@@ -213,9 +357,16 @@ SELECT t.id, t.workspace_id, t.name, t.color, t.group_name, t.created_at, t.last
 FROM tags t
 LEFT JOIN asset_tags at ON at.tag_id = t.id
 WHERE t.workspace_id = ?
+  AND CASE WHEN ?2 THEN 1=1
+           ELSE (t.group_name != 'system' OR t.group_name IS NULL) END
 GROUP BY t.id
 ORDER BY t.name ASC
 `
+
+type ListTagsWithCountParams struct {
+	WorkspaceID   string      `json:"workspace_id"`
+	IncludeSystem interface{} `json:"include_system"`
+}
 
 type ListTagsWithCountRow struct {
 	ID          string     `json:"id"`
@@ -228,8 +379,8 @@ type ListTagsWithCountRow struct {
 	AssetCount  int64      `json:"asset_count"`
 }
 
-func (q *Queries) ListTagsWithCount(ctx context.Context, workspaceID string) ([]ListTagsWithCountRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTagsWithCount, workspaceID)
+func (q *Queries) ListTagsWithCount(ctx context.Context, arg ListTagsWithCountParams) ([]ListTagsWithCountRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTagsWithCount, arg.WorkspaceID, arg.IncludeSystem)
 	if err != nil {
 		return nil, err
 	}

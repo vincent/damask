@@ -75,8 +75,9 @@ type FolderRepository interface {
 // TagRepository handles persistence for Tag records.
 type TagRepository interface {
 	GetByName(ctx context.Context, workspaceID, name string) (Tag, error)
-	List(ctx context.Context, workspaceID string) ([]Tag, error)
+	List(ctx context.Context, workspaceID string, includeSystem bool) ([]Tag, error)
 	Upsert(ctx context.Context, workspaceID, name string) (Tag, error)
+	EnsureSystemTag(ctx context.Context, workspaceID, name string) error
 	UpdateMetadata(ctx context.Context, workspaceID, name string, color, groupName *string) error
 	Rename(ctx context.Context, workspaceID, oldName, newName string) error
 	Delete(ctx context.Context, workspaceID string, names []string) error
@@ -89,6 +90,9 @@ type TagRepository interface {
 	ReassignAssets(ctx context.Context, fromTagID, toTagID string) error
 	// TouchLastUsed updates last_used_at to now for the given tag (fire-and-forget).
 	TouchLastUsed(ctx context.Context, workspaceID, name string) error
+	FindAssetBySystemTagInFolder(ctx context.Context, workspaceID, tagName, folderID string) (Asset, error)
+	FindAssetBySystemTagInProject(ctx context.Context, workspaceID, tagName, projectID string) (Asset, error)
+	FindAssetBySystemTagInWorkspace(ctx context.Context, workspaceID, tagName string) (Asset, error)
 	// RunInTx executes fn inside a single database transaction.
 	RunInTx(ctx context.Context, fn func(tx TagRepository) error) error
 }

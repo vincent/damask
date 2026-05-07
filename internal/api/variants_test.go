@@ -84,6 +84,19 @@ func uploadTestVideoAsset(t *testing.T, env *th.TestEnv, filename string, cookie
 	return a.ID
 }
 
+func assignSystemTagToAsset(t *testing.T, env *th.TestEnv, cookie *http.Cookie, assetID, tagName string) {
+	t.Helper()
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
+		th.JsonBody(map[string]string{"name": tagName}), cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatalf("assign tag: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("assign tag: expected 201, got %d", resp.StatusCode)
+	}
+}
+
 // insertVariantDirectly inserts a variant row into the DB bypassing the queue.
 // It uses the current version of the given asset as the asset_version_id.
 func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID string) dbgen.Variant {
@@ -221,6 +234,7 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 	watermarkID := uploadTestVariantAsset(t, env, "brand-watermark.png", cookie)
+	assignSystemTagToAsset(t, env, cookie, watermarkID, "_watermark")
 
 	paramsData := json.RawMessage(`{"opacity":0.5,"format":"jpeg"}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
@@ -263,6 +277,7 @@ func TestCreateVariant_VideoWatermarkQueued(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestVideoAsset(t, env)
 	watermarkID := uploadTestVariantAsset(t, env, "brand-watermark.png", cookie)
+	assignSystemTagToAsset(t, env, cookie, watermarkID, "_watermark")
 
 	paramsData := json.RawMessage(`{"opacity":0.35,"format":"webm","strip_audio":true}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
@@ -320,6 +335,7 @@ func TestResolveWatermarkAsset(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)
 	watermarkID := uploadTestVariantAsset(t, env, "brand-watermark.png", cookie)
+	assignSystemTagToAsset(t, env, cookie, watermarkID, "_watermark")
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants/watermark", nil, cookie)
 	resp, err := env.App.Test(req)

@@ -126,7 +126,6 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		projectFields: cfg.ProjectFields,
 		versions:      cfg.Versions,
 		variants:      cfg.Variants,
-		watermarks:    nil,
 		auditLog:      cfg.AuditLog,
 		workspace:     cfg.Workspace,
 		users:         cfg.Users,
