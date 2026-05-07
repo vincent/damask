@@ -90,6 +90,7 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/jpeg")
 	}
 	return err
@@ -166,6 +167,7 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, outputMime)
 	}
 	return err
@@ -256,6 +258,7 @@ func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error 
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, outputMime)
 	}
 	return err
@@ -310,6 +313,7 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/jpeg")
 	}
 	return err
@@ -381,6 +385,7 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, outputMime)
 	}
 	return err
@@ -462,6 +467,7 @@ func (s *JobServer) rebuildVideoWatermarkVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
 		outputMime := "video/mp4"
 		if params.Format == "webm" {
 			outputMime = "video/webm"

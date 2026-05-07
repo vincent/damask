@@ -298,6 +298,40 @@ func TestTransformFallsBackToB64JSONWhenPresent(t *testing.T) {
 	}
 }
 
+func TestTransformReturnsStructuredAPIErrorWhenSuccessDecodeFails(t *testing.T) {
+	source := encodePNG(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/openai/images/edits" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":     http.StatusBadRequest,
+			"statusText": "invalidPositivePrompt",
+			"error": map[string]any{
+				"message": "Invalid value for 'prompt' parameter. Prompt must be a string value between 1 and 10000 characters.",
+				"type":    "invalidPositivePrompt",
+			},
+		})
+	}))
+	defer srv.Close()
+
+	restore := SetBaseURLForTest(srv.URL + "/v1")
+	defer restore()
+
+	client := NewClient("test-key", false)
+	_, err := client.Transform(context.Background(), source, PromptParams{
+		Prompt: "soft matte lighting",
+		Model:  "black-forest-labs/FLUX.1-fill-dev",
+	})
+	if !errors.Is(err, ErrAPIError) {
+		t.Fatalf("expected ErrAPIError, got %v", err)
+	}
+	want := "Invalid value for 'prompt' parameter. Prompt must be a string value between 1 and 10000 characters."
+	if err == nil || err.Error() != want {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestTransformRejectsUnsupportedSourceFormat(t *testing.T) {
 	client := NewClient("test-key", false)
 	_, err := client.Transform(context.Background(), []byte("not-an-image"), PromptParams{

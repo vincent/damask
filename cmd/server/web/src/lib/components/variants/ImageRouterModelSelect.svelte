@@ -35,8 +35,6 @@
         if (cancelled) return
         models = res.models
         configured = res.configured
-        if (!defaultModelId) defaultModelId = res.default_model
-        if (!value) value = res.default_model || defaultModelId
         onloaded?.(res)
       } catch {
         if (cancelled) return
@@ -66,7 +64,7 @@
       {#each models as model}
         <option value={model.id}>
           {model.name} ({model.price_per_image
-            ? `$${model.price_per_image.toFixed(4)}/image`
+            ? `$${model.price_per_image.toFixed(4)} /image`
             : 'free'})
           {#if model.id === defaultModelId}
             (default)

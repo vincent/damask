@@ -7,7 +7,7 @@
     type Variant,
   } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
-  import { assetsStore } from '$lib/stores/assets.svelte'
+  import { assetsStore, sseEvents } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
   import PreviewToolbar from './ui/PreviewToolbar.svelte'
@@ -15,8 +15,8 @@
   import AssetTags from './AssetTags.svelte'
   import AssetMetadata from './AssetMetadata.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import ProgressBar from '$lib/components/ui/ProgressBar.svelte'
   import SharedAsset from './SharedAsset.svelte'
-  import Close from './ui/Close.svelte'
   import VariantsTool, { type VariantTab } from './variants/VariantsTool.svelte'
   import AssetProject from './AssetProject.svelte'
   import Pills from './ui/Pills.svelte'
@@ -38,7 +38,6 @@
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import AssetComments from './AssetComments.svelte'
   import Backdrop from './ui/Backdrop.svelte'
-  import ButtonCopy from './ui/ButtonCopy.svelte'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
   import { useShortcuts } from '$lib/shortcuts'
@@ -46,6 +45,7 @@
     isAudio as mimeIsAudio,
     isVideo as mimeIsVideo,
   } from '$lib/utils/mime'
+  import { onDestroy } from 'svelte'
 
   interface Props {
     asset: Asset | null
@@ -140,8 +140,12 @@
   let variants = $state<Variant[]>([])
   let variantsLoading = $state(false)
   let creating = $state(false)
+  let pendingVariantAssetId = $state<string | null>(null)
+  let variantRefreshProgress = $state(0)
   let createError = $state('')
   let createSuccess = $state('')
+  let variantRefreshTimer: ReturnType<typeof setInterval> | null = null
+  let variantRefreshTimeout: ReturnType<typeof setTimeout> | null = null
 
   const category = $derived(asset ? mimeCategory(asset.mime_type) : 'document')
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
@@ -166,6 +170,38 @@
     } finally {
       variantsLoading = false
     }
+  }
+
+  function clearVariantRefreshCountdown() {
+    if (variantRefreshTimer) {
+      clearInterval(variantRefreshTimer)
+      variantRefreshTimer = null
+    }
+    if (variantRefreshTimeout) {
+      clearTimeout(variantRefreshTimeout)
+      variantRefreshTimeout = null
+    }
+    variantRefreshProgress = 0
+  }
+
+  function scheduleVariantRefresh(assetId: string) {
+    clearVariantRefreshCountdown()
+    variantRefreshProgress = 100
+
+    const startedAt = Date.now()
+    const durationMs = 10000
+
+    variantRefreshTimer = setInterval(() => {
+      const elapsed = Date.now() - startedAt
+      const remainingRatio = Math.max(0, 1 - elapsed / durationMs)
+      variantRefreshProgress = remainingRatio * 100
+    }, 100)
+
+    variantRefreshTimeout = setTimeout(async () => {
+      clearVariantRefreshCountdown()
+      if (!asset || asset.id !== assetId) return
+      await loadVariants()
+    }, durationMs)
   }
 
   const activeProject = $derived(
@@ -203,18 +239,54 @@
     createSuccess = ''
     try {
       const result = await variantApi.create(asset.id, type, params)
-      createSuccess = `Queued (job ${result.job_id.slice(0, 8)}). Refreshing shortly…`
-      setTimeout(() => {
-        activeVariantTab = 'all'
-        loadVariants()
-        createSuccess = ''
-      }, 3000)
+      pendingVariantAssetId = asset.id
+      createSuccess = `Queued (job ${result.job_id.slice(0, 8)}). Waiting for completion…`
     } catch (e: unknown) {
+      pendingVariantAssetId = null
       createError = e instanceof Error ? e.message : m.variant_create_failed()
     } finally {
       creating = false
     }
   }
+
+  $effect(() => {
+    if (!asset) {
+      clearVariantRefreshCountdown()
+      pendingVariantAssetId = null
+      return
+    }
+
+    const ev = sseEvents.last
+    if (pendingVariantAssetId !== asset.id) return
+    if (ev?.type !== 'variant_ready' || ev.asset_id !== asset.id) return
+
+    pendingVariantAssetId = null
+    activeVariantTab = 'all'
+    createSuccess = 'Almost ready. Refreshing shortly…'
+    scheduleVariantRefresh(asset.id)
+  })
+
+  $effect(() => {
+    if (!asset) return
+
+    const ev = sseEvents.last
+    if (pendingVariantAssetId !== asset.id) return
+    if (ev?.type !== 'variant_failed' || ev.asset_id !== asset.id) return
+
+    clearVariantRefreshCountdown()
+    pendingVariantAssetId = null
+    createSuccess = ''
+    createError = ev.error || m.variant_create_failed()
+  })
+
+  $effect(() => {
+    return () => {
+      clearVariantRefreshCountdown()
+      activeVariantTab = 'all'
+      createSuccess = ''
+      createError = ''
+    }
+  })
 
   function handleClose(e: MouseEvent) {
     const src = e.target as HTMLElement
@@ -470,6 +542,16 @@
           <div class="px-5 py-4">
             <!-- All variants grid -->
             {#if activeVariantTab === 'all'}
+              {#if variantRefreshProgress > 0}
+                <div class="mb-4 space-y-2">
+                  <p
+                    class="text-xs font-medium tracking-[0.08em] text-[var(--text-muted)] uppercase"
+                  >
+                    Refreshing variants in 10 seconds
+                  </p>
+                  <ProgressBar value={variantRefreshProgress} />
+                </div>
+              {/if}
               {#if variantsLoading}
                 <div class="flex justify-center py-12">
                   <Spinner size="md" />
@@ -502,7 +584,7 @@
             {:else}
               <VariantsTool
                 {asset}
-                {creating}
+                creating={creating || pendingVariantAssetId === asset.id}
                 tool={activeVariantTab}
                 {handleCreate}
               />

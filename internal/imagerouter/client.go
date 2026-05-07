@@ -50,6 +50,28 @@ type imageResponseEnvelope struct {
 	Latency int     `json:"latency"`
 }
 
+type errorResponseEnvelope struct {
+	Status     int    `json:"status"`
+	StatusText string `json:"statusText"`
+	Error      struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+	} `json:"error"`
+}
+
+type apiError struct {
+	cause   error
+	message string
+}
+
+func (e *apiError) Error() string {
+	return e.message
+}
+
+func (e *apiError) Unwrap() error {
+	return e.cause
+}
+
 func NewClient(apiKey string, retryPaidOnFreeLimit429 bool) *Client {
 	return &Client{
 		apiKey:                  apiKey,
@@ -156,20 +178,21 @@ func (c *Client) performEditImage(ctx context.Context, imageData []byte, model, 
 	payloadText := strings.TrimSpace(string(payload))
 
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity {
-		return nil, resp.StatusCode, payloadText, fmt.Errorf("%w: status=%d body=%s", ErrInvalidModel, resp.StatusCode, payloadText)
+		return nil, resp.StatusCode, payloadText, wrapImageRouterAPIError(ErrInvalidModel, payload)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, resp.StatusCode, payloadText, fmt.Errorf("%w: status=%d body=%s", ErrAPIError, resp.StatusCode, payloadText)
+		return nil, resp.StatusCode, payloadText, wrapImageRouterAPIError(ErrAPIError, payload)
 	}
-
-	slog.Debug("imagerouter response", "status", resp.StatusCode, "body", payloadText)
 
 	var envelope imageResponseEnvelope
 	if err := json.Unmarshal(payload, &envelope); err != nil {
-		return nil, resp.StatusCode, payloadText, fmt.Errorf("imagerouter: decode response: %w", err)
+		return nil, resp.StatusCode, payloadText, parseImageRouterAPIError(ErrAPIError, payload, fmt.Errorf("imagerouter: decode response: %w", err))
 	}
 	if len(envelope.Data) == 0 {
-		return nil, resp.StatusCode, payloadText, fmt.Errorf("imagerouter: response missing image data")
+		return nil, resp.StatusCode, payloadText, parseImageRouterAPIError(ErrAPIError, payload, &apiError{
+			cause:   ErrAPIError,
+			message: "ImageRouter generation failed",
+		})
 	}
 
 	item := envelope.Data[0]
@@ -188,6 +211,27 @@ func (c *Client) performEditImage(ctx context.Context, imageData []byte, model, 
 		return nil, resp.StatusCode, payloadText, fmt.Errorf("imagerouter: decode image: %w", err)
 	}
 	return decoded, resp.StatusCode, payloadText, nil
+}
+
+func wrapImageRouterAPIError(base error, payload []byte) error {
+	return parseImageRouterAPIError(base, payload, nil)
+}
+
+func parseImageRouterAPIError(base error, payload []byte, fallback error) error {
+	var envelope errorResponseEnvelope
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		if fallback != nil {
+			return fallback
+		}
+		return &apiError{cause: base, message: "ImageRouter generation failed"}
+	}
+	if msg := strings.TrimSpace(envelope.Error.Message); msg != "" {
+		return &apiError{cause: base, message: msg}
+	}
+	if fallback != nil {
+		return fallback
+	}
+	return &apiError{cause: base, message: "ImageRouter generation failed"}
 }
 
 func (c *Client) fetchImageURL(ctx context.Context, rawURL string) ([]byte, error) {

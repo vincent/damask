@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/imagerouter"
@@ -131,6 +132,7 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, contentType)
 	}
 	return err
@@ -152,6 +154,9 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 	result, err := s.runImageRouterJob(ctx, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
 		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
 	})
+	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
+		return fmt.Errorf("The selected model is not available for background removal. Please choose another model and try again")
+	}
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
 	}
@@ -176,6 +181,7 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")
 	}
 	return err
@@ -225,6 +231,7 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")
 	}
 	return err
@@ -318,6 +325,7 @@ func (s *JobServer) rebuildImageVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, contentType)
 	}
 	return err
@@ -338,6 +346,9 @@ func (s *JobServer) rebuildBgRemoveVariant(
 	result, err := s.runImageRouterJob(ctx, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
 		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
 	})
+	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
+		return fmt.Errorf("The selected model is not available for background removal. Please choose another model and try again")
+	}
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
 	}
@@ -359,6 +370,7 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/png")
 	}
 	return err
@@ -404,6 +416,7 @@ func (s *JobServer) rebuildImageWithPromptVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/png")
 	}
 	return err

@@ -167,8 +167,8 @@ func Load() (*Config, error) {
 		},
 		ImageRouter: ImageRouterConfig{
 			APIKey:               os.Getenv("IMAGEROUTER_API_KEY"),
-			DefaultModel:         getEnv("IMAGEROUTER_DEFAULT_MODEL", "black-forest-labs/FLUX.1-fill-dev"),
-			DefaultBgRemoveModel: getEnv("IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL", "bria/remove-background"),
+			DefaultModel:         getEnv("IMAGEROUTER_DEFAULT_MODEL", "black-forest-labs/FLUX-2-klein-4b:free"),
+			DefaultBgRemoveModel: getEnv("IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL", "bria/remove-background:free"),
 			RetryPaidOnFreeLimit: getEnv("IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT", "false") == "true",
 		},
 	}

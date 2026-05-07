@@ -17,8 +17,10 @@ import (
 type Event struct {
 	Type         string `json:"type"`
 	AssetID      string `json:"asset_id"`
+	VariantID    string `json:"variant_id,omitempty"`
 	ThumbnailKey string `json:"thumbnail_key"`
 	JobID        string `json:"job_id,omitempty"`
+	Error        string `json:"error,omitempty"`
 }
 
 type EventHub interface {

@@ -9,7 +9,7 @@
 </script>
 
 <div
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm {extraClass}"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md {extraClass}"
   role="button"
   tabindex="-1"
   onclick={(e) => {

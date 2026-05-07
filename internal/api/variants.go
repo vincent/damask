@@ -13,6 +13,7 @@ import (
 
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
+	"damask/server/internal/events"
 	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
@@ -458,6 +459,12 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		_ = s.storage.Delete(storageKey)
 		return errRes(c, fiber.StatusInternalServerError, "could not create variant record")
 	}
+
+	s.hub.Publish(c.Context(), asset.WorkspaceID, events.Event{
+		Type:      "variant_ready",
+		AssetID:   assetID,
+		VariantID: variantID,
+	})
 
 	if thumbPayload, err := json.Marshal(jobs.VariantThumbnailJobPayload{
 		VariantID:   variantID,

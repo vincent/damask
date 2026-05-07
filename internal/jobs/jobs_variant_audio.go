@@ -80,6 +80,7 @@ func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error 
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, transform.AudioMimeType(params.OutputFormat))
 	}
 	return err
@@ -193,6 +194,7 @@ func (s *JobServer) rebuildAudioVariant(
 		Size:            &sz,
 	})
 	if err == nil {
+		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, transform.AudioMimeType(params.OutputFormat))
 	}
 	return err

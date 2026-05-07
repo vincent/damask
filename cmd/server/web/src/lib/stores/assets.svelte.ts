@@ -44,8 +44,10 @@ export const sseEvents = $state<{
   last: {
     type: string
     asset_id: string
+    variant_id?: string
     thumbnail_key: string
     job_id?: string
+    error?: string
   } | null
 }>({ last: null })
 
@@ -93,8 +95,10 @@ function connectSSE() {
       const event = JSON.parse(e.data) as {
         type: string
         asset_id: string
+        variant_id?: string
         thumbnail_key: string
         job_id?: string
+        error?: string
       }
       sseEvents.last = event
       sseReconnectDelay = 1000
