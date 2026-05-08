@@ -9,7 +9,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -66,8 +65,10 @@ func (t *transformer) VideoExtractResolution(ctx context.Context, srcPath string
 	var stderr bytes.Buffer
 
 	// 	ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 srcPath
-	cmd := exec.CommandContext(ctx,
-		"ffprobe",
+	if !t.ffmpeg.ffprobeAvailable() {
+		return nil, errFFprobeUnavailable(t.ffmpeg.configuredPath)
+	}
+	cmd := t.ffmpeg.commandFFprobe(ctx,
 		"-v", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "stream=width,height",
@@ -122,8 +123,10 @@ func (t *transformer) VideoExtractThumbnail(ctx context.Context, srcPath string,
 	var stderr bytes.Buffer
 
 	// ffmpeg -ss {ts} -i input -frames:v 1 -vcodec mjpeg -q:v 3 -f image2pipe pipe:1
-	cmd := exec.CommandContext(ctx,
-		"ffmpeg",
+	if !t.ffmpeg.available() {
+		return nil, errFFmpegUnavailable(t.ffmpeg.configuredPath)
+	}
+	cmd := t.ffmpeg.commandFFmpeg(ctx, t.ffmpeg.withVideoDecode(
 		"-ss", strconv.FormatFloat(ts, 'f', 3, 64),
 		"-i", srcPath,
 		"-frames:v", "1",
@@ -131,7 +134,7 @@ func (t *transformer) VideoExtractThumbnail(ctx context.Context, srcPath string,
 		"-q:v", "3",
 		"-f", "image2pipe",
 		"pipe:1",
-	)
+	)...)
 	cmd.Stdout = &buf
 	cmd.Stderr = &stderr
 
@@ -142,10 +145,13 @@ func (t *transformer) VideoExtractThumbnail(ctx context.Context, srcPath string,
 }
 
 // gifFramerate returns avg_frame_rate for a GIF via ffprobe, or 0 on failure.
-func gifFramerate(ctx context.Context, srcPath string) float64 {
+func (t *transformer) gifFramerate(ctx context.Context, srcPath string) float64 {
+	if !t.ffmpeg.ffprobeAvailable() {
+		return 0
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ffprobe",
+	out, err := t.ffmpeg.commandFFprobe(ctx,
 		"-v", "quiet",
 		"-probesize", "20000000",
 		"-select_streams", "v:0",
@@ -200,7 +206,7 @@ func (t *transformer) VideoClipThumbnail(ctx context.Context, srcPath string, p 
 
 	args := []string{"-y", "-ss", "1"}
 	if strings.HasSuffix(strings.ToLower(srcPath), ".gif") {
-		if fps := gifFramerate(ctx, srcPath); fps > 0 {
+		if fps := t.gifFramerate(ctx, srcPath); fps > 0 {
 			args = append(args, "-r", strconv.FormatFloat(fps, 'f', -1, 64))
 			dur = int(math.Round(fps))
 		}
@@ -225,7 +231,10 @@ func (t *transformer) VideoClipThumbnail(ctx context.Context, srcPath string, p 
 	)
 
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	if !t.ffmpeg.available() {
+		return nil, errFFmpegUnavailable(t.ffmpeg.configuredPath)
+	}
+	cmd := t.ffmpeg.commandFFmpeg(ctx, t.ffmpeg.withVideoDecode(args...)...)
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ffmpeg clip: %w — stderr: %s", err, stderr.String())
@@ -244,7 +253,7 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 
-	args := []string{"-y", "-i", srcPath}
+	args := t.ffmpeg.withVideoDecode("-y", "-i", srcPath)
 
 	// Video codec
 	switch p.Format {
@@ -273,7 +282,10 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 	args = append(args, dstPath)
 
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	if !t.ffmpeg.available() {
+		return errFFmpegUnavailable(t.ffmpeg.configuredPath)
+	}
+	cmd := t.ffmpeg.commandFFmpeg(ctx, args...)
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
@@ -361,7 +373,10 @@ func (t *transformer) VideoWatermark(ctx context.Context, srcPath, dstPath strin
 	args = append(args, "-shortest", dstPath)
 
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	if !t.ffmpeg.available() {
+		return errFFmpegUnavailable(t.ffmpeg.configuredPath)
+	}
+	cmd := t.ffmpeg.commandFFmpeg(ctx, t.ffmpeg.withVideoDecode(args...)...)
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {

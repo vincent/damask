@@ -7,6 +7,8 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+
+	"damask/server/internal/config"
 )
 
 type Transformer interface {
@@ -39,17 +41,23 @@ type Transformer interface {
 	VideoWatermark(ctx context.Context, srcPath, dstPath string, wm io.Reader, p VideoWatermarkParams) error
 }
 
-func NewTransformer() Transformer {
-	return &transformer{}
+func NewTransformer(cfg ...config.FFmpegConfig) Transformer {
+	ffmpegCfg := config.FFmpegConfig{}
+	if len(cfg) > 0 {
+		ffmpegCfg = cfg[0]
+	}
+	return &transformer{
+		ffmpeg: newFFmpegRuntime(ffmpegCfg),
+	}
 }
 
 type transformer struct {
+	ffmpeg ffmpegRuntime
 }
 
-// FFmpegAvailable reports whether ffmpeg is in PATH.
+// FFmpegAvailable reports whether the configured ffmpeg binary can be resolved.
 func (t *transformer) FFmpegAvailable() bool {
-	_, err := exec.LookPath("ffmpeg")
-	return err == nil
+	return t.ffmpeg.available()
 }
 
 // ImageMagickAvailable reports whether the ImageMagick `convert` binary is in PATH.
@@ -70,7 +78,10 @@ func (t *transformer) LibreOfficeAvailable() bool {
 // soffice (LibreOffice) is required for office document thumbnails.
 func (t *transformer) CheckExternalDeps() []string {
 	var missing []string
-	for _, bin := range []string{"ffmpeg", "convert", "soffice"} {
+	if !t.ffmpeg.available() {
+		missing = append(missing, "ffmpeg")
+	}
+	for _, bin := range []string{"convert", "soffice"} {
 		if _, err := exec.LookPath(bin); err != nil {
 			missing = append(missing, bin)
 		}

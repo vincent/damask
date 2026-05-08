@@ -25,7 +25,8 @@ import (
 )
 
 var rerunnableTypes = map[string]bool{
-	queue.JobTypeImageBgRemove: true,
+	queue.JobTypeImageBgRemove:    true,
+	queue.JobTypeImageWithPrompt:  true,
 }
 
 type VariantActionsStore interface {
@@ -384,6 +385,10 @@ func (s *variantService) Rerun(ctx context.Context, p RerunVariantParams) error 
 	paramsBytes, _ := json.Marshal(merged)
 	paramsStr := string(paramsBytes)
 
+	if err := s.actions.MarkVariantPending(ctx, p.WorkspaceID, p.VariantID, &paramsStr); err != nil {
+		return err
+	}
+
 	if strings.TrimSpace(variant.StorageKey) != "" {
 		if err := s.storage.Delete(variant.StorageKey); err != nil {
 			slog.WarnContext(ctx, "delete old variant storage before rerun", "variant_id", variant.ID, "error", err)
@@ -393,10 +398,6 @@ func (s *variantService) Rerun(ctx context.Context, p RerunVariantParams) error 
 		if err := s.storage.Delete(*variant.ThumbnailKey); err != nil {
 			slog.WarnContext(ctx, "delete old variant thumbnail before rerun", "variant_id", variant.ID, "error", err)
 		}
-	}
-
-	if err := s.actions.MarkVariantPending(ctx, p.WorkspaceID, p.VariantID, &paramsStr); err != nil {
-		return err
 	}
 
 	sourceVersion, err := s.actions.GetVersion(ctx, variant.AssetVersionID)

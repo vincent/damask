@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"damask/server/internal/apperr"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
@@ -15,7 +14,7 @@ type variantRepo struct {
 }
 
 // NewVariantRepo returns a repository.VariantRepository backed by sqlc-generated queries.
-func NewVariantRepo(_ *dbgen.Queries, sqlDB *sql.DB) repository.VariantRepository {
+func NewVariantRepo(sqlDB *sql.DB) repository.VariantRepository {
 	return &variantRepo{sqlDB: sqlDB}
 }
 

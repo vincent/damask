@@ -180,7 +180,7 @@
         >
           Create new asset
         </button>
-        {#if variant.type === 'image_bg_remove'}
+        {#if variant.type === 'image_bg_remove' || variant.type === 'image_with_prompt'}
           <button type="button" onclick={rerunVariant}>Re-run</button>
         {/if}
         <button

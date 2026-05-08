@@ -236,15 +236,25 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 	}
 
 	sz := int64(len(result))
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              variantID,
-		WorkspaceID:     p.WorkspaceID,
-		AssetVersionID:  p.VersionID,
-		Type:            queue.JobTypeImageWithPrompt,
-		StorageKey:      storageKey,
-		TransformParams: &paramsStr,
-		Size:            &sz,
-	})
+	if p.VariantID != "" {
+		variantID = p.VariantID
+		_, err = s.sqlDB.ExecContext(ctx, `
+			UPDATE variants
+			SET storage_key = ?, transform_params = ?, size = ?, status = 'ready'
+			WHERE id = ? AND workspace_id = ?`,
+			storageKey, paramsStr, sz, variantID, p.WorkspaceID,
+		)
+	} else {
+		_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+			ID:              variantID,
+			WorkspaceID:     p.WorkspaceID,
+			AssetVersionID:  p.VersionID,
+			Type:            queue.JobTypeImageWithPrompt,
+			StorageKey:      storageKey,
+			TransformParams: &paramsStr,
+			Size:            &sz,
+		})
+	}
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")

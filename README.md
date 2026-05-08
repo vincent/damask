@@ -85,6 +85,8 @@ Web: http://localhost:5173
 | `APP_SECRET` | - | **Required.** AES-256-GCM key for ingress config encryption, >= 32 chars |
 | `APP_ENV` | `development` | `development` or `production` (controls secure cookies) |
 | `QUEUE_WORKERS` | `4` | Job worker pool size (transcode capped at 2) |
+| `FFMPEG_PATH` | - | Optional. Absolute or resolvable path to the `ffmpeg` binary; `ffprobe` is inferred from the same install when possible |
+| `FFMPEG_HW_ACCEL` | - | Optional. Video decode hw accel hint for ffmpeg. Supported: `videotoolbox`, `vaapi`, `qsv`, `cuda` |
 | `REMOVEBG_API_KEY` | - | Optional. Enables background removal via remove.bg |
 | `ENABLE_SCHEDULER` | `true` | Enable automatic ingress polling |
 

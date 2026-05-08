@@ -141,7 +141,7 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
-	trf := transform.NewTransformer()
+	trf := transform.NewTransformer(cfg.FFmpeg)
 	tmb := transform.NewThumbnailer(trf)
 
 	media := mediatype.NewRegistry(trf)

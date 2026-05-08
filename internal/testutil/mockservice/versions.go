@@ -100,11 +100,14 @@ func (m *MockVersionService) WriteVersionRestored(_ context.Context, _, _ string
 
 // MockVariantService is a no-op implementation of service.VariantService.
 type MockVariantService struct {
-	ListFn          func(ctx context.Context, workspaceID, assetID string) ([]*service.VariantDTO, error)
-	GetFn           func(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error)
-	PrepareCreateFn func(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error)
-	CreateFn        func(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error)
-	DeleteFn        func(ctx context.Context, workspaceID, assetID, variantID string) error
+	ListFn           func(ctx context.Context, workspaceID, assetID string) ([]*service.VariantDTO, error)
+	GetFn            func(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error)
+	PrepareCreateFn  func(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error)
+	CreateFn         func(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error)
+	DeleteFn         func(ctx context.Context, workspaceID, assetID, variantID string) error
+	PromoteFn        func(ctx context.Context, p service.PromoteVariantParams) (service.PromoteVariantResult, error)
+	SetAsThumbnailFn func(ctx context.Context, workspaceID, assetID, variantID string) error
+	RerunFn          func(ctx context.Context, p service.RerunVariantParams) error
 }
 
 func NewVariantService() *MockVariantService { return &MockVariantService{} }
@@ -140,6 +143,27 @@ func (m *MockVariantService) Create(ctx context.Context, p service.CreateVariant
 func (m *MockVariantService) Delete(ctx context.Context, workspaceID, assetID, variantID string) error {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(ctx, workspaceID, assetID, variantID)
+	}
+	return nil
+}
+
+func (m *MockVariantService) Promote(ctx context.Context, p service.PromoteVariantParams) (service.PromoteVariantResult, error) {
+	if m.PromoteFn != nil {
+		return m.PromoteFn(ctx, p)
+	}
+	return service.PromoteVariantResult{}, nil
+}
+
+func (m *MockVariantService) SetAsThumbnail(ctx context.Context, workspaceID, assetID, variantID string) error {
+	if m.SetAsThumbnailFn != nil {
+		return m.SetAsThumbnailFn(ctx, workspaceID, assetID, variantID)
+	}
+	return nil
+}
+
+func (m *MockVariantService) Rerun(ctx context.Context, p service.RerunVariantParams) error {
+	if m.RerunFn != nil {
+		return m.RerunFn(ctx, p)
 	}
 	return nil
 }

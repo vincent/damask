@@ -145,8 +145,11 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 	var ffmpegStderr bytes.Buffer
 	var ffCmd *exec.Cmd
 	if n == 1 {
-		ffCmd = exec.CommandContext(ctx,
-			"ffmpeg", "-y",
+		if !t.ffmpeg.available() {
+			return nil, errFFmpegUnavailable(t.ffmpeg.configuredPath)
+		}
+		ffCmd = t.ffmpeg.commandFFmpeg(ctx,
+			"-y",
 			"-loop", "1", "-t", "3", "-i", filepath.Join(dir, entries[0].Name()),
 			"-vf", "scale=400:-2",
 			"-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast", "-an",
@@ -162,7 +165,10 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 			"-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast", "-an",
 			outPath,
 		)
-		ffCmd = exec.CommandContext(ctx, "ffmpeg", ffArgs...)
+		if !t.ffmpeg.available() {
+			return nil, errFFmpegUnavailable(t.ffmpeg.configuredPath)
+		}
+		ffCmd = t.ffmpeg.commandFFmpeg(ctx, ffArgs...)
 	}
 	ffCmd.Stderr = &ffmpegStderr
 	if err := ffCmd.Run(); err != nil {

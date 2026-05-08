@@ -85,7 +85,7 @@ func NewHttpServer(
 	userRepo := reposqlc.NewUserRepo(db, sqlDB)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(db, sqlDB)
 	versionRepo := reposqlc.NewVersionRepo(db, sqlDB)
-	variantRepo := reposqlc.NewVariantRepo(db, sqlDB)
+	variantRepo := reposqlc.NewVariantRepo(sqlDB)
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
 	media := mediatype.NewRegistry(trf)

@@ -47,6 +47,11 @@ func (c ImageRouterConfig) IsConfigured() bool {
 	return strings.TrimSpace(c.APIKey) != ""
 }
 
+type FFmpegConfig struct {
+	Path    string
+	HWAccel string
+}
+
 type Config struct {
 	MailServerPort   string
 	MailServerHost   string
@@ -73,6 +78,7 @@ type Config struct {
 	Canva  CanvaConfig
 
 	ImageRouter ImageRouterConfig
+	FFmpeg      FFmpegConfig
 
 	Telemetry TelemetryConfig
 }
@@ -171,6 +177,10 @@ func Load() (*Config, error) {
 			DefaultBgRemoveModel: getEnv("IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL", "bria/remove-background:free"),
 			RetryPaidOnFreeLimit: getEnv("IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT", "false") == "true",
 		},
+		FFmpeg: FFmpegConfig{
+			Path:    strings.TrimSpace(os.Getenv("FFMPEG_PATH")),
+			HWAccel: strings.ToLower(strings.TrimSpace(os.Getenv("FFMPEG_HW_ACCEL"))),
+		},
 	}
 	cfg.Telemetry = TelemetryConfig{
 		Enabled:     getEnv("OTEL_ENABLED", "false") == "true",
@@ -200,6 +210,12 @@ func Load() (*Config, error) {
 
 	if cfg.AppSecret == "" {
 		return nil, errors.New("APP_SECRET env var is required")
+	}
+
+	switch cfg.FFmpeg.HWAccel {
+	case "", "videotoolbox", "vaapi", "qsv", "cuda":
+	default:
+		return nil, errors.New("FFMPEG_HW_ACCEL must be one of: videotoolbox, vaapi, qsv, cuda")
 	}
 
 	baseURL, err := url.Parse(getEnv("BASE_URL", "http://localhost:5173"))

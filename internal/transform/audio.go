@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -53,8 +52,10 @@ func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType
 	var stderr bytes.Buffer
 	output := tmpPath + "_thumb" + ".png"
 
-	cmd := exec.CommandContext(ctx,
-		"ffmpeg",
+	if !t.ffmpeg.available() {
+		return nil, "", errFFmpegUnavailable(t.ffmpeg.configuredPath)
+	}
+	cmd := t.ffmpeg.commandFFmpeg(ctx,
 		"-i",
 		tmpPath,
 		"-filter_complex",
@@ -87,7 +88,7 @@ func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType
 // ExtractAudio strips video streams from srcPath and writes the audio stream to dstPath.
 func (t *transformer) ExtractAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error {
 	p = defaultAudioParams(p, "aac")
-	hasAudio, err := probeHasAudio(ctx, srcPath)
+	hasAudio, err := t.probeHasAudio(ctx, srcPath)
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (t *transformer) ExtractAudio(ctx context.Context, srcPath, dstPath string,
 		args = append(args, "-b:a", p.Bitrate)
 	}
 	args = append(args, dstPath)
-	return runFFmpeg(ctx, args...)
+	return t.runFFmpeg(ctx, args...)
 }
 
 // TranscodeAudio re-encodes srcPath audio to the requested format and writes it to dstPath.
@@ -133,7 +134,7 @@ func (t *transformer) TranscodeAudio(ctx context.Context, srcPath, dstPath strin
 		args = append(args, "-ac", "1")
 	}
 	args = append(args, dstPath)
-	return runFFmpeg(ctx, args...)
+	return t.runFFmpeg(ctx, args...)
 }
 
 // NormalizeAudio applies EBU R128 loudness normalization and writes the result to dstPath.
@@ -152,7 +153,7 @@ func (t *transformer) NormalizeAudio(ctx context.Context, srcPath, dstPath strin
 
 	target := strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", p.TargetLUFS), "0"), ".")
 	measureFilter := fmt.Sprintf("loudnorm=I=%s:TP=-1.5:LRA=11:print_format=json", target)
-	stderr, err := runFFmpegOutput(ctx, "-i", srcPath, "-af", measureFilter, "-f", "null", os.DevNull)
+	stderr, err := t.runFFmpegOutput(ctx, "-i", srcPath, "-af", measureFilter, "-f", "null", os.DevNull)
 	if err == nil {
 		if stats, parseErr := parseLoudnormStats(stderr); parseErr == nil {
 			applyFilter := fmt.Sprintf(
@@ -164,12 +165,12 @@ func (t *transformer) NormalizeAudio(ctx context.Context, srcPath, dstPath strin
 				stats.InputThresh,
 				stats.TargetOffset,
 			)
-			return runNormalizePass(ctx, srcPath, dstPath, c, p, applyFilter)
+			return t.runNormalizePass(ctx, srcPath, dstPath, c, p, applyFilter)
 		}
 	}
 
 	fallbackFilter := fmt.Sprintf("loudnorm=I=%s:TP=-1.5:LRA=11:linear=false", target)
-	return runNormalizePass(ctx, srcPath, dstPath, c, p, fallbackFilter)
+	return t.runNormalizePass(ctx, srcPath, dstPath, c, p, fallbackFilter)
 }
 
 func defaultAudioParams(p AudioParams, fallbackFormat string) AudioParams {
@@ -183,13 +184,13 @@ func defaultAudioParams(p AudioParams, fallbackFormat string) AudioParams {
 	return p
 }
 
-func runNormalizePass(ctx context.Context, srcPath, dstPath string, c audioCodec, p AudioParams, filter string) error {
+func (t *transformer) runNormalizePass(ctx context.Context, srcPath, dstPath string, c audioCodec, p AudioParams, filter string) error {
 	args := []string{"-y", "-i", srcPath, "-af", filter, "-c:a", c.codec}
 	if !c.lossless {
 		args = append(args, "-b:a", p.Bitrate)
 	}
 	args = append(args, dstPath)
-	return runFFmpeg(ctx, args...)
+	return t.runFFmpeg(ctx, args...)
 }
 
 func codecForFormat(format string) (audioCodec, error) {
@@ -231,13 +232,15 @@ func AudioFormatFromMimeType(mimeType string) string {
 	}
 }
 
-func probeHasAudio(ctx context.Context, srcPath string) (bool, error) {
+func (t *transformer) probeHasAudio(ctx context.Context, srcPath string) (bool, error) {
+	if !t.ffmpeg.ffprobeAvailable() {
+		return false, errFFprobeUnavailable(t.ffmpeg.configuredPath)
+	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx,
-		"ffprobe",
+	cmd := t.ffmpeg.commandFFprobe(ctx,
 		"-v", "error",
 		"-select_streams", "a",
 		"-show_entries", "stream=index",
@@ -252,15 +255,18 @@ func probeHasAudio(ctx context.Context, srcPath string) (bool, error) {
 	return strings.TrimSpace(stdout.String()) != "", nil
 }
 
-func runFFmpeg(ctx context.Context, args ...string) error {
-	_, err := runFFmpegOutput(ctx, args...)
+func (t *transformer) runFFmpeg(ctx context.Context, args ...string) error {
+	_, err := t.runFFmpegOutput(ctx, args...)
 	return err
 }
 
-func runFFmpegOutput(ctx context.Context, args ...string) (string, error) {
+func (t *transformer) runFFmpegOutput(ctx context.Context, args ...string) (string, error) {
+	if !t.ffmpeg.available() {
+		return "", errFFmpegUnavailable(t.ffmpeg.configuredPath)
+	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd := t.ffmpeg.commandFFmpeg(ctx, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
