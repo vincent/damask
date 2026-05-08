@@ -160,7 +160,7 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		})
 	})
 	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
-		return fmt.Errorf("The selected model is not available for background removal. Please choose another model and try again")
+		return fmt.Errorf("the selected model is not available for background removal. please choose another model and try again")
 	}
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
@@ -372,7 +372,7 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
 	})
 	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
-		return fmt.Errorf("The selected model is not available for background removal. Please choose another model and try again")
+		return fmt.Errorf("the selected model is not available for background removal. please choose another model and try again")
 	}
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)

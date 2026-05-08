@@ -25,8 +25,8 @@ import (
 )
 
 var rerunnableTypes = map[string]bool{
-	queue.JobTypeImageBgRemove:    true,
-	queue.JobTypeImageWithPrompt:  true,
+	queue.JobTypeImageBgRemove:   true,
+	queue.JobTypeImageWithPrompt: true,
 }
 
 type VariantActionsStore interface {
@@ -525,13 +525,4 @@ func coalesceString(v, fallback string) string {
 		return fallback
 	}
 	return v
-}
-
-func (s *variantService) markVariantFailed(ctx context.Context, workspaceID, variantID string) {
-	if s.actions == nil {
-		return
-	}
-	if err := s.actions.SetVariantStatus(ctx, variantID, workspaceID, "failed"); err != nil && !errors.Is(err, apperr.ErrNotFound) {
-		slog.WarnContext(ctx, "mark variant failed", "variant_id", variantID, "error", err)
-	}
 }

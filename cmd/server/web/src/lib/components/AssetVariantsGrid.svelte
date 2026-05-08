@@ -5,6 +5,8 @@
   interface Props {
     asset: Asset
     variants: Variant[]
+    selectedVariant: Variant | null
+    onSelectVariant: (v: Variant) => void
     deleteVariant: (variantId: string) => void
     promoteVariant: (variant: Variant) => void
     thumbnailUpdated: () => void
@@ -14,6 +16,8 @@
   let {
     asset,
     variants,
+    selectedVariant,
+    onSelectVariant,
     deleteVariant,
     promoteVariant,
     thumbnailUpdated,
@@ -26,6 +30,8 @@
     <VariantCard
       variant={v}
       assetId={asset.id}
+      isSelected={selectedVariant?.id === v.id}
+      onSelect={() => onSelectVariant(v)}
       onDelete={() => deleteVariant(v.id)}
       onPromote={() => promoteVariant(v)}
       onThumbnailUpdated={thumbnailUpdated}

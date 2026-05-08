@@ -92,6 +92,10 @@
   type PanelTab = keyof typeof panelTabs
   let activeTab = $state<PanelTab>('details')
 
+  $effect(() => {
+    if (activeTab !== 'variants') selectedVariant = null
+  })
+
   let activeVariantTab = $state<VariantTab>('all')
 
   // --- Asset state ---
@@ -164,12 +168,70 @@
   const isVideo = $derived(asset ? mimeIsVideo(asset.mime_type) : false)
   const isAudio = $derived(asset ? mimeIsAudio(asset.mime_type) : false)
 
+  // --- Variant preview selection ---
+  let selectedVariant = $state<Variant | null>(null)
+
+  function deriveVariantMime(v: Variant): string {
+    // Derive from storage_key extension — thumbnail_content_type is the poster
+    // image mime, not the variant file mime, so it can't be used here.
+    const key = v.storage_key ?? ''
+    if (key.endsWith('.mp4') || key.endsWith('.m4v')) return 'video/mp4'
+    if (key.endsWith('.webm')) return 'video/webm'
+    if (key.endsWith('.mov')) return 'video/quicktime'
+    if (key.endsWith('.mp3')) return 'audio/mpeg'
+    if (key.endsWith('.aac')) return 'audio/aac'
+    if (key.endsWith('.ogg')) return 'audio/ogg'
+    if (key.endsWith('.wav')) return 'audio/wav'
+    if (key.endsWith('.flac')) return 'audio/flac'
+    if (key.endsWith('.pdf')) return 'application/pdf'
+    if (key.endsWith('.png')) return 'image/png'
+    if (key.endsWith('.jpg') || key.endsWith('.jpeg')) return 'image/jpeg'
+    if (key.endsWith('.webp')) return 'image/webp'
+    if (key.endsWith('.gif')) return 'image/gif'
+    if (key.endsWith('.avif')) return 'image/avif'
+    // Fallback: infer from variant type string
+    const t = v.type ?? ''
+    if (t.startsWith('video_'))
+      return asset?.mime_type?.startsWith('video/')
+        ? asset.mime_type
+        : 'video/mp4'
+    if (t.startsWith('audio_'))
+      return asset?.mime_type?.startsWith('audio/')
+        ? asset.mime_type
+        : 'audio/mpeg'
+    if (t === 'video_capture_image') return 'image/jpeg'
+    return asset?.mime_type ?? 'application/octet-stream'
+  }
+
+  const previewMimeType = $derived(
+    selectedVariant
+      ? deriveVariantMime(selectedVariant)
+      : (asset?.mime_type ?? '')
+  )
+  const previewCategory = $derived(mimeCategory(previewMimeType))
+  const previewThumbUrl = $derived(
+    asset
+      ? selectedVariant
+        ? variantApi.thumbUrl(asset.id, selectedVariant.id)
+        : assetApi.thumbUrl(asset.id)
+      : ''
+  )
+  const previewFileUrl = $derived(
+    asset
+      ? selectedVariant
+        ? variantApi.fileUrl(asset.id, selectedVariant.id)
+        : assetApi.fileUrl(asset.id)
+      : ''
+  )
+
   $effect(() => {
     if (!asset) {
       variants = []
       variantPanelState = { mode: 'list' }
+      selectedVariant = null
       return
     }
+    selectedVariant = null
     loadVariants()
   })
 
@@ -398,10 +460,10 @@
       aria-label={m.close()}
     >
       <SharedAsset
-        {asset}
-        {category}
-        thumbUrl={assetApi.thumbUrl(asset.id)}
-        assetUrl={assetApi.fileUrl(asset.id)}
+        asset={{ ...asset, mime_type: previewMimeType }}
+        category={previewCategory}
+        thumbUrl={previewThumbUrl}
+        assetUrl={previewFileUrl}
         bind:zoomIn
         bind:zoomOut
         bind:zoomReset
@@ -618,6 +680,10 @@
                 <AssetVariantsGrid
                   {asset}
                   {variants}
+                  {selectedVariant}
+                  onSelectVariant={(v) => {
+                    selectedVariant = selectedVariant?.id === v.id ? null : v
+                  }}
                   deleteVariant={handleDeleteVariant}
                   promoteVariant={openPromoteVariant}
                   thumbnailUpdated={handleThumbnailUpdated}

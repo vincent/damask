@@ -12,6 +12,8 @@
   interface Props {
     variant: Variant
     assetId: string
+    isSelected: boolean
+    onSelect: () => void
     onDelete: () => void
     onPromote: () => void
     onThumbnailUpdated: () => void
@@ -21,6 +23,8 @@
   let {
     variant,
     assetId,
+    isSelected,
+    onSelect,
     onDelete,
     onPromote,
     onThumbnailUpdated,
@@ -122,7 +126,15 @@
   }
 </script>
 
-<div class="variant-card group">
+<div
+  class="variant-card group"
+  class:selected={isSelected}
+  role="button"
+  tabindex="0"
+  onclick={onSelect}
+  onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
+  aria-pressed={isSelected}
+>
   <!-- Thumbnail -->
   <div class="thumb-area">
     {#if thumbUrl}
@@ -150,6 +162,7 @@
         download
         class="thumb-action top-2 right-10"
         aria-label={m.download()}
+        onclick={(e) => e.stopPropagation()}
       >
         <Download class="h-3.5 w-3.5" />
       </a>
@@ -159,7 +172,8 @@
           type="button"
           class="thumb-action top-2 right-2"
           aria-label="Variant actions"
-          onclick={() => {
+          onclick={(e) => {
+            e.stopPropagation()
             menuOpen = !menuOpen
           }}
         >
@@ -234,6 +248,13 @@
   }
   .variant-card:hover {
     box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.1);
+  }
+  .variant-card.selected {
+    border-color: var(--accent-cta);
+    box-shadow: 0 0 0 2px var(--accent-cta);
+  }
+  .variant-card {
+    cursor: pointer;
   }
   .thumb-area {
     position: relative;
