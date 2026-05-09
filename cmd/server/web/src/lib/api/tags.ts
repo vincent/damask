@@ -8,9 +8,10 @@ import type {
 
 export const tagApi = {
   /** GET /api/v1/tags — list all tags in the workspace (with usage counts). */
-  list: (opts?: { system?: boolean }) => {
+  list: (opts?: { system?: boolean; hide_empty?: boolean }) => {
     const params = new URLSearchParams()
     if (opts?.system) params.set('system', 'true')
+    if (opts?.hide_empty) params.set('hide_empty', 'true')
     const query = params.toString()
     return apiFetch<Tag[]>(`/api/v1/tags${query ? `?${query}` : ''}`)
   },

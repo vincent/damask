@@ -27,6 +27,7 @@ export interface Workspace {
   version_retention_count: number
   exif_keep: boolean
   exif_keep_gps: boolean
+  locked_taxonomy: boolean
   created_at: string
   updated_at: string
 }

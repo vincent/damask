@@ -59,15 +59,30 @@ func tagDTOToResponse(d *service.TagDTO) TagResponse {
 func (s *Server) handleListTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	includeSystem, _ := strconv.ParseBool(c.Query("system", "false"))
+	hideEmpty, _ := strconv.ParseBool(c.Query("hide_empty", "false"))
+
+	ws, err := getLocalWorkspace(c, s.workspace)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	if ws.LockedTaxonomy {
+		member, merr := getLocalMember(c, s.workspace)
+		if merr != nil || member.Role != "owner" {
+			hideEmpty = true
+		}
+	}
 
 	dtos, err := s.tags.List(c.Context(), claims.WorkspaceID, includeSystem)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	items := make([]TagResponse, len(dtos))
-	for i, d := range dtos {
-		items[i] = tagDTOToResponse(d)
+	items := make([]TagResponse, 0, len(dtos))
+	for _, d := range dtos {
+		if hideEmpty && d.AssetCount == 0 {
+			continue
+		}
+		items = append(items, tagDTOToResponse(d))
 	}
 	return c.JSON(items)
 }
@@ -91,6 +106,17 @@ func (s *Server) handleCreateTag(c fiber.Ctx) error {
 	body, ok := decodeAndValidate(c, &createTagRequest{})
 	if !ok {
 		return nil
+	}
+
+	ws, err := getLocalWorkspace(c, s.workspace)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	if ws.LockedTaxonomy {
+		member, merr := getLocalMember(c, s.workspace)
+		if merr != nil || member.Role != "owner" {
+			return fiber.NewError(fiber.StatusForbidden, "taxonomy_locked")
+		}
 	}
 
 	dto, err := s.tags.Create(c.Context(), claims.WorkspaceID, service.CreateTagParams{
@@ -331,6 +357,22 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 
 	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
 		return ErrorStatusResponse(c, err)
+	}
+
+	ws, err := getLocalWorkspace(c, s.workspace)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	if ws.LockedTaxonomy {
+		tagName := strings.ToLower(strings.TrimSpace(body.Name))
+		_, tagErr := s.tags.GetByName(c.Context(), claims.WorkspaceID, tagName)
+		if tagErr != nil {
+			member, merr := getLocalMember(c, s.workspace)
+			if merr != nil || member.Role != string(auth.Owner) {
+				return fiber.NewError(fiber.StatusUnprocessableEntity, "tag_not_in_vocabulary")
+			}
+		}
 	}
 
 	tag, err := s.tags.AddToAsset(c.Context(), claims.WorkspaceID, assetID, body.Name)

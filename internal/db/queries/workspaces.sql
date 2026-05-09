@@ -18,5 +18,8 @@ UPDATE workspaces SET version_retention_count = ?, updated_at = datetime('now') 
 -- name: UpdateWorkspaceExifSettings :exec
 UPDATE workspaces SET exif_keep = ?, exif_keep_gps = ?, updated_at = datetime('now') WHERE id = ?;
 
+-- name: UpdateWorkspaceLockedTaxonomy :exec
+UPDATE workspaces SET locked_taxonomy = ?, updated_at = datetime('now') WHERE id = ?;
+
 -- name: CountWorkspaceAssets :one
 SELECT COUNT(*) FROM assets WHERE workspace_id = ?;

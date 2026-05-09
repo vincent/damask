@@ -24,10 +24,10 @@ type WorkspaceResponse struct {
 	IconVersionID            *string   `json:"icon_version_id"`
 	ExifKeep                 bool      `json:"exif_keep"`
 	ExifKeepGps              bool      `json:"exif_keep_gps"`
+	LockedTaxonomy           bool      `json:"locked_taxonomy"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }
-
 
 func workspaceDTOToResponse(w *service.WorkspaceDTO) WorkspaceResponse {
 	return WorkspaceResponse{
@@ -40,6 +40,7 @@ func workspaceDTOToResponse(w *service.WorkspaceDTO) WorkspaceResponse {
 		IconVersionID:            w.IconVersionID,
 		ExifKeep:                 w.ExifKeep,
 		ExifKeepGps:              w.ExifKeepGps,
+		LockedTaxonomy:           w.LockedTaxonomy,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
@@ -231,6 +232,7 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 		VersionRetentionCount: &body.VersionRetentionCount,
 		ExifKeep:              &body.ExifKeep,
 		ExifKeepGps:           &body.ExifKeepGPS,
+		LockedTaxonomy:        body.LockedTaxonomy,
 	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)

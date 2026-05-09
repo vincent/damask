@@ -786,5 +786,13 @@
   "bulk_success_toast": "Applied to {count} assets",
   "cmd_bulk_metadata": "Edit {changes} on {assets} assets",
   "cmd_bulk_metadata_tags": "{count} tag(s)",
-  "cmd_bulk_metadata_fields": "{count} field(s)"
+  "cmd_bulk_metadata_fields": "{count} field(s)",
+  "workspace_settings_tag_taxonomy_section": "Tag taxonomy",
+  "workspace_settings_locked_taxonomy_label": "Locked vocabulary",
+  "workspace_settings_locked_taxonomy_description": "When enabled, editors and viewers can only apply tags from the existing tag library. New tags can only be created by owners in Settings → Tags.",
+  "workspace_settings_locked_taxonomy_confirm": "All {count} existing tags become the controlled vocabulary.",
+  "tag_not_in_vocabulary": "\"{name}\" is not in the vocabulary",
+  "tag_not_in_vocabulary_hint": "Ask a workspace owner to add it to the tag library.",
+  "tag_autocomplete_not_in_vocab": "Not in vocabulary",
+  "tag_vocab_locked_api_error": "This tag is not in the vocabulary. Ask a workspace owner to add it."
 }

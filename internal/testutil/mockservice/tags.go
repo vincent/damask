@@ -9,6 +9,7 @@ import (
 // MockTagService is a no-op implementation of service.TagService.
 type MockTagService struct {
 	ListFn             func(ctx context.Context, workspaceID string, includeSystem bool) ([]*service.TagDTO, error)
+	GetByNameFn        func(ctx context.Context, workspaceID, name string) (*service.TagDTO, error)
 	CreateFn           func(ctx context.Context, workspaceID string, p service.CreateTagParams) (*service.TagDTO, error)
 	PatchFn            func(ctx context.Context, workspaceID, currentName string, p service.PatchTagParams) (*service.TagDTO, error)
 	EnsureSystemTagFn  func(ctx context.Context, workspaceID, name string) error
@@ -29,6 +30,13 @@ func NewTagService() *MockTagService { return &MockTagService{} }
 func (m *MockTagService) List(ctx context.Context, workspaceID string, includeSystem bool) ([]*service.TagDTO, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, includeSystem)
+	}
+	return nil, nil
+}
+
+func (m *MockTagService) GetByName(ctx context.Context, workspaceID, name string) (*service.TagDTO, error) {
+	if m.GetByNameFn != nil {
+		return m.GetByNameFn(ctx, workspaceID, name)
 	}
 	return nil, nil
 }

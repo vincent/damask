@@ -180,6 +180,7 @@ type Workspace struct {
 	IconVersionID            *string
 	ExifKeep                 bool
 	ExifKeepGps              bool
+	LockedTaxonomy           bool
 	CreatedAt                time.Time
 	UpdatedAt                time.Time
 }

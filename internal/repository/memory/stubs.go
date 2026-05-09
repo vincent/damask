@@ -239,6 +239,9 @@ func (r *WorkspaceRepo) Create(_ context.Context, w repository.Workspace) (repos
 func (r *WorkspaceRepo) Update(_ context.Context, w repository.Workspace) (repository.Workspace, error) {
 	return w, nil
 }
+func (r *WorkspaceRepo) UpdateLockedTaxonomy(_ context.Context, _ string, _ bool) (repository.Workspace, error) {
+	return repository.Workspace{}, nil
+}
 func (r *WorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) { return 0, nil }
 func (r *WorkspaceRepo) GetMember(_ context.Context, _, _ string) (repository.Member, error) {
 	return repository.Member{}, nil

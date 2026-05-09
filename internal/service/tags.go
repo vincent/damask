@@ -76,6 +76,14 @@ func NewTagService(tags repository.TagRepository, aw audit.Writer) TagService {
 	return &tagService{tags: tags, audit: aw}
 }
 
+func (s *tagService) GetByName(ctx context.Context, workspaceID, name string) (*TagDTO, error) {
+	tag, err := s.tags.GetByName(ctx, workspaceID, strings.ToLower(strings.TrimSpace(name)))
+	if err != nil {
+		return nil, err
+	}
+	return toTagDTO(tag), nil
+}
+
 func (s *tagService) List(ctx context.Context, workspaceID string, includeSystem bool) ([]*TagDTO, error) {
 	rows, err := s.tags.List(ctx, workspaceID, includeSystem)
 	if err != nil {

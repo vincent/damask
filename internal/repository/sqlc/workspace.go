@@ -211,9 +211,24 @@ func toWorkspace(w dbgen.Workspace) repository.Workspace {
 		IconVersionID:            w.IconVersionID,
 		ExifKeep:                 w.ExifKeep != 0,
 		ExifKeepGps:              w.ExifKeepGps != 0,
+		LockedTaxonomy:           w.LockedTaxonomy != 0,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
+}
+
+func (r *workspaceRepo) UpdateLockedTaxonomy(ctx context.Context, workspaceID string, locked bool) (repository.Workspace, error) {
+	val := int64(0)
+	if locked {
+		val = 1
+	}
+	if err := r.q.UpdateWorkspaceLockedTaxonomy(ctx, dbgen.UpdateWorkspaceLockedTaxonomyParams{
+		ID:             workspaceID,
+		LockedTaxonomy: val,
+	}); err != nil {
+		return repository.Workspace{}, err
+	}
+	return r.GetByID(ctx, workspaceID)
 }
 
 func (r *workspaceRepo) Create(ctx context.Context, w repository.Workspace) (repository.Workspace, error) {

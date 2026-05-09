@@ -9,6 +9,7 @@ CREATE TABLE workspaces (
     icon_version_id             TEXT,
     exif_keep                   INTEGER NOT NULL DEFAULT 0,
     exif_keep_gps               INTEGER NOT NULL DEFAULT 0,
+    locked_taxonomy             INTEGER NOT NULL DEFAULT 0,
     created_at                  DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at                  DATETIME NOT NULL DEFAULT (datetime('now'))
 );

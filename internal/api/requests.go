@@ -133,6 +133,7 @@ type UpdateWorkspaceSettingsRequest struct {
 	VersionRetentionCount int64 `json:"version_retention_count"`
 	ExifKeep              bool  `json:"exif_keep"`
 	ExifKeepGPS           bool  `json:"exif_keep_gps"`
+	LockedTaxonomy        *bool `json:"locked_taxonomy"`
 }
 
 func (r *UpdateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {

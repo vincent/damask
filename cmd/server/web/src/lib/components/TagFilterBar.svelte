@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tagApi, type Tag } from '$lib/api'
+  import { authStore } from '$lib/stores/auth.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
 
   interface Props {
@@ -13,7 +14,8 @@
 
   async function loadTags() {
     try {
-      allTags = await tagApi.list()
+      const hideEmpty = authStore.taxonomyLocked && !authStore.canCreateTag
+      allTags = await tagApi.list({ hide_empty: hideEmpty })
     } catch {
       // silently ignore
     }

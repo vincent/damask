@@ -35,9 +35,10 @@ export const workspaceApi = {
 
   /** PUT /api/v1/workspace/settings (owner only) — update workspace settings. */
   updateSettings: (settings: {
-    version_retention_count: number
+    version_retention_count?: number
     exif_keep?: boolean
     exif_keep_gps?: boolean
+    locked_taxonomy?: boolean
   }) =>
     apiFetch<Workspace>('/api/v1/workspace/settings', {
       method: 'PUT',

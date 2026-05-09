@@ -14,6 +14,8 @@
     Check,
   } from '@lucide/svelte'
   import { tagsManagementStore } from '$lib/stores/tagsManagement.svelte'
+  import { authStore } from '$lib/stores/auth.svelte'
+  import { workspaceApi } from '$lib/api'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { RenameTag } from '$lib/commands/RenameTag'
@@ -366,6 +368,35 @@
     if (!iso) return '—'
     return formatDistanceToNowStrict(new Date(iso), { addSuffix: true })
   }
+
+  // ── Locked vocabulary toggle (owner only) ─────────────────────────────────────
+  const isOwner = $derived(authStore.role === 'owner')
+  let taxonomyLocked = $state(authStore.workspace?.locked_taxonomy ?? false)
+  let taxonomySaving = $state(false)
+
+  $effect(() => {
+    taxonomyLocked = authStore.workspace?.locked_taxonomy ?? false
+  })
+
+  async function toggleLockedTaxonomy() {
+    if (!isOwner) return
+    const next = !taxonomyLocked
+    taxonomySaving = true
+    try {
+      const updated = await workspaceApi.updateSettings({
+        locked_taxonomy: next,
+      })
+      authStore.patchWorkspace({ locked_taxonomy: updated.locked_taxonomy })
+      taxonomyLocked = updated.locked_taxonomy
+    } catch (e) {
+      toastStore.show(
+        e instanceof Error ? e.message : 'Failed to update setting',
+        'error'
+      )
+    } finally {
+      taxonomySaving = false
+    }
+  }
 </script>
 
 <svelte:head>
@@ -393,21 +424,73 @@
           {m.tags_purge_title()} ({unusedTags.length})
         </Button>
       {/if}
-      <Button
-        variant="primary"
-        onclick={() => {
-          showNewTagModal = true
-          newTagName = ''
-          newTagColor = null
-          newTagGroup = null
-          newTagError = ''
-        }}
-      >
-        {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
-        {m.tag_new()}
-      </Button>
+      {#if authStore.canCreateTag}
+        <Button
+          variant="primary"
+          onclick={() => {
+            showNewTagModal = true
+            newTagName = ''
+            newTagColor = null
+            newTagGroup = null
+            newTagError = ''
+          }}
+        >
+          {#snippet icon()}<Plus class="h-4 w-4" />{/snippet}
+          {m.tag_new()}
+        </Button>
+      {/if}
     </div>
   </PageHeader>
+
+  <!-- Tag taxonomy section — owner only -->
+  {#if isOwner}
+    <div class="mx-auto w-full max-w-4xl px-6 pt-8">
+      <div
+        class="space-y-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
+      >
+        <h2
+          class="text-sm font-semibold tracking-wide text-[var(--text-muted)] uppercase"
+        >
+          {m.workspace_settings_tag_taxonomy_section()}
+        </h2>
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1">
+            <p class="text-md font-medium text-[var(--text-primary)]">
+              {m.workspace_settings_locked_taxonomy_label()}
+            </p>
+            <p class="mt-0.5 text-sm text-[var(--text-muted)]">
+              {m.workspace_settings_locked_taxonomy_description()}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={taxonomyLocked}
+            aria-label={m.workspace_settings_locked_taxonomy_label()}
+            disabled={taxonomySaving}
+            onclick={toggleLockedTaxonomy}
+            class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
+              {taxonomyLocked
+              ? 'bg-indigo-600'
+              : 'bg-gray-200 dark:bg-gray-700'}"
+          >
+            <span
+              class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
+              {taxonomyLocked ? 'translate-x-5' : 'translate-x-0'}"
+            ></span>
+          </button>
+        </div>
+        {#if taxonomyLocked}
+          <p class="text-sm text-indigo-600 dark:text-indigo-400">
+            {m.workspace_settings_locked_taxonomy_confirm({
+              count: tagsManagementStore.tags.filter((t) => !t.is_system)
+                .length,
+            })}
+          </p>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   <div class="mx-auto w-full max-w-4xl py-8">
     <!-- Toolbar -->

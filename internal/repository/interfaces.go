@@ -220,6 +220,7 @@ type WorkspaceRepository interface {
 	GetByID(ctx context.Context, id string) (Workspace, error)
 	Create(ctx context.Context, w Workspace) (Workspace, error)
 	Update(ctx context.Context, w Workspace) (Workspace, error)
+	UpdateLockedTaxonomy(ctx context.Context, workspaceID string, locked bool) (Workspace, error)
 	CountAssets(ctx context.Context, workspaceID string) (int64, error)
 	// Member methods
 	GetMember(ctx context.Context, workspaceID, userID string) (Member, error)

@@ -23,6 +23,7 @@ type WorkspaceDTO struct {
 	IconVersionID            *string
 	ExifKeep                 bool
 	ExifKeepGps              bool
+	LockedTaxonomy           bool
 	CreatedAt                time.Time
 	UpdatedAt                time.Time
 }
@@ -73,6 +74,7 @@ type UpdateWorkspaceParams struct {
 	VersionRetentionCount *int64
 	ExifKeep              *bool
 	ExifKeepGps           *bool
+	LockedTaxonomy        *bool
 }
 
 // CreateInviteParams is the input for WorkspaceService.CreateInvite.
@@ -136,6 +138,12 @@ func (s *workspaceService) Update(ctx context.Context, workspaceID string, p Upd
 	if err != nil {
 		return nil, err
 	}
+	if p.LockedTaxonomy != nil {
+		updated, err = s.workspaces.UpdateLockedTaxonomy(ctx, workspaceID, *p.LockedTaxonomy)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return toWorkspaceDTO(updated), nil
 }
 
@@ -189,6 +197,7 @@ func (s *workspaceService) ListForUser(ctx context.Context, userID string) ([]Wo
 func (s *workspaceService) CountAssets(ctx context.Context, workspaceID string) (int64, error) {
 	return s.workspaces.CountAssets(ctx, workspaceID)
 }
+
 
 func (s *workspaceService) GetMember(ctx context.Context, workspaceID, userID string) (*MemberDTO, error) {
 	m, err := s.workspaces.GetMember(ctx, workspaceID, userID)
@@ -336,6 +345,7 @@ func toWorkspaceDTO(ws repository.Workspace) *WorkspaceDTO {
 		IconVersionID:            ws.IconVersionID,
 		ExifKeep:                 ws.ExifKeep,
 		ExifKeepGps:              ws.ExifKeepGps,
+		LockedTaxonomy:           ws.LockedTaxonomy,
 		CreatedAt:                ws.CreatedAt,
 		UpdatedAt:                ws.UpdatedAt,
 	}

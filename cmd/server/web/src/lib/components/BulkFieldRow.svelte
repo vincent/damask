@@ -83,7 +83,8 @@
         <span
           class="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-400"
         >
-          <span class="h-1.5 w-1.5 rounded-full bg-rose-400 dark:bg-rose-500"></span>
+          <span class="h-1.5 w-1.5 rounded-full bg-rose-400 dark:bg-rose-500"
+          ></span>
           {m.bulk_metadata_clear_value()}
         </span>
         <button

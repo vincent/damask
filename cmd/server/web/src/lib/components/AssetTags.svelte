@@ -19,6 +19,7 @@
   let tagSuggestions = $state<string[]>([])
   let showTagInput = $state(false)
   let allTags = $state<{ id: string; name: string; asset_count: number }[]>([])
+  let tagError = $state('')
 
   const tags = $derived(
     (asset ? assetsStore.assets.find((a) => a.id === asset.id) : null)?.tags ??
@@ -26,8 +27,17 @@
       []
   )
 
+  const noMatch = $derived(
+    tagInput.trim().length > 0 && tagSuggestions.length === 0
+  )
+  const showCreate = $derived(noMatch && authStore.canCreateTag)
+  const showVocabHint = $derived(
+    noMatch && authStore.taxonomyLocked && !authStore.canCreateTag
+  )
+
   function updateSuggestions() {
     const q = tagInput.trim().toLowerCase()
+    tagError = ''
     if (!q) {
       tagSuggestions = []
       return
@@ -42,12 +52,15 @@
     if (!asset || !name.trim()) return
     const n = name.trim().toLowerCase()
     if (tags.includes(n)) return
+    tagError = ''
     try {
       await undoStore.execute(new TagAsset(asset.id, n, 'add'))
       tagInput = ''
       showTagInput = false
-    } catch {
-      /* silently ignore */
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('tag_not_in_vocabulary')) {
+        tagError = m.tag_vocab_locked_api_error()
+      }
     }
   }
 
@@ -107,9 +120,9 @@
               class="w-28 rounded-full border border-indigo-400 bg-white px-2.5 py-0.5 text-sm text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
             />
           </form>
-          {#if tagSuggestions.length > 0}
+          {#if tagSuggestions.length > 0 || showVocabHint}
             <ul
-              class="absolute top-full left-0 z-20 mt-0.5 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-md dark:border-gray-700 dark:bg-gray-900"
+              class="absolute top-full left-0 z-20 mt-0.5 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-md dark:border-gray-700 dark:bg-gray-900"
             >
               {#each tagSuggestions as s}
                 <li>
@@ -119,7 +132,31 @@
                   >
                 </li>
               {/each}
+              {#if showCreate}
+                <li>
+                  <button
+                    class="w-full px-3 py-1 text-left text-sm text-indigo-600 hover:bg-gray-50 dark:text-indigo-400 dark:hover:bg-gray-800"
+                    onmousedown={() => addTag(tagInput.trim())}
+                    >+ {m.tag_new()} "{tagInput.trim()}"</button
+                  >
+                </li>
+              {/if}
+              {#if showVocabHint}
+                <li
+                  class="flex items-center gap-1.5 px-3 py-1 text-sm text-[var(--text-muted)]"
+                  aria-disabled="true"
+                >
+                  🔒 {m.tag_autocomplete_not_in_vocab()}
+                </li>
+              {/if}
             </ul>
+          {/if}
+          {#if tagError}
+            <p
+              class="absolute top-full left-0 mt-1 w-56 rounded bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400"
+            >
+              {tagError}
+            </p>
           {/if}
         </div>
       {:else}

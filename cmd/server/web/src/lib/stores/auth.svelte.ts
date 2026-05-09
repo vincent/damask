@@ -32,6 +32,16 @@ export const authStore = {
   get totalAssetCount() {
     return state.totalAssetCount
   },
+  /** True when the workspace has locked_taxonomy enabled. */
+  get taxonomyLocked() {
+    return state.workspace?.locked_taxonomy ?? false
+  },
+  /** True when the current user is allowed to create new tags. */
+  get canCreateTag() {
+    return (
+      !(state.workspace?.locked_taxonomy ?? false) || state.role === 'owner'
+    )
+  },
 
   login(user: User, workspace: Workspace, role: string, totalAssetCount = 0) {
     state.user = user

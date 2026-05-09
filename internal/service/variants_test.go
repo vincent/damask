@@ -24,6 +24,10 @@ func (s systemTagServiceStub) List(context.Context, string, bool) ([]*service.Ta
 	return nil, nil
 }
 
+func (s systemTagServiceStub) GetByName(context.Context, string, string) (*service.TagDTO, error) {
+	return nil, nil
+}
+
 func (s systemTagServiceStub) Create(context.Context, string, service.CreateTagParams) (*service.TagDTO, error) {
 	return nil, nil
 }

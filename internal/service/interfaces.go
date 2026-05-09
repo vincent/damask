@@ -311,6 +311,8 @@ type SystemTagScope struct {
 // TagService handles business logic for tag records.
 type TagService interface {
 	List(ctx context.Context, workspaceID string, includeSystem bool) ([]*TagDTO, error)
+	// GetByName returns the tag with the given name in the workspace, or ErrNotFound.
+	GetByName(ctx context.Context, workspaceID, name string) (*TagDTO, error)
 	Create(ctx context.Context, workspaceID string, p CreateTagParams) (*TagDTO, error)
 	Patch(ctx context.Context, workspaceID, currentName string, p PatchTagParams) (*TagDTO, error)
 	EnsureSystemTag(ctx context.Context, workspaceID, name string) error

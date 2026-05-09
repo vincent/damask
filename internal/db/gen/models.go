@@ -306,6 +306,7 @@ type Workspace struct {
 	IconVersionID            *string   `json:"icon_version_id"`
 	ExifKeep                 int64     `json:"exif_keep"`
 	ExifKeepGps              int64     `json:"exif_keep_gps"`
+	LockedTaxonomy           int64     `json:"locked_taxonomy"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }

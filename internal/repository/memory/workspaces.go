@@ -71,6 +71,18 @@ func (r *RealWorkspaceRepo) Update(_ context.Context, ws repository.Workspace) (
 	return ws, nil
 }
 
+func (r *RealWorkspaceRepo) UpdateLockedTaxonomy(_ context.Context, workspaceID string, locked bool) (repository.Workspace, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	ws, ok := r.workspaces[workspaceID]
+	if !ok {
+		return repository.Workspace{}, fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
+	}
+	ws.LockedTaxonomy = locked
+	r.workspaces[workspaceID] = ws
+	return ws, nil
+}
+
 func (r *RealWorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }
