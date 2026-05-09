@@ -26,7 +26,7 @@ func newFFmpegRuntime(cfg config.FFmpegConfig) ffmpegRuntime {
 	}
 	runtime.ffmpegPath = resolveBinary(runtime.configuredPath, "ffmpeg")
 	runtime.ffprobePath = resolveCompanionProbe(runtime.ffmpegPath)
-	runtime.hwAccelActive = runtime.hwAccel != "" && runtime.ffmpegPath != ""
+	runtime.hwAccelActive = runtime.hwAccel != ""
 
 	slog.Info("ffmpeg runtime",
 		"ffmpeg_path", logValue(runtime.ffmpegPath),
