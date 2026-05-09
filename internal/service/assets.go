@@ -334,7 +334,7 @@ func (s *assetService) deleteStorageKeys(keys repository.AssetStorageKeys) {
 	}
 }
 
-func (s *assetService) BulkTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) (err error) {
+func (s *assetService) BulkSetTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) (err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.bulk_tag",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.assets.requested_count", len(assetIDs)),
@@ -351,11 +351,36 @@ func (s *assetService) BulkTag(ctx context.Context, workspaceID, tagName string,
 	if err != nil {
 		return err
 	}
+	// TODO: in one pass
 	for _, assetID := range assetIDs {
 		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
 			continue // skip assets not in this workspace
 		}
 		_ = s.tags.AddToAsset(ctx, assetID, tag.ID)
+	}
+	return nil
+}
+
+func (s *assetService) BulkRemoveTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.bulk_remove_tag",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.Int("damask.assets.requested_count", len(assetIDs)),
+		attribute.String("damask.tag_name", tagName),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset bulk remove tag failed", "workspace_id", workspaceID, "tag", tagName, "asset_count", len(assetIDs), "error", err)
+		}
+	}()
+
+	for _, assetID := range assetIDs {
+		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+			continue // skip assets not in this workspace
+		}
+		if err := s.tags.RemoveFromAsset(ctx, workspaceID, assetID, tagName); err != nil {
+			slog.WarnContext(ctx, "bulk remove tag: remove from asset failed", "asset_id", assetID, "error", err)
+		}
 	}
 	return nil
 }

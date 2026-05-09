@@ -84,6 +84,8 @@ type TagRepository interface {
 	ListForAsset(ctx context.Context, assetID string) ([]Tag, error)
 	AddToAsset(ctx context.Context, assetID, tagID string) error
 	RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error
+	// BatchTagsForAssets returns tag names keyed by asset ID for the given set of asset IDs.
+	BatchTagsForAssets(ctx context.Context, assetIDs []string) (map[string][]string, error)
 	// CountAssets returns the number of asset_tags rows for a given tag ID.
 	CountAssets(ctx context.Context, tagID string) (int64, error)
 	// ReassignAssets moves all asset_tags rows from fromTagID to toTagID (idempotent).

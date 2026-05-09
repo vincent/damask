@@ -220,6 +220,7 @@ func (r *UpdateFolderRequest) Valid(_ context.Context) map[string]string {
 type BulkTagRequest struct {
 	AssetIDs []string `json:"asset_ids"`
 	TagName  string   `json:"tag_name"`
+	Mode     string   `json:"mode"` // "add" (default) | "remove"
 }
 
 func (r *BulkTagRequest) Valid(_ context.Context) map[string]string {
@@ -230,6 +231,11 @@ func (r *BulkTagRequest) Valid(_ context.Context) map[string]string {
 	}
 	if len(r.AssetIDs) == 0 {
 		p["asset_ids"] = "required, must contain at least one id"
+	}
+	if r.Mode == "" {
+		r.Mode = "add"
+	} else if r.Mode != "add" && r.Mode != "remove" {
+		p["mode"] = `must be "add" or "remove"`
 	}
 	return p
 }

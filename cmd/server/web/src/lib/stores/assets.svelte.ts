@@ -324,4 +324,14 @@ export const assetsStore = {
         : a
     )
   },
+
+  /**
+   * No-op: Asset list rows don't carry field values (fetched on-demand in lightbox).
+   * Signature kept so BulkMetadataCommand compiles and future caching is easy to add.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  patchFieldValues(
+    _assetId: string,
+    _edits: { fieldId: string; value: string | number | boolean | null }[]
+  ) {},
 }

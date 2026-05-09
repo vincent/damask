@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -385,14 +386,17 @@ func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID,
 	return dtos, nil
 }
 
-func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (updatedCount int64, err error) {
+func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (result BulkSetValuesResult, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.asset_fields.bulk_set_values",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.assets.requested_count", len(assetIDs)),
 		attribute.Int("damask.fields.input_count", len(inputs)),
 	)
 	defer func() {
-		span.SetAttributes(attribute.Int64("damask.assets.updated_count", updatedCount))
+		span.SetAttributes(
+			attribute.Int64("damask.assets.updated_count", result.Updated),
+			attribute.Int64("damask.assets.cleared_count", result.Cleared),
+		)
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(ctx, "asset fields bulk set failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "input_count", len(inputs), "error", err)
@@ -402,7 +406,7 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 	// Validate values once (same fields for all assets).
 	type resolvedInput struct {
 		fieldID string
-		p       *repository.SetFieldValueParams
+		p       *repository.SetFieldValueParams // nil = delete (clear)
 	}
 	resolved := make([]resolvedInput, len(inputs))
 	for i, input := range inputs {
@@ -412,14 +416,14 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 		}
 		def, err := s.fields.GetByID(ctx, workspaceID, input.FieldID)
 		if err != nil {
-			return 0, err
+			return result, err
 		}
 		if def.DeletedAt != nil {
-			return 0, fmt.Errorf("field %s has been deleted: %w", input.FieldID, apperr.ErrInvalidInput)
+			return result, fmt.Errorf("field %s has been deleted: %w", input.FieldID, apperr.ErrInvalidInput)
 		}
 		p, err := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
 		if err != nil {
-			return 0, fmt.Errorf("%w", apperr.ErrInvalidInput)
+			return result, fmt.Errorf("%w", apperr.ErrInvalidInput)
 		}
 		p.CreatedBy = userID
 		resolved[i] = resolvedInput{fieldID: input.FieldID, p: &p}
@@ -436,12 +440,14 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 	err = s.assetFields.RunInTx(ctx, func(tx repository.AssetFieldRepository) error {
 		for _, assetID := range validIDs {
 			assetOK := true
+			assetCleared := int64(0)
 			for _, r := range resolved {
 				if r.p == nil {
 					if err := tx.DeleteValue(ctx, assetID, r.fieldID); err != nil {
 						assetOK = false
 						break
 					}
+					assetCleared++
 					continue
 				}
 				if err := tx.UpsertValue(ctx, assetID, *r.p); err != nil {
@@ -449,15 +455,125 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 				}
 			}
 			if assetOK {
-				updatedCount++
+				result.Updated++
+				result.Cleared += assetCleared
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, err
+		return BulkSetValuesResult{}, err
 	}
-	return updatedCount, nil
+	return result, nil
+}
+
+func (s *assetFieldService) BulkPreview(ctx context.Context, workspaceID string, assetIDs, fieldIDs []string) ([]BulkPreviewEntry, error) {
+	// Resolve field definitions.
+	var defs []repository.FieldDefinition
+	if len(fieldIDs) == 0 {
+		all, err := s.fields.List(ctx, workspaceID, "asset")
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range all {
+			if d.DeletedAt == nil {
+				defs = append(defs, d)
+			}
+		}
+	} else {
+		for _, fid := range fieldIDs {
+			d, err := s.fields.GetByID(ctx, workspaceID, fid)
+			if err != nil || d.DeletedAt != nil {
+				continue
+			}
+			defs = append(defs, d)
+		}
+	}
+	if len(defs) == 0 {
+		return []BulkPreviewEntry{}, nil
+	}
+
+	// Pre-filter assets to workspace membership.
+	validIDs := make([]string, 0, len(assetIDs))
+	for _, assetID := range assetIDs {
+		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err == nil {
+			validIDs = append(validIDs, assetID)
+		}
+	}
+
+	// Collect values per fieldID across all valid assets.
+	type fieldAccum struct {
+		withValue int
+		valueCounts map[string]int
+	}
+	accums := make(map[string]*fieldAccum, len(defs))
+	for _, d := range defs {
+		accums[d.ID] = &fieldAccum{valueCounts: make(map[string]int)}
+	}
+
+	for _, assetID := range validIDs {
+		rows, err := s.assetFields.GetValues(ctx, assetID)
+		if err != nil {
+			continue
+		}
+		for _, row := range rows {
+			acc, ok := accums[row.FieldID]
+			if !ok {
+				continue
+			}
+			var strVal string
+			switch {
+			case row.ValueText != nil:
+				strVal = *row.ValueText
+			case row.ValueNumber != nil:
+				strVal = fmt.Sprintf("%v", *row.ValueNumber)
+			case row.ValueDate != nil:
+				strVal = *row.ValueDate
+			case row.ValueBoolean != nil:
+				if *row.ValueBoolean != 0 {
+					strVal = "true"
+				} else {
+					strVal = "false"
+				}
+			}
+			if strVal != "" {
+				acc.withValue++
+				acc.valueCounts[strVal]++
+			}
+		}
+	}
+
+	const maxDistinct = 5
+	entries := make([]BulkPreviewEntry, 0, len(defs))
+	for _, d := range defs {
+		acc := accums[d.ID]
+		// Sort distinct values by frequency descending.
+		type kv struct {
+			val   string
+			count int
+		}
+		sorted := make([]kv, 0, len(acc.valueCounts))
+		for v, c := range acc.valueCounts {
+			sorted = append(sorted, kv{v, c})
+		}
+		slices.SortFunc(sorted, func(a, b kv) int { return b.count - a.count })
+		distinct := make([]string, 0, maxDistinct+1)
+		for i, kv := range sorted {
+			if i >= maxDistinct {
+				distinct = append(distinct, fmt.Sprintf("+%d more", len(sorted)-maxDistinct))
+				break
+			}
+			distinct = append(distinct, kv.val)
+		}
+		entries = append(entries, BulkPreviewEntry{
+			FieldID:         d.ID,
+			FieldName:       d.Name,
+			FieldType:       d.FieldType,
+			AssetsWithValue: acc.withValue,
+			DistinctValues:  distinct,
+		})
+	}
+	return entries, nil
 }
 
 // -- ProjectFieldService -------------------------------------------------------

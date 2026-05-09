@@ -148,7 +148,7 @@
   </div>
 
   <!-- Field list -->
-  <div class="flex-1 overflow-y-auto px-6 py-4">
+  <div class="mb-8 flex-1 overflow-y-auto px-6 pt-4 pb-8">
     <div class="mx-auto w-full max-w-4xl">
       {#if customFieldsStore.loading}
         <div class="flex justify-center py-16">

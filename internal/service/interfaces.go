@@ -29,8 +29,10 @@ type AssetService interface {
 	HardDelete(ctx context.Context, workspaceID, assetID string) error
 	// BulkHardDelete hard-deletes multiple assets atomically.
 	BulkHardDelete(ctx context.Context, workspaceID string, assetIDs []string) error
-	// BulkTag upserts a tag and links it to all the given asset IDs.
-	BulkTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
+	// BulkSetTag upserts a tag and links it to all the given asset IDs.
+	BulkSetTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
+	// BulkRemoveTag removes a tag from all the given asset IDs (best-effort, skips missing).
+	BulkRemoveTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
 	// BulkMoveProject assigns all given assets to projectID (nil = remove project).
 	BulkMoveProject(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error
 	// GetComments returns all share comments posted on an asset.
@@ -233,11 +235,30 @@ type SetFieldValueInput struct {
 	Value   interface{}
 }
 
+// BulkPreviewEntry holds per-field overwrite impact for a set of assets.
+type BulkPreviewEntry struct {
+	FieldID         string
+	FieldName       string
+	FieldType       string
+	AssetsWithValue int
+	DistinctValues  []string
+}
+
+// BulkSetValuesResult separates updated and cleared counts from BulkSetValues.
+type BulkSetValuesResult struct {
+	Updated int64
+	Cleared int64
+}
+
 // AssetFieldService handles business logic for asset field values.
 type AssetFieldService interface {
 	GetValues(ctx context.Context, workspaceID, assetID string) ([]*FieldValueDTO, error)
 	SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error)
-	BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (int64, error)
+	// BulkSetValues applies inputs to all assetIDs; returns updated and cleared counts.
+	BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (BulkSetValuesResult, error)
+	// BulkPreview returns overwrite impact per field for the given asset selection.
+	// If fieldIDs is empty, all active (non-deleted) fields for the workspace are used.
+	BulkPreview(ctx context.Context, workspaceID string, assetIDs, fieldIDs []string) ([]BulkPreviewEntry, error)
 }
 
 // ProjectFieldService handles business logic for project field values.
@@ -302,6 +323,8 @@ type TagService interface {
 	// TouchLastUsed updates last_used_at for the named tag (fire-and-forget).
 	TouchLastUsed(ctx context.Context, workspaceID, name string) error
 	ListForAsset(ctx context.Context, assetID string) ([]*TagDTO, error)
+	// BatchTagsForAssets returns tag names keyed by asset ID.
+	BatchTagsForAssets(ctx context.Context, assetIDs []string) (map[string][]string, error)
 	AddToAsset(ctx context.Context, workspaceID, assetID, tagName string) (*TagDTO, error)
 	RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error
 	UpsertForAsset(ctx context.Context, workspaceID, assetID, tagName string) error

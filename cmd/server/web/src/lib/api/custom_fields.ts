@@ -1,6 +1,8 @@
 import { apiFetch } from './client'
 import type {
   AssetFieldsResponse,
+  BulkFieldsPreviewResponse,
+  BulkPatchAssetFieldsResponse,
   FieldDefinition,
   FieldDefinitionStats,
   FieldScope,
@@ -77,6 +79,23 @@ export const assetFieldApi = {
     apiFetch<AssetFieldsResponse>(`/api/v1/assets/${assetId}/fields`, {
       method: 'PATCH',
       body: JSON.stringify({ values }),
+    }),
+
+  /** POST /api/v1/assets/bulk/fields/preview (editor+) — preview overwrite impact per field. */
+  bulkPreview: (assetIds: string[], fieldIds: string[] = []) =>
+    apiFetch<BulkFieldsPreviewResponse>('/api/v1/assets/bulk/fields/preview', {
+      method: 'POST',
+      body: JSON.stringify({ asset_ids: assetIds, field_ids: fieldIds }),
+    }),
+
+  /** PATCH /api/v1/assets/bulk/fields (editor+) — apply field values to multiple assets. */
+  bulkPatch: (
+    assetIds: string[],
+    values: { field_id: string; value: string | number | boolean | null }[]
+  ) =>
+    apiFetch<BulkPatchAssetFieldsResponse>('/api/v1/assets/bulk/fields', {
+      method: 'PATCH',
+      body: JSON.stringify({ asset_ids: assetIds, values }),
     }),
 }
 

@@ -19,6 +19,7 @@ type MockAssetService struct {
 	HardDeleteFn                   func(ctx context.Context, workspaceID, assetID string) error
 	BulkHardDeleteFn               func(ctx context.Context, workspaceID string, assetIDs []string) error
 	BulkTagFn                      func(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
+	BulkRemoveTagFn                func(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
 	BulkMoveProjectFn              func(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error
 	GetCommentsFn                  func(ctx context.Context, workspaceID, assetID string) ([]service.AssetCommentDTO, error)
 	CountVersionsByAssetFn         func(ctx context.Context, assetID string) (int64, error)
@@ -83,9 +84,16 @@ func (m *MockAssetService) BulkHardDelete(ctx context.Context, workspaceID strin
 	return nil
 }
 
-func (m *MockAssetService) BulkTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error {
+func (m *MockAssetService) BulkSetTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error {
 	if m.BulkTagFn != nil {
 		return m.BulkTagFn(ctx, workspaceID, tagName, assetIDs)
+	}
+	return nil
+}
+
+func (m *MockAssetService) BulkRemoveTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) error {
+	if m.BulkRemoveTagFn != nil {
+		return m.BulkRemoveTagFn(ctx, workspaceID, tagName, assetIDs)
 	}
 	return nil
 }

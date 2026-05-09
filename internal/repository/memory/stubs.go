@@ -58,7 +58,10 @@ func (r *TagRepo) Delete(_ context.Context, _ string, _ []string) error         
 func (r *TagRepo) ListForAsset(_ context.Context, _ string) ([]repository.Tag, error) {
 	return nil, nil
 }
-func (r *TagRepo) AddToAsset(_ context.Context, _, _ string) error         { return nil }
+func (r *TagRepo) AddToAsset(_ context.Context, _, _ string) error { return nil }
+func (r *TagRepo) BatchTagsForAssets(_ context.Context, _ []string) (map[string][]string, error) {
+	return map[string][]string{}, nil
+}
 func (r *TagRepo) RemoveFromAsset(_ context.Context, _, _, _ string) error { return nil }
 func (r *TagRepo) CountAssets(_ context.Context, _ string) (int64, error)  { return 0, nil }
 func (r *TagRepo) ReassignAssets(_ context.Context, _, _ string) error     { return nil }

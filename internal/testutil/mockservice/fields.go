@@ -86,9 +86,10 @@ func (m *MockFieldService) ListAssetsMissingExif(ctx context.Context, workspaceI
 
 // MockAssetFieldService is a no-op implementation of service.AssetFieldService.
 type MockAssetFieldService struct {
-	GetValuesFn    func(ctx context.Context, workspaceID, assetID string) ([]*service.FieldValueDTO, error)
-	SetValuesFn    func(ctx context.Context, workspaceID, assetID, userID string, inputs []service.SetFieldValueInput) ([]*service.FieldValueDTO, error)
-	BulkSetValuesFn func(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []service.SetFieldValueInput) (int64, error)
+	GetValuesFn     func(ctx context.Context, workspaceID, assetID string) ([]*service.FieldValueDTO, error)
+	SetValuesFn     func(ctx context.Context, workspaceID, assetID, userID string, inputs []service.SetFieldValueInput) ([]*service.FieldValueDTO, error)
+	BulkSetValuesFn func(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []service.SetFieldValueInput) (service.BulkSetValuesResult, error)
+	BulkPreviewFn   func(ctx context.Context, workspaceID string, assetIDs, fieldIDs []string) ([]service.BulkPreviewEntry, error)
 }
 
 func NewAssetFieldService() *MockAssetFieldService { return &MockAssetFieldService{} }
@@ -107,11 +108,18 @@ func (m *MockAssetFieldService) SetValues(ctx context.Context, workspaceID, asse
 	return nil, nil
 }
 
-func (m *MockAssetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []service.SetFieldValueInput) (int64, error) {
+func (m *MockAssetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []service.SetFieldValueInput) (service.BulkSetValuesResult, error) {
 	if m.BulkSetValuesFn != nil {
 		return m.BulkSetValuesFn(ctx, workspaceID, userID, assetIDs, inputs)
 	}
-	return 0, nil
+	return service.BulkSetValuesResult{}, nil
+}
+
+func (m *MockAssetFieldService) BulkPreview(ctx context.Context, workspaceID string, assetIDs, fieldIDs []string) ([]service.BulkPreviewEntry, error) {
+	if m.BulkPreviewFn != nil {
+		return m.BulkPreviewFn(ctx, workspaceID, assetIDs, fieldIDs)
+	}
+	return nil, nil
 }
 
 // MockProjectFieldService is a no-op implementation of service.ProjectFieldService.

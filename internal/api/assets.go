@@ -302,13 +302,14 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 	versionCounts, _ := s.assets.BatchVersionCounts(c.Context(), ids)
 	variantCounts, _ := s.assets.BatchVariantCounts(c.Context(), ids)
+	tagsByAsset, _ := s.tags.BatchTagsForAssets(c.Context(), ids)
 	span.End()
 
-	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts))
+	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts, tagsByAsset))
 }
 
 // buildAssetListResponseFromDTOs builds an AssetListResponse from service.AssetDTO slice.
-func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sortField string, versionCounts, variantCounts map[string]int64) AssetListResponse {
+func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sortField string, versionCounts, variantCounts map[string]int64, tagsByAsset map[string][]string) AssetListResponse {
 	items := make([]AssetResponse, len(assets))
 	for i, a := range assets {
 		var vc, nVariants int64
@@ -317,6 +318,10 @@ func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sor
 		}
 		if variantCounts != nil {
 			nVariants = variantCounts[a.ID]
+		}
+		tags := tagsByAsset[a.ID]
+		if tags == nil {
+			tags = []string{}
 		}
 		items[i] = AssetResponse{
 			ID:                   a.ID,
@@ -333,7 +338,7 @@ func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sor
 			ThumbnailContentType: &a.ThumbnailContentType,
 			CreatedAt:            a.CreatedAt,
 			UpdatedAt:            a.UpdatedAt,
-			Tags:                 []string{},
+			Tags:                 tags,
 			VersionCount:         vc,
 			VariantCount:         nVariants,
 		}
@@ -636,8 +641,14 @@ func (s *Server) handleBulkTag(c fiber.Ctx) error {
 		return nil
 	}
 	claims := auth.GetClaims(c)
-	if err := s.assets.BulkTag(c.Context(), claims.WorkspaceID, body.TagName, body.AssetIDs); err != nil {
-		return ErrorStatusResponse(c, err)
+	if body.Mode == "remove" {
+		if err := s.assets.BulkRemoveTag(c.Context(), claims.WorkspaceID, body.TagName, body.AssetIDs); err != nil {
+			return ErrorStatusResponse(c, err)
+		}
+	} else {
+		if err := s.assets.BulkSetTag(c.Context(), claims.WorkspaceID, body.TagName, body.AssetIDs); err != nil {
+			return ErrorStatusResponse(c, err)
+		}
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }

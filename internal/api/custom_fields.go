@@ -116,7 +116,7 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 	// batchVersionCounts / batchVariantCounts still use s.db; that is handled
 	// by the assets handler layer which calls those helpers directly.
 	// For now return the slim asset list without counts (consistent with other list paths).
-	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, "created_at", nil, nil))
+	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, "created_at", nil, nil, nil))
 }
 
 var keyRegexp = regexp.MustCompile(`^[a-z0-9_]+$`)
@@ -496,6 +496,7 @@ type GetAssetFieldsResponse struct {
 
 type BulkPatchAssetFieldsResponse struct {
 	Updated int64 `json:"updated"`
+	Cleared int64 `json:"cleared"`
 }
 
 func fieldValueDTOToResponse(dto *service.FieldValueDTO) assetFieldValueResponse {
@@ -606,7 +607,7 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 		inputs[i] = service.SetFieldValueInput{FieldID: v.FieldID, Value: v.Value}
 	}
 
-	updated, err := s.assetFields.BulkSetValues(c.Context(), claims.WorkspaceID, claims.UserID, body.AssetIDs, inputs)
+	result, err := s.assetFields.BulkSetValues(c.Context(), claims.WorkspaceID, claims.UserID, body.AssetIDs, inputs)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -619,11 +620,80 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 		}
 	}()
 
-	return c.JSON(BulkPatchAssetFieldsResponse{Updated: updated})
+	return c.JSON(BulkPatchAssetFieldsResponse{Updated: result.Updated, Cleared: result.Cleared})
 }
 
 // FieldValueInput is the unexported alias for backward compatibility.
 type FieldValueInput struct {
 	FieldID string      `json:"field_id"`
 	Value   interface{} `json:"value"`
+}
+
+// -- Bulk fields preview -------------------------------------------------------
+
+type BulkFieldsPreviewRequest struct {
+	AssetIDs []string `json:"asset_ids"`
+	FieldIDs []string `json:"field_ids"` // optional; empty = all active fields
+}
+
+func (r *BulkFieldsPreviewRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if len(r.AssetIDs) == 0 {
+		p["asset_ids"] = "required"
+	}
+	if len(r.FieldIDs) > 20 {
+		p["field_ids"] = "must not exceed 20"
+	}
+	return p
+}
+
+type BulkFieldPreviewEntry struct {
+	FieldID         string   `json:"field_id"`
+	FieldName       string   `json:"field_name"`
+	FieldType       string   `json:"field_type"`
+	AssetsWithValue int      `json:"assets_with_value"`
+	DistinctValues  []string `json:"distinct_values"`
+}
+
+type BulkFieldsPreviewResponse struct {
+	Fields []BulkFieldPreviewEntry `json:"fields"`
+}
+
+// handleBulkFieldsPreview returns per-field overwrite impact for a set of assets.
+//
+// @Summary Preview bulk field overwrite impact
+// @Description Returns how many assets already have a value for each field, and the top distinct values. Use before committing a bulk field update.
+// @Tags Custom Fields
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body BulkFieldsPreviewRequest true "Asset IDs and optional field IDs"
+// @Success 200 {object} BulkFieldsPreviewResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 422 {object} ErrorResponse "Validation failed"
+// @Router /api/v1/assets/bulk/fields/preview [post]
+func (s *Server) handleBulkFieldsPreview(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+
+	body, ok := decodeAndValidate(c, &BulkFieldsPreviewRequest{})
+	if !ok {
+		return nil
+	}
+
+	entries, err := s.assetFields.BulkPreview(c.Context(), claims.WorkspaceID, body.AssetIDs, body.FieldIDs)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	resp := BulkFieldsPreviewResponse{Fields: make([]BulkFieldPreviewEntry, len(entries))}
+	for i, e := range entries {
+		resp.Fields[i] = BulkFieldPreviewEntry{
+			FieldID:         e.FieldID,
+			FieldName:       e.FieldName,
+			FieldType:       e.FieldType,
+			AssetsWithValue: e.AssetsWithValue,
+			DistinctValues:  e.DistinctValues,
+		}
+	}
+	return c.JSON(resp)
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -138,6 +140,36 @@ func (r *tagRepo) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tag
 		WorkspaceID: workspaceID,
 		Name:        tagName,
 	})
+}
+
+func (r *tagRepo) BatchTagsForAssets(ctx context.Context, assetIDs []string) (map[string][]string, error) {
+	if len(assetIDs) == 0 {
+		return map[string][]string{}, nil
+	}
+	placeholders := make([]string, len(assetIDs))
+	args := make([]any, len(assetIDs))
+	for i, id := range assetIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	q := fmt.Sprintf(
+		`SELECT at.asset_id, t.name FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE at.asset_id IN (%s)`,
+		strings.Join(placeholders, ","),
+	)
+	rows, err := r.sqlDB.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string][]string, len(assetIDs))
+	for rows.Next() {
+		var assetID, name string
+		if err := rows.Scan(&assetID, &name); err != nil {
+			return nil, err
+		}
+		out[assetID] = append(out[assetID], name)
+	}
+	return out, rows.Err()
 }
 
 func (r *tagRepo) CountAssets(ctx context.Context, tagID string) (int64, error) {

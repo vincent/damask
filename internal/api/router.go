@@ -307,6 +307,7 @@ func NewRouter(
 	api.Post("/assets/bulk/tag", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkTag)
 	api.Post("/assets/bulk/project", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkProject)
 	api.Delete("/assets/bulk", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleBulkDelete)
+	api.Post("/assets/bulk/fields/preview", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkFieldsPreview)
 	api.Patch("/assets/bulk/fields", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkPatchAssetFields)
 
 	api.Post("/assets", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadAsset)

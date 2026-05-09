@@ -333,6 +333,10 @@ func (s *tagService) ListForAsset(ctx context.Context, assetID string) ([]*TagDT
 	return out, nil
 }
 
+func (s *tagService) BatchTagsForAssets(ctx context.Context, assetIDs []string) (map[string][]string, error) {
+	return s.tags.BatchTagsForAssets(ctx, assetIDs)
+}
+
 func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagName string) (*TagDTO, error) {
 	tagName = strings.ToLower(strings.TrimSpace(tagName))
 	if tagName == "" {

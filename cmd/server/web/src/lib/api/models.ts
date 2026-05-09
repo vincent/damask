@@ -455,6 +455,23 @@ export interface AssetFieldsResponse {
   fields: AssetFieldValue[]
 }
 
+export interface BulkFieldPreviewEntry {
+  field_id: string
+  field_name: string
+  field_type: FieldType
+  assets_with_value: number
+  distinct_values: string[]
+}
+
+export interface BulkFieldsPreviewResponse {
+  fields: BulkFieldPreviewEntry[]
+}
+
+export interface BulkPatchAssetFieldsResponse {
+  updated: number
+  cleared: number
+}
+
 export type FieldFilterOp =
   | 'eq'
   | 'lt'

@@ -20,7 +20,8 @@ type MockTagService struct {
 	ListForAssetFn     func(ctx context.Context, assetID string) ([]*service.TagDTO, error)
 	AddToAssetFn       func(ctx context.Context, workspaceID, assetID, tagName string) (*service.TagDTO, error)
 	RemoveFromAssetFn  func(ctx context.Context, workspaceID, assetID, tagName string) error
-	UpsertForAssetFn   func(ctx context.Context, workspaceID, assetID, tagName string) error
+	UpsertForAssetFn        func(ctx context.Context, workspaceID, assetID, tagName string) error
+	BatchTagsForAssetsFn    func(ctx context.Context, assetIDs []string) (map[string][]string, error)
 }
 
 func NewTagService() *MockTagService { return &MockTagService{} }
@@ -114,4 +115,11 @@ func (m *MockTagService) UpsertForAsset(ctx context.Context, workspaceID, assetI
 		return m.UpsertForAssetFn(ctx, workspaceID, assetID, tagName)
 	}
 	return nil
+}
+
+func (m *MockTagService) BatchTagsForAssets(ctx context.Context, assetIDs []string) (map[string][]string, error) {
+	if m.BatchTagsForAssetsFn != nil {
+		return m.BatchTagsForAssetsFn(ctx, assetIDs)
+	}
+	return map[string][]string{}, nil
 }

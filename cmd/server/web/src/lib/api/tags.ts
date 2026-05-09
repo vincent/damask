@@ -70,10 +70,14 @@ export const tagApi = {
       }
     ),
 
-  /** POST /api/v1/assets/bulk/tag (editor+) — apply a tag to multiple assets. */
-  bulkTag: (assetIds: string[], tagName: string) =>
+  /** POST /api/v1/assets/bulk/tag (editor+) — apply or remove a tag on multiple assets. */
+  bulkTag: (
+    assetIds: string[],
+    tagName: string,
+    mode: 'add' | 'remove' = 'add'
+  ) =>
     apiFetch<void>('/api/v1/assets/bulk/tag', {
       method: 'POST',
-      body: JSON.stringify({ asset_ids: assetIds, tag_name: tagName }),
+      body: JSON.stringify({ asset_ids: assetIds, tag_name: tagName, mode }),
     }),
 }

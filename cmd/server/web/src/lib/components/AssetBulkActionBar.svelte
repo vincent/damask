@@ -3,11 +3,12 @@
   import { undoStore } from '$lib/stores/undo.svelte'
   import { BulkTagAsset } from '$lib/commands/BulkTagAsset'
   import { BulkAssignAssetToProject } from '$lib/commands/BulkAssignAssetToProject'
-  import { Layers, SquareArrowRightExit, Tag } from '@lucide/svelte'
+  import { Layers, Settings2, SquareArrowRightExit, Tag } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
   import ConfirmModal from './ui/ConfirmModal.svelte'
+  import BulkMetadataModal from './BulkMetadataModal.svelte'
   import { m } from '$lib/paraglide/messages'
   import { stackStore, assetToStack } from '$lib/stores/stack.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
@@ -41,6 +42,7 @@
   let busy = $state(false)
   let activePanel = $state<'tags' | 'projects' | null>(null)
   let showDeleteConfirm = $state(false)
+  let showBulkMetadata = $state(false)
 
   async function bulkTag() {
     const name = tagInput.trim().toLowerCase()
@@ -149,6 +151,22 @@
         {/if}
       </div>
 
+      <!-- Edit fields (editor+) -->
+      {#if authStore.role !== 'viewer'}
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy}
+          onclick={() => {
+            activePanel = null
+            showBulkMetadata = true
+          }}
+        >
+          {#snippet icon()}<Settings2 class="h-4 w-4" />{/snippet}
+          {m.bulk_action_edit_fields()}
+        </Button>
+      {/if}
+
       <!-- Assign project -->
       <div class="relative">
         <Button
@@ -214,6 +232,17 @@
       <Button variant="ghost" size="sm" onclick={onclear}>{m.cancel()}</Button>
     </div>
   </div>
+{/if}
+
+{#if showBulkMetadata}
+  <BulkMetadataModal
+    assetIds={[...selectedIds]}
+    onClose={() => (showBulkMetadata = false)}
+    onCommit={() => {
+      showBulkMetadata = false
+      ondone()
+    }}
+  />
 {/if}
 
 <ConfirmModal

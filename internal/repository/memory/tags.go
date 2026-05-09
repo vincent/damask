@@ -183,6 +183,30 @@ func (r *RealTagRepo) RemoveFromAsset(_ context.Context, _, assetID, tagName str
 	return nil
 }
 
+func (r *RealTagRepo) BatchTagsForAssets(_ context.Context, assetIDs []string) (map[string][]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	want := make(map[string]struct{}, len(assetIDs))
+	for _, id := range assetIDs {
+		want[id] = struct{}{}
+	}
+	out := make(map[string][]string, len(assetIDs))
+	for assetID, tagIDs := range r.assetTags {
+		if _, ok := want[assetID]; !ok {
+			continue
+		}
+		for _, tagID := range tagIDs {
+			for _, t := range r.tags {
+				if t.ID == tagID {
+					out[assetID] = append(out[assetID], t.Name)
+					break
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
 func (r *RealTagRepo) CountAssets(_ context.Context, tagID string) (int64, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
