@@ -19,10 +19,12 @@ import (
 	dbpkg "damask/server/internal/db"
 	"damask/server/internal/demo"
 	"damask/server/internal/events"
+	"damask/server/internal/imagerouter"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
+	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	th "damask/server/internal/tests_helpers"
@@ -81,6 +83,8 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	tmb := transform.NewThumbnailer(trf)
 	media := mediatype.NewRegistry(trf)
 	injestor := service.NewAssetInjestor(queries, rawDB, stor, q, media)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, rawDB)
+	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
 
 	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb)
@@ -88,7 +92,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 		t.Fatalf("ensure demo workspace: %v", err)
 	}
 
-	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, injestor)
+	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
 	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil)
 
 	return &demoEnv{App: app, Maker: maker, SqlDB: rawDB, Seeder: seeder}

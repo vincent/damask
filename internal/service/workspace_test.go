@@ -14,7 +14,7 @@ import (
 func newWorkspaceSvc(t *testing.T) (service.WorkspaceService, *memory.RealWorkspaceRepo) {
 	t.Helper()
 	repo := memory.NewRealWorkspaceRepo()
-	return service.NewWorkspaceService(repo, memory.NewUserRepo()), repo
+	return service.NewWorkspaceService(repo, memory.NewUserRepo(), "test-app-secret", ""), repo
 }
 
 // --- Get ---

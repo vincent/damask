@@ -1,23 +1,32 @@
 <script lang="ts">
   import { integrationsApi, type OAuthConnection } from '$lib/api'
+  import { workspaceApi, type ImageRouterKeyStatus } from '$lib/api/workspace'
+  import { authStore } from '$lib/stores/auth.svelte'
   import IntegrationCard from '$lib/components/IntegrationCard.svelte'
+  import ImageRouterCard from '$lib/components/ImageRouterCard.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import { m } from '$lib/paraglide/messages'
 
   let connections = $state<OAuthConnection[]>([])
+  let irStatus = $state<ImageRouterKeyStatus | null>(null)
   let loading = $state(true)
 
   $effect(() => {
-    integrationsApi
-      .list()
-      .then((c) => {
+    Promise.all([
+      integrationsApi.list(),
+      workspaceApi.getImageRouterKeyStatus(),
+    ])
+      .then(([c, ir]) => {
         connections = c
+        irStatus = ir
       })
       .catch(() => {})
       .finally(() => {
         loading = false
       })
   })
+
+  const isOwner = $derived(authStore.role === 'owner')
 
   function connectionFor(provider: string): OAuthConnection | undefined {
     return connections.find((c) => c.provider === provider)
@@ -60,49 +69,62 @@
         {/each}
       </div>
     {:else}
-      <div class="space-y-3">
-        {#if connectionFor('google') !== undefined}
-          {@const googleConn = connectionFor('google')!}
-          <IntegrationCard
-            provider="google"
-            label={m.integrations_google_drive_label()}
-            description={m.integrations_google_drive_desc()}
-            connected={true}
-            providerEmail={googleConn.provider_email}
-            connectHref="/integrations/connect/google"
-            setupSourceHref={`/settings/ingress/new?connection=${googleConn.id}&type=gdrive`}
-            onDisconnect={() => disconnect(googleConn.id)}
-          />
-        {:else}
-          <IntegrationCard
-            provider="google"
-            label={m.integrations_google_drive_label()}
-            description={m.integrations_google_drive_desc()}
-            connected={false}
-            connectHref="/integrations/connect/google"
-          />
-        {/if}
+      <div class="space-y-6">
+        <div class="space-y-3">
+          {#if connectionFor('google') !== undefined}
+            {@const googleConn = connectionFor('google')!}
+            <IntegrationCard
+              provider="google"
+              label={m.integrations_google_drive_label()}
+              description={m.integrations_google_drive_desc()}
+              connected={true}
+              providerEmail={googleConn.provider_email}
+              connectHref="/integrations/connect/google"
+              setupSourceHref={`/settings/ingress/new?connection=${googleConn.id}&type=gdrive`}
+              onDisconnect={() => disconnect(googleConn.id)}
+            />
+          {:else}
+            <IntegrationCard
+              provider="google"
+              label={m.integrations_google_drive_label()}
+              description={m.integrations_google_drive_desc()}
+              connected={false}
+              connectHref="/integrations/connect/google"
+            />
+          {/if}
 
-        {#if connectionFor('canva') !== undefined}
-          {@const canvaConn = connectionFor('canva')!}
-          <IntegrationCard
-            provider="canva"
-            label={m.integrations_canva_label()}
-            description={m.integrations_canva_desc()}
-            connected={true}
-            providerEmail={canvaConn.provider_email}
-            connectHref="/integrations/connect/canva"
-            setupSourceHref={`/settings/ingress/new?connection=${canvaConn.id}&type=canva`}
-            onDisconnect={() => disconnect(canvaConn.id)}
-          />
-        {:else}
-          <IntegrationCard
-            provider="canva"
-            label={m.integrations_canva_label()}
-            description={m.integrations_canva_desc()}
-            connected={false}
-            connectHref="/integrations/connect/canva"
-          />
+          {#if connectionFor('canva') !== undefined}
+            {@const canvaConn = connectionFor('canva')!}
+            <IntegrationCard
+              provider="canva"
+              label={m.integrations_canva_label()}
+              description={m.integrations_canva_desc()}
+              connected={true}
+              providerEmail={canvaConn.provider_email}
+              connectHref="/integrations/connect/canva"
+              setupSourceHref={`/settings/ingress/new?connection=${canvaConn.id}&type=canva`}
+              onDisconnect={() => disconnect(canvaConn.id)}
+            />
+          {:else}
+            <IntegrationCard
+              provider="canva"
+              label={m.integrations_canva_label()}
+              description={m.integrations_canva_desc()}
+              connected={false}
+              connectHref="/integrations/connect/canva"
+            />
+          {/if}
+        </div>
+
+        {#if irStatus !== null}
+          <div class="space-y-3">
+            <h2
+              class="text-xs font-semibold tracking-wider text-zinc-400 uppercase dark:text-zinc-500"
+            >
+              {m.integrations_ai_section_title()}
+            </h2>
+            <ImageRouterCard bind:status={irStatus} {isOwner} />
+          </div>
         {/if}
       </div>
     {/if}

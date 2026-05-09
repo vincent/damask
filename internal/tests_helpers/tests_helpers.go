@@ -28,10 +28,12 @@ import (
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	"damask/server/internal/events"
+	"damask/server/internal/imagerouter"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
+	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
@@ -133,8 +135,10 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	tmb := transform.NewThumbnailer(trf)
 	media := mediatype.NewRegistry(trf)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
+	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
-	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor)
+	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
 	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
 	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor, Config: cfg}
 }

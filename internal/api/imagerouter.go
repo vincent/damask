@@ -1,9 +1,8 @@
 package api
 
 import (
-	"context"
+	"damask/server/internal/auth"
 	"damask/server/internal/imagerouter"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -16,19 +15,15 @@ type ImageRouterModelsResponse struct {
 }
 
 func (s *Server) handleListImageRouterModels(c fiber.Ctx) error {
-	models := append([]imagerouter.Model(nil), imagerouter.HardcodedModels...)
-	if s.cfg.ImageRouter.IsConfigured() {
-		ctx, cancel := context.WithTimeout(c.Context(), 5*time.Second)
-		defer cancel()
-		fetched, err := imagerouter.FetchModels(ctx, s.cfg.ImageRouter.APIKey)
-		if err == nil {
-			models = fetched
-		}
+	claims := auth.GetClaims(c)
+	models, status, err := s.workspace.ListImageRouterModels(c.Context(), claims.WorkspaceID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
 	}
 
 	return c.JSON(ImageRouterModelsResponse{
 		Models:               models,
-		Configured:           s.cfg.ImageRouter.IsConfigured(),
+		Configured:           status.KeySet,
 		DefaultModel:         s.cfg.ImageRouter.DefaultModel,
 		DefaultBgRemoveModel: s.cfg.ImageRouter.DefaultBgRemoveModel,
 	})

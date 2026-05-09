@@ -16,6 +16,11 @@ export interface AssetListResponse {
 let imageRouterModelsCache: ImageRouterModelsResponse | null = null
 let imageRouterModelsPromise: Promise<ImageRouterModelsResponse> | null = null
 
+export function invalidateImageRouterModelsCache() {
+  imageRouterModelsCache = null
+  imageRouterModelsPromise = null
+}
+
 async function fetchImageRouterModelsCached(): Promise<ImageRouterModelsResponse> {
   if (imageRouterModelsCache) return imageRouterModelsCache
   if (imageRouterModelsPromise) return imageRouterModelsPromise

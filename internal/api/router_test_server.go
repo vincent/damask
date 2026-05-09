@@ -207,6 +207,10 @@ func buildTestApp(s *Server) *fiber.App {
 
 	// Workspace settings — owner only
 	api.Put("/workspace/settings", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateWorkspaceSettings)
+	api.Get("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleGetWorkspaceImageRouterStatus)
+	api.Put("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handlePutWorkspaceImageRouterKey)
+	api.Delete("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteWorkspaceImageRouterKey)
+	api.Post("/workspace/settings/imagerouter/test", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTestWorkspaceImageRouterKey)
 
 	// Generic job trigger — owner only
 	api.Post("/workspace/jobs/:type/trigger", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTriggerWorkspaceJob)

@@ -6,6 +6,12 @@ RETURNING *;
 -- name: GetWorkspaceByID :one
 SELECT * FROM workspaces WHERE id = ? LIMIT 1;
 
+-- name: GetWorkspaceImageRouterKey :one
+SELECT imagerouter_api_key_enc
+FROM workspaces
+WHERE id = ?
+LIMIT 1;
+
 -- name: ListWorkspacesWithRetention :many
 SELECT * FROM workspaces WHERE version_retention_count > 0;
 
@@ -20,6 +26,16 @@ UPDATE workspaces SET exif_keep = ?, exif_keep_gps = ?, updated_at = datetime('n
 
 -- name: UpdateWorkspaceLockedTaxonomy :exec
 UPDATE workspaces SET locked_taxonomy = ?, updated_at = datetime('now') WHERE id = ?;
+
+-- name: SetWorkspaceImageRouterKey :exec
+UPDATE workspaces
+SET imagerouter_api_key_enc = ?, updated_at = datetime('now')
+WHERE id = ?;
+
+-- name: ClearWorkspaceImageRouterKey :exec
+UPDATE workspaces
+SET imagerouter_api_key_enc = NULL, updated_at = datetime('now')
+WHERE id = ?;
 
 -- name: CountWorkspaceAssets :one
 SELECT COUNT(*) FROM assets WHERE workspace_id = ?;

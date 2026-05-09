@@ -1,7 +1,11 @@
 -- name: UpsertAssetFieldValue :one
-INSERT INTO asset_field_values (id, asset_id, field_id, value_text, value_number, value_date, value_boolean, created_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(asset_id, field_id) DO UPDATE SET
+INSERT INTO asset_field_values
+  (id, asset_id, field_id, value_text, value_number, value_date, value_boolean, created_by)
+VALUES
+  (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT
+(asset_id, field_id) DO
+UPDATE SET
   value_text    = excluded.value_text,
   value_number  = excluded.value_number,
   value_date    = excluded.value_date,
@@ -27,12 +31,13 @@ SELECT
   f.options    AS field_options,
   CASE WHEN f.deleted_at IS NOT NULL THEN 1 ELSE 0 END AS definition_deleted
 FROM asset_field_values v
-JOIN field_definitions f ON f.id = v.field_id
+  JOIN field_definitions f ON f.id = v.field_id
 WHERE v.asset_id = ?
 ORDER BY f.position ASC, f.created_at ASC;
 
 -- name: CopyAssetFieldValues :exec
-INSERT OR IGNORE INTO asset_field_values (
+INSERT OR
+IGNORE INTO asset_field_values (
   id, asset_id, field_id, value_text, value_number, value_date, value_boolean,
   created_by, created_at, updated_at
 )
@@ -48,7 +53,7 @@ SELECT
   datetime('now'),
   datetime('now')
 FROM asset_field_values
-WHERE asset_id = ?;
+WHERE asset_field_values.asset_id = ?;
 
 -- name: DeleteAssetFieldValue :exec
 DELETE FROM asset_field_values WHERE asset_id = ? AND field_id = ?;
@@ -57,4 +62,6 @@ DELETE FROM asset_field_values WHERE asset_id = ? AND field_id = ?;
 DELETE FROM asset_field_values WHERE field_id = ?;
 
 -- name: GetAssetFieldValueByAssetAndField :one
-SELECT * FROM asset_field_values WHERE asset_id = ? AND field_id = ? LIMIT 1;
+SELECT *
+FROM asset_field_values
+WHERE asset_id = ? AND field_id = ? LIMIT 1;

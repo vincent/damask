@@ -18,6 +18,7 @@ import (
 
 var (
 	ErrNotConfigured = errors.New("imagerouter: API key not configured")
+	ErrInvalidKey    = errors.New("imagerouter: invalid API key")
 	ErrInvalidModel  = errors.New("imagerouter: model not found or not image2image")
 	ErrAPIError      = errors.New("imagerouter: API returned non-2xx")
 )
@@ -107,6 +108,33 @@ func (c *Client) Transform(ctx context.Context, imageData []byte, p PromptParams
 		return nil, fmt.Errorf("imagerouter: prompt is required")
 	}
 	return c.editImage(ctx, imageData, p.Model, p.Prompt)
+}
+
+func (c *Client) Validate(ctx context.Context) error {
+	if strings.TrimSpace(c.apiKey) == "" {
+		return ErrNotConfigured
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, modelsEndpointURL(), nil)
+	if err != nil {
+		return fmt.Errorf("imagerouter: build request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("imagerouter: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return ErrInvalidKey
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		payload, _ := io.ReadAll(resp.Body)
+		return wrapImageRouterAPIError(ErrAPIError, payload)
+	}
+	return nil
 }
 
 func (c *Client) editImage(ctx context.Context, imageData []byte, model, prompt string) ([]byte, error) {

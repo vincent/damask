@@ -48,8 +48,8 @@ func TestBgRemoveSuccess(t *testing.T) {
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"created": 1778159234,
-				"data": []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
-				"cost": 0.04,
+				"data":    []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
+				"cost":    0.04,
 				"latency": 3731,
 			})
 		case "/generated.png":
@@ -108,8 +108,8 @@ func TestTransformSuccess(t *testing.T) {
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"created": 1778159234,
-				"data": []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
-				"cost": 0.04,
+				"data":    []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
+				"cost":    0.04,
 				"latency": 3731,
 			})
 		case "/generated.png":
@@ -160,8 +160,8 @@ func TestClientTimeout(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"created": 1778159234,
-				"data": []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
-				"cost": 0.04,
+				"data":    []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
+				"cost":    0.04,
 				"latency": 3731,
 			})
 		case "/generated.png":
@@ -203,8 +203,8 @@ func TestTransformRetriesWithoutFreeSuffixOnConfiguredFreeLimit429(t *testing.T)
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"created": 1778159234,
-				"data": []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
-				"cost": 0.04,
+				"data":    []map[string]any{{"url": srv.URL + "/generated.png", "revised_prompt": nil}},
+				"cost":    0.04,
 				"latency": 3731,
 			})
 		case "/generated.png":
@@ -266,6 +266,22 @@ func TestTransformDoesNotRetryWithoutConfigOnFreeLimit429(t *testing.T) {
 	}
 	if requests != 1 {
 		t.Fatalf("expected 1 request, got %d", requests)
+	}
+}
+
+func TestValidateMapsUnauthorizedToInvalidKey(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	restore := SetBaseURLForTest(srv.URL + "/v1")
+	defer restore()
+
+	client := NewClient("bad-key", false)
+	err := client.Validate(context.Background())
+	if !errors.Is(err, ErrInvalidKey) {
+		t.Fatalf("expected ErrInvalidKey, got %v", err)
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
+	"damask/server/internal/imagerouter"
 	"damask/server/internal/ingress"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
@@ -23,18 +24,19 @@ import (
 
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
-	db       *dbgen.Queries
-	sqlDB    *sql.DB
-	storage  storage.Storage
-	queue    queue.JobQueue
-	mailer   mail.Mailer
-	hub      events.EventHub
-	cfg      *config.Config
-	audit    *audit.EventWriter
-	handlers map[string]queue.HandlerFunc
-	trf      transform.Transformer
-	tmb      transform.Thumbnailer
-	injestor assetio.Injestor
+	db             *dbgen.Queries
+	sqlDB          *sql.DB
+	storage        storage.Storage
+	queue          queue.JobQueue
+	mailer         mail.Mailer
+	hub            events.EventHub
+	cfg            *config.Config
+	audit          *audit.EventWriter
+	handlers       map[string]queue.HandlerFunc
+	trf            transform.Transformer
+	tmb            transform.Thumbnailer
+	injestor       assetio.Injestor
+	imgKeyResolver imagerouter.KeyResolver
 }
 
 func NewJobServer(
@@ -48,20 +50,25 @@ func NewJobServer(
 	tmb transform.Thumbnailer,
 	cfg *config.Config,
 	injestor assetio.Injestor,
+	imgKeyResolver imagerouter.KeyResolver,
 ) *JobServer {
+	if imgKeyResolver == nil {
+		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
+	}
 	return &JobServer{
-		db:       db,
-		sqlDB:    sqlDB,
-		storage:  stor,
-		queue:    q,
-		mailer:   mailer,
-		hub:      hub,
-		cfg:      cfg,
-		trf:      trf,
-		tmb:      tmb,
-		audit:    audit.New(sqlDB),
-		handlers: make(map[string]queue.HandlerFunc),
-		injestor: injestor,
+		audit:          audit.New(sqlDB),
+		cfg:            cfg,
+		db:             db,
+		handlers:       make(map[string]queue.HandlerFunc),
+		hub:            hub,
+		imgKeyResolver: imgKeyResolver,
+		injestor:       injestor,
+		mailer:         mailer,
+		queue:          q,
+		sqlDB:          sqlDB,
+		storage:        stor,
+		tmb:            tmb,
+		trf:            trf,
 	}
 }
 

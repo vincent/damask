@@ -90,40 +90,41 @@ func NewHttpServer(
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
 	media := mediatype.NewRegistry(trf)
 	tagSvc := service.NewTagService(tagRepo, auditWriter)
+	variantsSvc := service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
+		Actions: service.NewSQLVariantActionsStore(sqlDB),
+		Queue:   q,
+		Storage: stor,
+	})
 	return &Server{
-		auth:          tokenMaker,
-		storage:       stor,
-		queue:         q,
-		mailer:        mailer,
-		hub:           hub,
-		previewCache:  NewLRUPreviewCache(100),
-		cfg:           cfg,
-		trf:           trf,
-		demo:          demoSeeder,
-		media:         media,
-		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
-		projects:      service.NewProjectService(projectRepo, auditWriter),
-		folders:       service.NewFolderService(folderRepo),
-		tags:          tagSvc,
-		collections:   service.NewCollectionService(collectionRepo, assetRepo),
-		shares:        service.NewShareService(shareRepo, auditWriter),
-		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, mailer),
-		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
-		fields:        service.NewFieldService(fieldRepo),
 		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
-		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
-		versions:      service.NewVersionService(versionRepo, auditWriter),
-		variants: service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
-			Actions: service.NewSQLVariantActionsStore(sqlDB),
-			Queue:   q,
-			Storage: stor,
-		}),
+		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
 		auditLog:      service.NewAuditLogService(db),
-		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo),
-		users:         service.NewUserService(userRepo, workspaceRepo),
+		auth:          tokenMaker,
+		cfg:           cfg,
+		collections:   service.NewCollectionService(collectionRepo, assetRepo),
+		demo:          demoSeeder,
+		fields:        service.NewFieldService(fieldRepo),
+		folders:       service.NewFolderService(folderRepo),
+		hub:           hub,
 		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
+		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
+		mailer:        mailer,
+		media:         media,
+		previewCache:  NewLRUPreviewCache(100),
+		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
+		projects:      service.NewProjectService(projectRepo, auditWriter),
+		queue:         q,
+		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, mailer),
+		shares:        service.NewShareService(shareRepo, auditWriter),
 		stack:         service.NewStackService(assetRepo, versionRepo, stor, q),
+		storage:       stor,
+		tags:          tagSvc,
+		trf:           trf,
 		upload:        service.NewUploadService(service.NewAssetInjestor(db, sqlDB, stor, q, media), auditWriter),
+		users:         service.NewUserService(userRepo, workspaceRepo),
+		variants:      variantsSvc,
+		versions:      service.NewVersionService(versionRepo, auditWriter),
+		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
 	}
 }
 
@@ -212,6 +213,10 @@ func NewRouter(
 
 	// Workspace settings — owner only; blocked in demo mode
 	api.Put("/workspace/settings", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateWorkspaceSettings)
+	api.Get("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleGetWorkspaceImageRouterStatus)
+	api.Put("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handlePutWorkspaceImageRouterKey)
+	api.Delete("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteWorkspaceImageRouterKey)
+	api.Post("/workspace/settings/imagerouter/test", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTestWorkspaceImageRouterKey)
 
 	// Generic job trigger — owner only
 	api.Post("/workspace/jobs/:type/trigger", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTriggerWorkspaceJob)

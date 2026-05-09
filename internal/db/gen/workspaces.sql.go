@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const clearWorkspaceImageRouterKey = `-- name: ClearWorkspaceImageRouterKey :exec
+UPDATE workspaces
+SET imagerouter_api_key_enc = NULL, updated_at = datetime('now')
+WHERE id = ?
+`
+
+func (q *Queries) ClearWorkspaceImageRouterKey(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, clearWorkspaceImageRouterKey, id)
+	return err
+}
+
 const countWorkspaceAssets = `-- name: CountWorkspaceAssets :one
 SELECT COUNT(*) FROM assets WHERE workspace_id = ?
 `
@@ -23,7 +34,7 @@ func (q *Queries) CountWorkspaceAssets(ctx context.Context, workspaceID string) 
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (id, name, created_at, updated_at)
 VALUES (?, ?, datetime('now'), datetime('now'))
-RETURNING id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at
+RETURNING id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at
 `
 
 type CreateWorkspaceParams struct {
@@ -38,6 +49,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.ID,
 		&i.Name,
 		&i.IngestToken,
+		&i.ImagerouterApiKeyEnc,
 		&i.VersionRetentionCount,
 		&i.EventLogRetentionDays,
 		&i.DownloadLogRetentionDays,
@@ -53,7 +65,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 }
 
 const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
+SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
@@ -63,6 +75,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 		&i.ID,
 		&i.Name,
 		&i.IngestToken,
+		&i.ImagerouterApiKeyEnc,
 		&i.VersionRetentionCount,
 		&i.EventLogRetentionDays,
 		&i.DownloadLogRetentionDays,
@@ -78,7 +91,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 }
 
 const getWorkspaceByIconAsset = `-- name: GetWorkspaceByIconAsset :one
-SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1
+SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1
 `
 
 type GetWorkspaceByIconAssetParams struct {
@@ -93,6 +106,7 @@ func (q *Queries) GetWorkspaceByIconAsset(ctx context.Context, arg GetWorkspaceB
 		&i.ID,
 		&i.Name,
 		&i.IngestToken,
+		&i.ImagerouterApiKeyEnc,
 		&i.VersionRetentionCount,
 		&i.EventLogRetentionDays,
 		&i.DownloadLogRetentionDays,
@@ -107,8 +121,22 @@ func (q *Queries) GetWorkspaceByIconAsset(ctx context.Context, arg GetWorkspaceB
 	return i, err
 }
 
+const getWorkspaceImageRouterKey = `-- name: GetWorkspaceImageRouterKey :one
+SELECT imagerouter_api_key_enc
+FROM workspaces
+WHERE id = ?
+LIMIT 1
+`
+
+func (q *Queries) GetWorkspaceImageRouterKey(ctx context.Context, id string) (*string, error) {
+	row := q.db.QueryRowContext(ctx, getWorkspaceImageRouterKey, id)
+	var imagerouter_api_key_enc *string
+	err := row.Scan(&imagerouter_api_key_enc)
+	return imagerouter_api_key_enc, err
+}
+
 const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
-SELECT id, name, ingest_token, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
+SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
 `
 
 func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace, error) {
@@ -124,6 +152,7 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 			&i.ID,
 			&i.Name,
 			&i.IngestToken,
+			&i.ImagerouterApiKeyEnc,
 			&i.VersionRetentionCount,
 			&i.EventLogRetentionDays,
 			&i.DownloadLogRetentionDays,
@@ -148,6 +177,22 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 	return items, nil
 }
 
+const setWorkspaceImageRouterKey = `-- name: SetWorkspaceImageRouterKey :exec
+UPDATE workspaces
+SET imagerouter_api_key_enc = ?, updated_at = datetime('now')
+WHERE id = ?
+`
+
+type SetWorkspaceImageRouterKeyParams struct {
+	ImagerouterApiKeyEnc *string `json:"imagerouter_api_key_enc"`
+	ID                   string  `json:"id"`
+}
+
+func (q *Queries) SetWorkspaceImageRouterKey(ctx context.Context, arg SetWorkspaceImageRouterKeyParams) error {
+	_, err := q.db.ExecContext(ctx, setWorkspaceImageRouterKey, arg.ImagerouterApiKeyEnc, arg.ID)
+	return err
+}
+
 const updateWorkspaceExifSettings = `-- name: UpdateWorkspaceExifSettings :exec
 UPDATE workspaces SET exif_keep = ?, exif_keep_gps = ?, updated_at = datetime('now') WHERE id = ?
 `
@@ -163,20 +208,6 @@ func (q *Queries) UpdateWorkspaceExifSettings(ctx context.Context, arg UpdateWor
 	return err
 }
 
-const updateWorkspaceVersionRetention = `-- name: UpdateWorkspaceVersionRetention :exec
-UPDATE workspaces SET version_retention_count = ?, updated_at = datetime('now') WHERE id = ?
-`
-
-type UpdateWorkspaceVersionRetentionParams struct {
-	VersionRetentionCount int64  `json:"version_retention_count"`
-	ID                    string `json:"id"`
-}
-
-func (q *Queries) UpdateWorkspaceVersionRetention(ctx context.Context, arg UpdateWorkspaceVersionRetentionParams) error {
-	_, err := q.db.ExecContext(ctx, updateWorkspaceVersionRetention, arg.VersionRetentionCount, arg.ID)
-	return err
-}
-
 const updateWorkspaceLockedTaxonomy = `-- name: UpdateWorkspaceLockedTaxonomy :exec
 UPDATE workspaces SET locked_taxonomy = ?, updated_at = datetime('now') WHERE id = ?
 `
@@ -188,5 +219,19 @@ type UpdateWorkspaceLockedTaxonomyParams struct {
 
 func (q *Queries) UpdateWorkspaceLockedTaxonomy(ctx context.Context, arg UpdateWorkspaceLockedTaxonomyParams) error {
 	_, err := q.db.ExecContext(ctx, updateWorkspaceLockedTaxonomy, arg.LockedTaxonomy, arg.ID)
+	return err
+}
+
+const updateWorkspaceVersionRetention = `-- name: UpdateWorkspaceVersionRetention :exec
+UPDATE workspaces SET version_retention_count = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateWorkspaceVersionRetentionParams struct {
+	VersionRetentionCount int64  `json:"version_retention_count"`
+	ID                    string `json:"id"`
+}
+
+func (q *Queries) UpdateWorkspaceVersionRetention(ctx context.Context, arg UpdateWorkspaceVersionRetentionParams) error {
+	_, err := q.db.ExecContext(ctx, updateWorkspaceVersionRetention, arg.VersionRetentionCount, arg.ID)
 	return err
 }

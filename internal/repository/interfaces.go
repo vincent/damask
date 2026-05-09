@@ -221,6 +221,9 @@ type WorkspaceRepository interface {
 	Create(ctx context.Context, w Workspace) (Workspace, error)
 	Update(ctx context.Context, w Workspace) (Workspace, error)
 	UpdateLockedTaxonomy(ctx context.Context, workspaceID string, locked bool) (Workspace, error)
+	GetImageRouterKey(ctx context.Context, workspaceID string) (string, error)
+	SetImageRouterKey(ctx context.Context, workspaceID, encKey string) error
+	ClearImageRouterKey(ctx context.Context, workspaceID string) error
 	CountAssets(ctx context.Context, workspaceID string) (int64, error)
 	// Member methods
 	GetMember(ctx context.Context, workspaceID, userID string) (Member, error)

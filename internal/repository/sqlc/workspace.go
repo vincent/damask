@@ -56,6 +56,31 @@ func (r *workspaceRepo) CountAssets(ctx context.Context, workspaceID string) (in
 	return r.q.CountWorkspaceAssets(ctx, workspaceID)
 }
 
+func (r *workspaceRepo) GetImageRouterKey(ctx context.Context, workspaceID string) (string, error) {
+	key, err := r.q.GetWorkspaceImageRouterKey(ctx, workspaceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", apperr.ErrNotFound
+		}
+		return "", err
+	}
+	if key == nil {
+		return "", nil
+	}
+	return *key, nil
+}
+
+func (r *workspaceRepo) SetImageRouterKey(ctx context.Context, workspaceID, encKey string) error {
+	return r.q.SetWorkspaceImageRouterKey(ctx, dbgen.SetWorkspaceImageRouterKeyParams{
+		ImagerouterApiKeyEnc: &encKey,
+		ID:                   workspaceID,
+	})
+}
+
+func (r *workspaceRepo) ClearImageRouterKey(ctx context.Context, workspaceID string) error {
+	return r.q.ClearWorkspaceImageRouterKey(ctx, workspaceID)
+}
+
 func (r *workspaceRepo) GetMember(ctx context.Context, workspaceID, userID string) (repository.Member, error) {
 	row, err := r.q.GetMember(ctx, dbgen.GetMemberParams{WorkspaceID: workspaceID, UserID: userID})
 	if err != nil {

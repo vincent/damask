@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"time"
+
+	"damask/server/internal/imagerouter"
 )
 
 // AssetCommentDTO is a comment posted on an asset via a public share.
@@ -140,6 +142,11 @@ type WorkspaceService interface {
 	Me(ctx context.Context, workspaceID, userID string) (*WorkspaceMeDTO, error)
 	ListForUser(ctx context.Context, userID string) ([]WorkspaceWithRoleDTO, error)
 	CountAssets(ctx context.Context, workspaceID string) (int64, error)
+	ListImageRouterModels(ctx context.Context, workspaceID string) ([]imagerouter.Model, imagerouter.KeyStatus, error)
+	GetImageRouterKeyStatus(ctx context.Context, workspaceID string) (imagerouter.KeyStatus, error)
+	SetImageRouterKey(ctx context.Context, workspaceID, plainKey string) error
+	ClearImageRouterKey(ctx context.Context, workspaceID string) error
+	TestImageRouterKey(ctx context.Context, workspaceID string) error
 	// Members
 	GetMember(ctx context.Context, workspaceID, userID string) (*MemberDTO, error)
 	ListMembers(ctx context.Context, workspaceID string) ([]MemberDTO, error)

@@ -13,7 +13,6 @@ type Asset struct {
 	WorkspaceID          string    `json:"workspace_id"`
 	ProjectID            *string   `json:"project_id"`
 	FolderID             *string   `json:"folder_id"`
-	DerivedFromAssetID   *string   `json:"derived_from_asset_id"`
 	OriginalFilename     string    `json:"original_filename"`
 	StorageKey           string    `json:"storage_key"`
 	MimeType             string    `json:"mime_type"`
@@ -24,6 +23,7 @@ type Asset struct {
 	ThumbnailContentType string    `json:"thumbnail_content_type"`
 	Metadata             *string   `json:"metadata"`
 	CurrentVersionID     *string   `json:"current_version_id"`
+	DerivedFromAssetID   *string   `json:"derived_from_asset_id"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
@@ -290,6 +290,7 @@ type Variant struct {
 	StorageKey           string    `json:"storage_key"`
 	TransformParams      *string   `json:"transform_params"`
 	Size                 *int64    `json:"size"`
+	Status               string    `json:"status"`
 	ThumbnailKey         *string   `json:"thumbnail_key"`
 	ThumbnailContentType string    `json:"thumbnail_content_type"`
 	CreatedAt            time.Time `json:"created_at"`
@@ -299,6 +300,7 @@ type Workspace struct {
 	ID                       string    `json:"id"`
 	Name                     string    `json:"name"`
 	IngestToken              *string   `json:"ingest_token"`
+	ImagerouterApiKeyEnc     *string   `json:"imagerouter_api_key_enc"`
 	VersionRetentionCount    int64     `json:"version_retention_count"`
 	EventLogRetentionDays    int64     `json:"event_log_retention_days"`
 	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`

@@ -43,10 +43,6 @@ type ImageRouterConfig struct {
 	RetryPaidOnFreeLimit bool
 }
 
-func (c ImageRouterConfig) IsConfigured() bool {
-	return strings.TrimSpace(c.APIKey) != ""
-}
-
 type FFmpegConfig struct {
 	Path    string
 	HWAccel string

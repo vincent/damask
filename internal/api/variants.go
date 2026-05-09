@@ -252,13 +252,18 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
 	}
 
+	irStatus, err := s.workspace.GetImageRouterKeyStatus(c.Context(), claims.WorkspaceID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
 	prepared, err := s.variants.PrepareCreate(c.Context(), service.PrepareCreateVariantParams{
 		WorkspaceID:           claims.WorkspaceID,
 		AssetID:               assetID,
 		Type:                  body.Type,
 		Params:                body.Params,
 		AssetMimeType:         asset.MimeType,
-		ImageRouterConfigured: s.cfg.ImageRouter.IsConfigured(),
+		ImageRouterConfigured: irStatus.KeySet,
 		DefaultImageModel:     s.cfg.ImageRouter.DefaultModel,
 		DefaultBgRemoveModel:  s.cfg.ImageRouter.DefaultBgRemoveModel,
 	})

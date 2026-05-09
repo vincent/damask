@@ -7,6 +7,11 @@ import type {
   WorkspaceMember,
 } from './models'
 
+export interface ImageRouterKeyStatus {
+  key_set: boolean
+  source: 'workspace' | 'env' | 'none'
+}
+
 export interface WorkspaceWithRole extends Workspace {
   role: string
   member_count: number
@@ -103,5 +108,28 @@ export const workspaceApi = {
   deleteInvite: (inviteId: string) =>
     apiFetch<void>(`/api/v1/workspace/invites/${inviteId}`, {
       method: 'DELETE',
+    }),
+
+  /** GET /api/v1/workspace/settings/imagerouter (owner only) — get ImageRouter key status. */
+  getImageRouterKeyStatus: () =>
+    apiFetch<ImageRouterKeyStatus>('/api/v1/workspace/settings/imagerouter'),
+
+  /** PUT /api/v1/workspace/settings/imagerouter (owner only) — set a workspace ImageRouter API key. */
+  setImageRouterKey: (key: string) =>
+    apiFetch<void>('/api/v1/workspace/settings/imagerouter', {
+      method: 'PUT',
+      body: JSON.stringify({ key }),
+    }),
+
+  /** DELETE /api/v1/workspace/settings/imagerouter (owner only) — clear the workspace ImageRouter API key. */
+  clearImageRouterKey: () =>
+    apiFetch<void>('/api/v1/workspace/settings/imagerouter', {
+      method: 'DELETE',
+    }),
+
+  /** POST /api/v1/workspace/settings/imagerouter/test (owner only) — validate the effective ImageRouter key. */
+  testImageRouterKey: () =>
+    apiFetch<void>('/api/v1/workspace/settings/imagerouter/test', {
+      method: 'POST',
     }),
 }

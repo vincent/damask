@@ -11,7 +11,10 @@ import (
 )
 
 const addTagToAsset = `-- name: AddTagToAsset :exec
-INSERT OR IGNORE INTO asset_tags (asset_id, tag_id) VALUES (?, ?)
+INSERT OR
+IGNORE INTO asset_tags (asset_id, tag_id)
+VALUES
+  (?, ?)
 `
 
 type AddTagToAssetParams struct {
@@ -24,8 +27,28 @@ func (q *Queries) AddTagToAsset(ctx context.Context, arg AddTagToAssetParams) er
 	return err
 }
 
+const copyAssetTags = `-- name: CopyAssetTags :exec
+INSERT OR
+IGNORE INTO asset_tags (asset_id, tag_id)
+SELECT ?, tag_id
+FROM asset_tags
+WHERE asset_tags.asset_id = ?
+`
+
+type CopyAssetTagsParams struct {
+	AssetID   string `json:"asset_id"`
+	AssetID_2 string `json:"asset_id_2"`
+}
+
+func (q *Queries) CopyAssetTags(ctx context.Context, arg CopyAssetTagsParams) error {
+	_, err := q.db.ExecContext(ctx, copyAssetTags, arg.AssetID, arg.AssetID_2)
+	return err
+}
+
 const countTagAssets = `-- name: CountTagAssets :one
-SELECT COUNT(*) FROM asset_tags WHERE tag_id = ?
+SELECT COUNT(*)
+FROM asset_tags
+WHERE tag_id = ?
 `
 
 func (q *Queries) CountTagAssets(ctx context.Context, tagID string) (int64, error) {
@@ -36,8 +59,10 @@ func (q *Queries) CountTagAssets(ctx context.Context, tagID string) (int64, erro
 }
 
 const createTag = `-- name: CreateTag :one
-INSERT INTO tags (id, workspace_id, name, color, group_name)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO tags
+  (id, workspace_id, name, color, group_name)
+VALUES
+  (?, ?, ?, ?, ?)
 RETURNING id, workspace_id, name, color, group_name, created_at, last_used_at
 `
 
@@ -85,9 +110,12 @@ func (q *Queries) DeleteTag(ctx context.Context, arg DeleteTagParams) error {
 }
 
 const ensureSystemTag = `-- name: EnsureSystemTag :exec
-INSERT INTO tags (id, workspace_id, name, group_name)
-VALUES (?, ?, ?, 'system')
-ON CONFLICT (workspace_id, name) DO NOTHING
+INSERT INTO tags
+  (id, workspace_id, name, group_name)
+VALUES
+  (?, ?, ?, 'system')
+ON CONFLICT
+(workspace_id, name) DO NOTHING
 `
 
 type EnsureSystemTagParams struct {
@@ -102,10 +130,10 @@ func (q *Queries) EnsureSystemTag(ctx context.Context, arg EnsureSystemTagParams
 }
 
 const findAssetBySystemTagInFolder = `-- name: FindAssetBySystemTagInFolder :one
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at
 FROM assets a
-JOIN asset_tags at ON at.asset_id = a.id
-JOIN tags t ON t.id = at.tag_id
+  JOIN asset_tags at ON at.asset_id = a.id
+  JOIN tags t ON t.id = at.tag_id
 WHERE a.workspace_id = ?
   AND t.name = ?
   AND t.group_name = 'system'
@@ -138,6 +166,7 @@ func (q *Queries) FindAssetBySystemTagInFolder(ctx context.Context, arg FindAsse
 		&i.ThumbnailContentType,
 		&i.Metadata,
 		&i.CurrentVersionID,
+		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -145,10 +174,11 @@ func (q *Queries) FindAssetBySystemTagInFolder(ctx context.Context, arg FindAsse
 }
 
 const findAssetBySystemTagInProject = `-- name: FindAssetBySystemTagInProject :one
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at
 FROM assets a
 JOIN asset_tags at ON at.asset_id = a.id
-JOIN tags t ON t.id = at.tag_id
+JOIN tags t ON t.id
+= at.tag_id
 WHERE a.workspace_id = ?
   AND t.name = ?
   AND t.group_name = 'system'
@@ -181,6 +211,7 @@ func (q *Queries) FindAssetBySystemTagInProject(ctx context.Context, arg FindAss
 		&i.ThumbnailContentType,
 		&i.Metadata,
 		&i.CurrentVersionID,
+		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -188,10 +219,10 @@ func (q *Queries) FindAssetBySystemTagInProject(ctx context.Context, arg FindAss
 }
 
 const findAssetBySystemTagInWorkspace = `-- name: FindAssetBySystemTagInWorkspace :one
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at
 FROM assets a
-JOIN asset_tags at ON at.asset_id = a.id
-JOIN tags t ON t.id = at.tag_id
+  JOIN asset_tags at ON at.asset_id = a.id
+  JOIN tags t ON t.id = at.tag_id
 WHERE a.workspace_id = ?
   AND t.name = ?
   AND t.group_name = 'system'
@@ -222,6 +253,7 @@ func (q *Queries) FindAssetBySystemTagInWorkspace(ctx context.Context, arg FindA
 		&i.ThumbnailContentType,
 		&i.Metadata,
 		&i.CurrentVersionID,
+		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -229,9 +261,13 @@ func (q *Queries) FindAssetBySystemTagInWorkspace(ctx context.Context, arg FindA
 }
 
 const getOrCreateTag = `-- name: GetOrCreateTag :one
-INSERT INTO tags (id, workspace_id, name)
-VALUES (?, ?, ?)
-ON CONFLICT (workspace_id, name) DO UPDATE SET name = name
+INSERT INTO tags
+  (id, workspace_id, name)
+VALUES
+  (?, ?, ?)
+ON CONFLICT
+(workspace_id, name) DO
+UPDATE SET name = name
 RETURNING id, workspace_id, name, color, group_name, created_at, last_used_at
 `
 
@@ -257,7 +293,9 @@ func (q *Queries) GetOrCreateTag(ctx context.Context, arg GetOrCreateTagParams) 
 }
 
 const getTagByWorkspaceAndName = `-- name: GetTagByWorkspaceAndName :one
-SELECT id, workspace_id, name, color, group_name, created_at, last_used_at FROM tags WHERE workspace_id = ? AND name = ?
+SELECT id, workspace_id, name, color, group_name, created_at, last_used_at
+FROM tags
+WHERE workspace_id = ? AND name = ?
 `
 
 type GetTagByWorkspaceAndNameParams struct {
@@ -283,7 +321,7 @@ func (q *Queries) GetTagByWorkspaceAndName(ctx context.Context, arg GetTagByWork
 const getTagsForAsset = `-- name: GetTagsForAsset :many
 SELECT t.id, t.workspace_id, t.name
 FROM tags t
-JOIN asset_tags at ON at.tag_id = t.id
+  JOIN asset_tags at ON at.tag_id = t.id
 WHERE at.asset_id = ?
 `
 
@@ -317,7 +355,10 @@ func (q *Queries) GetTagsForAsset(ctx context.Context, assetID string) ([]GetTag
 }
 
 const listTagsInWorkspace = `-- name: ListTagsInWorkspace :many
-SELECT id, workspace_id, name, color, group_name, created_at, last_used_at FROM tags WHERE workspace_id = ? ORDER BY name ASC
+SELECT id, workspace_id, name, color, group_name, created_at, last_used_at
+FROM tags
+WHERE workspace_id = ?
+ORDER BY name ASC
 `
 
 func (q *Queries) ListTagsInWorkspace(ctx context.Context, workspaceID string) ([]Tag, error) {
@@ -353,12 +394,14 @@ func (q *Queries) ListTagsInWorkspace(ctx context.Context, workspaceID string) (
 
 const listTagsWithCount = `-- name: ListTagsWithCount :many
 SELECT t.id, t.workspace_id, t.name, t.color, t.group_name, t.created_at, t.last_used_at,
-       COUNT(at.asset_id) AS asset_count
+  COUNT(at.asset_id) AS asset_count
 FROM tags t
-LEFT JOIN asset_tags at ON at.tag_id = t.id
+  LEFT JOIN asset_tags at ON at.tag_id = t.id
 WHERE t.workspace_id = ?
   AND CASE WHEN ?2 THEN 1=1
-           ELSE (t.group_name != 'system' OR t.group_name IS NULL) END
+ELSE
+(t.group_name != 'system' OR t.group_name IS NULL)
+END
 GROUP BY t.id
 ORDER BY t.name ASC
 `
@@ -412,8 +455,11 @@ func (q *Queries) ListTagsWithCount(ctx context.Context, arg ListTagsWithCountPa
 }
 
 const reassignTagAssets = `-- name: ReassignTagAssets :exec
-INSERT OR IGNORE INTO asset_tags (asset_id, tag_id)
-SELECT src.asset_id, ? FROM asset_tags src WHERE src.tag_id = ?
+INSERT OR
+IGNORE INTO asset_tags (asset_id, tag_id)
+SELECT src.asset_id, ?
+FROM asset_tags src
+WHERE src.tag_id = ?
 `
 
 type ReassignTagAssetsParams struct {
@@ -429,7 +475,9 @@ func (q *Queries) ReassignTagAssets(ctx context.Context, arg ReassignTagAssetsPa
 const removeTagFromAsset = `-- name: RemoveTagFromAsset :exec
 DELETE FROM asset_tags
 WHERE asset_id = ?
-  AND tag_id = (SELECT id FROM tags WHERE workspace_id = ? AND name = ?)
+  AND tag_id = (SELECT id
+  FROM tags
+  WHERE workspace_id = ? AND name = ?)
 `
 
 type RemoveTagFromAssetParams struct {

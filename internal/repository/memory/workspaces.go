@@ -16,6 +16,7 @@ import (
 type RealWorkspaceRepo struct {
 	mu         sync.RWMutex
 	workspaces map[string]repository.Workspace
+	irKeys     map[string]string
 	members    map[string]repository.Member // key: workspaceID+":"+userID
 	invites    map[string]repository.Invite // key: invite ID
 	userWS     map[string][]string          // userID -> []workspaceID
@@ -25,6 +26,7 @@ type RealWorkspaceRepo struct {
 func NewRealWorkspaceRepo() *RealWorkspaceRepo {
 	return &RealWorkspaceRepo{
 		workspaces: make(map[string]repository.Workspace),
+		irKeys:     make(map[string]string),
 		members:    make(map[string]repository.Member),
 		invites:    make(map[string]repository.Invite),
 		userWS:     make(map[string][]string),
@@ -85,6 +87,35 @@ func (r *RealWorkspaceRepo) UpdateLockedTaxonomy(_ context.Context, workspaceID 
 
 func (r *RealWorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) {
 	return 0, nil
+}
+
+func (r *RealWorkspaceRepo) GetImageRouterKey(_ context.Context, workspaceID string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if _, ok := r.workspaces[workspaceID]; !ok {
+		return "", fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
+	}
+	return r.irKeys[workspaceID], nil
+}
+
+func (r *RealWorkspaceRepo) SetImageRouterKey(_ context.Context, workspaceID, encKey string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.workspaces[workspaceID]; !ok {
+		return fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
+	}
+	r.irKeys[workspaceID] = encKey
+	return nil
+}
+
+func (r *RealWorkspaceRepo) ClearImageRouterKey(_ context.Context, workspaceID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.workspaces[workspaceID]; !ok {
+		return fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
+	}
+	delete(r.irKeys, workspaceID)
+	return nil
 }
 
 func (r *RealWorkspaceRepo) GetMember(_ context.Context, workspaceID, userID string) (repository.Member, error) {

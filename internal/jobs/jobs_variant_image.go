@@ -153,7 +153,7 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("parse bg remove params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+	result, err := s.runImageRouterJob(ctx, p.WorkspaceID, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
 		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{
 			Model:  params.Model,
 			Prompt: params.Prompt,
@@ -216,7 +216,7 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 		return fmt.Errorf("parse image prompt params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+	result, err := s.runImageRouterJob(ctx, p.WorkspaceID, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
 		return client.Transform(ctx, imageData, imagerouter.PromptParams{
 			Prompt: params.Prompt,
 			Model:  params.Model,
@@ -368,7 +368,7 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		return fmt.Errorf("parse bg remove params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+	result, err := s.runImageRouterJob(ctx, ver.WorkspaceID, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
 		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
 	})
 	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
@@ -414,7 +414,7 @@ func (s *JobServer) rebuildImageWithPromptVariant(
 		return fmt.Errorf("parse image prompt params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+	result, err := s.runImageRouterJob(ctx, ver.WorkspaceID, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
 		return client.Transform(ctx, imageData, imagerouter.PromptParams{
 			Prompt: params.Prompt,
 			Model:  params.Model,
@@ -449,6 +449,7 @@ func (s *JobServer) rebuildImageWithPromptVariant(
 
 func (s *JobServer) runImageRouterJob(
 	ctx context.Context,
+	workspaceID string,
 	sourceKey string,
 	callFn func(*imagerouter.Client, []byte) ([]byte, error),
 ) ([]byte, error) {
@@ -463,7 +464,15 @@ func (s *JobServer) runImageRouterJob(
 		return nil, fmt.Errorf("read source: %w", err)
 	}
 
-	client := imagerouter.NewClient(s.cfg.ImageRouter.APIKey, s.cfg.ImageRouter.RetryPaidOnFreeLimit)
+	key, source, err := s.imgKeyResolver(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	if source == imagerouter.SourceNone {
+		return nil, imagerouter.ErrNotConfigured
+	}
+
+	client := imagerouter.NewClient(key, s.cfg.ImageRouter.RetryPaidOnFreeLimit)
 	result, err := callFn(client, imageData)
 	if err != nil {
 		return nil, err

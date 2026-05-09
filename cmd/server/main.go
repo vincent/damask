@@ -14,12 +14,14 @@ import (
 	"damask/server/internal/config"
 	"damask/server/internal/db"
 	"damask/server/internal/events"
+	"damask/server/internal/imagerouter"
 	"damask/server/internal/ingress"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/mailserver"
 	"damask/server/internal/mediatype"
 	"damask/server/internal/queue"
+	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
@@ -146,8 +148,10 @@ func main() {
 
 	media := mediatype.NewRegistry(trf)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
+	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 
-	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, trf, tmb, cfg, injestor)
+	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
 	js.RegisterJobHandlers()
 
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.
