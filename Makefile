@@ -1,4 +1,4 @@
-.PHONY: dev dev-server dev-web build build-web build-demo build-dev test lint generate migrate admin admin-run admin-install swagger
+.PHONY: dev dev-server dev-web build build-web build-demo build-dev test test-integration lint generate migrate admin admin-run admin-install swagger
 
 # Run both server and web dev servers concurrently
 dev:
@@ -32,9 +32,13 @@ build-dev: build-web
 swagger:
 	swag init -g cmd/server/main.go -o internal/docs
 
-# Run all tests
+# Run all tests (excludes integration tests)
 test:
 	go test ./...
+
+# Run integration tests (internal/api handlers against real SQLite)
+test-integration:
+	go test -tags=integration ./internal/api/...
 
 # Run linters
 lint:

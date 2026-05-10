@@ -1,3 +1,5 @@
+//go:build integration
+
 package api_test
 
 // Tests for HTTP caching headers (Cache-Control, ETag, Last-Modified) and
