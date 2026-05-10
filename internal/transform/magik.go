@@ -3,16 +3,28 @@ package transform
 import (
 	"bytes"
 	"context"
+	"damask/server/internal/telemetry"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
+func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) (data []byte, format string, err error) {
+	ctx, span := telemetry.StartSpan(ctx, "transform.pdf.first.thumbnail",
+		attribute.String("damask.mimeType", mimeType),
+	)
+	defer func() {
+		telemetry.EndSpan(span, err)
+		slog.DebugContext(ctx, "magik.firstthumbnail completed", "error", err)
+	}()
+
 	ext := mimeToExt(mimeType)
 
 	tmpPath, cleanup, err := writeToTempFile(ctx, src, ext)
@@ -35,7 +47,10 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) ([
 	cmd.Stdout = &buf
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
+	slog.DebugContext(ctx, "running magik command", "command", cmd.String())
+	span.SetAttributes(attribute.String("transform.command", cmd.String()))
+
+	if err = cmd.Run(); err != nil {
 		return nil, "", fmt.Errorf("convert failed: %w — stderr: %s", err, stderr.String())
 	}
 
@@ -55,7 +70,15 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) ([
 // PDFSlideshowThumbnail converts up to 6 PDF pages to JPEG frames via ImageMagick convert,
 // then concatenates them into a silent MP4 slideshow via ffmpeg.
 // Returns MP4 bytes. Falls back gracefully if convert or ffmpeg is unavailable.
-func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error) {
+func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) (data []byte, err error) {
+	ctx, span := telemetry.StartSpan(ctx, "transform.pdf.slideshow.thumbnail",
+		attribute.String("damask.mimeType", mimeType),
+	)
+	defer func() {
+		telemetry.EndSpan(span, err)
+		slog.DebugContext(ctx, "magik.pdfslideshowthumbnail completed", "error", err)
+	}()
+
 	tmpPDF, cleanup, err := writeToTempFile(ctx, src, ".pdf")
 	if err != nil {
 		return nil, fmt.Errorf("temp pdf: %w", err)
@@ -78,6 +101,8 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 		filepath.Join(dir, "page-%d.jpg"),
 	)
 	cmd.Stderr = &stderr
+	span.SetAttributes(attribute.String("transform.command", cmd.String()))
+
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("convert pdf: %w — stderr: %s", err, stderr.String())
 	}
@@ -175,7 +200,7 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 		return nil, fmt.Errorf("ffmpeg pdf slideshow: %w — stderr: %s", err, ffmpegStderr.String())
 	}
 
-	data, err := os.ReadFile(outPath)
+	data, err = os.ReadFile(outPath)
 	if err != nil {
 		return nil, fmt.Errorf("read slideshow: %w", err)
 	}
@@ -184,11 +209,17 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 
 // ---- OS helpers ----
 
-func writeToTempFile(ctx context.Context, src io.Reader, ext string) (string, func(), error) {
+func writeToTempFile(ctx context.Context, src io.Reader, ext string) (name string, cb func(), err error) {
+	ctx, span := telemetry.StartSpan(ctx, "transform.write.tempfile",
+		attribute.String("damask.ext", ext),
+	)
+	defer telemetry.EndSpan(span, err)
+
 	f, err := os.CreateTemp("", "damask-*"+ext)
 	if err != nil {
 		return "", nil, fmt.Errorf("create temp: %w", err)
 	}
+	span.SetAttributes(attribute.String("damask.tempfile", f.Name()))
 	if _, copyErr := io.Copy(f, src); copyErr != nil {
 		_ = f.Close()
 		_ = os.Remove(f.Name())

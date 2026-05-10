@@ -108,6 +108,8 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		}
 	}()
 
+	slog.DebugContext(ctx, "starting asset ingest", "workspace_id", workspaceID, "file_path", filePath, "opts", opts)
+
 	stat, err := os.Stat(filePath)
 	if err != nil {
 		return dbgen.Asset{}, fmt.Errorf("could not stat uploaded file: %w", err)
@@ -202,6 +204,8 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		opts.InheritFields(inheritCtx, workspaceID, asset.ID, *opts.ProjectID, opts.UserID)
 		inheritSpan.End()
 	}
+
+	slog.DebugContext(ctx, "asset ingest completed", "asset_id", asset.ID, "workspace_id", workspaceID, "mime_type", asset.MimeType, "size", asset.Size, "supported_media", s.media.Supports(mimeType))
 
 	if s.media.Supports(mimeType) && initialVersionID != "" {
 		payload, _ := json.Marshal(versionThumbnailPayload{

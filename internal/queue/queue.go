@@ -189,6 +189,8 @@ func (q *Queue) processNext(ctx context.Context) {
 		attribute.String("damask.workspace_id", job.WorkspaceID),
 	)
 
+	slog.DebugContext(ctx, "start background job", "job", "service.queue.job."+job.Type, "job_id", job.ID, "workspace_id", job.WorkspaceID, "attempt", job.Attempts)
+
 	var jobFailed bool
 	func() {
 		defer func() {

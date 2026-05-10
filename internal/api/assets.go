@@ -587,6 +587,8 @@ func (s *Server) handleRegenerateThumbnail(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
+	slog.DebugContext(c.Context(), "regenerating thumbnail", "workspace_id", claims.WorkspaceID, "asset_id", assetID)
+
 	jobIDs, err := s.assets.RegenerateThumbnail(c.Context(), claims.WorkspaceID, []string{assetID})
 	if err != nil {
 		return ErrorStatusResponse(c, err)
