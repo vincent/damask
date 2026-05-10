@@ -22,11 +22,12 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates ffmpeg ghostscript imagemagick && rm -rf /var/lib/apt/lists/*
 
-# remove coders polices and resource size limits from imagemagick config
+# remove some policies from imagemagick config
 RUN sed -i \
     -e '/disable ghostscript format types/,+6d' \
     -e '/name="width"/d' \
     -e '/name="height"/d' \
+    -e '/domain="path"/d' \
     /etc/ImageMagick-6/policy.xml
 
 # /data holds the database, uploaded files, and optionally a .env file.
