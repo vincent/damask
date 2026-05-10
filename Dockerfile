@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/damask-ad
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates ffmpeg imagemagick && rm -rf /var/lib/apt/lists/*
+    ca-certificates ffmpeg ghostscript imagemagick && rm -rf /var/lib/apt/lists/*
 
 # remove coders polices and resource size limits from imagemagick config
 RUN sed -i \
