@@ -54,8 +54,8 @@ func (t *mockTransformer) pixel(format imaging.Format) []byte {
 func (t *mockTransformer) GenerateImageOfText(ctx context.Context, opts transform.ImageOfTextOptions) ([]byte, error) {
 	return t.pixel(imaging.PNG), nil
 }
-func (t *mockTransformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error) {
-	return t.pixel(imaging.JPEG), nil
+func (t *mockTransformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
+	return t.pixel(imaging.JPEG), "image/jpeg", nil
 }
 func (t *mockTransformer) DocumentThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error) {
 	return t.pixel(imaging.JPEG), nil

@@ -162,15 +162,19 @@ func (t *thumbnailer) ThumbnailFromVideo(ctx context.Context, rc io.ReadCloser, 
 }
 
 func (t *thumbnailer) ThumbnailFromPDF(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {
-	if !t.transformer.ImageMagickAvailable() || !t.transformer.FFmpegAvailable() {
-		slog.DebugContext(ctx, "thumbnail: convert or ffmpeg not available, skipping PDF slideshow")
+	if !t.transformer.ImageMagickAvailable() {
+		slog.DebugContext(ctx, "thumbnail: convert not available, skipping PDF thumbnail")
 		return nil, "", nil
 	}
-	data, err := t.transformer.PDFSlideshowThumbnail(ctx, rc, mimeType)
+	data, ct, err := t.transformer.PDFSlideshowThumbnail(ctx, rc, mimeType)
 	if err != nil {
 		return nil, "", err
 	}
-	return data, ".mp4", nil
+	ext := ".mp4"
+	if ct == "image/jpeg" {
+		ext = ".jpg"
+	}
+	return data, ext, nil
 }
 
 func (t *thumbnailer) ThumbnailFromDocument(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {

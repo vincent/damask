@@ -7,6 +7,7 @@ import (
 	"damask/server/internal/telemetry"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -75,6 +76,8 @@ func (h *EventHubImpl) Subscribe(workspaceID string) (<-chan Event, func()) {
 func (h *EventHubImpl) Publish(ctx context.Context, workspaceID string, ev Event) {
 	_, span := telemetry.StartSpan(ctx, "service.events.publish")
 	defer span.End()
+
+	slog.DebugContext(ctx, "publishing event", "workspace_id", workspaceID, "event_type", ev.Type, "asset_id", ev.AssetID, "variant_id", ev.VariantID, "job_id", ev.JobID)
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()

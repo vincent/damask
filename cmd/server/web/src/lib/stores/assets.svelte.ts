@@ -91,6 +91,7 @@ function connectSSE() {
   sseSource = openThumbnailEvents()
 
   sseSource.addEventListener('message', (e: MessageEvent) => {
+    console.debug('[sse] message received', e.data)
     try {
       const event = JSON.parse(e.data) as {
         type: string
@@ -329,9 +330,10 @@ export const assetsStore = {
    * No-op: Asset list rows don't carry field values (fetched on-demand in lightbox).
    * Signature kept so BulkMetadataCommand compiles and future caching is easy to add.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   patchFieldValues(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _assetId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _edits: { fieldId: string; value: string | number | boolean | null }[]
   ) {},
 }

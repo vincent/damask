@@ -153,6 +153,8 @@ func (q *Queue) processNext(ctx context.Context) {
 		return
 	}
 
+	defer slog.DebugContext(ctx, "end background job", "job", "service.queue.job."+job.Type, "job_id", job.ID, "workspace_id", job.WorkspaceID, "attempt", job.Attempts)
+
 	span.SetAttributes(attribute.String("damask.job.id", job.ID))
 	span.SetAttributes(attribute.String("damask.job.type", job.Type))
 	span.SetAttributes(attribute.String("damask.job.workspace_id", job.WorkspaceID))

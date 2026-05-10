@@ -67,10 +67,10 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) (d
 	return thumbData, "image/jpeg", nil
 }
 
-// PDFSlideshowThumbnail converts up to 6 PDF pages to JPEG frames via ImageMagick convert,
-// then concatenates them into a silent MP4 slideshow via ffmpeg.
-// Returns MP4 bytes. Falls back gracefully if convert or ffmpeg is unavailable.
-func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) (data []byte, err error) {
+// PDFSlideshowThumbnail converts up to 6 PDF pages to JPEG frames via ImageMagick convert.
+// Single-page PDFs return a JPEG directly ("image/jpeg"). Multi-page PDFs are concatenated
+// into a silent MP4 slideshow via ffmpeg ("video/mp4").
+func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) (data []byte, contentType string, err error) {
 	ctx, span := telemetry.StartSpan(ctx, "transform.pdf.slideshow.thumbnail",
 		attribute.String("damask.mimeType", mimeType),
 	)
@@ -81,13 +81,13 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 
 	tmpPDF, cleanup, err := writeToTempFile(ctx, src, ".pdf")
 	if err != nil {
-		return nil, fmt.Errorf("temp pdf: %w", err)
+		return nil, "", fmt.Errorf("temp pdf: %w", err)
 	}
 	defer cleanup()
 
 	dir, err := os.MkdirTemp("", "damask-pdf-*")
 	if err != nil {
-		return nil, fmt.Errorf("temp dir: %w", err)
+		return nil, "", fmt.Errorf("temp dir: %w", err)
 	}
 	defer os.RemoveAll(dir)
 
@@ -104,26 +104,28 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 	span.SetAttributes(attribute.String("transform.command", cmd.String()))
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("convert pdf: %w — stderr: %s", err, stderr.String())
+		return nil, "", fmt.Errorf("convert pdf: %w — stderr: %s", err, stderr.String())
 	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil || len(entries) == 0 {
-		return nil, fmt.Errorf("no pages extracted from PDF")
+		return nil, "", fmt.Errorf("no pages extracted from PDF")
 	}
 
-	// Build ffmpeg concat list
-	var sb strings.Builder
+	n := 0
 	for _, e := range entries {
 		if !e.IsDir() {
-			sb.WriteString("file '")
-			sb.WriteString(filepath.Join(dir, e.Name()))
-			sb.WriteString("'\nduration 1\n")
+			n++
 		}
 	}
-	listPath := filepath.Join(dir, "list.txt")
-	if err := os.WriteFile(listPath, []byte(sb.String()), 0600); err != nil {
-		return nil, fmt.Errorf("write concat list: %w", err)
+
+	// Single-page PDF: return the JPEG directly — no video needed.
+	if n == 1 {
+		data, err = os.ReadFile(filepath.Join(dir, entries[0].Name()))
+		if err != nil {
+			return nil, "", fmt.Errorf("read single page jpeg: %w", err)
+		}
+		return data, "image/jpeg", nil
 	}
 
 	outPath := filepath.Join(dir, "out.mp4")
@@ -134,13 +136,6 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 	for _, e := range entries {
 		if !e.IsDir() {
 			ffArgs = append(ffArgs, "-loop", "1", "-t", "3", "-i", filepath.Join(dir, e.Name()))
-		}
-	}
-
-	n := 0
-	for _, e := range entries {
-		if !e.IsDir() {
-			n++
 		}
 	}
 
@@ -165,46 +160,30 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 		prev = out
 	}
 
-	// Single image: no transitions needed, just output directly.
-	filterStr := fc.String()
-	var ffmpegStderr bytes.Buffer
-	var ffCmd *exec.Cmd
-	if n == 1 {
-		if !t.ffmpeg.available() {
-			return nil, errFFmpegUnavailable(t.ffmpeg.configuredPath)
-		}
-		ffCmd = t.ffmpeg.commandFFmpeg(ctx,
-			"-y",
-			"-loop", "1", "-t", "3", "-i", filepath.Join(dir, entries[0].Name()),
-			"-vf", "scale=400:-2",
-			"-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast", "-an",
-			outPath,
-		)
-	} else {
-		// append scale after the final overlay; can't use -vf alongside -filter_complex + -map
-		filterStr += "[out]scale=400:-2[scaled]"
-		ffArgs = append(ffArgs,
-			"-filter_complex", filterStr,
-			"-map", "[scaled]",
-			"-r", "30",
-			"-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast", "-an",
-			outPath,
-		)
-		if !t.ffmpeg.available() {
-			return nil, errFFmpegUnavailable(t.ffmpeg.configuredPath)
-		}
-		ffCmd = t.ffmpeg.commandFFmpeg(ctx, ffArgs...)
+	// append scale after the final overlay; can't use -vf alongside -filter_complex + -map
+	filterStr := fc.String() + "[out]scale=400:-2[scaled]"
+	ffArgs = append(ffArgs,
+		"-filter_complex", filterStr,
+		"-map", "[scaled]",
+		"-r", "30",
+		"-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast", "-an",
+		outPath,
+	)
+	if !t.ffmpeg.available() {
+		return nil, "", errFFmpegUnavailable(t.ffmpeg.configuredPath)
 	}
+	ffCmd := t.ffmpeg.commandFFmpeg(ctx, ffArgs...)
+	var ffmpegStderr bytes.Buffer
 	ffCmd.Stderr = &ffmpegStderr
 	if err := ffCmd.Run(); err != nil {
-		return nil, fmt.Errorf("ffmpeg pdf slideshow: %w — stderr: %s", err, ffmpegStderr.String())
+		return nil, "", fmt.Errorf("ffmpeg pdf slideshow: %w — stderr: %s", err, ffmpegStderr.String())
 	}
 
 	data, err = os.ReadFile(outPath)
 	if err != nil {
-		return nil, fmt.Errorf("read slideshow: %w", err)
+		return nil, "", fmt.Errorf("read slideshow: %w", err)
 	}
-	return data, nil
+	return data, "video/mp4", nil
 }
 
 // ---- OS helpers ----

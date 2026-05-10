@@ -18,7 +18,7 @@ type Transformer interface {
 	CheckExternalDeps() []string
 
 	GenerateImageOfText(ctx context.Context, opts ImageOfTextOptions) ([]byte, error)
-	PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error)
+	PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error)
 	DocumentThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error)
 
 	ImageWatermark(src io.Reader, wm io.Reader, p WatermarkParams) ([]byte, string, error)
