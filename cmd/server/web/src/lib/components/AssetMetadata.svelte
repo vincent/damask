@@ -58,7 +58,7 @@
             void onOpenAsset(asset.derived_from_asset_id)
           }}
         >
-          {asset.derived_from_asset_id}
+          {asset.derived_from_asset_id?.split('-')[0]}
         </a>
       </div>
     {/if}

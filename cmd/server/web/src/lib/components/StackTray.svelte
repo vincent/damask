@@ -25,7 +25,7 @@
 {#if stackStore.count > 0}
   <div
     transition:slide={{ duration: 200, axis: 'y' }}
-    class="fixed right-0 bottom-10 left-64 z-40 flex h-14 items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 opacity-[92%] shadow-lg dark:border-amber-800 dark:bg-amber-950"
+    class="fixed right-0 bottom-[calc(var(--mobile-nav-height,64px)+0.5rem)] left-0 z-40 flex h-14 items-center gap-3 border-t border-amber-200 bg-amber-50 px-4 opacity-[92%] shadow-lg md:bottom-10 md:left-64 dark:border-amber-800 dark:bg-amber-950"
   >
     <!-- Thumbnail strip -->
     <div class="flex items-center -space-x-2">

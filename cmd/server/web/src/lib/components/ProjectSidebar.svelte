@@ -191,7 +191,7 @@
 
         {#if authStore.role !== 'viewer'}
           <button
-            class="absolute top-2 right-7 rounded p-0.5 text-[var(--text-muted)] opacity-0 transition-colors group-hover:opacity-100 hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
+            class="absolute top-2 right-7 rounded p-0.5 text-[var(--text-muted)] opacity-100 transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] md:opacity-0 md:group-hover:opacity-100"
             onclick={(e) => {
               e.stopPropagation()
               menuOpenId = menuOpenId === project.id ? null : project.id

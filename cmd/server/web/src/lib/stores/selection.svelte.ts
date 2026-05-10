@@ -54,6 +54,20 @@ export const selectionStore = {
     selectedIds = next
   },
 
+  toggle(asset: Asset, index: number) {
+    const next = new Set(selectedIds)
+    if (next.has(asset.id)) {
+      next.delete(asset.id)
+      selectedIds = next
+      if (next.size === 0) lastSelectedIndex = -1
+      return
+    }
+
+    next.add(asset.id)
+    selectedIds = next
+    lastSelectedIndex = index
+  },
+
   remove(id: string) {
     const next = new Set(selectedIds)
     next.delete(id)

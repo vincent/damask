@@ -226,7 +226,7 @@
 
       {#if authStore.role !== 'viewer'}
         <button
-          class="absolute top-1/2 right-7 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+          class="absolute top-1/2 right-7 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-100 hover:bg-gray-200 hover:text-gray-700 md:opacity-0 md:group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
           onclick={(e) => {
             e.stopPropagation()
             contextMenuId = contextMenuId === folder.id ? null : folder.id
@@ -366,7 +366,7 @@
 
             {#if authStore.role !== 'viewer'}
               <button
-                class="absolute top-1/2 right-7 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                class="absolute top-1/2 right-7 -translate-y-1/2 rounded p-0.5 text-gray-400 opacity-100 hover:bg-gray-200 hover:text-gray-700 md:opacity-0 md:group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                 onclick={(e) => {
                   e.stopPropagation()
                   contextMenuId = contextMenuId === child.id ? null : child.id

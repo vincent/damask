@@ -46,6 +46,7 @@
     isAudio as mimeIsAudio,
     isVideo as mimeIsVideo,
   } from '$lib/utils/mime'
+  import { viewportStore } from '$lib/stores/viewport.svelte'
 
   interface Props {
     asset: Asset | null
@@ -450,7 +451,7 @@
   <Backdrop class="asset-lightbox-bg w-screen" {onclose}>
     <div
       bind:this={previewContainer}
-      class="asset-preview-container fixed inset-0 grid w-[75%] place-items-center p-40"
+      class="asset-preview-container fixed inset-0 hidden md:grid w-[75%] place-items-center p-40"
       role="button"
       tabindex="-1"
       onclick={handleClose}
@@ -486,8 +487,8 @@
 
   <!-- Panel: fixed 25% -->
   <div
-    transition:fly={{ x: 420, duration: 380, easing: cubicOut }}
-    class="asset-lightbox fixed inset-y-0 right-0 z-50 flex w-3xl w-[25%] flex-col bg-white shadow-2xl dark:bg-gray-900"
+    transition:fly={{ x: viewportStore.isMobile ? 0 : 420, y: viewportStore.isMobile ? 600 : 0, duration: 380, easing: cubicOut }}
+    class="asset-lightbox fixed inset-y-0 right-0 z-50 flex w-full md:w-[25%] flex-col bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"
     aria-modal="true"
     aria-label={asset.original_filename}
@@ -555,6 +556,18 @@
       class="flex-shrink-0 border-b border-gray-100 px-5 py-3 dark:border-gray-800"
     >
       <AssetMetadataPills {asset} {category} />
+    </div>
+
+    <!-- Mobile-only inline preview -->
+    <div class="relative z-0 block flex-shrink-0 overflow-hidden md:hidden {ASSET_BACKGROUND_COLORS[category]}" style="height: 220px">
+      <div class="flex h-full items-center justify-center">
+        <SharedAsset
+          asset={{ ...asset, mime_type: previewMimeType }}
+          category={previewCategory}
+          thumbUrl={previewThumbUrl}
+          assetUrl={previewFileUrl}
+        />
+      </div>
     </div>
 
     <!-- Animated tab bar -->

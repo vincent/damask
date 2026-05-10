@@ -4,9 +4,11 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import Toast from '$lib/components/ui/Toast.svelte'
   import ShortcutHelp from '$lib/components/shortcuts/ShortcutHelp.svelte'
+  import ActionSheet from '$lib/components/ActionSheet.svelte'
   import { keymap } from '$lib/stores/shortcuts'
   import { useShortcuts } from '$lib/shortcuts/context'
   import { undoStore } from '$lib/stores/undo.svelte'
+  import { themeStore } from '$lib/stores/theme.svelte'
   import type { LayoutData } from './$types'
 
   let { children, data }: { children: any; data: LayoutData } = $props()
@@ -34,9 +36,16 @@
     }
     configStore.load()
   })
+
+  $effect(() => {
+    themeStore.init()
+  })
 </script>
 
-{@render children()}
-
-<Toast />
-<ShortcutHelp />
+<ActionSheet>
+  {#snippet children()}
+    {@render children?.()}
+    <Toast />
+    <ShortcutHelp />
+  {/snippet}
+</ActionSheet>

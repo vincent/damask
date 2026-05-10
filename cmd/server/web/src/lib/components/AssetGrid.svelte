@@ -17,6 +17,7 @@
   import { CloudUpload, Inbox, Loader } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
+  import { viewportStore } from '$lib/stores/viewport.svelte'
   import { onDestroy, onMount } from 'svelte'
   import AssetStateStackable from './AssetStateStackable.svelte'
   import { scale } from 'svelte/transition'
@@ -132,7 +133,7 @@
   })
 
   onMount(() => {
-    statusBarStore.showZoom = gridMode !== 'table'
+    statusBarStore.showZoom = gridMode !== 'table' && !viewportStore.isMobile
   })
 
   onDestroy(() => {
@@ -141,14 +142,14 @@
   })
 
   $effect(() => {
-    statusBarStore.showZoom = gridMode !== 'table'
+    statusBarStore.showZoom = gridMode !== 'table' && !viewportStore.isMobile
   })
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main
   bind:this={mainEl}
-  class="library-content relative flex-1 overflow-y-auto bg-[var(--bg-asset-grid)] px-6 py-6 {stackStore.count >
+  class="library-content relative flex-1 overflow-y-auto bg-[var(--bg-asset-grid)] px-3 py-4 sm:px-6 sm:py-6 {stackStore.count >
   0
     ? 'pb-20'
     : ''}"
@@ -159,10 +160,16 @@
 >
   {#snippet assetCardGrid(assets: Asset[])}
     <div
-      class="grid pt-2 {gridMode == 'compact' ? 'gap-4' : 'gap-30'}"
-      style="grid-template-columns: repeat({1 +
-        maxZoom -
-        Math.floor(zoom)}, minmax(0, 1fr))"
+      class="grid pt-2 {gridMode == 'compact'
+        ? viewportStore.isMobile
+          ? 'gap-3'
+          : 'gap-4'
+        : viewportStore.isMobile
+          ? 'gap-6'
+          : 'gap-30'}"
+      style="grid-template-columns: repeat({viewportStore.isMobile
+        ? Math.min(1 + maxZoom - Math.floor(zoom), 2)
+        : 1 + maxZoom - Math.floor(zoom)}, minmax(0, 1fr))"
     >
       {#each assets as asset (asset.id)}
         {@const globalIndex = assetsStore.assets.indexOf(asset)}
@@ -183,6 +190,7 @@
             requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)}
             isSelected={selectionStore.selectedIds.has(asset.id)}
             onclick={(e) => onCardClick(asset, globalIndex, e)}
+            onLongPress={() => selectionStore.toggle(asset, globalIndex)}
           />
 
           <!-- Stack indicator -->

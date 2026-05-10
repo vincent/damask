@@ -1,17 +1,21 @@
 <script lang="ts">
+  import { goto } from '$app/navigation'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { collectionsStore } from '$lib/stores/collections.svelte'
+  import {
+    ACTION_SHEET_KEY,
+    type ActionSheetContext,
+  } from '$lib/components/ActionSheet.svelte'
   import SearchInput from '$lib/components/ui/SearchInput.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
+  import { viewportStore } from '$lib/stores/viewport.svelte'
   import {
     Share2,
     ChevronDown,
-    Database,
     Users,
     Plus,
-    Settings,
     Tags,
     Upload,
     Download,
@@ -19,7 +23,7 @@
   } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'
   import UndoRedo from './UndoRedo.svelte'
-  import type { Snippet } from 'svelte'
+  import { getContext, type Snippet } from 'svelte'
 
   type Props = {
     prefix?: Snippet
@@ -31,6 +35,8 @@
 
   let addMenuOpen = $state(false)
   let addMenuEl: HTMLDivElement | undefined = $state()
+  let sheetUploadInputEl = $state<HTMLInputElement | null>(null)
+  const actionSheet = getContext<ActionSheetContext>(ACTION_SHEET_KEY)
 
   function handleClickOutside(e: MouseEvent) {
     if (addMenuEl && !addMenuEl.contains(e.target as Node)) {
@@ -55,19 +61,60 @@
         ) ?? null)
       : null
   )
+
+  function handleUpload(files: File[]) {
+    assetsStore.upload(
+      files,
+      navigationStore.activeProjectId,
+      navigationStore.activeFolderId
+    )
+  }
+
+  function openAddSheet() {
+    actionSheet.open({
+      title: m.add(),
+      items: [
+        {
+          key: 'upload',
+          label: m.upload_files(),
+          onSelect: () => sheetUploadInputEl?.click(),
+        },
+        {
+          key: 'ingress',
+          label: m.add_ingress_source(),
+          onSelect: () => goto('/library/settings/ingress'),
+        },
+        {
+          key: 'members',
+          label: m.member_invite(),
+          onSelect: () => goto('/library/settings/members'),
+        },
+        {
+          key: 'tags',
+          label: m.tags_manage(),
+          onSelect: () => goto('/library/settings/tags'),
+        },
+        {
+          key: 'fields',
+          label: m.fields_manage(),
+          onSelect: () => goto('/library/settings/custom-fields'),
+        },
+      ],
+    })
+  }
 </script>
 
 <header
-  class="flex items-center gap-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3"
+  class="flex flex-wrap items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-3 sm:px-4"
 >
   <!-- LEFT: breadcrumb / title -->
-  <div class="flex shrink-0 items-center gap-2">
+  <div class="flex min-w-0 shrink items-center gap-2">
     {@render prefix?.()}
-    <div>
+    <div class="min-w-0">
       <p class="text-sm font-semibold text-[var(--text-primary)]">
         {projectsStore.activeProjectName ?? m.library()}
       </p>
-      <p class="text-xs text-[var(--text-muted)]">
+      <p class="truncate text-xs text-[var(--text-muted)]">
         {#if activeCollection}{m.collection_id({
             id: activeCollection.name,
           })}{:else if projectsStore.activeProjectName}{m.project_id({
@@ -78,7 +125,9 @@
   </div>
 
   <!-- CENTER: search -->
-  <div class="mx-auto w-full max-w-md flex-1">
+  <div
+    class="order-3 basis-full sm:order-none sm:mx-auto sm:max-w-md sm:flex-1"
+  >
     <SearchInput
       value={assetsStore.query}
       placeholder={m.search_anything()}
@@ -89,8 +138,10 @@
   </div>
 
   <!-- RIGHT: secondary actions + primary CTA -->
-  <div class="flex shrink-0 items-center gap-2">
-    <UndoRedo />
+  <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+    {#if !viewportStore.isMobile}
+      <UndoRedo />
+    {/if}
 
     {#if showShareButton}
       <button
@@ -105,10 +156,22 @@
     {/if}
 
     {#if authStore.role !== 'viewer'}
+      <input
+        bind:this={sheetUploadInputEl}
+        type="file"
+        multiple
+        class="hidden"
+        onchange={(e) => {
+          const files = Array.from((e.target as HTMLInputElement).files ?? [])
+          handleUpload(files)
+          ;(e.target as HTMLInputElement).value = ''
+        }}
+      />
+
       <div class="add-btn-group relative flex" bind:this={addMenuEl}>
         <!-- Primary: upload files -->
         <label class="add-btn-primary">
-          <Plus class="add-plus-icon h-4 w-4" />
+          <Plus class="h-4 w-4" />
           {m.add()}
           <input
             type="file"
@@ -119,11 +182,7 @@
               const files = Array.from(
                 (e.target as HTMLInputElement).files ?? []
               )
-              assetsStore.upload(
-                files,
-                navigationStore.activeProjectId,
-                navigationStore.activeFolderId
-              )
+              handleUpload(files)
               ;(e.target as HTMLInputElement).value = ''
             }}
           />
@@ -134,6 +193,10 @@
           type="button"
           class="add-btn-chevron"
           onclick={() => {
+            if (viewportStore.isTouch) {
+              openAddSheet()
+              return
+            }
             addMenuOpen = !addMenuOpen
           }}
           onkeydown={(e) => {
@@ -144,7 +207,9 @@
           aria-haspopup="menu"
         >
           <ChevronDown
-            class="chevron-icon h-4 w-4 {addMenuOpen ? 'open' : ''}"
+            class="h-4 w-4 transition-transform {addMenuOpen
+              ? 'rotate-180'
+              : ''}"
           />
         </button>
 
@@ -173,11 +238,7 @@
                   const files = Array.from(
                     (e.target as HTMLInputElement).files ?? []
                   )
-                  assetsStore.upload(
-                    files,
-                    navigationStore.activeProjectId,
-                    navigationStore.activeFolderId
-                  )
+                  handleUpload(files)
                   ;(e.target as HTMLInputElement).value = ''
                   addMenuOpen = false
                 }}
@@ -277,14 +338,6 @@
     background: var(--accent-cta-active);
   }
 
-  /* Plus icon: subtle spin on hover to signal "adding" */
-  .add-plus-icon {
-    transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-  }
-  .add-btn-primary:hover .add-plus-icon {
-    transform: rotate(90deg);
-  }
-
   /* ── Chevron toggle ── */
   .add-btn-chevron {
     display: flex;
@@ -304,14 +357,6 @@
   }
   .add-btn-chevron:active {
     transform: translateY(1px);
-  }
-
-  /* Chevron rotates when menu is open */
-  .chevron-icon {
-    transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-  }
-  .chevron-icon.open {
-    transform: rotate(180deg);
   }
 
   /* ── Dropdown panel ── */

@@ -1,6 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { getContext, onMount } from 'svelte'
   import { assetApi, type Asset, type MenuItem } from '$lib/api'
+  import {
+    APPSHELL_KEY,
+    type AppShellContext,
+  } from '$lib/components/AppShell.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { stackStore } from '$lib/stores/stack.svelte'
@@ -21,7 +25,7 @@
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
   import UploadsTray from '$lib/components/UploadsTray.svelte'
   import { goto } from '$app/navigation'
-  import { Book, Box, LibraryBig, X } from '@lucide/svelte'
+  import { Book, Box, LibraryBig, Menu, X } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { collectionsStore } from '$lib/stores/collections.svelte'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
@@ -29,12 +33,14 @@
   import GridModeButtons from '$lib/components/GridModeButtons.svelte'
   import SortButtons from '$lib/components/SortButtons.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
+  import { viewportStore } from '$lib/stores/viewport.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)
   let showProjectShareModal = $state(false)
   let pendingDeleteIds = $state<string[]>([])
   let showDeleteConfirm = $state(false)
+  const appShell = getContext<AppShellContext>(APPSHELL_KEY)
 
   const pendingDeleteNames = $derived(
     pendingDeleteIds.map(
@@ -318,9 +324,25 @@
   }}
 >
   {#snippet prefix()}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div onclick={() => navigationStore.toggleSidebarVisible()}>
+    <button
+      type="button"
+      class="flex items-center gap-2 rounded-xl p-1 transition-colors hover:bg-[var(--bg-hover)]"
+      onclick={() => {
+        if (viewportStore.isMobile) {
+          appShell.openDrawer()
+          return
+        }
+        navigationStore.toggleSidebarVisible()
+      }}
+      aria-label={m.menu()}
+    >
+      {#if viewportStore.isMobile}
+        <span
+          class="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
+        >
+          <Menu class="h-5 w-5" />
+        </span>
+      {/if}
       {#if activeProject}
         <div
           role="img"
@@ -344,7 +366,7 @@
       {:else}
         <LibraryBig class="h-10 w-10 rounded text-[var(--text-secondary)]" />
       {/if}
-    </div>
+    </button>
   {/snippet}
 </LibraryHeader>
 
@@ -354,7 +376,7 @@
 
 {#if activeCollection}
   <div
-    class="flex items-center gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-2"
+    class="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 sm:px-6"
   >
     <LibraryBig class="h-4 w-4 text-[var(--accent)]" />
     <span class="text-sm font-medium text-[var(--accent-text)]"
@@ -378,13 +400,13 @@
 {/if}
 
 <div
-  class="flex flex-wrap items-center gap-1.5 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 py-2"
+  class="flex flex-wrap items-center gap-1.5 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 sm:px-6"
 >
   <TagFilterBar
     activeTags={assetsStore.activeTags}
     onchange={(tags) => assetsStore.setActiveTags(tags)}
   />
-  <div class="ml-auto flex items-center gap-2">
+  <div class="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
     <SortButtons
       sort={(key, a) => assetsStore.sort(key, a)}
       bind:value={sort}

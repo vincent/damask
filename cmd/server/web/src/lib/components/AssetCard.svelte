@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { longPress } from '$lib/actions/longPress'
   import { assetApi, formatBytes, mimeCategory, type Asset } from '$lib/api'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
+  import { viewportStore } from '$lib/stores/viewport.svelte'
   import { Check, File, Loader, Play, TriangleAlert } from '@lucide/svelte'
   import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
@@ -19,6 +21,7 @@
     /** All selected IDs when this card is part of a multi-selection drag; empty for solo drag */
     draggedIds?: string[]
     isSelected?: boolean
+    onLongPress?: () => void
   }
 
   let {
@@ -30,6 +33,7 @@
     requiresFields = false,
     draggedIds = [],
     isSelected = false,
+    onLongPress,
   }: Props = $props()
 
   const hasRequiredFields = $derived(
@@ -51,6 +55,13 @@
   <button
     type="button"
     draggable="true"
+    use:longPress={viewportStore.isTouch && onLongPress
+      ? {
+          onLongPress,
+        }
+      : {
+          onLongPress: () => {},
+        }}
     class="asset-card group relative flex w-full flex-col {gridMode === 'spaced'
       ? 'rounded-xl'
       : 'rounded-lg'} bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:bg-[var(--bg-surface)] dark:shadow-none dark:ring-inset dark:hover:shadow-none dark:focus-visible:ring-indigo-500 {isSelected
@@ -214,9 +225,13 @@
 
     {#if isSelected}
       <div
-        class="pointer-events-none absolute top-1.5 right-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600"
+        class="asset-selection-indicator pointer-events-none absolute top-1.5 right-1.5 z-20 flex h-11 w-11 items-start justify-end p-1"
       >
-        <Check class="h-3 w-3 text-white" />
+        <span
+          class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600"
+        >
+          <Check class="h-3 w-3 text-white" />
+        </span>
       </div>
     {/if}
   </button>
