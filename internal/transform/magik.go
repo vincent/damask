@@ -208,7 +208,10 @@ func writeToTempFile(ctx context.Context, src io.Reader, ext string) (name strin
 	if err != nil {
 		return "", nil, fmt.Errorf("close temp: %w", err)
 	}
-	return f.Name(), func() { _ = os.Remove(f.Name()) }, nil
+	return f.Name(), func() {
+		slog.DebugContext(ctx, "cleaning up temp file", "tempfile", f.Name())
+		_ = os.Remove(f.Name())
+	}, nil
 }
 
 func mimeToExt(ct string) string {

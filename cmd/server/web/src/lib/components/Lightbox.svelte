@@ -451,7 +451,7 @@
   <Backdrop class="asset-lightbox-bg w-screen" {onclose}>
     <div
       bind:this={previewContainer}
-      class="asset-preview-container fixed inset-0 hidden md:grid w-[75%] place-items-center p-40"
+      class="asset-preview-container fixed inset-0 hidden w-[75%] place-items-center p-40 md:grid"
       role="button"
       tabindex="-1"
       onclick={handleClose}
@@ -487,8 +487,13 @@
 
   <!-- Panel: fixed 25% -->
   <div
-    transition:fly={{ x: viewportStore.isMobile ? 0 : 420, y: viewportStore.isMobile ? 600 : 0, duration: 380, easing: cubicOut }}
-    class="asset-lightbox fixed inset-y-0 right-0 z-50 flex w-full md:w-[25%] flex-col bg-white shadow-2xl dark:bg-gray-900"
+    transition:fly={{
+      x: viewportStore.isMobile ? 0 : 420,
+      y: viewportStore.isMobile ? 600 : 0,
+      duration: 380,
+      easing: cubicOut,
+    }}
+    class="asset-lightbox fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl md:w-[25%] dark:bg-gray-900"
     role="dialog"
     aria-modal="true"
     aria-label={asset.original_filename}
@@ -559,7 +564,12 @@
     </div>
 
     <!-- Mobile-only inline preview -->
-    <div class="relative z-0 block flex-shrink-0 overflow-hidden md:hidden {ASSET_BACKGROUND_COLORS[category]}" style="height: 220px">
+    <div
+      class="relative z-0 block flex-shrink-0 overflow-hidden md:hidden {ASSET_BACKGROUND_COLORS[
+        category
+      ]}"
+      style="height: 220px"
+    >
       <div class="flex h-full items-center justify-center">
         <SharedAsset
           asset={{ ...asset, mime_type: previewMimeType }}
