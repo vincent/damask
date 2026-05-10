@@ -12,9 +12,11 @@ import (
 	"damask/server/internal/imagerouter"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // VariantJobPayload is the payload for user-triggered variant creation jobs.
@@ -453,27 +455,36 @@ func (s *JobServer) runImageRouterJob(
 	sourceKey string,
 	callFn func(*imagerouter.Client, []byte) ([]byte, error),
 ) ([]byte, error) {
+	ctx, span := telemetry.StartBackgroundSpan(ctx, "imagerouter.job",
+		attribute.String("damask.workspace_id", workspaceID),
+	)
+
 	rc, err := s.storage.Get(sourceKey)
 	if err != nil {
+		telemetry.EndSpan(span, err)
 		return nil, fmt.Errorf("get source: %w", err)
 	}
 	defer rc.Close()
 
 	imageData, err := io.ReadAll(rc)
 	if err != nil {
+		telemetry.EndSpan(span, err)
 		return nil, fmt.Errorf("read source: %w", err)
 	}
 
 	key, source, err := s.imgKeyResolver(ctx, workspaceID)
 	if err != nil {
+		telemetry.EndSpan(span, err)
 		return nil, err
 	}
 	if source == imagerouter.SourceNone {
+		telemetry.EndSpan(span, imagerouter.ErrNotConfigured)
 		return nil, imagerouter.ErrNotConfigured
 	}
 
 	client := imagerouter.NewClient(key, s.cfg.ImageRouter.RetryPaidOnFreeLimit)
 	result, err := callFn(client, imageData)
+	telemetry.EndSpan(span, err)
 	if err != nil {
 		return nil, err
 	}

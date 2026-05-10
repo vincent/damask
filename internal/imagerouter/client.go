@@ -160,8 +160,11 @@ func (c *Client) editImage(ctx context.Context, imageData []byte, model, prompt 
 }
 
 func (c *Client) performEditImage(ctx context.Context, imageData []byte, model, prompt string) ([]byte, int, string, error) {
+	ctx, span := startGenAISpan(ctx, "edit-image", model, prompt)
+
 	filename, contentType, err := detectImageUpload(imageData)
 	if err != nil {
+		endGenAISpan(span, model, nil, err)
 		return nil, 0, "", err
 	}
 
@@ -207,38 +210,53 @@ func (c *Client) performEditImage(ctx context.Context, imageData []byte, model, 
 	payloadText := strings.TrimSpace(string(payload))
 
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity {
-		return nil, resp.StatusCode, payloadText, wrapImageRouterAPIError(ErrInvalidModel, payload)
+		apiErr := wrapImageRouterAPIError(ErrInvalidModel, payload)
+		endGenAISpan(span, model, nil, apiErr)
+		return nil, resp.StatusCode, payloadText, apiErr
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, resp.StatusCode, payloadText, wrapImageRouterAPIError(ErrAPIError, payload)
+		apiErr := wrapImageRouterAPIError(ErrAPIError, payload)
+		endGenAISpan(span, model, nil, apiErr)
+		return nil, resp.StatusCode, payloadText, apiErr
 	}
 
 	var envelope imageResponseEnvelope
 	if err := json.Unmarshal(payload, &envelope); err != nil {
-		return nil, resp.StatusCode, payloadText, parseImageRouterAPIError(ErrAPIError, payload, fmt.Errorf("imagerouter: decode response: %w", err))
+		decodeErr := parseImageRouterAPIError(ErrAPIError, payload, fmt.Errorf("imagerouter: decode response: %w", err))
+		endGenAISpan(span, model, nil, decodeErr)
+		return nil, resp.StatusCode, payloadText, decodeErr
 	}
 	if len(envelope.Data) == 0 {
-		return nil, resp.StatusCode, payloadText, parseImageRouterAPIError(ErrAPIError, payload, &apiError{
+		emptyErr := parseImageRouterAPIError(ErrAPIError, payload, &apiError{
 			cause:   ErrAPIError,
 			message: "ImageRouter generation failed",
 		})
+		endGenAISpan(span, model, nil, emptyErr)
+		return nil, resp.StatusCode, payloadText, emptyErr
 	}
 
 	item := envelope.Data[0]
 	if strings.TrimSpace(item.URL) != "" {
 		downloaded, err := c.fetchImageURL(ctx, item.URL)
 		if err != nil {
+			endGenAISpan(span, model, nil, err)
 			return nil, resp.StatusCode, payloadText, err
 		}
+		endGenAISpan(span, model, &envelope, nil)
 		return downloaded, resp.StatusCode, payloadText, nil
 	}
 	if strings.TrimSpace(item.B64JSON) == "" {
-		return nil, resp.StatusCode, payloadText, fmt.Errorf("imagerouter: response missing image url")
+		missingErr := fmt.Errorf("imagerouter: response missing image url")
+		endGenAISpan(span, model, nil, missingErr)
+		return nil, resp.StatusCode, payloadText, missingErr
 	}
 	decoded, err := base64.StdEncoding.DecodeString(item.B64JSON)
 	if err != nil {
-		return nil, resp.StatusCode, payloadText, fmt.Errorf("imagerouter: decode image: %w", err)
+		decodeErr := fmt.Errorf("imagerouter: decode image: %w", err)
+		endGenAISpan(span, model, nil, decodeErr)
+		return nil, resp.StatusCode, payloadText, decodeErr
 	}
+	endGenAISpan(span, model, &envelope, nil)
 	return decoded, resp.StatusCode, payloadText, nil
 }
 
