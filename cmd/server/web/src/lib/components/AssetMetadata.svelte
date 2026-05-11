@@ -9,6 +9,11 @@
   }
 
   let { asset, onOpenAsset }: Props = $props()
+
+  const API_BASE = import.meta.env.VITE_API_URL ?? ''
+  function avatarUrl(userId: string) {
+    return `${API_BASE}/api/v1/users/${userId}/avatar`
+  }
 </script>
 
 <div>
@@ -20,7 +25,20 @@
       >
         {m.created_by()}
       </p>
-      <p class="text-md font-semibold text-gray-900 dark:text-gray-100">—</p>
+      {#if asset.created_by}
+        <div class="flex items-center gap-2">
+          <img
+            src={avatarUrl(asset.created_by.id)}
+            alt={asset.created_by.name}
+            class="h-5 w-5 rounded-full object-cover"
+          />
+          <p class="text-md font-semibold text-gray-900 dark:text-gray-100">
+            {asset.created_by.name || asset.created_by.id.split('-')[0]}
+          </p>
+        </div>
+      {:else}
+        <p class="text-md font-semibold text-gray-900 dark:text-gray-100">—</p>
+      {/if}
     </div>
     <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
       <p
@@ -42,6 +60,30 @@
         {new Date(asset.updated_at ?? asset.created_at).toLocaleDateString()}
       </p>
     </div>
+    {#if asset.authors && asset.authors.length > 1}
+      <div class="col-span-3 rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
+        <p
+          class="mb-2 text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+        >
+          {m.authors()}
+        </p>
+        <div class="flex flex-wrap gap-2">
+          {#each asset.authors as author (author.id)}
+            <div class="flex items-center gap-1.5">
+              <img
+                src={avatarUrl(author.id)}
+                alt={author.name}
+                title={author.name || author.id.split('-')[0]}
+                class="h-6 w-6 rounded-full object-cover"
+              />
+              <span class="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {author.name || author.id.split('-')[0]}
+              </span>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
     {#if asset.derived_from_asset_id}
       <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
         <p

@@ -268,18 +268,22 @@ type Tag struct {
 }
 
 type User struct {
-	ID           string    `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"password_hash"`
-	Name         string    `json:"name"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	OidcSub      *string   `json:"oidc_sub"`
-	OidcIssuer   *string   `json:"oidc_issuer"`
-	CanvaUserID  *string   `json:"canva_user_id"`
-	GoogleUserID *string   `json:"google_user_id"`
-	AvatarUrl    *string   `json:"avatar_url"`
-	AuthMethods  string    `json:"auth_methods"`
+	ID               string    `json:"id"`
+	Email            string    `json:"email"`
+	PasswordHash     string    `json:"password_hash"`
+	Name             string    `json:"name"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	OidcSub          *string   `json:"oidc_sub"`
+	OidcIssuer       *string   `json:"oidc_issuer"`
+	CanvaUserID      *string   `json:"canva_user_id"`
+	GoogleUserID     *string   `json:"google_user_id"`
+	AvatarUrl        *string   `json:"avatar_url"`
+	AuthMethods      string    `json:"auth_methods"`
+	AvatarStorageKey *string   `json:"avatar_storage_key"`
+	PendingEmail     *string   `json:"pending_email"`
+	DisplayName      *string   `json:"display_name"`
+	DeletedAt        *string   `json:"deleted_at"`
 }
 
 type Variant struct {

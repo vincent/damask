@@ -149,6 +149,8 @@ type VersionRepository interface {
 	GetByIDForWorkspace(ctx context.Context, workspaceID, id string) (AssetVersion, error)
 	// GetCurrentByAsset returns the current (active) version for an asset.
 	GetCurrentByAsset(ctx context.Context, assetID string) (AssetVersion, error)
+	// GetFirstByAsset returns the oldest non-deleted version for an asset.
+	GetFirstByAsset(ctx context.Context, assetID string) (AssetVersion, error)
 	ListByAsset(ctx context.Context, assetID string) ([]AssetVersion, error)
 	Create(ctx context.Context, v AssetVersion) (AssetVersion, error)
 	// SoftDelete marks the version as deleted without removing the storage file.

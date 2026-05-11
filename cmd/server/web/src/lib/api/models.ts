@@ -47,6 +47,11 @@ export interface WorkspaceMeResponse {
 
 // ---- Assets ----
 
+export interface AssetContributor {
+  id: string
+  name: string
+}
+
 export interface Asset {
   id: string
   workspace_id: string
@@ -67,6 +72,8 @@ export interface Asset {
   variants_rebuilding: boolean
   created_at: string
   updated_at: string
+  created_by: AssetContributor | null
+  authors: AssetContributor[]
 }
 
 export interface AssetVersionCreatedBy {

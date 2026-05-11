@@ -21,6 +21,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
+type AssetContributor struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// AssetDetailResponse embeds AssetResponse and adds contributor fields.
+// Returned only by handleGetAsset; list endpoints keep returning AssetResponse.
+type AssetDetailResponse struct {
+	AssetResponse
+	CreatedBy *AssetContributor  `json:"created_by"`
+	Authors   []AssetContributor `json:"authors"`
+}
+
 type AssetResponse struct {
 	ID                   string    `json:"id"`
 	WorkspaceID          string    `json:"workspace_id"`
@@ -76,6 +89,10 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 		CreatedAt:          a.CreatedAt,
 		UpdatedAt:          a.UpdatedAt,
 	}
+}
+
+func assetToDetailResponse(base AssetResponse, createdBy *AssetContributor, authors []AssetContributor) AssetDetailResponse {
+	return AssetDetailResponse{AssetResponse: base, CreatedBy: createdBy, Authors: authors}
 }
 
 // dtoToDBAsset converts a service.AssetDTO back to a dbgen.Asset for use
@@ -479,7 +496,44 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	// Reconstruct a dbgen.Asset from the DTO to reuse the existing response builder.
 	asset := dtoToDBAsset(dto)
-	return c.JSON(assetToResponseWithCount(asset, tagNames, versionCount, variantCount, variantsRebuilding))
+	base := assetToResponseWithCount(asset, tagNames, versionCount, variantCount, variantsRebuilding)
+
+	// Resolve CreatedBy from the first (oldest) version.
+	var createdBy *AssetContributor
+	if firstVer, err := s.versions.GetFirstByAsset(c.Context(), id); err == nil && firstVer.CreatedBy != nil {
+		cb := &AssetContributor{ID: *firstVer.CreatedBy}
+		if u, err := s.users.GetByID(c.Context(), *firstVer.CreatedBy); err == nil {
+			cb.Name = u.Name
+		}
+		createdBy = cb
+	}
+
+	// Resolve Authors: distinct created_by user IDs across all versions.
+	authors := []AssetContributor{}
+	if allVersions, err := s.versions.List(c.Context(), id); err == nil {
+		seen := make(map[string]struct{})
+		userNames := make(map[string]string)
+		for _, v := range allVersions {
+			if v.CreatedBy == nil {
+				continue
+			}
+			uid := *v.CreatedBy
+			if _, ok := seen[uid]; ok {
+				continue
+			}
+			seen[uid] = struct{}{}
+			if _, resolved := userNames[uid]; !resolved {
+				if u, err := s.users.GetByID(c.Context(), uid); err == nil {
+					userNames[uid] = u.Name
+				} else {
+					userNames[uid] = ""
+				}
+			}
+			authors = append(authors, AssetContributor{ID: uid, Name: userNames[uid]})
+		}
+	}
+
+	return c.JSON(assetToDetailResponse(base, createdBy, authors))
 }
 
 // handleGetAssetFile streams the current version of an asset file.

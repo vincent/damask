@@ -173,6 +173,9 @@ func (r *VersionRepo) GetByIDForWorkspace(_ context.Context, _, _ string) (repos
 func (r *VersionRepo) GetCurrentByAsset(_ context.Context, _ string) (repository.AssetVersion, error) {
 	return repository.AssetVersion{}, nil
 }
+func (r *VersionRepo) GetFirstByAsset(_ context.Context, _ string) (repository.AssetVersion, error) {
+	return repository.AssetVersion{}, nil
+}
 func (r *VersionRepo) ListByAsset(_ context.Context, _ string) ([]repository.AssetVersion, error) {
 	return nil, nil
 }

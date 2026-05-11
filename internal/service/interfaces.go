@@ -171,6 +171,8 @@ type VersionService interface {
 	ListWithVariantCount(ctx context.Context, assetID string) ([]*VersionWithCountDTO, error)
 	Get(ctx context.Context, workspaceID, id string) (*VersionDTO, error)
 	GetCurrentByAsset(ctx context.Context, assetID string) (*VersionDTO, error)
+	// GetFirstByAsset returns the oldest non-deleted version for an asset.
+	GetFirstByAsset(ctx context.Context, assetID string) (*VersionDTO, error)
 	// GetByHash returns a version matching assetID + contentHash, or ErrNotFound.
 	GetByHash(ctx context.Context, assetID, contentHash string) (*VersionDTO, error)
 	// NextVersionNum returns the next version number for the asset.

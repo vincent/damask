@@ -59,6 +59,25 @@ func (r *RealVersionRepo) GetCurrentByAsset(_ context.Context, assetID string) (
 	return repository.AssetVersion{}, fmt.Errorf("no current version for asset %q: %w", assetID, apperr.ErrNotFound)
 }
 
+func (r *RealVersionRepo) GetFirstByAsset(_ context.Context, assetID string) (repository.AssetVersion, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var first *repository.AssetVersion
+	for i := range r.versions {
+		v := r.versions[i]
+		if v.AssetID != assetID || v.DeletedAt != nil {
+			continue
+		}
+		if first == nil || v.VersionNum < first.VersionNum {
+			first = &v
+		}
+	}
+	if first == nil {
+		return repository.AssetVersion{}, fmt.Errorf("no version for asset %q: %w", assetID, apperr.ErrNotFound)
+	}
+	return *first, nil
+}
+
 func (r *RealVersionRepo) GetByIDForWorkspace(_ context.Context, workspaceID, id string) (repository.AssetVersion, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

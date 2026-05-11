@@ -131,6 +131,39 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, assetID string) (AssetV
 	return i, err
 }
 
+const getFirstVersion = `-- name: GetFirstVersion :one
+SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
+WHERE asset_id = ? AND deleted_at IS NULL
+ORDER BY version_num ASC
+LIMIT 1
+`
+
+func (q *Queries) GetFirstVersion(ctx context.Context, assetID string) (AssetVersion, error) {
+	row := q.db.QueryRowContext(ctx, getFirstVersion, assetID)
+	var i AssetVersion
+	err := row.Scan(
+		&i.ID,
+		&i.AssetID,
+		&i.WorkspaceID,
+		&i.VersionNum,
+		&i.StorageKey,
+		&i.ContentHash,
+		&i.MimeType,
+		&i.Size,
+		&i.Width,
+		&i.Height,
+		&i.DurationSec,
+		&i.ThumbnailKey,
+		&i.ThumbnailContentType,
+		&i.Comment,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.IsCurrent,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getVersionByHash = `-- name: GetVersionByHash :one
 SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ? AND content_hash = ? AND deleted_at IS NULL

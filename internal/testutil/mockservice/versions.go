@@ -12,6 +12,7 @@ type MockVersionService struct {
 	ListWithVariantCountFn func(ctx context.Context, assetID string) ([]*service.VersionWithCountDTO, error)
 	GetFn                  func(ctx context.Context, workspaceID, id string) (*service.VersionDTO, error)
 	GetCurrentByAssetFn    func(ctx context.Context, assetID string) (*service.VersionDTO, error)
+	GetFirstByAssetFn      func(ctx context.Context, assetID string) (*service.VersionDTO, error)
 	GetByHashFn            func(ctx context.Context, assetID, contentHash string) (*service.VersionDTO, error)
 	NextVersionNumFn       func(ctx context.Context, assetID string) (int64, error)
 	CreateFn               func(ctx context.Context, v *service.VersionDTO) (*service.VersionDTO, error)
@@ -46,6 +47,13 @@ func (m *MockVersionService) Get(ctx context.Context, workspaceID, id string) (*
 func (m *MockVersionService) GetCurrentByAsset(ctx context.Context, assetID string) (*service.VersionDTO, error) {
 	if m.GetCurrentByAssetFn != nil {
 		return m.GetCurrentByAssetFn(ctx, assetID)
+	}
+	return nil, nil
+}
+
+func (m *MockVersionService) GetFirstByAsset(ctx context.Context, assetID string) (*service.VersionDTO, error) {
+	if m.GetFirstByAssetFn != nil {
+		return m.GetFirstByAssetFn(ctx, assetID)
 	}
 	return nil, nil
 }

@@ -74,6 +74,12 @@ UPDATE asset_versions SET is_current = 0 WHERE asset_id = ?;
 -- name: SetCurrentVersionFlag :exec
 UPDATE asset_versions SET is_current = 1 WHERE id = ?;
 
+-- name: GetFirstVersion :one
+SELECT * FROM asset_versions
+WHERE asset_id = ? AND deleted_at IS NULL
+ORDER BY version_num ASC
+LIMIT 1;
+
 -- name: ListVersionsWithVariantCount :many
 -- Versions for an asset with per-version variant count (for History tab VV-4.2).
 SELECT av.*, COUNT(v.id) AS variant_count

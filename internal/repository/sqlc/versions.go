@@ -78,6 +78,17 @@ func (r *versionRepo) GetCurrentByAsset(ctx context.Context, assetID string) (re
 	return toVersion(row), nil
 }
 
+func (r *versionRepo) GetFirstByAsset(ctx context.Context, assetID string) (repository.AssetVersion, error) {
+	row, err := r.q.GetFirstVersion(ctx, assetID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.AssetVersion{}, apperr.ErrNotFound
+		}
+		return repository.AssetVersion{}, err
+	}
+	return toVersion(row), nil
+}
+
 func (r *versionRepo) GetByIDForWorkspace(ctx context.Context, workspaceID, id string) (repository.AssetVersion, error) {
 	row, err := r.q.GetVersionByID(ctx, dbgen.GetVersionByIDParams{
 		ID:          id,

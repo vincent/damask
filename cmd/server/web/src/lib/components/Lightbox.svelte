@@ -150,6 +150,18 @@
     onassetupdated?.(nextAsset)
   }
 
+  // --- Asset detail (enriched, includes created_by + authors) ---
+  let assetDetail = $state<typeof asset>(null)
+
+  async function loadAssetDetail() {
+    if (!asset) return
+    try {
+      assetDetail = await assetApi.get(asset.id)
+    } catch {
+      // silently ignore — fall back to the prop
+    }
+  }
+
   // --- Variant state ---
   let variants = $state<Variant[]>([])
   let variantsLoading = $state(false)
@@ -230,10 +242,12 @@
       variants = []
       variantPanelState = { mode: 'list' }
       selectedVariant = null
+      assetDetail = null
       return
     }
     selectedVariant = null
     loadVariants()
+    loadAssetDetail()
   })
 
   async function loadVariants() {
@@ -626,7 +640,7 @@
       <!-- ═══ DETAILS TAB ═══ -->
       {#if activeTab === 'details'}
         <div class="space-y-6 px-5 py-5">
-          <AssetMetadata {asset} onOpenAsset={handleDerivedAssetOpen} />
+          <AssetMetadata asset={assetDetail ?? asset} onOpenAsset={handleDerivedAssetOpen} />
           <AssetTags {asset} />
           <AssetCollections {asset} />
 

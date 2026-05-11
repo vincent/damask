@@ -74,6 +74,14 @@ func (s *versionService) GetCurrentByAsset(ctx context.Context, assetID string) 
 	return toVersionDTO(v), nil
 }
 
+func (s *versionService) GetFirstByAsset(ctx context.Context, assetID string) (*VersionDTO, error) {
+	v, err := s.versions.GetFirstByAsset(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	return toVersionDTO(v), nil
+}
+
 func (s *versionService) ListWithVariantCount(ctx context.Context, assetID string) ([]*VersionWithCountDTO, error) {
 	rows, err := s.versions.ListWithVariantCount(ctx, assetID)
 	if err != nil {

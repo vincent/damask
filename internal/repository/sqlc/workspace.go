@@ -288,7 +288,7 @@ func (r *workspaceRepo) RunRegistrationTx(ctx context.Context, fn func(context.C
 	}
 	defer tx.Rollback() //nolint:errcheck
 	txQ := r.q.WithTx(tx)
-	txUsers := &userRepo{q: txQ, sqlDB: r.sqlDB}
+	txUsers := &userRepo{q: txQ, sqlDB: r.sqlDB, db: tx}
 	txWorkspaces := &workspaceRepo{q: txQ, sqlDB: r.sqlDB}
 	if err := fn(ctx, txUsers, txWorkspaces); err != nil {
 		return err
