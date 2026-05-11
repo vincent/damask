@@ -8,6 +8,8 @@ import type { LayoutLoad } from './$types'
 const PUBLIC_PATHS = [
   '/login',
   '/register',
+  '/forgot-password',
+  '/reset-password',
   '/invite',
   '/s/',
   '/demo/',

@@ -32,6 +32,8 @@ type Mailer interface {
 	SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg, workspaceID string) error
 	SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg, workspaceID string) error
 	SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error
+	SendPasswordReset(ctx context.Context, to, token string) error
+	SendEmailChangeConfirmation(ctx context.Context, to, newEmail, token string) error
 }
 
 func NewMailer(config *MailSenderConfig) Mailer {
@@ -226,6 +228,34 @@ func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceNa
 			"Text":       "The ingress source \"" + sourceName + "\" has been disabled after too many consecutive errors. Last error: " + errMsg + "\n\nEdit the source to re-enable polling.",
 			"ActionText": "View sources",
 			"ActionUrl":  "/library/ingress?ws=" + workspaceID,
+		},
+	)
+}
+
+func (m *MailerImpl) SendPasswordReset(ctx context.Context, to, token string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"Reset your Damask password",
+		map[string]string{
+			"Title":      "Reset your password",
+			"Text":       "Someone requested a password reset for your Damask account. If this wasn't you, you can ignore this email. This link expires in 1 hour.",
+			"ActionText": "Reset password",
+			"ActionUrl":  "/reset-password?token=" + token,
+		},
+	)
+}
+
+func (m *MailerImpl) SendEmailChangeConfirmation(ctx context.Context, to, newEmail, token string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"Confirm your email address change",
+		map[string]string{
+			"Title":      "Confirm your email change",
+			"Text":       "You requested to change your Damask account email to " + newEmail + ". If you didn't request this, your account is safe and no change has been made. This link expires in 24 hours.",
+			"ActionText": "Confirm email change",
+			"ActionUrl":  "/auth/confirm-email-change?token=" + token,
 		},
 	)
 }

@@ -370,6 +370,18 @@ type UserService interface {
 	CreateWorkspace(ctx context.Context, userID, name string) (*WorkspaceDTO, error)
 	// GetProfile returns the full user profile including auth methods and provider links.
 	GetProfile(ctx context.Context, userID string) (*OIDCUserDTO, error)
+	GetProfileByEmail(ctx context.Context, email string) (*OIDCUserDTO, error)
+	UpdateProfile(ctx context.Context, userID, displayName string) (*OIDCUserDTO, error)
+	UploadAvatar(ctx context.Context, userID string, data []byte) (*OIDCUserDTO, error)
+	DeleteAvatar(ctx context.Context, userID string) error
+	UpdateAvatarKey(ctx context.Context, userID, storageKey string) (*OIDCUserDTO, error)
+	ClearAvatar(ctx context.Context, userID string) (*OIDCUserDTO, error)
+	ResetPassword(ctx context.Context, userID, passwordHash string) error
+	ChangePassword(ctx context.Context, userID, currentPassword, newPasswordHash string) error
+	RequestEmailChange(ctx context.Context, userID, email string) error
+	CancelEmailChange(ctx context.Context, userID string) error
+	ConfirmEmailChange(ctx context.Context, userID, email string) (*OIDCUserDTO, error)
+	DeleteAccount(ctx context.Context, userID, password string, hardDelete bool) error
 	// UpsertOIDCUser finds or creates a user from OIDC/Google claims; returns (user, workspaceID).
 	UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams) (*OIDCUserDTO, error)
 	// UpsertCanvaUser finds or creates a user from Canva claims; returns (user, workspaceID).

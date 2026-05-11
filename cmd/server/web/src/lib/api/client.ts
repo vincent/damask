@@ -103,6 +103,27 @@ export const authApi = {
   refresh: () =>
     apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' }),
 
+  forgotPassword: (email: string) =>
+    apiFetch<void>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, password: string) =>
+    apiFetch<void>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiFetch<void>('/auth/password', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    }),
+
   /** POST /demo/session (demo build only) — create a demo session. */
   demoSession: () =>
     apiFetch<{
@@ -114,6 +135,40 @@ export const authApi = {
 
   /** GET /auth/me — current user profile + linked identities. */
   me: () => apiFetch<MeResponse>('/auth/me'),
+
+  updateMe: (displayName: string) =>
+    apiFetch<MeResponse>('/api/v1/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ display_name: displayName }),
+    }),
+
+  requestEmailChange: (email: string) =>
+    apiFetch<{ pending_email: string }>('/api/v1/users/me/email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  cancelPendingEmail: () =>
+    apiFetch<void>('/api/v1/users/me/email/pending', { method: 'DELETE' }),
+
+  deleteMe: (password = '') =>
+    apiFetch<void>('/api/v1/users/me', {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
+    }),
+
+  uploadAvatar: async (file: File, fetch = window.fetch) => {
+    const form = new FormData()
+    form.append('avatar', file)
+    const res = await fetch(`${API_BASE}/api/v1/users/me/avatar`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    })
+    return handleResponse<MeResponse>(res)
+  },
+
+  deleteAvatar: () => apiFetch<void>('/api/v1/users/me/avatar', { method: 'DELETE' }),
 
   /** DELETE /auth/oidc/link — unlink OIDC identity. */
   unlinkOIDC: () => apiFetch('/auth/oidc/link', { method: 'DELETE' }),
@@ -128,12 +183,15 @@ export const authApi = {
 export interface MeResponse {
   id: string
   name: string
+  display_name: string
   email: string
   avatar_url?: string
+  has_password: boolean
   auth_methods: string
   oidc_linked: boolean
   google_linked: boolean
   canva_linked: boolean
+  pending_email?: string | null
 }
 
 /**

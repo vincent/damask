@@ -297,6 +297,39 @@ func (r *UserRepo) Create(_ context.Context, u repository.User) (repository.User
 func (r *UserRepo) Update(_ context.Context, u repository.User) (repository.User, error) {
 	return u, nil
 }
+func (r *UserRepo) UpdateProfile(_ context.Context, _ string, _ string) (repository.User, error) {
+	return repository.User{}, nil
+}
+func (r *UserRepo) UpdateAvatarKey(_ context.Context, _ string, _ string) (repository.User, error) {
+	return repository.User{}, nil
+}
+func (r *UserRepo) ClearAvatarKey(_ context.Context, _ string) (repository.User, error) {
+	return repository.User{}, nil
+}
+func (r *UserRepo) SetPassword(_ context.Context, _, _ string) error {
+	return nil
+}
+func (r *UserRepo) SetAuthMethods(_ context.Context, _ string, _ string) (repository.User, error) {
+	return repository.User{}, nil
+}
+func (r *UserRepo) SetPendingEmail(_ context.Context, _ string, _ string) error {
+	return nil
+}
+func (r *UserRepo) ClearPendingEmail(_ context.Context, _ string) error {
+	return nil
+}
+func (r *UserRepo) ConfirmEmailChange(_ context.Context, _ string, _ string) (repository.User, error) {
+	return repository.User{}, nil
+}
+func (r *UserRepo) SoftDelete(_ context.Context, _ string) error {
+	return nil
+}
+func (r *UserRepo) AnonymizeDeletedUser(_ context.Context, _ string) error {
+	return nil
+}
+func (r *UserRepo) HardDelete(_ context.Context, _ string) error {
+	return nil
+}
 func (r *UserRepo) GetByGoogleID(_ context.Context, _ string) (repository.User, error) {
 	return repository.User{}, apperr.ErrNotFound
 }

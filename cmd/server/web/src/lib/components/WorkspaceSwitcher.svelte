@@ -164,11 +164,13 @@
         >
           {authStore.workspace?.name ?? 'Workspace'}
         </span>
-        {#if activeWs}
-          <span class="text-xs text-[var(--text-muted)] tabular-nums"
-            >{activeWs.member_count} {m.members()}</span
-          >
-        {/if}
+        <span class="text-xs text-[var(--text-muted)] tabular-nums">
+          {#if activeWs}
+            {activeWs.member_count} {m.members()}
+          {:else}
+            &nbsp;
+          {/if}
+        </span>
       </div>
       <ChevronDown
         class="ws-chevron mr-1 h-4 w-4 shrink-0 text-gray-400 {open

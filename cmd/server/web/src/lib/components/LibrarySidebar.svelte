@@ -48,7 +48,7 @@
   const profileSections = [
     {
       id: 'account',
-      label: () => m.settings_auth_title(),
+      label: () => m.settings_account_title(),
       path: '/library/settings/account',
       icon: User,
     },
@@ -244,7 +244,7 @@
       <span
         class="px-3 text-xs font-medium tracking-widest text-[var(--text-muted)] uppercase"
       >
-        {m.settings()}
+        {m.workspace()}
       </span>
     </div>
 
@@ -376,15 +376,6 @@
 
     <div class="mt-auto border-t border-[var(--border-subtle)] px-3 py-2">
       <a
-        href="https://docs.damask.studio"
-        target="_blank"
-        class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
-        onclick={handleAnchorNavigate}
-      >
-        <Info class="h-3.5 w-3.5 shrink-0" />
-        <span>{m.help_docs()}</span>
-      </a>
-      <a
         href="https://github.com/vincent/damask/discussions"
         target="_blank"
         class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
@@ -394,12 +385,13 @@
         <span>{m.help_feedback()}</span>
       </a>
       <a
-        href="/logout"
+        href="https://docs.damask.studio"
+        target="_blank"
         class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
         onclick={handleAnchorNavigate}
       >
-        <LogOut class="h-3.5 w-3.5 shrink-0" />
-        <Hint class="text-sm">{m.logout()}</Hint>
+        <Info class="h-3.5 w-3.5 shrink-0" />
+        <span>{m.help_docs()}</span>
       </a>
     </div>
   {/if}

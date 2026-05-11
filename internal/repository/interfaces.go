@@ -254,6 +254,17 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (User, error)
 	Create(ctx context.Context, u User) (User, error)
 	Update(ctx context.Context, u User) (User, error)
+	UpdateProfile(ctx context.Context, id, displayName string) (User, error)
+	UpdateAvatarKey(ctx context.Context, id, storageKey string) (User, error)
+	ClearAvatarKey(ctx context.Context, id string) (User, error)
+	SetPassword(ctx context.Context, id, passwordHash string) error
+	SetAuthMethods(ctx context.Context, id, authMethods string) (User, error)
+	SetPendingEmail(ctx context.Context, id, email string) error
+	ClearPendingEmail(ctx context.Context, id string) error
+	ConfirmEmailChange(ctx context.Context, id, pendingEmail string) (User, error)
+	SoftDelete(ctx context.Context, id string) error
+	AnonymizeDeletedUser(ctx context.Context, id string) error
+	HardDelete(ctx context.Context, id string) error
 	// GetByGoogleID returns the user linked to this Google sub ID.
 	GetByGoogleID(ctx context.Context, googleUserID string) (User, error)
 	// GetByCanvaID returns the user linked to this Canva user ID.

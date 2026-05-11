@@ -228,7 +228,11 @@ type User struct {
 	GoogleUserID *string
 	CanvaUserID  *string
 	AvatarUrl    *string
+	AvatarStorageKey *string
 	AuthMethods  string
+	PendingEmail *string
+	DisplayName  *string
+	DeletedAt    *string
 }
 
 // ShareComment is the domain representation of a public share comment.

@@ -182,6 +182,10 @@ func buildTestApp(s *Server) *fiber.App {
 	authGroup.Post("/login", s.handleLogin)
 	authGroup.Post("/logout", s.handleLogout)
 	authGroup.Post("/refresh", auth.RequireAuth(tokenMaker), s.handleRefresh)
+	authGroup.Post("/forgot-password", s.handleForgotPassword)
+	authGroup.Post("/reset-password", s.handleResetPassword)
+	authGroup.Patch("/password", auth.RequireAuth(tokenMaker), demoBlockMiddleware(), s.handleChangePassword)
+	authGroup.Get("/confirm-email-change", s.handleConfirmEmailChange)
 
 	// Protected API routes
 	api := app.Group("/api/v1", auth.RequireAuth(tokenMaker))
@@ -240,6 +244,13 @@ func buildTestApp(s *Server) *fiber.App {
 
 	// Current user profile
 	authGroup.Get("/me", auth.RequireAuth(tokenMaker), s.handleGetMe)
+	api.Patch("/users/me", s.handleUpdateMe)
+	api.Post("/users/me/avatar", s.handleUploadAvatar)
+	api.Delete("/users/me/avatar", s.handleDeleteAvatar)
+	api.Post("/users/me/email", s.handleRequestEmailChange)
+	api.Delete("/users/me/email/pending", s.handleCancelEmailChange)
+	api.Delete("/users/me", s.handleDeleteMe)
+	app.Get("/api/v1/users/:id/avatar", s.handleGetAvatar)
 
 	// Unlink providers
 	authGroup.Delete("/oidc/link", auth.RequireAuth(tokenMaker), s.handleUnlinkOIDC)

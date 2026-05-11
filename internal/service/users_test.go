@@ -9,17 +9,22 @@ import (
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
+	"damask/server/internal/storage"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-func newUserSvc(t *testing.T) (service.UserService, *memory.RealUserRepo, *memory.RealWorkspaceRepo) {
+func newUserSvc(t *testing.T) (service.UserService, *memory.RealUserRepo, *memory.RealWorkspaceRepo, storage.Storage) {
 	t.Helper()
 	users := memory.NewRealUserRepo()
 	workspaces := memory.NewRealWorkspaceRepo()
 	workspaces.SetUserRepo(users)
-	svc := service.NewUserService(users, workspaces)
-	return svc, users, workspaces
+	stor, err := storage.NewAferoMemoryStorage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := service.NewUserService(users, workspaces, stor)
+	return svc, users, workspaces, stor
 }
 
 func hashPassword(t *testing.T, plain string) string {
@@ -34,7 +39,7 @@ func hashPassword(t *testing.T, plain string) string {
 // --- Register ---
 
 func TestUserService_Register_OK(t *testing.T) {
-	svc, _, workspaces := newUserSvc(t)
+	svc, _, workspaces, _ := newUserSvc(t)
 
 	result, err := svc.Register(context.Background(), service.RegisterUserParams{
 		UserID:        "u_1",
@@ -64,7 +69,7 @@ func TestUserService_Register_OK(t *testing.T) {
 }
 
 func TestUserService_Register_DuplicateEmail(t *testing.T) {
-	svc, _, _ := newUserSvc(t)
+	svc, _, _, _ := newUserSvc(t)
 
 	params := service.RegisterUserParams{
 		UserID:        "u_1",
@@ -87,7 +92,7 @@ func TestUserService_Register_DuplicateEmail(t *testing.T) {
 // --- Login ---
 
 func TestUserService_Login_OK(t *testing.T) {
-	svc, _, _ := newUserSvc(t)
+	svc, _, _, _ := newUserSvc(t)
 
 	plain := "s3cret!"
 	_, err := svc.Register(context.Background(), service.RegisterUserParams{
@@ -117,7 +122,7 @@ func TestUserService_Login_OK(t *testing.T) {
 }
 
 func TestUserService_Login_WrongPassword(t *testing.T) {
-	svc, _, _ := newUserSvc(t)
+	svc, _, _, _ := newUserSvc(t)
 
 	_, err := svc.Register(context.Background(), service.RegisterUserParams{
 		UserID:        "u_1",
@@ -140,7 +145,7 @@ func TestUserService_Login_WrongPassword(t *testing.T) {
 }
 
 func TestUserService_Login_UnknownEmail(t *testing.T) {
-	svc, _, _ := newUserSvc(t)
+	svc, _, _, _ := newUserSvc(t)
 
 	_, err := svc.Login(context.Background(), service.LoginUserParams{
 		Email:         "nobody@example.com",
@@ -154,7 +159,7 @@ func TestUserService_Login_UnknownEmail(t *testing.T) {
 // --- GetByID ---
 
 func TestUserService_GetByID_OK(t *testing.T) {
-	svc, users, _ := newUserSvc(t)
+	svc, users, _, _ := newUserSvc(t)
 	users.Seed(repository.User{ID: "u_1", Email: "x@x.com", Name: "X"})
 
 	dto, err := svc.GetByID(context.Background(), "u_1")
@@ -167,7 +172,7 @@ func TestUserService_GetByID_OK(t *testing.T) {
 }
 
 func TestUserService_GetByID_NotFound(t *testing.T) {
-	svc, _, _ := newUserSvc(t)
+	svc, _, _, _ := newUserSvc(t)
 	_, err := svc.GetByID(context.Background(), "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)

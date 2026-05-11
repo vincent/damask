@@ -4,6 +4,7 @@ import (
 	"context"
 	"damask/server/internal/auth"
 	"encoding/json"
+	"net/mail"
 	"strings"
 )
 
@@ -127,6 +128,86 @@ func (r *SwitchWorkspaceRequest) Valid(_ context.Context) map[string]string {
 		p["workspace_id"] = "required"
 	}
 	return p
+}
+
+// -- users/auth account management -------------------------------------------
+
+type UpdateMeRequest struct {
+	DisplayName string `json:"display_name"`
+}
+
+func (r *UpdateMeRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.DisplayName = strings.TrimSpace(r.DisplayName)
+	if r.DisplayName == "" {
+		p["display_name"] = "required"
+	} else if len(r.DisplayName) > 100 {
+		p["display_name"] = "must be 100 characters or fewer"
+	}
+	return p
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+func (r *ForgotPasswordRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Email = strings.TrimSpace(r.Email)
+	if r.Email == "" {
+		p["email"] = "required"
+	} else if _, err := mail.ParseAddress(r.Email); err != nil {
+		p["email"] = "invalid"
+	}
+	return p
+}
+
+type ResetPasswordRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
+func (r *ResetPasswordRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if strings.TrimSpace(r.Token) == "" {
+		p["token"] = "required"
+	}
+	if len(r.Password) < 8 {
+		p["password"] = "must be at least 8 characters"
+	}
+	return p
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+func (r *ChangePasswordRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if len(r.NewPassword) < 8 {
+		p["new_password"] = "must be at least 8 characters"
+	}
+	return p
+}
+
+type RequestEmailChangeRequest struct {
+	Email string `json:"email"`
+}
+
+func (r *RequestEmailChangeRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Email = strings.TrimSpace(r.Email)
+	if r.Email == "" {
+		p["email"] = "required"
+	} else if _, err := mail.ParseAddress(r.Email); err != nil {
+		p["email"] = "invalid"
+	}
+	return p
+}
+
+type DeleteMeRequest struct {
+	Password string `json:"password"`
 }
 
 type UpdateWorkspaceSettingsRequest struct {

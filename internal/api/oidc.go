@@ -388,14 +388,18 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 // --- me handler ---
 
 type meResponse struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	Email        string  `json:"email"`
-	AvatarURL    *string `json:"avatar_url"`
-	AuthMethods  string  `json:"auth_methods"`
-	OIDCLinked   bool    `json:"oidc_linked"`
-	GoogleLinked bool    `json:"google_linked"`
-	CanvaLinked  bool    `json:"canva_linked"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	DisplayName      string  `json:"display_name"`
+	Email            string  `json:"email"`
+	AvatarURL        *string `json:"avatar_url"`
+	AvatarStorageKey *string `json:"-"`
+	HasPassword      bool    `json:"has_password"`
+	AuthMethods      string  `json:"auth_methods"`
+	OIDCLinked       bool    `json:"oidc_linked"`
+	GoogleLinked     bool    `json:"google_linked"`
+	CanvaLinked      bool    `json:"canva_linked"`
+	PendingEmail     *string `json:"pending_email"`
 }
 
 // handleGetMe returns the authenticated user's profile.
@@ -416,16 +420,7 @@ func (s *Server) handleGetMe(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not load user")
 	}
-	return c.JSON(meResponse{
-		ID:           dto.ID,
-		Name:         dto.Name,
-		Email:        dto.Email,
-		AvatarURL:    dto.AvatarURL,
-		AuthMethods:  dto.AuthMethods,
-		OIDCLinked:   dto.OIDCLinked,
-		GoogleLinked: dto.GoogleLinked,
-		CanvaLinked:  dto.CanvaLinked,
-	})
+	return c.JSON(meResponseFromDTO(s.cfg.BaseURL.String(), dto))
 }
 
 // --- unlink handlers ---
@@ -545,4 +540,3 @@ func verifyState(raw, secret string) (oauthState, error) {
 	}
 	return s, nil
 }
-

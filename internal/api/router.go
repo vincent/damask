@@ -121,7 +121,7 @@ func NewHttpServer(
 		tags:          tagSvc,
 		trf:           trf,
 		upload:        service.NewUploadService(service.NewAssetInjestor(db, sqlDB, stor, q, media), auditWriter),
-		users:         service.NewUserService(userRepo, workspaceRepo),
+		users:         service.NewUserService(userRepo, workspaceRepo, stor),
 		variants:      variantsSvc,
 		versions:      service.NewVersionService(versionRepo, auditWriter),
 		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
@@ -193,6 +193,11 @@ func NewRouter(
 	authGroup.Post("/login", s.handleLogin)
 	authGroup.Post("/logout", s.handleLogout)
 	authGroup.Post("/refresh", auth.RequireAuth(tokenMaker), s.handleRefresh)
+	authGroup.Post("/forgot-password", s.handleForgotPassword)
+	authGroup.Post("/reset-password", s.handleResetPassword)
+	authGroup.Patch("/password", auth.RequireAuth(tokenMaker), demoBlockMiddleware(), s.handleChangePassword)
+	authGroup.Get("/confirm-email-change", s.handleConfirmEmailChange)
+	app.Get("/api/v1/users/:id/avatar", s.handleGetAvatar)
 
 	// Protected API routes
 	api := app.Group("/api/v1", auth.RequireAuth(tokenMaker))
@@ -246,6 +251,12 @@ func NewRouter(
 
 	// Current user profile + linked identities
 	authGroup.Get("/me", auth.RequireAuth(tokenMaker), s.handleGetMe)
+	api.Patch("/users/me", s.handleUpdateMe)
+	api.Post("/users/me/avatar", s.handleUploadAvatar)
+	api.Delete("/users/me/avatar", s.handleDeleteAvatar)
+	api.Post("/users/me/email", s.handleRequestEmailChange)
+	api.Delete("/users/me/email/pending", s.handleCancelEmailChange)
+	api.Delete("/users/me", s.handleDeleteMe)
 
 	// Unlink identity providers (authenticated)
 	authGroup.Delete("/oidc/link", auth.RequireAuth(tokenMaker), s.handleUnlinkOIDC)

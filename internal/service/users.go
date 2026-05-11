@@ -1,18 +1,27 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/color"
+	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/auth"
 	"damask/server/internal/repository"
+	"damask/server/internal/storage"
+	apptelemetry "damask/server/internal/telemetry"
 
+	"github.com/chai2010/webp"
+	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -28,12 +37,15 @@ type UserDTO struct {
 type OIDCUserDTO struct {
 	ID           string
 	Name         string
+	DisplayName  string
 	Email        string
 	AvatarURL    *string
+	AvatarStorageKey *string
 	AuthMethods  string
 	OIDCLinked   bool
 	GoogleLinked bool
 	CanvaLinked  bool
+	PendingEmail *string
 	WorkspaceID  string
 }
 
@@ -82,17 +94,24 @@ type LoginUserResult struct {
 	WorkspaceID string
 }
 
+var ErrUnsupportedAvatarType = errors.New("unsupported avatar type")
+var ErrAvatarStorage = errors.New("avatar storage failure")
+
+const avatarSize = 256
+
 type userService struct {
 	users      repository.UserRepository
 	workspaces repository.WorkspaceRepository
+	stor       storage.Storage
 }
 
 // NewUserService returns a UserService.
 func NewUserService(
 	users repository.UserRepository,
 	workspaces repository.WorkspaceRepository,
+	stor storage.Storage,
 ) UserService {
-	return &userService{users: users, workspaces: workspaces}
+	return &userService{users: users, workspaces: workspaces, stor: stor}
 }
 
 // Register creates a new user and a default workspace atomically.
@@ -184,6 +203,304 @@ func (s *userService) GetProfile(ctx context.Context, userID string) (*OIDCUserD
 	return s.toOIDCUserDTO(ctx, user)
 }
 
+func (s *userService) GetProfileByEmail(ctx context.Context, email string) (*OIDCUserDTO, error) {
+	user, err := s.users.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	return s.toOIDCUserDTO(ctx, user)
+}
+
+func (s *userService) UpdateProfile(ctx context.Context, userID, displayName string) (*OIDCUserDTO, error) {
+	user, err := s.users.UpdateProfile(ctx, userID, displayName)
+	if err != nil {
+		return nil, err
+	}
+	return s.toOIDCUserDTO(ctx, user)
+}
+
+func (s *userService) UploadAvatar(ctx context.Context, userID string, data []byte) (dto *OIDCUserDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.users.upload_avatar",
+		attribute.String("damask.user_id", userID),
+		attribute.Int("avatar.bytes", len(data)),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "avatar upload failed", "user_id", userID, "error", err)
+		}
+	}()
+
+	if s.stor == nil {
+		return nil, fmt.Errorf("storage unavailable")
+	}
+
+	slog.DebugContext(ctx, "avatar upload started", "user_id", userID, "input_bytes", len(data))
+
+	contentType := http.DetectContentType(data)
+	switch contentType {
+	case "image/jpeg", "image/png", "image/webp", "image/gif":
+	default:
+		err = fmt.Errorf("%w: %s", ErrUnsupportedAvatarType, contentType)
+		return nil, err
+	}
+
+	decodeCtx, decodeSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_decode")
+	img, decodeErr := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
+	apptelemetry.EndSpan(decodeSpan, decodeErr)
+	if decodeErr != nil {
+		slog.ErrorContext(decodeCtx, "avatar decode failed", "user_id", userID, "content_type", contentType, "error", decodeErr)
+		err = fmt.Errorf("%w: decode failed", ErrUnsupportedAvatarType)
+		return nil, err
+	}
+
+	fitted := imaging.Fit(img, avatarSize, avatarSize, imaging.Lanczos)
+	canvas := imaging.New(avatarSize, avatarSize, color.NRGBA{0, 0, 0, 0})
+	avatar := imaging.PasteCenter(canvas, fitted)
+
+	encodeCtx, encodeSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_encode")
+	var out bytes.Buffer
+	encodeErr := webp.Encode(&out, avatar, &webp.Options{Lossless: true})
+	if encodeErr == nil {
+		encodeSpan.SetAttributes(attribute.Int("avatar.output_bytes", out.Len()))
+	}
+	apptelemetry.EndSpan(encodeSpan, encodeErr)
+	if encodeErr != nil {
+		slog.ErrorContext(encodeCtx, "avatar encode failed", "user_id", userID, "error", encodeErr)
+		err = fmt.Errorf("could not encode avatar: %w", encodeErr)
+		return nil, err
+	}
+
+	storageKey := "avatars/" + userID + ".webp"
+	span.SetAttributes(attribute.String("avatar.storage_key", storageKey))
+
+	_, putSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_storage_put",
+		attribute.String("avatar.storage_key", storageKey),
+	)
+	putErr := s.stor.Put(storageKey, bytes.NewReader(out.Bytes()))
+	apptelemetry.EndSpan(putSpan, putErr)
+	if putErr != nil {
+		err = fmt.Errorf("%w: could not store avatar: %v", ErrAvatarStorage, putErr)
+		return nil, err
+	}
+
+	repoCtx, repoSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_repo_update",
+		attribute.String("avatar.storage_key", storageKey),
+	)
+	user, repoErr := s.users.UpdateAvatarKey(repoCtx, userID, storageKey)
+	apptelemetry.EndSpan(repoSpan, repoErr)
+	if repoErr != nil {
+		err = repoErr
+		return nil, err
+	}
+
+	dto, err = s.toOIDCUserDTO(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "avatar upload completed", "user_id", userID, "storage_key", storageKey, "output_bytes", out.Len())
+	return dto, nil
+}
+
+func (s *userService) DeleteAvatar(ctx context.Context, userID string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.users.delete_avatar",
+		attribute.String("damask.user_id", userID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "avatar delete failed", "user_id", userID, "error", err)
+		}
+	}()
+
+	if s.stor == nil {
+		return fmt.Errorf("storage unavailable")
+	}
+
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	hasAvatar := user.AvatarStorageKey != nil && *user.AvatarStorageKey != ""
+	span.SetAttributes(attribute.Bool("avatar.has_existing_storage_key", hasAvatar))
+	if !hasAvatar {
+		slog.DebugContext(ctx, "avatar delete skipped", "user_id", userID)
+		return nil
+	}
+
+	storageKey := *user.AvatarStorageKey
+	span.SetAttributes(attribute.String("avatar.storage_key", storageKey))
+
+	_, deleteSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_storage_delete",
+		attribute.String("avatar.storage_key", storageKey),
+	)
+	deleteErr := s.stor.Delete(storageKey)
+	apptelemetry.EndSpan(deleteSpan, deleteErr)
+	if deleteErr != nil {
+		err = fmt.Errorf("%w: could not delete avatar: %v", ErrAvatarStorage, deleteErr)
+		return err
+	}
+
+	_, repoSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_repo_update",
+		attribute.String("avatar.storage_key", storageKey),
+	)
+	_, repoErr := s.users.ClearAvatarKey(ctx, userID)
+	apptelemetry.EndSpan(repoSpan, repoErr)
+	if repoErr != nil {
+		err = repoErr
+		return err
+	}
+
+	slog.DebugContext(ctx, "avatar delete completed", "user_id", userID, "storage_key", storageKey)
+	return nil
+}
+
+func (s *userService) UpdateAvatarKey(ctx context.Context, userID, storageKey string) (*OIDCUserDTO, error) {
+	user, err := s.users.UpdateAvatarKey(ctx, userID, storageKey)
+	if err != nil {
+		return nil, err
+	}
+	return s.toOIDCUserDTO(ctx, user)
+}
+
+func (s *userService) ClearAvatar(ctx context.Context, userID string) (*OIDCUserDTO, error) {
+	user, err := s.users.ClearAvatarKey(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.toOIDCUserDTO(ctx, user)
+}
+
+func (s *userService) ResetPassword(ctx context.Context, userID, passwordHash string) error {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", apperr.ErrInvalidInput)
+	}
+	if err := s.users.SetPassword(ctx, userID, passwordHash); err != nil {
+		return err
+	}
+	if hasAuthMethod(user.AuthMethods, "password") {
+		return nil
+	}
+	_, err = s.users.SetAuthMethods(ctx, userID, addAuthMethod(user.AuthMethods, "password"))
+	return err
+}
+
+func (s *userService) ChangePassword(ctx context.Context, userID, currentPassword, newPasswordHash string) error {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if hasAuthMethod(user.AuthMethods, "password") {
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+			return fmt.Errorf("current_password_incorrect: %w", apperr.ErrInvalidInput)
+		}
+	}
+	if err := s.users.SetPassword(ctx, userID, newPasswordHash); err != nil {
+		return err
+	}
+	if hasAuthMethod(user.AuthMethods, "password") {
+		return nil
+	}
+	_, err = s.users.SetAuthMethods(ctx, userID, addAuthMethod(user.AuthMethods, "password"))
+	return err
+}
+
+func (s *userService) RequestEmailChange(ctx context.Context, userID, email string) error {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if strings.EqualFold(user.Email, email) {
+		return fmt.Errorf("email unchanged: %w", apperr.ErrInvalidInput)
+	}
+	if _, err := s.users.GetByEmail(ctx, email); err == nil {
+		return fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+	} else if !errors.Is(err, apperr.ErrNotFound) {
+		return err
+	}
+	return s.users.SetPendingEmail(ctx, userID, email)
+}
+
+func (s *userService) CancelEmailChange(ctx context.Context, userID string) error {
+	return s.users.ClearPendingEmail(ctx, userID)
+}
+
+func (s *userService) ConfirmEmailChange(ctx context.Context, userID, email string) (*OIDCUserDTO, error) {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", apperr.ErrInvalidInput)
+	}
+	if user.PendingEmail == nil || *user.PendingEmail != email {
+		return nil, fmt.Errorf("stale token: %w", apperr.ErrInvalidInput)
+	}
+	if existing, err := s.users.GetByEmail(ctx, email); err == nil && existing.ID != userID {
+		return nil, fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+	} else if err != nil && !errors.Is(err, apperr.ErrNotFound) {
+		return nil, err
+	}
+	updated, err := s.users.ConfirmEmailChange(ctx, userID, email)
+	if err != nil {
+		return nil, err
+	}
+	return s.toOIDCUserDTO(ctx, updated)
+}
+
+func (s *userService) DeleteAccount(ctx context.Context, userID, password string, hardDelete bool) error {
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if hasAuthMethod(user.AuthMethods, "password") {
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+			return fmt.Errorf("password_incorrect: %w", apperr.ErrInvalidInput)
+		}
+	}
+
+	workspaces, err := s.workspaces.ListByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	for _, ws := range workspaces {
+		members, err := s.workspaces.ListMembers(ctx, ws.ID)
+		if err != nil {
+			return err
+		}
+		ownerCount := 0
+		for _, member := range members {
+			if member.Role == string(auth.Owner) {
+				ownerCount++
+			}
+		}
+		if ownerCount == 1 {
+			return fmt.Errorf("sole workspace owner: %w", apperr.ErrInvalidInput)
+		}
+	}
+
+	return s.workspaces.RunRegistrationTx(ctx, func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
+		if !hardDelete {
+			if err := txUsers.SoftDelete(ctx, userID); err != nil {
+				return err
+			}
+			if err := txUsers.AnonymizeDeletedUser(ctx, userID); err != nil {
+				return err
+			}
+		}
+		for _, ws := range workspaces {
+			if err := txWorkspaces.DeleteMember(ctx, ws.ID, userID); err != nil {
+				return err
+			}
+		}
+		if hardDelete {
+			if err := txUsers.HardDelete(ctx, userID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // CreateWorkspace creates a new workspace owned by userID in a transaction.
 func (s *userService) CreateWorkspace(ctx context.Context, userID, name string) (*WorkspaceDTO, error) {
 	workspaceID := uuid.New().String()
@@ -230,7 +547,9 @@ func (s *userService) UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams
 		// Existing user — refresh avatar/auth_methods.
 		updated := user
 		updated.AuthMethods = addAuthMethod(user.AuthMethods, methodName(p.IsGoogle))
-		updated.AvatarUrl = nilIfEmpty(p.AvatarURL)
+		if user.AvatarStorageKey == nil {
+			updated.AvatarUrl = nilIfEmpty(p.AvatarURL)
+		}
 		var err error
 		if p.IsGoogle {
 			updated.GoogleUserID = &p.Sub
@@ -253,7 +572,9 @@ func (s *userService) UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams
 	}
 	if err == nil {
 		existing.AuthMethods = addAuthMethod(existing.AuthMethods, methodName(p.IsGoogle))
-		existing.AvatarUrl = nilIfEmpty(p.AvatarURL)
+		if existing.AvatarStorageKey == nil {
+			existing.AvatarUrl = nilIfEmpty(p.AvatarURL)
+		}
 		if p.IsGoogle {
 			existing.GoogleUserID = &p.Sub
 			existing, err = s.users.LinkGoogle(ctx, existing)
@@ -325,7 +646,9 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 	}
 	if err == nil {
 		user.AuthMethods = addAuthMethod(user.AuthMethods, "canva")
-		user.AvatarUrl = nilIfEmpty(p.AvatarURL)
+		if user.AvatarStorageKey == nil {
+			user.AvatarUrl = nilIfEmpty(p.AvatarURL)
+		}
 		user.CanvaUserID = &p.CanvaID
 		user, err = s.users.LinkCanva(ctx, user)
 		if err != nil {
@@ -338,7 +661,9 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 		existing, emailErr := s.users.GetByEmail(ctx, p.Email)
 		if emailErr == nil {
 			existing.AuthMethods = addAuthMethod(existing.AuthMethods, "canva")
-			existing.AvatarUrl = nilIfEmpty(p.AvatarURL)
+			if existing.AvatarStorageKey == nil {
+				existing.AvatarUrl = nilIfEmpty(p.AvatarURL)
+			}
 			existing.CanvaUserID = &p.CanvaID
 			existing, emailErr = s.users.LinkCanva(ctx, existing)
 			if emailErr != nil {
@@ -430,12 +755,15 @@ func (s *userService) toOIDCUserDTO(ctx context.Context, user repository.User) (
 	return &OIDCUserDTO{
 		ID:           user.ID,
 		Name:         user.Name,
+		DisplayName:  displayNameForUser(user),
 		Email:        user.Email,
 		AvatarURL:    user.AvatarUrl,
+		AvatarStorageKey: user.AvatarStorageKey,
 		AuthMethods:  user.AuthMethods,
 		OIDCLinked:   user.OidcSub != nil,
 		GoogleLinked: user.GoogleUserID != nil,
 		CanvaLinked:  user.CanvaUserID != nil,
+		PendingEmail: user.PendingEmail,
 		WorkspaceID:  wsID,
 	}, nil
 }
@@ -484,6 +812,30 @@ func hasOnlyMethodStr(authMethods, method string) bool {
 	var methods []string
 	_ = json.Unmarshal([]byte(authMethods), &methods)
 	return len(methods) == 1 && methods[0] == method
+}
+
+func hasAuthMethod(authMethods, method string) bool {
+	var methods []string
+	_ = json.Unmarshal([]byte(authMethods), &methods)
+	for _, item := range methods {
+		if item == method {
+			return true
+		}
+	}
+	return false
+}
+
+func displayNameForUser(user repository.User) string {
+	if user.DisplayName != nil && strings.TrimSpace(*user.DisplayName) != "" {
+		return strings.TrimSpace(*user.DisplayName)
+	}
+	if strings.TrimSpace(user.Name) != "" {
+		return strings.TrimSpace(user.Name)
+	}
+	if idx := strings.Index(user.Email, "@"); idx > 0 {
+		return user.Email[:idx]
+	}
+	return user.Email
 }
 
 func toUserDTO(u repository.User) *UserDTO {

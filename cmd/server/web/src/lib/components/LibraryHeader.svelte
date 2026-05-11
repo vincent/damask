@@ -23,6 +23,7 @@
   } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'
   import UndoRedo from './UndoRedo.svelte'
+  import UserMenu from './ui/UserMenu.svelte'
   import { getContext, type Snippet } from 'svelte'
 
   type Props = {
@@ -137,7 +138,7 @@
     />
   </div>
 
-  <!-- RIGHT: secondary actions + primary CTA -->
+  <!-- RIGHT: secondary actions + primary CTA + user -->
   <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
     {#if !viewportStore.isMobile}
       <UndoRedo />
@@ -302,6 +303,8 @@
         {/if}
       </div>
     {/if}
+
+    <UserMenu />
   </div>
 </header>
 

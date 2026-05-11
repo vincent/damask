@@ -408,3 +408,9 @@ ALTER TABLE users ADD COLUMN canva_user_id  TEXT;
 ALTER TABLE users ADD COLUMN google_user_id TEXT;
 ALTER TABLE users ADD COLUMN avatar_url     TEXT;
 ALTER TABLE users ADD COLUMN auth_methods   TEXT NOT NULL DEFAULT '["password"]';
+
+-- Migration 033: user management
+ALTER TABLE users ADD COLUMN avatar_storage_key TEXT;
+ALTER TABLE users ADD COLUMN pending_email TEXT;
+ALTER TABLE users ADD COLUMN display_name TEXT;
+ALTER TABLE users ADD COLUMN deleted_at TEXT;

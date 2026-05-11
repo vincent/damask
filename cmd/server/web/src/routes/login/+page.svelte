@@ -52,6 +52,11 @@
     })()
   )
 
+  const resetSuccess = $derived(page.url.searchParams.get('reset') === '1')
+  const accountDeleted = $derived(
+    page.url.searchParams.get('account_deleted') === '1'
+  )
+
   const hasSSOProviders = $derived(
     authConfig.oidc_enabled ||
       authConfig.google_enabled ||
@@ -116,6 +121,14 @@
       <Feedback error={ssoError} />
     {/if}
 
+    {#if resetSuccess}
+      <Feedback success="Password updated. You can now sign in." />
+    {/if}
+
+    {#if accountDeleted}
+      <Feedback success="Your account has been deleted." />
+    {/if}
+
     {#if hasSSOProviders}
       <div class="space-y-2">
         {#if authConfig.oidc_enabled}
@@ -169,6 +182,14 @@
           required
           autocomplete="current-password"
         />
+        {#if authConfig.password_auth}
+          <div class="text-right">
+            <a
+              href="/forgot-password"
+              class="text-sm text-blue-600 hover:underline">Forgot password?</a
+            >
+          </div>
+        {/if}
         <Button type="submit" {loading} class="w-full"
           >{loading ? m.signin_in() : m.signin()}</Button
         >

@@ -160,6 +160,14 @@ func (r *RealWorkspaceRepo) DeleteMember(_ context.Context, workspaceID, userID 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.members, workspaceID+":"+userID)
+	current := r.userWS[userID]
+	next := current[:0]
+	for _, id := range current {
+		if id != workspaceID {
+			next = append(next, id)
+		}
+	}
+	r.userWS[userID] = append([]string(nil), next...)
 	return nil
 }
 
