@@ -640,7 +640,10 @@
       <!-- ═══ DETAILS TAB ═══ -->
       {#if activeTab === 'details'}
         <div class="space-y-6 px-5 py-5">
-          <AssetMetadata asset={assetDetail ?? asset} onOpenAsset={handleDerivedAssetOpen} />
+          <AssetMetadata
+            asset={assetDetail ?? asset}
+            onOpenAsset={handleDerivedAssetOpen}
+          />
           <AssetTags {asset} />
           <AssetCollections {asset} />
 

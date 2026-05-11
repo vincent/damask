@@ -76,7 +76,9 @@
                 title={author.name || author.id.split('-')[0]}
                 class="h-6 w-6 rounded-full object-cover"
               />
-              <span class="text-sm font-medium text-gray-800 dark:text-gray-200">
+              <span
+                class="text-sm font-medium text-gray-800 dark:text-gray-200"
+              >
                 {author.name || author.id.split('-')[0]}
               </span>
             </div>

@@ -145,12 +145,12 @@ func (r *userRepo) CreateWithGoogle(ctx context.Context, u repository.User) (rep
 
 func (r *userRepo) CreateWithOIDC(ctx context.Context, u repository.User) (repository.User, error) {
 	_, err := r.q.CreateUserWithOIDC(ctx, dbgen.CreateUserWithOIDCParams{
-		ID:         u.ID,
-		Email:      u.Email,
-		Name:       u.Name,
-		OidcIssuer: u.OidcIssuer,
-		OidcSub:    u.OidcSub,
-		AvatarUrl:  u.AvatarUrl,
+		ID:          u.ID,
+		Email:       u.Email,
+		Name:        u.Name,
+		OidcIssuer:  u.OidcIssuer,
+		OidcSub:     u.OidcSub,
+		AvatarUrl:   u.AvatarUrl,
 		AuthMethods: u.AuthMethods,
 	})
 	if err != nil {
@@ -299,21 +299,4 @@ func (r *userRepo) getOne(ctx context.Context, query string, args ...any) (repos
 		return repository.User{}, err
 	}
 	return u, nil
-}
-
-func toUser(u dbgen.User) repository.User {
-	return repository.User{
-		ID:           u.ID,
-		Email:        u.Email,
-		PasswordHash: u.PasswordHash,
-		Name:         u.Name,
-		CreatedAt:    u.CreatedAt,
-		UpdatedAt:    u.UpdatedAt,
-		OidcSub:      u.OidcSub,
-		OidcIssuer:   u.OidcIssuer,
-		GoogleUserID: u.GoogleUserID,
-		CanvaUserID:  u.CanvaUserID,
-		AvatarUrl:    u.AvatarUrl,
-		AuthMethods:  u.AuthMethods,
-	}
 }

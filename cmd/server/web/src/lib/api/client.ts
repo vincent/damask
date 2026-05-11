@@ -168,7 +168,8 @@ export const authApi = {
     return handleResponse<MeResponse>(res)
   },
 
-  deleteAvatar: () => apiFetch<void>('/api/v1/users/me/avatar', { method: 'DELETE' }),
+  deleteAvatar: () =>
+    apiFetch<void>('/api/v1/users/me/avatar', { method: 'DELETE' }),
 
   /** DELETE /auth/oidc/link — unlink OIDC identity. */
   unlinkOIDC: () => apiFetch('/auth/oidc/link', { method: 'DELETE' }),
