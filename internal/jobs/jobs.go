@@ -174,7 +174,7 @@ func MimeToExt(ct string) string {
 	if err == nil && len(ms) > 0 {
 		return ms[0]
 	}
-	return "application/octet-stream"
+	return ".bin"
 }
 
 // NextDaily returns the next occurrence of hour:min UTC on or after now.

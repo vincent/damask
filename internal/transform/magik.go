@@ -219,5 +219,5 @@ func mimeToExt(ct string) string {
 	if err == nil && len(ms) > 0 {
 		return ms[0]
 	}
-	return "application/octet-stream"
+	return ".bin"
 }
