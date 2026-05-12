@@ -111,6 +111,17 @@ func TestExtractExif_HandlerWritesTombstoneForJPEGWithNoExif(t *testing.T) {
 		t.Fatal("expected _exif_make field definition to be created")
 	}
 
+	var source string
+	if err := env.SqlDB.QueryRow(
+		`SELECT source FROM field_definitions WHERE key = '_exif_make' AND workspace_id = ?`,
+		owner.WorkspaceID,
+	).Scan(&source); err != nil {
+		t.Fatalf("query field source: %v", err)
+	}
+	if source != "exif" {
+		t.Fatalf("source = %q, want exif", source)
+	}
+
 	// A tombstone value row should exist for _exif_make
 	var valueCount int
 	if err := env.SqlDB.QueryRow(

@@ -125,6 +125,7 @@ func (s *JobServer) RegisterJobHandlers() {
 
 	// EXIF extraction.
 	reg(queue.JobTypeExtractExif, s.jobExtractExif)
+	reg(queue.JobTypeExtractMediaTags, s.jobExtractMediaTags)
 
 	// Stack merge jobs.
 	reg(queue.JobTypeStackMerge, s.jobStackMerge)

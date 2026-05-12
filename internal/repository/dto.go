@@ -155,6 +155,7 @@ type FieldDefinition struct {
 	ID                 string
 	WorkspaceID        string
 	CreatedBy          string
+	Source             string
 	Scope              string
 	Name               string
 	Key                string
@@ -317,6 +318,7 @@ type FieldValue struct {
 	FieldKey          string
 	FieldName         string
 	FieldType         string
+	FieldSource       string
 	FieldOptions      *string
 	ValueText         *string
 	ValueNumber       *float64

@@ -22,7 +22,7 @@ import (
 	"damask/server/internal/imagerouter"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
-	"damask/server/internal/mediatype"
+	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
@@ -81,7 +81,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
-	media := mediatype.NewRegistry(trf)
+	media := ingest.NewRegistry(trf)
 	injestor := service.NewAssetInjestor(queries, rawDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, rawDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)

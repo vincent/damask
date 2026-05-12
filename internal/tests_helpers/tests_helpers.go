@@ -31,7 +31,7 @@ import (
 	"damask/server/internal/imagerouter"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
-	"damask/server/internal/mediatype"
+	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
@@ -133,7 +133,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
-	media := mediatype.NewRegistry(trf)
+	media := ingest.NewRegistry(trf)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)

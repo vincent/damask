@@ -75,7 +75,7 @@ func seedFieldDef(t *testing.T, queries *dbgen.Queries, wsID, scope, key, name s
 		Key:         key,
 		Name:        name,
 		FieldType:   "text",
-		CreatedBy:   fieldTestUserID,
+		CreatedBy:   &[]string{fieldTestUserID}[0],
 	})
 	if err != nil {
 		t.Fatalf("seed field definition %q: %v", key, err)

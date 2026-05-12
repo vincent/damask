@@ -455,6 +455,7 @@ export interface AssetFieldValue {
   key: string
   name: string
   field_type: FieldType
+  source: string
   value: string | number | boolean | null
   definition_deleted: boolean
 }

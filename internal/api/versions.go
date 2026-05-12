@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 
 	"damask/server/internal/auth"
 	"damask/server/internal/jobs"
+	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	apptelemetry "damask/server/internal/telemetry"
 	"damask/server/internal/transform"
@@ -240,6 +242,16 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 
 	s.enqueueVersionThumbnail(c.Context(), asset, newVersion)
+
+	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
+		payload, _ := json.Marshal(jobs.ExtractMediaTagsPayload{
+			AssetID:     assetID,
+			WorkspaceID: claims.WorkspaceID,
+		})
+		if _, err := s.queue.Enqueue(c.Context(), claims.WorkspaceID, queue.JobTypeExtractMediaTags, string(payload)); err != nil {
+			slog.ErrorContext(c.Context(), "enqueue extract_media_tags", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
+		}
+	}
 
 	if err := jobs.EnqueueRebuildVariantsJob(
 		c.Context(), s.queue,

@@ -52,10 +52,11 @@ func (r *fieldRepo) List(ctx context.Context, workspaceID, scope string) ([]repo
 }
 
 func (r *fieldRepo) Create(ctx context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
+	createdBy := ptrIfNonEmpty(f.CreatedBy)
 	row, err := r.q.CreateFieldDefinition(ctx, dbgen.CreateFieldDefinitionParams{
 		ID:                 f.ID,
 		WorkspaceID:        f.WorkspaceID,
-		CreatedBy:          f.CreatedBy,
+		CreatedBy:          createdBy,
 		Scope:              f.Scope,
 		Name:               f.Name,
 		Key:                f.Key,
@@ -110,7 +111,8 @@ func toField(f dbgen.FieldDefinition) repository.FieldDefinition {
 	return repository.FieldDefinition{
 		ID:                 f.ID,
 		WorkspaceID:        f.WorkspaceID,
-		CreatedBy:          f.CreatedBy,
+		CreatedBy:          stringValue(f.CreatedBy),
+		Source:             f.Source,
 		Scope:              f.Scope,
 		Name:               f.Name,
 		Key:                f.Key,
@@ -195,7 +197,7 @@ func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, asset
 			ValueNumber:  pv.ValueNumber,
 			ValueDate:    pv.ValueDate,
 			ValueBoolean: pv.ValueBoolean,
-			CreatedBy:    userID,
+			CreatedBy:    ptrIfNonEmpty(userID),
 		}); err != nil {
 			slog.ErrorContext(ctx, "field inheritance: upsert asset field",
 				"workspace_id", workspaceID, "asset_id", assetID,
@@ -224,7 +226,7 @@ func (r *assetFieldRepo) GetValues(ctx context.Context, assetID string) ([]repos
 	}
 	out := make([]repository.FieldValue, len(rows))
 	for i, row := range rows {
-		out[i] = toFieldValue(row.FieldID, row.FieldKey, row.FieldName, row.FieldType, row.FieldOptions,
+		out[i] = toFieldValue(row.FieldID, row.FieldKey, row.FieldName, row.FieldType, row.FieldSource, row.FieldOptions,
 			row.ValueText, row.ValueNumber, row.ValueDate, row.ValueBoolean, row.DefinitionDeleted)
 	}
 	return out, nil
@@ -243,9 +245,23 @@ func (r *assetFieldRepo) UpsertValue(ctx context.Context, assetID string, p repo
 		ValueNumber:  p.ValueNumber,
 		ValueDate:    p.ValueDate,
 		ValueBoolean: p.ValueBoolean,
-		CreatedBy:    p.CreatedBy,
+		CreatedBy:    ptrIfNonEmpty(p.CreatedBy),
 	})
 	return err
+}
+
+func ptrIfNonEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func stringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func (r *assetFieldRepo) RunInTx(ctx context.Context, fn func(tx repository.AssetFieldRepository) error) error {
@@ -279,7 +295,7 @@ func (r *projectFieldRepo) GetValues(ctx context.Context, projectID string) ([]r
 	}
 	out := make([]repository.FieldValue, len(rows))
 	for i, row := range rows {
-		out[i] = toFieldValue(row.FieldID, row.FieldKey, row.FieldName, row.FieldType, row.FieldOptions,
+		out[i] = toFieldValue(row.FieldID, row.FieldKey, row.FieldName, row.FieldType, "", row.FieldOptions,
 			row.ValueText, row.ValueNumber, row.ValueDate, row.ValueBoolean, row.DefinitionDeleted)
 	}
 	return out, nil
@@ -303,7 +319,7 @@ func (r *projectFieldRepo) UpsertValue(ctx context.Context, projectID string, p 
 	return err
 }
 
-func toFieldValue(fieldID, fieldKey, fieldName, fieldType string, fieldOptions *string,
+func toFieldValue(fieldID, fieldKey, fieldName, fieldType, fieldSource string, fieldOptions *string,
 	valueText *string, valueNumber *float64, valueDate *string, valueBoolean *int64, definitionDeleted int64,
 ) repository.FieldValue {
 	return repository.FieldValue{
@@ -311,6 +327,7 @@ func toFieldValue(fieldID, fieldKey, fieldName, fieldType string, fieldOptions *
 		FieldKey:          fieldKey,
 		FieldName:         fieldName,
 		FieldType:         fieldType,
+		FieldSource:       fieldSource,
 		FieldOptions:      fieldOptions,
 		ValueText:         valueText,
 		ValueNumber:       valueNumber,

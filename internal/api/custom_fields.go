@@ -486,6 +486,7 @@ type assetFieldValueResponse struct {
 	Key               string      `json:"key"`
 	Name              string      `json:"name"`
 	FieldType         string      `json:"field_type"`
+	Source            string      `json:"source"`
 	Value             interface{} `json:"value"`
 	DefinitionDeleted bool        `json:"definition_deleted"`
 }
@@ -505,6 +506,7 @@ func fieldValueDTOToResponse(dto *service.FieldValueDTO) assetFieldValueResponse
 		Key:               dto.FieldKey,
 		Name:              dto.FieldName,
 		FieldType:         dto.FieldType,
+		Source:            dto.FieldSource,
 		Value:             dto.Value,
 		DefinitionDeleted: dto.DefinitionDeleted,
 	}

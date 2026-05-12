@@ -8,10 +8,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"damask/server/internal/assetio"
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/mediatype"
+	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	apptelemetry "damask/server/internal/telemetry"
@@ -41,11 +42,11 @@ type injestorImpl struct {
 	sqlDB *sql.DB
 	stor  storage.Storage
 	q     queue.JobQueue
-	media *mediatype.Registry
+	media *ingest.Registry
 }
 
 // NewAssetInjestor returns an AssetInjestor backed by the given dependencies.
-func NewAssetInjestor(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, q queue.JobQueue, media *mediatype.Registry) AssetInjestor {
+func NewAssetInjestor(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, q queue.JobQueue, media *ingest.Registry) AssetInjestor {
 	return &injestorImpl{db: db, sqlDB: sqlDB, stor: stor, q: q, media: media}
 }
 
@@ -144,7 +145,7 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		return dbgen.Asset{}, fmt.Errorf("could not store file: %w", err)
 	}
 
-	meta := mediatype.FileMeta{}
+	meta := ingest.FileMeta{}
 	if s.media.Supports(mimeType) {
 		metaCtx, metaSpan := apptelemetry.StartSpan(ctx, "service.injestor.extract_metadata",
 			attribute.String("damask.mime_type", mimeType),
@@ -243,6 +244,22 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		}
 	}
 
+	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
+		mediaTagsPayload, _ := json.Marshal(map[string]string{
+			"asset_id":     asset.ID,
+			"workspace_id": workspaceID,
+		})
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_media_tags",
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.job.type", string(queue.JobTypeExtractMediaTags)),
+		)
+		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractMediaTags, string(mediaTagsPayload))
+		apptelemetry.EndSpan(enqueueSpan, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "enqueue extract_media_tags", "asset_id", asset.ID, "error", err)
+		}
+	}
+
 	return asset, nil
 }
 
@@ -250,7 +267,7 @@ func (s *injestorImpl) createInitialVersion(
 	ctx context.Context,
 	asset dbgen.Asset,
 	filePath, storageKey, mimeType string,
-	meta mediatype.FileMeta,
+	meta ingest.FileMeta,
 	userID string,
 ) (versionID string, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.injestor.create_initial_version",

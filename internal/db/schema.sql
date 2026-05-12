@@ -270,7 +270,8 @@ CREATE INDEX idx_ingress_rules_source ON ingress_rules(source_id, position);
 CREATE TABLE field_definitions (
   id            TEXT PRIMARY KEY,
   workspace_id  TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  created_by    TEXT NOT NULL REFERENCES users(id),
+  created_by    TEXT REFERENCES users(id),
+  source        TEXT NOT NULL DEFAULT 'user',
   scope         TEXT NOT NULL CHECK(scope IN ('asset', 'project')),
   name          TEXT NOT NULL,
   key           TEXT NOT NULL,
@@ -287,6 +288,7 @@ CREATE TABLE field_definitions (
 
 CREATE INDEX idx_field_defs_workspace ON field_definitions(workspace_id, scope);
 CREATE INDEX idx_field_defs_active    ON field_definitions(workspace_id, deleted_at);
+CREATE INDEX idx_field_defs_source    ON field_definitions(workspace_id, source);
 
 CREATE TABLE asset_field_values (
   id            TEXT PRIMARY KEY,
@@ -296,7 +298,7 @@ CREATE TABLE asset_field_values (
   value_number  REAL,
   value_date    TEXT,
   value_boolean INTEGER,
-  created_by    TEXT NOT NULL REFERENCES users(id),
+  created_by    TEXT REFERENCES users(id),
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(asset_id, field_id)

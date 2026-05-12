@@ -38,6 +38,7 @@
   import { cubicOut } from 'svelte/easing'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import AssetComments from './AssetComments.svelte'
+  import MediaTagsTab from './MediaTagsTab.svelte'
   import Backdrop from './ui/Backdrop.svelte'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
@@ -84,6 +85,7 @@
   // --- Panel tabs ---
   const panelTabs = {
     details: { label: m.tab_details(), icon: null },
+    tags: { label: m.media_tags_tab_label(), icon: null },
     variants: { label: m.tab_variants(), icon: null },
     comments: { label: m.tab_comments(), icon: null },
     history: { label: m.tab_history(), icon: null },
@@ -92,6 +94,9 @@
   }
   type PanelTab = keyof typeof panelTabs
   let activeTab = $state<PanelTab>('details')
+  let isMediaTagsAsset = $derived(
+    asset ? mimeIsAudio(asset.mime_type) || mimeIsVideo(asset.mime_type) : false
+  )
 
   $effect(() => {
     if (activeTab !== 'variants') selectedVariant = null
@@ -603,34 +608,36 @@
       >
         {#each Object.keys(panelTabs) as tab}
           {@const tabInfo = panelTabs[tab as PanelTab]}
-          <button
-            type="button"
-            class="relative min-w-fit flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors {activeTab ===
-            tab
-              ? 'text-indigo-600 dark:text-indigo-400'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}"
-            onclick={() => {
-              activeTab = tab as PanelTab
-              createError = ''
-              createSuccess = ''
-            }}
-          >
-            {#if tabInfo.label}
-              {tabInfo.label.charAt(0).toUpperCase() + tabInfo.label.slice(1)}
-            {/if}
-            {#if tab === 'history' && (asset?.version_count ?? 0) > 1}
-              <span
-                class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
-              >
-                {asset.version_count}
-              </span>
-            {/if}
-            {#if activeTab === tab}
-              <span
-                class="absolute right-0 bottom-0 left-0 h-0.5 rounded-t bg-indigo-600 dark:bg-indigo-400"
-              ></span>
-            {/if}
-          </button>
+          {#if tab !== 'tags' || isMediaTagsAsset}
+            <button
+              type="button"
+              class="relative min-w-fit flex-1 px-2 py-2.5 text-xs font-medium whitespace-nowrap transition-colors {activeTab ===
+              tab
+                ? 'text-indigo-600 dark:text-indigo-400'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}"
+              onclick={() => {
+                activeTab = tab as PanelTab
+                createError = ''
+                createSuccess = ''
+              }}
+            >
+              {#if tabInfo.label}
+                {tabInfo.label.charAt(0).toUpperCase() + tabInfo.label.slice(1)}
+              {/if}
+              {#if tab === 'history' && (asset?.version_count ?? 0) > 1}
+                <span
+                  class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
+                >
+                  {asset.version_count}
+                </span>
+              {/if}
+              {#if activeTab === tab}
+                <span
+                  class="absolute right-0 bottom-0 left-0 h-0.5 rounded-t bg-indigo-600 dark:bg-indigo-400"
+                ></span>
+              {/if}
+            </button>
+          {/if}
         {/each}
       </div>
     </div>
@@ -653,6 +660,8 @@
 
           <AssetCustomFields {asset} />
         </div>
+      {:else if activeTab === 'tags'}
+        <MediaTagsTab assetId={asset.id} />
 
         <!-- ═══ VARIANTS TAB ═══ -->
       {:else if activeTab === 'variants'}

@@ -270,7 +270,8 @@ const (
 	JobTypeRebuildVariants = "rebuild_variants"
 
 	// EXIF extraction.
-	JobTypeExtractExif = "extract_exif"
+	JobTypeExtractExif      = "extract_exif"
+	JobTypeExtractMediaTags = "extract_media_tags"
 
 	// Stack merge jobs.
 	JobTypeStackMerge = "stack_merge"

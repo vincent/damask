@@ -107,6 +107,7 @@ SELECT
   f.key        AS field_key,
   f.name       AS field_name,
   f.field_type AS field_type,
+  f.source     AS field_source,
   f.options    AS field_options,
   CASE WHEN f.deleted_at IS NOT NULL THEN 1 ELSE 0 END AS definition_deleted
 FROM asset_field_values v
@@ -123,12 +124,13 @@ type GetAssetFieldValuesRow struct {
 	ValueNumber       *float64 `json:"value_number"`
 	ValueDate         *string  `json:"value_date"`
 	ValueBoolean      *int64   `json:"value_boolean"`
-	CreatedBy         string   `json:"created_by"`
+	CreatedBy         *string  `json:"created_by"`
 	CreatedAt         string   `json:"created_at"`
 	UpdatedAt         string   `json:"updated_at"`
 	FieldKey          string   `json:"field_key"`
 	FieldName         string   `json:"field_name"`
 	FieldType         string   `json:"field_type"`
+	FieldSource       string   `json:"field_source"`
 	FieldOptions      *string  `json:"field_options"`
 	DefinitionDeleted int64    `json:"definition_deleted"`
 }
@@ -156,6 +158,7 @@ func (q *Queries) GetAssetFieldValues(ctx context.Context, assetID string) ([]Ge
 			&i.FieldKey,
 			&i.FieldName,
 			&i.FieldType,
+			&i.FieldSource,
 			&i.FieldOptions,
 			&i.DefinitionDeleted,
 		); err != nil {
@@ -196,7 +199,7 @@ type UpsertAssetFieldValueParams struct {
 	ValueNumber  *float64 `json:"value_number"`
 	ValueDate    *string  `json:"value_date"`
 	ValueBoolean *int64   `json:"value_boolean"`
-	CreatedBy    string   `json:"created_by"`
+	CreatedBy    *string  `json:"created_by"`
 }
 
 func (q *Queries) UpsertAssetFieldValue(ctx context.Context, arg UpsertAssetFieldValueParams) (AssetFieldValue, error) {

@@ -13,6 +13,7 @@ import (
 
 type Transformer interface {
 	FFmpegAvailable() bool
+	FFprobePath() string
 	ImageMagickAvailable() bool
 	LibreOfficeAvailable() bool
 	CheckExternalDeps() []string
@@ -58,6 +59,10 @@ type transformer struct {
 // FFmpegAvailable reports whether the configured ffmpeg binary can be resolved.
 func (t *transformer) FFmpegAvailable() bool {
 	return t.ffmpeg.available()
+}
+
+func (t *transformer) FFprobePath() string {
+	return t.ffmpeg.ffprobePath
 }
 
 // ImageMagickAvailable reports whether the ImageMagick `convert` binary is in PATH.

@@ -1,4 +1,4 @@
-package mediatype
+package ingest
 
 import (
 	"context"

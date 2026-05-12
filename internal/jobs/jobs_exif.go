@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/exifextract"
+	"damask/server/internal/media/contentmeta"
 	"damask/server/internal/queue"
 )
 
@@ -97,7 +97,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 	defer r.Close()
 
 	// Extract EXIF.
-	result, err := exifextract.Extract(ctx, r, keepGPS)
+	result, err := contentmeta.ExtractImageEXIF(ctx, r, keepGPS)
 	if err != nil {
 		slog.Warn("exif: extract error — writing tombstone", "asset_id", p.AssetID, "error", err)
 	}
@@ -110,7 +110,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 			AssetID:   p.AssetID,
 			FieldID:   makeFieldID,
 			ValueText: &empty,
-			CreatedBy: p.UserID,
+			CreatedBy: &p.UserID,
 		}); uErr != nil {
 			return fmt.Errorf("write tombstone: %w", uErr)
 		}
@@ -147,7 +147,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 			AssetID:   p.AssetID,
 			FieldID:   fid,
 			ValueText: f.val,
-			CreatedBy: p.UserID,
+			CreatedBy: &p.UserID,
 		}); uErr != nil {
 			return fmt.Errorf("upsert %s: %w", f.key, uErr)
 		}
@@ -182,7 +182,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 			AssetID:     p.AssetID,
 			FieldID:     fid,
 			ValueNumber: f.val,
-			CreatedBy:   p.UserID,
+			CreatedBy:   &p.UserID,
 		}); uErr != nil {
 			return fmt.Errorf("upsert %s: %w", f.key, uErr)
 		}
@@ -197,7 +197,7 @@ func (s *JobServer) jobExtractExif(ctx context.Context, job dbgen.Job) error {
 				AssetID:   p.AssetID,
 				FieldID:   fid,
 				ValueDate: &v,
-				CreatedBy: p.UserID,
+				CreatedBy: &p.UserID,
 			}); uErr != nil {
 				return fmt.Errorf("upsert _exif_taken_at: %w", uErr)
 			}
@@ -223,6 +223,8 @@ type exifFieldDef struct {
 	gpsOnly   bool
 }
 
+const exifSource = "exif"
+
 var exifFields = []exifFieldDef{
 	{"_exif_make", "Camera maker", "text", false},
 	{"_exif_model", "Camera model", "text", false},
@@ -242,42 +244,35 @@ var exifFields = []exifFieldDef{
 
 // ensureExifFields creates missing system EXIF field definitions for the workspace
 // and returns a map of key → field ID. Idempotent — safe to call on every job run.
-func (s *JobServer) ensureExifFields(ctx context.Context, workspaceID, userID string, keepGPS bool) (map[string]string, error) {
-	fieldIDs := make(map[string]string)
-
+func (s *JobServer) ensureExifFields(ctx context.Context, workspaceID, _ string, keepGPS bool) (map[string]string, error) {
 	for i, fd := range exifFields {
 		if fd.gpsOnly && !keepGPS {
 			continue
 		}
-
-		existing, err := s.db.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
+		if err := s.db.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
+			ID:          uuid.NewString(),
 			WorkspaceID: workspaceID,
-			Key:         fd.key,
-		})
-		if err == nil {
-			fieldIDs[fd.key] = existing.ID
-			continue
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("get field %s: %w", fd.key, err)
-		}
-
-		// Create it.
-		created, err := s.db.CreateFieldDefinition(ctx, dbgen.CreateFieldDefinitionParams{
-			ID:          uuid.New().String(),
-			WorkspaceID: workspaceID,
-			CreatedBy:   userID,
-			Scope:       "asset",
+			Source:      exifSource,
 			Name:        fd.name,
 			Key:         fd.key,
 			FieldType:   fd.fieldType,
-			Position:    int64(1000 + i), // push below user fields
-		})
-		if err != nil {
-			return nil, fmt.Errorf("create field %s: %w", fd.key, err)
+			Position:    int64(1000 + i),
+		}); err != nil {
+			return nil, fmt.Errorf("ensure exif field %s: %w", fd.key, err)
 		}
-		fieldIDs[fd.key] = created.ID
 	}
 
+	fields, err := s.db.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
+		WorkspaceID: workspaceID,
+		Source:      exifSource,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("load exif fields: %w", err)
+	}
+
+	fieldIDs := make(map[string]string, len(fields))
+	for _, field := range fields {
+		fieldIDs[field.Key] = field.ID
+	}
 	return fieldIDs, nil
 }

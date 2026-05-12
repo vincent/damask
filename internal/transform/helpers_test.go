@@ -42,6 +42,7 @@ func (m *mockStorage) List(prefix string) ([]string, error) {
 type mockTransformer struct{}
 
 func (t *mockTransformer) FFmpegAvailable() bool       { return true }
+func (t *mockTransformer) FFprobePath() string         { return "ffprobe" }
 func (t *mockTransformer) ImageMagickAvailable() bool  { return true }
 func (t *mockTransformer) LibreOfficeAvailable() bool  { return true }
 func (t *mockTransformer) CheckExternalDeps() []string { return []string{} }

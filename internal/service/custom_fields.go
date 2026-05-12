@@ -295,14 +295,29 @@ func NewAssetFieldService(assets repository.AssetRepository, fields repository.F
 }
 
 func (s *assetFieldService) GetValues(ctx context.Context, workspaceID, assetID string) ([]*FieldValueDTO, error) {
-	if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.asset_fields.get_values",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.asset_id", assetID),
+	)
+	var err error
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "asset fields get values failed", "workspace_id", workspaceID, "asset_id", assetID, "error", err)
+		}
+	}()
+
+	if _, getErr := s.assets.GetByID(ctx, workspaceID, assetID); getErr != nil {
+		err = getErr
 		return nil, err
 	}
 	rows, err := s.assetFields.GetValues(ctx, assetID)
 	if err != nil {
 		return nil, err
 	}
-	return toFieldValueDTOs(rows), nil
+	dtos := toFieldValueDTOs(rows)
+	span.SetAttributes(attribute.Int("damask.asset_fields.count", len(dtos)))
+	return dtos, nil
 }
 
 func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error) {
@@ -323,6 +338,9 @@ func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID,
 		}
 		if def.DeletedAt != nil {
 			return nil, fmt.Errorf("field %s has been deleted: %w", input.FieldID, apperr.ErrInvalidInput)
+		}
+		if def.Source != "" && def.Source != "user" {
+			return nil, fmt.Errorf("field %s is system-managed: %w", input.FieldID, apperr.ErrInvalidInput)
 		}
 		if input.Value == nil {
 			if err := s.assetFields.DeleteValue(ctx, assetID, input.FieldID); err != nil {
@@ -421,6 +439,9 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 		if def.DeletedAt != nil {
 			return result, fmt.Errorf("field %s has been deleted: %w", input.FieldID, apperr.ErrInvalidInput)
 		}
+		if def.Source != "" && def.Source != "user" {
+			return result, fmt.Errorf("field %s is system-managed: %w", input.FieldID, apperr.ErrInvalidInput)
+		}
 		p, err := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
 		if err != nil {
 			return result, fmt.Errorf("%w", apperr.ErrInvalidInput)
@@ -503,7 +524,7 @@ func (s *assetFieldService) BulkPreview(ctx context.Context, workspaceID string,
 
 	// Collect values per fieldID across all valid assets.
 	type fieldAccum struct {
-		withValue int
+		withValue   int
 		valueCounts map[string]int
 	}
 	accums := make(map[string]*fieldAccum, len(defs))
@@ -761,6 +782,7 @@ func toFieldValueDTO(row repository.FieldValue) *FieldValueDTO {
 		FieldKey:          row.FieldKey,
 		FieldName:         row.FieldName,
 		FieldType:         row.FieldType,
+		FieldSource:       row.FieldSource,
 		FieldOptions:      row.FieldOptions,
 		DefinitionDeleted: row.DefinitionDeleted,
 	}

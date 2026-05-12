@@ -19,7 +19,7 @@ import (
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/mailserver"
-	"damask/server/internal/mediatype"
+	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
@@ -146,7 +146,7 @@ func main() {
 	trf := transform.NewTransformer(cfg.FFmpeg)
 	tmb := transform.NewThumbnailer(trf)
 
-	media := mediatype.NewRegistry(trf)
+	media := ingest.NewRegistry(trf)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)

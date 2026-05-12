@@ -1,4 +1,4 @@
-package exifextract
+package contentmeta
 
 import (
 	"fmt"
@@ -59,17 +59,14 @@ func getFloat(x *exif.Exif, tag exif.FieldName) *float64 {
 	if err != nil {
 		return nil
 	}
-	// Try rational first (most common for FNumber, FocalLength)
 	if num, den, err2 := t.Rat2(0); err2 == nil && den != 0 {
 		f := float64(num) / float64(den)
 		return &f
 	}
-	// Try integer (e.g. FocalLengthIn35mmFilm stored as SHORT)
 	if v, err2 := t.Int64(0); err2 == nil {
 		f := float64(v)
 		return &f
 	}
-	// Fallback for native float tags
 	if f, err2 := t.Float(0); err2 == nil {
 		return &f
 	}
@@ -89,7 +86,6 @@ func getInt(x *exif.Exif, tag exif.FieldName) *int64 {
 	return &i
 }
 
-// parseDateTime tries DateTimeOriginal then DateTime.
 func parseDateTime(x *exif.Exif) (time.Time, bool) {
 	for _, tag := range []exif.FieldName{exif.DateTimeOriginal, exif.DateTime} {
 		t, err := x.Get(tag)
@@ -100,7 +96,6 @@ func parseDateTime(x *exif.Exif) (time.Time, bool) {
 		if err != nil {
 			continue
 		}
-		// EXIF datetime format: "2006:01:02 15:04:05"
 		parsed, err := time.Parse("2006:01:02 15:04:05", strings.TrimSpace(s))
 		if err != nil {
 			continue
@@ -119,7 +114,6 @@ func getFlashString(x *exif.Exif) *string {
 	if err != nil {
 		return nil
 	}
-	// Bit 0: flash fired
 	var s string
 	if v&0x1 != 0 {
 		s = "Fired"
@@ -149,4 +143,3 @@ func getWhiteBalanceString(x *exif.Exif) *string {
 	}
 	return &s
 }
-

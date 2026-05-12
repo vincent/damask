@@ -47,7 +47,7 @@ type AssetFieldValue struct {
 	ValueNumber  *float64 `json:"value_number"`
 	ValueDate    *string  `json:"value_date"`
 	ValueBoolean *int64   `json:"value_boolean"`
-	CreatedBy    string   `json:"created_by"`
+	CreatedBy    *string  `json:"created_by"`
 	CreatedAt    string   `json:"created_at"`
 	UpdatedAt    string   `json:"updated_at"`
 }
@@ -102,7 +102,8 @@ type CollectionAsset struct {
 type FieldDefinition struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`
-	CreatedBy          string  `json:"created_by"`
+	CreatedBy          *string `json:"created_by"`
+	Source             string  `json:"source"`
 	Scope              string  `json:"scope"`
 	Name               string  `json:"name"`
 	Key                string  `json:"key"`

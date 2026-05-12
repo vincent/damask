@@ -28,6 +28,7 @@ import (
 type TestServerConfig struct {
 	// Core infrastructure
 	TokenMaker *auth.Maker
+	DB         *dbgen.Queries
 	Storage    storage.Storage
 	Hub        events.EventHub
 	Queue      queue.JobQueue
@@ -105,6 +106,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 	}
 
 	s := &Server{
+		db:            cfg.DB,
 		auth:          cfg.TokenMaker,
 		storage:       stor,
 		queue:         q,

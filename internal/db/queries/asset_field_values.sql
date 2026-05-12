@@ -28,6 +28,7 @@ SELECT
   f.key        AS field_key,
   f.name       AS field_name,
   f.field_type AS field_type,
+  f.source     AS field_source,
   f.options    AS field_options,
   CASE WHEN f.deleted_at IS NOT NULL THEN 1 ELSE 0 END AS definition_deleted
 FROM asset_field_values v

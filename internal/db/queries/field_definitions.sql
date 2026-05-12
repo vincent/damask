@@ -8,12 +8,12 @@ SELECT * FROM field_definitions WHERE id = ? AND workspace_id = ?;
 
 -- name: ListFieldDefinitions :many
 SELECT * FROM field_definitions
-WHERE workspace_id = ? AND scope = ? AND deleted_at IS NULL
+WHERE workspace_id = ? AND scope = ? AND source = 'user' AND deleted_at IS NULL
 ORDER BY position ASC, created_at ASC;
 
 -- name: ListAllFieldDefinitions :many
 SELECT * FROM field_definitions
-WHERE workspace_id = ? AND scope = ?
+WHERE workspace_id = ? AND scope = ? AND source = 'user'
 ORDER BY position ASC, created_at ASC;
 
 -- name: UpdateFieldDefinition :one
@@ -38,7 +38,7 @@ WHERE id = ? AND workspace_id = ?;
 
 -- name: CountFieldDefinitions :one
 SELECT COUNT(*) FROM field_definitions
-WHERE workspace_id = ? AND scope = ? AND deleted_at IS NULL;
+WHERE workspace_id = ? AND scope = ? AND source = 'user' AND deleted_at IS NULL;
 
 -- name: HardDeleteExpiredFieldDefinitions :many
 SELECT id FROM field_definitions
@@ -56,6 +56,17 @@ SELECT COUNT(DISTINCT v.project_id) FROM project_field_values v WHERE v.field_id
 -- name: ListInheritableAssetFieldDefinitions :many
 SELECT * FROM field_definitions
 WHERE workspace_id = ? AND scope = 'asset' AND inherit_from_project = 1 AND deleted_at IS NULL;
+
+-- name: GetSystemFieldsBySource :many
+SELECT * FROM field_definitions
+WHERE workspace_id = ? AND source = ? AND deleted_at IS NULL
+ORDER BY position ASC;
+
+-- name: InsertSystemFieldDefinition :exec
+INSERT OR IGNORE INTO field_definitions
+  (id, workspace_id, created_by, source, scope, name, key, field_type,
+   required, position, created_at, updated_at)
+VALUES (?, ?, NULL, ?, 'asset', ?, ?, ?, 0, ?, datetime('now'), datetime('now'));
 
 -- name: GetFieldDefinitionByKey :one
 SELECT * FROM field_definitions

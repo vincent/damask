@@ -12,7 +12,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
 	"damask/server/internal/mail"
-	"damask/server/internal/mediatype"
+	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
@@ -31,6 +31,7 @@ const defaultBodyLimitBytes = 100 * 1024 * 1024 // 100 MB
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
+	db            *dbgen.Queries
 	auth          *auth.Maker
 	storage       storage.Storage
 	queue         queue.JobQueue
@@ -39,7 +40,7 @@ type Server struct {
 	previewCache  *lruPreviewCache
 	cfg           *config.Config
 	trf           transform.Transformer
-	media         *mediatype.Registry
+	media         *ingest.Registry
 	demo          DemoSeeder // nil when demo build tag is not set
 	assets        service.AssetService
 	projects      service.ProjectService
@@ -88,7 +89,7 @@ func NewHttpServer(
 	variantRepo := reposqlc.NewVariantRepo(sqlDB)
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
-	media := mediatype.NewRegistry(trf)
+	media := ingest.NewRegistry(trf)
 	tagSvc := service.NewTagService(tagRepo, auditWriter)
 	variantsSvc := service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
 		Actions: service.NewSQLVariantActionsStore(sqlDB),
@@ -96,6 +97,7 @@ func NewHttpServer(
 		Storage: stor,
 	})
 	return &Server{
+		db:            db,
 		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
 		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
 		auditLog:      service.NewAuditLogService(db),

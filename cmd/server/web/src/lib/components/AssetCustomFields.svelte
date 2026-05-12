@@ -21,6 +21,7 @@
   let loading = $state(true)
   let showDeprecated = $state(false)
   let showAllExif = $state(false)
+  let showAllMediaTags = $state(false)
 
   let editingFieldId = $state<string | null>(null)
   let editValue = $state<string>('')
@@ -39,9 +40,12 @@
         fieldDefinitionApi.list('asset'),
         assetFieldApi.get(asset.id),
       ])
+      const userValues = vals.fields.filter(
+        (field) => !field.source || field.source === 'user'
+      )
       definitions = defs
       values = vals.fields
-      customFieldsStore.setFieldValues(asset.id, vals.fields)
+      customFieldsStore.setFieldValues(asset.id, userValues)
     } finally {
       loading = false
     }
@@ -49,6 +53,23 @@
 
   function valueFor(fieldId: string): AssetFieldValue | undefined {
     return values.find((v) => v.field_id === fieldId)
+  }
+
+  function userValuesOnly(items: AssetFieldValue[]) {
+    return items.filter((field) => !field.source || field.source === 'user')
+  }
+
+  function hasValue(field: AssetFieldValue): boolean {
+    return (
+      field.value !== null && field.value !== undefined && field.value !== ''
+    )
+  }
+
+  function displayLabel(field: AssetFieldValue): string {
+    return field.name
+      .replace(/^_exif_/, '')
+      .replace(/^_media_/, '')
+      .replace(/_/g, ' ')
   }
 
   function displayValue(fv: AssetFieldValue): string {
@@ -103,13 +124,20 @@
           { field_id: def.id, value: null },
         ])
         values = result.fields
-        customFieldsStore.setFieldValues(asset.id, result.fields)
+        customFieldsStore.setFieldValues(
+          asset.id,
+          userValuesOnly(result.fields)
+        )
       } else if (parsedValue !== before) {
         await undoStore.execute(
           new SetAssetField(asset.id, def.id, def.name, before, parsedValue)
         )
-        const cached = customFieldsStore.getFieldValues(asset.id)
-        if (cached) values = cached
+        const refreshed = await assetFieldApi.get(asset.id)
+        values = refreshed.fields
+        customFieldsStore.setFieldValues(
+          asset.id,
+          userValuesOnly(refreshed.fields)
+        )
       }
 
       editingFieldId = null
@@ -147,8 +175,19 @@
   const activeDefinitions = $derived(
     definitions.filter((d) => !d.deleted_at && !d.key.startsWith('_exif_'))
   )
-  const exifDefinitions = $derived(
-    definitions.filter((d) => !d.deleted_at && d.key.startsWith('_exif_'))
+  const exifValues = $derived(
+    values.filter(
+      (field) =>
+        (field.source === 'exif' || field.key.startsWith('_exif_')) &&
+        !field.definition_deleted
+    )
+  )
+  const mediaTagValues = $derived(
+    values.filter(
+      (field) =>
+        (field.source === 'media_tags' || field.key.startsWith('_media_')) &&
+        !field.definition_deleted
+    )
   )
   const orphanedValues = $derived(values.filter((v) => v.definition_deleted))
 </script>
@@ -160,7 +199,7 @@
     <div class="flex justify-center py-4">
       <Spinner size="sm" />
     </div>
-  {:else if activeDefinitions.length === 0 && exifDefinitions.length === 0}
+  {:else if activeDefinitions.length === 0 && exifValues.length === 0 && mediaTagValues.length === 0}
     <p class="text-sm text-gray-400 dark:text-gray-500">
       {m.no_custom_fields_yet()}
     </p>
@@ -188,7 +227,7 @@
       {/each}
     </div>
 
-    {#if exifDefinitions.length > 0}
+    {#if exifValues.length > 0}
       <div class="mt-5">
         <div class="mb-2 flex items-center justify-between gap-1.5">
           <Camera class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
@@ -206,27 +245,61 @@
           </button>
         </div>
         <div class="space-y-2">
-          {#each exifDefinitions as def (def.id)}
-            {#if valueFor(def.id)?.value || showAllExif}
-              <FieldCard
-                {def}
-                fv={valueFor(def.id)}
-                displayName={def.name.replace(/^_exif_/, '')}
-                showUnset
-                isEditing={editingFieldId === def.id}
-                isSaving={savingFieldId === def.id}
-                didSave={saveSuccess === def.id}
-                {editValue}
-                {saveError}
-                onStartEdit={() => startEdit(def)}
-                onSave={() => saveField(def)}
-                onCancel={cancelEdit}
-                onKeydown={(e) => handleKeydown(e, def)}
-                onToggle={() => toggleBoolean(def)}
-                onEditValueChange={(v) => {
-                  editValue = v
-                }}
-              />
+          {#each exifValues as field (field.field_id)}
+            {#if hasValue(field) || showAllExif}
+              <div
+                class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50"
+              >
+                <p
+                  class="text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+                >
+                  {displayLabel(field)}
+                </p>
+                <p
+                  class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100"
+                >
+                  {hasValue(field) ? displayValue(field) : m.unset()}
+                </p>
+              </div>
+            {/if}
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if mediaTagValues.length > 0}
+      <div class="mt-5">
+        <div class="mb-2 flex items-center justify-between gap-1.5">
+          <span
+            class="text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+            >{m.media_tags_tab_label()}</span
+          >
+          <button
+            class="ml-auto text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+            onclick={() => {
+              showAllMediaTags = !showAllMediaTags
+            }}
+          >
+            {m.all()}
+          </button>
+        </div>
+        <div class="space-y-2">
+          {#each mediaTagValues as field (field.field_id)}
+            {#if hasValue(field) || showAllMediaTags}
+              <div
+                class="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-800 dark:bg-gray-800/50"
+              >
+                <p
+                  class="text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
+                >
+                  {displayLabel(field)}
+                </p>
+                <p
+                  class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100"
+                >
+                  {hasValue(field) ? displayValue(field) : m.unset()}
+                </p>
+              </div>
             {/if}
           {/each}
         </div>

@@ -1,4 +1,4 @@
-package exifextract
+package contentmeta
 
 import (
 	"context"
@@ -15,9 +15,9 @@ func init() {
 	exif.RegisterParsers(mknote.All...)
 }
 
-// ExtractedEXIF holds parsed EXIF data. All fields are pointers — nil means the tag
+// ImageEXIF holds parsed EXIF data. All fields are pointers — nil means the tag
 // was absent or unparseable, never a zero value.
-type ExtractedEXIF struct {
+type ImageEXIF struct {
 	Make          *string
 	Model         *string
 	LensModel     *string
@@ -40,10 +40,10 @@ type GPSCoords struct {
 	Altitude float64 // metres, 0 if tag absent
 }
 
-// Extract reads EXIF from r. keepGPS=false strips GPS regardless of file content.
-// Returns nil, nil when the file has no EXIF data — callers should write a tombstone.
-// Never panics: all goexif calls are wrapped in recover().
-func Extract(ctx context.Context, r io.Reader, keepGPS bool) (result *ExtractedEXIF, err error) {
+// ExtractImageEXIF reads EXIF from r. keepGPS=false strips GPS regardless of
+// file content. Returns nil, nil when the file has no EXIF data. Never panics:
+// all goexif calls are wrapped in recover().
+func ExtractImageEXIF(ctx context.Context, r io.Reader, keepGPS bool) (result *ImageEXIF, err error) {
 	_, span := telemetry.StartSpan(ctx, "services.exif.extract")
 	defer telemetry.EndSpan(span, err)
 
@@ -57,20 +57,18 @@ func Extract(ctx context.Context, r io.Reader, keepGPS bool) (result *ExtractedE
 	x, decErr := exif.Decode(r)
 	if decErr != nil {
 		if exif.IsCriticalError(decErr) {
-			return nil, nil // no EXIF — not a failure
+			return nil, nil
 		}
 		return nil, decErr
 	}
 
-	out := &ExtractedEXIF{}
+	out := &ImageEXIF{}
 
-	// Camera
 	out.Make = getString(x, exif.Make)
 	out.Model = getString(x, exif.Model)
 	out.LensModel = getString(x, exif.LensModel)
 	out.Software = getString(x, exif.Software)
 
-	// Capture settings
 	out.ExposureTime = getRational(x, exif.ExposureTime)
 	out.FNumber = getFloat(x, exif.FNumber)
 	out.ISO = getInt(x, exif.ISOSpeedRatings)
@@ -79,12 +77,10 @@ func Extract(ctx context.Context, r io.Reader, keepGPS bool) (result *ExtractedE
 	out.Flash = getFlashString(x)
 	out.WhiteBalance = getWhiteBalanceString(x)
 
-	// Date taken — prefer DateTimeOriginal
 	if t, ok := parseDateTime(x); ok {
 		out.TakenAt = &t
 	}
 
-	// GPS
 	if keepGPS {
 		if lat, lng, gpsErr := x.LatLong(); gpsErr == nil {
 			coords := &GPSCoords{Lat: lat, Lng: lng}

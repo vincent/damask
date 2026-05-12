@@ -233,6 +233,7 @@ type FieldValueDTO struct {
 	FieldKey          string
 	FieldName         string
 	FieldType         string
+	FieldSource       string
 	FieldOptions      *string
 	Value             interface{}
 	DefinitionDeleted bool

@@ -9,7 +9,7 @@ import (
 
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/mediatype"
+	"damask/server/internal/media/ingest"
 	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
@@ -24,7 +24,7 @@ func newTestInjestorImpl(t *testing.T) (*injestorImpl, *sql.DB) {
 	impl := &injestorImpl{
 		db:    queries,
 		sqlDB: sqlDB,
-		media: mediatype.NewRegistry(transform.NewTransformer()),
+		media: ingest.NewRegistry(transform.NewTransformer()),
 	}
 	return impl, sqlDB
 }
@@ -65,7 +65,7 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 		t.Fatalf("write temp file: %v", err)
 	}
 
-	versionID, err := impl.createInitialVersion(ctx, asset, tmpFile, "test-storage-key", "text/plain", mediatype.FileMeta{}, "")
+	versionID, err := impl.createInitialVersion(ctx, asset, tmpFile, "test-storage-key", "text/plain", ingest.FileMeta{}, "")
 	if err != nil {
 		t.Fatalf("createInitialVersion: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestCreateInitialVersionWithUser(t *testing.T) {
 		t.Fatalf("write temp file: %v", err)
 	}
 
-	versionID, err := impl.createInitialVersion(ctx, asset, tmpFile, "test-storage-key", "text/plain", mediatype.FileMeta{}, userID)
+	versionID, err := impl.createInitialVersion(ctx, asset, tmpFile, "test-storage-key", "text/plain", ingest.FileMeta{}, userID)
 	if err != nil {
 		t.Fatalf("createInitialVersion: %v", err)
 	}

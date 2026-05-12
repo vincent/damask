@@ -36,6 +36,10 @@ func (s *LocalStorage) Get(key string) (io.ReadCloser, error) {
 	return os.Open(filepath.Join(s.base, filepath.FromSlash(key)))
 }
 
+func (s *LocalStorage) LocalPath(key string) string {
+	return filepath.Join(s.base, filepath.FromSlash(key))
+}
+
 func (s *LocalStorage) Delete(key string) error {
 	return os.RemoveAll(filepath.Join(s.base, filepath.FromSlash(key)))
 }

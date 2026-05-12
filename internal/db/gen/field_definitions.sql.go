@@ -33,7 +33,7 @@ func (q *Queries) CountFieldDefinitionProjectValues(ctx context.Context, fieldID
 
 const countFieldDefinitions = `-- name: CountFieldDefinitions :one
 SELECT COUNT(*) FROM field_definitions
-WHERE workspace_id = ? AND scope = ? AND deleted_at IS NULL
+WHERE workspace_id = ? AND scope = ? AND source = 'user' AND deleted_at IS NULL
 `
 
 type CountFieldDefinitionsParams struct {
@@ -51,13 +51,13 @@ func (q *Queries) CountFieldDefinitions(ctx context.Context, arg CountFieldDefin
 const createFieldDefinition = `-- name: CreateFieldDefinition :one
 INSERT INTO field_definitions (id, workspace_id, created_by, scope, name, key, field_type, options, required, position, inherit_from_project)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at
+RETURNING id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at
 `
 
 type CreateFieldDefinitionParams struct {
 	ID                 string  `json:"id"`
 	WorkspaceID        string  `json:"workspace_id"`
-	CreatedBy          string  `json:"created_by"`
+	CreatedBy          *string `json:"created_by"`
 	Scope              string  `json:"scope"`
 	Name               string  `json:"name"`
 	Key                string  `json:"key"`
@@ -87,6 +87,7 @@ func (q *Queries) CreateFieldDefinition(ctx context.Context, arg CreateFieldDefi
 		&i.ID,
 		&i.WorkspaceID,
 		&i.CreatedBy,
+		&i.Source,
 		&i.Scope,
 		&i.Name,
 		&i.Key,
@@ -103,7 +104,7 @@ func (q *Queries) CreateFieldDefinition(ctx context.Context, arg CreateFieldDefi
 }
 
 const getFieldDefinitionByID = `-- name: GetFieldDefinitionByID :one
-SELECT id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions WHERE id = ? AND workspace_id = ?
 `
 
 type GetFieldDefinitionByIDParams struct {
@@ -118,6 +119,7 @@ func (q *Queries) GetFieldDefinitionByID(ctx context.Context, arg GetFieldDefini
 		&i.ID,
 		&i.WorkspaceID,
 		&i.CreatedBy,
+		&i.Source,
 		&i.Scope,
 		&i.Name,
 		&i.Key,
@@ -134,7 +136,7 @@ func (q *Queries) GetFieldDefinitionByID(ctx context.Context, arg GetFieldDefini
 }
 
 const getFieldDefinitionByKey = `-- name: GetFieldDefinitionByKey :one
-SELECT id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
+SELECT id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
 WHERE workspace_id = ? AND key = ? AND deleted_at IS NULL LIMIT 1
 `
 
@@ -150,6 +152,7 @@ func (q *Queries) GetFieldDefinitionByKey(ctx context.Context, arg GetFieldDefin
 		&i.ID,
 		&i.WorkspaceID,
 		&i.CreatedBy,
+		&i.Source,
 		&i.Scope,
 		&i.Name,
 		&i.Key,
@@ -163,6 +166,56 @@ func (q *Queries) GetFieldDefinitionByKey(ctx context.Context, arg GetFieldDefin
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const getSystemFieldsBySource = `-- name: GetSystemFieldsBySource :many
+SELECT id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
+WHERE workspace_id = ? AND source = ? AND deleted_at IS NULL
+ORDER BY position ASC
+`
+
+type GetSystemFieldsBySourceParams struct {
+	WorkspaceID string `json:"workspace_id"`
+	Source      string `json:"source"`
+}
+
+func (q *Queries) GetSystemFieldsBySource(ctx context.Context, arg GetSystemFieldsBySourceParams) ([]FieldDefinition, error) {
+	rows, err := q.db.QueryContext(ctx, getSystemFieldsBySource, arg.WorkspaceID, arg.Source)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FieldDefinition{}
+	for rows.Next() {
+		var i FieldDefinition
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.CreatedBy,
+			&i.Source,
+			&i.Scope,
+			&i.Name,
+			&i.Key,
+			&i.FieldType,
+			&i.Options,
+			&i.Required,
+			&i.Position,
+			&i.InheritFromProject,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const hardDeleteExpiredFieldDefinitions = `-- name: HardDeleteExpiredFieldDefinitions :many
@@ -202,9 +255,39 @@ func (q *Queries) HardDeleteFieldDefinition(ctx context.Context, id string) erro
 	return err
 }
 
+const insertSystemFieldDefinition = `-- name: InsertSystemFieldDefinition :exec
+INSERT OR IGNORE INTO field_definitions
+  (id, workspace_id, created_by, source, scope, name, key, field_type,
+   required, position, created_at, updated_at)
+VALUES (?, ?, NULL, ?, 'asset', ?, ?, ?, 0, ?, datetime('now'), datetime('now'))
+`
+
+type InsertSystemFieldDefinitionParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Source      string `json:"source"`
+	Name        string `json:"name"`
+	Key         string `json:"key"`
+	FieldType   string `json:"field_type"`
+	Position    int64  `json:"position"`
+}
+
+func (q *Queries) InsertSystemFieldDefinition(ctx context.Context, arg InsertSystemFieldDefinitionParams) error {
+	_, err := q.db.ExecContext(ctx, insertSystemFieldDefinition,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.Source,
+		arg.Name,
+		arg.Key,
+		arg.FieldType,
+		arg.Position,
+	)
+	return err
+}
+
 const listAllFieldDefinitions = `-- name: ListAllFieldDefinitions :many
-SELECT id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
-WHERE workspace_id = ? AND scope = ?
+SELECT id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
+WHERE workspace_id = ? AND scope = ? AND source = 'user'
 ORDER BY position ASC, created_at ASC
 `
 
@@ -226,6 +309,7 @@ func (q *Queries) ListAllFieldDefinitions(ctx context.Context, arg ListAllFieldD
 			&i.ID,
 			&i.WorkspaceID,
 			&i.CreatedBy,
+			&i.Source,
 			&i.Scope,
 			&i.Name,
 			&i.Key,
@@ -288,8 +372,8 @@ func (q *Queries) ListAssetsMissingExifField(ctx context.Context, arg ListAssets
 }
 
 const listFieldDefinitions = `-- name: ListFieldDefinitions :many
-SELECT id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
-WHERE workspace_id = ? AND scope = ? AND deleted_at IS NULL
+SELECT id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
+WHERE workspace_id = ? AND scope = ? AND source = 'user' AND deleted_at IS NULL
 ORDER BY position ASC, created_at ASC
 `
 
@@ -311,6 +395,7 @@ func (q *Queries) ListFieldDefinitions(ctx context.Context, arg ListFieldDefinit
 			&i.ID,
 			&i.WorkspaceID,
 			&i.CreatedBy,
+			&i.Source,
 			&i.Scope,
 			&i.Name,
 			&i.Key,
@@ -337,7 +422,7 @@ func (q *Queries) ListFieldDefinitions(ctx context.Context, arg ListFieldDefinit
 }
 
 const listInheritableAssetFieldDefinitions = `-- name: ListInheritableAssetFieldDefinitions :many
-SELECT id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
+SELECT id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at FROM field_definitions
 WHERE workspace_id = ? AND scope = 'asset' AND inherit_from_project = 1 AND deleted_at IS NULL
 `
 
@@ -354,6 +439,7 @@ func (q *Queries) ListInheritableAssetFieldDefinitions(ctx context.Context, work
 			&i.ID,
 			&i.WorkspaceID,
 			&i.CreatedBy,
+			&i.Source,
 			&i.Scope,
 			&i.Name,
 			&i.Key,
@@ -404,7 +490,7 @@ SET name                 = COALESCE(?1, name),
     inherit_from_project = COALESCE(?5, inherit_from_project),
     updated_at           = datetime('now')
 WHERE id = ?6 AND workspace_id = ?7 AND deleted_at IS NULL
-RETURNING id, workspace_id, created_by, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at
+RETURNING id, workspace_id, created_by, source, scope, name, "key", field_type, options, required, position, inherit_from_project, created_at, updated_at, deleted_at
 `
 
 type UpdateFieldDefinitionParams struct {
@@ -432,6 +518,7 @@ func (q *Queries) UpdateFieldDefinition(ctx context.Context, arg UpdateFieldDefi
 		&i.ID,
 		&i.WorkspaceID,
 		&i.CreatedBy,
+		&i.Source,
 		&i.Scope,
 		&i.Name,
 		&i.Key,
