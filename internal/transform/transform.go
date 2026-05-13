@@ -103,6 +103,8 @@ func FormatExtension(format string) string {
 		return ".mp4"
 	case "png":
 		return ".png"
+	case "webp":
+		return ".webp"
 	case "tiff":
 		return ".tiff"
 	default:

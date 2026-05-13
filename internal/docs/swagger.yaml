@@ -26,6 +26,8 @@ definitions:
     properties:
       created_at:
         type: string
+      derived_from_asset_id:
+        type: string
       folder_id:
         type: string
       height:
@@ -46,10 +48,14 @@ definitions:
         items:
           type: string
         type: array
+      thumbnail_content_type:
+        type: string
       thumbnail_key:
         type: string
       updated_at:
         type: string
+      variant_count:
+        type: integer
       variants_rebuilding:
         type: boolean
       version_count:
@@ -75,6 +81,40 @@ definitions:
           type: string
         type: array
     type: object
+  api.BulkFieldPreviewEntry:
+    properties:
+      assets_with_value:
+        type: integer
+      distinct_values:
+        items:
+          type: string
+        type: array
+      field_id:
+        type: string
+      field_name:
+        type: string
+      field_type:
+        type: string
+    type: object
+  api.BulkFieldsPreviewRequest:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      field_ids:
+        description: optional; empty = all active fields
+        items:
+          type: string
+        type: array
+    type: object
+  api.BulkFieldsPreviewResponse:
+    properties:
+      fields:
+        items:
+          $ref: '#/definitions/api.BulkFieldPreviewEntry'
+        type: array
+    type: object
   api.BulkPatchAssetFieldsRequest:
     properties:
       asset_ids:
@@ -88,6 +128,8 @@ definitions:
     type: object
   api.BulkPatchAssetFieldsResponse:
     properties:
+      cleared:
+        type: integer
       updated:
         type: integer
     type: object
@@ -107,7 +149,29 @@ definitions:
         items:
           type: string
         type: array
+      mode:
+        description: '"add" (default) | "remove"'
+        type: string
       tag_name:
+        type: string
+    type: object
+  api.CollectionResponse:
+    properties:
+      asset_count:
+        type: integer
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      workspace_id:
         type: string
     type: object
   api.CommentResponse:
@@ -443,6 +507,8 @@ definitions:
         type: string
       cover_asset_id:
         type: string
+      cover_version_id:
+        type: string
       created_at:
         type: string
       description:
@@ -560,6 +626,8 @@ definitions:
         type: string
       id:
         type: string
+      is_system:
+        type: boolean
       last_used_at:
         type: string
       name:
@@ -652,6 +720,8 @@ definitions:
         type: boolean
       exif_keep_gps:
         type: boolean
+      locked_taxonomy:
+        type: boolean
       version_retention_count:
         type: integer
     type: object
@@ -687,7 +757,13 @@ definitions:
         type: string
       size:
         type: integer
+      status:
+        type: string
       storage_key:
+        type: string
+      thumbnail_content_type:
+        type: string
+      thumbnail_url:
         type: string
       transform_params:
         type: string
@@ -741,6 +817,8 @@ definitions:
     properties:
       role:
         type: string
+      total_asset_count:
+        type: integer
       user:
         $ref: '#/definitions/api.UserResponse'
       workspace:
@@ -764,8 +842,8 @@ definitions:
         type: string
       id:
         type: string
-      ingest_token:
-        type: string
+      locked_taxonomy:
+        type: boolean
       name:
         type: string
       updated_at:
@@ -775,10 +853,14 @@ definitions:
     type: object
   api.WorkspaceWithRoleResponse:
     properties:
+      asset_count:
+        type: integer
       created_at:
         type: string
       id:
         type: string
+      member_count:
+        type: integer
       name:
         type: string
       role:
@@ -798,6 +880,8 @@ definitions:
         type: string
       name:
         type: string
+      source:
+        type: string
       value: {}
     type: object
   api.bulkDeleteTagsRequest:
@@ -806,6 +890,17 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  api.createCollectionRequest:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      name:
+        type: string
     type: object
   api.createTagRequest:
     properties:
@@ -850,6 +945,8 @@ definitions:
         type: string
       enabled:
         type: boolean
+      error_count:
+        type: integer
       id:
         type: string
       label:
@@ -867,6 +964,31 @@ definitions:
       updated_at:
         type: string
       workspace_id:
+        type: string
+    type: object
+  api.meResponse:
+    properties:
+      auth_methods:
+        type: string
+      avatar_url:
+        type: string
+      canva_linked:
+        type: boolean
+      display_name:
+        type: string
+      email:
+        type: string
+      google_linked:
+        type: boolean
+      has_password:
+        type: boolean
+      id:
+        type: string
+      name:
+        type: string
+      oidc_linked:
+        type: boolean
+      pending_email:
         type: string
     type: object
   api.mergeTagsRequest:
@@ -901,21 +1023,42 @@ definitions:
         type: string
       value: {}
     type: object
+  api.stackExportRequest:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      filename:
+        type: string
+    type: object
+  api.stackMergeRequest:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      filename:
+        type: string
+      gif_frame_ms:
+        type: integer
+      output_type:
+        type: string
+    type: object
+  api.updateCollectionRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
 info:
   contact: {}
 paths:
   /api/v1/activity:
     get:
-      description: 'Returns a unified, cursor-paginated activity feed combining asset
-        and project events across the entire workspace, sorted newest-first. Useful
-        for building an activity timeline or a notification feed.<br><br> Each event
-        in the response includes an <code>entity_type</code> (<code>asset</code> or
-        <code>project</code>) and <code>entity_id</code> so the caller can link back
-        to the originating resource.<br><br> Supported query parameters: <ul> <li><strong>limit</strong>
-        — Number of events (1–100, default 20).</li> <li><strong>cursor</strong> —
-        Opaque cursor from <code>next_cursor</code> in the previous response.</li>
-        <li><strong>user_id</strong> — Filter to events by a specific user.</li> <li><strong>types</strong>
-        — Comma-separated event type filter.</li> </ul>'
+      description: Returns a unified, cursor-paginated activity feed combining asset
+        and project events.
       parameters:
       - description: Page size (1–100, default 20)
         in: query
@@ -951,15 +1094,7 @@ paths:
       - Audit
   /api/v1/activity/export:
     get:
-      description: 'Exports up to 10,000 workspace audit events (both asset and project)
-        as a <code>text/csv</code> download. The response sets <code>Content-Disposition:
-        attachment; filename="activity-export.csv"</code>.<br><br> CSV columns: <code>event_id,
-        event_type, entity_type, entity_id, actor_type, actor_name, payload_summary,
-        created_at</code>.<br><br> Supported query parameters: <ul> <li><strong>since</strong>
-        — Exclude events before this date (inclusive, <code>YYYY-MM-DD</code>).</li>
-        <li><strong>until</strong> — Exclude events after this date (inclusive, <code>YYYY-MM-DD</code>).</li>
-        <li><strong>format</strong> — Currently only <code>csv</code> is supported.</li>
-        </ul>'
+      description: Exports up to 10,000 workspace audit events as a CSV download.
       parameters:
       - description: Start date filter (YYYY-MM-DD)
         in: query
@@ -1203,6 +1338,38 @@ paths:
       summary: Move asset to a folder
       tags:
       - Assets
+  /api/v1/assets/{id}/collections:
+    get:
+      description: Returns all collections in the workspace that contain the given
+        asset.
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.CollectionResponse'
+            type: array
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List collections containing an asset
+      tags:
+      - Collections
   /api/v1/assets/{id}/comments:
     get:
       description: Returns all public share comments that have been posted on this
@@ -1237,13 +1404,7 @@ paths:
       - Assets
   /api/v1/assets/{id}/events:
     get:
-      description: 'Returns paginated audit events for the given asset. Events record
-        every significant lifecycle action — uploads, renames, tagging, sharing, version
-        changes, and more.<br><br> Supported query parameters: <ul> <li><strong>limit</strong>
-        — Number of events to return (1–200, default 50).</li> <li><strong>cursor</strong>
-        — Opaque cursor from the previous page''s <code>next_cursor</code> field.</li>
-        <li><strong>types</strong> — Comma-separated list of event types to filter
-        to (e.g. <code>asset_shared,asset_renamed</code>).</li> </ul>'
+      description: Returns paginated audit events for the given asset.
       parameters:
       - description: Asset ID
         in: path
@@ -1405,9 +1566,9 @@ paths:
         pixels</li> <li><strong>h</strong> — Target height in pixels</li> <li><strong>fit</strong>
         — Fit mode: <code>contain</code> (default), <code>cover</code>, <code>fill</code></li>
         <li><strong>format</strong> — Output format: <code>jpeg</code> (default),
-        <code>png</code>, <code>webp</code></li> <li><strong>q</strong> — JPEG quality
-        1–100 (default: encoder default)</li> </ul> Only supported for image assets.
-        Returns 400 for video, audio, or PDF assets.'
+        <code>png</code>, <code>webp</code> (lossless)</li> <li><strong>q</strong>
+        — JPEG quality 1–100 (default: encoder default; ignored for WebP)</li> </ul>
+        Only supported for image assets. Returns 400 for video, audio, or PDF assets.'
       parameters:
       - description: Asset ID
         in: path
@@ -1430,7 +1591,7 @@ paths:
         in: query
         name: format
         type: string
-      - description: JPEG quality (1-100)
+      - description: JPEG quality (1-100, ignored for WebP)
         in: query
         name: q
         type: integer
@@ -1502,8 +1663,6 @@ paths:
       - Assets
   /api/v1/assets/{id}/tags:
     get:
-      description: Returns a flat array of tag name strings applied to the specified
-        asset.
       parameters:
       - description: Asset ID
         in: path
@@ -1535,9 +1694,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Adds a tag to the specified asset. If the tag does not exist in
-        the workspace it is created automatically. Also updates the tag's <code>last_used_at</code>
-        timestamp.
       parameters:
       - description: Asset ID
         in: path
@@ -1554,7 +1710,7 @@ paths:
       - application/json
       responses:
         "201":
-          description: name of the applied tag
+          description: Created
           schema:
             additionalProperties:
               type: string
@@ -1578,8 +1734,6 @@ paths:
       - Assets
   /api/v1/assets/{id}/tags/{name}:
     delete:
-      description: Removes the association between the tag and the asset. The tag
-        itself is not deleted from the workspace. Tag name matching is case-insensitive.
       parameters:
       - description: Asset ID
         in: path
@@ -1678,15 +1832,18 @@ paths:
         the asset''s current version. Supported types and their required params: <ul>
         <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit":
         "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format":
-        "jpeg|png|webp|avif"}</code></li> <li><strong>image_crop</strong> — <code>{"x":
-        N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong>
-        — <code>{"text": "...", "position": "..."}</code></li> <li><strong>image_smart_crop</strong>
-        — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong>
-        — requires <code>REMOVEBG_API_KEY</code> env var</li> <li><strong>video_transcode</strong>
-        — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_capture_image</strong>
-        — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll
-        <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns
-        409 if a variant rebuild is already in progress.'
+        "jpeg|png|webp|avif"}</code> (WebP output is lossless; quality only affects
+        JPEG)</li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width":
+        N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity":
+        0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N,
+        "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong>
+        — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong>
+        — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li>
+        <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li>
+        <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li>
+        <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li>
+        </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code>
+        to check completion. Returns 409 if a variant rebuild is already in progress.'
       parameters:
       - description: Asset ID
         in: path
@@ -2182,6 +2339,39 @@ paths:
       summary: Bulk update asset field values
       tags:
       - Custom Fields
+  /api/v1/assets/bulk/fields/preview:
+    post:
+      consumes:
+      - application/json
+      description: Returns how many assets already have a value for each field, and
+        the top distinct values. Use before committing a bulk field update.
+      parameters:
+      - description: Asset IDs and optional field IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.BulkFieldsPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.BulkFieldsPreviewResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Validation failed
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview bulk field overwrite impact
+      tags:
+      - Custom Fields
   /api/v1/assets/bulk/project:
     post:
       consumes:
@@ -2250,6 +2440,243 @@ paths:
       summary: Bulk tag assets
       tags:
       - Assets
+  /api/v1/collections:
+    get:
+      description: Returns all collections in the workspace with their asset counts.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.CollectionResponse'
+            type: array
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List collections
+      tags:
+      - Collections
+    post:
+      consumes:
+      - application/json
+      description: Creates a named collection in the workspace. Supply <code>asset_ids</code>
+        to pre-populate it (e.g. when saving a working stack). All asset IDs must
+        belong to the authenticated workspace.
+      parameters:
+      - description: Collection details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.createCollectionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.CollectionResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: One or more assets not in workspace
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Validation failed
+          schema:
+            $ref: '#/definitions/api.ValidationErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a collection
+      tags:
+      - Collections
+  /api/v1/collections/{id}:
+    delete:
+      description: Deletes the collection and removes all its asset memberships. The
+        assets themselves are not deleted. Requires owner role.
+      parameters:
+      - description: Collection ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Collection not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a collection
+      tags:
+      - Collections
+    get:
+      description: Returns collection metadata and its full asset list, ordered by
+        position then insertion date.
+      parameters:
+      - description: Collection ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.CollectionResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Collection not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a collection
+      tags:
+      - Collections
+    put:
+      consumes:
+      - application/json
+      description: Updates the collection's name and description. Requires editor
+        role.
+      parameters:
+      - description: Collection ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.updateCollectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.CollectionResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Collection not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Validation failed
+          schema:
+            $ref: '#/definitions/api.ValidationErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a collection
+      tags:
+      - Collections
+  /api/v1/collections/{id}/assets/{aid}:
+    delete:
+      description: Removes a single asset from the collection. The asset itself is
+        not deleted. Requires editor role.
+      parameters:
+      - description: Collection ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Asset ID
+        in: path
+        name: aid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Collection not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove asset from collection
+      tags:
+      - Collections
+    post:
+      description: Adds a single asset to the collection. Idempotent — adding an asset
+        that is already in the collection succeeds silently. Requires editor role.
+      parameters:
+      - description: Collection ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Asset ID
+        in: path
+        name: aid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Collection or asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add asset to collection
+      tags:
+      - Collections
   /api/v1/events:
     get:
       description: Opens a persistent Server-Sent Events (SSE) stream scoped to the
@@ -2279,11 +2706,8 @@ paths:
       - Events
   /api/v1/field-definitions:
     get:
-      description: 'Returns all custom field definitions for the workspace filtered
-        by scope. Field definitions describe the schema for structured metadata that
-        can be attached to assets (<code>scope=asset</code>) or projects (<code>scope=project</code>).<br><br>
-        Supported field types: <code>text</code>, <code>number</code>, <code>date</code>,
-        <code>boolean</code>, <code>select</code>, <code>url</code>.'
+      description: Returns all custom field definitions for the workspace filtered
+        by scope.
       parameters:
       - description: 'Scope filter: asset (default) or project'
         in: query
@@ -2314,12 +2738,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new custom field definition for assets or projects. The
-        <code>key</code> must be lowercase alphanumeric with underscores and is immutable
-        after creation. A maximum of 50 definitions per scope is enforced.<br><br>
-        For <code>select</code> fields, supply an <code>options</code> array of string
-        choices. The <code>inherit_from_project</code> flag (asset-scope only) causes
-        the field to automatically pre-populate from the assigned project's value.
+      description: Creates a new custom field definition for assets or projects.
       parameters:
       - description: Field definition
         in: body
@@ -2353,9 +2772,7 @@ paths:
       - Custom Fields
   /api/v1/field-definitions/{id}:
     delete:
-      description: Soft-deletes the field definition. The definition is hidden from
-        the list endpoint but existing field values on assets and projects are preserved.
-        This action is permanent from the API perspective (no undelete endpoint).
+      description: Soft-deletes the field definition.
       parameters:
       - description: Field definition ID
         in: path
@@ -2411,11 +2828,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Updates a custom field definition. The <code>key</code> and <code>field_type</code>
-        are immutable after creation — supplying a different value returns 422. All
-        other fields are optional; omitted fields retain their current values.<br><br>
-        For <code>select</code> fields, <code>options</code> must be a non-empty JSON
-        array of strings.
+      description: Updates a custom field definition. The key and field_type are immutable
+        after creation.
       parameters:
       - description: Field definition ID
         in: path
@@ -2459,8 +2873,7 @@ paths:
   /api/v1/field-definitions/{id}/stats:
     get:
       description: Returns the number of assets and projects that have a value set
-        for this field definition. Useful for understanding the impact of deleting
-        a field.
+        for this field definition.
       parameters:
       - description: Field definition ID
         in: path
@@ -2491,10 +2904,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: 'Updates the <code>position</code> of multiple field definitions
-        in a single request. The request body is a JSON array of <code>{"id": "...",
-        "position": N}</code> objects. Items not belonging to this workspace are silently
-        skipped (best-effort update).'
+      description: Updates the position of multiple field definitions in a single
+        request.
       parameters:
       - description: Reorder items
         in: body
@@ -2592,11 +3003,8 @@ paths:
       - Folders
   /api/v1/ingress/log:
     get:
-      description: Returns the most recent 50 ingress log entries across all sources
-        in the workspace. Filter by status using the <code>status</code> query parameter
-        to focus on entries that need attention (e.g. <code>error</code> or <code>skipped</code>).
       parameters:
-      - description: Filter by status (pending, fetching, done, error, skipped)
+      - description: Filter by status
         in: query
         name: status
         type: string
@@ -2609,10 +3017,6 @@ paths:
             items:
               $ref: '#/definitions/api.ingressLogResponse'
             type: array
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List workspace ingress log
@@ -2620,10 +3024,6 @@ paths:
       - Ingress
   /api/v1/ingress/log/{entry_id}:
     delete:
-      description: Permanently removes a log entry. Because ingress deduplication
-        is based on <code>(source_id, remote_id)</code>, deleting an entry allows
-        the same remote file to be re-ingested on the next poll. Use this to force
-        a re-import of a previously processed file.
       parameters:
       - description: Log entry ID
         in: path
@@ -2635,18 +3035,6 @@ paths:
       responses:
         "204":
           description: No Content
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "403":
-          description: Entry belongs to a different workspace
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Log entry not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete a log entry
@@ -2654,12 +3042,6 @@ paths:
       - Ingress
   /api/v1/ingress/log/{entry_id}/retry:
     post:
-      description: Resets the log entry status to <code>pending</code> and enqueues
-        a new <code>ingest_fetch</code> job to re-attempt asset import. Only entries
-        with status <code>error</code> or <code>skipped</code> can be retried; attempting
-        to retry a <code>done</code> or <code>pending</code> entry returns 400.<br><br>
-        Returns the queued job ID. The retry runs asynchronously — poll the log entry
-        to track completion.
       parameters:
       - description: Log entry ID
         in: path
@@ -2676,22 +3058,6 @@ paths:
               job_id:
                 type: string
             type: object
-        "400":
-          description: Entry is not in error or skipped state
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "403":
-          description: Entry belongs to a different workspace
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Log entry not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Retry a log entry
@@ -2699,8 +3065,6 @@ paths:
       - Ingress
   /api/v1/ingress/sources:
     get:
-      description: Returns all ingress sources in the workspace. Sensitive config
-        fields are redacted with <code>"***"</code> in every response.
       produces:
       - application/json
       responses:
@@ -2710,10 +3074,6 @@ paths:
             items:
               $ref: '#/definitions/api.ingressSourceResponse'
             type: array
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List ingress sources
@@ -2722,17 +3082,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Creates a new ingress source for automated asset import. The <code>config</code>
-        object is source-type-specific (see type documentation). Sensitive fields
-        (passwords, keys, tokens) are encrypted at rest with AES-256-GCM and redacted
-        (<code>"***"</code>) in all API responses.<br><br> Supported source types:
-        <ul> <li><strong>imap</strong> — Poll an IMAP mailbox for attachments.</li>
-        <li><strong>sftp</strong> — Poll a remote SFTP directory.</li> <li><strong>webdav</strong>
-        — Poll a WebDAV endpoint.</li> <li><strong>s3</strong> — Poll an S3-compatible
-        bucket.</li> <li><strong>email_api</strong> — Receive assets via SMTP push
-        (uses <code>public_token</code>).</li> </ul> Optional <code>rules</code> array
-        in the body bootstraps ingress rules for the source in a single request. Rules
-        can also be managed later via the <code>/rules</code> sub-resource.'
       parameters:
       - description: Source configuration
         in: body
@@ -2747,18 +3096,6 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/api.ingressSourceResponse'
-        "400":
-          description: Invalid config JSON
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "422":
-          description: Validation failed
-          schema:
-            $ref: '#/definitions/api.ValidationErrorResponse'
       security:
       - BearerAuth: []
       summary: Create an ingress source
@@ -2766,8 +3103,6 @@ paths:
       - Ingress
   /api/v1/ingress/sources/{id}:
     delete:
-      description: Permanently removes the source and all its associated rules. Log
-        entries are retained for auditing. This action is irreversible.
       parameters:
       - description: Source ID
         in: path
@@ -2779,19 +3114,12 @@ paths:
       responses:
         "204":
           description: No Content
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete an ingress source
       tags:
       - Ingress
     get:
-      description: Returns the source record including its current enabled state and
-        decrypted (but redacted) config. Sensitive config values are always replaced
-        with <code>"***"</code>.
       parameters:
       - description: Source ID
         in: path
@@ -2805,14 +3133,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api.ingressSourceResponse'
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Source not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get an ingress source
@@ -2821,12 +3141,6 @@ paths:
     put:
       consumes:
       - application/json
-      description: Updates the source label, config, destination folder/project, enabled
-        state, and poll interval. Omitted fields keep their current values.<br><br>
-        To update the config, supply a full replacement object — partial config merging
-        is not supported. Sensitive fields provided in the new config are encrypted
-        and stored; omitting them removes them. To clear <code>dest_folder_id</code>
-        or <code>dest_project_id</code> pass an explicit <code>null</code> value.
       parameters:
       - description: Source ID
         in: path
@@ -2846,22 +3160,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api.ingressSourceResponse'
-        "400":
-          description: Invalid config JSON
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Source not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "422":
-          description: Validation failed
-          schema:
-            $ref: '#/definitions/api.ValidationErrorResponse'
       security:
       - BearerAuth: []
       summary: Update an ingress source
@@ -2869,12 +3167,6 @@ paths:
       - Ingress
   /api/v1/ingress/sources/{id}/log:
     get:
-      description: Returns the most recent 50 ingress log entries for the given source.
-        Each entry represents one remote item that the source discovered, with its
-        current ingestion status (<code>pending</code>, <code>fetching</code>, <code>done</code>,
-        <code>error</code>, <code>skipped</code>).<br><br> The <code>(source_id, remote_id)</code>
-        pair is unique — re-encountering the same remote file on a subsequent poll
-        is a no-op unless the log entry is deleted or retried.
       parameters:
       - description: Source ID
         in: path
@@ -2890,14 +3182,6 @@ paths:
             items:
               $ref: '#/definitions/api.ingressLogResponse'
             type: array
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Source not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List source log entries
@@ -2905,12 +3189,6 @@ paths:
       - Ingress
   /api/v1/ingress/sources/{id}/poll:
     post:
-      description: Immediately enqueues an <code>ingest_poll</code> job for the source,
-        regardless of its scheduled poll interval. Use this to force a check for new
-        assets without waiting for the next scheduled run. Returns the queued job
-        ID for tracking.<br><br> The job runs asynchronously; 202 Accepted means the
-        job was enqueued, not that the poll completed. Monitor the ingress log to
-        see results.
       parameters:
       - description: Source ID
         in: path
@@ -2927,14 +3205,6 @@ paths:
               job_id:
                 type: string
             type: object
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Source not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Trigger a poll
@@ -2942,11 +3212,6 @@ paths:
       - Ingress
   /api/v1/ingress/sources/{id}/test:
     post:
-      description: 'Validates that the source can successfully connect to the remote
-        system using its current configuration. The check runs with a 10-second timeout.
-        Returns <code>{"ok": true}</code> on success, or a descriptive error message
-        on failure.<br><br> Use this after creating or updating a source to confirm
-        credentials and network access are correct before relying on scheduled polling.'
       parameters:
       - description: Source ID
         in: path
@@ -2963,18 +3228,6 @@ paths:
               ok:
                 type: boolean
             type: object
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "404":
-          description: Source not found
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-        "422":
-          description: Connection test failed — body contains the error message
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Test an ingress source
@@ -3137,9 +3390,7 @@ paths:
       - Projects
   /api/v1/projects/{id}/events:
     get:
-      description: Returns paginated audit events for the given project. Supports
-        the same <code>limit</code>, <code>cursor</code>, and <code>types</code> query
-        parameters as the asset events endpoint.
+      description: Returns paginated audit events for the given project.
       parameters:
       - description: Project ID
         in: path
@@ -3340,9 +3591,7 @@ paths:
       - Folders
   /api/v1/shares:
     get:
-      description: Returns all shares created in the workspace, including revoked
-        and expired ones. Use the <code>revoked_at</code> and <code>is_expired</code>
-        fields to filter active shares client-side.
+      description: Returns all shares created in the workspace.
       produces:
       - application/json
       responses:
@@ -3364,14 +3613,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 'Creates a public share link for the given target (asset or project).
-        Options: <ul> <li><strong>password</strong> — Protect the share with a password.</li>
-        <li><strong>expires_in_days</strong> — Automatically expire the share after
-        N days.</li> <li><strong>allow_download</strong> — Whether viewers can download
-        original files (default true).</li> <li><strong>allow_comments</strong> —
-        Whether viewers can post comments (default false).</li> </ul> The response
-        includes a <code>public_url</code> that can be shared directly with external
-        reviewers.'
+      description: Creates a public share link for the given target (asset or project).
       parameters:
       - description: Share settings
         in: body
@@ -3405,9 +3647,8 @@ paths:
       - Shares
   /api/v1/shares/{id}:
     delete:
-      description: Sets <code>revoked_at</code> on the share so that all future public
-        access attempts return 404. The share record is retained for audit purposes.
-        Revocation is permanent.
+      description: Sets revoked_at on the share so that all future public access attempts
+        return 404.
       parameters:
       - description: Share ID
         in: path
@@ -3433,8 +3674,7 @@ paths:
       tags:
       - Shares
     get:
-      description: Returns the share record including its current status (active,
-        revoked, expired).
+      description: Returns the share record including its current status.
       parameters:
       - description: Share ID
         in: path
@@ -3464,9 +3704,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: 'Updates the share''s label, password, expiry, and permission flags.
-        All fields are optional. To remove an existing password send <code>"clear_password":
-        true</code>. To remove an expiry send <code>"clear_expiry": true</code>.'
+      description: Updates the share's label, password, expiry, and permission flags.
       parameters:
       - description: Share ID
         in: path
@@ -3569,13 +3807,93 @@ paths:
       summary: Delete a comment (owner)
       tags:
       - Shares
+  /api/v1/stack/export:
+    post:
+      consumes:
+      - application/json
+      description: Streams a ZIP archive containing the original files for the given
+        asset IDs. All assets must belong to the authenticated workspace. Files are
+        named after their original filenames; duplicates are suffixed with <code>_N</code>.
+        If any file is missing from storage it is skipped and listed in a <code>_missing_files.txt</code>
+        manifest inside the ZIP. The response is streamed — do not buffer the entire
+        body before processing.
+      parameters:
+      - description: Asset IDs and optional filename
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.stackExportRequest'
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: ZIP archive
+          schema:
+            type: file
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: One or more assets not in workspace
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Validation failed
+          schema:
+            $ref: '#/definitions/api.ValidationErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Export stack as ZIP
+      tags:
+      - Stack
+  /api/v1/stack/merge:
+    post:
+      consumes:
+      - application/json
+      description: Enqueues an async job that merges the given assets into a single
+        animated GIF or PDF contact sheet. All assets must belong to the authenticated
+        workspace. Returns 202 immediately with a <code>job_id</code>; listen for
+        event <code>stack_merge_done</code> to check completion. On success the job
+        result contains the new asset ID.
+      parameters:
+      - description: Asset IDs, output type and options
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.stackMergeRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: job_id
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: One or more assets not in workspace
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Validation failed (e.g. output_type not gif/pdf)
+          schema:
+            $ref: '#/definitions/api.ValidationErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Merge stack assets into GIF or PDF
+      tags:
+      - Stack
   /api/v1/tags:
     delete:
       consumes:
       - application/json
-      description: Deletes all listed tags and removes their associations from all
-        assets. Tags not found in the workspace are silently skipped. Returns the
-        count of tags deleted and the total number of asset-tag associations removed.
       parameters:
       - description: Tag names to delete
         in: body
@@ -3587,7 +3905,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: deleted and removed_from_assets counts
+          description: OK
           schema:
             additionalProperties:
               type: integer
@@ -3606,8 +3924,6 @@ paths:
       tags:
       - Tags
     get:
-      description: Returns all tags in the workspace, each with <code>asset_count</code>,
-        optional <code>color</code>, <code>group_name</code>, and <code>last_used_at</code>.
       produces:
       - application/json
       responses:
@@ -3629,8 +3945,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new tag with an optional color (hex) and group name.
-        Tag names are case-insensitive and must be unique within the workspace.
       parameters:
       - description: Tag details
         in: body
@@ -3666,9 +3980,6 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Updates one or more attributes of an existing tag identified by
-        its name. All fields are optional. Renaming checks for conflicts with existing
-        tag names.
       parameters:
       - description: Current tag name
         in: path
@@ -3713,10 +4024,6 @@ paths:
     post:
       consumes:
       - application/json
-      description: Reassigns all asset-tag associations from the listed source tags
-        to the target tag, then deletes the source tags. The target tag is created
-        if it does not already exist. Useful for consolidating duplicate or near-duplicate
-        tags.
       parameters:
       - description: Source tag names and target tag name
         in: body
@@ -3728,7 +4035,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: merged_assets count and updated target TagResponse
+          description: OK
           schema:
             additionalProperties: true
             type: object
@@ -3747,15 +4054,11 @@ paths:
       - Tags
   /api/v1/tags/suggestions/duplicates:
     get:
-      description: Returns pairs of tags whose names are similar (Levenshtein distance
-        &lt; 30% of the longer name) among tags that have at least one associated
-        asset. Up to 20 pairs are returned, sorted by similarity score ascending (most
-        similar first). Use the merge endpoint to consolidate them.
       produces:
       - application/json
       responses:
         "200":
-          description: Array of {a, b, score} pairs
+          description: OK
           schema:
             items:
               additionalProperties: true
@@ -4116,7 +4419,7 @@ paths:
   /api/v1/workspaces:
     get:
       description: Returns every workspace the authenticated user is a member of,
-        along with their role in each. Use this to populate a workspace-switcher UI.
+        along with their role in each.
       produces:
       - application/json
       responses:
@@ -4135,6 +4438,140 @@ paths:
       summary: List workspaces
       tags:
       - Workspace
+  /auth/canva/callback:
+    get:
+      description: Receives the authorization code from Canva. Validates state and
+        PKCE, exchanges the code, fetches the user profile from the Canva API (<code>/rest/v1/users/me</code>),
+        upserts the user, issues a session cookie, and redirects to <code>/</code>.
+        On any error redirects to <code>/login?error=oidc_exchange&error_step=...</code>.
+      parameters:
+      - description: Authorization code from Canva
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter (CSRF token)
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to / on success, or /login?error=... on failure
+          schema:
+            type: string
+      summary: Canva OAuth2 callback
+      tags:
+      - Auth
+  /auth/canva/link:
+    delete:
+      description: Removes the Canva login method from the current user's account.
+        Fails with 422 if Canva is the user's only auth method (would lock them out).
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Cannot unlink — only auth method remaining
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Could not unlink
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlink Canva provider
+      tags:
+      - Auth
+  /auth/canva/login:
+    get:
+      description: Redirects the browser to Canva's OAuth2 authorization endpoint
+        requesting the <code>profile:read</code> scope. Sets short-lived <code>oidc_state</code>
+        and <code>oidc_pkce</code> cookies (10 min TTL). Returns 503 if Canva OAuth
+        is not configured.
+      responses:
+        "302":
+          description: Redirect to Canva OAuth2
+          schema:
+            type: string
+        "503":
+          description: Canva login not configured
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Initiate Canva login
+      tags:
+      - Auth
+  /auth/google/callback:
+    get:
+      description: Receives the authorization code from Google. Validates state and
+        PKCE, exchanges the code, verifies the ID token, upserts the user (marked
+        as Google-linked), issues a session cookie, and redirects to <code>/</code>.
+        On any error redirects to <code>/login?error=...</code>.
+      parameters:
+      - description: Authorization code from Google
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter (CSRF token)
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to / on success, or /login?error=... on failure
+          schema:
+            type: string
+      summary: Google OAuth2 callback
+      tags:
+      - Auth
+  /auth/google/link:
+    delete:
+      description: Removes the Google login method from the current user's account.
+        Fails with 422 if Google is the user's only auth method (would lock them out).
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Cannot unlink — only auth method remaining
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Could not unlink
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlink Google provider
+      tags:
+      - Auth
+  /auth/google/login:
+    get:
+      description: Redirects the browser to Google's OAuth2 authorization endpoint
+        with <code>prompt=select_account</code>. Sets short-lived <code>oidc_state</code>
+        and <code>oidc_pkce</code> cookies (10 min TTL). Returns 503 if Google OAuth
+        is not configured.
+      responses:
+        "302":
+          description: Redirect to Google OAuth2
+          schema:
+            type: string
+        "503":
+          description: Google login not configured
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Initiate Google login
+      tags:
+      - Auth
   /auth/invite/accept:
     post:
       consumes:
@@ -4222,6 +4659,97 @@ paths:
       summary: Log out
       tags:
       - Auth
+  /auth/me:
+    get:
+      description: Returns the profile of the currently authenticated user including
+        their linked OAuth providers (OIDC, Google, Canva).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.meResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Could not load user
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - Auth
+  /auth/oidc/callback:
+    get:
+      description: Receives the authorization code from the OIDC provider. Validates
+        state (CSRF) and PKCE, exchanges the code for tokens, verifies the ID token,
+        upserts the user, issues a session cookie, and redirects to <code>/</code>.
+        On any error redirects to <code>/login?error=...</code>.
+      parameters:
+      - description: Authorization code from provider
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter (CSRF token)
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to / on success, or /login?error=... on failure
+          schema:
+            type: string
+      summary: OIDC callback
+      tags:
+      - Auth
+  /auth/oidc/link:
+    delete:
+      description: Removes the OIDC login method from the current user's account.
+        Fails with 422 if OIDC is the user's only auth method (would lock them out).
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Cannot unlink — only auth method remaining
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Could not unlink
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlink OIDC provider
+      tags:
+      - Auth
+  /auth/oidc/login:
+    get:
+      description: Redirects the browser to the configured OIDC provider's authorization
+        endpoint. Sets short-lived <code>oidc_state</code> and <code>oidc_pkce</code>
+        cookies (10 min TTL) for CSRF and PKCE verification. Returns 503 if OIDC is
+        not configured.
+      responses:
+        "302":
+          description: Redirect to OIDC provider
+          schema:
+            type: string
+        "503":
+          description: OIDC not configured
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Initiate OIDC login
+      tags:
+      - Auth
   /auth/refresh:
     post:
       description: Reissues a fresh JWT with a new 7-day expiry for the authenticated
@@ -4295,6 +4823,8 @@ paths:
           description: OK
           schema:
             properties:
+              ' mailHost':
+                type: string
               demo:
                 type: boolean
             type: object
@@ -4648,6 +5178,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Post a comment (public)
+      tags:
+      - Public Shares
+  /shared/{id}/export:
+    get:
+      description: 'Streams a ZIP archive of all assets accessible via the share.
+        Works for <code>asset</code>, <code>project</code>, and <code>collection</code>
+        target types. Requires the share to have <code>allow_download: true</code>
+        and a valid share session token. The ZIP is scoped strictly to the share''s
+        target — it cannot expose assets outside it.'
+      parameters:
+      - description: Share ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: ZIP archive
+          schema:
+            type: file
+        "401":
+          description: Not authenticated (share token required)
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Download not allowed for this share
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Share not found or expired
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Download shared assets as ZIP (public)
       tags:
       - Public Shares
 swagger: "2.0"

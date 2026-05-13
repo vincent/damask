@@ -14,7 +14,7 @@
 
   const kind = 'image_convert'
 
-  let convertFormat = $state<'jpeg' | 'png' | 'tiff'>('png')
+  let convertFormat = $state<'jpeg' | 'png' | 'tiff' | 'webp'>('png')
   let convertQuality = $state(90)
 </script>
 
@@ -24,7 +24,7 @@
       >{m.output_format()}</label
     >
     <div class="flex gap-2">
-      {#each ['jpeg', 'png', 'tiff'] as fmt}
+      {#each ['jpeg', 'png', 'webp', 'tiff'] as fmt}
         <button
           type="button"
           class="toggle-btn flex-1 {convertFormat === fmt ? 'active' : ''}"
@@ -51,6 +51,8 @@
         class="range-input"
       />
     </div>
+  {:else if convertFormat === 'webp'}
+    <p class="format-note">WebP export is lossless. Quality does not apply.</p>
   {/if}
 
   <Button
@@ -104,5 +106,9 @@
   .quality-val {
     font-weight: 600;
     color: var(--accent-cta);
+  }
+  .format-note {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
   }
 </style>

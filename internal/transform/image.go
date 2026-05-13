@@ -13,6 +13,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/HugoSmits86/nativewebp"
 	"github.com/disintegration/imaging"
 	"github.com/muesli/smartcrop"
 	"github.com/muesli/smartcrop/nfnt"
@@ -22,8 +23,8 @@ import (
 type WatermarkParams struct {
 	WatermarkAssetID string  `json:"watermark_asset_id"`
 	Opacity          float64 `json:"opacity"`
-	Format           string  `json:"format"`  // jpeg | png | tiff
-	Quality          int     `json:"quality"` // 1–100 (for jpeg)
+	Format           string  `json:"format"`  // jpeg | png | tiff | webp
+	Quality          int     `json:"quality"` // 1–100 (JPEG only; ignored for WebP)
 }
 
 func (p *WatermarkParams) normalize() {
@@ -71,13 +72,13 @@ type ResizeParams struct {
 	Height  int    `json:"height"`
 	Fit     string `json:"fit"`     // cover | contain | fill
 	Quality int    `json:"quality"` // 1–100, default 85
-	Format  string `json:"format"`  // jpeg | png | tiff (webp unsupported without CGO)
+	Format  string `json:"format"`  // jpeg | png | tiff | webp
 }
 
 // ConvertParams defines parameters for image format conversion.
 type ConvertParams struct {
-	Format  string `json:"format"`  // jpeg | png | tiff
-	Quality int    `json:"quality"` // 1–100 (for jpeg)
+	Format  string `json:"format"`  // jpeg | png | tiff | webp
+	Quality int    `json:"quality"` // 1–100 (JPEG only; ignored for WebP)
 }
 
 // CropParams defines parameters for an image crop operation.
@@ -86,8 +87,8 @@ type CropParams struct {
 	Y       int    `json:"y"`
 	Width   int    `json:"width"`
 	Height  int    `json:"height"`
-	Quality int    `json:"quality"`
-	Format  string `json:"format"`
+	Quality int    `json:"quality"` // 1–100 (JPEG only; ignored for WebP)
+	Format  string `json:"format"`  // jpeg | png | tiff | webp
 }
 
 // SmartCropParams defines parameters for smart-crop transforms.
@@ -95,7 +96,7 @@ type SmartCropParams struct {
 	Width   int    `json:"width"`
 	Height  int    `json:"height"`
 	Quality int    `json:"quality"` // 1–100, default 85
-	Format  string `json:"format"`  // jpeg | png | tiff
+	Format  string `json:"format"`  // jpeg | png | tiff | webp
 }
 
 // PreviewParams defines parameters for the low-res in-memory preview.
@@ -103,8 +104,8 @@ type PreviewParams struct {
 	Width   int    `json:"width"`
 	Height  int    `json:"height"`
 	Fit     string `json:"fit"`
-	Quality int    `json:"quality"`
-	Format  string `json:"format"`
+	Quality int    `json:"quality"` // 1–100 (JPEG only; ignored for WebP)
+	Format  string `json:"format"`  // jpeg | png | tiff | webp
 }
 
 // ApplyWatermark decodes, composites, and returns the final NRGBA image.
@@ -289,6 +290,13 @@ func encodeImage(img image.Image, format string, quality int) ([]byte, string, e
 			return nil, "", fmt.Errorf("encode tiff: %w", err)
 		}
 		contentType = "image/tiff"
+	case "webp":
+		if err := nativewebp.Encode(&buf, img, &nativewebp.Options{
+			CompressionLevel: nativewebp.BestCompression,
+		}); err != nil {
+			return nil, "", fmt.Errorf("encode webp: %w", err)
+		}
+		contentType = "image/webp"
 	default: // jpeg
 		if err := imaging.Encode(&buf, img, imaging.JPEG, imaging.JPEGQuality(quality)); err != nil {
 			return nil, "", fmt.Errorf("encode jpeg: %w", err)

@@ -15,6 +15,7 @@ import (
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 
+	"github.com/HugoSmits86/nativewebp"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -146,6 +147,21 @@ func TestUserService_UploadAvatar_OK(t *testing.T) {
 	}
 	if len(keys) != 1 || keys[0] != "avatars/u_1.webp" {
 		t.Fatalf("stored keys = %v", keys)
+	}
+	stored, err := stor.Get("avatars/u_1.webp")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	t.Cleanup(func() { _ = stored.Close() })
+	img, err := nativewebp.Decode(stored)
+	if err != nil {
+		t.Fatalf("nativewebp.Decode: %v", err)
+	}
+	if got := img.Bounds().Dx(); got != 256 {
+		t.Fatalf("decoded width = %d, want %d", got, 256)
+	}
+	if got := img.Bounds().Dy(); got != 256 {
+		t.Fatalf("decoded height = %d, want %d", got, 256)
 	}
 
 	root := findServiceSpan(t, recorder, "service.users.upload_avatar")

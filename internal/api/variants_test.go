@@ -633,6 +633,25 @@ func TestPreviewTransform(t *testing.T) {
 	}
 }
 
+func TestPreviewTransform_WebP(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet,
+		fmt.Sprintf("/api/v1/assets/%s/preview?w=50&h=50&fit=contain&format=webp&q=80", assetID),
+		nil, cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 10000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "image/webp" {
+		t.Errorf("expected image/webp, got %s", ct)
+	}
+}
+
 func TestPreviewTransform_Cached(t *testing.T) {
 	env := th.SetupTestApp(t)
 	assetID, cookie := createTestAsset(t, env)

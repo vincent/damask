@@ -11,7 +11,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a unified, cursor-paginated activity feed combining asset and project events across the entire workspace, sorted newest-first. Useful for building an activity timeline or a notification feed.\u003cbr\u003e\u003cbr\u003e Each event in the response includes an \u003ccode\u003eentity_type\u003c/code\u003e (\u003ccode\u003easset\u003c/code\u003e or \u003ccode\u003eproject\u003c/code\u003e) and \u003ccode\u003eentity_id\u003c/code\u003e so the caller can link back to the originating resource.\u003cbr\u003e\u003cbr\u003e Supported query parameters: \u003cul\u003e \u003cli\u003e\u003cstrong\u003elimit\u003c/strong\u003e — Number of events (1–100, default 20).\u003c/li\u003e \u003cli\u003e\u003cstrong\u003ecursor\u003c/strong\u003e — Opaque cursor from \u003ccode\u003enext_cursor\u003c/code\u003e in the previous response.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003euser_id\u003c/strong\u003e — Filter to events by a specific user.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003etypes\u003c/strong\u003e — Comma-separated event type filter.\u003c/li\u003e \u003c/ul\u003e",
+                "description": "Returns a unified, cursor-paginated activity feed combining asset and project events.",
                 "produces": [
                     "application/json"
                 ],
@@ -68,7 +68,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Exports up to 10,000 workspace audit events (both asset and project) as a \u003ccode\u003etext/csv\u003c/code\u003e download. The response sets \u003ccode\u003eContent-Disposition: attachment; filename=\"activity-export.csv\"\u003c/code\u003e.\u003cbr\u003e\u003cbr\u003e CSV columns: \u003ccode\u003eevent_id, event_type, entity_type, entity_id, actor_type, actor_name, payload_summary, created_at\u003c/code\u003e.\u003cbr\u003e\u003cbr\u003e Supported query parameters: \u003cul\u003e \u003cli\u003e\u003cstrong\u003esince\u003c/strong\u003e — Exclude events before this date (inclusive, \u003ccode\u003eYYYY-MM-DD\u003c/code\u003e).\u003c/li\u003e \u003cli\u003e\u003cstrong\u003euntil\u003c/strong\u003e — Exclude events after this date (inclusive, \u003ccode\u003eYYYY-MM-DD\u003c/code\u003e).\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eformat\u003c/strong\u003e — Currently only \u003ccode\u003ecsv\u003c/code\u003e is supported.\u003c/li\u003e \u003c/ul\u003e",
+                "description": "Exports up to 10,000 workspace audit events as a CSV download.",
                 "produces": [
                     "text/csv"
                 ],
@@ -357,6 +357,57 @@
                 }
             }
         },
+        "/api/v1/assets/bulk/fields/preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns how many assets already have a value for each field, and the top distinct values. Use before committing a bulk field update.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Custom Fields"
+                ],
+                "summary": "Preview bulk field overwrite impact",
+                "parameters": [
+                    {
+                        "description": "Asset IDs and optional field IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.BulkFieldsPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.BulkFieldsPreviewResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/assets/bulk/project": {
             "post": {
                 "security": [
@@ -608,6 +659,55 @@
                 }
             }
         },
+        "/api/v1/assets/{id}/collections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all collections in the workspace that contain the given asset.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "List collections containing an asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.CollectionResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/assets/{id}/comments": {
             "get": {
                 "security": [
@@ -664,7 +764,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns paginated audit events for the given asset. Events record every significant lifecycle action — uploads, renames, tagging, sharing, version changes, and more.\u003cbr\u003e\u003cbr\u003e Supported query parameters: \u003cul\u003e \u003cli\u003e\u003cstrong\u003elimit\u003c/strong\u003e — Number of events to return (1–200, default 50).\u003c/li\u003e \u003cli\u003e\u003cstrong\u003ecursor\u003c/strong\u003e — Opaque cursor from the previous page's \u003ccode\u003enext_cursor\u003c/code\u003e field.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003etypes\u003c/strong\u003e — Comma-separated list of event types to filter to (e.g. \u003ccode\u003easset_shared,asset_renamed\u003c/code\u003e).\u003c/li\u003e \u003c/ul\u003e",
+                "description": "Returns paginated audit events for the given asset.",
                 "produces": [
                     "application/json"
                 ],
@@ -882,7 +982,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Applies a resize/format transform to the asset's current version in memory and returns the result directly (never stored). Responses are cached in an LRU cache (100 entries, 5-minute TTL) so repeated identical calls are cheap. \u003cbr\u003eQuery parameters: \u003cul\u003e \u003cli\u003e\u003cstrong\u003ew\u003c/strong\u003e — Target width in pixels\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eh\u003c/strong\u003e — Target height in pixels\u003c/li\u003e \u003cli\u003e\u003cstrong\u003efit\u003c/strong\u003e — Fit mode: \u003ccode\u003econtain\u003c/code\u003e (default), \u003ccode\u003ecover\u003c/code\u003e, \u003ccode\u003efill\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eformat\u003c/strong\u003e — Output format: \u003ccode\u003ejpeg\u003c/code\u003e (default), \u003ccode\u003epng\u003c/code\u003e, \u003ccode\u003ewebp\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eq\u003c/strong\u003e — JPEG quality 1–100 (default: encoder default)\u003c/li\u003e \u003c/ul\u003e Only supported for image assets. Returns 400 for video, audio, or PDF assets.",
+                "description": "Applies a resize/format transform to the asset's current version in memory and returns the result directly (never stored). Responses are cached in an LRU cache (100 entries, 5-minute TTL) so repeated identical calls are cheap. \u003cbr\u003eQuery parameters: \u003cul\u003e \u003cli\u003e\u003cstrong\u003ew\u003c/strong\u003e — Target width in pixels\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eh\u003c/strong\u003e — Target height in pixels\u003c/li\u003e \u003cli\u003e\u003cstrong\u003efit\u003c/strong\u003e — Fit mode: \u003ccode\u003econtain\u003c/code\u003e (default), \u003ccode\u003ecover\u003c/code\u003e, \u003ccode\u003efill\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eformat\u003c/strong\u003e — Output format: \u003ccode\u003ejpeg\u003c/code\u003e (default), \u003ccode\u003epng\u003c/code\u003e, \u003ccode\u003ewebp\u003c/code\u003e (lossless)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eq\u003c/strong\u003e — JPEG quality 1–100 (default: encoder default; ignored for WebP)\u003c/li\u003e \u003c/ul\u003e Only supported for image assets. Returns 400 for video, audio, or PDF assets.",
                 "produces": [
                     "image/jpeg"
                 ],
@@ -924,7 +1024,7 @@
                     },
                     {
                         "type": "integer",
-                        "description": "JPEG quality (1-100)",
+                        "description": "JPEG quality (1-100, ignored for WebP)",
                         "name": "q",
                         "in": "query"
                     }
@@ -1028,7 +1128,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a flat array of tag name strings applied to the specified asset.",
                 "produces": [
                     "application/json"
                 ],
@@ -1075,7 +1174,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Adds a tag to the specified asset. If the tag does not exist in the workspace it is created automatically. Also updates the tag's \u003ccode\u003elast_used_at\u003c/code\u003e timestamp.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1106,7 +1204,7 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "name of the applied tag",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1142,7 +1240,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Removes the association between the tag and the asset. The tag itself is not deleted from the workspace. Tag name matching is case-insensitive.",
                 "produces": [
                     "application/json"
                 ],
@@ -1282,7 +1379,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: \u003cul\u003e \u003cli\u003e\u003cstrong\u003eimage_resize\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N, \"fit\": \"contain|cover|fill\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_convert\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"jpeg|png|webp|avif\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_crop\u003c/strong\u003e — \u003ccode\u003e{\"x\": N, \"y\": N, \"width\": N, \"height\": N}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_watermark\u003c/strong\u003e — \u003ccode\u003e{\"text\": \"...\", \"position\": \"...\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_smart_crop\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N}\u003c/code\u003e (AI-assisted)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_bg_remove\u003c/strong\u003e — requires \u003ccode\u003eREMOVEBG_API_KEY\u003c/code\u003e env var\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_transcode\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"mp4\", \"codec\": \"h264\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_capture_image\u003c/strong\u003e — \u003ccode\u003e{\"time_sec\": N}\u003c/code\u003e\u003c/li\u003e \u003c/ul\u003e Returns a job ID immediately; poll \u003ccode\u003eGET /api/v1/assets/:id/variants\u003c/code\u003e to check completion. Returns 409 if a variant rebuild is already in progress.",
+                "description": "Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: \u003cul\u003e \u003cli\u003e\u003cstrong\u003eimage_resize\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N, \"fit\": \"contain|cover|fill\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_convert\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"jpeg|png|webp|avif\"}\u003c/code\u003e (WebP output is lossless; quality only affects JPEG)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_crop\u003c/strong\u003e — \u003ccode\u003e{\"x\": N, \"y\": N, \"width\": N, \"height\": N}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_watermark\u003c/strong\u003e — \u003ccode\u003e{\"opacity\": 0.5}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_smart_crop\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N}\u003c/code\u003e (AI-assisted)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_bg_remove\u003c/strong\u003e — \u003ccode\u003e{\"model\": \"bria/remove-background\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_with_prompt\u003c/strong\u003e — \u003ccode\u003e{\"prompt\": \"...\", \"model\": \"black-forest-labs/FLUX.1-fill-dev\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_transcode\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"mp4\", \"codec\": \"h264\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_watermark\u003c/strong\u003e — \u003ccode\u003e{\"opacity\": 0.5, \"format\": \"mp4\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_capture_image\u003c/strong\u003e — \u003ccode\u003e{\"time_sec\": N}\u003c/code\u003e\u003c/li\u003e \u003c/ul\u003e Returns a job ID immediately; poll \u003ccode\u003eGET /api/v1/assets/:id/variants\u003c/code\u003e to check completion. Returns 409 if a variant rebuild is already in progress.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1888,6 +1985,366 @@
                 }
             }
         },
+        "/api/v1/collections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all collections in the workspace with their asset counts.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "List collections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.CollectionResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a named collection in the workspace. Supply \u003ccode\u003easset_ids\u003c/code\u003e to pre-populate it (e.g. when saving a working stack). All asset IDs must belong to the authenticated workspace.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "Create a collection",
+                "parameters": [
+                    {
+                        "description": "Collection details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.createCollectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api.CollectionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "One or more assets not in workspace",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/api.ValidationErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/collections/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns collection metadata and its full asset list, ordered by position then insertion date.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "Get a collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.CollectionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Collection not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the collection's name and description. Requires editor role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "Update a collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.updateCollectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.CollectionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Collection not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/api.ValidationErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes the collection and removes all its asset memberships. The assets themselves are not deleted. Requires owner role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "Delete a collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Collection not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/collections/{id}/assets/{aid}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a single asset to the collection. Idempotent — adding an asset that is already in the collection succeeds silently. Requires editor role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "Add asset to collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "aid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Collection or asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a single asset from the collection. The asset itself is not deleted. Requires editor role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Collections"
+                ],
+                "summary": "Remove asset from collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Collection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "aid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Collection not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/events": {
             "get": {
                 "security": [
@@ -1926,7 +2383,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns all custom field definitions for the workspace filtered by scope. Field definitions describe the schema for structured metadata that can be attached to assets (\u003ccode\u003escope=asset\u003c/code\u003e) or projects (\u003ccode\u003escope=project\u003c/code\u003e).\u003cbr\u003e\u003cbr\u003e Supported field types: \u003ccode\u003etext\u003c/code\u003e, \u003ccode\u003enumber\u003c/code\u003e, \u003ccode\u003edate\u003c/code\u003e, \u003ccode\u003eboolean\u003c/code\u003e, \u003ccode\u003eselect\u003c/code\u003e, \u003ccode\u003eurl\u003c/code\u003e.",
+                "description": "Returns all custom field definitions for the workspace filtered by scope.",
                 "produces": [
                     "application/json"
                 ],
@@ -1972,7 +2429,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a new custom field definition for assets or projects. The \u003ccode\u003ekey\u003c/code\u003e must be lowercase alphanumeric with underscores and is immutable after creation. A maximum of 50 definitions per scope is enforced.\u003cbr\u003e\u003cbr\u003e For \u003ccode\u003eselect\u003c/code\u003e fields, supply an \u003ccode\u003eoptions\u003c/code\u003e array of string choices. The \u003ccode\u003einherit_from_project\u003c/code\u003e flag (asset-scope only) causes the field to automatically pre-populate from the assigned project's value.",
+                "description": "Creates a new custom field definition for assets or projects.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2029,7 +2486,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates the \u003ccode\u003eposition\u003c/code\u003e of multiple field definitions in a single request. The request body is a JSON array of \u003ccode\u003e{\"id\": \"...\", \"position\": N}\u003c/code\u003e objects. Items not belonging to this workspace are silently skipped (best-effort update).",
+                "description": "Updates the position of multiple field definitions in a single request.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2121,7 +2578,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates a custom field definition. The \u003ccode\u003ekey\u003c/code\u003e and \u003ccode\u003efield_type\u003c/code\u003e are immutable after creation — supplying a different value returns 422. All other fields are optional; omitted fields retain their current values.\u003cbr\u003e\u003cbr\u003e For \u003ccode\u003eselect\u003c/code\u003e fields, \u003ccode\u003eoptions\u003c/code\u003e must be a non-empty JSON array of strings.",
+                "description": "Updates a custom field definition. The key and field_type are immutable after creation.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2189,7 +2646,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Soft-deletes the field definition. The definition is hidden from the list endpoint but existing field values on assets and projects are preserved. This action is permanent from the API perspective (no undelete endpoint).",
+                "description": "Soft-deletes the field definition.",
                 "produces": [
                     "application/json"
                 ],
@@ -2232,7 +2689,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the number of assets and projects that have a value set for this field definition. Useful for understanding the impact of deleting a field.",
+                "description": "Returns the number of assets and projects that have a value set for this field definition.",
                 "produces": [
                     "application/json"
                 ],
@@ -2383,7 +2840,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the most recent 50 ingress log entries across all sources in the workspace. Filter by status using the \u003ccode\u003estatus\u003c/code\u003e query parameter to focus on entries that need attention (e.g. \u003ccode\u003eerror\u003c/code\u003e or \u003ccode\u003eskipped\u003c/code\u003e).",
                 "produces": [
                     "application/json"
                 ],
@@ -2394,7 +2850,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by status (pending, fetching, done, error, skipped)",
+                        "description": "Filter by status",
                         "name": "status",
                         "in": "query"
                     }
@@ -2408,12 +2864,6 @@
                                 "$ref": "#/definitions/api.ingressLogResponse"
                             }
                         }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -2425,7 +2875,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Permanently removes a log entry. Because ingress deduplication is based on \u003ccode\u003e(source_id, remote_id)\u003c/code\u003e, deleting an entry allows the same remote file to be re-ingested on the next poll. Use this to force a re-import of a previously processed file.",
                 "produces": [
                     "application/json"
                 ],
@@ -2445,24 +2894,6 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Entry belongs to a different workspace",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Log entry not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -2474,7 +2905,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Resets the log entry status to \u003ccode\u003epending\u003c/code\u003e and enqueues a new \u003ccode\u003eingest_fetch\u003c/code\u003e job to re-attempt asset import. Only entries with status \u003ccode\u003eerror\u003c/code\u003e or \u003ccode\u003eskipped\u003c/code\u003e can be retried; attempting to retry a \u003ccode\u003edone\u003c/code\u003e or \u003ccode\u003epending\u003c/code\u003e entry returns 400.\u003cbr\u003e\u003cbr\u003e Returns the queued job ID. The retry runs asynchronously — poll the log entry to track completion.",
                 "produces": [
                     "application/json"
                 ],
@@ -2502,30 +2932,6 @@
                                 }
                             }
                         }
-                    },
-                    "400": {
-                        "description": "Entry is not in error or skipped state",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Entry belongs to a different workspace",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Log entry not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -2537,7 +2943,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns all ingress sources in the workspace. Sensitive config fields are redacted with \u003ccode\u003e\"***\"\u003c/code\u003e in every response.",
                 "produces": [
                     "application/json"
                 ],
@@ -2554,12 +2959,6 @@
                                 "$ref": "#/definitions/api.ingressSourceResponse"
                             }
                         }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             },
@@ -2569,7 +2968,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a new ingress source for automated asset import. The \u003ccode\u003econfig\u003c/code\u003e object is source-type-specific (see type documentation). Sensitive fields (passwords, keys, tokens) are encrypted at rest with AES-256-GCM and redacted (\u003ccode\u003e\"***\"\u003c/code\u003e) in all API responses.\u003cbr\u003e\u003cbr\u003e Supported source types: \u003cul\u003e \u003cli\u003e\u003cstrong\u003eimap\u003c/strong\u003e — Poll an IMAP mailbox for attachments.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003esftp\u003c/strong\u003e — Poll a remote SFTP directory.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003ewebdav\u003c/strong\u003e — Poll a WebDAV endpoint.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003es3\u003c/strong\u003e — Poll an S3-compatible bucket.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eemail_api\u003c/strong\u003e — Receive assets via SMTP push (uses \u003ccode\u003epublic_token\u003c/code\u003e).\u003c/li\u003e \u003c/ul\u003e Optional \u003ccode\u003erules\u003c/code\u003e array in the body bootstraps ingress rules for the source in a single request. Rules can also be managed later via the \u003ccode\u003e/rules\u003c/code\u003e sub-resource.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2597,24 +2995,6 @@
                         "schema": {
                             "$ref": "#/definitions/api.ingressSourceResponse"
                         }
-                    },
-                    "400": {
-                        "description": "Invalid config JSON",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Validation failed",
-                        "schema": {
-                            "$ref": "#/definitions/api.ValidationErrorResponse"
-                        }
                     }
                 }
             }
@@ -2626,7 +3006,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the source record including its current enabled state and decrypted (but redacted) config. Sensitive config values are always replaced with \u003ccode\u003e\"***\"\u003c/code\u003e.",
                 "produces": [
                     "application/json"
                 ],
@@ -2649,18 +3028,6 @@
                         "schema": {
                             "$ref": "#/definitions/api.ingressSourceResponse"
                         }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Source not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             },
@@ -2670,7 +3037,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates the source label, config, destination folder/project, enabled state, and poll interval. Omitted fields keep their current values.\u003cbr\u003e\u003cbr\u003e To update the config, supply a full replacement object — partial config merging is not supported. Sensitive fields provided in the new config are encrypted and stored; omitting them removes them. To clear \u003ccode\u003edest_folder_id\u003c/code\u003e or \u003ccode\u003edest_project_id\u003c/code\u003e pass an explicit \u003ccode\u003enull\u003c/code\u003e value.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2705,30 +3071,6 @@
                         "schema": {
                             "$ref": "#/definitions/api.ingressSourceResponse"
                         }
-                    },
-                    "400": {
-                        "description": "Invalid config JSON",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Source not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Validation failed",
-                        "schema": {
-                            "$ref": "#/definitions/api.ValidationErrorResponse"
-                        }
                     }
                 }
             },
@@ -2738,7 +3080,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Permanently removes the source and all its associated rules. Log entries are retained for auditing. This action is irreversible.",
                 "produces": [
                     "application/json"
                 ],
@@ -2758,12 +3099,6 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -2775,7 +3110,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the most recent 50 ingress log entries for the given source. Each entry represents one remote item that the source discovered, with its current ingestion status (\u003ccode\u003epending\u003c/code\u003e, \u003ccode\u003efetching\u003c/code\u003e, \u003ccode\u003edone\u003c/code\u003e, \u003ccode\u003eerror\u003c/code\u003e, \u003ccode\u003eskipped\u003c/code\u003e).\u003cbr\u003e\u003cbr\u003e The \u003ccode\u003e(source_id, remote_id)\u003c/code\u003e pair is unique — re-encountering the same remote file on a subsequent poll is a no-op unless the log entry is deleted or retried.",
                 "produces": [
                     "application/json"
                 ],
@@ -2801,18 +3135,6 @@
                                 "$ref": "#/definitions/api.ingressLogResponse"
                             }
                         }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Source not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -2824,7 +3146,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Immediately enqueues an \u003ccode\u003eingest_poll\u003c/code\u003e job for the source, regardless of its scheduled poll interval. Use this to force a check for new assets without waiting for the next scheduled run. Returns the queued job ID for tracking.\u003cbr\u003e\u003cbr\u003e The job runs asynchronously; 202 Accepted means the job was enqueued, not that the poll completed. Monitor the ingress log to see results.",
                 "produces": [
                     "application/json"
                 ],
@@ -2852,18 +3173,6 @@
                                 }
                             }
                         }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Source not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -2875,7 +3184,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Validates that the source can successfully connect to the remote system using its current configuration. The check runs with a 10-second timeout. Returns \u003ccode\u003e{\"ok\": true}\u003c/code\u003e on success, or a descriptive error message on failure.\u003cbr\u003e\u003cbr\u003e Use this after creating or updating a source to confirm credentials and network access are correct before relying on scheduled polling.",
                 "produces": [
                     "application/json"
                 ],
@@ -2902,24 +3210,6 @@
                                     "type": "boolean"
                                 }
                             }
-                        }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Source not found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Connection test failed — body contains the error message",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -3164,7 +3454,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns paginated audit events for the given project. Supports the same \u003ccode\u003elimit\u003c/code\u003e, \u003ccode\u003ecursor\u003c/code\u003e, and \u003ccode\u003etypes\u003c/code\u003e query parameters as the asset events endpoint.",
+                "description": "Returns paginated audit events for the given project.",
                 "produces": [
                     "application/json"
                 ],
@@ -3459,7 +3749,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns all shares created in the workspace, including revoked and expired ones. Use the \u003ccode\u003erevoked_at\u003c/code\u003e and \u003ccode\u003eis_expired\u003c/code\u003e fields to filter active shares client-side.",
+                "description": "Returns all shares created in the workspace.",
                 "produces": [
                     "application/json"
                 ],
@@ -3491,7 +3781,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a public share link for the given target (asset or project). Options: \u003cul\u003e \u003cli\u003e\u003cstrong\u003epassword\u003c/strong\u003e — Protect the share with a password.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eexpires_in_days\u003c/strong\u003e — Automatically expire the share after N days.\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eallow_download\u003c/strong\u003e — Whether viewers can download original files (default true).\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eallow_comments\u003c/strong\u003e — Whether viewers can post comments (default false).\u003c/li\u003e \u003c/ul\u003e The response includes a \u003ccode\u003epublic_url\u003c/code\u003e that can be shared directly with external reviewers.",
+                "description": "Creates a public share link for the given target (asset or project).",
                 "consumes": [
                     "application/json"
                 ],
@@ -3548,7 +3838,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the share record including its current status (active, revoked, expired).",
+                "description": "Returns the share record including its current status.",
                 "produces": [
                     "application/json"
                 ],
@@ -3592,7 +3882,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates the share's label, password, expiry, and permission flags. All fields are optional. To remove an existing password send \u003ccode\u003e\"clear_password\": true\u003c/code\u003e. To remove an expiry send \u003ccode\u003e\"clear_expiry\": true\u003c/code\u003e.",
+                "description": "Updates the share's label, password, expiry, and permission flags.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3654,7 +3944,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Sets \u003ccode\u003erevoked_at\u003c/code\u003e on the share so that all future public access attempts return 404. The share record is retained for audit purposes. Revocation is permanent.",
+                "description": "Sets revoked_at on the share so that all future public access attempts return 404.",
                 "produces": [
                     "application/json"
                 ],
@@ -3789,6 +4079,123 @@
                 }
             }
         },
+        "/api/v1/stack/export": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Streams a ZIP archive containing the original files for the given asset IDs. All assets must belong to the authenticated workspace. Files are named after their original filenames; duplicates are suffixed with \u003ccode\u003e_N\u003c/code\u003e. If any file is missing from storage it is skipped and listed in a \u003ccode\u003e_missing_files.txt\u003c/code\u003e manifest inside the ZIP. The response is streamed — do not buffer the entire body before processing.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/zip"
+                ],
+                "tags": [
+                    "Stack"
+                ],
+                "summary": "Export stack as ZIP",
+                "parameters": [
+                    {
+                        "description": "Asset IDs and optional filename",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.stackExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ZIP archive",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "One or more assets not in workspace",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/api.ValidationErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/stack/merge": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enqueues an async job that merges the given assets into a single animated GIF or PDF contact sheet. All assets must belong to the authenticated workspace. Returns 202 immediately with a \u003ccode\u003ejob_id\u003c/code\u003e; listen for event \u003ccode\u003estack_merge_done\u003c/code\u003e to check completion. On success the job result contains the new asset ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Stack"
+                ],
+                "summary": "Merge stack assets into GIF or PDF",
+                "parameters": [
+                    {
+                        "description": "Asset IDs, output type and options",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.stackMergeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "job_id",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "One or more assets not in workspace",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed (e.g. output_type not gif/pdf)",
+                        "schema": {
+                            "$ref": "#/definitions/api.ValidationErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tags": {
             "get": {
                 "security": [
@@ -3796,7 +4203,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns all tags in the workspace, each with \u003ccode\u003easset_count\u003c/code\u003e, optional \u003ccode\u003ecolor\u003c/code\u003e, \u003ccode\u003egroup_name\u003c/code\u003e, and \u003ccode\u003elast_used_at\u003c/code\u003e.",
                 "produces": [
                     "application/json"
                 ],
@@ -3828,7 +4234,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a new tag with an optional color (hex) and group name. Tag names are case-insensitive and must be unique within the workspace.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3883,7 +4288,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deletes all listed tags and removes their associations from all assets. Tags not found in the workspace are silently skipped. Returns the count of tags deleted and the total number of asset-tag associations removed.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3907,7 +4311,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "deleted and removed_from_assets counts",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3937,7 +4341,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Reassigns all asset-tag associations from the listed source tags to the target tag, then deletes the source tags. The target tag is created if it does not already exist. Useful for consolidating duplicate or near-duplicate tags.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3961,7 +4364,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "merged_assets count and updated target TagResponse",
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3989,7 +4392,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns pairs of tags whose names are similar (Levenshtein distance \u0026lt; 30% of the longer name) among tags that have at least one associated asset. Up to 20 pairs are returned, sorted by similarity score ascending (most similar first). Use the merge endpoint to consolidate them.",
                 "produces": [
                     "application/json"
                 ],
@@ -3999,7 +4401,7 @@
                 "summary": "Get duplicate tag suggestions",
                 "responses": {
                     "200": {
-                        "description": "Array of {a, b, score} pairs",
+                        "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -4024,7 +4426,6 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates one or more attributes of an existing tag identified by its name. All fields are optional. Renaming checks for conflicts with existing tag names.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4595,7 +4996,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns every workspace the authenticated user is a member of, along with their role in each. Use this to populate a workspace-switcher UI.",
+                "description": "Returns every workspace the authenticated user is a member of, along with their role in each.",
                 "produces": [
                     "application/json"
                 ],
@@ -4615,6 +5016,192 @@
                     },
                     "401": {
                         "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/canva/callback": {
+            "get": {
+                "description": "Receives the authorization code from Canva. Validates state and PKCE, exchanges the code, fetches the user profile from the Canva API (\u003ccode\u003e/rest/v1/users/me\u003c/code\u003e), upserts the user, issues a session cookie, and redirects to \u003ccode\u003e/\u003c/code\u003e. On any error redirects to \u003ccode\u003e/login?error=oidc_exchange\u0026error_step=...\u003c/code\u003e.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Canva OAuth2 callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code from Canva",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State parameter (CSRF token)",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to / on success, or /login?error=... on failure",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/canva/link": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the Canva login method from the current user's account. Fails with 422 if Canva is the user's only auth method (would lock them out).",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Unlink Canva provider",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot unlink — only auth method remaining",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not unlink",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/canva/login": {
+            "get": {
+                "description": "Redirects the browser to Canva's OAuth2 authorization endpoint requesting the \u003ccode\u003eprofile:read\u003c/code\u003e scope. Sets short-lived \u003ccode\u003eoidc_state\u003c/code\u003e and \u003ccode\u003eoidc_pkce\u003c/code\u003e cookies (10 min TTL). Returns 503 if Canva OAuth is not configured.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Initiate Canva login",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Canva OAuth2",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Canva login not configured",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/google/callback": {
+            "get": {
+                "description": "Receives the authorization code from Google. Validates state and PKCE, exchanges the code, verifies the ID token, upserts the user (marked as Google-linked), issues a session cookie, and redirects to \u003ccode\u003e/\u003c/code\u003e. On any error redirects to \u003ccode\u003e/login?error=...\u003c/code\u003e.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google OAuth2 callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code from Google",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State parameter (CSRF token)",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to / on success, or /login?error=... on failure",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/google/link": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the Google login method from the current user's account. Fails with 422 if Google is the user's only auth method (would lock them out).",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Unlink Google provider",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot unlink — only auth method remaining",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not unlink",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/google/login": {
+            "get": {
+                "description": "Redirects the browser to Google's OAuth2 authorization endpoint with \u003ccode\u003eprompt=select_account\u003c/code\u003e. Sets short-lived \u003ccode\u003eoidc_state\u003c/code\u003e and \u003ccode\u003eoidc_pkce\u003c/code\u003e cookies (10 min TTL). Returns 503 if Google OAuth is not configured.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Initiate Google login",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Google OAuth2",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Google login not configured",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -4743,6 +5330,136 @@
                 }
             }
         },
+        "/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the profile of the currently authenticated user including their linked OAuth providers (OIDC, Google, Canva).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get current user profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.meResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not load user",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/oidc/callback": {
+            "get": {
+                "description": "Receives the authorization code from the OIDC provider. Validates state (CSRF) and PKCE, exchanges the code for tokens, verifies the ID token, upserts the user, issues a session cookie, and redirects to \u003ccode\u003e/\u003c/code\u003e. On any error redirects to \u003ccode\u003e/login?error=...\u003c/code\u003e.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "OIDC callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code from provider",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State parameter (CSRF token)",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to / on success, or /login?error=... on failure",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/oidc/link": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the OIDC login method from the current user's account. Fails with 422 if OIDC is the user's only auth method (would lock them out).",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Unlink OIDC provider",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Cannot unlink — only auth method remaining",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not unlink",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/oidc/login": {
+            "get": {
+                "description": "Redirects the browser to the configured OIDC provider's authorization endpoint. Sets short-lived \u003ccode\u003eoidc_state\u003c/code\u003e and \u003ccode\u003eoidc_pkce\u003c/code\u003e cookies (10 min TTL) for CSRF and PKCE verification. Returns 503 if OIDC is not configured.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Initiate OIDC login",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to OIDC provider",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "OIDC not configured",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/refresh": {
             "post": {
                 "security": [
@@ -4845,6 +5562,9 @@
                         "schema": {
                             "type": "object",
                             "properties": {
+                                " mailHost": {
+                                    "type": "string"
+                                },
                                 "demo": {
                                     "type": "boolean"
                                 }
@@ -5360,6 +6080,58 @@
                     }
                 }
             }
+        },
+        "/shared/{id}/export": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Streams a ZIP archive of all assets accessible via the share. Works for \u003ccode\u003easset\u003c/code\u003e, \u003ccode\u003eproject\u003c/code\u003e, and \u003ccode\u003ecollection\u003c/code\u003e target types. Requires the share to have \u003ccode\u003eallow_download: true\u003c/code\u003e and a valid share session token. The ZIP is scoped strictly to the share's target — it cannot expose assets outside it.",
+                "produces": [
+                    "application/zip"
+                ],
+                "tags": [
+                    "Public Shares"
+                ],
+                "summary": "Download shared assets as ZIP (public)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ZIP archive",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated (share token required)",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Download not allowed for this share",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Share not found or expired",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -5405,6 +6177,9 @@
                 "created_at": {
                     "type": "string"
                 },
+                "derived_from_asset_id": {
+                    "type": "string"
+                },
                 "folder_id": {
                     "type": "string"
                 },
@@ -5435,11 +6210,17 @@
                         "type": "string"
                     }
                 },
+                "thumbnail_content_type": {
+                    "type": "string"
+                },
                 "thumbnail_key": {
                     "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
+                },
+                "variant_count": {
+                    "type": "integer"
                 },
                 "variants_rebuilding": {
                     "type": "boolean"
@@ -5480,6 +6261,58 @@
                 }
             }
         },
+        "api.BulkFieldPreviewEntry": {
+            "type": "object",
+            "properties": {
+                "assets_with_value": {
+                    "type": "integer"
+                },
+                "distinct_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "field_name": {
+                    "type": "string"
+                },
+                "field_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.BulkFieldsPreviewRequest": {
+            "type": "object",
+            "properties": {
+                "asset_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "field_ids": {
+                    "description": "optional; empty = all active fields",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.BulkFieldsPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.BulkFieldPreviewEntry"
+                    }
+                }
+            }
+        },
         "api.BulkPatchAssetFieldsRequest": {
             "type": "object",
             "properties": {
@@ -5500,6 +6333,9 @@
         "api.BulkPatchAssetFieldsResponse": {
             "type": "object",
             "properties": {
+                "cleared": {
+                    "type": "integer"
+                },
                 "updated": {
                     "type": "integer"
                 }
@@ -5529,7 +6365,40 @@
                         "type": "string"
                     }
                 },
+                "mode": {
+                    "description": "\"add\" (default) | \"remove\"",
+                    "type": "string"
+                },
                 "tag_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.CollectionResponse": {
+            "type": "object",
+            "properties": {
+                "asset_count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
                     "type": "string"
                 }
             }
@@ -6046,6 +6915,9 @@
                 "cover_asset_id": {
                     "type": "string"
                 },
+                "cover_version_id": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -6227,6 +7099,9 @@
                 "id": {
                     "type": "string"
                 },
+                "is_system": {
+                    "type": "boolean"
+                },
                 "last_used_at": {
                     "type": "string"
                 },
@@ -6367,6 +7242,9 @@
                 "exif_keep_gps": {
                     "type": "boolean"
                 },
+                "locked_taxonomy": {
+                    "type": "boolean"
+                },
                 "version_retention_count": {
                     "type": "integer"
                 }
@@ -6421,7 +7299,16 @@
                 "size": {
                     "type": "integer"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "storage_key": {
+                    "type": "string"
+                },
+                "thumbnail_content_type": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
                     "type": "string"
                 },
                 "transform_params": {
@@ -6504,6 +7391,9 @@
                 "role": {
                     "type": "string"
                 },
+                "total_asset_count": {
+                    "type": "integer"
+                },
                 "user": {
                     "$ref": "#/definitions/api.UserResponse"
                 },
@@ -6539,8 +7429,8 @@
                 "id": {
                     "type": "string"
                 },
-                "ingest_token": {
-                    "type": "string"
+                "locked_taxonomy": {
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"
@@ -6556,11 +7446,17 @@
         "api.WorkspaceWithRoleResponse": {
             "type": "object",
             "properties": {
+                "asset_count": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
+                },
+                "member_count": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -6591,6 +7487,9 @@
                 "name": {
                     "type": "string"
                 },
+                "source": {
+                    "type": "string"
+                },
                 "value": {}
             }
         },
@@ -6602,6 +7501,23 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "api.createCollectionRequest": {
+            "type": "object",
+            "properties": {
+                "asset_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -6670,6 +7586,9 @@
                 "enabled": {
                     "type": "boolean"
                 },
+                "error_count": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -6695,6 +7614,44 @@
                     "type": "string"
                 },
                 "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.meResponse": {
+            "type": "object",
+            "properties": {
+                "auth_methods": {
+                    "type": "string"
+                },
+                "avatar_url": {
+                    "type": "string"
+                },
+                "canva_linked": {
+                    "type": "boolean"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "google_linked": {
+                    "type": "boolean"
+                },
+                "has_password": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oidc_linked": {
+                    "type": "boolean"
+                },
+                "pending_email": {
                     "type": "string"
                 }
             }
@@ -6746,6 +7703,51 @@
                     "type": "string"
                 },
                 "value": {}
+            }
+        },
+        "api.stackExportRequest": {
+            "type": "object",
+            "properties": {
+                "asset_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filename": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.stackMergeRequest": {
+            "type": "object",
+            "properties": {
+                "asset_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "gif_frame_ms": {
+                    "type": "integer"
+                },
+                "output_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.updateCollectionRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
             }
         }
     }

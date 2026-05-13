@@ -205,7 +205,7 @@ func (s *Server) handleResolveWatermarkAsset(c fiber.Ctx) error {
 // handleCreateVariant enqueues a transform job to produce a new variant.
 //
 // @Summary Create a variant
-// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code></li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong> — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
+// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code> (WebP output is lossless; quality only affects JPEG)</li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong> — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
 // @Tags Variants
 // @Accept json
 // @Produce json
@@ -605,7 +605,7 @@ func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
 // handlePreviewTransform applies an in-memory image transform and returns the result.
 //
 // @Summary Preview image transform
-// @Description Applies a resize/format transform to the asset's current version in memory and returns the result directly (never stored). Responses are cached in an LRU cache (100 entries, 5-minute TTL) so repeated identical calls are cheap. <br>Query parameters: <ul> <li><strong>w</strong> — Target width in pixels</li> <li><strong>h</strong> — Target height in pixels</li> <li><strong>fit</strong> — Fit mode: <code>contain</code> (default), <code>cover</code>, <code>fill</code></li> <li><strong>format</strong> — Output format: <code>jpeg</code> (default), <code>png</code>, <code>webp</code></li> <li><strong>q</strong> — JPEG quality 1–100 (default: encoder default)</li> </ul> Only supported for image assets. Returns 400 for video, audio, or PDF assets.
+// @Description Applies a resize/format transform to the asset's current version in memory and returns the result directly (never stored). Responses are cached in an LRU cache (100 entries, 5-minute TTL) so repeated identical calls are cheap. <br>Query parameters: <ul> <li><strong>w</strong> — Target width in pixels</li> <li><strong>h</strong> — Target height in pixels</li> <li><strong>fit</strong> — Fit mode: <code>contain</code> (default), <code>cover</code>, <code>fill</code></li> <li><strong>format</strong> — Output format: <code>jpeg</code> (default), <code>png</code>, <code>webp</code> (lossless)</li> <li><strong>q</strong> — JPEG quality 1–100 (default: encoder default; ignored for WebP)</li> </ul> Only supported for image assets. Returns 400 for video, audio, or PDF assets.
 // @Tags Variants
 // @Produce image/jpeg
 // @Security BearerAuth
@@ -614,7 +614,7 @@ func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
 // @Param h query int false "Target height"
 // @Param fit query string false "Fit mode (contain|cover|fill)"
 // @Param format query string false "Output format (jpeg|png|webp)"
-// @Param q query int false "JPEG quality (1-100)"
+// @Param q query int false "JPEG quality (1-100, ignored for WebP)"
 // @Success 200 {file} binary
 // @Failure 400 {object} ErrorResponse "Preview only supported for images"
 // @Failure 401 {object} ErrorResponse "Not authenticated"

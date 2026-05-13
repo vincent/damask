@@ -18,7 +18,7 @@ import (
 	"damask/server/internal/storage"
 	apptelemetry "damask/server/internal/telemetry"
 
-	"github.com/chai2010/webp"
+	"github.com/HugoSmits86/nativewebp"
 	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -35,18 +35,18 @@ type UserDTO struct {
 
 // OIDCUserDTO is returned by UpsertOIDCUser / UpsertCanvaUser / UnlinkProvider.
 type OIDCUserDTO struct {
-	ID           string
-	Name         string
-	DisplayName  string
-	Email        string
-	AvatarURL    *string
+	ID               string
+	Name             string
+	DisplayName      string
+	Email            string
+	AvatarURL        *string
 	AvatarStorageKey *string
-	AuthMethods  string
-	OIDCLinked   bool
-	GoogleLinked bool
-	CanvaLinked  bool
-	PendingEmail *string
-	WorkspaceID  string
+	AuthMethods      string
+	OIDCLinked       bool
+	GoogleLinked     bool
+	CanvaLinked      bool
+	PendingEmail     *string
+	WorkspaceID      string
 }
 
 // UpsertOIDCUserParams is the input for UserService.UpsertOIDCUser.
@@ -260,7 +260,9 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 
 	encodeCtx, encodeSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_encode")
 	var out bytes.Buffer
-	encodeErr := webp.Encode(&out, avatar, &webp.Options{Lossless: true})
+	encodeErr := nativewebp.Encode(&out, avatar, &nativewebp.Options{
+		CompressionLevel: nativewebp.BestCompression,
+	})
 	if encodeErr == nil {
 		encodeSpan.SetAttributes(attribute.Int("avatar.output_bytes", out.Len()))
 	}
@@ -753,18 +755,18 @@ func (s *userService) toOIDCUserDTO(ctx context.Context, user repository.User) (
 		wsID = ids[0]
 	}
 	return &OIDCUserDTO{
-		ID:           user.ID,
-		Name:         user.Name,
-		DisplayName:  displayNameForUser(user),
-		Email:        user.Email,
-		AvatarURL:    user.AvatarUrl,
+		ID:               user.ID,
+		Name:             user.Name,
+		DisplayName:      displayNameForUser(user),
+		Email:            user.Email,
+		AvatarURL:        user.AvatarUrl,
 		AvatarStorageKey: user.AvatarStorageKey,
-		AuthMethods:  user.AuthMethods,
-		OIDCLinked:   user.OidcSub != nil,
-		GoogleLinked: user.GoogleUserID != nil,
-		CanvaLinked:  user.CanvaUserID != nil,
-		PendingEmail: user.PendingEmail,
-		WorkspaceID:  wsID,
+		AuthMethods:      user.AuthMethods,
+		OIDCLinked:       user.OidcSub != nil,
+		GoogleLinked:     user.GoogleUserID != nil,
+		CanvaLinked:      user.CanvaUserID != nil,
+		PendingEmail:     user.PendingEmail,
+		WorkspaceID:      wsID,
 	}, nil
 }
 
