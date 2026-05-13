@@ -500,7 +500,7 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	// Resolve CreatedBy from the first (oldest) version.
 	var createdBy *AssetContributor
-	if firstVer, err := s.versions.GetFirstByAsset(c.Context(), id); err == nil && firstVer.CreatedBy != nil {
+	if firstVer, err := s.versions.GetFirstByAsset(c.Context(), id); err == nil && firstVer != nil && firstVer.CreatedBy != nil {
 		cb := &AssetContributor{ID: *firstVer.CreatedBy}
 		if u, err := s.users.GetByID(c.Context(), *firstVer.CreatedBy); err == nil {
 			cb.Name = u.Name
