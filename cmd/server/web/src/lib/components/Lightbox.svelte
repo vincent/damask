@@ -751,7 +751,6 @@
             {/if}
           </div>
         </div>
-
       {:else if activeTab === 'text'}
         <TextTrackPanel {asset} />
 

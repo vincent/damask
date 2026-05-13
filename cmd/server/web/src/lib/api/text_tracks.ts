@@ -18,10 +18,13 @@ export const textTrackApi = {
     assetId: string,
     body: { source: string; lang?: string; params?: Record<string, unknown> }
   ): Promise<TextTrack> =>
-    apiFetch<{ text_track: TextTrack }>(`/api/v1/assets/${assetId}/text-tracks`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }).then((res) => res.text_track),
+    apiFetch<{ text_track: TextTrack }>(
+      `/api/v1/assets/${assetId}/text-tracks`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    ).then((res) => res.text_track),
 
   delete: (assetId: string, trackId: string): Promise<void> =>
     apiFetch<void>(`/api/v1/assets/${assetId}/text-tracks/${trackId}`, {

@@ -26,21 +26,29 @@
   }
 </script>
 
-<article class="space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+<article
+  class="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm"
+>
   <div class="flex items-start justify-between gap-3">
     <div class="flex flex-wrap items-center gap-2">
-      <span class="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+      <span
+        class="rounded-full bg-[var(--tag-bg)] px-2.5 py-1 text-xs font-medium text-[var(--tag-text)]"
+      >
         {track.source === 'ocr'
           ? m.text_tracks_source_ocr()
           : m.text_tracks_source_manual()}
       </span>
       {#if track.lang}
-        <span class="rounded-full border border-gray-200 px-2.5 py-1 text-xs text-[var(--text-muted)] dark:border-gray-700">
+        <span
+          class="rounded-full border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--text-muted)]"
+        >
           {track.lang}
         </span>
       {/if}
       {#if track.status !== 'ready'}
-        <span class="rounded-full border border-amber-200 px-2.5 py-1 text-xs text-amber-700 dark:border-amber-900 dark:text-amber-300">
+        <span
+          class="rounded-full border border-amber-200 px-2.5 py-1 text-xs text-amber-700 dark:border-amber-900 dark:text-amber-300"
+        >
           {track.status === 'failed'
             ? m.text_tracks_status_failed()
             : m.text_tracks_status_pending()}
@@ -51,15 +59,16 @@
     <div class="flex items-center gap-2">
       {#if track.has_file}
         <a
-          href={track.download_url ?? textTrackApi.downloadUrl(assetId, track.id)}
-          class="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-300"
+          href={track.download_url ??
+            textTrackApi.downloadUrl(assetId, track.id)}
+          class="text-xs font-medium text-[var(--accent)] hover:underline"
         >
           {m.text_tracks_download()}
         </a>
       {/if}
       <button
         type="button"
-        class="text-xs font-medium text-red-600 hover:underline disabled:opacity-60 dark:text-red-400"
+        class="text-xs font-medium text-[var(--accent-danger)] hover:underline disabled:opacity-50"
         disabled={deleting}
         onclick={handleDelete}
       >
@@ -69,9 +78,11 @@
   </div>
 
   {#if track.status === 'failed' && track.error}
-    <p class="text-sm text-red-600 dark:text-red-400">{track.error}</p>
+    <p class="text-sm text-[var(--accent-danger)]">{track.error}</p>
   {:else if track.content}
-    <p class="text-sm leading-6 whitespace-pre-wrap text-[var(--text-secondary)]">
+    <p
+      class="text-sm leading-6 whitespace-pre-wrap text-[var(--text-secondary)]"
+    >
       {expanded || track.content.length <= previewLen
         ? track.content
         : `${track.content.slice(0, previewLen)}…`}
@@ -82,7 +93,7 @@
         class="text-xs font-medium text-[var(--text-muted)] hover:underline"
         onclick={() => (expanded = !expanded)}
       >
-      {expanded ? m.text_tracks_show_less() : m.text_tracks_show_more()}
+        {expanded ? m.text_tracks_show_less() : m.text_tracks_show_more()}
       </button>
     {/if}
   {/if}

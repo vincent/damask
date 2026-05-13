@@ -52,13 +52,18 @@
   }
 </script>
 
-<div class="space-y-4 rounded-2xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-800 dark:bg-gray-900/60">
+<div
+  class="space-y-4 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4"
+>
   {#if asset.mime_type.startsWith('image/')}
     <label class="block space-y-2">
       <span class="text-sm font-medium text-[var(--text-primary)]">
         {m.text_tracks_source_label()}
       </span>
-      <select bind:value={selectedSource} class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950">
+      <select
+        bind:value={selectedSource}
+        class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]"
+      >
         <option value="ocr">{m.text_tracks_source_ocr()}</option>
         <option value="manual">{m.text_tracks_source_manual()}</option>
       </select>
@@ -75,13 +80,13 @@
       <textarea
         bind:value={manualContent}
         rows="5"
-        class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+        class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-900"
         placeholder={m.text_tracks_manual_content_placeholder()}
       ></textarea>
     </label>
     <button
       type="button"
-      class="w-full rounded-xl bg-[var(--text-primary)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+      class="w-full rounded-lg bg-[var(--accent-cta)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-cta-hover)] disabled:cursor-not-allowed disabled:opacity-50"
       disabled={creating}
       onclick={createManual}
     >
@@ -90,6 +95,6 @@
   {/if}
 
   {#if error}
-    <p class="text-sm text-red-600 dark:text-red-400">{error}</p>
+    <p class="text-sm text-[var(--accent-danger)]">{error}</p>
   {/if}
 </div>

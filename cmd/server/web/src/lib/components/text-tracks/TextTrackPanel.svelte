@@ -67,7 +67,9 @@
 <section class="space-y-4 px-5 py-5">
   <div class="flex items-center justify-between gap-3">
     <div>
-      <h3 class="text-sm font-semibold tracking-[0.08em] text-[var(--text-primary)] uppercase">
+      <h3
+        class="text-sm font-semibold tracking-[0.08em] text-[var(--text-primary)] uppercase"
+      >
         {m.text_tracks_panel_title()}
       </h3>
       <p class="mt-1 text-sm text-[var(--text-muted)]">
@@ -76,7 +78,7 @@
     </div>
     <button
       type="button"
-      class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+      class="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
       onclick={() => (showCreate = !showCreate)}
     >
       {showCreate ? m.cancel() : m.text_tracks_add()}
@@ -96,7 +98,9 @@
   {#if loading}
     <p class="text-sm text-[var(--text-muted)]">{m.loading()}</p>
   {:else if tracks.length === 0}
-    <p class="rounded-2xl border border-dashed border-gray-200 px-4 py-6 text-sm text-[var(--text-muted)] dark:border-gray-700">
+    <p
+      class="rounded-lg border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--text-muted)]"
+    >
       {m.text_tracks_empty()}
     </p>
   {:else}
