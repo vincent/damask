@@ -39,6 +39,7 @@
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
   import AssetComments from './AssetComments.svelte'
   import MediaTagsTab from './MediaTagsTab.svelte'
+  import TextTrackPanel from './text-tracks/TextTrackPanel.svelte'
   import Backdrop from './ui/Backdrop.svelte'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
@@ -87,6 +88,7 @@
     details: { label: m.tab_details(), icon: null },
     tags: { label: m.media_tags_tab_label(), icon: null },
     variants: { label: m.tab_variants(), icon: null },
+    text: { label: m.text_tracks_panel_title(), icon: null },
     comments: { label: m.tab_comments(), icon: null },
     history: { label: m.tab_history(), icon: null },
     activity: { label: m.tab_activity(), icon: null },
@@ -749,6 +751,9 @@
             {/if}
           </div>
         </div>
+
+      {:else if activeTab === 'text'}
+        <TextTrackPanel {asset} />
 
         <!-- ═══ COMMENTS TAB ═══ -->
       {:else if activeTab === 'comments'}

@@ -87,6 +87,7 @@ Web: http://localhost:5173
 | `QUEUE_WORKERS` | `4` | Job worker pool size (transcode capped at 2) |
 | `FFMPEG_PATH` | - | Optional. Absolute or resolvable path to the `ffmpeg` binary; `ffprobe` is inferred from the same install when possible |
 | `FFMPEG_HW_ACCEL` | - | Optional. Video decode hw accel hint for ffmpeg. Supported: `videotoolbox`, `vaapi`, `qsv`, `cuda` |
+| `tesseract` | - | Optional runtime dependency for OCR text extraction. Install `tesseract-ocr` plus needed language packs such as `tesseract-ocr-eng` |
 | `REMOVEBG_API_KEY` | - | Optional. Enables background removal via remove.bg |
 | `ENABLE_SCHEDULER` | `true` | Enable automatic ingress polling |
 

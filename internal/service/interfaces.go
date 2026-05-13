@@ -135,6 +135,42 @@ type WatermarkService interface {
 	ResolveWatermarkAsset(ctx context.Context, workspaceID, assetID string) (*WatermarkAssetDTO, error)
 }
 
+type TextTrackDTO struct {
+	ID             string
+	WorkspaceID    string
+	AssetID        string
+	AssetVersionID *string
+	Source         string
+	Lang           *string
+	Content        string
+	StorageKey     *string
+	ContentType    *string
+	Meta           map[string]any
+	Status         string
+	Error          *string
+	CreatedBy      *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type CreateTextTrackParams struct {
+	WorkspaceID    string
+	AssetID        string
+	AssetVersionID *string
+	Source         string
+	Lang           *string
+	InitialContent string
+	Params         map[string]any
+	CreatedBy      string
+}
+
+type TextTrackService interface {
+	List(ctx context.Context, workspaceID, assetID string) ([]TextTrackDTO, error)
+	Get(ctx context.Context, workspaceID, trackID string) (TextTrackDTO, error)
+	Create(ctx context.Context, p CreateTextTrackParams) (TextTrackDTO, error)
+	Delete(ctx context.Context, workspaceID, trackID string) error
+}
+
 // WorkspaceService handles business logic for workspace settings, members, and invites.
 type WorkspaceService interface {
 	Get(ctx context.Context, workspaceID string) (*WorkspaceDTO, error)

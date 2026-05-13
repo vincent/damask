@@ -69,9 +69,10 @@ type AssetComment struct {
 // AssetStorageKeys holds all storage keys for an asset and its versions + variants.
 // Used to clean up storage after a hard delete.
 type AssetStorageKeys struct {
-	AssetKey    string
-	ThumbKey    *string
-	VersionKeys []VersionStorageKeys
+	AssetKey      string
+	ThumbKey      *string
+	VersionKeys   []VersionStorageKeys
+	TextTrackKeys []string
 }
 
 // VersionStorageKeys holds the storage keys for one asset version and its variants.

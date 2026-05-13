@@ -49,6 +49,7 @@ type TestServerConfig struct {
 	ProjectFields service.ProjectFieldService
 	Versions      service.VersionService
 	Variants      service.VariantService
+	TextTracks    service.TextTrackService
 	AuditLog      service.AuditLogService
 	Workspace     service.WorkspaceService
 	Users         service.UserService
@@ -128,6 +129,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		projectFields: cfg.ProjectFields,
 		versions:      cfg.Versions,
 		variants:      cfg.Variants,
+		textTracks:    cfg.TextTracks,
 		auditLog:      cfg.AuditLog,
 		workspace:     cfg.Workspace,
 		users:         cfg.Users,
@@ -355,6 +357,12 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Post("/assets/:id/variants/:vid/rerun", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRerunVariant)
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
 	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteVariant)
+
+	api.Get("/assets/:id/text-tracks", s.handleListTextTracks)
+	api.Post("/assets/:id/text-tracks", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateTextTrack)
+	api.Get("/assets/:id/text-tracks/:tid", s.handleGetTextTrack)
+	api.Get("/assets/:id/text-tracks/:tid/download", s.handleDownloadTextTrack)
+	api.Delete("/assets/:id/text-tracks/:tid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteTextTrack)
 
 	// Asset versions
 	api.Get("/assets/:id/versions", s.handleListAssetVersions)

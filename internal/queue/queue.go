@@ -258,6 +258,7 @@ const (
 	JobTypeImageBgRemove     = "image_bg_remove"
 	JobTypeImageWithPrompt   = "image_with_prompt"
 	JobTypeImageSmartCrop    = "image_smartcrop"
+	JobTypeOCRTextTrack      = "ocr_text_track"
 	JobTypeExtractAudio      = "extract_audio"
 	JobTypeTranscodeAudio    = "transcode_audio"
 	JobTypeNormalizeAudio    = "normalize_audio"

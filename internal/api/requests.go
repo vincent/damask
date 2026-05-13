@@ -575,6 +575,21 @@ func (r *RerunVariantRequest) Valid(_ context.Context) map[string]string {
 	return map[string]string{}
 }
 
+type CreateTextTrackRequest struct {
+	Source string                 `json:"source"`
+	Lang   *string                `json:"lang"`
+	Params map[string]interface{} `json:"params"`
+}
+
+func (r *CreateTextTrackRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.Source = strings.TrimSpace(r.Source)
+	if r.Source == "" {
+		p["source"] = "required"
+	}
+	return p
+}
+
 // -- ingress.go ---------------------------------------------------------------
 
 type IngressRuleReq struct {

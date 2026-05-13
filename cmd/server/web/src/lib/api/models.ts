@@ -241,6 +241,34 @@ export interface WatermarkAsset {
   scope: 'folder' | 'project' | 'workspace'
 }
 
+export type TextTrackSource =
+  | 'ocr'
+  | 'ai_description'
+  | 'subtitle'
+  | 'transcription'
+  | 'manual'
+
+export interface TextTrack {
+  id: string
+  asset_id: string
+  asset_version_id: string | null
+  source: TextTrackSource
+  lang: string | null
+  content: string
+  content_truncated: boolean
+  has_file: boolean
+  download_url: string | null
+  meta: Record<string, unknown>
+  status: 'pending' | 'processing' | 'ready' | 'failed'
+  error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TextTracksResponse {
+  text_tracks: TextTrack[]
+}
+
 export interface ImageRouterModel {
   id: string
   name: string

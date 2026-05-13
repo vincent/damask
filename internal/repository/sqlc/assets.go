@@ -84,8 +84,8 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	}
 
 	if p.SearchQuery != "" {
-		where = append(where, "a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?)")
-		args = append(args, p.SearchQuery+"*")
+		where = append(where, "(a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?) OR a.id IN (SELECT asset_id FROM assets_text_fts WHERE workspace_id = ? AND assets_text_fts MATCH ?))")
+		args = append(args, p.SearchQuery+"*", p.WorkspaceID, p.SearchQuery+"*")
 	}
 
 	if p.MimePrefix != nil {
@@ -540,10 +540,26 @@ func (r *assetRepo) CollectStorageKeys(ctx context.Context, workspaceID, assetID
 		}
 		out.VersionKeys = append(out.VersionKeys, vk)
 	}
+	textTrackRows, err := r.sqlDB.QueryContext(ctx, `SELECT storage_key FROM asset_text_tracks WHERE asset_id = ? AND workspace_id = ? AND storage_key IS NOT NULL`, assetID, workspaceID)
+	if err != nil {
+		return repository.AssetStorageKeys{}, err
+	}
+	defer textTrackRows.Close()
+	for textTrackRows.Next() {
+		var key string
+		if err := textTrackRows.Scan(&key); err != nil {
+			return repository.AssetStorageKeys{}, err
+		}
+		out.TextTrackKeys = append(out.TextTrackKeys, key)
+	}
+	if err := textTrackRows.Err(); err != nil {
+		return repository.AssetStorageKeys{}, err
+	}
 	return out, nil
 }
 
 func (r *assetRepo) HardDelete(ctx context.Context, workspaceID, assetID string) error {
+	_ = r.q.DeleteTextFTSByAsset(ctx, assetID)
 	return r.q.DeleteAsset(ctx, dbgen.DeleteAssetParams{ID: assetID, WorkspaceID: workspaceID})
 }
 

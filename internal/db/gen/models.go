@@ -57,6 +57,24 @@ type AssetTag struct {
 	TagID   string `json:"tag_id"`
 }
 
+type AssetTextTrack struct {
+	ID             string     `json:"id"`
+	WorkspaceID    string     `json:"workspace_id"`
+	AssetID        string     `json:"asset_id"`
+	AssetVersionID *string    `json:"asset_version_id"`
+	Source         string     `json:"source"`
+	Lang           *string    `json:"lang"`
+	Content        string     `json:"content"`
+	StorageKey     *string    `json:"storage_key"`
+	ContentType    *string    `json:"content_type"`
+	Meta           *string    `json:"meta"`
+	Status         string     `json:"status"`
+	Error          *string    `json:"error"`
+	CreatedBy      *string    `json:"created_by"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
 type AssetVersion struct {
 	ID                   string   `json:"id"`
 	AssetID              string   `json:"asset_id"`

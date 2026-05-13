@@ -332,6 +332,9 @@ func (s *assetService) deleteStorageKeys(keys repository.AssetStorageKeys) {
 			_ = s.stor.Delete(k)
 		}
 	}
+	for _, key := range keys.TextTrackKeys {
+		_ = s.stor.Delete(key)
+	}
 }
 
 func (s *assetService) BulkSetTag(ctx context.Context, workspaceID, tagName string, assetIDs []string) (err error) {

@@ -1,0 +1,398 @@
+package api
+
+import (
+	"fmt"
+	"log/slog"
+	"mime"
+	"path/filepath"
+	"strings"
+
+	"damask/server/internal/auth"
+	"damask/server/internal/service"
+	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/transform"
+
+	"github.com/gofiber/fiber/v3"
+	"go.opentelemetry.io/otel/attribute"
+)
+
+var tesseractAvailable = transform.TesseractAvailable
+
+type TextTrackResponse struct {
+	ID               string         `json:"id"`
+	AssetID          string         `json:"asset_id"`
+	AssetVersionID   *string        `json:"asset_version_id"`
+	Source           string         `json:"source"`
+	Lang             *string        `json:"lang"`
+	Content          string         `json:"content"`
+	ContentTruncated bool           `json:"content_truncated"`
+	HasFile          bool           `json:"has_file"`
+	DownloadURL      *string        `json:"download_url"`
+	Meta             map[string]any `json:"meta"`
+	Status           string         `json:"status"`
+	Error            *string        `json:"error,omitempty"`
+	CreatedAt        string         `json:"created_at"`
+	UpdatedAt        string         `json:"updated_at"`
+}
+
+type ListTextTracksResponse struct {
+	TextTracks []TextTrackResponse `json:"text_tracks"`
+}
+
+func textTrackDTOToResponse(dto service.TextTrackDTO, truncate bool) TextTrackResponse {
+	content := dto.Content
+	contentTruncated := false
+	if truncate && len(content) > 500 {
+		content = content[:500]
+		contentTruncated = true
+	}
+	var downloadURL *string
+	if dto.StorageKey != nil {
+		u := fmt.Sprintf("/api/v1/assets/%s/text-tracks/%s/download", dto.AssetID, dto.ID)
+		downloadURL = &u
+	}
+	return TextTrackResponse{
+		ID:               dto.ID,
+		AssetID:          dto.AssetID,
+		AssetVersionID:   dto.AssetVersionID,
+		Source:           dto.Source,
+		Lang:             dto.Lang,
+		Content:          content,
+		ContentTruncated: contentTruncated,
+		HasFile:          dto.StorageKey != nil,
+		DownloadURL:      downloadURL,
+		Meta:             dto.Meta,
+		Status:           dto.Status,
+		Error:            dto.Error,
+		CreatedAt:        dto.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:        dto.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
+func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.list",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+		attribute.String("damask.asset_id", assetID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "list text tracks failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", err)
+		}
+	}()
+
+	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.list.load_asset")
+	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
+		apptelemetry.EndSpan(assetSpan, loadErr)
+		span.RecordError(loadErr)
+		slog.ErrorContext(ctx, "list text tracks: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", loadErr)
+		err = ErrorStatusResponse(c, loadErr)
+		return err
+	}
+	apptelemetry.EndSpan(assetSpan, nil)
+
+	listCtx, listSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.list.fetch_tracks")
+	tracks, err := s.textTracks.List(listCtx, claims.WorkspaceID, assetID)
+	apptelemetry.EndSpan(listSpan, err)
+	if err != nil {
+		span.RecordError(err)
+		slog.ErrorContext(ctx, "list text tracks: fetch tracks", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", err)
+		return ErrorStatusResponse(c, err)
+	}
+	span.SetAttributes(attribute.Int("damask.text_tracks.result_count", len(tracks)))
+
+	out := make([]TextTrackResponse, len(tracks))
+	for i, track := range tracks {
+		out[i] = textTrackDTOToResponse(track, true)
+	}
+	return c.JSON(ListTextTracksResponse{TextTracks: out})
+}
+
+func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	trackID := c.Params("tid")
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.get",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.text_track_id", trackID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "get text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		}
+	}()
+
+	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.get.load_asset")
+	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
+		apptelemetry.EndSpan(assetSpan, loadErr)
+		span.RecordError(loadErr)
+		slog.ErrorContext(ctx, "get text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", loadErr)
+		err = ErrorStatusResponse(c, loadErr)
+		return err
+	}
+	apptelemetry.EndSpan(assetSpan, nil)
+
+	trackCtx, trackSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.get.fetch_track")
+	track, err := s.textTracks.Get(trackCtx, claims.WorkspaceID, trackID)
+	apptelemetry.EndSpan(trackSpan, err)
+	if err != nil {
+		span.RecordError(err)
+		slog.ErrorContext(ctx, "get text track: fetch track", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		return ErrorStatusResponse(c, err)
+	}
+	span.SetAttributes(
+		attribute.String("damask.text_track.source", track.Source),
+		attribute.String("damask.text_track.status", track.Status),
+		attribute.Bool("damask.text_track.has_file", track.StorageKey != nil),
+	)
+	if track.AssetID != assetID {
+		return errRes(c, fiber.StatusNotFound, "text track not found")
+	}
+	return c.JSON(textTrackDTOToResponse(track, false))
+}
+
+func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.create",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+		attribute.String("damask.asset_id", assetID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "create text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", err)
+		}
+	}()
+
+	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.load_asset")
+	asset, assetErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID)
+	apptelemetry.EndSpan(assetSpan, assetErr)
+	if assetErr != nil {
+		span.RecordError(assetErr)
+		slog.ErrorContext(ctx, "create text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", assetErr)
+		err = ErrorStatusResponse(c, assetErr)
+		return err
+	}
+
+	body, ok := decodeAndValidate(c, &CreateTextTrackRequest{})
+	if !ok {
+		return nil
+	}
+
+	params := body.Params
+	if params == nil {
+		params = map[string]interface{}{}
+	}
+	span.SetAttributes(attribute.String("damask.text_track.source", body.Source))
+
+	createParams := service.CreateTextTrackParams{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		Source:      body.Source,
+		Lang:        body.Lang,
+		Params:      params,
+		CreatedBy:   claims.UserID,
+	}
+
+	switch body.Source {
+	case "ocr":
+		if !transform.SupportedOCRMIMEs[asset.MimeType] {
+			return errRes(c, fiber.StatusUnprocessableEntity, "unsupported OCR asset MIME type")
+		}
+		if !tesseractAvailable() {
+			return errRes(c, fiber.StatusServiceUnavailable, "Tesseract is not installed on this server")
+		}
+		if asset.CurrentVersionID == nil {
+			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
+		}
+		outputFormat := "txt"
+		if raw, ok := params["output_format"].(string); ok && strings.TrimSpace(raw) != "" {
+			outputFormat = raw
+		}
+		if outputFormat != "txt" && outputFormat != "hocr" {
+			return errRes(c, fiber.StatusUnprocessableEntity, "unsupported OCR output format")
+		}
+		lang := "eng"
+		if body.Lang != nil && strings.TrimSpace(*body.Lang) != "" {
+			lang = strings.TrimSpace(*body.Lang)
+		}
+		span.SetAttributes(
+			attribute.String("damask.text_track.lang", lang),
+			attribute.String("damask.text_track.output_format", outputFormat),
+		)
+		versionCtx, versionSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.load_current_version")
+		currentVersion, versionErr := s.versions.GetCurrentByAsset(versionCtx, assetID)
+		apptelemetry.EndSpan(versionSpan, versionErr)
+		if versionErr != nil {
+			span.RecordError(versionErr)
+			slog.ErrorContext(ctx, "create text track: load current version", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", versionErr)
+			err = ErrorStatusResponse(c, versionErr)
+			return err
+		}
+		createParams.AssetVersionID = asset.CurrentVersionID
+		createParams.Lang = &lang
+		params["lang"] = lang
+		params["output_format"] = outputFormat
+		params["storage_key"] = currentVersion.StorageKey
+		params["mime_type"] = currentVersion.MimeType
+	case "manual":
+		content, _ := params["content"].(string)
+		if strings.TrimSpace(content) == "" {
+			return errRes(c, fiber.StatusUnprocessableEntity, "content is required")
+		}
+		createParams.InitialContent = content
+	default:
+		return errRes(c, fiber.StatusUnprocessableEntity, "unsupported_source")
+	}
+
+	createCtx, createSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.persist")
+	track, err := s.textTracks.Create(createCtx, createParams)
+	apptelemetry.EndSpan(createSpan, err)
+	if err != nil {
+		span.RecordError(err)
+		slog.ErrorContext(ctx, "create text track: persist", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "source", body.Source, "error", err)
+		return ErrorStatusResponse(c, err)
+	}
+	span.SetAttributes(
+		attribute.String("damask.text_track_id", track.ID),
+		attribute.String("damask.text_track.status", track.Status),
+	)
+	status := fiber.StatusAccepted
+	if track.Status == "ready" {
+		status = fiber.StatusOK
+	}
+	return c.Status(status).JSON(map[string]TextTrackResponse{
+		"text_track": textTrackDTOToResponse(track, false),
+	})
+}
+
+func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	trackID := c.Params("tid")
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.delete",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.text_track_id", trackID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "delete text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		}
+	}()
+
+	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.delete.load_asset")
+	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
+		apptelemetry.EndSpan(assetSpan, loadErr)
+		span.RecordError(loadErr)
+		slog.ErrorContext(ctx, "delete text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", loadErr)
+		err = ErrorStatusResponse(c, loadErr)
+		return err
+	}
+	apptelemetry.EndSpan(assetSpan, nil)
+
+	trackCtx, trackSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.delete.fetch_track")
+	track, err := s.textTracks.Get(trackCtx, claims.WorkspaceID, trackID)
+	apptelemetry.EndSpan(trackSpan, err)
+	if err != nil {
+		span.RecordError(err)
+		slog.ErrorContext(ctx, "delete text track: fetch track", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		return ErrorStatusResponse(c, err)
+	}
+	span.SetAttributes(
+		attribute.String("damask.text_track.source", track.Source),
+		attribute.Bool("damask.text_track.has_file", track.StorageKey != nil),
+	)
+	if track.AssetID != assetID {
+		return errRes(c, fiber.StatusNotFound, "text track not found")
+	}
+	deleteCtx, deleteSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.delete.remove")
+	if deleteErr := s.textTracks.Delete(deleteCtx, claims.WorkspaceID, trackID); deleteErr != nil {
+		apptelemetry.EndSpan(deleteSpan, deleteErr)
+		span.RecordError(deleteErr)
+		slog.ErrorContext(ctx, "delete text track: remove", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", deleteErr)
+		err = ErrorStatusResponse(c, deleteErr)
+		return err
+	}
+	apptelemetry.EndSpan(deleteSpan, nil)
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	trackID := c.Params("tid")
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.download",
+		attribute.String("damask.workspace_id", claims.WorkspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.text_track_id", trackID),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "download text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		}
+	}()
+
+	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.download.load_asset")
+	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
+		apptelemetry.EndSpan(assetSpan, loadErr)
+		span.RecordError(loadErr)
+		slog.ErrorContext(ctx, "download text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", loadErr)
+		err = ErrorStatusResponse(c, loadErr)
+		return err
+	}
+	apptelemetry.EndSpan(assetSpan, nil)
+
+	trackCtx, trackSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.download.fetch_track")
+	track, err := s.textTracks.Get(trackCtx, claims.WorkspaceID, trackID)
+	apptelemetry.EndSpan(trackSpan, err)
+	if err != nil {
+		span.RecordError(err)
+		slog.ErrorContext(ctx, "download text track: fetch track", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		return ErrorStatusResponse(c, err)
+	}
+	if track.AssetID != assetID {
+		return errRes(c, fiber.StatusNotFound, "text track not found")
+	}
+	if track.StorageKey == nil {
+		return errRes(c, fiber.StatusNotFound, "This track has no downloadable file.")
+	}
+	span.SetAttributes(
+		attribute.String("damask.text_track.source", track.Source),
+		attribute.Bool("damask.text_track.has_file", true),
+	)
+	_, fileSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.download.open_storage",
+		attribute.String("damask.storage_key", *track.StorageKey),
+	)
+	rc, err := s.storage.Get(*track.StorageKey)
+	apptelemetry.EndSpan(fileSpan, err)
+	if err != nil {
+		span.RecordError(err)
+		slog.ErrorContext(ctx, "download text track: open storage", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "storage_key", *track.StorageKey, "error", err)
+		return errRes(c, fiber.StatusNotFound, "file not found")
+	}
+	contentType := "text/plain; charset=utf-8"
+	if track.ContentType != nil && *track.ContentType != "" {
+		contentType = *track.ContentType
+	}
+	span.SetAttributes(attribute.String("damask.content_type", contentType))
+	ext := filepath.Ext(*track.StorageKey)
+	if ext == "" {
+		exts, _ := mime.ExtensionsByType(contentType)
+		if len(exts) > 0 {
+			ext = exts[0]
+		}
+	}
+	c.Set("Content-Type", contentType)
+	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{
+		"filename": fmt.Sprintf("%s-%s%s", assetID, track.Source, ext),
+	}))
+	return c.SendStream(rc)
+}

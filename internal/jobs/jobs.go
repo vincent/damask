@@ -119,6 +119,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	reg(queue.JobTypeExtractAudio, s.wrapVariantJob(s.jobAudioTransform))
 	reg(queue.JobTypeTranscodeAudio, s.wrapVariantJob(s.jobAudioTransform))
 	reg(queue.JobTypeNormalizeAudio, s.wrapVariantJob(s.jobAudioTransform))
+	reg(queue.JobTypeOCRTextTrack, s.wrapSimpleJob(s.jobOCRTextTrack))
 
 	// Rebuild jobs — system-triggered on version upload.
 	reg(queue.JobTypeRebuildVariants, s.jobRebuildVariants)
@@ -186,4 +187,10 @@ func NextDaily(hour, min int) time.Time {
 		next = next.Add(24 * time.Hour)
 	}
 	return next
+}
+
+func (s *JobServer) wrapSimpleJob(fn func(context.Context, string) error) queue.HandlerFunc {
+	return func(ctx context.Context, job dbgen.Job) error {
+		return fn(ctx, job.Payload)
+	}
 }

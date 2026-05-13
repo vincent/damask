@@ -50,6 +50,7 @@ type TestEnv struct {
 	ProjectFields *mockservice.MockProjectFieldService
 	Versions      *mockservice.MockVersionService
 	Variants      *mockservice.MockVariantService
+	TextTracks    *mockservice.MockTextTrackService
 	AuditLog      *mockservice.MockAuditLogService
 	Workspace     *mockservice.MockWorkspaceService
 	Users         *mockservice.MockUserService
@@ -81,6 +82,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 	projectFields := mockservice.NewProjectFieldService()
 	versions := mockservice.NewVersionService()
 	variants := mockservice.NewVariantService()
+	textTracks := mockservice.NewTextTrackService()
 	auditLog := mockservice.NewAuditLogService()
 	workspace := mockservice.NewWorkspaceService()
 	users := mockservice.NewUserService()
@@ -103,6 +105,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 		ProjectFields: projectFields,
 		Versions:      versions,
 		Variants:      variants,
+		TextTracks:    textTracks,
 		AuditLog:      auditLog,
 		Workspace:     workspace,
 		Users:         users,
@@ -129,6 +132,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 		ProjectFields: projectFields,
 		Versions:      versions,
 		Variants:      variants,
+		TextTracks:    textTracks,
 		AuditLog:      auditLog,
 		Workspace:     workspace,
 		Users:         users,

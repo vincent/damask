@@ -55,6 +55,7 @@ type Server struct {
 	projectFields service.ProjectFieldService
 	versions      service.VersionService
 	variants      service.VariantService
+	textTracks    service.TextTrackService
 	auditLog      service.AuditLogService
 	workspace     service.WorkspaceService
 	users         service.UserService
@@ -122,6 +123,7 @@ func NewHttpServer(
 		storage:       stor,
 		tags:          tagSvc,
 		trf:           trf,
+		textTracks:    service.NewTextTrackService(db, q, stor),
 		upload:        service.NewUploadService(service.NewAssetInjestor(db, sqlDB, stor, q, media), auditWriter),
 		users:         service.NewUserService(userRepo, workspaceRepo, stor),
 		variants:      variantsSvc,
@@ -363,6 +365,13 @@ func NewRouter(
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
 	api.Get("/assets/:id/variants/:vid/thumb", s.handleGetVariantThumb)
 	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteVariant)
+
+	// Text tracks
+	api.Get("/assets/:id/text-tracks", s.handleListTextTracks)
+	api.Post("/assets/:id/text-tracks", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateTextTrack)
+	api.Get("/assets/:id/text-tracks/:tid", s.handleGetTextTrack)
+	api.Get("/assets/:id/text-tracks/:tid/download", s.handleDownloadTextTrack)
+	api.Delete("/assets/:id/text-tracks/:tid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteTextTrack)
 
 	// Asset versions
 	api.Get("/assets/:id/versions", s.handleListAssetVersions)
