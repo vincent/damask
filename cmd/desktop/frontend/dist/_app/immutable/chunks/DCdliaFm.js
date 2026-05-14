@@ -1,0 +1,1 @@
+import{g as t}from"./BIvpcUGy.js";const e=()=>"Password",o=()=>"Contraseña",n=()=>"Contrasenya",a=()=>"Mot de passe",u=((c={},s={})=>{const r=s.locale??t();return r==="en"?e():r==="es"?o():r==="cat"?n():a()});export{u as p};

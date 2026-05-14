@@ -36,6 +36,7 @@
     User,
     Users,
   } from '@lucide/svelte'
+  import ServerStatusDot from './ServerStatusDot.svelte'
 
   interface Props {
     onNavigate?: () => void
@@ -393,6 +394,7 @@
         <Info class="h-3.5 w-3.5 shrink-0" />
         <span>{m.help_docs()}</span>
       </a>
+      <ServerStatusDot />
     </div>
   {/if}
 </aside>

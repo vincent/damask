@@ -1,0 +1,1 @@
+import{a as s,f as t}from"./CDv7Mf0U.js";import{t as i,i as f,k as l}from"./BjsTIAOW.js";import{s as m}from"./SytRjuNP.js";import{s as d}from"./Bsdz73cs.js";var n=t("<div><!></div>");function x(o,e){var a=n(),r=f(a);m(r,()=>e.children),l(a),i(()=>d(a,1,`flex h-full flex-col overflow-hidden ${e.class}`)),s(o,a)}export{x as P};

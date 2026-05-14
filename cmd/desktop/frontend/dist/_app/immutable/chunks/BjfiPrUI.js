@@ -1,0 +1,1 @@
+import{g as e}from"./BIvpcUGy.js";const r=()=>"Integrations",i=()=>"Integraciones",o=()=>"Integracions",s=()=>"Intégrations",g=((a={},n={})=>{const t=n.locale??e();return t==="en"?r():t==="es"?i():t==="cat"?o():s()});export{g as i};

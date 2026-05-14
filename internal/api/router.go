@@ -62,6 +62,7 @@ type Server struct {
 	ingress       service.IngressService
 	stack         service.StackService
 	upload        service.UploadService
+	setup         *service.SetupService
 }
 
 func NewHttpServer(
@@ -74,6 +75,7 @@ func NewHttpServer(
 	mailer mail.Mailer,
 	trf transform.Transformer,
 	cfg *config.Config,
+	configDir string,
 	demoSeeder DemoSeeder,
 ) *Server {
 	auditWriter := audit.New(sqlDB)
@@ -129,6 +131,7 @@ func NewHttpServer(
 		variants:      variantsSvc,
 		versions:      service.NewVersionService(versionRepo, auditWriter),
 		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
+		setup:         service.NewSetupService(sqlDB, userRepo, workspaceRepo, configDir),
 	}
 }
 
@@ -157,10 +160,11 @@ func NewRouter(
 	mailer mail.Mailer,
 	trf transform.Transformer,
 	cfg *config.Config,
+	configDir string,
 	demoSeeder DemoSeeder,
 	uiFS fs.FS,
 ) *fiber.App {
-	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder)
+	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, configDir, demoSeeder)
 
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {
@@ -183,6 +187,18 @@ func NewRouter(
 
 	// Health check (public)
 	app.Get("/healthz", handleHealthz)
+	app.Get("/health", s.handleHealth)
+
+	// Setup wizard routes (public, blocked once configured)
+	if s.setup != nil {
+		setupGroup := app.Group("/api/setup")
+		setupGroup.Use(s.requireSetupMode)
+		setupGroup.Get("/status", s.handleSetupStatus)
+		setupGroup.Post("/validate-storage", s.handleValidateStorage)
+		setupGroup.Get("/deps", s.handleSetupDeps)
+		setupGroup.Post("/config", s.handleWriteConfig)
+		setupGroup.Post("/owner", s.handleCreateOwner)
+	}
 
 	// Public server config (demo flag, etc.)
 	app.Get("/config", auth.OptionalAuth(s.auth), s.handleConfig)

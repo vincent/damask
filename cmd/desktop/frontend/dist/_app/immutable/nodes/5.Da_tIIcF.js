@@ -1,0 +1,1 @@
+import{r as e}from"../chunks/DfgfjzFV.js";const r=!1;function o(){e(303,"/library")}const a=Object.freeze(Object.defineProperty({__proto__:null,load:o,prerender:r},Symbol.toStringTag,{value:"Module"}));export{a as universal};

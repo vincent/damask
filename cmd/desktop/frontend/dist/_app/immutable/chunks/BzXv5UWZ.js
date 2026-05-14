@@ -1,0 +1,1 @@
+function e(){return typeof window>"u"?null:window.go?.main?.App??window.runtime?.App??null}async function i(n){const r=e();if(r?.OpenBrowser){await r.OpenBrowser(n);return}window.open(n,"_blank","noopener,noreferrer")}async function o(){const n=e();return n?.PickDirectory&&await n.PickDirectory()||null}export{i as o,o as p};

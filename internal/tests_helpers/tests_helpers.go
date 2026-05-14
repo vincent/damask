@@ -139,7 +139,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
 	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
-	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
+	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, "", nil, nil)
 	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor, Config: cfg}
 }
 

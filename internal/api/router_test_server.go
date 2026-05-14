@@ -56,6 +56,7 @@ type TestServerConfig struct {
 	Ingress       service.IngressService
 	Stack         service.StackService
 	Upload        service.UploadService
+	Setup         *service.SetupService
 }
 
 // NewTestServer constructs a Server from explicit service interfaces and returns
@@ -136,6 +137,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		ingress:       cfg.Ingress,
 		stack:         cfg.Stack,
 		upload:        cfg.Upload,
+		setup:         cfg.Setup,
 	}
 
 	app := buildTestApp(s)
@@ -172,6 +174,18 @@ func buildTestApp(s *Server) *fiber.App {
 
 	// Health check (public)
 	app.Get("/healthz", handleHealthz)
+	app.Get("/health", s.handleHealth)
+
+	// Setup wizard routes (public, blocked once configured)
+	if s.setup != nil {
+		setupGroup := app.Group("/api/setup")
+		setupGroup.Use(s.requireSetupMode)
+		setupGroup.Get("/status", s.handleSetupStatus)
+		setupGroup.Post("/validate-storage", s.handleValidateStorage)
+		setupGroup.Get("/deps", s.handleSetupDeps)
+		setupGroup.Post("/config", s.handleWriteConfig)
+		setupGroup.Post("/owner", s.handleCreateOwner)
+	}
 
 	// Public server config
 	app.Get("/config", auth.OptionalAuth(s.auth), s.handleConfig)

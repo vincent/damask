@@ -1,0 +1,1 @@
+import{g as n}from"./BIvpcUGy.js";const t=()=>"Name is required",o=()=>"El nombre es obligatorio",i=()=>"El nom és obligatori",s=()=>"Le nom est requis",c=((u={},r={})=>{const e=r.locale??n();return e==="en"?t():e==="es"?o():e==="cat"?i():s()});export{c as n};

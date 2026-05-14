@@ -1,0 +1,34 @@
+version: '3'
+
+info:
+  companyName: "Damask"
+  productName: "Damask"
+  productIdentifier: "studio.damask.desktop"
+  description: "Self-hosted digital asset management"
+  comments: "Damask desktop application"
+  version: "0.0.1"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - bin
+      - cmd/server/web/node_modules
+      - cmd/server/web/.svelte-kit
+      - cmd/server/web/build
+    file:
+      - .DS_Store
+    watched_extension:
+      - "*.go"
+      - "*.svelte"
+      - "*.ts"
+      - "*.js"
+    git_ignore: true
+  executes:
+    - cmd: wails3 task build VERSION=dev
+      type: blocking
+    - cmd: wails3 task run VERSION=dev
+      type: primary

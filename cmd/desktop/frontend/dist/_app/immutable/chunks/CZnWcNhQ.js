@@ -1,0 +1,1 @@
+import{g as e}from"./BIvpcUGy.js";const a=()=>"EXIF & Privacy",i=()=>"EXIF y privacidad",n=()=>"EXIF i privadesa",c=()=>"EXIF & Confidentialité",s=((_={},t={})=>{const r=t.locale??e();return r==="en"?a():r==="es"?i():r==="cat"?n():c()});export{s as t};

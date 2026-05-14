@@ -1,0 +1,1 @@
+import{l as e,m as u,o as a}from"./BjsTIAOW.js";let t=a(null),s;const i={get current(){return u(t)},show(l,o="success",r){clearTimeout(s),e(t,{msg:l,type:o,action:r},!0),s=setTimeout(()=>{e(t,null)},r?7e3:3e3)},dismiss(){clearTimeout(s),e(t,null)}};export{i as t};

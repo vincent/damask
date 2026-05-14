@@ -1,0 +1,1 @@
+import{g as e}from"./BIvpcUGy.js";const o=()=>"Custom Fields",r=()=>"Campos personalizados",n=()=>"Camps personalitzats",i=()=>"Champs personnalisés",a=((l={},s={})=>{const t=s.locale??e();return t==="en"?o():t==="es"?r():t==="cat"?n():i()});export{a as c};

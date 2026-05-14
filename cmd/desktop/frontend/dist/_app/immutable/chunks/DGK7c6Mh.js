@@ -1,0 +1,1 @@
+import{g as t}from"./BIvpcUGy.js";const n=()=>"Members",m=()=>"Miembros",b=()=>"Membres",o=()=>"Membres",f=((s={},r={})=>{const e=r.locale??t();return e==="en"?n():e==="es"?m():e==="cat"?b():o()}),c=()=>"Members",u=()=>"Miembros",a=()=>"Membres",_=()=>"Membres",l=((s={},r={})=>{const e=r.locale??t();return e==="en"?c():e==="es"?u():e==="cat"?a():_()});export{l as m,f as t};

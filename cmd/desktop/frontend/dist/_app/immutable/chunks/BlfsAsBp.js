@@ -1,0 +1,1 @@
+import{g as t}from"./BIvpcUGy.js";const n=()=>"Email",o=()=>"Correo electrónico",c=()=>"Correu electrònic",a=()=>"E-mail",s=((i={},r={})=>{const e=r.locale??t();return e==="en"?n():e==="es"?o():e==="cat"?c():a()});export{s as e};

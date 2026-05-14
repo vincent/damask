@@ -1,0 +1,1 @@
+import{a7 as t,a8 as c,a9 as e,a3 as a}from"./BjsTIAOW.js";function f(n){e===null&&t(),c(()=>{const o=a(n);if(typeof o=="function")return o})}function s(n){e===null&&t(),f(()=>()=>a(n))}export{s as a,f as o};

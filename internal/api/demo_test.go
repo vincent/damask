@@ -93,7 +93,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	}
 
 	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
-	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil)
+	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, noopMailer, trf, cfg, "", seeder, nil)
 
 	return &demoEnv{App: app, Maker: maker, SqlDB: rawDB, Seeder: seeder}
 }

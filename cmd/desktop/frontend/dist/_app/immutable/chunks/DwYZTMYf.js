@@ -1,0 +1,1 @@
+import{g as t}from"./BIvpcUGy.js";const s=()=>"Save",n=()=>"Guardar",a=()=>"Desar",o=()=>"Enregistrer",i=((c={},r={})=>{const e=r.locale??t();return e==="en"?s():e==="es"?n():e==="cat"?a():o()});export{i as s};

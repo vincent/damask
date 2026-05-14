@@ -158,7 +158,7 @@ func main() {
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
 	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor, trf, tmb)
 
-	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS)
+	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, "", demoSeeder, uiFS)
 
 	mail := mailserver.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
 	slog.Info("mail server starting", "port", cfg.MailServerPort)

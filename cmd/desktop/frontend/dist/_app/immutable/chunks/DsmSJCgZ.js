@@ -1,0 +1,1 @@
+import{g as r}from"./BIvpcUGy.js";const a=()=>"Something went wrong. Please try again.",e=()=>"Algo salió mal. Inténtalo de nuevo.",o=()=>"Alguna cosa ha anat malament. Torna-ho a intentar.",s=()=>"Une erreur s'est produite. Veuillez réessayer.",u=((i={},n={})=>{const t=n.locale??r();return t==="en"?a():t==="es"?e():t==="cat"?o():s()});export{u as t};

@@ -1,0 +1,1 @@
+import{o as e,u as a,l as s,m as r}from"./BjsTIAOW.js";import{c as m}from"./B_eMVPSW.js";let t=e(a({mailHost:"",demo:!1}));const c={get state(){return r(t)},load:()=>m.load().then(o=>{s(t,o,!0)})};export{c};

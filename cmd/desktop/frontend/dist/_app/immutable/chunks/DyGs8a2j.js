@@ -1,0 +1,1 @@
+import{g as c}from"./BIvpcUGy.js";const t=()=>"minimum 8 characters",e=()=>"mínimo 8 caracteres",s=()=>"mínim 8 caràcters",a=()=>"minimum 8 caractères",_=((m={},n={})=>{const r=n.locale??c();return r==="en"?t():r==="es"?e():r==="cat"?s():a()});export{_ as m};

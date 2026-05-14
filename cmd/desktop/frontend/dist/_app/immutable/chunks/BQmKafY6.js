@@ -1,0 +1,1 @@
+import{g as e}from"./BIvpcUGy.js";const i=()=>"Open in library",t=()=>"Abrir en la biblioteca",o=()=>"Obrir a la biblioteca",a=()=>"Ouvrir dans la bibliothèque",_=((l={},n={})=>{const r=n.locale??e();return r==="en"?i():r==="es"?t():r==="cat"?o():a()});export{_ as o};

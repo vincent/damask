@@ -7,6 +7,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// version is set at build time: -ldflags "-X damask/server/internal/api.Version=1.2.3"
+var Version = "dev"
+
 // handleHealthz returns a basic availability response.
 //
 // @Summary Show the status of server.
@@ -18,6 +21,23 @@ import (
 // @Router /healthz [get]
 func handleHealthz(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "ok"})
+}
+
+// handleHealth returns server health and whether first-run setup is required.
+// The frontend polls this to decide whether to redirect to /setup.
+func (s *Server) handleHealth(c fiber.Ctx) error {
+	setupRequired := false
+	if s.setup != nil {
+		status, err := s.setup.Status(c.Context())
+		if err == nil {
+			setupRequired = !status.Configured || !status.OwnerExists
+		}
+	}
+	return c.JSON(fiber.Map{
+		"ok":            true,
+		"version":       Version,
+		"setupRequired": setupRequired,
+	})
 }
 
 // handleSSEEvents streams workspace-scoped Server-Sent Events to the caller.

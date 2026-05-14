@@ -1,0 +1,1 @@
+import{g as a}from"./BIvpcUGy.js";const t=()=>"Shared Gallery",l=()=>"Galería compartida",n=()=>"Galeria compartida",s=()=>"Galerie partagée",i=((o={},e={})=>{const r=e.locale??a();return r==="en"?t():r==="es"?l():r==="cat"?n():s()});export{i as s};

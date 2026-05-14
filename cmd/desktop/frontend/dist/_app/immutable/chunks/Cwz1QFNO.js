@@ -1,0 +1,1 @@
+import{g as c}from"./BIvpcUGy.js";const r=()=>"Create account",n=()=>"Crear cuenta",a=()=>"Crea un compte",o=()=>"Créer un compte",_=((u={},t={})=>{const e=t.locale??c();return e==="en"?r():e==="es"?n():e==="cat"?a():o()});export{_ as c};

@@ -14,6 +14,7 @@ const PUBLIC_PATHS = [
   '/s/',
   '/demo/',
   '/welcome',
+  '/setup',
 ]
 
 export const ssr = false

@@ -1,0 +1,59 @@
+version: '3'
+
+vars:
+  APP_NAME: "damask-desktop"
+  BIN_DIR: "bin"
+  VERSION: '{{.VERSION | default "dev"}}'
+
+tasks:
+  build:web:
+    summary: Build the Svelte frontend used by the desktop app
+    dir: cmd/server/web
+    cmds:
+      - npm install
+      - npm run build
+
+  sync:desktop:assets:
+    summary: Copy the built frontend into the embedded desktop asset directory
+    deps:
+      - task: build:web
+    cmds:
+      - rm -rf cmd/desktop/frontend/dist
+      - mkdir -p cmd/desktop/frontend
+      - cp -R cmd/server/web/build cmd/desktop/frontend/dist
+
+  build:
+    summary: Build the desktop application for the current OS
+    cmds:
+      - task: "{{OS}}:build"
+
+  linux:build:
+    summary: Build the desktop application for Linux
+    deps:
+      - task: sync:desktop:assets
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - go build -tags=desktop -ldflags="-X main.version={{.VERSION}} -X damask/server/internal/api.Version={{.VERSION}}" -o {{.BIN_DIR}}/{{.APP_NAME}} ./cmd/desktop
+
+  darwin:build:
+    summary: Build the desktop application for macOS
+    deps:
+      - task: sync:desktop:assets
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - go build -tags=desktop -ldflags="-X main.version={{.VERSION}} -X damask/server/internal/api.Version={{.VERSION}}" -o {{.BIN_DIR}}/{{.APP_NAME}} ./cmd/desktop
+
+  windows:build:
+    summary: Build the desktop application for Windows
+    deps:
+      - task: sync:desktop:assets
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - go build -tags=desktop -ldflags="-X main.version={{.VERSION}} -X damask/server/internal/api.Version={{.VERSION}}" -o {{.BIN_DIR}}/{{.APP_NAME}} ./cmd/desktop
+
+  run:
+    summary: Run the built desktop application
+    deps:
+      - task: build
+    cmds:
+      - ./{{.BIN_DIR}}/{{.APP_NAME}}

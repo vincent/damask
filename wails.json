@@ -1,0 +1,52 @@
+{
+  "version": "2",
+  "name": "damask",
+  "assetdir": "cmd/desktop/frontend/dist",
+  "reloaddirs": "",
+  "build:dir": "build",
+  "build:tags": "desktop",
+  "frontend:dir": "cmd/server/web",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev": "npm run dev",
+  "frontend:dev:build": "npm run dev",
+  "frontend:dev:install": "npm install",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "viteServerTimeout": 10,
+  "wailsjsdir": "",
+  "outputfilename": "damask",
+  "debounceMS": 100,
+  "devServer": "",
+  "appargs": "",
+  "runNonNativeBuildHooks": false,
+  "preBuildHooks": {
+    "GOOS/GOARCH": "",
+    "GOOS/*": "",
+    "*/*": "rm -rf cmd/desktop/frontend/dist && mkdir -p cmd/desktop/frontend && cp -R cmd/server/web/build cmd/desktop/frontend/dist"
+  },
+  "postBuildHooks": {
+    "GOOS/GOARCH": "",
+    "GOOS/*": "",
+    "*/*": ""
+  },
+  "info": {
+    "companyName": "Damask",
+    "productName": "Damask",
+    "productVersion": "1.0.0",
+    "copyright": "",
+    "comments": "Self-hosted digital asset management",
+    "fileAssociations": [],
+    "protocols": []
+  },
+  "nsisType": "multiple",
+  "obfuscated": false,
+  "garbleargs": "",
+  "bindings": {
+    "ts_generation": {
+      "prefix": "",
+      "suffix": "",
+      "outputType": "classes"
+    }
+  }
+}

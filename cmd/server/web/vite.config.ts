@@ -2,8 +2,12 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { sveltekit } from '@sveltejs/kit/vite'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
+import packageJson from './package.json'
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version ?? 'dev'),
+  },
   plugins: [
     tailwindcss(),
     sveltekit(),
@@ -15,6 +19,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     proxy: {
+      '/healthz': 'http://localhost:8080',
       '/api': 'http://localhost:8080',
       '/share': 'http://localhost:8080',
       '/auth': 'http://localhost:8080',

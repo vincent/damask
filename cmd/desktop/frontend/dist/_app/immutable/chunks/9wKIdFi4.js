@@ -1,0 +1,1 @@
+import{g as c}from"./BIvpcUGy.js";const r=()=>"Cancel",t=()=>"Cancelar",a=()=>"Cancel·la",l=()=>"Annuler",u=((o={},e={})=>{const n=e.locale??c();return n==="en"?r():n==="es"?t():n==="cat"?a():l()});export{u as c};

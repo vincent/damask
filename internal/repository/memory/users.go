@@ -247,6 +247,19 @@ func (r *RealUserRepo) RunInTx(_ context.Context, fn func(repository.UserReposit
 	return fn(r)
 }
 
+// Count returns the number of non-deleted users in the repo.
+func (r *RealUserRepo) Count() int64 {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var n int64
+	for _, u := range r.byID {
+		if u.DeletedAt == nil {
+			n++
+		}
+	}
+	return n
+}
+
 func ptrString(s string) *string {
 	return &s
 }

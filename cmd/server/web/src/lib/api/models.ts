@@ -3,6 +3,61 @@ export interface Config {
   mailHost: string
 }
 
+export interface HealthResponse {
+  ok: boolean
+  version: string | null
+  setupRequired: boolean
+}
+
+export interface SetupStatus {
+  configured: boolean
+  ownerExists: boolean
+}
+
+export interface StorageParams {
+  type: 'local' | 's3' | 'sftp' | ''
+  localPath: string
+  s3Bucket: string
+  s3Region: string
+  s3Endpoint: string
+  s3AccessKey: string
+  s3SecretKey: string
+  sftpHost: string
+  sftpPort: number
+  sftpUser: string
+  sftpKeyPath: string
+  sftpRemotePath: string
+}
+
+export interface DepStatus {
+  name: string
+  binary: string
+  required: boolean
+  docsUrl: string
+  features: string[]
+  found: boolean
+  version: string
+}
+
+export interface EnvParams extends StorageParams {
+  port: number
+  baseURL: string
+  smtpHost: string
+  smtpPort: number
+  smtpUser: string
+  smtpPass: string
+  oidcIssuer: string
+  oidcClientID: string
+  oidcClientSecret: string
+}
+
+export interface OwnerParams {
+  workspaceName: string
+  name: string
+  email: string
+  password: string
+}
+
 export interface MenuItem {
   id: string | null
   label: string

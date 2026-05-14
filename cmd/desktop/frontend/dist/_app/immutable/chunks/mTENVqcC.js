@@ -1,0 +1,1 @@
+import{g as e}from"./BIvpcUGy.js";const r=()=>"Sign in",s=()=>"Iniciar sesión",t=()=>"Inicia sessió",c=()=>"Se connecter",u=((o={},i={})=>{const n=i.locale??e();return n==="en"?r():n==="es"?s():n==="cat"?t():c()});export{u as s};

@@ -1,0 +1,1 @@
+import{a as e,f as s}from"./CDv7Mf0U.js";import{i,k as m}from"./BjsTIAOW.js";import{s as p}from"./SytRjuNP.js";var f=s('<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50"><!></h1>');function h(t,a){var r=f(),o=i(r);p(o,()=>a.children),m(r),e(t,r)}export{h as T};
