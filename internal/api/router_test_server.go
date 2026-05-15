@@ -56,6 +56,7 @@ type TestServerConfig struct {
 	Ingress       service.IngressService
 	Stack         service.StackService
 	Upload        service.UploadService
+	Workflows     service.WorkflowService
 }
 
 // NewTestServer constructs a Server from explicit service interfaces and returns
@@ -136,6 +137,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		ingress:       cfg.Ingress,
 		stack:         cfg.Stack,
 		upload:        cfg.Upload,
+		workflows:     cfg.Workflows,
 	}
 
 	app := buildTestApp(s)
@@ -190,6 +192,7 @@ func buildTestApp(s *Server) *fiber.App {
 	authGroup.Post("/reset-password", s.handleResetPassword)
 	authGroup.Patch("/password", auth.RequireAuth(tokenMaker), demoBlockMiddleware(), s.handleChangePassword)
 	authGroup.Get("/confirm-email-change", s.handleConfirmEmailChange)
+	app.Post("/api/v1/workflows/:id/webhook", s.handleInboundWorkflowWebhook)
 
 	// Protected API routes
 	api := app.Group("/api/v1", auth.RequireAuth(tokenMaker))
@@ -297,6 +300,21 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Delete("/tags", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkDeleteTags)
 	api.Post("/tags/merge", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleMergeTags)
 	api.Get("/tags/suggestions/duplicates", s.handleTagDuplicateSuggestions)
+
+	// Workflows
+	api.Get("/workflows", s.handleListWorkflows)
+	api.Post("/workflows", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleCreateWorkflow)
+	api.Get("/workflows/node-schemas", s.handleGetWorkflowNodeSchemas)
+	api.Get("/workflows/templates", s.handleGetWorkflowTemplates)
+	api.Get("/workflows/:id", s.handleGetWorkflow)
+	api.Put("/workflows/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateWorkflow)
+	api.Patch("/workflows/:id/enabled", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleToggleWorkflow)
+	api.Delete("/workflows/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteWorkflow)
+	api.Post("/workflows/:id/runs", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleManualWorkflowRun)
+	api.Get("/workflows/:id/runs", s.handleListWorkflowRuns)
+	api.Get("/workflows/:id/runs/:rid", s.handleGetWorkflowRun)
+	api.Get("/workflows/:id/webhook-token", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleGetWorkflowWebhookToken)
+	api.Post("/workflows/:id/webhook-token/regenerate", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleRegenerateWorkflowWebhookToken)
 
 	// Folders
 	api.Post("/projects/:id/folders", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateFolder)

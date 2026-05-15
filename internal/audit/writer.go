@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"time"
 
+	"damask/server/internal/telemetry"
 	apptelemetry "damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
@@ -66,8 +67,11 @@ type ProjectEvent struct {
 
 // WriteAsset inserts an asset event row. Errors are logged but never returned.
 func (w *EventWriter) WriteAsset(ctx context.Context, e AssetEvent) {
+	var err error
 	_, span := apptelemetry.StartSpan(ctx, "service.audit.write.asset")
-	defer span.End()
+	defer func() {
+		telemetry.EndSpan(span, err)
+	}()
 
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {
@@ -97,8 +101,11 @@ func (w *EventWriter) WriteAssetAsync(e AssetEvent) {
 
 // WriteProject inserts a project event row. Errors are logged but never returned.
 func (w *EventWriter) WriteProject(ctx context.Context, e ProjectEvent) {
+	var err error
 	_, span := apptelemetry.StartSpan(ctx, "service.audit.write.project")
-	defer span.End()
+	defer func() {
+		telemetry.EndSpan(span, err)
+	}()
 
 	payload, err := json.Marshal(e.Payload)
 	if err != nil {

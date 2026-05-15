@@ -67,13 +67,29 @@ func (p *PatchTagParams) Validate() error {
 }
 
 type tagService struct {
-	tags  repository.TagRepository
-	audit audit.Writer
+	tags     repository.TagRepository
+	assets   repository.AssetRepository
+	audit    audit.Writer
+	triggers WorkflowTriggerPublisher
+}
+
+type TagServiceDeps struct {
+	Assets   repository.AssetRepository
+	Triggers WorkflowTriggerPublisher
 }
 
 // NewTagService returns a TagService.
-func NewTagService(tags repository.TagRepository, aw audit.Writer) TagService {
-	return &tagService{tags: tags, audit: aw}
+func NewTagService(tags repository.TagRepository, aw audit.Writer, deps ...TagServiceDeps) TagService {
+	cfg := TagServiceDeps{}
+	if len(deps) > 0 {
+		cfg = deps[0]
+	}
+	return &tagService{
+		tags:     tags,
+		assets:   cfg.Assets,
+		audit:    aw,
+		triggers: workflowTriggerPublisherOrNop(cfg.Triggers),
+	}
 }
 
 func (s *tagService) GetByName(ctx context.Context, workspaceID, name string) (*TagDTO, error) {
@@ -350,6 +366,14 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 	if tagName == "" {
 		return nil, fmt.Errorf("tag name is required: %w", apperr.ErrInvalidInput)
 	}
+	var asset *repository.Asset
+	if s.assets != nil {
+		row, err := s.assets.GetByID(ctx, workspaceID, assetID)
+		if err != nil {
+			return nil, err
+		}
+		asset = &row
+	}
 	if systemtags.IsSystem(tagName) {
 		if err := s.tags.EnsureSystemTag(ctx, workspaceID, tagName); err != nil {
 			return nil, err
@@ -373,6 +397,21 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 		EventType:   audit.EventAssetTagged,
 		Payload:     audit.AssetTaggedPayload{V: 1, Tag: dto.Name},
 	})
+	if asset != nil {
+		publishWorkflowTriggerAsync(s.triggers, "trigger.tag_added", map[string]any{
+			"asset_id":          assetID,
+			"workspace_id":      workspaceID,
+			"project_id":        asset.ProjectID,
+			"folder_id":         asset.FolderID,
+			"mime_type":         asset.MimeType,
+			"original_filename": asset.OriginalFilename,
+			"filename":          asset.OriginalFilename,
+			"version_id":        asset.CurrentVersionID,
+			"storage_key":       asset.StorageKey,
+			"tag_name":          dto.Name,
+			"tag":               dto.Name,
+		})
+	}
 	return dto, nil
 }
 

@@ -31,11 +31,16 @@ type UploadMeta struct {
 type uploadServiceImpl struct {
 	injestor AssetInjestor
 	audit    audit.Writer
+	triggers WorkflowTriggerPublisher
 }
 
 // NewUploadService returns an UploadService.
-func NewUploadService(injestor AssetInjestor, aw audit.Writer) UploadService {
-	return &uploadServiceImpl{injestor: injestor, audit: aw}
+func NewUploadService(injestor AssetInjestor, aw audit.Writer, triggers ...WorkflowTriggerPublisher) UploadService {
+	return &uploadServiceImpl{
+		injestor: injestor,
+		audit:    aw,
+		triggers: workflowTriggerPublisherOrNop(triggers...),
+	}
 }
 
 // Ingest writes r to a temp file, calls AssetInjestor.IngestFileFull, then removes the temp file.
@@ -100,6 +105,18 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 		ActorType:   actor.Type,
 		EventType:   audit.EventAssetCreated,
 		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "upload"},
+	})
+	publishWorkflowTriggerAsync(s.triggers, "trigger.asset_created", map[string]any{
+		"asset_id":          asset.ID,
+		"workspace_id":      asset.WorkspaceID,
+		"project_id":        asset.ProjectID,
+		"folder_id":         asset.FolderID,
+		"mime_type":         asset.MimeType,
+		"size":              asset.Size,
+		"original_filename": asset.OriginalFilename,
+		"filename":          asset.OriginalFilename,
+		"version_id":        asset.CurrentVersionID,
+		"storage_key":       asset.StorageKey,
 	})
 	return asset, nil
 }

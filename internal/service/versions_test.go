@@ -3,13 +3,21 @@ package service_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
+	dbpkg "damask/server/internal/db"
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/media/ingest"
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
+	reposqlc "damask/server/internal/repository/sqlc"
+	"damask/server/internal/queue"
 	"damask/server/internal/service"
+	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 )
 
 func newVersionSvc(t *testing.T) (service.VersionService, *memory.RealVersionRepo) {
@@ -174,5 +182,134 @@ func TestVersionService_WriteVersionRestored_EmitsAuditEvent(t *testing.T) {
 	}
 	if e.AssetID != "ast_1" {
 		t.Errorf("AssetID: got %q, want %q", e.AssetID, "ast_1")
+	}
+}
+
+func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T) {
+	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/version_upload.db?_foreign_keys=ON")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	ctx := context.Background()
+	wsID := "ws_upload"
+	userID := "usr_upload"
+	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "u@example.com", PasswordHash: "x", Name: "u"}); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	stor, _ := storage.NewAferoMemoryStorage()
+	q := queue.New(queries, 1)
+	uploadSvc := service.NewUploadService(
+		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		audit.NopWriter{},
+	)
+	asset, err := uploadSvc.Ingest(ctx, wsID, strings.NewReader("first-version"), service.UploadMeta{
+		OriginalFilename: "photo.jpg",
+		UserID:           userID,
+	})
+	if err != nil {
+		t.Fatalf("seed asset upload: %v", err)
+	}
+
+	triggers := &triggerSpy{}
+	versionSvc := service.NewVersionService(
+		reposqlc.NewVersionRepo(queries, sqlDB),
+		audit.NopWriter{},
+		service.VersionServiceDeps{
+			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Storage:  stor,
+			Queue:    q,
+			Media:    ingest.NewRegistry(transform.NewTransformer()),
+			Triggers: triggers,
+		},
+	)
+
+	result, err := versionSvc.UploadNewVersion(ctx, service.UploadAssetVersionParams{
+		WorkspaceID: wsID,
+		AssetID:     asset.ID,
+		Filename:    "photo-v2.jpg",
+		ContentType: "image/jpeg",
+		Comment:     "second version",
+		UserID:      userID,
+		Reader:      strings.NewReader("second-version"),
+	})
+	if err != nil {
+		t.Fatalf("UploadNewVersion: %v", err)
+	}
+	if result.Version == nil || result.Asset == nil {
+		t.Fatalf("expected asset and version in result")
+	}
+
+	waitForTriggerCount(t, triggers, 1)
+	call := triggers.last()
+	if call.eventType != "trigger.version_uploaded" {
+		t.Fatalf("eventType: got %q", call.eventType)
+	}
+	if got := call.data["asset_id"]; got != asset.ID {
+		t.Fatalf("asset_id: got %v want %s", got, asset.ID)
+	}
+	if got := call.data["version_id"]; got != result.Version.ID {
+		t.Fatalf("version_id: got %v want %s", got, result.Version.ID)
+	}
+}
+
+func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
+	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/version_upload_dispatch_err.db?_foreign_keys=ON")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	ctx := context.Background()
+	wsID := "ws_upload_err"
+	userID := "usr_upload_err"
+	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "u2@example.com", PasswordHash: "x", Name: "u2"}); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	stor, _ := storage.NewAferoMemoryStorage()
+	q := queue.New(queries, 1)
+	uploadSvc := service.NewUploadService(
+		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		audit.NopWriter{},
+	)
+	asset, err := uploadSvc.Ingest(ctx, wsID, strings.NewReader("first-version"), service.UploadMeta{
+		OriginalFilename: "photo.jpg",
+		UserID:           userID,
+	})
+	if err != nil {
+		t.Fatalf("seed asset upload: %v", err)
+	}
+
+	triggers := &triggerSpy{err: errors.New("boom")}
+	versionSvc := service.NewVersionService(
+		reposqlc.NewVersionRepo(queries, sqlDB),
+		audit.NopWriter{},
+		service.VersionServiceDeps{
+			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Storage:  stor,
+			Queue:    q,
+			Media:    ingest.NewRegistry(transform.NewTransformer()),
+			Triggers: triggers,
+		},
+	)
+
+	if _, err := versionSvc.UploadNewVersion(ctx, service.UploadAssetVersionParams{
+		WorkspaceID: wsID,
+		AssetID:     asset.ID,
+		Filename:    "photo-v2.jpg",
+		ContentType: "image/jpeg",
+		UserID:      userID,
+		Reader:      strings.NewReader("second-version"),
+	}); err != nil {
+		t.Fatalf("UploadNewVersion should ignore dispatch errors: %v", err)
 	}
 }

@@ -16,6 +16,7 @@ type MockVersionService struct {
 	GetByHashFn            func(ctx context.Context, assetID, contentHash string) (*service.VersionDTO, error)
 	NextVersionNumFn       func(ctx context.Context, assetID string) (int64, error)
 	CreateFn               func(ctx context.Context, v *service.VersionDTO) (*service.VersionDTO, error)
+	UploadNewVersionFn     func(ctx context.Context, p service.UploadAssetVersionParams) (*service.UploadAssetVersionResult, error)
 	SetCurrentFn           func(ctx context.Context, assetID, versionID string) error
 	SetAssetThumbnailFn    func(ctx context.Context, assetID string, key *string) error
 	DeleteFn               func(ctx context.Context, workspaceID, assetID, versionID string) error
@@ -75,6 +76,13 @@ func (m *MockVersionService) NextVersionNum(ctx context.Context, assetID string)
 func (m *MockVersionService) Create(ctx context.Context, v *service.VersionDTO) (*service.VersionDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, v)
+	}
+	return nil, nil
+}
+
+func (m *MockVersionService) UploadNewVersion(ctx context.Context, p service.UploadAssetVersionParams) (*service.UploadAssetVersionResult, error) {
+	if m.UploadNewVersionFn != nil {
+		return m.UploadNewVersionFn(ctx, p)
 	}
 	return nil, nil
 }

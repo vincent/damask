@@ -269,6 +269,7 @@ const (
 
 	// Rebuild jobs — system-triggered on new version upload.
 	JobTypeRebuildVariants = "rebuild_variants"
+	JobTypeRunWorkflow     = "run_workflow"
 
 	// EXIF extraction.
 	JobTypeExtractExif      = "extract_exif"

@@ -2,26 +2,15 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"damask/server/internal/auth"
-	"damask/server/internal/jobs"
-	"damask/server/internal/queue"
 	"damask/server/internal/service"
-	apptelemetry "damask/server/internal/telemetry"
-	"damask/server/internal/transform"
-	"damask/server/internal/versioning"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // --- Response types ---
@@ -113,11 +102,6 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 
-	asset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
-	if err != nil {
-		return ErrorStatusResponse(c, err)
-	}
-
 	fh, err := c.FormFile("file")
 	if err != nil {
 		return errRes(c, fiber.StatusBadRequest, "file field is required")
@@ -128,156 +112,32 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusUnprocessableEntity, "comment must be 500 characters or fewer")
 	}
 
-	tmpFile := filepath.Join(os.TempDir(), uuid.NewString()+"_"+fh.Filename)
-	_, saveSpan := apptelemetry.StartSpan(c.Context(), "api.versions.save_upload_temp",
-		attribute.String("damask.asset_id", assetID),
-		attribute.Int64("damask.upload.bytes", fh.Size),
-	)
-	err = c.SaveFile(fh, tmpFile)
-	apptelemetry.EndSpan(saveSpan, err)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "cannot save uploaded file")
-	}
-	defer os.Remove(tmpFile)
-
-	f, err := os.Open(tmpFile)
+	f, err := fh.Open()
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not open uploaded file")
 	}
 	defer f.Close()
 
-	_, hashSpan := apptelemetry.StartSpan(c.Context(), "api.versions.hash_upload",
-		attribute.String("damask.asset_id", assetID),
-	)
-	hash, size, err := versioning.HashReader(f)
-	hashSpan.SetAttributes(attribute.Int64("damask.upload.bytes", size))
-	apptelemetry.EndSpan(hashSpan, err)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not hash file")
-	}
-
-	var prevVersionID string
-	if asset.CurrentVersionID != nil {
-		prevVersionID = *asset.CurrentVersionID
-	}
-
-	// Dedup: reject if identical bytes are already the current version.
-	existing, hashErr := s.versions.GetByHash(c.Context(), assetID, hash)
-	if hashErr == nil && existing.IsCurrent {
-		return errRes(c, fiber.StatusConflict, "this file is identical to the current version")
-	}
-
-	nextNum, err := s.versions.NextVersionNum(c.Context(), assetID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not determine version number")
-	}
-
-	mimeType, _ := transform.DetectMimeType(tmpFile)
-	if mimeType == "" {
-		mimeType = fh.Header.Get("Content-Type")
-	}
-	metaCtx, metaSpan := apptelemetry.StartSpan(c.Context(), "api.versions.extract_metadata",
-		attribute.String("damask.asset_id", assetID),
-		attribute.String("damask.mime_type", mimeType),
-	)
-	meta, metaErr := s.media.ExtractMeta(metaCtx, tmpFile, mimeType)
-	apptelemetry.EndSpan(metaSpan, metaErr)
-	if metaErr != nil {
-		slog.WarnContext(metaCtx, "version metadata extraction failed", "asset_id", assetID, "mime_type", mimeType, "error", metaErr)
-	}
-
-	storageKey := fmt.Sprintf("%s/%s/v%d/%s", claims.WorkspaceID, assetID, nextNum, fh.Filename)
-
-	if hashErr != nil {
-		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not rewind file")
-		}
-		_, putSpan := apptelemetry.StartSpan(c.Context(), "api.versions.storage_put",
-			attribute.String("damask.asset_id", assetID),
-			attribute.String("damask.storage.key", storageKey),
-			attribute.Int64("damask.upload.bytes", size),
-		)
-		err = s.storage.Put(storageKey, f)
-		apptelemetry.EndSpan(putSpan, err)
-		if err != nil {
-			return errRes(c, fiber.StatusInternalServerError, "could not store file")
-		}
-	} else {
-		storageKey = existing.StorageKey
-	}
-
-	var commentPtr *string
-	if comment != "" {
-		commentPtr = &comment
-	}
-	createdByPtr := &claims.UserID
-
-	newVersion, err := s.versions.Create(c.Context(), &service.VersionDTO{
-		ID:          uuid.NewString(),
-		AssetID:     assetID,
+	result, err := s.versions.UploadNewVersion(c.Context(), service.UploadAssetVersionParams{
 		WorkspaceID: claims.WorkspaceID,
-		VersionNum:  nextNum,
-		StorageKey:  storageKey,
-		ContentHash: hash,
-		MimeType:    mimeType,
-		Size:        size,
-		Width:       meta.Width,
-		Height:      meta.Height,
-		DurationSec: meta.DurationSec,
-		Comment:     commentPtr,
-		CreatedBy:   createdByPtr,
+		AssetID:     assetID,
+		Filename:    fh.Filename,
+		ContentType: fh.Header.Get("Content-Type"),
+		Comment:     comment,
+		UserID:      claims.UserID,
+		Reader:      f,
 	})
 	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not create version")
+		return ErrorStatusResponse(c, err)
 	}
-
-	if err := s.versions.SetCurrent(c.Context(), assetID, newVersion.ID); err != nil {
-		slog.ErrorContext(c.Context(), "set current version", "error", err)
-		return errRes(c, fiber.StatusInternalServerError, "could not promote version")
-	}
-	newVersion.IsCurrent = true
-
-	if err := s.versions.SetAssetThumbnail(c.Context(), assetID, nil); err != nil {
-		slog.ErrorContext(c.Context(), "clear asset thumbnail", "error", err)
-	}
-
-	s.enqueueVersionThumbnail(c.Context(), asset, newVersion)
-
-	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
-		payload, _ := json.Marshal(jobs.ExtractMediaTagsPayload{
-			AssetID:     assetID,
-			WorkspaceID: claims.WorkspaceID,
-		})
-		if _, err := s.queue.Enqueue(c.Context(), claims.WorkspaceID, queue.JobTypeExtractMediaTags, string(payload)); err != nil {
-			slog.ErrorContext(c.Context(), "enqueue extract_media_tags", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
-		}
-	}
-
-	if err := jobs.EnqueueRebuildVariantsJob(
-		c.Context(), s.queue,
-		claims.WorkspaceID, assetID, newVersion.ID, prevVersionID,
-	); err != nil {
-		slog.ErrorContext(c.Context(), "enqueue rebuild variants", "asset_id", assetID, "version_id", newVersion.ID, "error", err)
-	}
-
-	updatedAsset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
-	if err != nil {
-		return errRes(c, fiber.StatusInternalServerError, "could not reload asset")
-	}
-
-	commentStr := ""
-	if newVersion.Comment != nil {
-		commentStr = *newVersion.Comment
-	}
-	s.versions.WriteVersionUploaded(c.Context(), claims.WorkspaceID, assetID, newVersion, commentStr)
 
 	var createdBy *VersionCreatedByResponse
-	if newVersion.CreatedBy != nil {
-		createdBy = s.resolveCreator(c.Context(), *newVersion.CreatedBy)
+	if result.Version.CreatedBy != nil {
+		createdBy = s.resolveCreator(c.Context(), *result.Version.CreatedBy)
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"version": versionDTOToResponse(newVersion, createdBy),
-		"asset":   assetToResponse(dtoToDBAsset(updatedAsset), nil),
+		"version": versionDTOToResponse(result.Version, createdBy),
+		"asset":   assetToResponse(dtoToDBAsset(result.Asset), nil),
 	})
 }
 
@@ -547,19 +407,4 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 
 	c.Set("Content-Type", "image/jpeg")
 	return c.SendStream(rc)
-}
-
-// --- thumbnail job helper ---
-
-func (s *Server) enqueueVersionThumbnail(ctx context.Context, asset *service.AssetDTO, version *service.VersionDTO) {
-	payload := jobs.VersionThumbnailJobPayload{
-		AssetID:     asset.ID,
-		VersionID:   version.ID,
-		WorkspaceID: asset.WorkspaceID,
-		StorageKey:  version.StorageKey,
-		MimeType:    version.MimeType,
-	}
-	if err := jobs.EnqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
-		slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "version_id", version.ID, "error", err)
-	}
 }

@@ -74,8 +74,9 @@ func (h *EventHubImpl) Subscribe(workspaceID string) (<-chan Event, func()) {
 // Publish sends an event to all subscribers of workspaceID.
 // Non-blocking: slow clients are skipped.
 func (h *EventHubImpl) Publish(ctx context.Context, workspaceID string, ev Event) {
+	var err error
 	_, span := telemetry.StartSpan(ctx, "service.events.publish")
-	defer span.End()
+	defer func() { telemetry.EndSpan(span, err) }()
 
 	slog.DebugContext(ctx, "publishing event", "workspace_id", workspaceID, "event_type", ev.Type, "asset_id", ev.AssetID, "variant_id", ev.VariantID, "job_id", ev.JobID)
 

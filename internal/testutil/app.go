@@ -57,6 +57,7 @@ type TestEnv struct {
 	Ingress       *mockservice.MockIngressService
 	Stack         *mockservice.MockStackService
 	Upload        *mockservice.MockUploadService
+	Workflows     *mockservice.MockWorkflowService
 }
 
 // NewTestEnv creates a TestEnv with all mock services wired into a Fiber app.
@@ -89,6 +90,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 	ingress := mockservice.NewIngressService()
 	stack := mockservice.NewStackService()
 	upload := mockservice.NewUploadService()
+	workflows := mockservice.NewWorkflowService()
 
 	srv, app := api.NewTestServer(&api.TestServerConfig{
 		TokenMaker:    maker,
@@ -112,6 +114,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 		Ingress:       ingress,
 		Stack:         stack,
 		Upload:        upload,
+		Workflows:     workflows,
 	})
 
 	return &TestEnv{
@@ -139,6 +142,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 		Ingress:       ingress,
 		Stack:         stack,
 		Upload:        upload,
+		Workflows:     workflows,
 	}
 }
 

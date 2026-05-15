@@ -1,0 +1,87 @@
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"damask/server/internal/repository"
+	"damask/server/internal/telemetry"
+
+	"go.opentelemetry.io/otel/attribute"
+)
+
+var schedulerTracer = telemetry.Tracer("damask/internal/workflow/scheduler")
+
+type CronScheduler struct {
+	workflows  repository.WorkflowRepository
+	dispatcher *TriggerDispatcher
+	interval   time.Duration
+}
+
+func NewCronScheduler(workflows repository.WorkflowRepository, dispatcher *TriggerDispatcher) *CronScheduler {
+	return &CronScheduler{workflows: workflows, dispatcher: dispatcher, interval: time.Minute}
+}
+
+func (s *CronScheduler) Start(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(s.interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.tick(ctx)
+			}
+		}
+	}()
+}
+
+func (s *CronScheduler) tick(ctx context.Context) {
+	var err error
+	ctx, span := schedulerTracer.Start(ctx, "workflow.scheduler.tick")
+	defer telemetry.EndSpan(span, err)
+
+	due, err := s.workflows.ListByTrigger(ctx, "trigger.schedule")
+	if err != nil {
+		span.RecordError(err)
+		return
+	}
+	fired := 0
+	for _, wf := range due {
+		if !s.isDue(wf) {
+			continue
+		}
+		_ = s.dispatcher.Dispatch(ctx, "trigger.schedule", map[string]any{
+			"workspace_id": wf.WorkspaceID,
+			"workflow_id":  wf.ID,
+		})
+		fired++
+	}
+	span.SetAttributes(attribute.Int("workflow.scheduler.fired", fired))
+}
+
+func (s *CronScheduler) isDue(wf repository.Workflow) bool {
+	var graph Graph
+	if err := json.Unmarshal([]byte(wf.Graph), &graph); err != nil {
+		return false
+	}
+	trigger, err := graph.TriggerNode()
+	if err != nil {
+		return false
+	}
+	var cfg struct {
+		IntervalMinutes int `json:"interval_minutes"`
+	}
+	if err := json.Unmarshal(trigger.Config, &cfg); err != nil {
+		return wf.LastRunAt == nil
+	}
+	if cfg.IntervalMinutes <= 0 {
+		cfg.IntervalMinutes = 60
+	}
+	if wf.LastRunAt == nil {
+		return true
+	}
+	return time.Since(*wf.LastRunAt) >= time.Duration(cfg.IntervalMinutes)*time.Minute
+}

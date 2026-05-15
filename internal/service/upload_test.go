@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
@@ -46,6 +47,18 @@ func newUploadSvc(t *testing.T) service.UploadService {
 	q := queue.New(queries, 1)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()))
 	return service.NewUploadService(injestor, audit.NopWriter{})
+}
+
+func waitForTriggerCount(t *testing.T, spy *triggerSpy, want int) {
+	t.Helper()
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if spy.count() >= want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %d trigger calls, got %d", want, spy.count())
 }
 
 // -- Validate inputs --
@@ -151,5 +164,52 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	}
 	if e.WorkspaceID != wsID {
 		t.Errorf("WorkspaceID: got %q, want %q", e.WorkspaceID, wsID)
+	}
+}
+
+func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
+	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_trigger.db?_foreign_keys=ON")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	ctx := context.Background()
+	wsID := "ws_trigger"
+	userID := "user_trigger"
+	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "t@t.com", PasswordHash: "x", Name: "t"}); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	stor, _ := storage.NewAferoMemoryStorage()
+	q := queue.New(queries, 1)
+	triggers := &triggerSpy{}
+	svc := service.NewUploadService(
+		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		audit.NopWriter{},
+		triggers,
+	)
+
+	asset, err := svc.Ingest(ctx, wsID, strings.NewReader("trigger-bytes"), service.UploadMeta{
+		OriginalFilename: "trigger.jpg",
+		UserID:           userID,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	waitForTriggerCount(t, triggers, 1)
+	call := triggers.last()
+	if call.eventType != "trigger.asset_created" {
+		t.Fatalf("eventType: got %q", call.eventType)
+	}
+	if got := call.data["asset_id"]; got != asset.ID {
+		t.Fatalf("asset_id: got %v want %s", got, asset.ID)
+	}
+	if got := call.data["original_filename"]; got != "trigger.jpg" {
+		t.Fatalf("original_filename: got %v", got)
 	}
 }

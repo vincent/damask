@@ -346,8 +346,9 @@ func (w *Worker) failSource(ctx context.Context, src dbgen.IngressSource, err er
 }
 
 func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSource, errMsg string, disabled bool) {
+	var err error
 	ctx, span := telemetry.StartSpan(ctx, "workers.ingest.notify_failure")
-	defer span.End()
+	defer func() { telemetry.EndSpan(span, err) }()
 
 	members, dbErr := w.db.ListMembers(ctx, src.WorkspaceID)
 	if dbErr != nil {

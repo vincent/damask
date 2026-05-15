@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"damask/server/internal/api"
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	"damask/server/internal/db"
@@ -26,6 +27,8 @@ import (
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
+	"damask/server/internal/workflow"
+	"damask/server/internal/workflowadapter"
 
 	// Side-effect imports to register ingress source types
 	"damask/server/internal/ingress/sources/canva"
@@ -150,8 +153,44 @@ func main() {
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	auditWriter := audit.New(sqlDB)
+	assetRepo := reposqlc.NewAssetRepo(queries, sqlDB)
+	tagRepo := reposqlc.NewTagRepo(queries, sqlDB)
+	fieldRepo := reposqlc.NewFieldRepo(queries)
+	userRepo := reposqlc.NewUserRepo(queries, sqlDB)
+	versionRepo := reposqlc.NewVersionRepo(queries, sqlDB)
+	variantRepo := reposqlc.NewVariantRepo(sqlDB)
+	assetFieldRepo := reposqlc.NewAssetFieldRepo(queries, sqlDB)
+	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
+	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
+	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
+		Assets: assetRepo,
+	})
+	variantSvc := service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
+		Actions: service.NewSQLVariantActionsStore(sqlDB),
+		Queue:   q,
+		Storage: stor,
+	})
+	assetSvc := service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q)
+	assetFieldSvc := service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter)
+	shareSvc := service.NewShareService(reposqlc.NewShareRepo(queries, sqlDB), auditWriter)
+	workspaceSvc := service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	workflowExec := workflow.NewExecutor(workflow.Deps{
+		Workflows:   workflowRepo,
+		Runs:        workflowRunRepo,
+		Queue:       q,
+		Storage:     stor,
+		Mailer:      mailer,
+		Assets:      workflowadapter.NewAssetManager(assetSvc),
+		Variants:    workflowadapter.NewVariantManager(variantSvc),
+		Shares:      workflowadapter.NewShareManager(shareSvc),
+		Tags:        workflowadapter.NewTagManager(tagSvc),
+		AssetFields: workflowadapter.NewAssetFieldManager(assetFieldSvc),
+		Workspace:   workflowadapter.NewWorkspaceManager(workspaceSvc),
+		Config:      cfg,
+	})
 
-	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
+	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, trf, tmb, cfg, injestor, resolveImageRouterKey, workflowExec)
 	js.RegisterJobHandlers()
 
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.

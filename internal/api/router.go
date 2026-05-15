@@ -19,6 +19,7 @@ import (
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
+	"damask/server/internal/workflow"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
@@ -62,6 +63,7 @@ type Server struct {
 	ingress       service.IngressService
 	stack         service.StackService
 	upload        service.UploadService
+	workflows     service.WorkflowService
 }
 
 func NewHttpServer(
@@ -88,10 +90,17 @@ func NewHttpServer(
 	workspaceRepo := reposqlc.NewWorkspaceRepo(db, sqlDB)
 	versionRepo := reposqlc.NewVersionRepo(db, sqlDB)
 	variantRepo := reposqlc.NewVariantRepo(sqlDB)
+	workflowRepo := reposqlc.NewWorkflowRepo(db, sqlDB)
+	workflowRunRepo := reposqlc.NewWorkflowRunRepo(db, sqlDB)
+	workflowWebhookRepo := reposqlc.NewWorkflowWebhookRepo(db, sqlDB)
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
 	media := ingest.NewRegistry(trf)
-	tagSvc := service.NewTagService(tagRepo, auditWriter)
+	triggerDispatcher := workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q)
+	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
+		Assets:   assetRepo,
+		Triggers: triggerDispatcher,
+	})
 	variantsSvc := service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
 		Actions: service.NewSQLVariantActionsStore(sqlDB),
 		Queue:   q,
@@ -124,11 +133,18 @@ func NewHttpServer(
 		tags:          tagSvc,
 		trf:           trf,
 		textTracks:    service.NewTextTrackService(db, q, stor),
-		upload:        service.NewUploadService(service.NewAssetInjestor(db, sqlDB, stor, q, media), auditWriter),
+		upload:        service.NewUploadService(service.NewAssetInjestor(db, sqlDB, stor, q, media), auditWriter, triggerDispatcher),
 		users:         service.NewUserService(userRepo, workspaceRepo, stor),
 		variants:      variantsSvc,
-		versions:      service.NewVersionService(versionRepo, auditWriter),
+		versions: service.NewVersionService(versionRepo, auditWriter, service.VersionServiceDeps{
+			Assets:   assetRepo,
+			Storage:  stor,
+			Queue:    q,
+			Media:    media,
+			Triggers: triggerDispatcher,
+		}),
 		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
+		workflows:     service.NewWorkflowService(workflowRepo, workflowRunRepo, workflowWebhookRepo, q),
 	}
 }
 
@@ -202,6 +218,7 @@ func NewRouter(
 	authGroup.Patch("/password", auth.RequireAuth(tokenMaker), demoBlockMiddleware(), s.handleChangePassword)
 	authGroup.Get("/confirm-email-change", s.handleConfirmEmailChange)
 	app.Get("/api/v1/users/:id/avatar", s.handleGetAvatar)
+	app.Post("/api/v1/workflows/:id/webhook", s.handleInboundWorkflowWebhook)
 
 	// Protected API routes
 	api := app.Group("/api/v1", auth.RequireAuth(tokenMaker))
@@ -303,6 +320,21 @@ func NewRouter(
 	api.Delete("/tags", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkDeleteTags)
 	api.Post("/tags/merge", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleMergeTags)
 	api.Get("/tags/suggestions/duplicates", s.handleTagDuplicateSuggestions)
+
+	// Workflows
+	api.Get("/workflows", s.handleListWorkflows)
+	api.Post("/workflows", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleCreateWorkflow)
+	api.Get("/workflows/node-schemas", s.handleGetWorkflowNodeSchemas)
+	api.Get("/workflows/templates", s.handleGetWorkflowTemplates)
+	api.Get("/workflows/:id", s.handleGetWorkflow)
+	api.Put("/workflows/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateWorkflow)
+	api.Patch("/workflows/:id/enabled", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleToggleWorkflow)
+	api.Delete("/workflows/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteWorkflow)
+	api.Post("/workflows/:id/runs", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleManualWorkflowRun)
+	api.Get("/workflows/:id/runs", s.handleListWorkflowRuns)
+	api.Get("/workflows/:id/runs/:rid", s.handleGetWorkflowRun)
+	api.Get("/workflows/:id/webhook-token", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleGetWorkflowWebhookToken)
+	api.Post("/workflows/:id/webhook-token/regenerate", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleRegenerateWorkflowWebhookToken)
 
 	// Folders
 	api.Post("/projects/:id/folders", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateFolder)

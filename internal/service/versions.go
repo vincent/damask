@@ -2,16 +2,29 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
+	"damask/server/internal/jobs"
+	"damask/server/internal/media/ingest"
+	"damask/server/internal/queue"
 	"damask/server/internal/repository"
+	"damask/server/internal/storage"
 	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/transform"
+	"damask/server/internal/versioning"
 
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -38,12 +51,37 @@ type VersionDTO struct {
 
 type versionService struct {
 	versions repository.VersionRepository
+	assets   repository.AssetRepository
+	storage  storage.Storage
+	queue    queue.JobQueue
+	media    *ingest.Registry
 	audit    audit.Writer
+	triggers WorkflowTriggerPublisher
+}
+
+type VersionServiceDeps struct {
+	Assets   repository.AssetRepository
+	Storage  storage.Storage
+	Queue    queue.JobQueue
+	Media    *ingest.Registry
+	Triggers WorkflowTriggerPublisher
 }
 
 // NewVersionService returns a VersionService.
-func NewVersionService(versions repository.VersionRepository, aw audit.Writer) VersionService {
-	return &versionService{versions: versions, audit: aw}
+func NewVersionService(versions repository.VersionRepository, aw audit.Writer, deps ...VersionServiceDeps) VersionService {
+	cfg := VersionServiceDeps{}
+	if len(deps) > 0 {
+		cfg = deps[0]
+	}
+	return &versionService{
+		versions: versions,
+		assets:   cfg.Assets,
+		storage:  cfg.Storage,
+		queue:    cfg.Queue,
+		media:    cfg.Media,
+		audit:    aw,
+		triggers: workflowTriggerPublisherOrNop(cfg.Triggers),
+	}
 }
 
 func (s *versionService) List(ctx context.Context, assetID string) ([]*VersionDTO, error) {
@@ -145,6 +183,213 @@ func (s *versionService) Create(ctx context.Context, v *VersionDTO) (out *Versio
 		return nil, err
 	}
 	return toVersionDTO(created), nil
+}
+
+func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVersionParams) (out *UploadAssetVersionResult, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.upload_new",
+		attribute.String("damask.workspace_id", p.WorkspaceID),
+		attribute.String("damask.asset_id", p.AssetID),
+		attribute.String("damask.filename", p.Filename),
+	)
+	defer func() {
+		if out != nil && out.Version != nil {
+			span.SetAttributes(attribute.String("damask.version_id", out.Version.ID))
+		}
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "version upload failed", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "filename", p.Filename, "error", err)
+		}
+	}()
+
+	if err := s.validateUploadNewVersionDeps(); err != nil {
+		return nil, err
+	}
+	if p.WorkspaceID == "" || p.AssetID == "" || p.Filename == "" || p.UserID == "" || p.Reader == nil {
+		return nil, fmt.Errorf("workspace_id, asset_id, filename, user_id, and reader are required: %w", apperr.ErrInvalidInput)
+	}
+
+	comment := strings.TrimSpace(p.Comment)
+	if len(comment) > 500 {
+		return nil, fmt.Errorf("comment must be 500 characters or fewer: %w", apperr.ErrInvalidInput)
+	}
+
+	asset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpF, err := os.CreateTemp("", "damask-version-*"+filepath.Ext(p.Filename))
+	if err != nil {
+		return nil, fmt.Errorf("cannot create temp file: %w", err)
+	}
+	tmpPath := tmpF.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := io.Copy(tmpF, p.Reader); err != nil {
+		_ = tmpF.Close()
+		return nil, fmt.Errorf("cannot write temp file: %w", err)
+	}
+	if err := tmpF.Close(); err != nil {
+		return nil, fmt.Errorf("cannot close temp file: %w", err)
+	}
+
+	hashFile, err := os.Open(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open uploaded file: %w", err)
+	}
+	hash, size, err := versioning.HashReader(hashFile)
+	_ = hashFile.Close()
+	if err != nil {
+		return nil, fmt.Errorf("could not hash file: %w", err)
+	}
+
+	var prevVersionID string
+	if asset.CurrentVersionID != nil {
+		prevVersionID = *asset.CurrentVersionID
+	}
+
+	existing, hashErr := s.versions.GetByHash(ctx, p.AssetID, hash)
+	if hashErr == nil && existing.IsCurrent {
+		return nil, fmt.Errorf("this file is identical to the current version: %w", apperr.ErrConflict)
+	}
+
+	nextNum, err := s.versions.NextVersionNum(ctx, p.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("could not determine version number: %w", err)
+	}
+
+	mimeType, _ := transform.DetectMimeType(tmpPath)
+	if mimeType == "" {
+		mimeType = p.ContentType
+	}
+	if mimeType == "" {
+		mimeType = mime.TypeByExtension(filepath.Ext(p.Filename))
+	}
+
+	meta := ingest.FileMeta{}
+	if s.media != nil {
+		if extracted, metaErr := s.media.ExtractMeta(ctx, tmpPath, mimeType); metaErr != nil {
+			slog.WarnContext(ctx, "version metadata extraction failed", "asset_id", p.AssetID, "mime_type", mimeType, "error", metaErr)
+		} else {
+			meta = extracted
+		}
+	}
+
+	storageKey := fmt.Sprintf("%s/%s/v%d/%s", p.WorkspaceID, p.AssetID, nextNum, p.Filename)
+	if hashErr != nil {
+		storeFile, err := os.Open(tmpPath)
+		if err != nil {
+			return nil, fmt.Errorf("could not reopen uploaded file: %w", err)
+		}
+		err = s.storage.Put(storageKey, storeFile)
+		_ = storeFile.Close()
+		if err != nil {
+			return nil, fmt.Errorf("could not store file: %w", err)
+		}
+	} else {
+		storageKey = existing.StorageKey
+	}
+
+	var commentPtr *string
+	if comment != "" {
+		commentPtr = &comment
+	}
+	createdBy := p.UserID
+
+	newVersion, err := s.Create(ctx, &VersionDTO{
+		ID:          uuid.NewString(),
+		AssetID:     p.AssetID,
+		WorkspaceID: p.WorkspaceID,
+		VersionNum:  nextNum,
+		StorageKey:  storageKey,
+		ContentHash: hash,
+		MimeType:    mimeType,
+		Size:        size,
+		Width:       meta.Width,
+		Height:      meta.Height,
+		DurationSec: meta.DurationSec,
+		Comment:     commentPtr,
+		CreatedBy:   &createdBy,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not create version: %w", err)
+	}
+
+	if err := s.SetCurrent(ctx, p.AssetID, newVersion.ID); err != nil {
+		return nil, fmt.Errorf("could not promote version: %w", err)
+	}
+	newVersion.IsCurrent = true
+
+	if err := s.SetAssetThumbnail(ctx, p.AssetID, nil); err != nil {
+		slog.ErrorContext(ctx, "clear asset thumbnail", "asset_id", p.AssetID, "version_id", newVersion.ID, "error", err)
+	}
+
+	s.enqueueVersionThumbnail(ctx, asset, newVersion)
+
+	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
+		payload, _ := json.Marshal(jobs.ExtractMediaTagsPayload{
+			AssetID:     p.AssetID,
+			WorkspaceID: p.WorkspaceID,
+		})
+		if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeExtractMediaTags, string(payload)); err != nil {
+			slog.ErrorContext(ctx, "enqueue extract_media_tags", "asset_id", p.AssetID, "version_id", newVersion.ID, "error", err)
+		}
+	}
+
+	if err := jobs.EnqueueRebuildVariantsJob(ctx, s.queue, p.WorkspaceID, p.AssetID, newVersion.ID, prevVersionID); err != nil {
+		slog.ErrorContext(ctx, "enqueue rebuild variants", "asset_id", p.AssetID, "version_id", newVersion.ID, "error", err)
+	}
+
+	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("could not reload asset: %w", err)
+	}
+
+	s.WriteVersionUploaded(ctx, p.WorkspaceID, p.AssetID, newVersion, comment)
+	publishWorkflowTriggerAsync(s.triggers, "trigger.version_uploaded", map[string]any{
+		"asset_id":          updatedAsset.ID,
+		"workspace_id":      updatedAsset.WorkspaceID,
+		"project_id":        updatedAsset.ProjectID,
+		"folder_id":         updatedAsset.FolderID,
+		"mime_type":         newVersion.MimeType,
+		"size":              newVersion.Size,
+		"original_filename": updatedAsset.OriginalFilename,
+		"filename":          updatedAsset.OriginalFilename,
+		"version_id":        newVersion.ID,
+		"version_num":       newVersion.VersionNum,
+		"storage_key":       newVersion.StorageKey,
+	})
+
+	return &UploadAssetVersionResult{
+		Asset:   toAssetDTO(updatedAsset),
+		Version: newVersion,
+	}, nil
+}
+
+func (s *versionService) validateUploadNewVersionDeps() error {
+	if s.assets == nil {
+		return fmt.Errorf("version upload requires asset repository (misconfigured service)")
+	}
+	if s.storage == nil {
+		return fmt.Errorf("version upload requires storage (misconfigured service)")
+	}
+	if s.queue == nil {
+		return fmt.Errorf("version upload requires queue (misconfigured service)")
+	}
+	return nil
+}
+
+func (s *versionService) enqueueVersionThumbnail(ctx context.Context, asset repository.Asset, version *VersionDTO) {
+	payload := jobs.VersionThumbnailJobPayload{
+		AssetID:     asset.ID,
+		VersionID:   version.ID,
+		WorkspaceID: asset.WorkspaceID,
+		StorageKey:  version.StorageKey,
+		MimeType:    version.MimeType,
+	}
+	if err := jobs.EnqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
+		slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "version_id", version.ID, "error", err)
+	}
 }
 
 func (s *versionService) SetCurrent(ctx context.Context, assetID, versionID string) (err error) {

@@ -310,3 +310,38 @@ type OAuthConnectionRepository interface {
 	UpdateTokens(ctx context.Context, id, accessToken string, refreshToken *string, expiresAt *string) error
 	Delete(ctx context.Context, workspaceID, id string) error
 }
+
+// WorkflowRepository handles persistence for workflow definitions.
+type WorkflowRepository interface {
+	GetByID(ctx context.Context, workspaceID, id string) (Workflow, error)
+	List(ctx context.Context, workspaceID string) ([]Workflow, error)
+	ListByTrigger(ctx context.Context, triggerType string) ([]Workflow, error)
+	Create(ctx context.Context, p CreateWorkflowParams) (Workflow, error)
+	Update(ctx context.Context, p UpdateWorkflowParams) (Workflow, error)
+	SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error
+	Delete(ctx context.Context, workspaceID, id string) error
+	TouchLastRunAt(ctx context.Context, id string) error
+	RunInTx(ctx context.Context, fn func(WorkflowRepository) error) error
+}
+
+// WorkflowRunRepository handles persistence for workflow runs and steps.
+type WorkflowRunRepository interface {
+	GetByID(ctx context.Context, id string) (WorkflowRun, error)
+	List(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRun, error)
+	Create(ctx context.Context, p CreateWorkflowRunParams) (WorkflowRun, error)
+	SetStatus(ctx context.Context, id, status string) error
+	SetFinal(ctx context.Context, p SetWorkflowRunFinalParams) error
+	ListSteps(ctx context.Context, runID string) ([]WorkflowRunStep, error)
+	CreateStep(ctx context.Context, p CreateWorkflowRunStepParams) (WorkflowRunStep, error)
+	SetStepStatus(ctx context.Context, id, status string) error
+	SetStepFailed(ctx context.Context, id, errMsg string) error
+	SetStepCompleted(ctx context.Context, id, outputCtx string) error
+	IncrementStepAttempt(ctx context.Context, id string) error
+}
+
+// WorkflowWebhookRepository handles persistence for inbound webhook secrets.
+type WorkflowWebhookRepository interface {
+	GetTokenHash(ctx context.Context, workflowID string) (string, error)
+	Upsert(ctx context.Context, workflowID, tokenHash string) error
+	Delete(ctx context.Context, workflowID string) error
+}

@@ -419,3 +419,109 @@ type UpdateAssetParams struct {
 	Width            *int64
 	Height           *int64
 }
+
+// Workflow is the domain representation of an automation workflow.
+type Workflow struct {
+	ID                   string
+	WorkspaceID          string
+	Name                 string
+	Description          string
+	Enabled              bool
+	TriggerType          string
+	Graph                string
+	NotifyOnFailureEmail string
+	LastRunAt            *time.Time
+	CreatedBy            string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+// CreateWorkflowParams holds the fields needed to create a workflow row.
+type CreateWorkflowParams struct {
+	ID                   string
+	WorkspaceID          string
+	Name                 string
+	Description          string
+	Enabled              bool
+	TriggerType          string
+	Graph                string
+	NotifyOnFailureEmail string
+	CreatedBy            string
+}
+
+// UpdateWorkflowParams holds optional workflow fields.
+type UpdateWorkflowParams struct {
+	ID                   string
+	WorkspaceID          string
+	Name                 *string
+	Description          *string
+	TriggerType          *string
+	Graph                *string
+	NotifyOnFailureEmail *string
+}
+
+// WorkflowRun is the domain representation of one workflow execution.
+type WorkflowRun struct {
+	ID          string
+	WorkflowID  string
+	WorkspaceID string
+	Status      string
+	TriggerData string
+	Context     string
+	Error       *string
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+	CreatedAt   time.Time
+}
+
+// CreateWorkflowRunParams holds the fields needed to create a run row.
+type CreateWorkflowRunParams struct {
+	ID          string
+	WorkflowID  string
+	WorkspaceID string
+	Status      string
+	TriggerData string
+	Context     string
+	Error       *string
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+}
+
+// SetWorkflowRunFinalParams holds the final workflow run state.
+type SetWorkflowRunFinalParams struct {
+	ID          string
+	Status      string
+	Context     string
+	Error       *string
+	CompletedAt *time.Time
+}
+
+// WorkflowRunStep is the domain representation of one workflow node execution.
+type WorkflowRunStep struct {
+	ID          string
+	RunID       string
+	NodeID      string
+	NodeType    string
+	Status      string
+	Attempt     int
+	InputCtx    string
+	OutputCtx   *string
+	Error       *string
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+}
+
+// CreateWorkflowRunStepParams holds the fields needed to create a step row.
+type CreateWorkflowRunStepParams struct {
+	ID          string
+	RunID       string
+	NodeID      string
+	NodeType    string
+	Status      string
+	Attempt     int
+	InputCtx    string
+	OutputCtx   *string
+	Error       *string
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+}

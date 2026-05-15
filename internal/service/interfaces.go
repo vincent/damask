@@ -219,6 +219,8 @@ type VersionService interface {
 	NextVersionNum(ctx context.Context, assetID string) (int64, error)
 	// Create persists a new version row (is_current should be false; call SetCurrent after).
 	Create(ctx context.Context, v *VersionDTO) (*VersionDTO, error)
+	// UploadNewVersion handles the full asset version upload workflow.
+	UploadNewVersion(ctx context.Context, p UploadAssetVersionParams) (*UploadAssetVersionResult, error)
 	// SetCurrent atomically promotes versionID to current.
 	SetCurrent(ctx context.Context, assetID, versionID string) error
 	// SetAssetThumbnail updates assets.thumbnail_key.
@@ -237,6 +239,28 @@ type ShareService interface {
 	Create(ctx context.Context, workspaceID string, p CreateShareParams) (*ShareDTO, error)
 	Update(ctx context.Context, workspaceID, id string, p UpdateShareParams) (*ShareDTO, error)
 	Revoke(ctx context.Context, workspaceID, id string) error
+}
+
+// WorkflowTriggerPublisher publishes workflow trigger events.
+type WorkflowTriggerPublisher interface {
+	Dispatch(ctx context.Context, eventType string, data map[string]any) error
+}
+
+// WorkflowService handles workflow CRUD and execution orchestration.
+type WorkflowService interface {
+	List(ctx context.Context, workspaceID string) ([]WorkflowDTO, error)
+	Get(ctx context.Context, workspaceID, id string) (*WorkflowDTO, error)
+	Create(ctx context.Context, workspaceID, createdBy string, p CreateWorkflowParams) (*WorkflowDTO, error)
+	Update(ctx context.Context, workspaceID, id string, p UpdateWorkflowParams) (*WorkflowDTO, error)
+	SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error
+	Delete(ctx context.Context, workspaceID, id string) error
+	TriggerManual(ctx context.Context, workspaceID, id string) (string, error)
+	TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error)
+	GetRun(ctx context.Context, workspaceID, runID string) (*WorkflowRunDTO, error)
+	ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error)
+	GetWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
+	RegenerateWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
+	NodeSchemas() []WorkflowNodeSchema
 }
 
 // FieldService handles business logic for custom field definitions.

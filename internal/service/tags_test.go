@@ -8,6 +8,7 @@ import (
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/repository/memory"
+	"damask/server/internal/repository"
 	"damask/server/internal/service"
 	"damask/server/internal/systemtags"
 )
@@ -135,6 +136,40 @@ func TestTagService_RemoveFromAsset_OK(t *testing.T) {
 	tags, _ := svc.ListForAsset(context.Background(), "ast_1")
 	if len(tags) != 0 {
 		t.Errorf("expected 0 tags after remove, got %d", len(tags))
+	}
+}
+
+func TestTagService_AddToAsset_DispatchesWorkflowTrigger(t *testing.T) {
+	repo := memory.NewRealTagRepo()
+	assets := memory.NewAssetRepo()
+	assets.Seed(repository.Asset{
+		ID:               "ast_1",
+		WorkspaceID:      "ws_1",
+		OriginalFilename: "photo.jpg",
+		StorageKey:       "ws_1/ast_1/original/photo.jpg",
+		MimeType:         "image/jpeg",
+	})
+	triggers := &triggerSpy{}
+	svc := service.NewTagService(repo, audit.NopWriter{}, service.TagServiceDeps{
+		Assets:   assets,
+		Triggers: triggers,
+	})
+
+	tag, err := svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	waitForTriggerCount(t, triggers, 1)
+	call := triggers.last()
+	if call.eventType != "trigger.tag_added" {
+		t.Fatalf("eventType: got %q", call.eventType)
+	}
+	if got := call.data["tag_name"]; got != tag.Name {
+		t.Fatalf("tag_name: got %v want %s", got, tag.Name)
+	}
+	if got := call.data["tag"]; got != tag.Name {
+		t.Fatalf("tag: got %v want %s", got, tag.Name)
 	}
 }
 

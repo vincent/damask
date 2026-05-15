@@ -355,10 +355,6 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 		return nil
 	}
 
-	if _, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID); err != nil {
-		return ErrorStatusResponse(c, err)
-	}
-
 	ws, err := getLocalWorkspace(c, s.workspace)
 	if err != nil {
 		return ErrorStatusResponse(c, err)

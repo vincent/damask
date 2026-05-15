@@ -38,6 +38,7 @@ import (
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
+	"damask/server/internal/workflow"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -138,7 +139,8 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
-	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
+	workflowExec := workflow.NewExecutor(workflow.Deps{Workflows: reposqlc.NewWorkflowRepo(queries, sqlDB), Runs: reposqlc.NewWorkflowRunRepo(queries, sqlDB), Queue: q, Config: cfg})
+	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey, workflowExec)
 	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
 	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor, Config: cfg}
 }

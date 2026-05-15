@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
@@ -20,6 +21,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
+	"damask/server/internal/workflow"
 )
 
 // JobServer holds shared dependencies injected at startup.
@@ -37,6 +39,7 @@ type JobServer struct {
 	tmb            transform.Thumbnailer
 	injestor       assetio.Injestor
 	imgKeyResolver imagerouter.KeyResolver
+	workflowExec   *workflow.WorkflowExecutor
 }
 
 func NewJobServer(
@@ -51,9 +54,13 @@ func NewJobServer(
 	cfg *config.Config,
 	injestor assetio.Injestor,
 	imgKeyResolver imagerouter.KeyResolver,
+	workflowExec *workflow.WorkflowExecutor,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
+	}
+	if workflowExec == nil {
+		panic("jobs: NewJobServer requires a non-nil workflow executor")
 	}
 	return &JobServer{
 		audit:          audit.New(sqlDB),
@@ -69,6 +76,7 @@ func NewJobServer(
 		storage:        stor,
 		tmb:            tmb,
 		trf:            trf,
+		workflowExec:   workflowExec,
 	}
 }
 
@@ -123,6 +131,7 @@ func (s *JobServer) RegisterJobHandlers() {
 
 	// Rebuild jobs — system-triggered on version upload.
 	reg(queue.JobTypeRebuildVariants, s.jobRebuildVariants)
+	reg(queue.JobTypeRunWorkflow, s.jobRunWorkflow)
 
 	// EXIF extraction.
 	reg(queue.JobTypeExtractExif, s.jobExtractExif)
@@ -193,4 +202,12 @@ func (s *JobServer) wrapSimpleJob(fn func(context.Context, string) error) queue.
 	return func(ctx context.Context, job dbgen.Job) error {
 		return fn(ctx, job.Payload)
 	}
+}
+
+func (s *JobServer) jobRunWorkflow(ctx context.Context, job dbgen.Job) error {
+	var payload workflow.RunWorkflowPayload
+	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
+		return fmt.Errorf("parse workflow payload: %w", err)
+	}
+	return s.workflowExec.Run(ctx, payload.RunID)
 }

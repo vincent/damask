@@ -58,3 +58,40 @@ func (s *spyWriter) assetCount() int {
 	defer s.mu.Unlock()
 	return len(s.asset)
 }
+
+type triggerCall struct {
+	eventType string
+	data      map[string]any
+}
+
+type triggerSpy struct {
+	mu    sync.Mutex
+	calls []triggerCall
+	err   error
+}
+
+func (s *triggerSpy) Dispatch(_ context.Context, eventType string, data map[string]any) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cp := make(map[string]any, len(data))
+	for k, v := range data {
+		cp[k] = v
+	}
+	s.calls = append(s.calls, triggerCall{eventType: eventType, data: cp})
+	return s.err
+}
+
+func (s *triggerSpy) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.calls)
+}
+
+func (s *triggerSpy) last() triggerCall {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.calls) == 0 {
+		return triggerCall{}
+	}
+	return s.calls[len(s.calls)-1]
+}
