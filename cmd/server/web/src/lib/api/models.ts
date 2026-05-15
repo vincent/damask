@@ -70,6 +70,7 @@ export interface Asset {
   version_count: number
   variant_count: number
   variants_rebuilding: boolean
+  shared_variants?: SharedVariant[]
   created_at: string
   updated_at: string
   created_by: AssetContributor | null
@@ -121,6 +122,7 @@ export interface PublicAsset {
   original_filename: string
   mime_type: string
   size: number
+  shared_variants: SharedVariant[]
   created_at: string
 }
 
@@ -204,7 +206,19 @@ export interface Variant {
   download_url: string
   thumbnail_url: string | null
   thumbnail_content_type: string
+  title: string
+  is_shared: boolean
   created_at: string
+}
+
+export interface SharedVariant {
+  id: string
+  title: string
+  type: string
+  mime_type: string
+  size: number | null
+  thumbnail_url: string | null
+  thumbnail_content_type: string
 }
 
 export interface ListVariantsResponse {

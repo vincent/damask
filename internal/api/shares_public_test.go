@@ -24,9 +24,9 @@ func accessShare(t *testing.T, env *th.TestEnv, shareID, password string) string
 	t.Helper()
 	var body string
 	if password != "" {
-		body = fmt.Sprintf(`{"password":%q}`, password)
+		body = fmt.Sprintf(`{"visitor_name":"Visitor","password":%q}`, password)
 	} else {
-		body = `{}`
+		body = `{"visitor_name":"Visitor"}`
 	}
 	req := httptest.NewRequest(http.MethodPost, "/shared/"+shareID+"/access", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -104,7 +104,7 @@ func TestShareAccess_WrongPassword(t *testing.T) {
 		Password:   &password,
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: "password"}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: "password"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -123,7 +123,7 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 		Password:   &password,
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -133,7 +133,7 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 
 func TestShareAccess_NotFound(t *testing.T) {
 	env := th.SetupTestApp(t)
-	req := httptest.NewRequest(http.MethodPost, "/shared/nonexistent/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/nonexistent/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
@@ -154,7 +154,7 @@ func TestShareAccess_Revoked(t *testing.T) {
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
 	env.App.Test(req) //nolint:errcheck
 
-	req2 := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
+	req2 := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req2.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req2)
 	if resp.StatusCode != http.StatusNotFound {
@@ -242,7 +242,7 @@ func TestShareAccess_Expired(t *testing.T) {
 	// Force expiry
 	env.SqlDB.Exec(`UPDATE shares SET expires_at = datetime('now', '-1 day') WHERE id = ?`, sh.ID) //nolint:errcheck
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{Password: ""}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusGone {

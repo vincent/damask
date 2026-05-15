@@ -51,7 +51,20 @@ type VariantDTO struct {
 	Status               string
 	ThumbnailKey         *string
 	ThumbnailContentType string
+	Title                string
+	IsShared             bool
 	CreatedAt            time.Time
+}
+
+type UpdateVariantsSharingParams struct {
+	WorkspaceID string
+	AssetID     string
+	Updates     map[string]bool
+}
+
+type SharedVariantDTO struct {
+	VariantDTO
+	AssetID string
 }
 
 type variantService struct {
@@ -96,7 +109,7 @@ func (s *variantService) List(ctx context.Context, workspaceID, assetID string) 
 	}
 	out := make([]*VariantDTO, len(rows))
 	for i, r := range rows {
-		out[i] = toVariantDTO(r)
+		out[i] = toVariantDTO(r, i+1)
 	}
 	return out, nil
 }
@@ -106,7 +119,18 @@ func (s *variantService) Get(ctx context.Context, workspaceID, id string) (*Vari
 	if err != nil {
 		return nil, err
 	}
-	return toVariantDTO(v), nil
+	return toVariantDTO(v, 1), nil
+}
+
+func AutoTitle(variantType string, position int) string {
+	return fmt.Sprintf("%s #%d", variantType, position)
+}
+
+func ResolvedTitle(v repository.Variant, position int) string {
+	if v.Title != nil && *v.Title != "" {
+		return *v.Title
+	}
+	return AutoTitle(v.Type, position)
 }
 
 func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error) {
@@ -259,7 +283,7 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto
 	if err != nil {
 		return nil, err
 	}
-	dto = toVariantDTO(v)
+	dto = toVariantDTO(v, 1)
 	// Only emit audit for manual uploads (job-queued variants are audited via WriteVariantQueued).
 	if p.AssetID != "" {
 		actor := auth.ActorFromCtx(ctx)
@@ -273,6 +297,101 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto
 		})
 	}
 	return dto, nil
+}
+
+func (s *variantService) UpdateTitle(ctx context.Context, workspaceID, variantID, title string) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.variants.update_title",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.variant_id", variantID),
+	)
+	defer apptelemetry.EndSpan(span, err)
+
+	trimmed := strings.TrimSpace(title)
+	if len(trimmed) > 255 {
+		return apperr.ErrInvalidInput
+	}
+	var value *string
+	if trimmed != "" {
+		value = &trimmed
+	}
+	return s.variants.UpdateTitle(ctx, workspaceID, variantID, value)
+}
+
+func (s *variantService) UpdateSharing(ctx context.Context, p UpdateVariantsSharingParams) (err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.variants.update_sharing",
+		attribute.String("damask.workspace_id", p.WorkspaceID),
+		attribute.String("damask.asset_id", p.AssetID),
+	)
+	defer apptelemetry.EndSpan(span, err)
+
+	if len(p.Updates) == 0 {
+		return apperr.ErrInvalidInput
+	}
+
+	rows, err := s.variants.ListByAsset(ctx, p.WorkspaceID, p.AssetID)
+	if err != nil {
+		return err
+	}
+	valid := make(map[string]struct{}, len(rows))
+	for _, v := range rows {
+		valid[v.ID] = struct{}{}
+	}
+
+	toShare := make([]string, 0)
+	toUnshare := make([]string, 0)
+	for id, isShared := range p.Updates {
+		if _, ok := valid[id]; !ok {
+			return apperr.ErrNotFound
+		}
+		if isShared {
+			toShare = append(toShare, id)
+		} else {
+			toUnshare = append(toUnshare, id)
+		}
+	}
+
+	if len(toShare) > 0 {
+		if err := s.variants.UpdateSharedBatch(ctx, p.WorkspaceID, toShare, true); err != nil {
+			return err
+		}
+	}
+	if len(toUnshare) > 0 {
+		if err := s.variants.UpdateSharedBatch(ctx, p.WorkspaceID, toUnshare, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *variantService) ListSharedByAssets(ctx context.Context, assetIDs []string) ([]SharedVariantDTO, error) {
+	rows, err := s.variants.ListSharedByAssetIDs(ctx, assetIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SharedVariantDTO, len(rows))
+	currentAssetID := ""
+	position := 0
+	for i, row := range rows {
+		if row.AssetID != currentAssetID {
+			currentAssetID = row.AssetID
+			position = 1
+		} else {
+			position++
+		}
+		out[i] = SharedVariantDTO{
+			VariantDTO: *toVariantDTO(row.Variant, position),
+			AssetID:    row.AssetID,
+		}
+	}
+	return out, nil
+}
+
+func (s *variantService) GetSharedForShare(ctx context.Context, variantID, assetID string) (*VariantDTO, error) {
+	v, err := s.variants.GetSharedByVariantAndAsset(ctx, variantID, assetID)
+	if err != nil {
+		return nil, err
+	}
+	return toVariantDTO(v, 1), nil
 }
 
 func validVariantType(variantType string) bool {
@@ -460,13 +579,31 @@ func (s *variantService) WriteVariantQueued(ctx context.Context, workspaceID, as
 }
 
 // WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.
-func (s *variantService) WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType string) {
+func (s *variantService) WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType, shareID, visitorName string) {
+	var payloadShareID *string
+	if shareID != "" {
+		payloadShareID = &shareID
+	}
+	var payloadVisitorName *string
+	if visitorName != "" {
+		payloadVisitorName = &visitorName
+	}
+	actorType := audit.ActorTypeUser
+	if shareID != "" {
+		actorType = audit.ActorTypeSystem
+	}
 	s.audit.WriteAssetAsync(audit.AssetEvent{
 		WorkspaceID: workspaceID,
 		AssetID:     assetID,
-		ActorType:   audit.ActorTypeUser,
+		ActorType:   actorType,
 		EventType:   audit.EventAssetVariantDownloaded,
-		Payload:     audit.AssetVariantDownloadedPayload{V: 1, VariantID: variantID, Type: variantType},
+		Payload: audit.AssetVariantDownloadedPayload{
+			V:           1,
+			VariantID:   variantID,
+			Type:        variantType,
+			ShareID:     payloadShareID,
+			VisitorName: payloadVisitorName,
+		},
 	})
 }
 
@@ -510,7 +647,7 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 	return nil
 }
 
-func toVariantDTO(v repository.Variant) *VariantDTO {
+func toVariantDTO(v repository.Variant, position int) *VariantDTO {
 	status := v.Status
 	if status == "" {
 		status = "ready"
@@ -526,6 +663,8 @@ func toVariantDTO(v repository.Variant) *VariantDTO {
 		Status:               status,
 		ThumbnailKey:         v.ThumbnailKey,
 		ThumbnailContentType: v.ThumbnailContentType,
+		Title:                ResolvedTitle(v, position),
+		IsShared:             v.IsShared,
 		CreatedAt:            v.CreatedAt,
 	}
 }

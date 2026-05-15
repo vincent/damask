@@ -15,6 +15,7 @@
   import PublicAssetCard from '$lib/components/PublicAssetCard.svelte'
   import PublicFooter from '$lib/components/PublicFooter.svelte'
   import AssetIcon from '$lib/components/AssetIcon.svelte'
+  import SharedVariantList from '$lib/components/share/SharedVariantList.svelte'
   import Close from '$lib/components/ui/Close.svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import Feedback from '$lib/components/ui/Feedback.svelte'
@@ -93,6 +94,10 @@
                 ? ''
                 : 's'}</span
             >
+            {#if store.visitorName}
+              <span class="text-gray-300 dark:text-gray-600">•</span>
+              <span>Viewing as {store.visitorName}</span>
+            {/if}
             {#if store.expiryWarning}
               <span class="text-gray-300 dark:text-gray-600">•</span>
               <span
@@ -175,7 +180,7 @@
 
 <!-- Review Panel (S12) -->
 {#if store.panelOpen && store.selectedAsset}
-  {@const category = mimeCategory(store.selectedAsset.mime_type)}
+  {@const category = mimeCategory(store.previewMimeType)}
   <!-- Backdrop -->
   <div
     class="fixed inset-0 z-40 grid hidden place-items-center bg-black/40 p-40 backdrop-blur-sm md:grid md:w-[75%]"
@@ -186,33 +191,33 @@
   >
     <SharedAsset
       {category}
-      asset={store.selectedAsset}
-      thumbUrl={store.thumbUrl(shareId, store.selectedAsset.id)}
-      assetUrl={store.fileUrlWithToken(shareId, store.selectedAsset.id)}
+      asset={{ ...store.selectedAsset, mime_type: store.previewMimeType }}
+      thumbUrl={store.previewThumbUrl ??
+        store.thumbUrl(shareId, store.selectedAsset.id)}
+      assetUrl={store.previewFileUrl ??
+        store.fileUrlWithToken(shareId, store.selectedAsset.id)}
     />
   </div>
 
   <!-- Panel -->
   <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
   <aside
-    class="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col bg-white shadow-2xl md:w-[25%] md:max-w-2xl dark:bg-gray-900"
+    class="panel-aside fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col md:w-[25%] md:max-w-2xl"
     role="dialog"
     aria-label="Asset review"
   >
     <!-- Panel header -->
-    <div
-      class="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800"
-    >
+    <div class="panel-header flex items-center gap-3 px-4 py-3">
       <AssetIcon {category} />
       <div class="min-w-0 flex-1">
         <p
-          class="text-md truncate font-semibold text-gray-900 dark:text-gray-100"
+          class="panel-filename truncate font-semibold"
           title={store.selectedAsset.original_filename}
         >
           {store.selectedAsset.original_filename}
         </p>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          {formatBytes(store.selectedAsset.size)} • {category.toUpperCase()}
+        <p class="panel-meta text-sm">
+          {formatBytes(store.selectedAsset.size)} · {category.toUpperCase()}
         </p>
       </div>
       <div class="flex items-center gap-1">
@@ -220,7 +225,7 @@
           <a
             href={store.fileUrlWithToken(shareId, store.selectedAsset.id)}
             download={store.selectedAsset.original_filename}
-            class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            class="panel-icon-btn flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
             aria-label="Download"
           >
             <Download class="h-4 w-4" />
@@ -239,26 +244,40 @@
       <div class="flex h-full items-center justify-center">
         <SharedAsset
           {category}
-          asset={store.selectedAsset}
-          thumbUrl={store.thumbUrl(shareId, store.selectedAsset.id)}
-          assetUrl={store.fileUrlWithToken(shareId, store.selectedAsset.id)}
+          asset={{ ...store.selectedAsset, mime_type: store.previewMimeType }}
+          thumbUrl={store.previewThumbUrl ??
+            store.thumbUrl(shareId, store.selectedAsset.id)}
+          assetUrl={store.previewFileUrl ??
+            store.fileUrlWithToken(shareId, store.selectedAsset.id)}
         />
       </div>
+    </div>
+
+    <div class="px-4 py-4">
+      <SharedVariantList
+        {shareId}
+        assetId={store.selectedAsset.id}
+        variants={store.selectedAsset.shared_variants ?? []}
+        selectedVariantId={store.selectedVariant?.id}
+        onselect={(v) => store.selectVariant(v)}
+        getThumbUrl={store.variantThumbUrl}
+        getDownloadUrl={store.variantFileUrl}
+        authHeaders={() =>
+          store.sessionToken
+            ? { 'X-Share-Token': store.sessionToken }
+            : ({} as Record<string, string>)}
+      />
     </div>
 
     <!-- Comments section -->
     {#if store.share?.allow_comments}
       <div class="flex flex-1 flex-col overflow-hidden">
         <!-- Comments header -->
-        <div class="flex items-center gap-2 px-4 py-3">
-          <MessageSquare class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-          <span class="text-md font-semibold text-gray-900 dark:text-gray-100"
-            >Comments</span
-          >
+        <div class="comments-header flex items-center gap-2 px-4 py-3">
+          <MessageSquare class="comments-icon h-4 w-4" />
+          <span class="comments-title font-semibold">Comments</span>
           {#if store.comments.length > 0}
-            <span
-              class="rounded-full bg-gray-100 px-2 py-0.5 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-            >
+            <span class="comment-count">
               {store.comments.length}
             </span>
           {/if}
@@ -271,9 +290,7 @@
               <Spinner size="sm" />
             </div>
           {:else if store.comments.length === 0}
-            <p
-              class="text-md py-4 text-center text-gray-400 dark:text-gray-600"
-            >
+            <p class="comment-empty py-4 text-center text-sm">
               {m.comment_first()}
             </p>
           {:else}
@@ -281,24 +298,23 @@
               {#each store.comments as comment}
                 <div class="flex gap-3">
                   <div
-                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold {avatarColor(
+                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold {avatarColor(
                       comment.author_name
                     )}"
                   >
                     {initials(comment.author_name)}
                   </div>
                   <div class="flex-1">
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="text-md font-medium text-gray-900 dark:text-gray-100"
+                    <div class="flex items-baseline gap-2">
+                      <span class="comment-author text-sm font-semibold"
                         >{comment.author_name}</span
                       >
-                      <span class="text-sm text-gray-400"
+                      <span class="comment-time text-xs"
                         >{formatDateTime(comment.created_at)}</span
                       >
                     </div>
                     <div
-                      class="text-md mt-1 rounded-xl rounded-tl-sm bg-gray-50 px-3 py-2 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      class="comment-bubble mt-1 rounded-lg px-3 py-2 text-sm"
                     >
                       {comment.body}
                     </div>
@@ -310,15 +326,13 @@
         </div>
 
         <!-- Comment form -->
-        <div class="border-t border-gray-200 px-4 py-4 dark:border-gray-800">
-          <p class="text-md mb-3 font-medium text-gray-700 dark:text-gray-300">
+        <div class="comment-form-wrap px-4 py-4">
+          <p class="comment-form-label mb-3 text-sm font-medium">
             {m.add_comment()}
           </p>
 
           {#if store.commentPosted}
-            <div
-              class="text-md rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-            >
+            <div class="comment-posted rounded-lg px-3 py-2 text-sm">
               {m.comment_posted()}
             </div>
           {:else}
@@ -328,14 +342,7 @@
                 store.postComment(shareId)
               }}
             >
-              <div class="mb-2 grid grid-cols-2 gap-2">
-                <Input
-                  placeholder={m.your_name()}
-                  label="Name *"
-                  bind:value={store.commentName}
-                  error={store.commentNameError}
-                  autocomplete="name"
-                />
+              <div class="mb-2">
                 <Input
                   placeholder={m.for_notifs()}
                   label={m.email_optional()}
@@ -347,7 +354,7 @@
               <div class="mb-3">
                 <label
                   for="comment-body"
-                  class="text-md mb-1 block font-medium text-gray-700 dark:text-gray-300"
+                  class="comment-form-label mb-1 block text-sm font-medium"
                 >
                   {m.message()} *
                 </label>
@@ -356,8 +363,8 @@
                   placeholder={m.add_feedback()}
                   id="comment-body"
                   rows="3"
-                  class="text-md w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900 {store.commentBodyError
-                    ? 'border-red-400 focus:ring-red-200 dark:border-red-500'
+                  class="comment-textarea w-full resize-none rounded-lg border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none {store.commentBodyError
+                    ? 'error'
                     : ''}"
                 ></textarea>
                 <Feedback error={store.commentBodyError} />
@@ -382,8 +389,103 @@
         </div>
       </div>
     {:else}
-      <!-- No comments allowed - just spacer -->
       <div class="flex-1"></div>
     {/if}
   </aside>
 {/if}
+
+<style>
+  .panel-aside {
+    background: var(--bg-surface);
+    box-shadow: 0 20px 60px rgb(0 0 0 / 0.18);
+  }
+  .panel-header {
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-filename {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+  }
+  .panel-meta {
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .panel-icon-btn {
+    color: var(--text-muted);
+  }
+  .panel-icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .comments-header {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .comments-icon {
+    color: var(--text-muted);
+  }
+  .comments-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .comment-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+  }
+  .comment-empty {
+    color: var(--text-muted);
+  }
+  .comment-author {
+    color: var(--text-primary);
+  }
+  .comment-time {
+    color: var(--text-muted);
+  }
+  .comment-bubble {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  .comment-form-wrap {
+    border-top: 1px solid var(--border);
+  }
+  .comment-form-label {
+    color: var(--text-secondary);
+  }
+  .comment-posted {
+    background: color-mix(in srgb, #10b981 10%, transparent);
+    color: #059669;
+  }
+  :global(.dark) .comment-posted {
+    background: color-mix(in srgb, #10b981 15%, transparent);
+    color: #34d399;
+  }
+  .comment-textarea {
+    background: var(--bg-app);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+  .comment-textarea::placeholder {
+    color: var(--text-muted);
+  }
+  .comment-textarea:focus {
+    border-color: var(--accent-cta);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-cta) 18%, transparent);
+  }
+  .comment-textarea.error {
+    border-color: var(--accent-danger);
+  }
+  .comment-textarea.error:focus {
+    box-shadow: 0 0 0 2px
+      color-mix(in srgb, var(--accent-danger) 18%, transparent);
+  }
+</style>

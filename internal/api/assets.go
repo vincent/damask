@@ -35,25 +35,26 @@ type AssetDetailResponse struct {
 }
 
 type AssetResponse struct {
-	ID                   string    `json:"id"`
-	WorkspaceID          string    `json:"workspace_id"`
-	ProjectID            *string   `json:"project_id"`
-	FolderID             *string   `json:"folder_id"`
-	DerivedFromAssetID   *string   `json:"derived_from_asset_id"`
-	OriginalFilename     string    `json:"original_filename"`
-	MimeType             string    `json:"mime_type"`
-	Size                 int64     `json:"size"`
-	Width                *int64    `json:"width"`
-	Height               *int64    `json:"height"`
-	ThumbnailKey         *string   `json:"thumbnail_key"`
-	ThumbnailContentType *string   `json:"thumbnail_content_type"`
-	Metadata             *string   `json:"metadata"`
-	Tags                 []string  `json:"tags"`
-	VersionCount         int64     `json:"version_count"`
-	VariantCount         int64     `json:"variant_count"`
-	VariantsRebuilding   bool      `json:"variants_rebuilding"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   string                  `json:"id"`
+	WorkspaceID          string                  `json:"workspace_id"`
+	ProjectID            *string                 `json:"project_id"`
+	FolderID             *string                 `json:"folder_id"`
+	DerivedFromAssetID   *string                 `json:"derived_from_asset_id"`
+	OriginalFilename     string                  `json:"original_filename"`
+	MimeType             string                  `json:"mime_type"`
+	Size                 int64                   `json:"size"`
+	Width                *int64                  `json:"width"`
+	Height               *int64                  `json:"height"`
+	ThumbnailKey         *string                 `json:"thumbnail_key"`
+	ThumbnailContentType *string                 `json:"thumbnail_content_type"`
+	Metadata             *string                 `json:"metadata"`
+	Tags                 []string                `json:"tags"`
+	VersionCount         int64                   `json:"version_count"`
+	VariantCount         int64                   `json:"variant_count"`
+	VariantsRebuilding   bool                    `json:"variants_rebuilding"`
+	SharedVariants       []SharedVariantResponse `json:"shared_variants,omitempty"`
+	CreatedAt            time.Time               `json:"created_at"`
+	UpdatedAt            time.Time               `json:"updated_at"`
 }
 
 type AssetListResponse struct {

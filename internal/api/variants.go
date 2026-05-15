@@ -40,7 +40,19 @@ type VariantResponse struct {
 	DownloadURL          string    `json:"download_url"`
 	ThumbnailURL         *string   `json:"thumbnail_url"`
 	ThumbnailContentType string    `json:"thumbnail_content_type"`
+	Title                string    `json:"title"`
+	IsShared             bool      `json:"is_shared"`
 	CreatedAt            time.Time `json:"created_at"`
+}
+
+type SharedVariantResponse struct {
+	ID                   string  `json:"id"`
+	Title                string  `json:"title"`
+	Type                 string  `json:"type"`
+	MimeType             string  `json:"mime_type"`
+	Size                 *int64  `json:"size"`
+	ThumbnailURL         *string `json:"thumbnail_url"`
+	ThumbnailContentType string  `json:"thumbnail_content_type"`
 }
 
 type ListVariantsResponse struct {
@@ -102,7 +114,34 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 		DownloadURL:          fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", assetID, v.ID),
 		ThumbnailURL:         thumbURL,
 		ThumbnailContentType: ct,
+		Title:                v.Title,
+		IsShared:             v.IsShared,
 		CreatedAt:            v.CreatedAt,
+	}
+}
+
+func sharedVariantDTOToResponse(shareID, assetID string, v service.SharedVariantDTO) SharedVariantResponse {
+	var thumbURL *string
+	if v.ThumbnailKey != nil {
+		u := fmt.Sprintf("/shared/%s/assets/%s/variants/%s/thumb", shareID, assetID, v.ID)
+		thumbURL = &u
+	}
+	ct := v.ThumbnailContentType
+	if ct == "" {
+		ct = "image/jpeg"
+	}
+	mimeType := mime.TypeByExtension(strings.ToLower(filepath.Ext(v.StorageKey)))
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	return SharedVariantResponse{
+		ID:                   v.ID,
+		Title:                v.Title,
+		Type:                 v.Type,
+		MimeType:             mimeType,
+		Size:                 v.Size,
+		ThumbnailURL:         thumbURL,
+		ThumbnailContentType: ct,
 	}
 }
 
@@ -373,6 +412,62 @@ func (s *Server) handleRerunVariant(c fiber.Ctx) error {
 	})
 }
 
+func (s *Server) handleUpdateVariantsSharing(c fiber.Ctx) error {
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.variants.update_sharing")
+	defer apptelemetry.EndSpan(span, nil)
+
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+
+	body, ok := decodeAndValidate(c, &UpdateVariantsSharingRequest{})
+	if !ok {
+		return nil
+	}
+
+	if err := s.variants.UpdateSharing(ctx, service.UpdateVariantsSharingParams{
+		WorkspaceID: claims.WorkspaceID,
+		AssetID:     assetID,
+		Updates:     body.Updates,
+	}); err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	variants, err := s.variants.List(ctx, claims.WorkspaceID, assetID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	out := make([]VariantResponse, len(variants))
+	for i, v := range variants {
+		out[i] = variantDTOToResponse(assetID, v)
+	}
+
+	return c.JSON(ListVariantsResponse{Variants: out})
+}
+
+func (s *Server) handlePatchVariant(c fiber.Ctx) error {
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.variants.patch")
+	defer apptelemetry.EndSpan(span, nil)
+
+	claims := auth.GetClaims(c)
+	assetID := c.Params("id")
+	variantID := c.Params("vid")
+
+	body, ok := decodeAndValidate(c, &PatchVariantRequest{})
+	if !ok {
+		return nil
+	}
+
+	if err := s.variants.UpdateTitle(ctx, claims.WorkspaceID, variantID, body.Title); err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	v, err := s.variants.Get(ctx, claims.WorkspaceID, variantID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	return c.JSON(variantDTOToResponse(assetID, v))
+}
+
 // handleGetVariantFile streams the variant file bytes.
 //
 // @Summary Download variant file
@@ -411,7 +506,7 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	}
 
 	if !audit.IsBrowserPrefetch(c.Get("Sec-Fetch-Dest")) {
-		s.variants.WriteVariantDownloadedAsync(claims.WorkspaceID, assetID, variantID, variant.Type)
+		s.variants.WriteVariantDownloadedAsync(claims.WorkspaceID, assetID, variantID, variant.Type, "", "")
 	}
 
 	ext := strings.ToLower(filepath.Ext(variant.StorageKey))

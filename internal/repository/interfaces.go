@@ -215,6 +215,10 @@ type VariantRepository interface {
 	ListByAsset(ctx context.Context, workspaceID, assetID string) ([]Variant, error)
 	Create(ctx context.Context, v Variant) (Variant, error)
 	Delete(ctx context.Context, workspaceID, id string) error
+	UpdateTitle(ctx context.Context, workspaceID, variantID string, title *string) error
+	UpdateSharedBatch(ctx context.Context, workspaceID string, ids []string, isShared bool) error
+	ListSharedByAssetIDs(ctx context.Context, assetIDs []string) ([]VariantWithAssetID, error)
+	GetSharedByVariantAndAsset(ctx context.Context, variantID, assetID string) (Variant, error)
 }
 
 // WorkspaceRepository handles persistence for Workspace records.

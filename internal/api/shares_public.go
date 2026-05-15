@@ -7,14 +7,17 @@ import (
 	"io"
 	"log/slog"
 	"mime"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
+	apptelemetry "damask/server/internal/telemetry"
 
 	"github.com/gofiber/fiber/v3"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -53,7 +56,7 @@ func commentDTOToResponse(c *service.ShareCommentDTO) CommentResponse {
 }
 
 func publicAssetDTOToResponse(a *service.PublicAssetDTO) AssetResponse {
-	return AssetResponse{
+	resp := AssetResponse{
 		ID:                 a.ID,
 		WorkspaceID:        a.WorkspaceID,
 		ProjectID:          a.ProjectID,
@@ -70,6 +73,7 @@ func publicAssetDTOToResponse(a *service.PublicAssetDTO) AssetResponse {
 		CreatedAt:          a.CreatedAt,
 		UpdatedAt:          a.UpdatedAt,
 	}
+	return resp
 }
 
 // loadActiveShareDTO loads and validates a share via the service layer.
@@ -116,8 +120,9 @@ func (s *Server) handleShareInfo(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param id path string true "Share ID"
-// @Param body body ShareAccessRequest false "Password (if required)"
+// @Param body body ShareAccessRequest true "Visitor name (required) and password (if required)"
 // @Success 200 {object} ShareAccessResponse
+// @Failure 400 {object} ErrorResponse "visitor_name missing or too long"
 // @Failure 401 {object} ErrorResponse "Password required or incorrect"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired"
@@ -130,9 +135,9 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 		return err
 	}
 
-	body := &ShareAccessRequest{}
-	if err := c.Bind().Body(body); err != nil {
-		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	body, ok := decodeAndValidate(c, &ShareAccessRequest{})
+	if !ok {
+		return nil
 	}
 
 	if sh.PasswordHash != nil {
@@ -152,6 +157,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 		sh.TargetID,
 		sh.AllowComments,
 		sh.AllowDownload,
+		body.VisitorName,
 		24*time.Hour,
 	)
 	if err != nil {
@@ -187,9 +193,29 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
+	assetIDs := make([]string, len(dtos))
+	for i, d := range dtos {
+		assetIDs[i] = d.ID
+	}
+	sharedVariants, err := s.variants.ListSharedByAssets(c.Context(), assetIDs)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list shared variants")
+	}
+	grouped := make(map[string][]service.SharedVariantDTO, len(assetIDs))
+	for _, v := range sharedVariants {
+		grouped[v.AssetID] = append(grouped[v.AssetID], v)
+	}
+
 	items := make([]AssetResponse, len(dtos))
 	for i, d := range dtos {
-		items[i] = publicAssetDTOToResponse(d)
+		item := publicAssetDTOToResponse(d)
+		if sv := grouped[d.ID]; len(sv) > 0 {
+			item.SharedVariants = make([]SharedVariantResponse, len(sv))
+			for j, v := range sv {
+				item.SharedVariants[j] = sharedVariantDTOToResponse(shareID, d.ID, v)
+			}
+		}
+		items[i] = item
 	}
 
 	sh, err := s.sharePublic.GetActive(c.Context(), shareID)
@@ -250,6 +276,96 @@ func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 	return c.JSON(publicAssetDTOToResponse(a))
+}
+
+func (s *Server) handleShareGetVariantFile(c fiber.Ctx) error {
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.shares.variant_file",
+		attribute.String("damask.share_id", c.Params("id")),
+		attribute.String("damask.asset_id", c.Params("aid")),
+		attribute.String("damask.variant_id", c.Params("vid")),
+	)
+	defer apptelemetry.EndSpan(span, nil)
+
+	sc := auth.GetShareClaims(c)
+	shareID := c.Params("id")
+	assetID := c.Params("aid")
+	variantID := c.Params("vid")
+
+	if err := s.assertShareActive(c, shareID); err != nil {
+		return err
+	}
+
+	ok, err := s.sharePublic.IsAssetInTarget(ctx, sc.TargetType, sc.TargetID, assetID)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not validate share scope")
+	}
+	if !ok {
+		return errRes(c, fiber.StatusForbidden, "asset not in share scope")
+	}
+
+	v, err := s.variants.GetSharedForShare(ctx, variantID, assetID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	rc, err := s.storage.Get(v.StorageKey)
+	if err != nil {
+		return errRes(c, fiber.StatusNotFound, "variant file not found")
+	}
+
+	ext := strings.ToLower(filepath.Ext(v.StorageKey))
+	c.Set("Content-Type", mime.TypeByExtension(ext))
+	name := sanitiseFilename(v.Title)
+	if name == "" {
+		name = "variant"
+	}
+	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s%s"`, name, ext))
+	if v.Size != nil && *v.Size > 0 {
+		c.Set("Content-Length", strconv.FormatInt(*v.Size, 10))
+	}
+	s.variants.WriteVariantDownloadedAsync(v.WorkspaceID, assetID, variantID, v.Type, shareID, sc.VisitorName)
+	return c.SendStream(rc)
+}
+
+func (s *Server) handleShareGetVariantThumb(c fiber.Ctx) error {
+	ctx, span := apptelemetry.StartSpan(c.Context(), "api.shares.variant_thumb",
+		attribute.String("damask.share_id", c.Params("id")),
+		attribute.String("damask.asset_id", c.Params("aid")),
+		attribute.String("damask.variant_id", c.Params("vid")),
+	)
+	defer apptelemetry.EndSpan(span, nil)
+
+	sc := auth.GetShareClaims(c)
+	shareID := c.Params("id")
+	assetID := c.Params("aid")
+	variantID := c.Params("vid")
+
+	if err := s.assertShareActive(c, shareID); err != nil {
+		return err
+	}
+	if err := s.assertAssetInShare(c, sc, assetID); err != nil {
+		return err
+	}
+
+	v, err := s.variants.GetSharedForShare(ctx, variantID, assetID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	if v.ThumbnailKey == nil {
+		return c.Redirect().To(fmt.Sprintf("/shared/%s/assets/%s/thumb", shareID, assetID))
+	}
+
+	rc, err := s.storage.Get(*v.ThumbnailKey)
+	if err != nil {
+		return c.Redirect().To(fmt.Sprintf("/shared/%s/assets/%s/thumb", shareID, assetID))
+	}
+
+	ct := v.ThumbnailContentType
+	if ct == "" {
+		ct = "image/jpeg"
+	}
+	c.Set("Content-Type", ct)
+	return c.SendStream(rc)
 }
 
 // handleShareGetAssetFile streams the original file for a shared asset.
@@ -573,26 +689,40 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 
+	exportAssetIDs := make([]string, len(dtos))
+	for i, d := range dtos {
+		exportAssetIDs[i] = d.ID
+	}
+	allSharedVariants, err := s.variants.ListSharedByAssets(c.Context(), exportAssetIDs)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not list shared variants")
+	}
+	sharedByAsset := make(map[string][]service.SharedVariantDTO, len(exportAssetIDs))
+	for _, v := range allSharedVariants {
+		sharedByAsset[v.AssetID] = append(sharedByAsset[v.AssetID], v)
+	}
+
 	type entry struct {
 		name       string
 		storageKey string
 	}
 	var entries []entry
-	usedNames := map[string]int{}
 	for _, d := range dtos {
-		base := d.OriginalFilename
-		usedNames[base]++
-		name := base
-		if usedNames[base] > 1 {
-			ext := ""
-			stem := base
-			if dot := strings.LastIndex(base, "."); dot >= 0 {
-				stem = base[:dot]
-				ext = base[dot:]
-			}
-			name = fmt.Sprintf("%s_%d%s", stem, usedNames[base], ext)
+		shared := sharedByAsset[d.ID]
+		folder := sanitiseFilename(strings.TrimSuffix(d.OriginalFilename, filepath.Ext(d.OriginalFilename)))
+		if folder == "" {
+			folder = d.ID
 		}
-		entries = append(entries, entry{name: name, storageKey: d.StorageKey})
+		collisions := map[string]int{}
+		entries = append(entries, entry{
+			name:       folder + "/" + uniqueZipChildName(collisions, "original"+strings.ToLower(filepath.Ext(d.OriginalFilename))),
+			storageKey: d.StorageKey,
+		})
+		for _, v := range shared {
+			ext := strings.ToLower(filepath.Ext(v.StorageKey))
+			child := uniqueZipChildName(collisions, sanitiseFilename(v.Title)+ext)
+			entries = append(entries, entry{name: folder + "/" + child, storageKey: v.StorageKey})
+		}
 	}
 
 	sh, err := s.sharePublic.GetActive(c.Context(), shareID)
@@ -661,4 +791,17 @@ func (s *Server) assertAssetInShare(c fiber.Ctx, sc *auth.ShareClaims, assetID s
 		return fiber.NewError(fiber.StatusNotFound, "asset not found in this share")
 	}
 	return nil
+}
+
+func uniqueZipChildName(counts map[string]int, name string) string {
+	if name == "" {
+		name = "file"
+	}
+	counts[name]++
+	if counts[name] == 1 {
+		return name
+	}
+	ext := filepath.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	return fmt.Sprintf("%s_%d%s", stem, counts[name], ext)
 }

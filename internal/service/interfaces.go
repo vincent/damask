@@ -121,6 +121,10 @@ type VariantService interface {
 	Get(ctx context.Context, workspaceID, id string) (*VariantDTO, error)
 	PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error)
 	Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error)
+	UpdateTitle(ctx context.Context, workspaceID, variantID, title string) error
+	UpdateSharing(ctx context.Context, p UpdateVariantsSharingParams) error
+	ListSharedByAssets(ctx context.Context, assetIDs []string) ([]SharedVariantDTO, error)
+	GetSharedForShare(ctx context.Context, variantID, assetID string) (*VariantDTO, error)
 	Delete(ctx context.Context, workspaceID, assetID, variantID string) error
 	Promote(ctx context.Context, p PromoteVariantParams) (PromoteVariantResult, error)
 	SetAsThumbnail(ctx context.Context, workspaceID, assetID, variantID string) error
@@ -128,7 +132,7 @@ type VariantService interface {
 	// WriteVariantQueued emits asset_variant_created for job-queued variants.
 	WriteVariantQueued(ctx context.Context, workspaceID, assetID, variantType string)
 	// WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.
-	WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType string)
+	WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType, shareID, visitorName string)
 }
 
 type WatermarkService interface {

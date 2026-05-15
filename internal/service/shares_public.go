@@ -28,6 +28,7 @@ type PublicAssetDTO struct {
 	Height           *int64
 	ThumbnailKey     *string
 	Metadata         *string
+	SharedVariants   []SharedVariantDTO
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }

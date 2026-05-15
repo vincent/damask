@@ -210,6 +210,23 @@ type DeleteMeRequest struct {
 	Password string `json:"password"`
 }
 
+type ShareAccessRequest struct {
+	VisitorName string `json:"visitor_name"`
+	Password    string `json:"password"`
+}
+
+func (r *ShareAccessRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	r.VisitorName = strings.TrimSpace(r.VisitorName)
+	if r.VisitorName == "" {
+		p["visitor_name"] = "required"
+	}
+	if len(r.VisitorName) > 100 {
+		p["visitor_name"] = "max 100 characters"
+	}
+	return p
+}
+
 type UpdateWorkspaceSettingsRequest struct {
 	VersionRetentionCount int64 `json:"version_retention_count"`
 	ExifKeep              bool  `json:"exif_keep"`
@@ -502,14 +519,6 @@ func (r *UpdateShareRequest) Valid(_ context.Context) map[string]string {
 
 // -- shares_public.go ---------------------------------------------------------
 
-type ShareAccessRequest struct {
-	Password string `json:"password"`
-}
-
-func (r *ShareAccessRequest) Valid(_ context.Context) map[string]string {
-	return map[string]string{}
-}
-
 type CreateCommentRequest struct {
 	AssetID     string  `json:"asset_id"`
 	AuthorName  string  `json:"author_name"`
@@ -573,6 +582,30 @@ type RerunVariantRequest struct {
 
 func (r *RerunVariantRequest) Valid(_ context.Context) map[string]string {
 	return map[string]string{}
+}
+
+type UpdateVariantsSharingRequest struct {
+	Updates map[string]bool `json:"updates"`
+}
+
+func (r *UpdateVariantsSharingRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if len(r.Updates) == 0 {
+		p["updates"] = "required"
+	}
+	return p
+}
+
+type PatchVariantRequest struct {
+	Title string `json:"title"`
+}
+
+func (r *PatchVariantRequest) Valid(_ context.Context) map[string]string {
+	p := map[string]string{}
+	if len(strings.TrimSpace(r.Title)) > 255 {
+		p["title"] = "max 255 chars"
+	}
+	return p
 }
 
 type CreateTextTrackRequest struct {

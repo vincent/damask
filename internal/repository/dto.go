@@ -219,22 +219,22 @@ type Invite struct {
 
 // User is the domain representation of a user.
 type User struct {
-	ID           string
-	Email        string
-	PasswordHash string
-	Name         string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	OidcSub      *string
-	OidcIssuer   *string
-	GoogleUserID *string
-	CanvaUserID  *string
-	AvatarUrl    *string
+	ID               string
+	Email            string
+	PasswordHash     string
+	Name             string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	OidcSub          *string
+	OidcIssuer       *string
+	GoogleUserID     *string
+	CanvaUserID      *string
+	AvatarUrl        *string
 	AvatarStorageKey *string
-	AuthMethods  string
-	PendingEmail *string
-	DisplayName  *string
-	DeletedAt    *string
+	AuthMethods      string
+	PendingEmail     *string
+	DisplayName      *string
+	DeletedAt        *string
 }
 
 // ShareComment is the domain representation of a public share comment.
@@ -304,7 +304,14 @@ type Variant struct {
 	Status               string
 	ThumbnailKey         *string
 	ThumbnailContentType string
+	Title                *string
+	IsShared             bool
 	CreatedAt            time.Time
+}
+
+type VariantWithAssetID struct {
+	Variant
+	AssetID string
 }
 
 // ProjectWithCount is a Project enriched with its asset count.
@@ -383,20 +390,20 @@ type ListAssetsByFieldsParams struct {
 
 // CreateAssetParams holds the fields needed to insert a new asset row.
 type CreateAssetParams struct {
-	ID               string
-	WorkspaceID      string
-	ProjectID        *string
-	FolderID         *string
-	DerivedFromAssetID *string
-	OriginalFilename string
-	StorageKey       string
-	MimeType         string
-	Size             int64
-	Width            *int64
-	Height           *int64
-	ThumbnailKey     *string
+	ID                   string
+	WorkspaceID          string
+	ProjectID            *string
+	FolderID             *string
+	DerivedFromAssetID   *string
+	OriginalFilename     string
+	StorageKey           string
+	MimeType             string
+	Size                 int64
+	Width                *int64
+	Height               *int64
+	ThumbnailKey         *string
 	ThumbnailContentType string
-	Metadata         *string
+	Metadata             *string
 }
 
 // UpdateAssetParams holds the fields that can be updated on an existing asset.

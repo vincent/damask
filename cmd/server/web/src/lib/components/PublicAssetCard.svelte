@@ -34,6 +34,13 @@
           {category.toUpperCase()}
         </Badge>
       </div>
+      {#if asset.shared_variants?.length}
+        <div class="absolute bottom-2 left-2 z-10">
+          <Badge variant="neutral" size="sm">
+            {asset.shared_variants.length} variants
+          </Badge>
+        </div>
+      {/if}
 
       {#if (category === 'image' || category === 'video' || category === 'audio' || category === 'document') && thumbUrl}
         <img

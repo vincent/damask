@@ -145,6 +145,8 @@ CREATE TABLE variants (
     status                 TEXT NOT NULL DEFAULT 'ready',
     thumbnail_key          TEXT,
     thumbnail_content_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    title                  TEXT,
+    is_shared              INTEGER NOT NULL DEFAULT 0,
     created_at             DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -171,6 +173,7 @@ CREATE INDEX idx_tags_workspace ON tags(workspace_id);
 CREATE INDEX idx_variants_version   ON variants(asset_version_id);
 CREATE INDEX idx_variants_workspace ON variants(workspace_id);
 CREATE INDEX idx_variants_type      ON variants(asset_version_id, type);
+CREATE INDEX idx_variants_shared    ON variants(asset_version_id, is_shared) WHERE is_shared = 1;
 CREATE INDEX idx_jobs_status ON jobs(status);
 
 CREATE TABLE asset_text_tracks (

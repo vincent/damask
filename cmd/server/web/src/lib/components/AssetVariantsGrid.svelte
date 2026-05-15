@@ -7,6 +7,8 @@
     variants: Variant[]
     selectedVariant: Variant | null
     onSelectVariant: (v: Variant) => void
+    onVariantUpdated: (variant: Variant) => void
+    onVariantsUpdated: (variants: Variant[]) => void
     deleteVariant: (variantId: string) => void
     promoteVariant: (variant: Variant) => void
     thumbnailUpdated: () => void
@@ -18,6 +20,8 @@
     variants,
     selectedVariant,
     onSelectVariant,
+    onVariantUpdated,
+    onVariantsUpdated,
     deleteVariant,
     promoteVariant,
     thumbnailUpdated,
@@ -32,6 +36,8 @@
       assetId={asset.id}
       isSelected={selectedVariant?.id === v.id}
       onSelect={() => onSelectVariant(v)}
+      {onVariantUpdated}
+      {onVariantsUpdated}
       onDelete={() => deleteVariant(v.id)}
       onPromote={() => promoteVariant(v)}
       onThumbnailUpdated={thumbnailUpdated}

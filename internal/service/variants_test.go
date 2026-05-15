@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
@@ -130,6 +131,144 @@ func TestVariantService_Get_OK(t *testing.T) {
 	}
 	if dto.Type != "image_resize" {
 		t.Errorf("Type: got %q, want %q", dto.Type, "image_resize")
+	}
+	if dto.Title != "image_resize #1" {
+		t.Fatalf("Title: got %q, want auto title", dto.Title)
+	}
+}
+
+func TestAutoTitle(t *testing.T) {
+	if got := service.AutoTitle("bg_remove", 2); got != "bg_remove #2" {
+		t.Fatalf("AutoTitle() = %q", got)
+	}
+}
+
+func TestResolvedTitle_Custom(t *testing.T) {
+	title := "Hero shot clean"
+	got := service.ResolvedTitle(repository.Variant{Type: "image_resize", Title: &title}, 3)
+	if got != title {
+		t.Fatalf("ResolvedTitle() = %q, want %q", got, title)
+	}
+}
+
+func TestResolvedTitle_Nil(t *testing.T) {
+	got := service.ResolvedTitle(repository.Variant{Type: "image_resize"}, 3)
+	if got != "image_resize #3" {
+		t.Fatalf("ResolvedTitle() = %q", got)
+	}
+}
+
+func TestVariantService_UpdateTitle_Happy(t *testing.T) {
+	svc, repo, _ := newVariantSvc(t)
+	createdAt := time.Now()
+	repo.Seed(repository.Variant{
+		ID:             "var_1",
+		WorkspaceID:    "ws_1",
+		AssetVersionID: "ver_1",
+		Type:           "image_resize",
+		StorageKey:     "variants/var_1.jpg",
+		CreatedAt:      createdAt,
+	})
+
+	if err := svc.UpdateTitle(context.Background(), "ws_1", "var_1", "Hero shot clean"); err != nil {
+		t.Fatalf("UpdateTitle() error = %v", err)
+	}
+
+	dto, err := svc.Get(context.Background(), "ws_1", "var_1")
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if dto.Title != "Hero shot clean" {
+		t.Fatalf("Title = %q", dto.Title)
+	}
+}
+
+func TestVariantService_UpdateTitle_Clears(t *testing.T) {
+	svc, repo, _ := newVariantSvc(t)
+	title := "Custom"
+	repo.Seed(repository.Variant{
+		ID:             "var_1",
+		WorkspaceID:    "ws_1",
+		AssetVersionID: "ver_1",
+		Type:           "image_resize",
+		StorageKey:     "variants/var_1.jpg",
+		Title:          &title,
+		CreatedAt:      time.Now(),
+	})
+
+	if err := svc.UpdateTitle(context.Background(), "ws_1", "var_1", "   "); err != nil {
+		t.Fatalf("UpdateTitle() error = %v", err)
+	}
+	dto, err := svc.Get(context.Background(), "ws_1", "var_1")
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if dto.Title != "image_resize #1" {
+		t.Fatalf("Title = %q", dto.Title)
+	}
+}
+
+func TestVariantService_UpdateTitle_TooLong(t *testing.T) {
+	svc, repo, _ := newVariantSvc(t)
+	repo.Seed(repository.Variant{
+		ID:             "var_1",
+		WorkspaceID:    "ws_1",
+		AssetVersionID: "ver_1",
+		Type:           "image_resize",
+		StorageKey:     "variants/var_1.jpg",
+		CreatedAt:      time.Now(),
+	})
+
+	err := svc.UpdateTitle(context.Background(), "ws_1", "var_1", strings.Repeat("a", 256))
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestVariantService_UpdateSharing_Mixed(t *testing.T) {
+	svc, repo, _ := newVariantSvc(t)
+	repo.Seed(
+		repository.Variant{ID: "var_1", WorkspaceID: "ws_1", AssetVersionID: "ver_1", Type: "image_resize", StorageKey: "a", CreatedAt: time.Now()},
+		repository.Variant{ID: "var_2", WorkspaceID: "ws_1", AssetVersionID: "ver_1", Type: "image_resize", StorageKey: "b", IsShared: true, CreatedAt: time.Now().Add(time.Second)},
+	)
+
+	err := svc.UpdateSharing(context.Background(), service.UpdateVariantsSharingParams{
+		WorkspaceID: "ws_1",
+		AssetID:     "asset_1",
+		Updates: map[string]bool{
+			"var_1": true,
+			"var_2": false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpdateSharing() error = %v", err)
+	}
+
+	dto1, _ := svc.Get(context.Background(), "ws_1", "var_1")
+	dto2, _ := svc.Get(context.Background(), "ws_1", "var_2")
+	if !dto1.IsShared || dto2.IsShared {
+		t.Fatalf("unexpected sharing flags: var_1=%v var_2=%v", dto1.IsShared, dto2.IsShared)
+	}
+}
+
+func TestVariantService_UpdateSharing_Unknown(t *testing.T) {
+	svc, repo, _ := newVariantSvc(t)
+	repo.Seed(repository.Variant{
+		ID:             "var_1",
+		WorkspaceID:    "ws_1",
+		AssetVersionID: "ver_1",
+		Type:           "image_resize",
+		StorageKey:     "variants/var_1.jpg",
+		CreatedAt:      time.Now(),
+	})
+
+	err := svc.UpdateSharing(context.Background(), service.UpdateVariantsSharingParams{
+		WorkspaceID: "ws_1",
+		AssetID:     "asset_1",
+		Updates:     map[string]bool{"missing": true},
+	})
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
 

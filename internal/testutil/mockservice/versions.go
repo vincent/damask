@@ -112,6 +112,10 @@ type MockVariantService struct {
 	GetFn            func(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error)
 	PrepareCreateFn  func(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error)
 	CreateFn         func(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error)
+	UpdateTitleFn    func(ctx context.Context, workspaceID, variantID, title string) error
+	UpdateSharingFn  func(ctx context.Context, p service.UpdateVariantsSharingParams) error
+	ListSharedFn     func(ctx context.Context, assetIDs []string) ([]service.SharedVariantDTO, error)
+	GetSharedForFn   func(ctx context.Context, variantID, assetID string) (*service.VariantDTO, error)
 	DeleteFn         func(ctx context.Context, workspaceID, assetID, variantID string) error
 	PromoteFn        func(ctx context.Context, p service.PromoteVariantParams) (service.PromoteVariantResult, error)
 	SetAsThumbnailFn func(ctx context.Context, workspaceID, assetID, variantID string) error
@@ -148,6 +152,34 @@ func (m *MockVariantService) Create(ctx context.Context, p service.CreateVariant
 	return nil, nil
 }
 
+func (m *MockVariantService) UpdateTitle(ctx context.Context, workspaceID, variantID, title string) error {
+	if m.UpdateTitleFn != nil {
+		return m.UpdateTitleFn(ctx, workspaceID, variantID, title)
+	}
+	return nil
+}
+
+func (m *MockVariantService) UpdateSharing(ctx context.Context, p service.UpdateVariantsSharingParams) error {
+	if m.UpdateSharingFn != nil {
+		return m.UpdateSharingFn(ctx, p)
+	}
+	return nil
+}
+
+func (m *MockVariantService) ListSharedByAssets(ctx context.Context, assetIDs []string) ([]service.SharedVariantDTO, error) {
+	if m.ListSharedFn != nil {
+		return m.ListSharedFn(ctx, assetIDs)
+	}
+	return nil, nil
+}
+
+func (m *MockVariantService) GetSharedForShare(ctx context.Context, variantID, assetID string) (*service.VariantDTO, error) {
+	if m.GetSharedForFn != nil {
+		return m.GetSharedForFn(ctx, variantID, assetID)
+	}
+	return nil, nil
+}
+
 func (m *MockVariantService) Delete(ctx context.Context, workspaceID, assetID, variantID string) error {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(ctx, workspaceID, assetID, variantID)
@@ -178,4 +210,4 @@ func (m *MockVariantService) Rerun(ctx context.Context, p service.RerunVariantPa
 
 func (m *MockVariantService) WriteVariantQueued(_ context.Context, _, _, _ string) {}
 
-func (m *MockVariantService) WriteVariantDownloadedAsync(_, _, _, _ string) {}
+func (m *MockVariantService) WriteVariantDownloadedAsync(_, _, _, _, _, _ string) {}

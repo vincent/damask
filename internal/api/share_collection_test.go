@@ -189,7 +189,7 @@ func Test_PublicGallery_PasswordProtected_NoToken_Returns401(t *testing.T) {
 	})
 
 	// Try to access without correct password — no session token.
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", bytes.NewReader([]byte(`{"password":"wrong"}`)))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", bytes.NewReader([]byte(`{"visitor_name":"Visitor","password":"wrong"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {

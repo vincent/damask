@@ -134,9 +134,11 @@ type AssetVariantCreatedPayload struct {
 }
 
 type AssetVariantDownloadedPayload struct {
-	V         int    `json:"v"`
-	VariantID string `json:"variant_id"`
-	Type      string `json:"type"`
+	V           int     `json:"v"`
+	VariantID   string  `json:"variant_id"`
+	Type        string  `json:"type"`
+	ShareID     *string `json:"share_id,omitempty"`
+	VisitorName *string `json:"visitor_name,omitempty"`
 }
 
 type AssetVariantDeletedPayload struct {

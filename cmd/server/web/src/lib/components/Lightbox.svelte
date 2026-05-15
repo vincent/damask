@@ -22,6 +22,7 @@
   import Pills from './ui/Pills.svelte'
   import Feedback from './ui/Feedback.svelte'
   import AssetVariantsGrid from './AssetVariantsGrid.svelte'
+  import VariantSharingHeader from './variants/VariantSharingHeader.svelte'
   import VariantPromoteForm from './variants/VariantPromoteForm.svelte'
   import AssetMetadataPills from './AssetMetadataPills.svelte'
   import AssetExportImage from './AssetExportImage.svelte'
@@ -266,6 +267,24 @@
       // silently ignore
     } finally {
       variantsLoading = false
+    }
+  }
+
+  function replaceVariant(updatedVariant: Variant) {
+    variants = variants.map((variant) =>
+      variant.id === updatedVariant.id ? updatedVariant : variant
+    )
+    if (selectedVariant?.id === updatedVariant.id) {
+      selectedVariant = updatedVariant
+    }
+  }
+
+  function replaceVariants(nextVariants: Variant[]) {
+    variants = nextVariants
+    if (selectedVariant) {
+      selectedVariant =
+        nextVariants.find((variant) => variant.id === selectedVariant?.id) ??
+        null
     }
   }
 
@@ -695,6 +714,11 @@
                 }}
               />
             {:else if activeVariantTab === 'all'}
+              <VariantSharingHeader
+                assetId={asset.id}
+                {variants}
+                onUpdate={replaceVariants}
+              />
               {#if variantRefreshProgress > 0}
                 <div class="mb-4 space-y-2">
                   <p
@@ -735,6 +759,8 @@
                   onSelectVariant={(v) => {
                     selectedVariant = selectedVariant?.id === v.id ? null : v
                   }}
+                  onVariantUpdated={replaceVariant}
+                  onVariantsUpdated={replaceVariants}
                   deleteVariant={handleDeleteVariant}
                   promoteVariant={openPromoteVariant}
                   thumbnailUpdated={handleThumbnailUpdated}

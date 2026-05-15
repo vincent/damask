@@ -1,19 +1,27 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte'
-  import { Download, ImageOff, MoreHorizontal } from '@lucide/svelte'
-  import { variantApi, type Variant } from '$lib/api'
-  import { authStore } from '$lib/stores/auth.svelte'
-  import { formatBytes } from '$lib/api'
-  import { m } from '$lib/paraglide/messages'
-  import { toastStore } from '$lib/stores/toast.svelte'
+  import { onDestroy, onMount } from 'svelte'
+  import {
+    Check,
+    Download,
+    ImageOff,
+    MoreHorizontal,
+    Pencil,
+    X,
+  } from '@lucide/svelte'
+  import { formatBytes, variantApi, type Variant } from '$lib/api'
   import AssetThumbnail from '$lib/components/AssetThumbnail.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
+  import { authStore } from '$lib/stores/auth.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   interface Props {
     variant: Variant
     assetId: string
     isSelected: boolean
     onSelect: () => void
+    onVariantUpdated: (variant: Variant) => void
+    onVariantsUpdated: (variants: Variant[]) => void
     onDelete: () => void
     onPromote: () => void
     onThumbnailUpdated: () => void
@@ -25,6 +33,8 @@
     assetId,
     isSelected,
     onSelect,
+    onVariantUpdated,
+    onVariantsUpdated,
     onDelete,
     onPromote,
     onThumbnailUpdated,
@@ -35,6 +45,12 @@
   let thumbContentType = $state('image/jpeg')
   let noPreview = $state(false)
   let menuOpen = $state(false)
+  let editingTitle = $state(false)
+  let draftTitle = $state('')
+  let titleBusy = $state(false)
+  let shareBusy = $state(false)
+  let showDeleteConfirm = $state(false)
+  let ignoreTitleBlur = $state(false)
 
   const MAX_POLL = 30
   let pollCount = 0
@@ -42,12 +58,9 @@
 
   $effect(() => {
     thumbUrl = variant.thumbnail_url
-    thumbContentType = variant.thumbnail_content_type
-      ? variant.thumbnail_content_type
-      : variant.thumbnail_url?.includes('.mp4')
-        ? 'video/mp4'
-        : 'image/jpeg'
+    thumbContentType = variant.thumbnail_content_type || 'image/jpeg'
     noPreview = false
+    draftTitle = variant.title
     pollCount = 0
     if (pollTimer) clearTimeout(pollTimer)
     startPolling()
@@ -87,8 +100,6 @@
     if (pollTimer) clearTimeout(pollTimer)
   })
 
-  let showDeleteConfirm = $state(false)
-
   async function setAsThumbnail() {
     try {
       await variantApi.setThumbnail(assetId, variant.id)
@@ -124,6 +135,49 @@
       )
     }
   }
+
+  async function saveTitle() {
+    titleBusy = true
+    try {
+      const updated = await variantApi.patch(assetId, variant.id, {
+        title: draftTitle,
+      })
+      onVariantUpdated(updated)
+      editingTitle = false
+    } catch (error) {
+      toastStore.show(
+        error instanceof Error ? error.message : 'Failed to update title.',
+        'error'
+      )
+    } finally {
+      titleBusy = false
+    }
+  }
+
+  function cancelEdit() {
+    draftTitle = variant.title
+    editingTitle = false
+  }
+
+  async function toggleShared() {
+    const nextValue = !variant.is_shared
+    shareBusy = true
+    onVariantUpdated({ ...variant, is_shared: nextValue })
+    try {
+      const res = await variantApi.updateSharing(assetId, {
+        [variant.id]: nextValue,
+      })
+      onVariantsUpdated(res.variants)
+    } catch (error) {
+      onVariantUpdated(variant)
+      toastStore.show(
+        error instanceof Error ? error.message : 'Failed to update sharing.',
+        'error'
+      )
+    } finally {
+      shareBusy = false
+    }
+  }
 </script>
 
 <div
@@ -135,13 +189,12 @@
   onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
   aria-pressed={isSelected}
 >
-  <!-- Thumbnail -->
   <div class="thumb-area">
     {#if thumbUrl}
       <AssetThumbnail
         src={thumbUrl}
         contentType={thumbContentType}
-        alt={variant.type}
+        alt={variant.title}
         class="h-full w-full object-cover"
       />
     {:else if noPreview}
@@ -211,9 +264,90 @@
     {/if}
   </div>
 
-  <!-- Info -->
   <div class="card-info">
-    <p class="card-name">{variant.type}</p>
+    <div class="title-row">
+      {#if editingTitle}
+        <input
+          bind:value={draftTitle}
+          class="title-input"
+          placeholder={variant.type}
+          onkeydown={(e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter') saveTitle()
+            if (e.key === 'Escape') cancelEdit()
+          }}
+          onblur={() => {
+            if (ignoreTitleBlur) {
+              ignoreTitleBlur = false
+              return
+            }
+            saveTitle()
+          }}
+        />
+        <button
+          type="button"
+          class="icon-btn confirm"
+          onpointerdown={() => (ignoreTitleBlur = true)}
+          onclick={(event) => {
+            event.stopPropagation()
+            saveTitle()
+          }}
+          disabled={titleBusy}
+          aria-label="Save title"
+        >
+          <Check class="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          class="icon-btn"
+          onpointerdown={() => (ignoreTitleBlur = true)}
+          onclick={(event) => {
+            event.stopPropagation()
+            cancelEdit()
+          }}
+          aria-label="Cancel edit"
+        >
+          <X class="h-3.5 w-3.5" />
+        </button>
+      {:else}
+        <p class="card-name">{variant.title}</p>
+        {#if authStore.role !== 'viewer'}
+          <button
+            type="button"
+            class="icon-btn edit-btn"
+            onclick={(event) => {
+              event.stopPropagation()
+              editingTitle = true
+              draftTitle = variant.title
+            }}
+            aria-label="Edit title"
+          >
+            <Pencil class="h-3.5 w-3.5" />
+          </button>
+        {/if}
+      {/if}
+    </div>
+
+    <div class="share-row">
+      <span class="share-label" class:shared={variant.is_shared}
+        >{variant.is_shared ? 'Shared' : 'Private'}</span
+      >
+      <button
+        type="button"
+        class="share-toggle"
+        class:on={variant.is_shared}
+        disabled={shareBusy || authStore.role === 'viewer'}
+        onclick={(event) => {
+          event.stopPropagation()
+          toggleShared()
+        }}
+        aria-label={variant.is_shared ? 'Make private' : 'Share variant'}
+        aria-pressed={variant.is_shared}
+      >
+        <span class="share-knob"></span>
+      </button>
+    </div>
+
     <p class="card-meta">
       {variant.size != null ? formatBytes(variant.size) + ' · ' : ''}{new Date(
         variant.created_at
@@ -241,9 +375,10 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--bg-surface);
+    cursor: pointer;
     transition: box-shadow 0.15s ease;
   }
   .variant-card:hover {
@@ -251,10 +386,7 @@
   }
   .variant-card.selected {
     border-color: var(--accent-cta);
-    box-shadow: 0 0 0 2px var(--accent-cta);
-  }
-  .variant-card {
-    cursor: pointer;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-cta) 40%, transparent);
   }
   .thumb-area {
     position: relative;
@@ -262,7 +394,7 @@
     height: 160px;
     align-items: center;
     justify-content: center;
-    overflow: visible;
+    overflow: hidden;
     background: var(--bg-app);
   }
   .thumb-placeholder {
@@ -283,11 +415,6 @@
     border-top-color: var(--accent-cta);
     animation: spin 0.8s linear infinite;
   }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
   .thumb-action {
     position: absolute;
     display: flex;
@@ -295,13 +422,19 @@
     width: 28px;
     align-items: center;
     justify-content: center;
-    border-radius: 7px;
-    background: rgb(255 255 255 / 0.75);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+    backdrop-filter: blur(4px);
     color: var(--text-secondary);
     opacity: 0;
-    transition:
-      opacity 0.15s ease,
-      background 0.1s ease;
+    transition: opacity 0.15s ease;
+  }
+  .thumb-action:hover {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+  }
+  .variant-card:hover .thumb-action {
+    opacity: 1;
   }
   .menu-wrap {
     position: absolute;
@@ -314,53 +447,149 @@
     display: grid;
     min-width: 170px;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     background: var(--bg-surface);
     box-shadow: 0 16px 40px rgb(0 0 0 / 0.14);
     overflow: hidden;
-    z-index: 2;
   }
   .variant-menu button {
-    border: 0;
-    background: transparent;
-    padding: 10px 12px;
+    padding: 9px 12px;
     text-align: left;
+    font-size: 0.8125rem;
     color: var(--text-primary);
-    cursor: pointer;
+    transition: background 0.1s ease;
   }
   .variant-menu button:hover {
-    background: var(--bg-app);
+    background: var(--bg-hover);
   }
   .variant-menu button.danger {
     color: var(--accent-danger);
   }
-  :global(.dark) .thumb-action {
-    background: rgb(37 45 62 / 0.8);
-    color: var(--text-secondary);
-  }
-  :global(.group:hover) .thumb-action {
-    opacity: 1;
-  }
-  .thumb-action:hover {
-    background: white;
-  }
-  :global(.dark) .thumb-action:hover {
-    background: var(--bg-elevated);
-  }
   .card-info {
-    padding: 10px 12px;
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+  }
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
   .card-name {
-    font-size: 0.8125rem;
+    margin: 0;
+    flex: 1;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+  }
+  .title-input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .title-input:focus {
+    border-color: var(--accent-cta);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-cta) 18%, transparent);
+  }
+  .icon-btn {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    transition:
+      background 0.1s ease,
+      color 0.1s ease;
+  }
+  .icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .icon-btn.confirm:hover {
+    background: color-mix(in srgb, var(--accent-cta) 12%, transparent);
+    color: var(--accent-cta);
+  }
+  .edit-btn {
+    opacity: 0;
+    transition:
+      opacity 0.1s ease,
+      background 0.1s ease,
+      color 0.1s ease;
+  }
+  .variant-card:hover .edit-btn,
+  .title-row:focus-within .edit-btn {
+    opacity: 1;
+  }
+  .share-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+  }
+  .share-label {
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .share-label.shared {
+    color: var(--accent-cta);
+  }
+  .share-toggle {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--border);
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+  }
+  .share-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .share-toggle.on {
+    background: var(--accent-cta);
+  }
+  .share-toggle:focus-visible {
+    outline: 2px solid var(--accent-cta);
+    outline-offset: 2px;
+  }
+  .share-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+    transition: transform 0.2s ease;
+  }
+  .share-toggle.on .share-knob {
+    transform: translateX(14px);
   }
   .card-meta {
-    margin-top: 2px;
-    font-size: 0.6875rem;
+    margin: 0;
+    font-size: 0.75rem;
     color: var(--text-muted);
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>

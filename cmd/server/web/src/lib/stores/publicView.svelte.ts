@@ -1,4 +1,9 @@
-import type { PublicAsset, PublicShare, ShareComment } from '$lib/api'
+import type {
+  PublicAsset,
+  PublicShare,
+  ShareComment,
+  SharedVariant,
+} from '$lib/api'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -12,6 +17,7 @@ export const TYPES_BACKGROUNDS: Record<string, string> = {
 function createPublicViewStore() {
   // ---- Session ----
   let sessionToken = $state<string | null>(null)
+  let visitorName = $state('')
 
   // ---- Gallery ----
   let share = $state<PublicShare | null>(null)
@@ -21,20 +27,37 @@ function createPublicViewStore() {
 
   // ---- Review panel ----
   let selectedAsset = $state<PublicAsset | null>(null)
+  let selectedVariant = $state<SharedVariant | null>(null)
   let panelOpen = $state(false)
   let comments = $state<ShareComment[]>([])
   let loadingComments = $state(false)
 
   // ---- Comment form ----
-  let commentName = $state('')
   let commentEmail = $state('')
   let commentBody = $state('')
-  let commentNameError = $state('')
   let commentBodyError = $state('')
   let postingComment = $state(false)
   let commentPosted = $state(false)
 
   // ---- Derived ----
+  const previewMimeType = $derived(
+    selectedVariant?.mime_type ?? selectedAsset?.mime_type ?? ''
+  )
+
+  const previewThumbUrl = $derived.by(() => {
+    if (!selectedAsset || !share) return null
+    if (selectedVariant)
+      return variantThumbUrl(share.id, selectedAsset.id, selectedVariant.id)
+    return thumbUrl(share.id, selectedAsset.id)
+  })
+
+  const previewFileUrl = $derived.by(() => {
+    if (!selectedAsset || !share) return null
+    if (selectedVariant)
+      return variantFileUrl(share.id, selectedAsset.id, selectedVariant.id)
+    return fileUrlWithToken(share.id, selectedAsset.id)
+  })
+
   const expiryWarning = $derived.by(() => {
     if (!share?.expires_at) return null
     const diff = new Date(share.expires_at).getTime() - Date.now()
@@ -64,11 +87,24 @@ function createPublicViewStore() {
       : base
   }
 
+  function variantFileUrl(shareId: string, assetId: string, variantId: string) {
+    return `${API_BASE}/shared/${shareId}/assets/${assetId}/variants/${variantId}/file`
+  }
+
+  function variantThumbUrl(
+    shareId: string,
+    assetId: string,
+    variantId: string
+  ) {
+    return `${API_BASE}/shared/${shareId}/assets/${assetId}/variants/${variantId}/thumb`
+  }
+
   // ---- Actions ----
   async function init(shareId: string) {
     sessionToken =
       (await cookieStore.get(`share_token_${shareId}`))?.value ?? null
-    commentName = sessionStorage.getItem('damask_comment_name') ?? ''
+    visitorName =
+      sessionStorage.getItem(`damask_share_visitor_${shareId}`) ?? ''
     commentEmail = sessionStorage.getItem('damask_comment_email') ?? ''
   }
 
@@ -121,8 +157,13 @@ function createPublicViewStore() {
     }
   }
 
+  function selectVariant(variant: SharedVariant) {
+    selectedVariant = selectedVariant?.id === variant.id ? null : variant
+  }
+
   function openAsset(shareId: string, asset: PublicAsset) {
     selectedAsset = asset
+    selectedVariant = null
     panelOpen = true
     commentPosted = false
     comments = []
@@ -134,6 +175,7 @@ function createPublicViewStore() {
   function closePanel() {
     panelOpen = false
     selectedAsset = null
+    selectedVariant = null
   }
 
   function navigateAsset(shareId: string, direction: 'prev' | 'next') {
@@ -145,12 +187,7 @@ function createPublicViewStore() {
   }
 
   async function postComment(shareId: string) {
-    commentNameError = ''
     commentBodyError = ''
-    if (!commentName.trim()) {
-      commentNameError = 'Name is required'
-      return
-    }
     if (!commentBody.trim()) {
       commentBodyError = 'Message is required'
       return
@@ -163,7 +200,7 @@ function createPublicViewStore() {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           asset_id: selectedAsset?.id,
-          author_name: commentName.trim(),
+          author_name: visitorName.trim(),
           author_email: commentEmail.trim() || undefined,
           body: commentBody.trim(),
         }),
@@ -171,7 +208,6 @@ function createPublicViewStore() {
       if (res.ok) {
         const newComment = await res.json()
         comments = [...comments, newComment]
-        sessionStorage.setItem('damask_comment_name', commentName.trim())
         sessionStorage.setItem('damask_comment_email', commentEmail.trim())
         commentBody = ''
         commentPosted = true
@@ -185,16 +221,19 @@ function createPublicViewStore() {
   }
 
   async function downloadAll(shareId: string) {
-    for (const asset of assets) {
-      const a = document.createElement('a')
-      a.href = fileUrlWithToken(shareId, asset.id)
-      a.download = asset.original_filename
-      a.target = '_blank'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      await new Promise((r) => setTimeout(r, 200))
-    }
+    const res = await fetch(`${API_BASE}/shared/${shareId}/export`, {
+      headers: authHeaders(),
+    })
+    if (!res.ok) return
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${share?.label || 'share'}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   return {
@@ -204,6 +243,9 @@ function createPublicViewStore() {
     },
     get share() {
       return share
+    },
+    get visitorName() {
+      return visitorName
     },
     get assets() {
       return assets
@@ -217,6 +259,18 @@ function createPublicViewStore() {
     get selectedAsset() {
       return selectedAsset
     },
+    get selectedVariant() {
+      return selectedVariant
+    },
+    get previewMimeType() {
+      return previewMimeType
+    },
+    get previewThumbUrl() {
+      return previewThumbUrl
+    },
+    get previewFileUrl() {
+      return previewFileUrl
+    },
     get panelOpen() {
       return panelOpen
     },
@@ -225,12 +279,6 @@ function createPublicViewStore() {
     },
     get loadingComments() {
       return loadingComments
-    },
-    get commentName() {
-      return commentName
-    },
-    set commentName(v: string) {
-      commentName = v
     },
     get commentEmail() {
       return commentEmail
@@ -243,9 +291,6 @@ function createPublicViewStore() {
     },
     set commentBody(v: string) {
       commentBody = v
-    },
-    get commentNameError() {
-      return commentNameError
     },
     get commentBodyError() {
       return commentBodyError
@@ -264,12 +309,15 @@ function createPublicViewStore() {
     thumbUrl,
     fileUrl,
     fileUrlWithToken,
+    variantFileUrl,
+    variantThumbUrl,
     // Actions
     init,
     loadGallery,
     openAsset,
     closePanel,
     navigateAsset,
+    selectVariant,
     postComment,
     downloadAll,
   }

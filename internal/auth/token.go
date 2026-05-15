@@ -26,6 +26,7 @@ type ShareClaims struct {
 	TargetID      string `json:"target_id"`
 	AllowComments bool   `json:"allow_comments"`
 	AllowDownload bool   `json:"allow_download"`
+	VisitorName   string `json:"visitor_name"`
 	jwt.RegisteredClaims
 }
 
@@ -73,13 +74,14 @@ func (m *Maker) CreateDemoToken(userID, workspaceID string, duration time.Durati
 }
 
 // CreateShareToken issues a signed share session token valid for the given duration.
-func (m *Maker) CreateShareToken(shareID, targetType, targetID string, allowComments, allowDownload bool, duration time.Duration) (string, error) {
+func (m *Maker) CreateShareToken(shareID, targetType, targetID string, allowComments, allowDownload bool, visitorName string, duration time.Duration) (string, error) {
 	claims := &ShareClaims{
 		ShareID:       shareID,
 		TargetType:    targetType,
 		TargetID:      targetID,
 		AllowComments: allowComments,
 		AllowDownload: allowDownload,
+		VisitorName:   visitorName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

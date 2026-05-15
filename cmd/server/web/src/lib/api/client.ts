@@ -336,6 +336,23 @@ export const variantApi = {
     })
   },
 
+  /** PATCH /api/v1/assets/:id/variants/:vid (editor+) — update editable fields on a variant. */
+  patch: (assetId: string, variantId: string, body: { title: string }) =>
+    apiFetch<Variant>(`/api/v1/assets/${assetId}/variants/${variantId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  /** PUT /api/v1/assets/:id/variants/sharing (editor+) — bulk update variant sharing flags. */
+  updateSharing: (assetId: string, updates: Record<string, boolean>) =>
+    apiFetch<ListVariantsResponse>(
+      `/api/v1/assets/${assetId}/variants/sharing`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ updates }),
+      }
+    ),
+
   /** DELETE /api/v1/assets/:id/variants/:vid (editor+) — delete a variant. */
   delete: (assetId: string, variantId: string) =>
     apiFetch<void>(`/api/v1/assets/${assetId}/variants/${variantId}`, {
