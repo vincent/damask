@@ -21,3 +21,22 @@ func TestListWorkflowsOK(t *testing.T) {
 	}
 	testutil.AssertStatus(t, resp, http.StatusOK)
 }
+
+func TestGetWorkflowTemplatesOK(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	env.Workflows.TemplatesFn = func() []service.WorkflowTemplateDTO {
+		return []service.WorkflowTemplateDTO{{
+			ID:          "blank-manual",
+			Name:        "Start Blank",
+			Description: "Manual trigger.",
+			TriggerType: "trigger.manual",
+			Graph:       `{"nodes":[],"edges":[]}`,
+		}}
+	}
+	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows/templates", nil, env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+}

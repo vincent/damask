@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	netmail "net/mail"
 	"strings"
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/workflow"
 )
 
 // ListAssetsParams holds filters for listing assets via AssetService.List.
@@ -91,9 +93,10 @@ type UploadAssetVersionResult struct {
 }
 
 type CreateWorkflowParams struct {
-	Name        string
-	Description string
-	Graph       string
+	Name                 string
+	Description          string
+	Graph                string
+	NotifyOnFailureEmail string
 }
 
 func (p CreateWorkflowParams) Validate() error {
@@ -103,17 +106,24 @@ func (p CreateWorkflowParams) Validate() error {
 	if len(p.Name) > 200 {
 		return fmt.Errorf("name must not exceed 200 characters: %w", apperr.ErrInvalidInput)
 	}
-	var raw map[string]any
-	if err := json.Unmarshal([]byte(p.Graph), &raw); err != nil {
+	var graph workflow.Graph
+	if err := json.Unmarshal([]byte(p.Graph), &graph); err != nil {
 		return fmt.Errorf("graph is not valid JSON: %w", apperr.ErrInvalidInput)
+	}
+	if err := graph.Validate(); err != nil {
+		return fmt.Errorf("graph: %w: %w", err, apperr.ErrInvalidInput)
+	}
+	if err := validateWorkflowFailureEmail(p.NotifyOnFailureEmail); err != nil {
+		return err
 	}
 	return nil
 }
 
 type UpdateWorkflowParams struct {
-	Name        *string
-	Description *string
-	Graph       *string
+	Name                 *string
+	Description          *string
+	Graph                *string
+	NotifyOnFailureEmail *string
 }
 
 func (p UpdateWorkflowParams) Validate() error {
@@ -121,25 +131,34 @@ func (p UpdateWorkflowParams) Validate() error {
 		return fmt.Errorf("name must not be empty: %w", apperr.ErrInvalidInput)
 	}
 	if p.Graph != nil {
-		var raw map[string]any
-		if err := json.Unmarshal([]byte(*p.Graph), &raw); err != nil {
+		var graph workflow.Graph
+		if err := json.Unmarshal([]byte(*p.Graph), &graph); err != nil {
 			return fmt.Errorf("graph is not valid JSON: %w", apperr.ErrInvalidInput)
+		}
+		if err := graph.Validate(); err != nil {
+			return fmt.Errorf("graph: %w: %w", err, apperr.ErrInvalidInput)
+		}
+	}
+	if p.NotifyOnFailureEmail != nil {
+		if err := validateWorkflowFailureEmail(*p.NotifyOnFailureEmail); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 type WorkflowDTO struct {
-	ID          string
-	WorkspaceID string
-	Name        string
-	Description string
-	Enabled     bool
-	TriggerType string
-	Graph       string
-	LastRunAt   *time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID                   string
+	WorkspaceID          string
+	Name                 string
+	Description          string
+	Enabled              bool
+	TriggerType          string
+	Graph                string
+	NotifyOnFailureEmail string
+	LastRunAt            *time.Time
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 type WorkflowRunDTO struct {
@@ -167,16 +186,35 @@ type WorkflowRunStepDTO struct {
 }
 
 type WorkflowNodePort struct {
-	ID    string
-	Label string
+	ID    string `json:"id"`
+	Label string `json:"label"`
 }
 
 type WorkflowNodeSchema struct {
-	Type         string
-	Label        string
-	Category     string
-	Description  string
-	Inputs       []WorkflowNodePort
-	Outputs      []WorkflowNodePort
-	ConfigSchema json.RawMessage
+	Type         string             `json:"type"`
+	Label        string             `json:"label"`
+	Category     string             `json:"category"`
+	Description  string             `json:"description"`
+	Inputs       []WorkflowNodePort `json:"inputs"`
+	Outputs      []WorkflowNodePort `json:"outputs"`
+	ConfigSchema json.RawMessage    `json:"config_schema"`
+}
+
+type WorkflowTemplateDTO struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	TriggerType string `json:"trigger_type"`
+	Graph       string `json:"graph"`
+}
+
+func validateWorkflowFailureEmail(raw string) error {
+	email := strings.TrimSpace(raw)
+	if email == "" {
+		return nil
+	}
+	if _, err := netmail.ParseAddress(email); err != nil {
+		return fmt.Errorf("notify_on_failure_email is invalid: %w", apperr.ErrInvalidInput)
+	}
+	return nil
 }

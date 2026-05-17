@@ -19,6 +19,10 @@ type Event struct {
 	Type         string `json:"type"`
 	AssetID      string `json:"asset_id"`
 	VariantID    string `json:"variant_id,omitempty"`
+	WorkflowID   string `json:"workflow_id,omitempty"`
+	RunID        string `json:"run_id,omitempty"`
+	NodeID       string `json:"node_id,omitempty"`
+	Status       string `json:"status,omitempty"`
 	ThumbnailKey string `json:"thumbnail_key"`
 	JobID        string `json:"job_id,omitempty"`
 	Error        string `json:"error,omitempty"`

@@ -34,6 +34,7 @@ type Mailer interface {
 	SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error
 	SendPasswordReset(ctx context.Context, to, token string) error
 	SendEmailChangeConfirmation(ctx context.Context, to, newEmail, token string) error
+	SendWorkflowRunFailed(ctx context.Context, to, workflowName, errMsg, workspaceID string) error
 }
 
 func NewMailer(config *MailSenderConfig) Mailer {
@@ -256,6 +257,20 @@ func (m *MailerImpl) SendEmailChangeConfirmation(ctx context.Context, to, newEma
 			"Text":       "You requested to change your Damask account email to " + newEmail + ". If you didn't request this, your account is safe and no change has been made. This link expires in 24 hours.",
 			"ActionText": "Confirm email change",
 			"ActionUrl":  "/auth/confirm-email-change?token=" + token,
+		},
+	)
+}
+
+func (m *MailerImpl) SendWorkflowRunFailed(ctx context.Context, to, workflowName, errMsg, workspaceID string) error {
+	return m.PrepareAndSend(
+		ctx,
+		to,
+		"Workflow failed: "+workflowName,
+		map[string]string{
+			"Title":      "Workflow failed",
+			"Text":       "The workflow \"" + workflowName + "\" failed. Error: " + errMsg,
+			"ActionText": "Open workflows",
+			"ActionUrl":  "/library/settings/workflows?ws=" + workspaceID,
 		},
 	)
 }

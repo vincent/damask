@@ -7,19 +7,20 @@ import (
 )
 
 type MockWorkflowService struct {
-	ListFn              func(ctx context.Context, workspaceID string) ([]service.WorkflowDTO, error)
-	GetFn               func(ctx context.Context, workspaceID, id string) (*service.WorkflowDTO, error)
-	CreateFn            func(ctx context.Context, workspaceID, createdBy string, p service.CreateWorkflowParams) (*service.WorkflowDTO, error)
-	UpdateFn            func(ctx context.Context, workspaceID, id string, p service.UpdateWorkflowParams) (*service.WorkflowDTO, error)
-	SetEnabledFn        func(ctx context.Context, workspaceID, id string, enabled bool) error
-	DeleteFn            func(ctx context.Context, workspaceID, id string) error
-	TriggerManualFn     func(ctx context.Context, workspaceID, id string) (string, error)
-	TriggerWebhookFn    func(ctx context.Context, id, token string, body []byte) (string, error)
-	GetRunFn            func(ctx context.Context, workspaceID, runID string) (*service.WorkflowRunDTO, error)
-	ListRunsFn          func(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
-	GetWebhookTokenFn   func(ctx context.Context, workspaceID, id string) (string, error)
-	RegenerateTokenFn   func(ctx context.Context, workspaceID, id string) (string, error)
-	NodeSchemasFn       func() []service.WorkflowNodeSchema
+	ListFn            func(ctx context.Context, workspaceID string) ([]service.WorkflowDTO, error)
+	GetFn             func(ctx context.Context, workspaceID, id string) (*service.WorkflowDTO, error)
+	CreateFn          func(ctx context.Context, workspaceID, createdBy string, p service.CreateWorkflowParams) (*service.WorkflowDTO, error)
+	UpdateFn          func(ctx context.Context, workspaceID, id string, p service.UpdateWorkflowParams) (*service.WorkflowDTO, error)
+	SetEnabledFn      func(ctx context.Context, workspaceID, id string, enabled bool) error
+	DeleteFn          func(ctx context.Context, workspaceID, id string) error
+	TriggerManualFn   func(ctx context.Context, workspaceID, id string) (string, error)
+	TriggerWebhookFn  func(ctx context.Context, id, token string, body []byte) (string, error)
+	GetRunFn          func(ctx context.Context, workspaceID, runID string) (*service.WorkflowRunDTO, error)
+	ListRunsFn        func(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
+	GetWebhookTokenFn func(ctx context.Context, workspaceID, id string) (string, error)
+	RegenerateTokenFn func(ctx context.Context, workspaceID, id string) (string, error)
+	NodeSchemasFn     func() []service.WorkflowNodeSchema
+	TemplatesFn       func() []service.WorkflowTemplateDTO
 }
 
 func NewWorkflowService() *MockWorkflowService { return &MockWorkflowService{} }
@@ -111,6 +112,13 @@ func (m *MockWorkflowService) RegenerateWebhookToken(ctx context.Context, worksp
 func (m *MockWorkflowService) NodeSchemas() []service.WorkflowNodeSchema {
 	if m.NodeSchemasFn != nil {
 		return m.NodeSchemasFn()
+	}
+	return nil
+}
+
+func (m *MockWorkflowService) Templates() []service.WorkflowTemplateDTO {
+	if m.TemplatesFn != nil {
+		return m.TemplatesFn()
 	}
 	return nil
 }

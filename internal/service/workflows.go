@@ -55,14 +55,15 @@ func (s *workflowService) Create(ctx context.Context, workspaceID, createdBy str
 		return nil, err
 	}
 	row, err := s.workflows.Create(ctx, repository.CreateWorkflowParams{
-		ID:          uuid.NewString(),
-		WorkspaceID: workspaceID,
-		Name:        p.Name,
-		Description: p.Description,
-		Enabled:     true,
-		TriggerType: triggerType,
-		Graph:       p.Graph,
-		CreatedBy:   createdBy,
+		ID:                   uuid.NewString(),
+		WorkspaceID:          workspaceID,
+		Name:                 p.Name,
+		Description:          p.Description,
+		Enabled:              true,
+		TriggerType:          triggerType,
+		Graph:                p.Graph,
+		NotifyOnFailureEmail: p.NotifyOnFailureEmail,
+		CreatedBy:            createdBy,
 	})
 	if err != nil {
 		return nil, err
@@ -76,11 +77,12 @@ func (s *workflowService) Update(ctx context.Context, workspaceID, id string, p 
 		return nil, err
 	}
 	update := repository.UpdateWorkflowParams{
-		ID:          id,
-		WorkspaceID: workspaceID,
-		Name:        p.Name,
-		Description: p.Description,
-		Graph:       p.Graph,
+		ID:                   id,
+		WorkspaceID:          workspaceID,
+		Name:                 p.Name,
+		Description:          p.Description,
+		Graph:                p.Graph,
+		NotifyOnFailureEmail: p.NotifyOnFailureEmail,
 	}
 	if p.Graph != nil {
 		triggerType, err := extractTriggerType(*p.Graph)
@@ -219,6 +221,21 @@ func (s *workflowService) NodeSchemas() []WorkflowNodeSchema {
 	return out
 }
 
+func (s *workflowService) Templates() []WorkflowTemplateDTO {
+	templates := workflow.Templates()
+	out := make([]WorkflowTemplateDTO, len(templates))
+	for i, tpl := range templates {
+		out[i] = WorkflowTemplateDTO{
+			ID:          tpl.ID,
+			Name:        tpl.Name,
+			Description: tpl.Description,
+			TriggerType: tpl.TriggerType,
+			Graph:       tpl.Graph,
+		}
+	}
+	return out
+}
+
 func (s *workflowService) enqueueRun(ctx context.Context, wf repository.Workflow, triggerData map[string]any) (string, error) {
 	runID := uuid.NewString()
 	_, err := s.runs.Create(ctx, repository.CreateWorkflowRunParams{
@@ -267,16 +284,17 @@ func extractTriggerType(raw string) (string, error) {
 
 func toWorkflowDTO(row repository.Workflow) WorkflowDTO {
 	return WorkflowDTO{
-		ID:          row.ID,
-		WorkspaceID: row.WorkspaceID,
-		Name:        row.Name,
-		Description: row.Description,
-		Enabled:     row.Enabled,
-		TriggerType: row.TriggerType,
-		Graph:       row.Graph,
-		LastRunAt:   row.LastRunAt,
-		CreatedAt:   row.CreatedAt,
-		UpdatedAt:   row.UpdatedAt,
+		ID:                   row.ID,
+		WorkspaceID:          row.WorkspaceID,
+		Name:                 row.Name,
+		Description:          row.Description,
+		Enabled:              row.Enabled,
+		TriggerType:          row.TriggerType,
+		Graph:                row.Graph,
+		NotifyOnFailureEmail: row.NotifyOnFailureEmail,
+		LastRunAt:            row.LastRunAt,
+		CreatedAt:            row.CreatedAt,
+		UpdatedAt:            row.UpdatedAt,
 	}
 }
 

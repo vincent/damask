@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
+	"damask/server/internal/events"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
@@ -29,6 +31,8 @@ type Deps struct {
 	Queue       queue.JobQueue
 	Storage     storage.Storage
 	Mailer      mail.Mailer
+	Hub         events.EventHub
+	Audit       audit.Writer
 	Assets      AssetManager
 	Variants    VariantManager
 	Shares      ShareManager

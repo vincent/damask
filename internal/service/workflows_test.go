@@ -45,14 +45,18 @@ func TestWorkflowServiceGetWrongWorkspace(t *testing.T) {
 func TestWorkflowServiceCreateOK(t *testing.T) {
 	svc, _, _, _ := newWorkflowSvc(t)
 	dto, err := svc.Create(context.Background(), "ws_1", "usr_1", service.CreateWorkflowParams{
-		Name:  "My Workflow",
-		Graph: `{"nodes":[{"id":"n1","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
+		Name:                 "My Workflow",
+		Graph:                `{"nodes":[{"id":"n1","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
+		NotifyOnFailureEmail: "ops@example.com",
 	})
 	if err != nil {
 		t.Fatalf("Create() unexpected error: %v", err)
 	}
 	if !dto.Enabled {
 		t.Fatal("expected new workflow to be enabled")
+	}
+	if dto.NotifyOnFailureEmail != "ops@example.com" {
+		t.Fatalf("expected notify email to be persisted, got %q", dto.NotifyOnFailureEmail)
 	}
 }
 
@@ -71,5 +75,16 @@ func TestWorkflowServiceTriggerManualEnqueuesRun(t *testing.T) {
 	}
 	if runID == "" || queue.enqueued != 1 {
 		t.Fatalf("expected run to be created and enqueued, run_id=%q enqueued=%d", runID, queue.enqueued)
+	}
+}
+
+func TestWorkflowServiceTemplates(t *testing.T) {
+	svc, _, _, _ := newWorkflowSvc(t)
+	templates := svc.Templates()
+	if len(templates) < 5 {
+		t.Fatalf("expected embedded templates, got %d", len(templates))
+	}
+	if templates[0].Graph == "" {
+		t.Fatal("expected template graph payload")
 	}
 }

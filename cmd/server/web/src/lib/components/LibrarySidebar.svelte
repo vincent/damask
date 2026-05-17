@@ -19,9 +19,11 @@
   import { selectionStore } from '$lib/stores/selection.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { undoStore } from '$lib/stores/undo.svelte'
+  import { workflowsStore } from '$lib/stores/workflows.svelte'
   import {
     Activity,
     ArrowLeft,
+    ChevronDown,
     Download,
     History,
     Info,
@@ -84,6 +86,12 @@
       label: () => m.integrations_title(),
       path: '/library/settings/integrations',
       icon: Plug,
+    },
+    {
+      id: 'workflows',
+      label: () => 'Workflows',
+      path: '/library/settings/workflows',
+      icon: Megaphone,
     },
     {
       id: 'versioning',
@@ -251,6 +259,9 @@
     <nav class="flex flex-col gap-0.5 px-3 pb-3">
       {#each settingsSections as section}
         {@const Icon = section.icon}
+        {@const isWorkflows = section.id === 'workflows'}
+        {@const workflowsExpanded =
+          isWorkflows && activeSettingsSection === 'workflows'}
         <a
           href={section.path}
           class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
@@ -265,7 +276,48 @@
               : 'text-[var(--text-muted)]'}"
           />
           <span class="flex-1 text-left">{section.label()}</span>
+          {#if isWorkflows && workflowsStore.workflows.length > 0}
+            <ChevronDown
+              class="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)] transition-transform duration-150 {workflowsExpanded
+                ? 'rotate-180'
+                : ''}"
+            />
+          {/if}
         </a>
+
+        {#if isWorkflows && workflowsExpanded}
+          <div
+            class="ml-3 flex flex-col gap-0.5 border-l border-[var(--border-subtle)] pl-3"
+          >
+            {#each workflowsStore.workflows as wf (wf.id)}
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors
+                  {workflowsStore.selectedId === wf.id
+                  ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent-text)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}"
+                onclick={() => {
+                  workflowsStore.selectedId = wf.id
+                  handleAnchorNavigate()
+                }}
+              >
+                <span
+                  class="h-1.5 w-1.5 shrink-0 rounded-full {wf.enabled
+                    ? 'bg-emerald-500'
+                    : 'bg-zinc-400'}"
+                ></span>
+                <span class="truncate">{wf.name}</span>
+              </button>
+            {/each}
+            <a
+              href="/library/settings/workflows/runs"
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
+              onclick={handleAnchorNavigate}
+            >
+              <span class="truncate">Run history</span>
+            </a>
+          </div>
+        {/if}
       {/each}
     </nav>
 

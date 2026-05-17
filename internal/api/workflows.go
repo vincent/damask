@@ -13,9 +13,10 @@ import (
 // workflowRequest is used for both create and update. PUT is replace-all:
 // all three fields are required.
 type workflowRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Graph       string `json:"graph"`
+	Name                 string `json:"name"`
+	Description          string `json:"description"`
+	Graph                string `json:"graph"`
+	NotifyOnFailureEmail string `json:"notify_on_failure_email"`
 }
 
 type toggleWorkflowRequest struct {
@@ -24,16 +25,17 @@ type toggleWorkflowRequest struct {
 
 func workflowToResponse(dto service.WorkflowDTO) fiber.Map {
 	return fiber.Map{
-		"id":           dto.ID,
-		"workspace_id": dto.WorkspaceID,
-		"name":         dto.Name,
-		"description":  dto.Description,
-		"enabled":      dto.Enabled,
-		"trigger_type": dto.TriggerType,
-		"graph":        dto.Graph,
-		"last_run_at":  dto.LastRunAt,
-		"created_at":   dto.CreatedAt,
-		"updated_at":   dto.UpdatedAt,
+		"id":                      dto.ID,
+		"workspace_id":            dto.WorkspaceID,
+		"name":                    dto.Name,
+		"description":             dto.Description,
+		"enabled":                 dto.Enabled,
+		"trigger_type":            dto.TriggerType,
+		"graph":                   dto.Graph,
+		"notify_on_failure_email": dto.NotifyOnFailureEmail,
+		"last_run_at":             dto.LastRunAt,
+		"created_at":              dto.CreatedAt,
+		"updated_at":              dto.UpdatedAt,
 	}
 }
 
@@ -87,9 +89,10 @@ func (s *Server) handleCreateWorkflow(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	dto, err := s.workflows.Create(c.Context(), claims.WorkspaceID, claims.UserID, service.CreateWorkflowParams{
-		Name:        req.Name,
-		Description: req.Description,
-		Graph:       req.Graph,
+		Name:                 req.Name,
+		Description:          req.Description,
+		Graph:                req.Graph,
+		NotifyOnFailureEmail: req.NotifyOnFailureEmail,
 	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)
@@ -102,7 +105,7 @@ func (s *Server) handleGetWorkflowNodeSchemas(c fiber.Ctx) error {
 }
 
 func (s *Server) handleGetWorkflowTemplates(c fiber.Ctx) error {
-	return c.JSON([]any{})
+	return c.JSON(s.workflows.Templates())
 }
 
 func (s *Server) handleGetWorkflow(c fiber.Ctx) error {
@@ -121,9 +124,10 @@ func (s *Server) handleUpdateWorkflow(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
 	dto, err := s.workflows.Update(c.Context(), claims.WorkspaceID, c.Params("id"), service.UpdateWorkflowParams{
-		Name:        &req.Name,
-		Description: &req.Description,
-		Graph:       &req.Graph,
+		Name:                 &req.Name,
+		Description:          &req.Description,
+		Graph:                &req.Graph,
+		NotifyOnFailureEmail: &req.NotifyOnFailureEmail,
 	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)

@@ -181,6 +181,8 @@ func main() {
 		Queue:       q,
 		Storage:     stor,
 		Mailer:      mailer,
+		Hub:         eventsHub,
+		Audit:       auditWriter,
 		Assets:      workflowadapter.NewAssetManager(assetSvc),
 		Variants:    workflowadapter.NewVariantManager(variantSvc),
 		Shares:      workflowadapter.NewShareManager(shareSvc),

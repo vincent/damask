@@ -261,6 +261,7 @@ type WorkflowService interface {
 	GetWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
 	RegenerateWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
 	NodeSchemas() []WorkflowNodeSchema
+	Templates() []WorkflowTemplateDTO
 }
 
 // FieldService handles business logic for custom field definitions.
