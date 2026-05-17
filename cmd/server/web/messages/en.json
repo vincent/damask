@@ -986,5 +986,6 @@
   "setup_complete_error": "Setup has already been completed.",
   "variants_visibility": "Variant visibility",
   "share_all": "Share all",
-  "make_all_private": "Make all private"
+  "make_all_private": "Make all private",
+  "add_workflow": "Add workflow"
 }

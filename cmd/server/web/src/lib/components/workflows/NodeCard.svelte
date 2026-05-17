@@ -163,11 +163,18 @@
   style:transition={cardTransition}
 >
   {#if assetThumbUrl || variantThumbUrl}
-    <div class="absolute bottom-[calc(100%+10px)] left-0 flex gap-2 pointer-events-none">
+    <div
+      class="pointer-events-none absolute bottom-[calc(100%+10px)] left-0 flex gap-2"
+    >
       {#if assetThumbUrl}
         <div class="flex flex-col items-start gap-1">
-          <span class="rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 font-mono text-[9px] font-semibold tracking-[0.1em] text-[var(--text-muted)] uppercase border border-[var(--border-subtle)]">asset</span>
-          <div class="h-14 w-14 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] shadow-[0_4px_16px_rgba(15,23,42,0.18)]">
+          <span
+            class="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 font-mono text-[9px] font-semibold tracking-[0.1em] text-[var(--text-muted)] uppercase"
+            >asset</span
+          >
+          <div
+            class="h-14 w-14 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] shadow-[0_4px_16px_rgba(15,23,42,0.18)]"
+          >
             <img
               src={assetThumbUrl}
               alt="Asset thumbnail"
@@ -179,8 +186,13 @@
       {/if}
       {#if variantThumbUrl}
         <div class="flex flex-col items-start gap-1">
-          <span class="rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 font-mono text-[9px] font-semibold tracking-[0.1em] text-emerald-600 dark:text-emerald-400 uppercase border border-emerald-400/30">variant</span>
-          <div class="h-14 w-14 overflow-hidden rounded-xl border border-emerald-400/30 bg-[var(--bg-elevated)] shadow-[0_4px_16px_rgba(15,23,42,0.18)]">
+          <span
+            class="rounded-full border border-emerald-400/30 bg-[var(--bg-elevated)] px-2 py-0.5 font-mono text-[9px] font-semibold tracking-[0.1em] text-emerald-600 uppercase dark:text-emerald-400"
+            >variant</span
+          >
+          <div
+            class="h-14 w-14 overflow-hidden rounded-xl border border-emerald-400/30 bg-[var(--bg-elevated)] shadow-[0_4px_16px_rgba(15,23,42,0.18)]"
+          >
             <img
               src={variantThumbUrl}
               alt="Variant thumbnail"

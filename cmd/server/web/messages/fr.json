@@ -136,7 +136,7 @@
   "none": "Aucun",
   "add": "Ajouter",
   "tag": "Tag",
-  "add_ingress_source": "Ajouter une source d'ingestion",
+  "add_ingress_source": "Ajouter une source",
   "add_ingress_subtitle": "Choisissez d'où proviendront les fichiers.",
   "test_connection": "Tester la connexion",
   "testing_connection": "Test de la connexion…",

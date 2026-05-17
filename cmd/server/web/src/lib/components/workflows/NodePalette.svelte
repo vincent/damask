@@ -9,6 +9,7 @@
 
   let { schemas, onAdd = () => {}, disabled = false }: Props = $props()
 
+  const groupNames = ['trigger', 'filter', 'action']
   const grouped = $derived.by(() => {
     const groups = new Map<string, WorkflowNodeSchema[]>()
     for (const schema of schemas) {
@@ -16,7 +17,14 @@
       list.push(schema)
       groups.set(schema.category, list)
     }
-    return Array.from(groups.entries())
+    return Array.from(groups.entries()).sort((a, b) => {
+      const ai = groupNames.indexOf(a[0])
+      const bi = groupNames.indexOf(b[0])
+      if (ai === -1 && bi === -1) return a[0].localeCompare(b[0])
+      if (ai === -1) return 1
+      if (bi === -1) return -1
+      return ai - bi
+    })
   })
 
   function accentDot(category: string) {
@@ -59,18 +67,9 @@
   }
 </script>
 
-<div
-  class="flex flex-col gap-4 rounded-[24px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4"
->
-  <div>
-    <p
-      class="text-[10px] font-semibold tracking-[0.18em] text-[var(--text-muted)] uppercase"
-    >
-      Node Palette
-    </p>
-    <p class="mt-1.5 text-xs text-[var(--text-secondary)]">
-      Click to add — or drag onto the canvas.
-    </p>
+<div class="flex flex-col gap-4 p-4 pt-0">
+  <div class="mt-1.5 text-xs text-[var(--text-secondary)]">
+    Click to add nodes.
   </div>
 
   {#each grouped as [category, items] (category)}

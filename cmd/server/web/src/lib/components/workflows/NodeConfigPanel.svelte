@@ -84,7 +84,7 @@
 </script>
 
 <div
-  class="flex flex-col rounded-[24px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+  class="flex flex-col rounded-tl-[24px] rounded-bl-[24px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
 >
   <div
     class="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5"

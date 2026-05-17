@@ -509,3 +509,8 @@ CREATE TABLE workflow_webhook_tokens (
     token_hash  TEXT NOT NULL UNIQUE,
     created_at  DATETIME NOT NULL DEFAULT (datetime('now'))
 );
+
+UPDATE workflows
+SET enabled = 0,
+    updated_at = datetime('now')
+WHERE enabled = 1;

@@ -20,6 +20,7 @@
     Upload,
     Download,
     Settings2,
+    GitBranch,
   } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'
   import UndoRedo from './UndoRedo.svelte'
@@ -81,14 +82,19 @@
           onSelect: () => sheetUploadInputEl?.click(),
         },
         {
+          key: 'members',
+          label: m.member_invite(),
+          onSelect: () => goto('/library/settings/members'),
+        },
+        {
           key: 'ingress',
           label: m.add_ingress_source(),
           onSelect: () => goto('/library/settings/ingress'),
         },
         {
-          key: 'members',
-          label: m.member_invite(),
-          onSelect: () => goto('/library/settings/members'),
+          key: 'workflows',
+          label: m.add_workflow(),
+          onSelect: () => goto('/library/settings/workflows'),
         },
         {
           key: 'tags',
@@ -251,6 +257,17 @@
             <!-- Workspace actions -->
             <p class="add-dropdown-group-label">Workspace</p>
             <a
+              href="/library/settings/members"
+              role="menuitem"
+              class="add-dropdown-item"
+              onclick={() => {
+                addMenuOpen = false
+              }}
+            >
+              <Users class="add-dropdown-icon" />
+              {m.member_invite()}
+            </a>
+            <a
               href="/library/settings/ingress"
               role="menuitem"
               class="add-dropdown-item"
@@ -262,15 +279,15 @@
               {m.add_ingress_source()}
             </a>
             <a
-              href="/library/settings/members"
+              href="/library/settings/workflows"
               role="menuitem"
               class="add-dropdown-item"
               onclick={() => {
                 addMenuOpen = false
               }}
             >
-              <Users class="add-dropdown-icon" />
-              {m.member_invite()}
+              <GitBranch class="add-dropdown-icon" />
+              {m.add_workflow()}
             </a>
 
             <div class="add-dropdown-divider"></div>

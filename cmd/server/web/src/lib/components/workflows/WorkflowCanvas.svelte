@@ -14,7 +14,10 @@
   }
 
   interface StepCtxMap {
-    [nodeId: string]: { input: Record<string, unknown>; output: Record<string, unknown> }
+    [nodeId: string]: {
+      input: Record<string, unknown>
+      output: Record<string, unknown>
+    }
   }
 
   interface Props {
@@ -259,7 +262,7 @@
   bind:this={root}
   class="grid gap-4 {readonly
     ? 'grid-cols-1'
-    : 'xl:grid-cols-[280px_minmax(0,1fr)_320px]'}"
+    : 'xl:grid-cols-[280px_minmax(0,1fr)_400px]'}"
 >
   {#if !readonly}
     <NodePalette {schemas} onAdd={addNode} />
@@ -278,7 +281,7 @@
     onpointerdown={startPan}
   >
     <div
-      class="absolute inset-0 transition-transform"
+      class="absolute inset-0 overflow-visible transition-transform"
       style:transform={`translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`}
     >
       <svg
@@ -306,7 +309,7 @@
         <NodeCard
           {node}
           schema={schemaFor(node.type)}
-          selected={node.id === selectedNodeId}
+          selected={!readonly && node.id === selectedNodeId}
           {readonly}
           status={stepStatuses[node.id] ?? null}
           inputCtx={stepCtx[node.id]?.input ?? null}
@@ -322,8 +325,11 @@
     </div>
 
     {#if !readonly}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="absolute right-4 bottom-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 font-mono text-[11px] font-medium text-[var(--text-muted)] shadow-sm select-none"
+        onclick={() => (transform = { ...transform, scale: 1 })}
+        class="zoom-level absolute right-4 bottom-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 font-mono text-[11px] font-medium text-[var(--text-muted)] shadow-sm select-none"
       >
         {Math.round(transform.scale * 100)}%{isPanning ? ' · panning' : ''}
       </div>

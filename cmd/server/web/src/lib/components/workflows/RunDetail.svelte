@@ -27,7 +27,10 @@
   })
 
   const stepCtx = $derived.by(() => {
-    const out: Record<string, { input: Record<string, unknown>; output: Record<string, unknown> }> = {}
+    const out: Record<
+      string,
+      { input: Record<string, unknown>; output: Record<string, unknown> }
+    > = {}
     for (const step of run?.steps ?? []) {
       out[step.node_id] = { input: step.input_ctx, output: step.output_ctx }
     }
@@ -85,91 +88,39 @@
   })
 </script>
 
-<div class="space-y-4">
-  <div
-    class="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
-  >
-    <div class="border-b border-[var(--border-subtle)] px-4 py-4">
-      <h3 class="text-sm font-semibold text-[var(--text-primary)]">
-        Run Detail
-      </h3>
-      <p class="mt-1 text-sm text-[var(--text-secondary)]">
-        Follow execution status node-by-node on the workflow graph.
-      </p>
-    </div>
-
-    {#if run === null || graph === null}
-      <div class="px-4 py-6 text-sm text-[var(--text-muted)]">
-        Select a run to inspect step-by-step execution.
-      </div>
-    {:else}
-      <div class="space-y-4 px-4 py-4">
-        <div class="grid gap-3 lg:grid-cols-3">
-          <div>
-            <p
-              class="text-[11px] font-semibold tracking-[0.16em] text-[var(--text-muted)] uppercase"
-            >
-              Status
-            </p>
-            <span
-              class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase {statusClass(
-                run.status
-              )}"
-            >
-              {run.status}
-            </span>
-          </div>
-          <div>
-            <p
-              class="text-[11px] font-semibold tracking-[0.16em] text-[var(--text-muted)] uppercase"
-            >
-              Started
-            </p>
-            <p class="mt-2 text-sm text-[var(--text-primary)]">
-              {run.started_at
-                ? new Date(run.started_at).toLocaleString()
-                : 'Pending'}
-            </p>
-          </div>
-          <div>
-            <p
-              class="text-[11px] font-semibold tracking-[0.16em] text-[var(--text-muted)] uppercase"
-            >
-              Completed
-            </p>
-            <p class="mt-2 text-sm text-[var(--text-primary)]">
-              {run.completed_at
-                ? new Date(run.completed_at).toLocaleString()
-                : 'Still running'}
-            </p>
-          </div>
-        </div>
-
-        {#if run.error}
-          <div
-            class="rounded-2xl border border-rose-500/20 bg-rose-500/8 px-4 py-3 text-sm text-rose-700 dark:text-rose-300"
-          >
-            {run.error}
-          </div>
-        {/if}
-
-        <WorkflowCanvas {graph} {schemas} readonly={true} {stepStatuses} {stepCtx} />
+{#if run === null || graph === null}
+  <div class="px-4 py-6 text-sm text-[var(--text-muted)]">
+    Select a run to inspect step-by-step execution.
+  </div>
+{:else}
+  <div class="space-y-5">
+    {#if run.error}
+      <div
+        class="rounded-2xl border border-rose-500/20 bg-rose-500/8 px-4 py-3 text-sm text-rose-700 dark:text-rose-300"
+      >
+        {run.error}
       </div>
     {/if}
-  </div>
 
-  {#if run}
+    <WorkflowCanvas
+      {graph}
+      {schemas}
+      readonly={true}
+      {stepStatuses}
+      {stepCtx}
+    />
+
+    <!-- Step timeline -->
     <div
       class="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
     >
-      <div class="border-b border-[var(--border-subtle)] px-4 py-4">
+      <div class="border-b border-[var(--border-subtle)] px-4 py-3">
         <h4 class="text-sm font-semibold text-[var(--text-primary)]">
           Step Timeline
         </h4>
       </div>
-
       <div class="px-4 py-4">
-        {#if run.steps.length === 0}
+        {#if !run.steps?.length}
           <p class="text-sm text-[var(--text-muted)]">No steps recorded yet.</p>
         {:else}
           <div class="relative space-y-0">
@@ -215,7 +166,6 @@
                     </span>
                   </div>
                 </summary>
-
                 <div class="pt-2 pb-3">
                   {#if step.error}
                     <p
@@ -224,7 +174,6 @@
                       {step.error}
                     </p>
                   {/if}
-
                   <div class="grid gap-3 xl:grid-cols-2">
                     <div>
                       <p
@@ -256,5 +205,5 @@
         {/if}
       </div>
     </div>
-  {/if}
-</div>
+  </div>
+{/if}

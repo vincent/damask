@@ -136,7 +136,7 @@
   "none": "Ninguno",
   "add": "Añadir",
   "tag": "Etiqueta",
-  "add_ingress_source": "Añadir fuente de ingestión",
+  "add_ingress_source": "Añadir fuente",
   "add_ingress_subtitle": "Elige de dónde vendrán los archivos.",
   "test_connection": "Probar conexión",
   "testing_connection": "Probando conexión…",
