@@ -238,6 +238,17 @@
     pendingEdge = null
   }
 
+  function deleteEdgesForPort(nodeId: string, portId: string, isOutput: boolean) {
+    graph = {
+      ...graph,
+      edges: graph.edges.filter((edge) =>
+        isOutput
+          ? !(edge.from_node === nodeId && edge.from_port === portId)
+          : !(edge.to_node === nodeId && edge.to_port === portId)
+      ),
+    }
+  }
+
   $effect(() => {
     if (!pendingEdge || typeof window === 'undefined') return
 
@@ -328,6 +339,7 @@
           onMove={(dx, dy) => moveNode(node.id, dx, dy)}
           onPortDown={(portId, event) => startEdge(node.id, portId, event)}
           onPortUp={(portId) => completeEdge(node.id, portId)}
+          onPortContextMenu={(portId, isOutput) => deleteEdgesForPort(node.id, portId, isOutput)}
         />
       {/each}
     </div>

@@ -16,6 +16,7 @@
     onMove?: (dx: number, dy: number) => void
     onPortDown?: (portId: string, event: PointerEvent) => void
     onPortUp?: (portId: string) => void
+    onPortContextMenu?: (portId: string, isOutput: boolean, event: MouseEvent) => void
   }
 
   let {
@@ -30,6 +31,7 @@
     onMove = () => {},
     onPortDown = () => {},
     onPortUp = () => {},
+    onPortContextMenu = () => {},
   }: Props = $props()
 
   const VITE_API_URL = import.meta.env.VITE_API_URL ?? ''
@@ -254,6 +256,7 @@
                 )} {readonly ? '' : 'cursor-crosshair hover:scale-125'}"
                 disabled={readonly}
                 onpointerup={() => onPortUp(port.id)}
+                oncontextmenu={(e) => { e.preventDefault(); onPortContextMenu(port.id, false, e) }}
               ></button>
               <span
                 class="text-[10px] font-medium tracking-[0.12em] text-[var(--text-muted)] uppercase"
@@ -281,6 +284,7 @@
                 )} {readonly ? '' : 'cursor-crosshair hover:scale-125'}"
                 disabled={readonly}
                 onpointerdown={(event) => onPortDown(port.id, event)}
+                oncontextmenu={(e) => { e.preventDefault(); onPortContextMenu(port.id, true, e) }}
               ></button>
             </div>
           {/each}
