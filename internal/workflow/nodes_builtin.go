@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
+
+	"github.com/google/uuid"
 )
 
 func mustConfigSchema(raw string) json.RawMessage {
@@ -80,8 +82,8 @@ func init() {
 		return filterNode{schema: filterSchema("filter.expression", "Filter Expression", "Routes based on a key/value comparison.", mustConfigSchema(`{"type":"object","properties":{"key":{"type":"string","title":"Context Key"},"value":{"type":"string","title":"Expected Value"}},"required":["key","value"],"additionalProperties":false}`)), matchFn: matchExpression}
 	})
 
-	Register(actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type"},"params":{"type":"object","title":"Params","format":"json"}},"required":["type"],"additionalProperties":false}`)), func(deps Deps) Node {
-		return createVariantNode{deps: deps, schema: actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type"},"params":{"type":"object","title":"Params","format":"json"}},"required":["type"],"additionalProperties":false}`))}
+	Register(actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"}},"required":["type"],"additionalProperties":false}`)), func(deps Deps) Node {
+		return createVariantNode{deps: deps, schema: actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"}},"required":["type"],"additionalProperties":false}`))}
 	})
 	Register(actionSchema("action.share", "Create Share", "Creates a share for the asset.", mustConfigSchema(`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`)), func(deps Deps) Node {
 		return createShareNode{deps: deps, schema: actionSchema("action.share", "Create Share", "Creates a share for the asset.", mustConfigSchema(`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`))}
@@ -146,7 +148,7 @@ func matchFilename(rc *RunContext, cfg json.RawMessage) (bool, error) {
 	if c.Contains != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(c.Contains)) {
 		return false, nil
 	}
-	if c.Extension != "" && strings.ToLower(filepath.Ext(name)) != strings.ToLower(c.Extension) {
+	if c.Extension != "" && !strings.EqualFold(filepath.Ext(name), c.Extension) {
 		return false, nil
 	}
 	return true, nil
@@ -266,11 +268,13 @@ func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json
 		}
 	}
 	storageKey, _ := rcGetString(rc, "storage_key")
+	variantID := uuid.NewString()
 	payload, _ := json.Marshal(VariantJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,
 		VersionID:   versionID,
 		VersionNum:  versionNum,
+		VariantID:   variantID,
 		StorageKey:  storageKey,
 		MimeType:    asset.MimeType,
 		Type:        prepared.Type,
@@ -280,7 +284,7 @@ func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json
 	if err != nil {
 		return "", nil, err
 	}
-	return "out", map[string]any{"variant_job_id": job.ID, "variant_type": prepared.Type}, nil
+	return "out", map[string]any{"variant_id": variantID, "variant_job_id": job.ID, "variant_type": prepared.Type}, nil
 }
 
 type createShareNode struct {

@@ -54,7 +54,10 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 		return fmt.Errorf("extract thumbnail: %w", err)
 	}
 
-	variantID := uuid.NewString()
+	variantID := p.VariantID
+	if variantID == "" {
+		variantID = uuid.NewString()
+	}
 	paramsJSON, _ := json.Marshal(params)
 	paramsHash := canonicalParamsHash(string(paramsJSON))
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoCaptureImage, paramsHash, ".jpg")
@@ -142,7 +145,10 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 		return fmt.Errorf("read output: %w", err)
 	}
 
-	variantID := uuid.NewString()
+	variantID := p.VariantID
+	if variantID == "" {
+		variantID = uuid.NewString()
+	}
 	paramsJSON, _ := json.Marshal(params)
 	pj := string(paramsJSON)
 	paramsHash := canonicalParamsHash(pj)
@@ -233,7 +239,10 @@ func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error 
 		return fmt.Errorf("read output: %w", err)
 	}
 
-	variantID := uuid.NewString()
+	variantID := p.VariantID
+	if variantID == "" {
+		variantID = uuid.NewString()
+	}
 	paramsJSON, _ := json.Marshal(params)
 	pj := string(paramsJSON)
 	paramsHash := canonicalParamsHash(pj)

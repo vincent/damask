@@ -5,9 +5,21 @@
     schemas: WorkflowNodeSchema[]
     onAdd?: (nodeType: string) => void
     disabled?: boolean
+    hasTrigger?: boolean
   }
 
-  let { schemas, onAdd = () => {}, disabled = false }: Props = $props()
+  let {
+    schemas,
+    onAdd = () => {},
+    disabled = false,
+    hasTrigger = false,
+  }: Props = $props()
+
+  function isNodeDisabled(category: string): boolean {
+    if (disabled) return true
+    if (category === 'trigger') return hasTrigger
+    return !hasTrigger
+  }
 
   const groupNames = ['trigger', 'filter', 'action']
   const grouped = $derived.by(() => {
@@ -67,7 +79,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-4 p-4 pt-0">
+<div class="flex flex-col gap-4 p-4">
   <div class="mt-1.5 text-xs text-[var(--text-secondary)]">
     Click to add nodes.
   </div>
@@ -90,7 +102,7 @@
             class="group rounded-xl border px-3 py-2 text-left transition-all disabled:cursor-not-allowed disabled:opacity-50 {accentCard(
               category
             )}"
-            {disabled}
+            disabled={isNodeDisabled(category)}
             onclick={() => onAdd(schema.type)}
           >
             <span class="block text-[13px] font-semibold {accentText(category)}"

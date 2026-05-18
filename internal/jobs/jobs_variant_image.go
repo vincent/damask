@@ -115,7 +115,10 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 	}
 
 	ext := MimeToExt(contentType)
-	variantID := uuid.NewString()
+	variantID := p.VariantID
+	if variantID == "" {
+		variantID = uuid.NewString()
+	}
 	paramsStr := string(p.Params)
 	paramsHash := canonicalParamsHash(paramsStr)
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, job.Type, paramsHash, ext)
@@ -168,7 +171,10 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("remove background: %w", err)
 	}
 
-	variantID := uuid.NewString()
+	variantID := p.VariantID
+	if variantID == "" {
+		variantID = uuid.NewString()
+	}
 	paramsStr := string(p.Params)
 	paramsHash := canonicalParamsHash(paramsStr)
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeImageBgRemove, paramsHash, ".png")
@@ -178,25 +184,15 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 	}
 
 	sz := int64(len(result))
-	if p.VariantID != "" {
-		variantID = p.VariantID
-		_, err = s.sqlDB.ExecContext(ctx, `
-			UPDATE variants
-			SET storage_key = ?, transform_params = ?, size = ?, status = 'ready'
-			WHERE id = ? AND workspace_id = ?`,
-			storageKey, paramsStr, sz, variantID, p.WorkspaceID,
-		)
-	} else {
-		_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-			ID:              variantID,
-			WorkspaceID:     p.WorkspaceID,
-			AssetVersionID:  p.VersionID,
-			Type:            queue.JobTypeImageBgRemove,
-			StorageKey:      storageKey,
-			TransformParams: &paramsStr,
-			Size:            &sz,
-		})
-	}
+	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              variantID,
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
+		Type:            queue.JobTypeImageBgRemove,
+		StorageKey:      storageKey,
+		TransformParams: &paramsStr,
+		Size:            &sz,
+	})
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")
@@ -228,7 +224,10 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 		return fmt.Errorf("image transform with prompt: %w", err)
 	}
 
-	variantID := uuid.NewString()
+	variantID := p.VariantID
+	if variantID == "" {
+		variantID = uuid.NewString()
+	}
 	paramsStr := string(p.Params)
 	paramsHash := canonicalParamsHash(paramsStr)
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeImageWithPrompt, paramsHash, ".png")
@@ -238,25 +237,15 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 	}
 
 	sz := int64(len(result))
-	if p.VariantID != "" {
-		variantID = p.VariantID
-		_, err = s.sqlDB.ExecContext(ctx, `
-			UPDATE variants
-			SET storage_key = ?, transform_params = ?, size = ?, status = 'ready'
-			WHERE id = ? AND workspace_id = ?`,
-			storageKey, paramsStr, sz, variantID, p.WorkspaceID,
-		)
-	} else {
-		_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-			ID:              variantID,
-			WorkspaceID:     p.WorkspaceID,
-			AssetVersionID:  p.VersionID,
-			Type:            queue.JobTypeImageWithPrompt,
-			StorageKey:      storageKey,
-			TransformParams: &paramsStr,
-			Size:            &sz,
-		})
-	}
+	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              variantID,
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
+		Type:            queue.JobTypeImageWithPrompt,
+		StorageKey:      storageKey,
+		TransformParams: &paramsStr,
+		Size:            &sz,
+	})
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/png")

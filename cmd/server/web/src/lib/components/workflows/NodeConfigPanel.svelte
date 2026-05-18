@@ -1,10 +1,15 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import type {
     WorkflowGraphNode,
     WorkflowNodeConfigSchema,
     WorkflowNodeSchema,
   } from '$lib/api/workflows'
+  import { folderApi, tagApi, type Folder } from '$lib/api'
+  import type { Tag } from '$lib/api/models'
   import Input from '$lib/components/ui/Input.svelte'
+  import { projectsStore } from '$lib/stores/projects.svelte'
+  import { variantTypes, variantTypeMap } from '$lib/stores/variantTypes.svelte'
 
   interface Props {
     node: WorkflowGraphNode | null
@@ -81,6 +86,58 @@
     if (!Array.isArray(value)) return ''
     return value.join('\n')
   }
+
+  // Project / folder selectors
+  let folders = $state<Folder[]>([])
+  let foldersLoading = $state(false)
+
+  // Tag selector
+  let tags = $state<Tag[]>([])
+
+  onMount(() => {
+    if (projectsStore.projects.length === 0) projectsStore.load()
+    tagApi
+      .list()
+      .then((data) => {
+        tags = data
+      })
+      .catch(() => {})
+  })
+
+  const selectedProjectId = $derived(
+    (currentConfig()['project_id'] as string | undefined) ?? ''
+  )
+
+  $effect(() => {
+    if (!selectedProjectId) {
+      folders = []
+      return
+    }
+    foldersLoading = true
+    folderApi
+      .list(selectedProjectId)
+      .then((data) => {
+        folders = data
+      })
+      .catch(() => {
+        folders = []
+      })
+      .finally(() => {
+        foldersLoading = false
+      })
+  })
+
+  function flattenFolders(
+    list: Folder[],
+    depth = 0
+  ): { folder: Folder; depth: number }[] {
+    return list.flatMap((f) => [
+      { folder: f, depth },
+      ...flattenFolders(f.children ?? [], depth + 1),
+    ])
+  }
+
+  const flatFolders = $derived(flattenFolders(folders))
 </script>
 
 <div
@@ -129,13 +186,130 @@
       <div class="space-y-4">
         {#each properties as [key, field] (key)}
           <div class="space-y-1.5">
-            {#if field.enum && field.enum.length > 0}
+            {#if key === 'project_id'}
               <label
+                for="project-id-select"
+                class="block text-sm font-medium text-[var(--text-primary)]"
+              >
+                {field.title ?? 'Project'}
+              </label>
+              <select
+                id="project-id-select"
+                class="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none disabled:opacity-50"
+                disabled={readonly}
+                value={stringValue(key)}
+                onchange={(event) => {
+                  const val = (event.currentTarget as HTMLSelectElement).value
+                  const next: Record<string, unknown> = {
+                    ...currentConfig(),
+                    project_id: val,
+                  }
+                  delete next['folder_id']
+                  onUpdate(next)
+                }}
+              >
+                <option value="">Select project…</option>
+                {#each projectsStore.projects as project (project.id)}
+                  <option value={project.id}>{project.name}</option>
+                {/each}
+              </select>
+            {:else if key === 'folder_id'}
+              <label
+                for="folder-id-select"
+                class="block text-sm font-medium text-[var(--text-primary)]"
+              >
+                {field.title ?? 'Folder'}
+              </label>
+              <select
+                id="folder-id-select"
+                class="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none disabled:opacity-50"
+                disabled={readonly || !selectedProjectId || foldersLoading}
+                value={stringValue(key)}
+                onchange={(event) =>
+                  updateField(
+                    key,
+                    (event.currentTarget as HTMLSelectElement).value
+                  )}
+              >
+                <option value="">
+                  {#if !selectedProjectId}
+                    Select a project first
+                  {:else if foldersLoading}
+                    Loading…
+                  {:else}
+                    Root (no folder)
+                  {/if}
+                </option>
+                {#each flatFolders as { folder, depth } (folder.id)}
+                  <option value={folder.id}>
+                    {'  '.repeat(depth)}{folder.name}
+                  </option>
+                {/each}
+              </select>
+            {:else if field.format === 'variant'}
+              <label
+                for={'variant-type-' + key}
                 class="block text-sm font-medium text-[var(--text-primary)]"
               >
                 {field.title ?? key}
               </label>
               <select
+                id={'variant-type-' + key}
+                class="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none disabled:opacity-50"
+                disabled={readonly}
+                value={stringValue(key)}
+                onchange={(event) => {
+                  const val = (event.currentTarget as HTMLSelectElement).value
+                  updateField(key, val)
+                  const def = variantTypeMap.get(val)
+                  if (def && !currentConfig()['params']) {
+                    updateField('params', def.paramsExample)
+                  }
+                }}
+              >
+                <option value="">Select variant type…</option>
+                {#each ['image', 'video', 'audio'] as category (category)}
+                  <optgroup
+                    label={category.charAt(0).toUpperCase() + category.slice(1)}
+                  >
+                    {#each variantTypes.filter((v) => v.category === category) as vt (vt.value)}
+                      <option value={vt.value}>{vt.label}</option>
+                    {/each}
+                  </optgroup>
+                {/each}
+              </select>
+            {:else if field.format === 'tag'}
+              <label
+                for={'tag-value-' + key}
+                class="block text-sm font-medium text-[var(--text-primary)]"
+              >
+                {field.title ?? key}
+              </label>
+              <select
+                id={'tag-value-' + key}
+                class="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none disabled:opacity-50"
+                disabled={readonly}
+                value={stringValue(key)}
+                onchange={(event) =>
+                  updateField(
+                    key,
+                    (event.currentTarget as HTMLSelectElement).value
+                  )}
+              >
+                <option value="">Select tag…</option>
+                {#each tags as tag (tag.name)}
+                  <option value={tag.name}>{tag.name}</option>
+                {/each}
+              </select>
+            {:else if field.enum && field.enum.length > 0}
+              <label
+                for={'enum-value-' + key}
+                class="block text-sm font-medium text-[var(--text-primary)]"
+              >
+                {field.title ?? key}
+              </label>
+              <select
+                id={'enum-value-' + key}
                 class="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none"
                 disabled={readonly}
                 value={stringValue(key)}
@@ -152,9 +326,11 @@
               </select>
             {:else if field.type === 'boolean'}
               <label
+                for={'boolean-value-' + key}
                 class="flex cursor-pointer items-center gap-3 text-sm text-[var(--text-primary)]"
               >
                 <input
+                  id={'boolean-value-' + key}
                   type="checkbox"
                   class="h-4 w-4 rounded accent-[var(--accent)]"
                   disabled={readonly}
@@ -180,11 +356,13 @@
               />
             {:else if field.type === 'array' && field.items?.type === 'string'}
               <label
+                for={'array-value-' + key}
                 class="block text-sm font-medium text-[var(--text-primary)]"
               >
                 {field.title ?? key}
               </label>
               <textarea
+                id={'array-value-' + key}
                 class="min-h-24 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none"
                 disabled={readonly}
                 value={arrayValue(key)}
@@ -199,23 +377,44 @@
                   )}
               ></textarea>
             {:else if field.type === 'object' || field.format === 'json' || field.format === 'template'}
-              <label
-                class="block text-sm font-medium text-[var(--text-primary)]"
-              >
-                {field.title ?? key}
-              </label>
+              {@const selectedVariantType =
+                key === 'params'
+                  ? variantTypeMap.get(stringValue('type'))
+                  : undefined}
+              <div class="flex items-center justify-between">
+                <label
+                  for={'json-value-' + key}
+                  class="block text-sm font-medium text-[var(--text-primary)]"
+                >
+                  {field.title ?? key}
+                </label>
+                {#if selectedVariantType && !readonly}
+                  <button
+                    type="button"
+                    class="text-[11px] font-medium text-[var(--accent)] hover:underline"
+                    onclick={() =>
+                      updateField(key, selectedVariantType.paramsExample)}
+                  >
+                    Fill example
+                  </button>
+                {/if}
+              </div>
               <textarea
-                class="min-h-28 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none"
+                id={'json-value-' + key}
+                data-testid={'json-input-' + key}
                 disabled={readonly}
                 value={jsonValue(key)}
-                placeholder={field.format === 'template'
-                  ? '{{ ctx.asset_id }}'
-                  : '{\n  "key": "value"\n}'}
+                placeholder={selectedVariantType
+                  ? JSON.stringify(selectedVariantType.paramsExample, null, 2)
+                  : field.format === 'template'
+                    ? '{{ ctx.asset_id }}'
+                    : '{\n  "key": "value"\n}'}
                 oninput={(event) =>
                   updateJsonField(
                     key,
                     (event.currentTarget as HTMLTextAreaElement).value
                   )}
+                class="min-h-32 w-full resize-y rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 font-mono text-xs leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none disabled:opacity-50"
               ></textarea>
             {:else}
               <Input
@@ -236,14 +435,6 @@
                 Standard cron expression, e.g. <code class="font-mono"
                   >0 8 * * 1-5</code
                 >.
-              </p>
-            {:else if field.format === 'folder'}
-              <p class="text-xs text-[var(--text-muted)]">
-                Enter a folder ID — picker coming soon.
-              </p>
-            {:else if field.format === 'tag'}
-              <p class="text-xs text-[var(--text-muted)]">
-                Enter a tag name — picker coming soon.
               </p>
             {/if}
           </div>

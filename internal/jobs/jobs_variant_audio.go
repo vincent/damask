@@ -69,7 +69,10 @@ func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error 
 	}
 
 	sz := int64(len(dstData))
-	variantID := uuid.NewString()
+	variantID := p.VariantID
+	if variantID == "" {
+		variantID = uuid.NewString()
+	}
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
 		WorkspaceID:     p.WorkspaceID,

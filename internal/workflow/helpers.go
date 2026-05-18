@@ -82,6 +82,7 @@ type VariantJobPayload struct {
 	WorkspaceID string          `json:"workspace_id"`
 	VersionID   string          `json:"version_id"`
 	VersionNum  int64           `json:"version_num"`
+	VariantID   string          `json:"variant_id,omitempty"`
 	StorageKey  string          `json:"storage_key"`
 	MimeType    string          `json:"mime_type"`
 	Type        string          `json:"type"`

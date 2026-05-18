@@ -3,7 +3,12 @@
   import Title from './Title.svelte'
   import UserMenu from './UserMenu.svelte'
 
-  let { title, description = undefined, meta = undefined, children = undefined } = $props()
+  let {
+    title,
+    description = undefined,
+    meta = undefined,
+    children = undefined,
+  } = $props()
 </script>
 
 <!-- Header -->

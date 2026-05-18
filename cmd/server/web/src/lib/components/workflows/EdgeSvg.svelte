@@ -19,6 +19,7 @@
     pending?: PendingEdge | null
     outputPortsMap?: Record<string, SchemaPort[]>
     inputPortsMap?: Record<string, SchemaPort[]>
+    animated?: boolean
   }
 
   let {
@@ -27,6 +28,7 @@
     pending = null,
     outputPortsMap = {},
     inputPortsMap = {},
+    animated = false,
   }: Props = $props()
 
   const CARD_WIDTH = 248
@@ -83,8 +85,25 @@
   <path
     d={path}
     fill="none"
-    stroke={pending ? 'rgba(14, 165, 233, 0.9)' : 'rgba(100, 116, 139, 0.85)'}
-    stroke-width={pending ? '3' : '2.5'}
+    stroke={pending
+      ? 'rgba(14, 165, 233, 0.9)'
+      : animated
+        ? 'rgba(14, 165, 233, 0.75)'
+        : 'rgba(100, 116, 139, 0.85)'}
+    stroke-width="2.5"
+    stroke-dasharray={animated ? '6 4' : undefined}
     stroke-linecap="round"
+    class={animated ? 'animated-edge' : ''}
   />
 {/if}
+
+<style>
+  @keyframes dashdraw {
+    to {
+      stroke-dashoffset: -10;
+    }
+  }
+  :global(.animated-edge) {
+    animation: dashdraw 0.4s linear infinite;
+  }
+</style>

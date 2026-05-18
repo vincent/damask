@@ -1,7 +1,11 @@
 <script lang="ts">
   import { X, Search, RefreshCw } from '@lucide/svelte'
   import { fly } from 'svelte/transition'
-  import { workflowsApi, type Workflow, type WorkflowRun } from '$lib/api/workflows'
+  import {
+    workflowsApi,
+    type Workflow,
+    type WorkflowRun,
+  } from '$lib/api/workflows'
   import RunHistory from './RunHistory.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
@@ -47,7 +51,9 @@
     class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800"
   >
     <div class="min-w-0">
-      <h2 class="text-md truncate font-semibold text-gray-900 dark:text-gray-50">
+      <h2
+        class="text-md truncate font-semibold text-gray-900 dark:text-gray-50"
+      >
         {workflow.name}
       </h2>
       <Hint class="text-sm">Run history</Hint>
@@ -95,7 +101,8 @@
               }}
             >
               <span
-                class="h-1.5 w-1.5 shrink-0 rounded-full {run.status === 'completed'
+                class="h-1.5 w-1.5 shrink-0 rounded-full {run.status ===
+                'completed'
                   ? 'bg-emerald-400'
                   : run.status === 'failed'
                     ? 'bg-rose-400'
@@ -124,7 +131,9 @@
             </button>
 
             {#if isSelected}
-              <div class="border-t border-gray-100 px-3 py-2 dark:border-gray-700">
+              <div
+                class="border-t border-gray-100 px-3 py-2 dark:border-gray-700"
+              >
                 <Button
                   size="sm"
                   variant="ghost"

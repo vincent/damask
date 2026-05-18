@@ -265,7 +265,13 @@
     : 'xl:grid-cols-[280px_minmax(0,1fr)_400px]'}"
 >
   {#if !readonly}
-    <NodePalette {schemas} onAdd={addNode} />
+    <NodePalette
+      {schemas}
+      onAdd={addNode}
+      hasTrigger={graph.nodes.some(
+        (n) => schemaFor(n.type)?.category === 'trigger'
+      )}
+    />
   {/if}
 
   <div
@@ -293,6 +299,8 @@
             nodes={graph.nodes}
             {outputPortsMap}
             {inputPortsMap}
+            animated={stepStatuses[edge.from_node] === 'completed' &&
+              edge.to_node in stepStatuses}
           />
         {/each}
         {#if pendingEdge}
