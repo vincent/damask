@@ -69,3 +69,27 @@ func TestUpdateWorkflowParamsValidate(t *testing.T) {
 		t.Fatalf("expected ErrInvalidInput for email, got %v", err)
 	}
 }
+
+func TestCreateVariantAutomationParamsValidate(t *testing.T) {
+	tests := []struct {
+		name string
+		in   service.CreateVariantAutomationParams
+		want error
+	}{
+		{"workspace", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeWorkspace}, nil},
+		{"project", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeProject}, nil},
+		{"folder", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeFolder}, nil},
+		{"asset", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeAsset}, nil},
+		{"missing asset", service.CreateVariantAutomationParams{Scope: service.AutomationScopeWorkspace}, apperr.ErrInvalidInput},
+		{"bad scope", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: "global"}, apperr.ErrInvalidInput},
+	}
+	for _, tt := range tests {
+		err := tt.in.Validate()
+		if tt.want == nil && err != nil {
+			t.Fatalf("%s: unexpected error: %v", tt.name, err)
+		}
+		if tt.want != nil && !errors.Is(err, tt.want) {
+			t.Fatalf("%s: expected %v, got %v", tt.name, tt.want, err)
+		}
+	}
+}

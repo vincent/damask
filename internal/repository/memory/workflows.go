@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"sync"
 	"time"
@@ -73,6 +74,7 @@ func (r *WorkflowMemoryRepo) Create(_ context.Context, p repository.CreateWorkfl
 		Description:          p.Description,
 		Enabled:              p.Enabled,
 		TriggerType:          p.TriggerType,
+		TriggerConfig:        defaultTriggerConfig(p.TriggerConfig),
 		Graph:                p.Graph,
 		NotifyOnFailureEmail: p.NotifyOnFailureEmail,
 		CreatedBy:            p.CreatedBy,
@@ -99,6 +101,9 @@ func (r *WorkflowMemoryRepo) Update(_ context.Context, p repository.UpdateWorkfl
 	if p.TriggerType != nil {
 		wf.TriggerType = *p.TriggerType
 	}
+	if p.TriggerConfig != nil {
+		wf.TriggerConfig = defaultTriggerConfig(*p.TriggerConfig)
+	}
 	if p.Graph != nil {
 		wf.Graph = *p.Graph
 	}
@@ -109,6 +114,46 @@ func (r *WorkflowMemoryRepo) Update(_ context.Context, p repository.UpdateWorkfl
 	wf.UpdatedAt = now
 	r.workflows[p.ID] = wf
 	return wf, nil
+}
+
+func (r *WorkflowMemoryRepo) FindCoveringWorkflow(_ context.Context, workspaceID, assetProjectID, assetFolderID string) (*repository.CoveringWorkflow, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	type candidate struct {
+		wf    repository.Workflow
+		score int
+	}
+	var candidates []candidate
+	for _, wf := range r.workflows {
+		if wf.WorkspaceID != workspaceID || wf.TriggerType != "trigger.version_uploaded" || !wf.Enabled {
+			continue
+		}
+		var cfg struct {
+			ProjectID string `json:"project_id"`
+			FolderID  string `json:"folder_id"`
+		}
+		_ = json.Unmarshal([]byte(defaultTriggerConfig(wf.TriggerConfig)), &cfg)
+		switch {
+		case cfg.FolderID != "" && cfg.FolderID == assetFolderID:
+			candidates = append(candidates, candidate{wf: wf, score: 0})
+		case cfg.ProjectID != "" && cfg.ProjectID == assetProjectID:
+			candidates = append(candidates, candidate{wf: wf, score: 1})
+		case cfg.FolderID == "" && cfg.ProjectID == "":
+			candidates = append(candidates, candidate{wf: wf, score: 2})
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, apperr.ErrNotFound
+	}
+	sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].score < candidates[j].score })
+	best := candidates[0].wf
+	return &repository.CoveringWorkflow{
+		ID:            best.ID,
+		Name:          best.Name,
+		TriggerType:   best.TriggerType,
+		TriggerConfig: defaultTriggerConfig(best.TriggerConfig),
+		Enabled:       best.Enabled,
+	}, nil
 }
 
 func (r *WorkflowMemoryRepo) SetEnabled(_ context.Context, workspaceID, id string, enabled bool) error {
@@ -151,6 +196,13 @@ func (r *WorkflowMemoryRepo) TouchLastRunAt(_ context.Context, id string) error 
 
 func (r *WorkflowMemoryRepo) RunInTx(_ context.Context, fn func(repository.WorkflowRepository) error) error {
 	return fn(r)
+}
+
+func defaultTriggerConfig(v string) string {
+	if v == "" {
+		return "{}"
+	}
+	return v
 }
 
 type WorkflowRunMemoryRepo struct {

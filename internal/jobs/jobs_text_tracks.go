@@ -125,7 +125,7 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) (err
 		AssetID:     p.AssetID,
 		WorkspaceID: p.WorkspaceID,
 		Source:      "ocr",
-		Lang:        stringPtrOrNil(p.Lang),
+		Lang:        p.Lang,
 		Content:     plainText,
 	}); err != nil {
 		telemetry.EndSpan(ftsSpan, err)

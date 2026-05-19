@@ -21,12 +21,12 @@ func NewWorkflowRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.WorkflowReposit
 }
 
 func (r *workflowRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Workflow, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE id = ? AND workspace_id = ?`, id, workspaceID)
+	row := r.sqlDB.QueryRowContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE id = ? AND workspace_id = ?`, id, workspaceID)
 	return scanWorkflow(row)
 }
 
 func (r *workflowRepo) List(ctx context.Context, workspaceID string) ([]repository.Workflow, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE workspace_id = ? ORDER BY created_at DESC, id DESC`, workspaceID)
+	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE workspace_id = ? ORDER BY created_at DESC, id DESC`, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (r *workflowRepo) List(ctx context.Context, workspaceID string) ([]reposito
 }
 
 func (r *workflowRepo) ListByTrigger(ctx context.Context, triggerType string) ([]repository.Workflow, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE trigger_type = ? AND enabled = 1 ORDER BY created_at DESC, id DESC`, triggerType)
+	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE trigger_type = ? AND enabled = 1 ORDER BY created_at DESC, id DESC`, triggerType)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +44,8 @@ func (r *workflowRepo) ListByTrigger(ctx context.Context, triggerType string) ([
 }
 
 func (r *workflowRepo) Create(ctx context.Context, p repository.CreateWorkflowParams) (repository.Workflow, error) {
-	_, err := r.sqlDB.ExecContext(ctx, `INSERT INTO workflows (id, workspace_id, name, description, enabled, trigger_type, graph, notify_on_failure_email, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.WorkspaceID, p.Name, p.Description, workflowBoolToInt(p.Enabled), p.TriggerType, p.Graph, p.NotifyOnFailureEmail, p.CreatedBy,
+	_, err := r.sqlDB.ExecContext(ctx, `INSERT INTO workflows (id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.WorkspaceID, p.Name, p.Description, workflowBoolToInt(p.Enabled), p.TriggerType, defaultString(p.TriggerConfig, "{}"), p.Graph, p.NotifyOnFailureEmail, p.CreatedBy,
 	)
 	if err != nil {
 		return repository.Workflow{}, err
@@ -67,19 +67,54 @@ func (r *workflowRepo) Update(ctx context.Context, p repository.UpdateWorkflowPa
 	if p.TriggerType != nil {
 		current.TriggerType = *p.TriggerType
 	}
+	if p.TriggerConfig != nil {
+		current.TriggerConfig = *p.TriggerConfig
+	}
 	if p.Graph != nil {
 		current.Graph = *p.Graph
 	}
 	if p.NotifyOnFailureEmail != nil {
 		current.NotifyOnFailureEmail = *p.NotifyOnFailureEmail
 	}
-	_, err = r.sqlDB.ExecContext(ctx, `UPDATE workflows SET name = ?, description = ?, trigger_type = ?, graph = ?, notify_on_failure_email = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?`,
-		current.Name, current.Description, current.TriggerType, current.Graph, current.NotifyOnFailureEmail, current.ID, current.WorkspaceID,
+	_, err = r.sqlDB.ExecContext(ctx, `UPDATE workflows SET name = ?, description = ?, trigger_type = ?, trigger_config = ?, graph = ?, notify_on_failure_email = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?`,
+		current.Name, current.Description, current.TriggerType, defaultString(current.TriggerConfig, "{}"), current.Graph, current.NotifyOnFailureEmail, current.ID, current.WorkspaceID,
 	)
 	if err != nil {
 		return repository.Workflow{}, err
 	}
 	return r.GetByID(ctx, p.WorkspaceID, p.ID)
+}
+
+func (r *workflowRepo) FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*repository.CoveringWorkflow, error) {
+	const q = `
+		SELECT id, name, trigger_type, trigger_config, enabled
+		FROM workflows
+		WHERE workspace_id = ?
+		  AND trigger_type = 'trigger.version_uploaded'
+		  AND enabled = 1
+		  AND (
+			(JSON_EXTRACT(trigger_config, '$.project_id') IS NULL AND JSON_EXTRACT(trigger_config, '$.folder_id') IS NULL)
+			OR JSON_EXTRACT(trigger_config, '$.project_id') = ?
+			OR JSON_EXTRACT(trigger_config, '$.folder_id') = ?
+		  )
+		ORDER BY
+		  CASE
+			WHEN JSON_EXTRACT(trigger_config, '$.folder_id') = ? THEN 0
+			WHEN JSON_EXTRACT(trigger_config, '$.project_id') = ? THEN 1
+			ELSE 2
+		  END
+		LIMIT 1`
+	row := r.sqlDB.QueryRowContext(ctx, q, workspaceID, assetProjectID, assetFolderID, assetFolderID, assetProjectID)
+	var wf repository.CoveringWorkflow
+	var enabled int
+	if err := row.Scan(&wf.ID, &wf.Name, &wf.TriggerType, &wf.TriggerConfig, &enabled); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, apperr.ErrNotFound
+		}
+		return nil, err
+	}
+	wf.Enabled = enabled == 1
+	return &wf, nil
 }
 
 func (r *workflowRepo) SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error {
@@ -272,7 +307,7 @@ func (r *workflowWebhookRepo) Delete(ctx context.Context, workflowID string) err
 func scanWorkflow(row scanner) (repository.Workflow, error) {
 	var wf repository.Workflow
 	var enabled int
-	err := row.Scan(&wf.ID, &wf.WorkspaceID, &wf.Name, &wf.Description, &enabled, &wf.TriggerType, &wf.Graph, &wf.NotifyOnFailureEmail, &wf.LastRunAt, &wf.CreatedBy, &wf.CreatedAt, &wf.UpdatedAt)
+	err := row.Scan(&wf.ID, &wf.WorkspaceID, &wf.Name, &wf.Description, &enabled, &wf.TriggerType, &wf.TriggerConfig, &wf.Graph, &wf.NotifyOnFailureEmail, &wf.LastRunAt, &wf.CreatedBy, &wf.CreatedAt, &wf.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.Workflow{}, apperr.ErrNotFound
@@ -280,6 +315,9 @@ func scanWorkflow(row scanner) (repository.Workflow, error) {
 		return repository.Workflow{}, err
 	}
 	wf.Enabled = enabled == 1
+	if wf.TriggerConfig == "" {
+		wf.TriggerConfig = "{}"
+	}
 	return wf, nil
 }
 

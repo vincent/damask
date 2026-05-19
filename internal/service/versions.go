@@ -336,6 +336,7 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 		}
 	}
 
+	// todo: remove me ?
 	if err := jobs.EnqueueRebuildVariantsJob(ctx, s.queue, p.WorkspaceID, p.AssetID, newVersion.ID, prevVersionID); err != nil {
 		slog.ErrorContext(ctx, "enqueue rebuild variants", "asset_id", p.AssetID, "version_id", newVersion.ID, "error", err)
 	}

@@ -31,6 +31,8 @@ type VariantJobPayload struct {
 	MimeType    string          `json:"mime_type"`
 	Type        string          `json:"type"`
 	Params      json.RawMessage `json:"params"`
+	Title       *string         `json:"title,omitempty"`
+	IsShared    bool            `json:"is_shared,omitempty"`
 }
 
 // enqueueVariantThumb enqueues a generate_variant_thumbnail job after a variant row is created.
@@ -128,7 +130,7 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 	}
 
 	sz := int64(len(data))
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+	_, err = s.db.CreateVariantFull(ctx, dbgen.CreateVariantFullParams{
 		ID:              variantID,
 		WorkspaceID:     p.WorkspaceID,
 		AssetVersionID:  p.VersionID,
@@ -136,6 +138,9 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		StorageKey:      storageKey,
 		TransformParams: &paramsStr,
 		Size:            &sz,
+		Status:          "ready",
+		Title:           p.Title,
+		IsShared:        boolToInt64(p.IsShared),
 	})
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
@@ -184,7 +189,7 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 	}
 
 	sz := int64(len(result))
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+	_, err = s.db.CreateVariantFull(ctx, dbgen.CreateVariantFullParams{
 		ID:              variantID,
 		WorkspaceID:     p.WorkspaceID,
 		AssetVersionID:  p.VersionID,
@@ -192,6 +197,9 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		StorageKey:      storageKey,
 		TransformParams: &paramsStr,
 		Size:            &sz,
+		Status:          "ready",
+		Title:           p.Title,
+		IsShared:        boolToInt64(p.IsShared),
 	})
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
@@ -237,7 +245,7 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 	}
 
 	sz := int64(len(result))
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+	_, err = s.db.CreateVariantFull(ctx, dbgen.CreateVariantFullParams{
 		ID:              variantID,
 		WorkspaceID:     p.WorkspaceID,
 		AssetVersionID:  p.VersionID,
@@ -245,6 +253,9 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 		StorageKey:      storageKey,
 		TransformParams: &paramsStr,
 		Size:            &sz,
+		Status:          "ready",
+		Title:           p.Title,
+		IsShared:        boolToInt64(p.IsShared),
 	})
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
@@ -478,4 +489,11 @@ func (s *JobServer) runImageRouterJob(
 		return nil, err
 	}
 	return result, nil
+}
+
+func boolToInt64(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }

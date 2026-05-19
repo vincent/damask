@@ -321,6 +321,16 @@ export const variantApi = {
       body: JSON.stringify({ type, params }),
     }),
 
+  /** POST /api/v1/assets/:id/variants/automate (editor+) — create a disabled workflow from current variants. */
+  automate: (assetId: string, scope: 'workspace' | 'project' | 'folder') =>
+    apiFetch<import('./models').AutomateVariantsResponse>(
+      `/api/v1/assets/${assetId}/variants/automate`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ scope }),
+      }
+    ),
+
   /** GET /api/v1/assets/:id/variants/watermark — resolve the watermark asset selected by backend fallback rules. */
   resolveWatermark: (assetId: string) =>
     apiFetch<WatermarkAsset>(`/api/v1/assets/${assetId}/variants/watermark`),

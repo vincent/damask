@@ -400,6 +400,19 @@
   "close": "Close",
   "no_variants_yet": "No variants yet.",
   "variant_use_tabs": "Use the tabs above to create a variant.",
+  "variant_automation_button": "Create variant automation",
+  "variant_automation_modal_title": "Automate these variants",
+  "variant_automation_preview_hint": "We'll create a workflow that recreates these variants whenever a new version is uploaded.",
+  "variant_automation_scope_label": "Apply this automation to:",
+  "variant_automation_scope_workspace": "All uploads in this workspace",
+  "variant_automation_scope_project": "Uploads to this project only",
+  "variant_automation_scope_folder": "Uploads to this folder only",
+  "variant_automation_create_btn": "Create workflow",
+  "variant_automation_error_create": "Failed to create the automation. Please try again.",
+  "variant_automation_covered_by": "Variants are automated by",
+  "variant_automation_covered_scope_workspace": "(workspace-wide)",
+  "variant_automation_covered_scope_project": "(this project)",
+  "variant_automation_covered_scope_folder": "(this folder)",
   "upload_new_version": "Upload new version",
   "quick_actions": "Quick Actions",
   "onboard_upload": "Upload files",
@@ -987,5 +1000,6 @@
   "variants_visibility": "Variant visibility",
   "share_all": "Share all",
   "make_all_private": "Make all private",
-  "add_workflow": "Add workflow"
+  "add_workflow": "Add workflow",
+  "variant_automation_scope_asset": "This asset only"
 }

@@ -82,8 +82,8 @@ func init() {
 		return filterNode{schema: filterSchema("filter.expression", "Filter Expression", "Routes based on a key/value comparison.", mustConfigSchema(`{"type":"object","properties":{"key":{"type":"string","title":"Context Key"},"value":{"type":"string","title":"Expected Value"}},"required":["key","value"],"additionalProperties":false}`)), matchFn: matchExpression}
 	})
 
-	Register(actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"}},"required":["type"],"additionalProperties":false}`)), func(deps Deps) Node {
-		return createVariantNode{deps: deps, schema: actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"}},"required":["type"],"additionalProperties":false}`))}
+	Register(actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`)), func(deps Deps) Node {
+		return createVariantNode{deps: deps, schema: actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`))}
 	})
 	Register(actionSchema("action.share", "Create Share", "Creates a share for the asset.", mustConfigSchema(`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`)), func(deps Deps) Node {
 		return createShareNode{deps: deps, schema: actionSchema("action.share", "Create Share", "Creates a share for the asset.", mustConfigSchema(`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`))}
@@ -235,8 +235,10 @@ func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json
 		return "", nil, err
 	}
 	var nodeCfg struct {
-		Type   string          `json:"type"`
-		Params json.RawMessage `json:"params"`
+		Type     string          `json:"type"`
+		Params   json.RawMessage `json:"params"`
+		Title    *string         `json:"title,omitempty"`
+		IsShared bool            `json:"is_shared"`
 	}
 	if err := json.Unmarshal(cfg, &nodeCfg); err != nil {
 		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
@@ -250,6 +252,8 @@ func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json
 		ImageRouterConfigured: currentVer,
 		DefaultImageModel:     n.deps.Config.ImageRouter.DefaultModel,
 		DefaultBgRemoveModel:  n.deps.Config.ImageRouter.DefaultBgRemoveModel,
+		Title:                 nodeCfg.Title,
+		IsShared:              nodeCfg.IsShared,
 	})
 	if err != nil {
 		return "", nil, err
@@ -279,6 +283,8 @@ func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json
 		MimeType:    asset.MimeType,
 		Type:        prepared.Type,
 		Params:      prepared.Params,
+		Title:       prepared.Title,
+		IsShared:    prepared.IsShared,
 	})
 	job, err := n.deps.Queue.Enqueue(ctx, workspaceID, prepared.Type, string(payload))
 	if err != nil {

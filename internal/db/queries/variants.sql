@@ -62,3 +62,8 @@ WHERE id = ? AND workspace_id = ?;
 
 -- name: SetVariantStatus :exec
 UPDATE variants SET status = ? WHERE id = ? AND workspace_id = ?;
+
+-- name: CreateVariantFull :one
+INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING *;

@@ -108,7 +108,7 @@ WHERE asset_id = ? AND workspace_id = ?
 `
 
 type DeleteTextTracksByAssetParams struct {
-	AssetID      string `json:"asset_id"`
+	AssetID     string `json:"asset_id"`
 	WorkspaceID string `json:"workspace_id"`
 }
 
@@ -156,12 +156,12 @@ VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type InsertTextFTSParams struct {
-	TrackID     string  `json:"track_id"`
-	AssetID     string  `json:"asset_id"`
-	WorkspaceID string  `json:"workspace_id"`
-	Source      string  `json:"source"`
-	Lang        *string `json:"lang"`
-	Content     string  `json:"content"`
+	TrackID     string `json:"track_id"`
+	AssetID     string `json:"asset_id"`
+	WorkspaceID string `json:"workspace_id"`
+	Source      string `json:"source"`
+	Lang        string `json:"lang"`
+	Content     string `json:"content"`
 }
 
 func (q *Queries) InsertTextFTS(ctx context.Context, arg InsertTextFTSParams) error {
@@ -183,7 +183,7 @@ ORDER BY created_at DESC
 `
 
 type ListTextTracksByAssetParams struct {
-	AssetID      string `json:"asset_id"`
+	AssetID     string `json:"asset_id"`
 	WorkspaceID string `json:"workspace_id"`
 }
 
@@ -230,30 +230,30 @@ const searchTextTracksByContent = `-- name: SearchTextTracksByContent :many
 SELECT DISTINCT asset_id
 FROM assets_text_fts
 WHERE workspace_id = ?
-  AND assets_text_fts MATCH ?
+  AND content MATCH ?
 ORDER BY rank
 LIMIT ?
 `
 
 type SearchTextTracksByContentParams struct {
 	WorkspaceID string `json:"workspace_id"`
-	Match       string `json:"match"`
+	Content     string `json:"content"`
 	Limit       int64  `json:"limit"`
 }
 
 func (q *Queries) SearchTextTracksByContent(ctx context.Context, arg SearchTextTracksByContentParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, searchTextTracksByContent, arg.WorkspaceID, arg.Match, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, searchTextTracksByContent, arg.WorkspaceID, arg.Content, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	items := []string{}
 	for rows.Next() {
-		var assetID string
-		if err := rows.Scan(&assetID); err != nil {
+		var asset_id string
+		if err := rows.Scan(&asset_id); err != nil {
 			return nil, err
 		}
-		items = append(items, assetID)
+		items = append(items, asset_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

@@ -80,11 +80,15 @@ type PrepareCreateVariantParams struct {
 	ImageRouterConfigured bool
 	DefaultImageModel     string
 	DefaultBgRemoveModel  string
+	Title                 *string
+	IsShared              bool
 }
 
 type PreparedCreateVariant struct {
-	Type   string
-	Params json.RawMessage
+	Type     string
+	Params   json.RawMessage
+	Title    *string
+	IsShared bool
 }
 
 type PromoteVariantParams struct {
@@ -117,7 +121,7 @@ type WatermarkAssetDTO struct {
 
 // VariantService handles business logic for asset variant records.
 type VariantService interface {
-	List(ctx context.Context, workspaceID, assetID string) ([]*VariantDTO, error)
+	List(ctx context.Context, p ListVariantsParams) (*ListVariantsResult, error)
 	Get(ctx context.Context, workspaceID, id string) (*VariantDTO, error)
 	PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error)
 	Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error)
@@ -258,6 +262,8 @@ type WorkflowService interface {
 	TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRun(ctx context.Context, workspaceID, runID string) (*WorkflowRunDTO, error)
 	ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error)
+	FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflowDTO, error)
+	CreateFromVariants(ctx context.Context, workspaceID string, p CreateVariantAutomationParams) (*WorkflowDTO, error)
 	GetWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
 	RegenerateWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
 	NodeSchemas() []WorkflowNodeSchema

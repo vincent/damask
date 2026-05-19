@@ -4,6 +4,7 @@
     variantApi,
     mimeCategory,
     type Asset,
+    type CoveringWorkflow,
     type Variant,
   } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
@@ -11,7 +12,7 @@
   import { projectsStore } from '$lib/stores/projects.svelte'
   import ShareModal from './ShareModal.svelte'
   import PreviewToolbar from './ui/PreviewToolbar.svelte'
-  import { Inbox, RefreshCw, Share, Upload } from '@lucide/svelte'
+  import { Inbox, RefreshCw, Share, Upload, Zap } from '@lucide/svelte'
   import AssetTags from './AssetTags.svelte'
   import AssetMetadata from './AssetMetadata.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
@@ -24,6 +25,8 @@
   import AssetVariantsGrid from './AssetVariantsGrid.svelte'
   import VariantSharingHeader from './variants/VariantSharingHeader.svelte'
   import VariantPromoteForm from './variants/VariantPromoteForm.svelte'
+  import CoveringWorkflowBanner from './variants/CoveringWorkflowBanner.svelte'
+  import CreateVariantAutomationModal from './variants/CreateVariantAutomationModal.svelte'
   import AssetMetadataPills from './AssetMetadataPills.svelte'
   import AssetExportImage from './AssetExportImage.svelte'
   import AssetDeleteButton from './AssetDeleteButton.svelte'
@@ -172,7 +175,9 @@
 
   // --- Variant state ---
   let variants = $state<Variant[]>([])
+  let coveringWorkflow = $state<CoveringWorkflow | null>(null)
   let variantsLoading = $state(false)
+  let showAutomationModal = $state(false)
   let creating = $state(false)
   let pendingVariantAssetId = $state<string | null>(null)
   let variantRefreshProgress = $state(0)
@@ -188,6 +193,14 @@
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
   const isVideo = $derived(asset ? mimeIsVideo(asset.mime_type) : false)
   const isAudio = $derived(asset ? mimeIsAudio(asset.mime_type) : false)
+  const automatableVariants = $derived(
+    variants.filter((variant) => variant.type !== 'manual')
+  )
+  const canCreateVariantAutomation = $derived(
+    authStore.role !== 'viewer' &&
+      automatableVariants.length > 0 &&
+      !coveringWorkflow
+  )
 
   // --- Variant preview selection ---
   let selectedVariant = $state<Variant | null>(null)
@@ -248,6 +261,8 @@
   $effect(() => {
     if (!asset) {
       variants = []
+      coveringWorkflow = null
+      showAutomationModal = false
       variantPanelState = { mode: 'list' }
       selectedVariant = null
       assetDetail = null
@@ -262,7 +277,9 @@
     if (!asset) return
     variantsLoading = true
     try {
-      variants = (await variantApi.list(asset.id))?.variants ?? []
+      const response = await variantApi.list(asset.id)
+      variants = response?.variants ?? []
+      coveringWorkflow = response?.covering_workflow ?? null
     } catch {
       // silently ignore
     } finally {
@@ -714,11 +731,26 @@
                 }}
               />
             {:else if activeVariantTab === 'all'}
+              {#if coveringWorkflow}
+                <CoveringWorkflowBanner workflow={coveringWorkflow} />
+              {/if}
               <VariantSharingHeader
                 assetId={asset.id}
                 {variants}
                 onUpdate={replaceVariants}
               />
+              {#if canCreateVariantAutomation}
+                <button
+                  type="button"
+                  class="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                  onclick={() => {
+                    showAutomationModal = true
+                  }}
+                >
+                  <Zap class="h-4 w-4" />
+                  {m.variant_automation_button()}
+                </button>
+              {/if}
               {#if variantRefreshProgress > 0}
                 <div class="mb-4 space-y-2">
                   <p
@@ -858,6 +890,18 @@
       {/if}
     </div>
   </div>
+{/if}
+
+{#if asset && showAutomationModal}
+  <CreateVariantAutomationModal
+    assetId={asset.id}
+    assetProjectId={asset.project_id}
+    assetFolderId={asset.folder_id}
+    assetVariants={automatableVariants}
+    onClose={() => {
+      showAutomationModal = false
+    }}
+  />
 {/if}
 
 {#if showUploadVersionModal && asset}

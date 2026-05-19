@@ -211,6 +211,13 @@ export interface Variant {
   created_at: string
 }
 
+export interface CoveringWorkflow {
+  id: string
+  name: string
+  workflow_url: string
+  scope: 'workspace' | 'project' | 'folder'
+}
+
 export interface SharedVariant {
   id: string
   title: string
@@ -224,12 +231,18 @@ export interface SharedVariant {
 export interface ListVariantsResponse {
   variants: Variant[]
   rebuilding: boolean
+  covering_workflow?: CoveringWorkflow
 }
 
 export interface CreateVariantResponse {
   job_id: string
   status: string
   message: string
+}
+
+export interface AutomateVariantsResponse {
+  workflow_id: string
+  workflow_url: string
 }
 
 export interface PromoteVariantResponse {

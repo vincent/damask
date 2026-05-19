@@ -166,7 +166,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 			AssetID:     row.AssetID,
 			WorkspaceID: row.WorkspaceID,
 			Source:      row.Source,
-			Lang:        row.Lang,
+			Lang:        func() string { if row.Lang != nil { return *row.Lang }; return "" }(),
 			Content:     content,
 		}); err != nil {
 			return TextTrackDTO{}, err

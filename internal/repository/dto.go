@@ -428,12 +428,22 @@ type Workflow struct {
 	Description          string
 	Enabled              bool
 	TriggerType          string
+	TriggerConfig        string
 	Graph                string
 	NotifyOnFailureEmail string
 	LastRunAt            *time.Time
 	CreatedBy            string
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+}
+
+// CoveringWorkflow is the lightweight projection used to detect variant automation coverage.
+type CoveringWorkflow struct {
+	ID            string
+	Name          string
+	TriggerType   string
+	TriggerConfig string
+	Enabled       bool
 }
 
 // CreateWorkflowParams holds the fields needed to create a workflow row.
@@ -444,6 +454,7 @@ type CreateWorkflowParams struct {
 	Description          string
 	Enabled              bool
 	TriggerType          string
+	TriggerConfig        string
 	Graph                string
 	NotifyOnFailureEmail string
 	CreatedBy            string
@@ -456,6 +467,7 @@ type UpdateWorkflowParams struct {
 	Name                 *string
 	Description          *string
 	TriggerType          *string
+	TriggerConfig        *string
 	Graph                *string
 	NotifyOnFailureEmail *string
 }

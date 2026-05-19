@@ -70,11 +70,15 @@ type VariantPrepareRequest struct {
 	ImageRouterConfigured bool
 	DefaultImageModel     string
 	DefaultBgRemoveModel  string
+	Title                 *string
+	IsShared              bool
 }
 
 type VariantPrepareResult struct {
-	Type   string
-	Params json.RawMessage
+	Type     string
+	Params   json.RawMessage
+	Title    *string
+	IsShared bool
 }
 
 type VariantJobPayload struct {
@@ -87,6 +91,8 @@ type VariantJobPayload struct {
 	MimeType    string          `json:"mime_type"`
 	Type        string          `json:"type"`
 	Params      json.RawMessage `json:"params"`
+	Title       *string         `json:"title,omitempty"`
+	IsShared    bool            `json:"is_shared,omitempty"`
 }
 
 type VariantManager interface {

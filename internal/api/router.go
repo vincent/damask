@@ -102,9 +102,10 @@ func NewHttpServer(
 		Triggers: triggerDispatcher,
 	})
 	variantsSvc := service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
-		Actions: service.NewSQLVariantActionsStore(sqlDB),
-		Queue:   q,
-		Storage: stor,
+		Actions:   service.NewSQLVariantActionsStore(sqlDB),
+		Queue:     q,
+		Storage:   stor,
+		Workflows: workflowRepo,
 	})
 	return &Server{
 		db:            db,
@@ -144,7 +145,7 @@ func NewHttpServer(
 			Triggers: triggerDispatcher,
 		}),
 		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
-		workflows:     service.NewWorkflowService(workflowRepo, workflowRunRepo, workflowWebhookRepo, q),
+		workflows:     service.NewWorkflowServiceWithDeps(workflowRepo, workflowRunRepo, workflowWebhookRepo, q, service.WorkflowServiceDeps{Assets: assetRepo, Variants: variantRepo}),
 	}
 }
 
@@ -390,6 +391,7 @@ func NewRouter(
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)
+	api.Post("/assets/:id/variants/automate", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAutomateVariants)
 	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadManualVariant)
 	api.Put("/assets/:id/variants/sharing", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateVariantsSharing)
 	api.Patch("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePatchVariant)

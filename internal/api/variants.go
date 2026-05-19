@@ -56,8 +56,9 @@ type SharedVariantResponse struct {
 }
 
 type ListVariantsResponse struct {
-	Variants   []VariantResponse `json:"variants"`
-	Rebuilding bool              `json:"rebuilding"`
+	Variants         []VariantResponse            `json:"variants"`
+	Rebuilding       bool                         `json:"rebuilding"`
+	CoveringWorkflow *service.CoveringWorkflowDTO `json:"covering_workflow,omitempty"`
 }
 
 type CreateVariantResponse struct {
@@ -87,6 +88,15 @@ type SetVariantThumbnailResponse struct {
 type RerunVariantResponse struct {
 	VariantID string `json:"variant_id"`
 	Status    string `json:"status"`
+}
+
+type automateVariantsRequest struct {
+	Scope string `json:"scope"`
+}
+
+type automateVariantsResponse struct {
+	WorkflowID  string `json:"workflow_id"`
+	WorkflowURL string `json:"workflow_url"`
 }
 
 func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse {
@@ -192,13 +202,26 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	variants, err := s.variants.List(c.Context(), claims.WorkspaceID, assetID)
+	projectID := ""
+	if asset.ProjectID != nil {
+		projectID = *asset.ProjectID
+	}
+	folderID := ""
+	if asset.FolderID != nil {
+		folderID = *asset.FolderID
+	}
+	result, err := s.variants.List(c.Context(), service.ListVariantsParams{
+		WorkspaceID:    claims.WorkspaceID,
+		AssetID:        assetID,
+		AssetProjectID: projectID,
+		AssetFolderID:  folderID,
+	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	out := make([]VariantResponse, len(variants))
-	for i, v := range variants {
+	out := make([]VariantResponse, len(result.Variants))
+	for i, v := range result.Variants {
 		out[i] = variantDTOToResponse(assetID, v)
 	}
 
@@ -207,9 +230,35 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 		rebuilding = s.isRebuildingVariants(c, *asset.CurrentVersionID)
 	}
 
-	return c.JSON(ListVariantsResponse{
+	resp := ListVariantsResponse{
 		Variants:   out,
 		Rebuilding: rebuilding,
+	}
+	if result.CoveringWorkflow != nil {
+		wf := *result.CoveringWorkflow
+		wf.WorkflowURL = "/library/settings/workflows?workflow=" + wf.ID
+		resp.CoveringWorkflow = &wf
+	}
+	return c.JSON(resp)
+}
+
+func (s *Server) handleAutomateVariants(c fiber.Ctx) error {
+	var req automateVariantsRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	claims := auth.GetClaims(c)
+	dto, err := s.workflows.CreateFromVariants(c.Context(), claims.WorkspaceID, service.CreateVariantAutomationParams{
+		AssetID:   c.Params("id"),
+		CreatedBy: claims.UserID,
+		Scope:     service.AutomationScope(req.Scope),
+	})
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(automateVariantsResponse{
+		WorkflowID:  dto.ID,
+		WorkflowURL: "/library/settings/workflows?workflow=" + dto.ID,
 	})
 }
 
@@ -432,13 +481,13 @@ func (s *Server) handleUpdateVariantsSharing(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	variants, err := s.variants.List(ctx, claims.WorkspaceID, assetID)
+	result, err := s.variants.List(ctx, service.ListVariantsParams{WorkspaceID: claims.WorkspaceID, AssetID: assetID})
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
-	out := make([]VariantResponse, len(variants))
-	for i, v := range variants {
+	out := make([]VariantResponse, len(result.Variants))
+	for i, v := range result.Variants {
 		out[i] = variantDTOToResponse(assetID, v)
 	}
 

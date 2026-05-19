@@ -58,21 +58,21 @@ type AssetTag struct {
 }
 
 type AssetTextTrack struct {
-	ID             string     `json:"id"`
-	WorkspaceID    string     `json:"workspace_id"`
-	AssetID        string     `json:"asset_id"`
-	AssetVersionID *string    `json:"asset_version_id"`
-	Source         string     `json:"source"`
-	Lang           *string    `json:"lang"`
-	Content        string     `json:"content"`
-	StorageKey     *string    `json:"storage_key"`
-	ContentType    *string    `json:"content_type"`
-	Meta           *string    `json:"meta"`
-	Status         string     `json:"status"`
-	Error          *string    `json:"error"`
-	CreatedBy      *string    `json:"created_by"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID             string    `json:"id"`
+	WorkspaceID    string    `json:"workspace_id"`
+	AssetID        string    `json:"asset_id"`
+	AssetVersionID *string   `json:"asset_version_id"`
+	Source         string    `json:"source"`
+	Lang           *string   `json:"lang"`
+	Content        string    `json:"content"`
+	StorageKey     *string   `json:"storage_key"`
+	ContentType    *string   `json:"content_type"`
+	Meta           *string   `json:"meta"`
+	Status         string    `json:"status"`
+	Error          *string   `json:"error"`
+	CreatedBy      *string   `json:"created_by"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type AssetVersion struct {
@@ -98,6 +98,15 @@ type AssetVersion struct {
 
 type AssetsFt struct {
 	OriginalFilename string `json:"original_filename"`
+}
+
+type AssetsTextFt struct {
+	TrackID     string `json:"track_id"`
+	AssetID     string `json:"asset_id"`
+	WorkspaceID string `json:"workspace_id"`
+	Source      string `json:"source"`
+	Lang        string `json:"lang"`
+	Content     string `json:"content"`
 }
 
 type Collection struct {
@@ -316,7 +325,58 @@ type Variant struct {
 	Status               string    `json:"status"`
 	ThumbnailKey         *string   `json:"thumbnail_key"`
 	ThumbnailContentType string    `json:"thumbnail_content_type"`
+	Title                *string   `json:"title"`
+	IsShared             int64     `json:"is_shared"`
 	CreatedAt            time.Time `json:"created_at"`
+}
+
+type Workflow struct {
+	ID                   string     `json:"id"`
+	WorkspaceID          string     `json:"workspace_id"`
+	Name                 string     `json:"name"`
+	Description          string     `json:"description"`
+	Enabled              int64      `json:"enabled"`
+	TriggerType          string     `json:"trigger_type"`
+	TriggerConfig        string     `json:"trigger_config"`
+	Graph                string     `json:"graph"`
+	NotifyOnFailureEmail string     `json:"notify_on_failure_email"`
+	LastRunAt            *time.Time `json:"last_run_at"`
+	CreatedBy            string     `json:"created_by"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+type WorkflowRun struct {
+	ID          string     `json:"id"`
+	WorkflowID  string     `json:"workflow_id"`
+	WorkspaceID string     `json:"workspace_id"`
+	Status      string     `json:"status"`
+	TriggerData string     `json:"trigger_data"`
+	Context     string     `json:"context"`
+	Error       *string    `json:"error"`
+	StartedAt   *time.Time `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+type WorkflowRunStep struct {
+	ID          string     `json:"id"`
+	RunID       string     `json:"run_id"`
+	NodeID      string     `json:"node_id"`
+	NodeType    string     `json:"node_type"`
+	Status      string     `json:"status"`
+	Attempt     int64      `json:"attempt"`
+	InputCtx    string     `json:"input_ctx"`
+	OutputCtx   *string    `json:"output_ctx"`
+	Error       *string    `json:"error"`
+	StartedAt   *time.Time `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at"`
+}
+
+type WorkflowWebhookToken struct {
+	WorkflowID string    `json:"workflow_id"`
+	TokenHash  string    `json:"token_hash"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type Workspace struct {

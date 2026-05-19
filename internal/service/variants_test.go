@@ -97,12 +97,18 @@ func newVariantSvcSpy(t *testing.T) (service.VariantService, *memory.RealVariant
 func TestVariantService_List_Empty(t *testing.T) {
 	svc, _, assetRepo := newVariantSvc(t)
 	assetRepo.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_1"})
-	out, err := svc.List(context.Background(), "ws_1", "ast_1")
+	result, err := svc.List(context.Background(), service.ListVariantsParams{
+		WorkspaceID: "ws_1",
+		AssetID:     "ast_1",
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(out) != 0 {
-		t.Errorf("expected empty list, got %d", len(out))
+	if len(result.Variants) != 0 {
+		t.Errorf("expected empty list, got %d", len(result.Variants))
+	}
+	if result.CoveringWorkflow != nil {
+		t.Errorf("expected no covering workflow, got %+v", result.CoveringWorkflow)
 	}
 }
 

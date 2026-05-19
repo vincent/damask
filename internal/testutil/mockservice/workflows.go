@@ -16,11 +16,13 @@ type MockWorkflowService struct {
 	TriggerManualFn   func(ctx context.Context, workspaceID, id string) (string, error)
 	TriggerWebhookFn  func(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRunFn          func(ctx context.Context, workspaceID, runID string) (*service.WorkflowRunDTO, error)
-	ListRunsFn        func(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
-	GetWebhookTokenFn func(ctx context.Context, workspaceID, id string) (string, error)
-	RegenerateTokenFn func(ctx context.Context, workspaceID, id string) (string, error)
-	NodeSchemasFn     func() []service.WorkflowNodeSchema
-	TemplatesFn       func() []service.WorkflowTemplateDTO
+	ListRunsFn           func(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
+	FindCoveringFn       func(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*service.CoveringWorkflowDTO, error)
+	CreateFromVariantsFn func(ctx context.Context, workspaceID string, p service.CreateVariantAutomationParams) (*service.WorkflowDTO, error)
+	GetWebhookTokenFn    func(ctx context.Context, workspaceID, id string) (string, error)
+	RegenerateTokenFn    func(ctx context.Context, workspaceID, id string) (string, error)
+	NodeSchemasFn        func() []service.WorkflowNodeSchema
+	TemplatesFn          func() []service.WorkflowTemplateDTO
 }
 
 func NewWorkflowService() *MockWorkflowService { return &MockWorkflowService{} }
@@ -91,6 +93,20 @@ func (m *MockWorkflowService) GetRun(ctx context.Context, workspaceID, runID str
 func (m *MockWorkflowService) ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error) {
 	if m.ListRunsFn != nil {
 		return m.ListRunsFn(ctx, workflowID, limit, cursor)
+	}
+	return nil, nil
+}
+
+func (m *MockWorkflowService) FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*service.CoveringWorkflowDTO, error) {
+	if m.FindCoveringFn != nil {
+		return m.FindCoveringFn(ctx, workspaceID, assetProjectID, assetFolderID)
+	}
+	return nil, nil
+}
+
+func (m *MockWorkflowService) CreateFromVariants(ctx context.Context, workspaceID string, p service.CreateVariantAutomationParams) (*service.WorkflowDTO, error) {
+	if m.CreateFromVariantsFn != nil {
+		return m.CreateFromVariantsFn(ctx, workspaceID, p)
 	}
 	return nil, nil
 }

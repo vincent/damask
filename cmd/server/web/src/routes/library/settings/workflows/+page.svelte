@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state'
   import { onMount } from 'svelte'
   import {
     ArrowLeft,
@@ -101,6 +102,13 @@
       templates = templateRows
       nodeSchemas = schemaRows
       await workflowsStore.load()
+      const requestedWorkflowID = page.url.searchParams.get('workflow')
+      if (requestedWorkflowID) {
+        const workflow = workflowsStore.workflows.find(
+          (row) => row.id === requestedWorkflowID
+        )
+        if (workflow) openEditor(workflow)
+      }
     } catch (e) {
       toastStore.show(
         e instanceof Error ? e.message : 'Failed to load workflows.',

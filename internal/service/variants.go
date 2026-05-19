@@ -68,13 +68,14 @@ type SharedVariantDTO struct {
 }
 
 type variantService struct {
-	variants repository.VariantRepository
-	assets   repository.AssetRepository
-	tags     TagService
-	audit    audit.Writer
-	actions  VariantActionsStore
-	queue    queue.JobQueue
-	storage  storage.Storage
+	variants  repository.VariantRepository
+	assets    repository.AssetRepository
+	workflows repository.WorkflowRepository
+	tags      TagService
+	audit     audit.Writer
+	actions   VariantActionsStore
+	queue     queue.JobQueue
+	storage   storage.Storage
 }
 
 // NewVariantService returns a VariantService.
@@ -83,27 +84,29 @@ func NewVariantService(variants repository.VariantRepository, assets repository.
 }
 
 type VariantServiceDeps struct {
-	Actions VariantActionsStore
-	Queue   queue.JobQueue
-	Storage storage.Storage
+	Actions   VariantActionsStore
+	Queue     queue.JobQueue
+	Storage   storage.Storage
+	Workflows repository.WorkflowRepository
 }
 
 // NewVariantServiceWithDeps returns a VariantService with the extra dependencies
 // required by advanced variant actions such as promote and rerun.
 func NewVariantServiceWithDeps(variants repository.VariantRepository, assets repository.AssetRepository, tags TagService, aw audit.Writer, deps VariantServiceDeps) VariantService {
 	return &variantService{
-		variants: variants,
-		assets:   assets,
-		tags:     tags,
-		audit:    aw,
-		actions:  deps.Actions,
-		queue:    deps.Queue,
-		storage:  deps.Storage,
+		variants:  variants,
+		assets:    assets,
+		workflows: deps.Workflows,
+		tags:      tags,
+		audit:     aw,
+		actions:   deps.Actions,
+		queue:     deps.Queue,
+		storage:   deps.Storage,
 	}
 }
 
-func (s *variantService) List(ctx context.Context, workspaceID, assetID string) ([]*VariantDTO, error) {
-	rows, err := s.variants.ListByAsset(ctx, workspaceID, assetID)
+func (s *variantService) List(ctx context.Context, p ListVariantsParams) (*ListVariantsResult, error) {
+	rows, err := s.variants.ListByAsset(ctx, p.WorkspaceID, p.AssetID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +114,15 @@ func (s *variantService) List(ctx context.Context, workspaceID, assetID string) 
 	for i, r := range rows {
 		out[i] = toVariantDTO(r, i+1)
 	}
-	return out, nil
+	result := &ListVariantsResult{Variants: out}
+	if s.workflows != nil {
+		wf, err := findCoveringWorkflowDTO(ctx, s.workflows, p.WorkspaceID, p.AssetProjectID, p.AssetFolderID)
+		if err != nil {
+			return nil, err
+		}
+		result.CoveringWorkflow = wf
+	}
+	return result, nil
 }
 
 func (s *variantService) Get(ctx context.Context, workspaceID, id string) (*VariantDTO, error) {
@@ -159,12 +170,16 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 		return PreparedCreateVariant{}, invalidVariantInput("imagerouter_not_configured")
 	}
 
+	meta := func(typ string, prm json.RawMessage) PreparedCreateVariant {
+		return PreparedCreateVariant{Type: typ, Params: prm, Title: p.Title, IsShared: p.IsShared}
+	}
+
 	if p.Type == queue.JobTypeImageWatermark {
 		normalized, err := s.prepareImageWatermarkParams(ctx, p, params)
 		if err != nil {
 			return PreparedCreateVariant{}, err
 		}
-		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+		return meta(p.Type, normalized), nil
 	}
 
 	if p.Type == queue.JobTypeVideoWatermark {
@@ -172,7 +187,7 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 		if err != nil {
 			return PreparedCreateVariant{}, err
 		}
-		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+		return meta(p.Type, normalized), nil
 	}
 
 	if p.Type == queue.JobTypeImageBgRemove {
@@ -180,7 +195,7 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 		if err != nil {
 			return PreparedCreateVariant{}, err
 		}
-		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+		return meta(p.Type, normalized), nil
 	}
 
 	if p.Type == queue.JobTypeImageWithPrompt {
@@ -188,7 +203,7 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 		if err != nil {
 			return PreparedCreateVariant{}, err
 		}
-		return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+		return meta(p.Type, normalized), nil
 	}
 
 	normalized, err := prepareAudioVariantParams(p.Type, p.AssetMimeType, params)
@@ -196,7 +211,7 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 		return PreparedCreateVariant{}, err
 	}
 
-	return PreparedCreateVariant{Type: p.Type, Params: normalized}, nil
+	return meta(p.Type, normalized), nil
 }
 
 func (s *variantService) prepareImageWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {

@@ -318,6 +318,7 @@ type WorkflowRepository interface {
 	ListByTrigger(ctx context.Context, triggerType string) ([]Workflow, error)
 	Create(ctx context.Context, p CreateWorkflowParams) (Workflow, error)
 	Update(ctx context.Context, p UpdateWorkflowParams) (Workflow, error)
+	FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflow, error)
 	SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error
 	Delete(ctx context.Context, workspaceID, id string) error
 	TouchLastRunAt(ctx context.Context, id string) error

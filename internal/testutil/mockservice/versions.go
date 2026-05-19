@@ -116,7 +116,7 @@ func (m *MockVersionService) WriteVersionRestored(_ context.Context, _, _ string
 
 // MockVariantService is a no-op implementation of service.VariantService.
 type MockVariantService struct {
-	ListFn           func(ctx context.Context, workspaceID, assetID string) ([]*service.VariantDTO, error)
+	ListFn           func(ctx context.Context, p service.ListVariantsParams) (*service.ListVariantsResult, error)
 	GetFn            func(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error)
 	PrepareCreateFn  func(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error)
 	CreateFn         func(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error)
@@ -132,11 +132,11 @@ type MockVariantService struct {
 
 func NewVariantService() *MockVariantService { return &MockVariantService{} }
 
-func (m *MockVariantService) List(ctx context.Context, workspaceID, assetID string) ([]*service.VariantDTO, error) {
+func (m *MockVariantService) List(ctx context.Context, p service.ListVariantsParams) (*service.ListVariantsResult, error) {
 	if m.ListFn != nil {
-		return m.ListFn(ctx, workspaceID, assetID)
+		return m.ListFn(ctx, p)
 	}
-	return nil, nil
+	return &service.ListVariantsResult{}, nil
 }
 
 func (m *MockVariantService) Get(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error) {

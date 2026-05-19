@@ -96,6 +96,7 @@ type CreateWorkflowParams struct {
 	Name                 string
 	Description          string
 	Graph                string
+	TriggerConfig        string
 	NotifyOnFailureEmail string
 }
 
@@ -159,6 +160,52 @@ type WorkflowDTO struct {
 	LastRunAt            *time.Time
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+}
+
+type AutomationScope string
+
+const (
+	AutomationScopeWorkspace AutomationScope = "workspace"
+	AutomationScopeProject   AutomationScope = "project"
+	AutomationScopeFolder    AutomationScope = "folder"
+	AutomationScopeAsset     AutomationScope = "asset"
+)
+
+type CreateVariantAutomationParams struct {
+	AssetID   string
+	CreatedBy string
+	Scope     AutomationScope
+}
+
+func (p CreateVariantAutomationParams) Validate() error {
+	if strings.TrimSpace(p.AssetID) == "" {
+		return fmt.Errorf("asset_id is required: %w", apperr.ErrInvalidInput)
+	}
+	switch p.Scope {
+	case AutomationScopeWorkspace, AutomationScopeProject, AutomationScopeFolder, AutomationScopeAsset:
+		return nil
+	default:
+		return fmt.Errorf("scope must be asset, workspace, project, or folder: %w", apperr.ErrInvalidInput)
+	}
+}
+
+type CoveringWorkflowDTO struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	WorkflowURL string `json:"workflow_url"`
+	Scope       string `json:"scope"`
+}
+
+type ListVariantsParams struct {
+	WorkspaceID    string
+	AssetID        string
+	AssetProjectID string
+	AssetFolderID  string
+}
+
+type ListVariantsResult struct {
+	Variants         []*VariantDTO
+	CoveringWorkflow *CoveringWorkflowDTO
 }
 
 type WorkflowRunDTO struct {

@@ -50,6 +50,6 @@ DELETE FROM assets_text_fts WHERE asset_id = ?;
 SELECT DISTINCT asset_id
 FROM assets_text_fts
 WHERE workspace_id = ?
-  AND assets_text_fts MATCH ?
+  AND content MATCH ?
 ORDER BY rank
 LIMIT ?;

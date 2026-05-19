@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/queue"
@@ -18,11 +20,22 @@ type workflowService struct {
 	workflows repository.WorkflowRepository
 	runs      repository.WorkflowRunRepository
 	webhooks  repository.WorkflowWebhookRepository
+	assets    repository.AssetRepository
+	variants  repository.VariantRepository
 	queue     queue.JobQueue
 }
 
 func NewWorkflowService(workflows repository.WorkflowRepository, runs repository.WorkflowRunRepository, webhooks repository.WorkflowWebhookRepository, queue queue.JobQueue) WorkflowService {
 	return &workflowService{workflows: workflows, runs: runs, webhooks: webhooks, queue: queue}
+}
+
+type WorkflowServiceDeps struct {
+	Assets   repository.AssetRepository
+	Variants repository.VariantRepository
+}
+
+func NewWorkflowServiceWithDeps(workflows repository.WorkflowRepository, runs repository.WorkflowRunRepository, webhooks repository.WorkflowWebhookRepository, queue queue.JobQueue, deps WorkflowServiceDeps) WorkflowService {
+	return &workflowService{workflows: workflows, runs: runs, webhooks: webhooks, assets: deps.Assets, variants: deps.Variants, queue: queue}
 }
 
 func (s *workflowService) List(ctx context.Context, workspaceID string) ([]WorkflowDTO, error) {
@@ -61,6 +74,7 @@ func (s *workflowService) Create(ctx context.Context, workspaceID, createdBy str
 		Description:          p.Description,
 		Enabled:              true,
 		TriggerType:          triggerType,
+		TriggerConfig:        defaultWorkflowTriggerConfig(p.TriggerConfig),
 		Graph:                p.Graph,
 		NotifyOnFailureEmail: p.NotifyOnFailureEmail,
 		CreatedBy:            createdBy,
@@ -236,6 +250,62 @@ func (s *workflowService) Templates() []WorkflowTemplateDTO {
 	return out
 }
 
+func (s *workflowService) FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflowDTO, error) {
+	return findCoveringWorkflowDTO(ctx, s.workflows, workspaceID, assetProjectID, assetFolderID)
+}
+
+func (s *workflowService) CreateFromVariants(ctx context.Context, workspaceID string, p CreateVariantAutomationParams) (*WorkflowDTO, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	if s.assets == nil || s.variants == nil {
+		return nil, fmt.Errorf("variant automation dependencies not configured")
+	}
+	assetRow, err := s.assets.GetByID(ctx, workspaceID, p.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	asset := toAssetDTO(assetRow)
+	variantRows, err := s.variants.ListByAsset(ctx, workspaceID, p.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	automatable := make([]*VariantDTO, 0, len(variantRows))
+	for i, v := range variantRows {
+		if v.Type == "manual" {
+			continue
+		}
+		automatable = append(automatable, toVariantDTO(v, i+1))
+	}
+	if len(automatable) == 0 {
+		return nil, fmt.Errorf("no automatable variants found: %w", apperr.ErrConflict)
+	}
+
+	triggerConfig := buildVariantAutomationTriggerConfig(p.Scope, asset)
+	graph := buildVariantAutomationGraph(asset.MimeType, p.Scope, asset, automatable)
+	graphJSON, err := json.Marshal(graph)
+	if err != nil {
+		return nil, fmt.Errorf("graph serialisation: %w", err)
+	}
+
+	row, err := s.workflows.Create(ctx, repository.CreateWorkflowParams{
+		ID:            uuid.NewString(),
+		WorkspaceID:   workspaceID,
+		Name:          buildVariantAutomationName(p.Scope, asset),
+		Description:   "Creates matching variants whenever a new version is uploaded.",
+		Enabled:       false,
+		TriggerType:   "trigger.version_uploaded",
+		TriggerConfig: string(triggerConfig),
+		Graph:         string(graphJSON),
+		CreatedBy:     p.CreatedBy,
+	})
+	if err != nil {
+		return nil, err
+	}
+	dto := toWorkflowDTO(row)
+	return &dto, nil
+}
+
 func (s *workflowService) enqueueRun(ctx context.Context, wf repository.Workflow, triggerData map[string]any) (string, error) {
 	runID := uuid.NewString()
 	_, err := s.runs.Create(ctx, repository.CreateWorkflowRunParams{
@@ -254,6 +324,173 @@ func (s *workflowService) enqueueRun(ctx context.Context, wf repository.Workflow
 		return "", err
 	}
 	return runID, nil
+}
+
+func findCoveringWorkflowDTO(ctx context.Context, workflows repository.WorkflowRepository, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflowDTO, error) {
+	wf, err := workflows.FindCoveringWorkflow(ctx, workspaceID, assetProjectID, assetFolderID)
+	if errors.Is(err, apperr.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	scope := "workspace"
+	var cfg struct {
+		ProjectID string `json:"project_id"`
+		FolderID  string `json:"folder_id"`
+	}
+	_ = json.Unmarshal([]byte(defaultWorkflowTriggerConfig(wf.TriggerConfig)), &cfg)
+	if cfg.FolderID != "" {
+		scope = "folder"
+	} else if cfg.ProjectID != "" {
+		scope = "project"
+	}
+	return &CoveringWorkflowDTO{ID: wf.ID, Name: wf.Name, Scope: scope}, nil
+}
+
+func buildVariantAutomationGraph(assetMIME string, scope AutomationScope, asset *AssetDTO, variants []*VariantDTO) workflow.Graph {
+
+	triggerNode := workflow.GraphNode{
+		ID:       "n_trigger",
+		Type:     "trigger.version_uploaded",
+		Config:   json.RawMessage(`{}`),
+		Position: workflow.GraphPosition{X: 25, Y: 25},
+	}
+
+	if scope == AutomationScopeAsset {
+		triggerNode.Config = json.RawMessage(`{"asset_id":"` + asset.ID + `"}`)
+	}
+
+	nodes := []workflow.GraphNode{triggerNode}
+	edges := []workflow.GraphEdge{}
+	prevID := "n_trigger"
+	prevPort := "out"
+
+	if scope != AutomationScopeAsset {
+		if scope == AutomationScopeFolder && asset.FolderID != nil && *asset.FolderID != "" {
+			folderCfg, _ := json.Marshal(map[string]string{"folder_id": *asset.FolderID})
+			nodes = append(nodes, workflow.GraphNode{
+				ID:       "n_filter_folder",
+				Type:     "filter.folder",
+				Config:   folderCfg,
+				Position: workflow.GraphPosition{X: 188, Y: 173},
+			})
+			edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_filter_folder", ToPort: "in"})
+			prevID = "n_filter_folder"
+			prevPort = "match"
+		} else if (scope == AutomationScopeProject || scope == AutomationScopeFolder) && asset.ProjectID != nil && *asset.ProjectID != "" {
+			projectCfg, _ := json.Marshal(map[string]string{"key": "project_id", "value": *asset.ProjectID})
+			nodes = append(nodes, workflow.GraphNode{
+				ID:       "n_filter_project",
+				Type:     "filter.expression",
+				Config:   projectCfg,
+				Position: workflow.GraphPosition{X: 188, Y: 173},
+			})
+			edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_filter_project", ToPort: "in"})
+			prevID = "n_filter_project"
+			prevPort = "match"
+		}
+	}
+
+	mimeCfg, _ := json.Marshal(map[string]string{"prefix": mimePrefix(assetMIME)})
+	nodes = append(nodes, workflow.GraphNode{
+		ID:       "n_filter_mime",
+		Type:     "filter.mime",
+		Config:   mimeCfg,
+		Position: workflow.GraphPosition{X: 325, Y: 337},
+	})
+	edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_filter_mime", ToPort: "in"})
+	prevID = "n_filter_mime"
+	prevPort = "match"
+
+	if len(variants) == 1 {
+		nodes = append(nodes, workflow.GraphNode{
+			ID:       "n_variant_0",
+			Type:     "action.create_variant",
+			Config:   variantAutomationNodeConfig(variants[0]),
+			Position: workflow.GraphPosition{X: 700, Y: 161},
+		})
+		edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_variant_0", ToPort: "in"})
+		return workflow.Graph{Nodes: nodes, Edges: edges}
+	}
+
+	nodes = append(nodes, workflow.GraphNode{
+		ID:       "n_fanout",
+		Type:     "control.fan_out",
+		Config:   json.RawMessage(`{}`),
+		Position: workflow.GraphPosition{X: 700, Y: 161},
+	})
+	edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_fanout", ToPort: "in"})
+	spread := 160.0
+	startY := 263.0 - float64(len(variants)-1)*spread/2
+	for i, v := range variants {
+		nodeID := fmt.Sprintf("n_variant_%d", i)
+		nodes = append(nodes, workflow.GraphNode{
+			ID:       nodeID,
+			Type:     "action.create_variant",
+			Config:   variantAutomationNodeConfig(v),
+			Position: workflow.GraphPosition{X: 1033, Y: startY + float64(i)*spread},
+		})
+		edges = append(edges, workflow.GraphEdge{FromNode: "n_fanout", FromPort: "out", ToNode: nodeID, ToPort: "in"})
+	}
+	return workflow.Graph{Nodes: nodes, Edges: edges}
+}
+
+func variantAutomationNodeConfig(v *VariantDTO) json.RawMessage {
+	params := json.RawMessage(`{}`)
+	if v.TransformParams != nil && strings.TrimSpace(*v.TransformParams) != "" && json.Valid([]byte(*v.TransformParams)) {
+		params = json.RawMessage(*v.TransformParams)
+	}
+	b, _ := json.Marshal(map[string]any{"type": v.Type, "params": params})
+	return b
+}
+
+func mimePrefix(mime string) string {
+	if i := strings.Index(mime, "/"); i > 0 {
+		return mime[:i+1]
+	}
+	return mime
+}
+
+func buildVariantAutomationTriggerConfig(scope AutomationScope, asset *AssetDTO) json.RawMessage {
+	switch scope {
+	case AutomationScopeFolder:
+		if asset.FolderID != nil && *asset.FolderID != "" {
+			b, _ := json.Marshal(map[string]string{"folder_id": *asset.FolderID})
+			return b
+		}
+		fallthrough
+	case AutomationScopeProject:
+		if asset.ProjectID != nil && *asset.ProjectID != "" {
+			b, _ := json.Marshal(map[string]string{"project_id": *asset.ProjectID})
+			return b
+		}
+	}
+	return json.RawMessage(`{}`)
+}
+
+func buildVariantAutomationName(scope AutomationScope, asset *AssetDTO) string {
+	switch scope {
+	case AutomationScopeFolder:
+		if asset.FolderID != nil && *asset.FolderID != "" {
+			return fmt.Sprintf("Variant automation - folder %s", *asset.FolderID)
+		}
+		fallthrough
+	case AutomationScopeProject:
+		if asset.ProjectID != nil && *asset.ProjectID != "" {
+			return fmt.Sprintf("Variant automation - project %s", *asset.ProjectID)
+		}
+	case AutomationScopeAsset:
+		return fmt.Sprintf("Variant automation - asset %s", asset.OriginalFilename)
+	}
+	return "Variant automation - all uploads"
+}
+
+func defaultWorkflowTriggerConfig(v string) string {
+	if strings.TrimSpace(v) == "" {
+		return "{}"
+	}
+	return v
 }
 
 func (s *workflowService) regenerateWebhookToken(ctx context.Context, id string) (string, error) {

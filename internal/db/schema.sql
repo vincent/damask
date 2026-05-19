@@ -460,6 +460,7 @@ CREATE TABLE workflows (
     description             TEXT NOT NULL DEFAULT '',
     enabled                 INTEGER NOT NULL DEFAULT 1,
     trigger_type            TEXT NOT NULL,
+    trigger_config          TEXT NOT NULL DEFAULT '{}',
     graph                   TEXT NOT NULL,
     notify_on_failure_email TEXT NOT NULL DEFAULT '',
     last_run_at             DATETIME,
@@ -470,6 +471,7 @@ CREATE TABLE workflows (
 
 CREATE INDEX idx_workflows_workspace ON workflows(workspace_id);
 CREATE INDEX idx_workflows_trigger ON workflows(trigger_type, enabled);
+CREATE INDEX idx_workflows_trigger_config ON workflows(workspace_id, trigger_type, enabled);
 
 CREATE TABLE workflow_runs (
     id           TEXT PRIMARY KEY,

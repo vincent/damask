@@ -62,11 +62,13 @@ func (a variantAdapter) PrepareCreate(ctx context.Context, p workflow.VariantPre
 		ImageRouterConfigured: p.ImageRouterConfigured,
 		DefaultImageModel:     p.DefaultImageModel,
 		DefaultBgRemoveModel:  p.DefaultBgRemoveModel,
+		Title:                 p.Title,
+		IsShared:              p.IsShared,
 	})
 	if err != nil {
 		return workflow.VariantPrepareResult{}, err
 	}
-	return workflow.VariantPrepareResult{Type: prepared.Type, Params: prepared.Params}, nil
+	return workflow.VariantPrepareResult{Type: prepared.Type, Params: prepared.Params, Title: prepared.Title, IsShared: prepared.IsShared}, nil
 }
 
 type shareAdapter struct{ svc service.ShareService }
