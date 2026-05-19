@@ -9,6 +9,7 @@
     assetId: string
     variants: SharedVariant[]
     selectedVariantId?: string | null
+    allowDownload?: boolean
     getThumbUrl: (shareId: string, assetId: string, variantId: string) => string
     getDownloadUrl: (
       shareId: string,
@@ -24,6 +25,7 @@
     assetId,
     variants,
     selectedVariantId,
+    allowDownload = true,
     getThumbUrl,
     getDownloadUrl,
     authHeaders,
@@ -105,14 +107,19 @@
                 : ''}</span
             >
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={downloadingId === variant.id}
-            onclick={() => downloadVariant(variant)}
-          >
-            {m.download()}
-          </Button>
+          {#if allowDownload}
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={downloadingId === variant.id}
+              onclick={(event) => {
+                event.stopPropagation()
+                downloadVariant(variant)
+              }}
+            >
+              {m.download()}
+            </Button>
+          {/if}
         </div>
       {/each}
     </div>
@@ -123,6 +130,11 @@
   .shared-variants {
     padding-top: 16px;
     border-top: 1px solid var(--border);
+  }
+  @media (min-width: 768px) {
+    .shared-variants {
+      display: none;
+    }
   }
   .variants-heading {
     margin: 0 0 12px;

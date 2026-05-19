@@ -1,9 +1,14 @@
+/// <reference types="vitest" />
+
 import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { sveltekit } from '@sveltejs/kit/vite'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  resolve: {
+    conditions: ['browser'],
+  },
   plugins: [
     tailwindcss(),
     sveltekit(),
@@ -22,5 +27,9 @@ export default defineConfig({
       '/demo': 'http://localhost:8080',
       '/integrations': 'http://localhost:8080',
     },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
   },
 })

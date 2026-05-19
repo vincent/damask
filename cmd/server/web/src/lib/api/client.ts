@@ -322,7 +322,10 @@ export const variantApi = {
     }),
 
   /** POST /api/v1/assets/:id/variants/automate (editor+) — create a disabled workflow from current variants. */
-  automate: (assetId: string, scope: 'workspace' | 'project' | 'folder') =>
+  automate: (
+    assetId: string,
+    scope: 'workspace' | 'project' | 'folder' | 'asset'
+  ) =>
     apiFetch<import('./models').AutomateVariantsResponse>(
       `/api/v1/assets/${assetId}/variants/automate`,
       {

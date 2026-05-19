@@ -15,13 +15,17 @@
   import PublicAssetCard from '$lib/components/PublicAssetCard.svelte'
   import PublicFooter from '$lib/components/PublicFooter.svelte'
   import AssetIcon from '$lib/components/AssetIcon.svelte'
+  import SharedVariantFilmstrip from '$lib/components/share/SharedVariantFilmstrip.svelte'
   import SharedVariantList from '$lib/components/share/SharedVariantList.svelte'
   import Close from '$lib/components/ui/Close.svelte'
   import ThemeToggle from '$lib/components/ThemeToggle.svelte'
   import Feedback from '$lib/components/ui/Feedback.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { viewportStore } from '$lib/stores/viewport.svelte'
 
   let shareId = $derived(page.params.shareId || '')
+  let selectedVariantIdx = $state(0)
+  let selectedAssetId = $state<string | null>(null)
 
   const avatarColors = [
     'bg-violet-200 text-violet-700 dark:bg-violet-800 dark:text-violet-200',
@@ -59,6 +63,14 @@
     store.loadGallery(shareId, () =>
       goto(`/s/${shareId}`, { replaceState: true })
     )
+  })
+
+  $effect(() => {
+    const assetId = store.selectedAsset?.id ?? null
+    if (assetId !== selectedAssetId) {
+      selectedAssetId = assetId
+      selectedVariantIdx = 0
+    }
   })
 
   function handleWindowKeydown(e: KeyboardEvent) {
@@ -181,22 +193,51 @@
 <!-- Review Panel (S12) -->
 {#if store.panelOpen && store.selectedAsset}
   {@const category = mimeCategory(store.previewMimeType)}
-  <!-- Backdrop -->
+  <!-- Desktop preview area -->
   <div
-    class="fixed inset-0 z-40 grid hidden place-items-center bg-black/40 p-40 backdrop-blur-sm md:grid md:w-[75%]"
+    class="preview-stage fixed inset-y-0 left-0 z-40 hidden flex-col bg-black/40 backdrop-blur-sm md:flex md:w-[75%]"
     role="button"
     tabindex="-1"
     onclick={store.closePanel}
     onkeydown={(e) => e.key === 'Escape' && store.closePanel()}
   >
-    <SharedAsset
-      {category}
-      asset={{ ...store.selectedAsset, mime_type: store.previewMimeType }}
-      thumbUrl={store.previewThumbUrl ??
-        store.thumbUrl(shareId, store.selectedAsset.id)}
-      assetUrl={store.previewFileUrl ??
-        store.fileUrlWithToken(shareId, store.selectedAsset.id)}
-    />
+    <div
+      class="preview-wrap flex min-h-0 flex-1 items-center justify-center p-16"
+    >
+      <SharedAsset
+        {category}
+        asset={{ ...store.selectedAsset, mime_type: store.previewMimeType }}
+        thumbUrl={store.previewThumbUrl ??
+          store.thumbUrl(shareId, store.selectedAsset.id)}
+        assetUrl={store.previewFileUrl ??
+          store.fileUrlWithToken(shareId, store.selectedAsset.id)}
+      />
+    </div>
+
+    {#if store.selectedAsset.shared_variants?.length}
+      {@const sharedVariants = store.selectedAsset.shared_variants}
+      <div
+        class="desktop-filmstrip px-8 py-5 pt-0"
+        role="presentation"
+        onclick={(event) => event.stopPropagation()}
+        onkeydown={(event) => event.stopPropagation()}
+      >
+        <SharedVariantFilmstrip
+          {shareId}
+          assetId={store.selectedAsset.id}
+          variants={sharedVariants}
+          bind:selectedIndex={selectedVariantIdx}
+          allowDownload={store.share?.allow_download ?? false}
+          onSelect={(index) => store.selectVariant(sharedVariants[index])}
+          getThumbUrl={store.variantThumbUrl}
+          getDownloadUrl={store.variantFileUrl}
+          authHeaders={() =>
+            store.sessionToken
+              ? { 'X-Share-Token': store.sessionToken }
+              : ({} as Record<string, string>)}
+        />
+      </div>
+    {/if}
   </div>
 
   <!-- Panel -->
@@ -253,21 +294,29 @@
       </div>
     </div>
 
-    <div class="px-4 py-4">
-      <SharedVariantList
-        {shareId}
-        assetId={store.selectedAsset.id}
-        variants={store.selectedAsset.shared_variants ?? []}
-        selectedVariantId={store.selectedVariant?.id}
-        onselect={(v) => store.selectVariant(v)}
-        getThumbUrl={store.variantThumbUrl}
-        getDownloadUrl={store.variantFileUrl}
-        authHeaders={() =>
-          store.sessionToken
-            ? { 'X-Share-Token': store.sessionToken }
-            : ({} as Record<string, string>)}
-      />
-    </div>
+    {#if viewportStore.isMobile && store.selectedAsset.shared_variants?.length}
+      {@const sharedVariants = store.selectedAsset.shared_variants}
+      <div class="px-4 py-4">
+        <SharedVariantList
+          {shareId}
+          assetId={store.selectedAsset.id}
+          variants={sharedVariants}
+          selectedVariantId={store.selectedVariant?.id}
+          allowDownload={store.share?.allow_download ?? false}
+          onselect={(variant) => {
+            const index = sharedVariants.findIndex((v) => v.id === variant.id)
+            if (index >= 0) selectedVariantIdx = index
+            store.selectVariant(variant)
+          }}
+          getThumbUrl={store.variantThumbUrl}
+          getDownloadUrl={store.variantFileUrl}
+          authHeaders={() =>
+            store.sessionToken
+              ? { 'X-Share-Token': store.sessionToken }
+              : ({} as Record<string, string>)}
+        />
+      </div>
+    {/if}
 
     <!-- Comments section -->
     {#if store.share?.allow_comments}
@@ -398,6 +447,13 @@
   .panel-aside {
     background: var(--bg-surface);
     box-shadow: 0 20px 60px rgb(0 0 0 / 0.18);
+  }
+  .preview-stage {
+    background: color-mix(in srgb, var(--bg-app) 88%, black);
+  }
+  .desktop-filmstrip {
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
   }
   .panel-header {
     border-bottom: 1px solid var(--border);
