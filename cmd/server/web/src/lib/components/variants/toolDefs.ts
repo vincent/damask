@@ -6,7 +6,6 @@ import {
   Film,
   Maximize2,
   Music,
-  RefreshCw,
   Scissors,
   Shapes,
   Sparkles,

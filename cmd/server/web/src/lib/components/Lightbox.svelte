@@ -207,7 +207,7 @@
     variants.filter((variant) => variant.type !== 'manual')
   )
   const canCreateVariantAutomation = $derived(
-    authStore.role !== 'viewer' &&
+    authStore.role === 'owner' &&
       automatableVariants.length > 0 &&
       !coveringWorkflow
   )

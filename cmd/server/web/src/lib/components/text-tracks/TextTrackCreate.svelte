@@ -11,6 +11,7 @@
   let { asset, onCreated }: Props = $props()
 
   let selectedSource = $state<'ocr' | 'manual'>(
+    // svelte-ignore state_referenced_locally
     asset.mime_type.startsWith('image/') ? 'ocr' : 'manual'
   )
   let creating = $state(false)

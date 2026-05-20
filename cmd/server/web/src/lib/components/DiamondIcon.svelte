@@ -18,6 +18,7 @@
   const filterId = `diam-glow-${Math.random().toString(36).slice(2)}`
 
   // Diamond half-size in SVG units (viewBox is size×size, diamond centered)
+  // svelte-ignore state_referenced_locally
   const half = size * 0.47
   const inner = half * 0.52
 

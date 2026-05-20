@@ -157,14 +157,6 @@
     color: var(--text-secondary);
     text-transform: capitalize;
   }
-  .scope-pill {
-    border-radius: 999px;
-    padding: 4px 8px;
-    background: var(--bg-subtle);
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    text-transform: capitalize;
-  }
   .preview-image {
     display: block;
     width: 100%;

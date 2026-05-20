@@ -17,6 +17,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
+	"damask/server/internal/workflow"
 )
 
 func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, queue.JobQueue, storage.Storage) {
@@ -49,6 +50,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		imagerouter.KeyResolver(func(context.Context, string) (string, imagerouter.KeySource, error) {
 			return "", "", nil
 		}),
+		workflow.NewExecutor(workflow.Deps{}),
 	)
 
 	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {

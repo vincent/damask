@@ -295,6 +295,10 @@ func (s *Server) handleShareGetVariantFile(c fiber.Ctx) error {
 		return err
 	}
 
+	if !sc.AllowDownload {
+		return errRes(c, fiber.StatusForbidden, "download not allowed for this share")
+	}
+
 	ok, err := s.sharePublic.IsAssetInTarget(ctx, sc.TargetType, sc.TargetID, assetID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not validate share scope")

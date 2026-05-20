@@ -196,7 +196,7 @@
   </p>
 
   <div>
-    <label class="field-label">{m.format()}</label>
+    <label for="crop-format" class="field-label">{m.format()}</label>
     <div id="crop-format" class="flex gap-2">
       {#each ['jpeg', 'png'] as fmt}
         <button

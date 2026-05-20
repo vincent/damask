@@ -238,7 +238,11 @@
     pendingEdge = null
   }
 
-  function deleteEdgesForPort(nodeId: string, portId: string, isOutput: boolean) {
+  function deleteEdgesForPort(
+    nodeId: string,
+    portId: string,
+    isOutput: boolean
+  ) {
     graph = {
       ...graph,
       edges: graph.edges.filter((edge) =>
@@ -339,7 +343,8 @@
           onMove={(dx, dy) => moveNode(node.id, dx, dy)}
           onPortDown={(portId, event) => startEdge(node.id, portId, event)}
           onPortUp={(portId) => completeEdge(node.id, portId)}
-          onPortContextMenu={(portId, isOutput) => deleteEdgesForPort(node.id, portId, isOutput)}
+          onPortContextMenu={(portId, isOutput) =>
+            deleteEdgesForPort(node.id, portId, isOutput)}
         />
       {/each}
     </div>

@@ -12,6 +12,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
+
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -148,12 +149,4 @@ func readyTrackContent(content string) string {
 		return " "
 	}
 	return content
-}
-
-func stringPtrOrNil(v string) *string {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return nil
-	}
-	return &v
 }

@@ -37,6 +37,7 @@
   let { open = $bindable(false), targets, onclose }: Props = $props()
 
   // ---- form state ----
+  // svelte-ignore state_referenced_locally
   let selectedTargetIdx = $state(targets.length > 1 ? 1 : 0) // default to first (project) if both
   let label = $state('')
   let password = $state('')

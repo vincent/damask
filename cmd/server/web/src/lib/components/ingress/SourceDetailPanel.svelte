@@ -26,24 +26,26 @@
   let activeTab = $state<Tab>('config')
 
   // --- Config tab ---
-  let label = $state(source.label)
-  let destProjectId = $state(source.dest_project_id ?? '')
-  let pollIntervalMin = $state(source.poll_interval_min)
+  // svelte-ignore state_referenced_locally
+  let src = $state(source)
+  let label = $state(src.label)
+  let destProjectId = $state(src.dest_project_id ?? '')
+  let pollIntervalMin = $state(src.poll_interval_min)
   let sourceConfig = $state<Record<string, unknown>>({
-    ...(source.config as Record<string, unknown>),
+    ...(src.config as Record<string, unknown>),
   })
   let saving = $state(false)
 
   // Load folders for email_api sources so we can show per-folder ingest addresses
   $effect(() => {
-    if (source.type === 'email_api' && source.dest_project_id) {
-      foldersStore.loadForProject(source.dest_project_id)
+    if (src.type === 'email_api' && src.dest_project_id) {
+      foldersStore.loadForProject(src.dest_project_id)
     }
   })
 
   const emailApiFolders = $derived(
-    source.type === 'email_api' && source.dest_project_id
-      ? (foldersStore.foldersByProject[source.dest_project_id] ?? [])
+    src.type === 'email_api' && src.dest_project_id
+      ? (foldersStore.foldersByProject[src.dest_project_id] ?? [])
       : []
   )
 
@@ -57,8 +59,8 @@
 
   async function saveConfig() {
     saving = true
-    const updated = await ingressStore.updateSource(source.id, {
-      label: label.trim() || source.label,
+    const updated = await ingressStore.updateSource(src.id, {
+      label: label.trim() || src.label,
       config: sourceConfig,
       dest_project_id: destProjectId || null,
       poll_interval_min: pollIntervalMin,

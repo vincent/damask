@@ -144,7 +144,6 @@
               {#if showVocabHint}
                 <li
                   class="flex items-center gap-1.5 px-3 py-1 text-sm text-[var(--text-muted)]"
-                  aria-disabled="true"
                 >
                   🔒 {m.tag_autocomplete_not_in_vocab()}
                 </li>

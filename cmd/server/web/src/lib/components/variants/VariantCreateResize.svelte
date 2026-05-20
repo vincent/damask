@@ -112,7 +112,7 @@
   </div>
 
   <div>
-    <label class="field-label">Fit</label>
+    <label for="variant-{kind}-fit" class="field-label">Fit</label>
     <div class="flex gap-2">
       {#each ['contain', 'cover', 'fill'] as f}
         <button
@@ -143,7 +143,7 @@
   </div>
 
   <div>
-    <label class="field-label">{m.format()}</label>
+    <label for="variant-{kind}-format" class="field-label">{m.format()}</label>
     <div class="flex gap-2">
       {#each ['jpeg', 'png', 'tiff'] as fmt}
         <button

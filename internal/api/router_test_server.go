@@ -369,6 +369,7 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)
+	api.Post("/assets/:id/variants/automate", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAutomateVariants)
 	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadManualVariant)
 	api.Put("/assets/:id/variants/sharing", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateVariantsSharing)
 	api.Patch("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePatchVariant)
