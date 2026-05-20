@@ -82,7 +82,6 @@
             {m.watermark_scope_label()}: {watermarkAsset.scope}
           </div>
         </div>
-        <span class="scope-pill">{watermarkAsset.scope}</span>
       </div>
       <div class="preview-stage">
         <div class="preview-frame">

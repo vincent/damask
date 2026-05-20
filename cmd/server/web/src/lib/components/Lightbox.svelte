@@ -44,6 +44,9 @@
   import AssetComments from './AssetComments.svelte'
   import MediaTagsTab from './MediaTagsTab.svelte'
   import TextTrackPanel from './text-tracks/TextTrackPanel.svelte'
+  import { ALL_VARIANT_TOOLS } from './variants/toolDefs'
+  import VariantToolPanel from './variants/VariantToolPanel.svelte'
+  import VariantToolSidebar from './variants/VariantToolSidebar.svelte'
   import Backdrop from './ui/Backdrop.svelte'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
@@ -53,6 +56,7 @@
     isVideo as mimeIsVideo,
   } from '$lib/utils/mime'
   import { viewportStore } from '$lib/stores/viewport.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
 
   interface Props {
     asset: Asset | null
@@ -109,6 +113,7 @@
   })
 
   let activeVariantTab = $state<VariantTab>('all')
+  let selectedTool = $state<VariantTab | null>(null)
 
   // --- Asset state ---
   let showShareModal = $state(false)
@@ -193,6 +198,11 @@
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
   const isVideo = $derived(asset ? mimeIsVideo(asset.mime_type) : false)
   const isAudio = $derived(asset ? mimeIsAudio(asset.mime_type) : false)
+  const visibleVariantTools = $derived.by(() => {
+    if (!asset) return []
+    const mimeType = asset.mime_type
+    return ALL_VARIANT_TOOLS.filter((tool) => tool.showFor(mimeType))
+  })
   const automatableVariants = $derived(
     variants.filter((variant) => variant.type !== 'manual')
   )
@@ -265,10 +275,12 @@
       showAutomationModal = false
       variantPanelState = { mode: 'list' }
       selectedVariant = null
+      selectedTool = null
       assetDetail = null
       return
     }
     selectedVariant = null
+    selectedTool = null
     loadVariants()
     loadAssetDetail()
   })
@@ -374,9 +386,12 @@
       const result = await variantApi.create(asset.id, type, params)
       pendingVariantAssetId = asset.id
       createSuccess = `Queued (job ${result.job_id.slice(0, 8)}). Waiting for completion…`
+      toastStore.show(createSuccess, 'success')
+      activeTab = 'variants'
     } catch (e: unknown) {
       pendingVariantAssetId = null
       createError = e instanceof Error ? e.message : m.variant_create_failed()
+      toastStore.show(createError, 'error')
     } finally {
       creating = false
     }
@@ -395,6 +410,7 @@
 
     pendingVariantAssetId = null
     activeVariantTab = 'all'
+    selectedTool = null
     createSuccess = 'Almost ready. Refreshing shortly…'
     scheduleVariantRefresh(asset.id)
   })
@@ -426,6 +442,17 @@
     if (src.classList.contains('asset-preview-full')) return
     if (src.classList.contains('asset-preview-toolbar')) return
     onclose?.()
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (
+      !asset ||
+      event.key !== 'Escape' ||
+      !viewportStore.isXl ||
+      selectedTool === null
+    )
+      return
+    selectedTool = null
   }
 
   async function handleRegenerateThumbnail() {
@@ -504,11 +531,13 @@
   ])
 </script>
 
+<svelte:window onkeydown={handleWindowKeydown} />
+
 {#if asset}
   <Backdrop class="asset-lightbox-bg w-screen" {onclose}>
     <div
       bind:this={previewContainer}
-      class="asset-preview-container fixed inset-0 hidden w-[75%] place-items-center p-40 md:grid"
+      class="asset-preview-container fixed inset-y-0 left-0 hidden w-[75%] flex-col md:flex"
       role="button"
       tabindex="-1"
       onclick={handleClose}
@@ -517,27 +546,54 @@
       onmousemove={() => showToolbar?.()}
       aria-label={m.close()}
     >
-      <SharedAsset
-        asset={{ ...asset, mime_type: previewMimeType }}
-        category={previewCategory}
-        thumbUrl={previewThumbUrl}
-        assetUrl={previewFileUrl}
-        bind:zoomIn
-        bind:zoomOut
-        bind:zoomReset
-        bind:onwheel={zoomWheel}
-        bind:rotateRight
-      />
-      <div
-        class="pointer-events-auto absolute bottom-8 left-1/2 z-20 -translate-x-1/2"
-      >
-        <PreviewToolbar
-          {zoomIn}
-          {zoomOut}
-          {rotateRight}
-          fullscreenTarget={previewContainer}
-          bind:show={showToolbar}
+      <div class="relative grid min-h-0 flex-1 place-items-center p-40">
+        <SharedAsset
+          asset={{ ...asset, mime_type: previewMimeType }}
+          category={previewCategory}
+          thumbUrl={previewThumbUrl}
+          assetUrl={previewFileUrl}
+          bind:zoomIn
+          bind:zoomOut
+          bind:zoomReset
+          bind:onwheel={zoomWheel}
+          bind:rotateRight
         />
+        {#if viewportStore.isXl && visibleVariantTools.length > 0}
+          <VariantToolSidebar
+            {asset}
+            activeTool={selectedTool}
+            {creating}
+            onSelect={(tool) => {
+              selectedTool = tool
+              createError = ''
+              createSuccess = ''
+            }}
+          />
+        {/if}
+
+        {#if viewportStore.isXl && selectedTool !== null}
+          <VariantToolPanel
+            tool={selectedTool}
+            {asset}
+            creating={creating || pendingVariantAssetId === asset.id}
+            {handleCreate}
+            onClose={() => {
+              selectedTool = null
+            }}
+          />
+        {/if}
+
+        <div
+          class="pointer-events-auto absolute bottom-8 left-1/2 z-30 -translate-x-1/2"
+        >
+          <PreviewToolbar
+            {zoomIn}
+            {zoomOut}
+            {rotateRight}
+            fullscreenTarget={previewContainer}
+            bind:show={showToolbar}
+          />
+        </div>
       </div>
     </div>
   </Backdrop>
@@ -704,20 +760,22 @@
         <!-- ═══ VARIANTS TAB ═══ -->
       {:else if activeTab === 'variants'}
         <div class="flex flex-col">
-          <Pills
-            pills={variantSubTabs}
-            active={activeVariantTab}
-            set={(p) => {
-              activeVariantTab = p.id as VariantTab
-              createError = ''
-              createSuccess = ''
-            }}
-          />
+          {#if !viewportStore.isXl}
+            <Pills
+              pills={variantSubTabs}
+              active={activeVariantTab}
+              set={(p) => {
+                activeVariantTab = p.id as VariantTab
+                createError = ''
+                createSuccess = ''
+              }}
+            />
+          {/if}
           <Feedback error={createError} success={createSuccess} />
 
           <div class="px-5 py-4">
             <!-- All variants grid -->
-            {#if activeVariantTab === 'all' && variantPanelState.mode === 'promote'}
+            {#if (viewportStore.isXl || activeVariantTab === 'all') && variantPanelState.mode === 'promote'}
               <VariantPromoteForm
                 assetId={asset.id}
                 assetFilename={asset.original_filename}
@@ -730,7 +788,7 @@
                   await loadVariants()
                 }}
               />
-            {:else if activeVariantTab === 'all'}
+            {:else if viewportStore.isXl || activeVariantTab === 'all'}
               {#if coveringWorkflow}
                 <CoveringWorkflowBanner workflow={coveringWorkflow} />
               {/if}

@@ -51,6 +51,9 @@ export const viewportStore = {
   get isMobile() {
     return viewportWidth < BREAKPOINTS.md
   },
+  get isXl() {
+    return viewportWidth >= BREAKPOINTS.xl
+  },
   get isTouch() {
     return isTouch
   },

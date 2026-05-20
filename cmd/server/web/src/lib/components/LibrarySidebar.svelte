@@ -32,6 +32,7 @@
     User,
     Users,
     GitBranch,
+    Waypoints,
   } from '@lucide/svelte'
 
   interface Props {
@@ -86,7 +87,7 @@
       id: 'workflows',
       label: () => 'Workflows',
       path: '/library/settings/workflows',
-      icon: GitBranch,
+      icon: Waypoints,
     },
     {
       id: 'versioning',
