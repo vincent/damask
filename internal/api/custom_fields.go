@@ -584,7 +584,7 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	go func() { _ = s.assets.RefreshFTS(context.Background(), id) }()
+	go func() { _ = s.assets.RefreshFTS(context.Background(), id) }() //nolint:gosec // non-critical async operation
 
 	return c.JSON(GetAssetFieldsResponse{Fields: fieldValueDTOsToResponse(dtos)})
 }
@@ -622,7 +622,7 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 
 	assetIDsCopy := make([]string, len(body.AssetIDs))
 	copy(assetIDsCopy, body.AssetIDs)
-	go func() {
+	go func() { //nolint:gosec // non-critical async operation
 		for _, assetID := range assetIDsCopy {
 			_ = s.assets.RefreshFTS(context.Background(), assetID)
 		}

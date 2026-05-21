@@ -15,7 +15,7 @@ import (
 
 func init() {
 	// Use min cost so tests don't spend time on bcrypt.
-	service.ShareBcryptCost = bcrypt.MinCost
+	service.ShareBcryptCost = bcrypt.MinCost //nolint:reassign // tests only
 }
 
 func newShareSvc(t *testing.T) (service.ShareService, *memory.RealShareRepo) {

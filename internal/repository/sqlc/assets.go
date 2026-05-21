@@ -44,9 +44,6 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	var where []string
 	var args []any
 
-	// Base table alias differs when joining for taken_at sort.
-	from := "assets a"
-
 	where = append(where, "a.workspace_id = ?")
 	args = append(args, p.WorkspaceID)
 
@@ -162,15 +159,15 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	if len(joins) > 0 {
 		joinSQL = " " + strings.Join(joins, " ")
 	}
-	query := fmt.Sprintf(
+	query := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
 		`SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.derived_from_asset_id, a.original_filename, a.storage_key,
 		        a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		        a.current_version_id, a.created_at, a.updated_at
-		 FROM %s%s
+		 FROM assets a 
+		 %s
 		 WHERE %s
 		 ORDER BY %s
 		 LIMIT ?`,
-		from,
 		joinSQL,
 		strings.Join(where, " AND "),
 		orderBy,
@@ -419,8 +416,8 @@ func (r *assetRepo) ListByFields(
 		filterClauses = "AND " + strings.Join(whereFilters, " AND ")
 	}
 
-	query := fmt.Sprintf(`
-		SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
+	query := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
+		`SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key,
 		       a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.metadata,
 		       a.created_at, a.updated_at
 		FROM assets a
@@ -632,7 +629,7 @@ func (r *assetRepo) CountVariantsByCurrentVersion(ctx context.Context, assetID s
 		`SELECT COALESCE(current_version_id, '') FROM assets WHERE id = ?`, assetID,
 	).Scan(&currentVersionID)
 	if err != nil || currentVersionID == "" {
-		return 0, nil //nolint:nilerr
+		return 0, nil //nolint:nilerr // asset has no versions, so zero variants
 	}
 	return r.q.CountVariantsByVersion(ctx, currentVersionID)
 }

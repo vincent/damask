@@ -4,6 +4,7 @@ package sftp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -21,14 +22,15 @@ func init() {
 
 // Config is the decrypted JSON configuration for an SFTP source.
 type Config struct {
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	Username   string `json:"username"`
-	AuthMethod string `json:"auth_method"` // "password" | "key"
-	Password   string `json:"password"`
-	PrivateKey string `json:"private_key"` // PEM-encoded
-	RemotePath string `json:"remote_path"`
-	Recursive  bool   `json:"recursive"`
+	Host            string `json:"host"`
+	Port            int    `json:"port"`
+	Username        string `json:"username"`
+	AuthMethod      string `json:"auth_method"` // "password" | "key"
+	Password        string `json:"password"`
+	PrivateKey      string `json:"private_key"` // PEM-encoded
+	RemotePath      string `json:"remote_path"`
+	Recursive       bool   `json:"recursive"`
+	InsecureHostKey bool   `json:"insecure_host_key"` // skip host-key verification; not recommended for production
 }
 
 // Source watches a remote directory for new files.
@@ -130,10 +132,18 @@ func (s *Source) connect() (*gsftp.Client, *ssh.Client, error) {
 		authMethods = append(authMethods, ssh.Password(s.cfg.Password))
 	}
 
+	hostKeyCallback := ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		return errors.New(
+			"sftp: host key verification not configured; " +
+				"set insecure_host_key=true in source config to skip (not recommended for production)")
+	})
+	if s.cfg.InsecureHostKey {
+		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec // config
+	}
 	sshCfg := &ssh.ClientConfig{
 		User:            s.cfg.Username,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 	}
 	sshConn, err := ssh.Dial("tcp", addr, sshCfg)
 	if err != nil {

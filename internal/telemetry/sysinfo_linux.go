@@ -64,6 +64,9 @@ func filesystemUsage(path string) (filesystemStats, error) {
 		return filesystemStats{}, fmt.Errorf("could not read filesystem stats: %w", err)
 	}
 
+	if stats.Bsize < 0 {
+		return filesystemStats{}, fmt.Errorf("unexpected negative block size: %d", stats.Bsize)
+	}
 	totalBytes := stats.Blocks * uint64(stats.Bsize)
 	availableBytes := stats.Bavail * uint64(stats.Bsize)
 	usedBytes := totalBytes - availableBytes

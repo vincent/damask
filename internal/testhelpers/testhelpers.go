@@ -44,7 +44,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	api.BcryptCost = bcrypt.MinCost
+	api.BcryptCost = bcrypt.MinCost //nolint:reassign // tests only
 	m.Run()
 }
 
@@ -436,7 +436,7 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 		if h, _, hErr := versioning.HashReader(rc); hErr == nil {
 			contentHash = h
 		}
-		rc.Close() //nolint:errcheck // Best effort to avoid leaking file handles in tests.
+		rc.Close() //nolint:gosec,errcheck // file read only for test data
 	}
 
 	_, err = env.Database.ExecContext(

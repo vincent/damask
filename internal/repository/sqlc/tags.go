@@ -152,7 +152,7 @@ func (r *tagRepo) BatchTagsForAssets(ctx context.Context, assetIDs []string) (ma
 		placeholders[i] = "?"
 		args[i] = id
 	}
-	q := fmt.Sprintf(
+	q := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
 		`SELECT at.asset_id, t.name FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE at.asset_id IN (%s)`,
 		strings.Join(placeholders, ","),
 	)

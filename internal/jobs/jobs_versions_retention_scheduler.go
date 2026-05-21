@@ -105,8 +105,7 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 
 	ver, err := s.db.GetVersionByIDUnchecked(ctx, p.VersionID)
 	if err != nil {
-		// Already hard-deleted; nothing to do.
-		return nil
+		return nil //nolint:nilerr // already hard-deleted; nothing to do.
 	}
 
 	// Safety guard: never purge a current version.

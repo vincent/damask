@@ -16,13 +16,14 @@ import (
 
 // SFTPConfig holds the connection parameters for SFTPStorage.
 type SFTPConfig struct {
-	Host       string
-	Port       int // default 22
-	User       string
-	AuthMethod string // "password" | "key"
-	Password   string
-	PrivateKey string // PEM-encoded
-	BasePath   string // remote base directory, default "/"
+	Host            string
+	Port            int // default 22
+	User            string
+	AuthMethod      string // "password" | "key"
+	Password        string
+	PrivateKey      string // PEM-encoded
+	BasePath        string // remote base directory, default "/"
+	InsecureHostKey bool   // skip host-key verification; set via STORAGE_SFTP_INSECURE_HOST_KEY=true
 }
 
 // SFTPStorage implements Storage backed by a remote SFTP server.
@@ -64,10 +65,18 @@ func (s *SFTPStorage) connect() (*gsftp.Client, *ssh.Client, error) {
 		authMethods = append(authMethods, ssh.Password(s.cfg.Password))
 	}
 
+	hostKeyCallback := ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		return errors.New(
+			"sftp storage: host key verification not configured;" +
+				"set STORAGE_SFTP_INSECURE_HOST_KEY=true to skip (not recommended for production)")
+	})
+	if s.cfg.InsecureHostKey {
+		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec // config
+	}
 	sshCfg := &ssh.ClientConfig{
 		User:            s.cfg.User,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 	}
 	sshConn, err := ssh.Dial("tcp", addr, sshCfg)
 	if err != nil {

@@ -30,7 +30,7 @@ type Session struct {
 }
 
 // AuthPlain implements authentication using SASL PLAIN.
-func (s Session) AuthPlain(_, _ string) error {
+func (s *Session) AuthPlain(_, _ string) error {
 	return errors.New("invalid username or password")
 }
 

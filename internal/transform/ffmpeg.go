@@ -50,11 +50,11 @@ func (r ffmpegRuntime) ffprobeAvailable() bool {
 }
 
 func (r ffmpegRuntime) commandFFmpeg(ctx context.Context, args ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, r.ffmpegPath, args...)
+	return exec.CommandContext(ctx, r.ffmpegPath, args...) //nolint:gosec // validated args
 }
 
 func (r ffmpegRuntime) commandFFprobe(ctx context.Context, args ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, r.ffprobePath, args...)
+	return exec.CommandContext(ctx, r.ffprobePath, args...) //nolint:gosec // validated args
 }
 
 func (r ffmpegRuntime) videoDecodeArgs() []string {

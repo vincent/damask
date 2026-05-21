@@ -67,7 +67,7 @@ func (s *AferoStorage) List(prefix string) ([]string, error) {
 
 	exists, err := afero.DirExists(s.fs, root)
 	if err != nil || !exists {
-		return []string{}, nil
+		return []string{}, nil //nolint:nilerr // treat non-existent prefix as empty list
 	}
 
 	var keys []string

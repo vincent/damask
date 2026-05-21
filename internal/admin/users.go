@@ -167,7 +167,7 @@ func (m UsersModel) View() string {
 	return sb.String()
 }
 
-func (m *UsersModel) rebuildCols() {
+func (m UsersModel) rebuildCols() {
 	narrow := m.width < 100
 	var cols []table.Column
 	if narrow {
@@ -194,7 +194,7 @@ func (m *UsersModel) rebuildCols() {
 	m.table.SetHeight(m.height - 6)
 }
 
-func (m *UsersModel) rebuildTable() {
+func (m UsersModel) rebuildTable() {
 	m.rebuildCols()
 	narrow := m.width < 100
 	var rows []table.Row

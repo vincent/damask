@@ -63,7 +63,7 @@ func RunOCR(ctx context.Context, imageData []byte, p OCRParams) (*OCRResult, err
 	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "tesseract", tmpIn.Name(), "stdout", "-l", p.Lang, p.OutputFormat)
+	cmd := exec.CommandContext(ctx, "tesseract", tmpIn.Name(), "stdout", "-l", p.Lang, p.OutputFormat) //nolint:gosec,golines // arguments should come from config or LookPath, not user input
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout

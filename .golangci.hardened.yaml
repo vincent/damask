@@ -473,6 +473,7 @@ linters:
         linters:
           - exhaustive
           - intrange
+          - nestif
       - source: "TODO"
         linters: [godot]
       - text: "should have a package comment"

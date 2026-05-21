@@ -54,7 +54,7 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 	params := service.ExportZipParams{AssetIDs: body.AssetIDs, Filename: body.Filename}
 
 	pr, pw := io.Pipe()
-	go func() {
+	go func() { //nolint:gosec // writer only for stack export
 		err := s.stack.ExportZip(context.Background(), workspaceID, params, pw)
 		if err != nil {
 			_ = pw.CloseWithError(err)

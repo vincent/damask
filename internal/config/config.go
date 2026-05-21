@@ -119,7 +119,7 @@ func Load() (*Config, error) {
 		}
 	}
 
-	demoMode := getEnv("DEMO_MODE", "false") == "true"
+	demoMode := getEnv("DEMO_MODE", "false") == "true" //nolint:goconst // readability
 	demoResetHours := 6
 	if h := os.Getenv("DEMO_RESET_INTERVAL_HOURS"); h != "" {
 		if n, err := strconv.Atoi(h); err == nil && n > 0 {
@@ -141,13 +141,14 @@ func Load() (*Config, error) {
 			Password: os.Getenv("SMTP_PASS"),
 		},
 		StorageSFTP: storage.SFTPConfig{
-			Host:       os.Getenv("STORAGE_SFTP_HOST"),
-			Port:       sftpPort,
-			User:       os.Getenv("STORAGE_SFTP_USER"),
-			AuthMethod: getEnv("STORAGE_SFTP_AUTH_METHOD", "password"),
-			Password:   os.Getenv("STORAGE_SFTP_PASSWORD"),
-			PrivateKey: os.Getenv("STORAGE_SFTP_PRIVATE_KEY"),
-			BasePath:   getEnv("STORAGE_SFTP_BASE_PATH", "/"),
+			Host:            os.Getenv("STORAGE_SFTP_HOST"),
+			Port:            sftpPort,
+			User:            os.Getenv("STORAGE_SFTP_USER"),
+			AuthMethod:      getEnv("STORAGE_SFTP_AUTH_METHOD", "password"),
+			Password:        os.Getenv("STORAGE_SFTP_PASSWORD"),
+			PrivateKey:      os.Getenv("STORAGE_SFTP_PRIVATE_KEY"),
+			BasePath:        getEnv("STORAGE_SFTP_BASE_PATH", "/"),
+			InsecureHostKey: os.Getenv("STORAGE_SFTP_INSECURE_HOST_KEY") == "true",
 		},
 		StorageS3: storage.AferoS3Config{
 			Base:      getEnv("STORAGE_S3_BASE_PATH", "/"),
@@ -245,7 +246,7 @@ func getEnvInt(key string, defaultVal int) int {
 	i := defaultVal
 	if v := os.Getenv(key); v != "" {
 		if i, err = strconv.Atoi(v); err != nil {
-			slog.Error("failed to parse SMTP port", "port", v)
+			slog.Error("failed to parse SMTP port")
 		}
 	}
 	return i

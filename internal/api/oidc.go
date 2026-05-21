@@ -252,7 +252,7 @@ func (s *Server) handleGoogleCallback(c fiber.Ctx) error {
 // --- Canva handlers ---
 
 const canvaAuthURL = "https://www.canva.com/api/oauth/authorize"
-const canvaTokenURL = "https://api.canva.com/rest/v1/oauth/token"
+const canvaTokenURL = "https://api.canva.com/rest/v1/oauth/token" //nolint:gosec // canva api endpoints
 const canvaMeURL = "https://api.canva.com/rest/v1/users/me"
 
 func (s *Server) canvaOAuth2Config() oauth2.Config {

@@ -116,7 +116,8 @@ func (r *variantRepo) UpdateSharedBatch(ctx context.Context, workspaceID string,
 		args = append(args, id)
 	}
 	args = append(args, workspaceID)
-	query := fmt.Sprintf(`UPDATE variants SET is_shared = ? WHERE id IN (%s) AND workspace_id = ?`, placeholders)
+	query := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
+		`UPDATE variants SET is_shared = ? WHERE id IN (%s) AND workspace_id = ?`, placeholders)
 	_, err := r.sqlDB.ExecContext(ctx, query, args...)
 	return err
 }
@@ -133,8 +134,8 @@ func (r *variantRepo) ListSharedByAssetIDs(
 	for _, id := range assetIDs {
 		args = append(args, id)
 	}
-	query := fmt.Sprintf(`
-		SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
+	query := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
+		`SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
 		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.created_at,
 		       av.asset_id AS asset_id
 		FROM variants v

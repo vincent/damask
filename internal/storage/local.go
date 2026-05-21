@@ -12,7 +12,7 @@ type LocalStorage struct {
 }
 
 func NewLocalStorage(base string) (Storage, error) {
-	if err := os.MkdirAll(base, 0755); err != nil {
+	if err := os.MkdirAll(base, 0750); err != nil {
 		return nil, err
 	}
 	return &LocalStorage{base: base}, nil
@@ -20,7 +20,7 @@ func NewLocalStorage(base string) (Storage, error) {
 
 func (s *LocalStorage) Put(key string, r io.Reader) error {
 	dst := filepath.Join(s.base, filepath.FromSlash(key))
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
 		return err
 	}
 	f, err := os.Create(dst)

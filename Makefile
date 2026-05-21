@@ -46,9 +46,8 @@ lint:
 	cd cmd/server/web && npm run check
 
 # Run linters
-lint-hardened:
+lint-go-hardened:
 	golangci-lint run --config .golangci.hardened.yaml
-	cd cmd/server/web && npm run check
 
 # Run sqlc code generation
 generate:

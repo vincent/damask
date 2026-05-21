@@ -38,7 +38,7 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) (d
 	output := tmpPath + "_thumb" + ".jpg"
 	var buf bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx,
+	cmd := exec.CommandContext(ctx, //nolint:gosec // validated args
 		"convert",
 		"-units", "pixelsperinch",
 		"-density", "72",
@@ -99,7 +99,7 @@ func (t *transformer) PDFSlideshowThumbnail(
 
 	// convert -density 72 -format jpeg input.pdf[0-5] outdir/page-%d.jpg
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx,
+	cmd := exec.CommandContext(ctx, //nolint:gosec // validated args
 		"convert",
 		"-density", "72",
 		"-format", formatJPEG,

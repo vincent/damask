@@ -206,7 +206,7 @@ func buildRawTextPDFFile(paths []string, outPath string) error {
 		lines = append(lines, filepath.Base(p))
 	}
 	pdf := makeRawTextPDF(lines)
-	return os.WriteFile(outPath, pdf, 0o644)
+	return os.WriteFile(outPath, pdf, 0o600)
 }
 
 func makeRawTextPDF(lines []string) []byte {

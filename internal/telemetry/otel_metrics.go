@@ -113,15 +113,15 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			),
 		)
 
-		_, _ = meter.Int64ObservableGauge(
+		_, _ = meter.Float64ObservableGauge(
 			"go.heap_objects",
 			metric.WithDescription("Heap object count"),
 			metric.WithUnit("count"),
-			metric.WithInt64Callback(
-				func(_ context.Context, io metric.Int64Observer) error {
+			metric.WithFloat64Callback(
+				func(_ context.Context, fo metric.Float64Observer) error {
 					var memStats runtime.MemStats
 					runtime.ReadMemStats(&memStats)
-					io.Observe(int64(memStats.HeapObjects))
+					fo.Observe(float64(memStats.HeapObjects))
 					return nil
 				},
 			),
@@ -141,15 +141,15 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			),
 		)
 
-		_, _ = meter.Int64ObservableGauge(
+		_, _ = meter.Float64ObservableGauge(
 			"go.gc_pause",
 			metric.WithDescription("Total GC pause time"),
 			metric.WithUnit("ns"),
-			metric.WithInt64Callback(
-				func(_ context.Context, io metric.Int64Observer) error {
+			metric.WithFloat64Callback(
+				func(_ context.Context, fo metric.Float64Observer) error {
 					var memStats runtime.MemStats
 					runtime.ReadMemStats(&memStats)
-					io.Observe(int64(memStats.PauseTotalNs))
+					fo.Observe(float64(memStats.PauseTotalNs))
 					return nil
 				},
 			),
@@ -203,33 +203,33 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			),
 		)
 
-		_, _ = meter.Int64ObservableGauge(
+		_, _ = meter.Float64ObservableGauge(
 			"disk.read_bytes",
 			metric.WithDescription("Disk bytes read"),
 			metric.WithUnit("By"),
-			metric.WithInt64Callback(
-				func(_ context.Context, io metric.Int64Observer) error {
+			metric.WithFloat64Callback(
+				func(_ context.Context, fo metric.Float64Observer) error {
 					stats, err := diskIOStats()
 					if err != nil {
 						return err
 					}
-					io.Observe(int64(stats.readBytes))
+					fo.Observe(float64(stats.readBytes))
 					return nil
 				},
 			),
 		)
 
-		_, _ = meter.Int64ObservableGauge(
+		_, _ = meter.Float64ObservableGauge(
 			"disk.write_bytes",
 			metric.WithDescription("Disk bytes written"),
 			metric.WithUnit("By"),
-			metric.WithInt64Callback(
-				func(_ context.Context, io metric.Int64Observer) error {
+			metric.WithFloat64Callback(
+				func(_ context.Context, fo metric.Float64Observer) error {
 					stats, err := diskIOStats()
 					if err != nil {
 						return err
 					}
-					io.Observe(int64(stats.writeBytes))
+					fo.Observe(float64(stats.writeBytes))
 					return nil
 				},
 			),

@@ -397,11 +397,12 @@ func findCoveringWorkflowDTO(
 		AssetID   string `json:"asset_id"`
 	}
 	_ = json.Unmarshal([]byte(defaultWorkflowTriggerConfig(wf.TriggerConfig)), &cfg)
-	if cfg.FolderID != "" {
+	switch {
+	case cfg.FolderID != "":
 		scope = "folder"
-	} else if cfg.ProjectID != "" {
+	case cfg.ProjectID != "":
 		scope = string(AutomationScopeProject)
-	} else if cfg.AssetID != "" {
+	case cfg.AssetID != "":
 		scope = string(AutomationScopeAsset)
 	}
 	return &CoveringWorkflowDTO{ID: wf.ID, Name: wf.Name, Scope: scope}, nil
@@ -514,10 +515,13 @@ func buildVariantAutomationGraph(
 	for i, v := range variants {
 		nodeID := fmt.Sprintf("n_variant_%d", i)
 		nodes = append(nodes, workflow.GraphNode{
-			ID:       nodeID,
-			Type:     "action.create_variant",
-			Config:   variantAutomationNodeConfig(v),
-			Position: workflow.GraphPosition{X: 1033, Y: startY + float64(i)*spread}, //nolint:mnd // coordinates are arbitrary
+			ID:     nodeID,
+			Type:   "action.create_variant",
+			Config: variantAutomationNodeConfig(v),
+			Position: workflow.GraphPosition{
+				X: 1033, //nolint:mnd // coordinates are arbitrary
+				Y: startY + float64(i)*spread,
+			},
 		})
 		edges = append(
 			edges,

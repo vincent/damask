@@ -248,7 +248,7 @@ func main() {
 		refresher.RegisterProvider("canva", &oauth2.Config{
 			ClientID:     cfg.Canva.ClientID,
 			ClientSecret: cfg.Canva.ClientSecret,
-			Endpoint: oauth2.Endpoint{
+			Endpoint: oauth2.Endpoint{ //nolint:gosec // canva api endpoints
 				AuthURL:  "https://www.canva.com/api/oauth/authorize",
 				TokenURL: "https://api.canva.com/rest/v1/oauth/token",
 			},
