@@ -5,7 +5,7 @@ import "context"
 // Actor identifies who triggered a service call.
 // Type is "user" for authenticated users or "system" for background jobs.
 type Actor struct {
-	Type        string  // "user" | "system"
+	Type        string // "user" | "system"
 	UserID      *string
 	WorkspaceID *string
 }

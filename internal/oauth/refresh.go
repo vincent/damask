@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -48,13 +49,20 @@ func (r *TokenRefresher) RegisterProvider(provider string, cfg *oauth2.Config) {
 
 func (r *TokenRefresher) lockFor(connID string) *sync.Mutex {
 	v, _ := r.locks.LoadOrStore(connID, &sync.Mutex{})
-	return v.(*sync.Mutex)
+	mu, ok := v.(*sync.Mutex)
+	if !ok {
+		return nil
+	}
+	return mu
 }
 
 // EnsureFreshToken returns a valid decrypted access token for the connection,
 // refreshing when expires_at < now+5min. Updates the DB row on refresh.
 func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, connID string) (string, error) {
 	mu := r.lockFor(connID)
+	if mu == nil {
+		return "", errors.New("oauth/refresh: connection lock has unexpected type")
+	}
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -63,7 +71,16 @@ func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, conn
 		WorkspaceID: workspaceID,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "oauth/refresh: cannot get connection", "connID", connID, "workspaceID", workspaceID, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"oauth/refresh: cannot get connection",
+			"connID",
+			connID,
+			"workspaceID",
+			workspaceID,
+			"error",
+			err,
+		)
 		return "", fmt.Errorf("oauth/refresh: get connection: %w", err)
 	}
 
@@ -74,8 +91,8 @@ func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, conn
 
 	// Check if still fresh (more than 5 minutes remaining).
 	if conn.ExpiresAt != nil && *conn.ExpiresAt != "" {
-		exp, err := time.Parse(time.RFC3339, *conn.ExpiresAt)
-		if err == nil && time.Until(exp) > 5*time.Minute {
+		exp, parseErr := time.Parse(time.RFC3339, *conn.ExpiresAt)
+		if parseErr == nil && time.Until(exp) > 5*time.Minute {
 			return accessToken, nil
 		}
 	} else {
@@ -85,7 +102,7 @@ func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, conn
 
 	// Need to refresh.
 	if conn.RefreshToken == nil {
-		return "", fmt.Errorf("oauth/refresh: token expired and no refresh token available")
+		return "", errors.New("oauth/refresh: token expired and no refresh token available")
 	}
 
 	refreshToken, err := DecryptToken(r.appSecret, *conn.RefreshToken)
@@ -115,9 +132,9 @@ func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, conn
 	}
 	var encRefresh *string
 	if newToken.RefreshToken != "" {
-		enc, err := EncryptToken(r.appSecret, newToken.RefreshToken)
-		if err != nil {
-			return "", fmt.Errorf("oauth/refresh: encrypt new refresh token: %w", err)
+		enc, encErr := EncryptToken(r.appSecret, newToken.RefreshToken)
+		if encErr != nil {
+			return "", fmt.Errorf("oauth/refresh: encrypt new refresh token: %w", encErr)
 		}
 		encRefresh = &enc
 	}

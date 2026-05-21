@@ -52,13 +52,16 @@ func GetClaims(c fiber.Ctx) *Claims {
 // roleRank maps role names to an integer for comparison.
 var roleRank = map[Role]int{
 	Viewer: 1,
-	Editor: 2,
-	Owner:  3,
+	Editor: 2, //nolint:mnd // rank value
+	Owner:  3, //nolint:mnd // rank value
 }
 
 // RequireRole returns a middleware that enforces a minimum role level.
 // It expects a getRoleFn to look up the current user's role in the workspace.
-func RequireRole(maker *Maker, getRoleFn func(ctx context.Context, workspaceID, userID string) (Role, error), minRole Role) fiber.Handler {
+func RequireRole(
+	getRoleFn func(ctx context.Context, workspaceID, userID string) (Role, error),
+	minRole Role,
+) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		claims := GetClaims(c)
 		if claims == nil {

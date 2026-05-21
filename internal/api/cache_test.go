@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"damask/server/internal/api"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -203,7 +203,7 @@ func insertVariantFile(t *testing.T, env *th.TestEnv, assetID, workspaceID strin
 
 	// Look up the current version's storage key to use as the variant's file.
 	var storageKey string
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT storage_key FROM assets WHERE id = ?`, assetID,
 	).Scan(&storageKey); err != nil {
 		t.Fatalf("lookup storage key: %v", err)
@@ -211,7 +211,7 @@ func insertVariantFile(t *testing.T, env *th.TestEnv, assetID, workspaceID strin
 
 	// Look up current version ID.
 	var versionID string
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1`, assetID,
 	).Scan(&versionID); err != nil {
 		t.Fatalf("lookup version: %v", err)
@@ -231,7 +231,7 @@ func insertVariantFile(t *testing.T, env *th.TestEnv, assetID, workspaceID strin
 	}
 	rc.Close() //nolint:errcheck
 
-	_, err = env.SqlDB.Exec(`
+	_, err = env.Database.Exec(`
 		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, size, created_at)
 		VALUES (?, ?, ?, 'manual', ?, 1024, datetime('now'))
 	`, variantID, workspaceID, versionID, variantKey)
@@ -383,7 +383,7 @@ func TestCaching_VersionThumb_HeadersAndImmutable(t *testing.T) {
 func assignAssetToProject(t *testing.T, env *th.TestEnv, cookie *http.Cookie, assetID, projectID string) {
 	t.Helper()
 	body := `{"asset_ids":["` + assetID + `"],"project_id":"` + projectID + `"}`
-	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/project", th.JsonStr(body), cookie)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/project", th.JSONStr(body), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("assign project: %v", err)

@@ -1,4 +1,4 @@
-package tests_helpers
+package testhelpers
 
 // Integration tests helpers.
 // Prefer using testutil helpers if you dont need a real DB.
@@ -51,16 +51,14 @@ func TestMain(m *testing.M) {
 // TestEnv holds the shared dependencies for a single test's app instance.
 type TestEnv struct {
 	App        *fiber.App
-	HttpServer *api.Server
+	HTTPServer *api.Server
 	JobServer  *jobs.JobServer
 	Maker      *auth.Maker
-	SqlDB      *sql.DB
+	Database   *sql.DB
 	Storage    storage.Storage
 	Config     *config.Config
 }
 
-// SetupTestApp opens a fresh temp-file SQLite DB, runs migrations, and
-// returns a configured Fiber app. The DB is closed via t.Cleanup.
 // TestOption configures a test environment.
 type TestOption func(*config.Config)
 
@@ -131,18 +129,38 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 
 	q := queue.New(queries, 1)
 
-	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
+	noopMailer := mail.NewMailer(&mail.Config{})
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
 	media := ingest.NewRegistry(trf)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
-	h := api.NewHttpServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
-	workflowExec := workflow.NewExecutor(workflow.Deps{Workflows: reposqlc.NewWorkflowRepo(queries, sqlDB), Runs: reposqlc.NewWorkflowRunRepo(queries, sqlDB), Queue: q, Config: cfg})
-	j := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey, workflowExec)
+	h := api.NewHTTPServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
+	workflowExec := workflow.NewExecutor(
+		workflow.Deps{
+			Workflows: reposqlc.NewWorkflowRepo(queries, sqlDB),
+			Runs:      reposqlc.NewWorkflowRunRepo(queries, sqlDB),
+			Queue:     q,
+			Config:    cfg,
+		},
+	)
+	j := jobs.NewJobServer(
+		queries,
+		sqlDB,
+		stor,
+		eventsHub,
+		q,
+		noopMailer,
+		trf,
+		tmb,
+		cfg,
+		injestor,
+		resolveImageRouterKey,
+		workflowExec,
+	)
 	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
-	return &TestEnv{App: app, HttpServer: h, JobServer: j, Maker: maker, SqlDB: sqlDB, Storage: stor, Config: cfg}
+	return &TestEnv{App: app, HTTPServer: h, JobServer: j, Maker: maker, Database: sqlDB, Storage: stor, Config: cfg}
 }
 
 // AuthResult holds the parsed outcome of a register or login response.
@@ -158,12 +176,13 @@ type AuthResult struct {
 func Register(t *testing.T, env *TestEnv, name, email, password string) AuthResult {
 	t.Helper()
 	body := fmt.Sprintf(`{"name":%q,"email":%q,"password":%q}`, name, email, password)
-	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/register", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("register request: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("register: expected 201, got %d", resp.StatusCode)
 	}
@@ -193,7 +212,7 @@ func FindCookie(resp *http.Response, name string) *http.Cookie {
 
 // AuthRequest builds an HTTP request and attaches a cookie if provided.
 func AuthRequest(method, path string, body io.Reader, cookie *http.Cookie) *http.Request {
-	req := httptest.NewRequest(method, path, body)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, body)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -205,7 +224,7 @@ func AuthRequest(method, path string, body io.Reader, cookie *http.Cookie) *http
 
 // BearerRequest builds an HTTP request with an Authorization: Bearer header.
 func BearerRequest(method, path string, body io.Reader, token string) *http.Request {
-	req := httptest.NewRequest(method, path, body)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, body)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -223,7 +242,8 @@ func MintEditorToken(t *testing.T, env *TestEnv, workspaceID string, role auth.R
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
-	_, err := env.SqlDB.Exec(
+	_, err := env.Database.ExecContext(
+		t.Context(),
 		`INSERT INTO users (id, email, password_hash, name, created_at)
 		 VALUES (?, ?, ?, ?, ?)`,
 		userID, role+"@example.com", string(hash), "Test "+role, now,
@@ -232,7 +252,8 @@ func MintEditorToken(t *testing.T, env *TestEnv, workspaceID string, role auth.R
 		t.Fatalf("insert editor user: %v", err)
 	}
 
-	_, err = env.SqlDB.Exec(
+	_, err = env.Database.ExecContext(
+		t.Context(),
 		`INSERT INTO workspace_members (workspace_id, user_id, role, created_at)
 		 VALUES (?, ?, ?, ?)`,
 		workspaceID, userID, role, now,
@@ -248,22 +269,29 @@ func MintEditorToken(t *testing.T, env *TestEnv, workspaceID string, role auth.R
 	return token
 }
 
-// JsonStr returns an io.Reader wrapping a JSON string literal.
-func JsonStr(s string) io.Reader {
+// JSONStr returns an io.Reader wrapping a JSON string literal.
+func JSONStr(s string) io.Reader {
 	return strings.NewReader(s)
 }
 
-// JsonBody marshals v to JSON and returns an io.Reader suitable for AuthRequest/BearerRequest.
-func JsonBody(v any) io.Reader {
+// JSONBody marshals v to JSON and returns an io.Reader suitable for AuthRequest/BearerRequest.
+func JSONBody(v any) io.Reader {
 	b, err := json.Marshal(v)
 	if err != nil {
-		panic(fmt.Sprintf("JsonBody: marshal failed: %v", err))
+		panic(fmt.Sprintf("JSONBody: marshal failed: %v", err))
 	}
 	return bytes.NewReader(b)
 }
 
 // BuildVersionUploadRequest creates a multipart upload request for POST /assets/:id/versions.
-func BuildVersionUploadRequest(t *testing.T, assetID string, filename string, content []byte, comment string, cookie *http.Cookie) *http.Request {
+func BuildVersionUploadRequest(
+	t *testing.T,
+	assetID string,
+	filename string,
+	content []byte,
+	comment string,
+	cookie *http.Cookie,
+) *http.Request {
 	t.Helper()
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
@@ -283,7 +311,12 @@ func BuildVersionUploadRequest(t *testing.T, assetID string, filename string, co
 		t.Fatalf("close writer: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/assets/%s/versions", assetID), &body)
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		fmt.Sprintf("/api/v1/assets/%s/versions", assetID),
+		&body,
+	)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	if cookie != nil {
 		req.AddCookie(cookie)
@@ -306,7 +339,13 @@ func MakeJPEG(width, height int) []byte {
 
 // BuildUploadRequest creates a multipart/form-data request with a file field.
 // Optional extra form fields can be passed as additional map arguments.
-func BuildUploadRequest(t *testing.T, filename string, content []byte, cookie *http.Cookie, extraFields ...map[string]string) *http.Request {
+func BuildUploadRequest(
+	t *testing.T,
+	filename string,
+	content []byte,
+	cookie *http.Cookie,
+	extraFields ...map[string]string,
+) *http.Request {
 	t.Helper()
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
@@ -329,7 +368,7 @@ func BuildUploadRequest(t *testing.T, filename string, content []byte, cookie *h
 		t.Fatalf("close form: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	if cookie != nil {
 		req.AddCookie(cookie)
@@ -346,6 +385,7 @@ func UploadAsset(t *testing.T, env *TestEnv, cookie *http.Cookie) api.AssetRespo
 	if err != nil {
 		t.Fatalf("upload asset: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("upload asset: expected 201, got %d: %s", resp.StatusCode, b)
@@ -373,7 +413,8 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 
 	// Resolve the owner user ID from workspace membership.
 	var createdBy string
-	err := env.SqlDB.QueryRow(
+	err := env.Database.QueryRowContext(
+		t.Context(),
 		`SELECT user_id FROM workspace_members WHERE workspace_id = ? ORDER BY created_at LIMIT 1`,
 		asset.WorkspaceID,
 	).Scan(&createdBy)
@@ -383,7 +424,7 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 
 	// Look up the real storage_key from the assets table so the file endpoint works.
 	var storageKey string
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT storage_key FROM assets WHERE id = ?`, asset.ID,
 	).Scan(&storageKey); err != nil {
 		t.Fatalf("lookup storage key: %v", err)
@@ -395,10 +436,11 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 		if h, _, hErr := versioning.HashReader(rc); hErr == nil {
 			contentHash = h
 		}
-		rc.Close() //nolint:errcheck
+		rc.Close() //nolint:errcheck // Best effort to avoid leaking file handles in tests.
 	}
 
-	_, err = env.SqlDB.Exec(`
+	_, err = env.Database.ExecContext(
+		t.Context(), `
 		INSERT OR IGNORE INTO asset_versions (
 			id, asset_id, workspace_id, version_num, storage_key, content_hash,
 			mime_type, size, width, height, created_by, created_at, is_current
@@ -415,7 +457,8 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 		t.Fatalf("seed v1 version: %v", err)
 	}
 
-	_, err = env.SqlDB.Exec(
+	_, err = env.Database.ExecContext(
+		t.Context(),
 		`UPDATE assets SET current_version_id = ? WHERE id = ?`, versionID, asset.ID,
 	)
 	if err != nil {
@@ -445,11 +488,12 @@ func (env *TestEnv) UploadTestAsset(t *testing.T, cookie *http.Cookie) string {
 func CreateProject(t *testing.T, env *TestEnv, cookie *http.Cookie, name, color string) api.ProjectResponse {
 	t.Helper()
 	body := fmt.Sprintf(`{"name":%q,"color":%q}`, name, color)
-	req := AuthRequest(http.MethodPost, "/api/v1/projects", JsonStr(body), cookie)
+	req := AuthRequest(http.MethodPost, "/api/v1/projects", JSONStr(body), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("create project: %v", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("create project: expected 201, got %d: %s", resp.StatusCode, b)

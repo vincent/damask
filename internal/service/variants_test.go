@@ -46,7 +46,11 @@ func (s systemTagServiceStub) Merge(context.Context, string, []string, string) (
 	return service.MergeTagsResult{}, nil
 }
 
-func (s systemTagServiceStub) ResolveSystemTag(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
+func (s systemTagServiceStub) ResolveSystemTag(
+	ctx context.Context,
+	workspaceID, tagName string,
+	scope service.SystemTagScope,
+) (*service.AssetDTO, error) {
 	if s.resolveFn != nil {
 		return s.resolveFn(ctx, workspaceID, tagName, scope)
 	}
@@ -77,7 +81,10 @@ func newVariantSvc(t *testing.T) (service.VariantService, *memory.RealVariantRep
 	return service.NewVariantService(varRepo, assetRepo, nil, audit.NopWriter{}), varRepo, assetRepo
 }
 
-func newVariantSvcWithTags(t *testing.T, tags service.TagService) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
+func newVariantSvcWithTags(
+	t *testing.T,
+	tags service.TagService,
+) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
 	t.Helper()
 	varRepo := memory.NewRealVariantRepo()
 	assetRepo := memory.NewAssetRepo()
@@ -234,8 +241,23 @@ func TestVariantService_UpdateTitle_TooLong(t *testing.T) {
 func TestVariantService_UpdateSharing_Mixed(t *testing.T) {
 	svc, repo, _ := newVariantSvc(t)
 	repo.Seed(
-		repository.Variant{ID: "var_1", WorkspaceID: "ws_1", AssetVersionID: "ver_1", Type: "image_resize", StorageKey: "a", CreatedAt: time.Now()},
-		repository.Variant{ID: "var_2", WorkspaceID: "ws_1", AssetVersionID: "ver_1", Type: "image_resize", StorageKey: "b", IsShared: true, CreatedAt: time.Now().Add(time.Second)},
+		repository.Variant{
+			ID:             "var_1",
+			WorkspaceID:    "ws_1",
+			AssetVersionID: "ver_1",
+			Type:           "image_resize",
+			StorageKey:     "a",
+			CreatedAt:      time.Now(),
+		},
+		repository.Variant{
+			ID:             "var_2",
+			WorkspaceID:    "ws_1",
+			AssetVersionID: "ver_1",
+			Type:           "image_resize",
+			StorageKey:     "b",
+			IsShared:       true,
+			CreatedAt:      time.Now().Add(time.Second),
+		},
 	)
 
 	err := svc.UpdateSharing(context.Background(), service.UpdateVariantsSharingParams{
@@ -358,11 +380,35 @@ func TestVariantService_PrepareCreate_RejectsWrongMimeFamilies(t *testing.T) {
 		wantMessage string
 		wantErr     error
 	}{
-		{"image transform on audio", queue.JobTypeImageResize, "audio/mpeg", "image transforms require an image asset", service.ErrInvalidVariantReq},
-		{"image with prompt on audio", queue.JobTypeImageWithPrompt, "audio/mpeg", "image transforms require an image asset", service.ErrInvalidVariantReq},
-		{"video transform on image", queue.JobTypeVideoTranscode, "image/jpeg", "video transforms require a video asset", service.ErrInvalidVariantReq},
+		{
+			"image transform on audio",
+			queue.JobTypeImageResize,
+			"audio/mpeg",
+			"image transforms require an image asset",
+			service.ErrInvalidVariantReq,
+		},
+		{
+			"image with prompt on audio",
+			queue.JobTypeImageWithPrompt,
+			"audio/mpeg",
+			"image transforms require an image asset",
+			service.ErrInvalidVariantReq,
+		},
+		{
+			"video transform on image",
+			queue.JobTypeVideoTranscode,
+			"image/jpeg",
+			"video transforms require a video asset",
+			service.ErrInvalidVariantReq,
+		},
 		{"extract audio on image", queue.JobTypeExtractAudio, "image/jpeg", "asset_not_video", apperr.ErrInvalidInput},
-		{"audio transform on video", queue.JobTypeTranscodeAudio, "video/mp4", "asset_not_audio", apperr.ErrInvalidInput},
+		{
+			"audio transform on video",
+			queue.JobTypeTranscodeAudio,
+			"video/mp4",
+			"asset_not_audio",
+			apperr.ErrInvalidInput,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

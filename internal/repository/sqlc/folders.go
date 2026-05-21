@@ -49,7 +49,16 @@ func (r *folderRepo) ListByProject(ctx context.Context, workspaceID, projectID s
 	var out []repository.Folder
 	for sqlRows.Next() {
 		var f dbgen.Folder
-		if err := sqlRows.Scan(&f.ID, &f.WorkspaceID, &f.ProjectID, &f.ParentID, &f.Name, &f.Slug, &f.Position, &f.CreatedAt); err != nil {
+		if err := sqlRows.Scan(
+			&f.ID,
+			&f.WorkspaceID,
+			&f.ProjectID,
+			&f.ParentID,
+			&f.Name,
+			&f.Slug,
+			&f.Position,
+			&f.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		out = append(out, toFolder(f))
@@ -139,8 +148,8 @@ func (r *folderRepo) ListTree(ctx context.Context, workspaceID, projectID string
 	defer rows.Close()
 
 	type flatRow struct {
-		folder   repository.Folder
-		depth    int64
+		folder     repository.Folder
+		depth      int64
 		assetCount int64
 	}
 

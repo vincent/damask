@@ -65,7 +65,7 @@
         class="text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
       >
         {label}
-        {#if def.required && (!fv || fv.value === null)}
+        {#if def.validationRequired && (!fv || fv.value === null)}
           <span class="ml-1 text-orange-400">*</span>
         {/if}
       </p>

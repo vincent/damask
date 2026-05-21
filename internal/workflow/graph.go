@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -31,13 +32,13 @@ type GraphEdge struct {
 
 func (g *Graph) Validate() error {
 	if len(g.Nodes) == 0 {
-		return fmt.Errorf("graph must contain at least one node")
+		return errors.New("graph must contain at least one node")
 	}
 	byID := make(map[string]GraphNode, len(g.Nodes))
 	triggerCount := 0
 	for _, node := range g.Nodes {
 		if node.ID == "" {
-			return fmt.Errorf("node id is required")
+			return errors.New("node id is required")
 		}
 		if _, exists := byID[node.ID]; exists {
 			return fmt.Errorf("duplicate node id %q", node.ID)
@@ -46,13 +47,13 @@ func (g *Graph) Validate() error {
 		if !ok {
 			return fmt.Errorf("unknown node type %q", node.Type)
 		}
-		if schema.Category == "trigger" {
+		if schema.Category == nodeCategoryTrigger {
 			triggerCount++
 		}
 		byID[node.ID] = node
 	}
 	if triggerCount != 1 {
-		return fmt.Errorf("graph must contain exactly one trigger node")
+		return errors.New("graph must contain exactly one trigger node")
 	}
 	for _, edge := range g.Edges {
 		fromNode, ok := byID[edge.FromNode]
@@ -81,11 +82,11 @@ func (g *Graph) Validate() error {
 func (g *Graph) TriggerNode() (GraphNode, error) {
 	for _, node := range g.Nodes {
 		schema, ok := SchemaFor(node.Type)
-		if ok && schema.Category == "trigger" {
+		if ok && schema.Category == nodeCategoryTrigger {
 			return node, nil
 		}
 	}
-	return GraphNode{}, fmt.Errorf("trigger node not found")
+	return GraphNode{}, errors.New("trigger node not found")
 }
 
 func (g *Graph) Successors(nodeID, fromPort string) []GraphNode {
@@ -135,7 +136,7 @@ func (g *Graph) TopologicalSort() ([]GraphNode, error) {
 		}
 	}
 	if len(sorted) != len(g.Nodes) {
-		return nil, fmt.Errorf("graph contains a cycle")
+		return nil, errors.New("graph contains a cycle")
 	}
 	return sorted, nil
 }

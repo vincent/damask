@@ -42,7 +42,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		stor,
 		events.NewEventHub(),
 		q,
-		mail.NewMailer(&mail.MailSenderConfig{}),
+		mail.NewMailer(&mail.Config{}),
 		trf,
 		tmb,
 		&config.Config{},
@@ -93,7 +93,12 @@ func TestExtractMediaTags_WritesValuesAndSeedsFields(t *testing.T) {
 	}
 
 	payload, _ := json.Marshal(ExtractMediaTagsPayload{AssetID: assetID, WorkspaceID: "ws_test"})
-	if _, err := q.Enqueue(context.Background(), "ws_test", queue.JobTypeExtractMediaTags, string(payload)); err != nil {
+	if _, err := q.Enqueue(
+		context.Background(),
+		"ws_test",
+		queue.JobTypeExtractMediaTags,
+		string(payload),
+	); err != nil {
 		t.Fatalf("enqueue job: %v", err)
 	}
 
@@ -149,7 +154,12 @@ VALUES ('afv-media-title', 'asset-media-tags-2', 'fd-media-title', 'Existing', d
 	}
 
 	payload, _ := json.Marshal(ExtractMediaTagsPayload{AssetID: "asset-media-tags-2", WorkspaceID: "ws_test"})
-	if _, err := q.Enqueue(context.Background(), "ws_test", queue.JobTypeExtractMediaTags, string(payload)); err != nil {
+	if _, err := q.Enqueue(
+		context.Background(),
+		"ws_test",
+		queue.JobTypeExtractMediaTags,
+		string(payload),
+	); err != nil {
 		t.Fatalf("enqueue job: %v", err)
 	}
 

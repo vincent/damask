@@ -30,17 +30,17 @@ type Session struct {
 }
 
 // AuthPlain implements authentication using SASL PLAIN.
-func (s Session) AuthPlain(username, password string) error {
+func (s Session) AuthPlain(_, _ string) error {
 	return errors.New("invalid username or password")
 }
 
-func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
+func (s *Session) Mail(from string, _ *smtp.MailOptions) error {
 	slog.Debug("mail from", "from", from)
 	s.from = from
 	return nil
 }
 
-func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
+func (s *Session) Rcpt(to string, _ *smtp.RcptOptions) error {
 	s.to = to
 	return nil
 }
@@ -55,7 +55,7 @@ func (s *Session) Data(r io.Reader) error {
 		if h.Address != s.to {
 			continue
 		}
-		if err := h.Trigger(s.from, email); err != nil {
+		if err := h.Trigger(context.Background(), s.from, email); err != nil {
 			return err
 		}
 	}
@@ -72,7 +72,14 @@ func (s *Session) Data(r io.Reader) error {
 		src, err := s.db.GetIngressSourceByPublicToken(ctx, token)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				slog.ErrorContext(ctx, "mailserver: lookup source token", "token_prefix", safePrefix(token), "error", err)
+				slog.ErrorContext(
+					ctx,
+					"mailserver: lookup source token",
+					"token_prefix",
+					safePrefix(token),
+					"error",
+					err,
+				)
 			}
 			return nil
 		}
@@ -90,13 +97,29 @@ func (s *Session) Data(r io.Reader) error {
 			}); err == nil {
 				overrideFolderID = folder.ID
 			} else {
-				slog.Warn("mailserver: no folder for tag (falling back to default)", "tag", tag, "workspace_id", src.WorkspaceID)
+				slog.WarnContext(
+					ctx,
+					"mailserver: no folder for tag (falling back to default)",
+					"tag",
+					tag,
+					"workspace_id",
+					src.WorkspaceID,
+				)
 			}
 		}
 
 		for _, att := range email.Attachments {
 			if err := s.ingestAttachment(ctx, src, att, overrideFolderID); err != nil {
-				slog.ErrorContext(ctx, "mailserver: ingest attachment", "filename", att.Filename, "source_id", src.ID, "error", err)
+				slog.ErrorContext(
+					ctx,
+					"mailserver: ingest attachment",
+					"filename",
+					att.Filename,
+					"source_id",
+					src.ID,
+					"error",
+					err,
+				)
 			}
 		}
 	}
@@ -105,13 +128,18 @@ func (s *Session) Data(r io.Reader) error {
 }
 
 func safePrefix(s string) string {
-	if len(s) <= 8 {
+	if len(s) <= 8 { //nolint:mnd // 8 is an arbitrary prefix length that balances utility and safety
 		return "***"
 	}
 	return s[:8] + "..."
 }
 
-func (s *Session) ingestAttachment(ctx context.Context, src dbgen.IngressSource, att parsemail.Attachment, overrideFolderID string) error {
+func (s *Session) ingestAttachment(
+	ctx context.Context,
+	src dbgen.IngressSource,
+	att parsemail.Attachment,
+	overrideFolderID string,
+) error {
 	tmp, err := os.CreateTemp("", "email-ingest-*")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)

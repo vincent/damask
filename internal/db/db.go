@@ -1,14 +1,15 @@
 package db
 
 import (
-	db "damask/server/internal/db/gen"
 	"database/sql"
 	"fmt"
 	"path/filepath"
 
+	db "damask/server/internal/db/gen"
+
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" //nolint:nolintlint // to register the sqlite driver
 )
 
 // Open opens the SQLite database, runs migrations, and returns a Queries instance.

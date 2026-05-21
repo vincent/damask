@@ -20,6 +20,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+const textTrackSourceManual = "manual"
+
 var ErrUnsupportedTextTrackSource = errors.New("unsupported text track source")
 
 type textTrackService struct {
@@ -43,7 +45,16 @@ func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "text track list failed", "workspace_id", workspaceID, "asset_id", assetID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"text track list failed",
+				"workspace_id",
+				workspaceID,
+				"asset_id",
+				assetID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -76,7 +87,16 @@ func (s *textTrackService) Get(ctx context.Context, workspaceID, trackID string)
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "text track get failed", "workspace_id", workspaceID, "track_id", trackID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"text track get failed",
+				"workspace_id",
+				workspaceID,
+				"track_id",
+				trackID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -110,7 +130,18 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "text track create failed", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "source", p.Source, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"text track create failed",
+				"workspace_id",
+				p.WorkspaceID,
+				"asset_id",
+				p.AssetID,
+				"source",
+				p.Source,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -118,10 +149,10 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 		return TextTrackDTO{}, fmt.Errorf("source is required: %w", apperr.ErrInvalidInput)
 	}
 
-	status := "pending"
+	status := WorkflowRunStatusPending
 	content := ""
 	switch p.Source {
-	case "manual":
+	case textTrackSourceManual:
 		status = "ready"
 		content = readyTextContent(p.InitialContent)
 	case "ocr":
@@ -160,14 +191,19 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	}
 
 	dto = toTextTrackDTO(row)
-	if p.Source == "manual" {
+	if p.Source == textTrackSourceManual {
 		if err := s.db.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
 			TrackID:     row.ID,
 			AssetID:     row.AssetID,
 			WorkspaceID: row.WorkspaceID,
 			Source:      row.Source,
-			Lang:        func() string { if row.Lang != nil { return *row.Lang }; return "" }(),
-			Content:     content,
+			Lang: func() string {
+				if row.Lang != nil {
+					return *row.Lang
+				}
+				return ""
+			}(),
+			Content: content,
 		}); err != nil {
 			return TextTrackDTO{}, err
 		}
@@ -193,7 +229,18 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 			return TextTrackDTO{}, err
 		}
 		span.SetAttributes(attribute.String("damask.job_id", job.ID))
-		slog.DebugContext(ctx, "text track OCR enqueued", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "track_id", row.ID, "job_id", job.ID)
+		slog.DebugContext(
+			ctx,
+			"text track OCR enqueued",
+			"workspace_id",
+			p.WorkspaceID,
+			"asset_id",
+			p.AssetID,
+			"track_id",
+			row.ID,
+			"job_id",
+			job.ID,
+		)
 		return dto, nil
 	}
 
@@ -208,7 +255,16 @@ func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID stri
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "text track delete failed", "workspace_id", workspaceID, "track_id", trackID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"text track delete failed",
+				"workspace_id",
+				workspaceID,
+				"track_id",
+				trackID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -223,7 +279,16 @@ func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID stri
 	)
 	if track.StorageKey != nil && s.storage != nil {
 		if err := s.storage.Delete(*track.StorageKey); err != nil {
-			slog.WarnContext(ctx, "text track storage delete failed", "track_id", trackID, "storage_key", *track.StorageKey, "error", err)
+			slog.WarnContext(
+				ctx,
+				"text track storage delete failed",
+				"track_id",
+				trackID,
+				"storage_key",
+				*track.StorageKey,
+				"error",
+				err,
+			)
 		}
 	}
 	if err := s.db.DeleteTextFTS(ctx, trackID); err != nil {

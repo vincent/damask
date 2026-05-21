@@ -25,7 +25,9 @@ func (q *workflowQueueStub) Enqueue(_ context.Context, _, _, _ string) (dbgen.Jo
 	return dbgen.Job{ID: "job_1"}, nil
 }
 
-func newWorkflowSvc(t *testing.T) (service.WorkflowService, *memory.WorkflowMemoryRepo, *memory.WorkflowRunMemoryRepo, *workflowQueueStub) {
+func newWorkflowSvc(
+	t *testing.T,
+) (service.WorkflowService, *memory.WorkflowMemoryRepo, *memory.WorkflowRunMemoryRepo, *workflowQueueStub) {
 	t.Helper()
 	workflows := memory.NewWorkflowRepo()
 	runs := memory.NewWorkflowRunRepo()
@@ -122,7 +124,13 @@ func TestWorkflowServiceCreateFromVariantsCreatesDisabledWorkflow(t *testing.T) 
 		repository.Variant{ID: "var_1", WorkspaceID: "ws_1", Type: "manual"},
 		repository.Variant{ID: "var_2", WorkspaceID: "ws_1", Type: "image_resize", TransformParams: &params},
 	)
-	svc := service.NewWorkflowServiceWithDeps(workflows, runs, memory.NewWorkflowWebhookRepo(), queue, service.WorkflowServiceDeps{Assets: assets, Variants: variants})
+	svc := service.NewWorkflowServiceWithDeps(
+		workflows,
+		runs,
+		memory.NewWorkflowWebhookRepo(),
+		queue,
+		service.WorkflowServiceDeps{Assets: assets, Variants: variants},
+	)
 	got, err := svc.CreateFromVariants(context.Background(), "ws_1", service.CreateVariantAutomationParams{
 		AssetID:   "ast_1",
 		CreatedBy: "usr_1",

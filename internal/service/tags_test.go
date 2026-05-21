@@ -7,8 +7,8 @@ import (
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
-	"damask/server/internal/repository/memory"
 	"damask/server/internal/repository"
+	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 	"damask/server/internal/systemtags"
 )
@@ -62,8 +62,8 @@ func TestTagService_Create_Conflict(t *testing.T) {
 
 func TestTagService_List_WorkspaceIsolation(t *testing.T) {
 	svc, _ := newTagSvc(t)
-	svc.Create(context.Background(), "ws_A", service.CreateTagParams{Name: "alpha"}) //nolint
-	svc.Create(context.Background(), "ws_B", service.CreateTagParams{Name: "beta"})  //nolint
+	svc.Create(context.Background(), "ws_A", service.CreateTagParams{Name: "alpha"})
+	svc.Create(context.Background(), "ws_B", service.CreateTagParams{Name: "beta"})
 	tags, err := svc.List(context.Background(), "ws_A", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -77,7 +77,7 @@ func TestTagService_List_WorkspaceIsolation(t *testing.T) {
 
 func TestTagService_Patch_Rename_OK(t *testing.T) {
 	svc, _ := newTagSvc(t)
-	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "old"}) //nolint
+	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "old"})
 	newName := "new"
 	dto, err := svc.Patch(context.Background(), "ws_1", "old", service.PatchTagParams{Name: &newName})
 	if err != nil {
@@ -90,8 +90,8 @@ func TestTagService_Patch_Rename_OK(t *testing.T) {
 
 func TestTagService_Patch_Rename_Conflict(t *testing.T) {
 	svc, _ := newTagSvc(t)
-	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "first"})  //nolint
-	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "second"}) //nolint
+	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "first"})
+	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "second"})
 	conflict := "second"
 	_, err := svc.Patch(context.Background(), "ws_1", "first", service.PatchTagParams{Name: &conflict})
 	if !errors.Is(err, apperr.ErrConflict) {
@@ -129,7 +129,7 @@ func TestTagService_AddToAsset_Idempotent(t *testing.T) {
 
 func TestTagService_RemoveFromAsset_OK(t *testing.T) {
 	svc, _ := newTagSvc(t)
-	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo") //nolint
+	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo")
 	if err := svc.RemoveFromAsset(context.Background(), "ws_1", "ast_1", "photo"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestTagService_AddToAsset_DispatchesWorkflowTrigger(t *testing.T) {
 
 func TestTagService_Delete_OK(t *testing.T) {
 	svc, _ := newTagSvc(t)
-	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "gone"}) //nolint
+	svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "gone"})
 	if err := svc.Delete(context.Background(), "ws_1", []string{"gone"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -301,8 +301,8 @@ func TestTagService_AddToAsset_EmitsAuditEvent(t *testing.T) {
 
 func TestTagService_RemoveFromAsset_EmitsAuditEvent(t *testing.T) {
 	svc, _, spy := newTagSvcSpy(t)
-	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "nature") //nolint
-	spy.asset = nil                                                 // reset after add
+	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "nature")
+	spy.asset = nil // reset after add
 	if err := svc.RemoveFromAsset(context.Background(), "ws_1", "ast_1", "nature"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -319,8 +319,8 @@ func TestTagService_AddToAsset_AuditOnEveryCall(t *testing.T) {
 	svc, _, spy := newTagSvcSpy(t)
 	// Two calls with the same tag: the repo deduplicates the link, but the
 	// service emits an audit event on every call regardless.
-	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo") //nolint
-	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo") //nolint
+	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo")
+	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo")
 	if spy.assetCount() != 2 {
 		t.Errorf("expected 2 audit events (one per call), got %d", spy.assetCount())
 	}

@@ -21,13 +21,21 @@ type TriggerDispatcher struct {
 	queue     queue.JobQueue
 }
 
-func NewTriggerDispatcher(workflows repository.WorkflowRepository, runs repository.WorkflowRunRepository, queue queue.JobQueue) *TriggerDispatcher {
+func NewTriggerDispatcher(
+	workflows repository.WorkflowRepository,
+	runs repository.WorkflowRunRepository,
+	queue queue.JobQueue,
+) *TriggerDispatcher {
 	return &TriggerDispatcher{workflows: workflows, runs: runs, queue: queue}
 }
 
 func (d *TriggerDispatcher) Dispatch(ctx context.Context, eventType string, data map[string]any) error {
 	var err error
-	ctx, span := dispatcherTracer.Start(ctx, "workflow.dispatch", trace.WithAttributes(attribute.String("workflow.trigger_type", eventType)))
+	ctx, span := dispatcherTracer.Start(
+		ctx,
+		"workflow.dispatch",
+		trace.WithAttributes(attribute.String("workflow.trigger_type", eventType)),
+	)
 	defer telemetry.EndSpan(span, err)
 
 	wfs, err := d.workflows.ListByTrigger(ctx, eventType)

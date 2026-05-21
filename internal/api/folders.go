@@ -53,7 +53,7 @@ func folderDTOToResponse(d *service.FolderDTO) FolderResponse {
 // @Failure 404 {object} ErrorResponse "Project or parent folder not found"
 // @Failure 409 {object} ErrorResponse "A folder with that name already exists here"
 // @Failure 422 {object} ErrorResponse "Max folder depth exceeded"
-// @Router /api/v1/projects/{id}/folders [post]
+// @Router /api/v1/projects/{id}/folders [post].
 func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	projectID := c.Params("id")
@@ -91,7 +91,7 @@ func (s *Server) handleCreateFolder(c fiber.Ctx) error {
 // @Success 200 {array} FolderResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project not found"
-// @Router /api/v1/projects/{id}/folders [get]
+// @Router /api/v1/projects/{id}/folders [get].
 func (s *Server) handleGetFolders(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	projectID := c.Params("id")
@@ -142,7 +142,7 @@ func folderTreeToResponse(nodes []*service.FolderTreeDTO) []FolderResponse {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Folder not found"
 // @Failure 409 {object} ErrorResponse "A folder with that name already exists here"
-// @Router /api/v1/folders/{id} [put]
+// @Router /api/v1/folders/{id} [put].
 func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -177,7 +177,7 @@ func (s *Server) handleUpdateFolder(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Folder not found"
-// @Router /api/v1/folders/{id} [delete]
+// @Router /api/v1/folders/{id} [delete].
 func (s *Server) handleDeleteFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")

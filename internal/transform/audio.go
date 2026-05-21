@@ -15,6 +15,20 @@ import (
 
 var ErrNoAudioStream = errors.New("no audio stream")
 
+const (
+	DefaultLUFS         = -16
+	MinLUFS             = -70
+	MaxLUFS             = 0
+	audioFormatAAC      = "aac"
+	audioFormatFLAC     = "flac"
+	audioFormatMP3      = "mp3"
+	audioFormatOpus     = "opus"
+	audioFormatWAV      = "wav"
+	audioMimeMPEG       = "audio/mpeg"
+	audioMimeOGG        = "audio/ogg"
+	ffmpegArgAudioCodec = "-c:a"
+)
+
 // AudioParams holds parsed, validated parameters for audio transforms.
 type AudioParams struct {
 	OutputFormat string  `json:"format,omitempty"`
@@ -31,12 +45,12 @@ type audioCodec struct {
 }
 
 var audioCodecs = map[string]audioCodec{
-	"mp3":  {codec: "libmp3lame", ext: ".mp3", mimeType: "audio/mpeg"},
-	"aac":  {codec: "aac", ext: ".m4a", mimeType: "audio/mp4"},
-	"opus": {codec: "libopus", ext: ".opus", mimeType: "audio/ogg"},
-	"ogg":  {codec: "libvorbis", ext: ".ogg", mimeType: "audio/ogg"},
-	"flac": {codec: "flac", ext: ".flac", mimeType: "audio/flac", lossless: true},
-	"wav":  {codec: "pcm_s16le", ext: ".wav", mimeType: "audio/wav", lossless: true},
+	audioFormatMP3:  {codec: "libmp3lame", ext: ".mp3", mimeType: audioMimeMPEG},
+	audioFormatAAC:  {codec: audioFormatAAC, ext: ".m4a", mimeType: "audio/mp4"},
+	audioFormatOpus: {codec: "libopus", ext: ".opus", mimeType: audioMimeOGG},
+	"ogg":           {codec: "libvorbis", ext: ".ogg", mimeType: audioMimeOGG},
+	audioFormatFLAC: {codec: audioFormatFLAC, ext: ".flac", mimeType: "audio/flac", lossless: true},
+	audioFormatWAV:  {codec: "pcm_s16le", ext: ".wav", mimeType: "audio/wav", lossless: true},
 }
 
 func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
@@ -82,12 +96,12 @@ func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType
 		return nil, "", fmt.Errorf("read thumb: %w", err)
 	}
 
-	return thumbData, "image/png", nil
+	return thumbData, mimeImagePNG, nil
 }
 
 // ExtractAudio strips video streams from srcPath and writes the audio stream to dstPath.
 func (t *transformer) ExtractAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error {
-	p = defaultAudioParams(p, "aac")
+	p = defaultAudioParams(p, audioFormatAAC)
 	hasAudio, err := t.probeHasAudio(ctx, srcPath)
 	if err != nil {
 		return err
@@ -104,7 +118,7 @@ func (t *transformer) ExtractAudio(ctx context.Context, srcPath, dstPath string,
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	args := []string{"-y", "-i", srcPath, "-vn", "-c:a", c.codec}
+	args := []string{"-y", "-i", srcPath, "-vn", ffmpegArgAudioCodec, c.codec}
 	if !c.lossless {
 		args = append(args, "-b:a", p.Bitrate)
 	}
@@ -114,7 +128,7 @@ func (t *transformer) ExtractAudio(ctx context.Context, srcPath, dstPath string,
 
 // TranscodeAudio re-encodes srcPath audio to the requested format and writes it to dstPath.
 func (t *transformer) TranscodeAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error {
-	p = defaultAudioParams(p, "mp3")
+	p = defaultAudioParams(p, audioFormatMP3)
 	c, err := codecForFormat(p.OutputFormat)
 	if err != nil {
 		return err
@@ -123,11 +137,11 @@ func (t *transformer) TranscodeAudio(ctx context.Context, srcPath, dstPath strin
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	args := []string{"-y", "-i", srcPath, "-c:a", c.codec}
+	args := []string{"-y", "-i", srcPath, ffmpegArgAudioCodec, c.codec}
 	if !c.lossless {
 		args = append(args, "-b:a", p.Bitrate)
 	}
-	if p.OutputFormat == "opus" {
+	if p.OutputFormat == audioFormatOpus {
 		args = append(args, "-vbr", "on")
 	}
 	if p.Mono {
@@ -139,9 +153,9 @@ func (t *transformer) TranscodeAudio(ctx context.Context, srcPath, dstPath strin
 
 // NormalizeAudio applies EBU R128 loudness normalization and writes the result to dstPath.
 func (t *transformer) NormalizeAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error {
-	p = defaultAudioParams(p, "mp3")
+	p = defaultAudioParams(p, audioFormatMP3)
 	if p.TargetLUFS == 0 {
-		p.TargetLUFS = -16
+		p.TargetLUFS = DefaultLUFS
 	}
 	c, err := codecForFormat(p.OutputFormat)
 	if err != nil {
@@ -184,8 +198,14 @@ func defaultAudioParams(p AudioParams, fallbackFormat string) AudioParams {
 	return p
 }
 
-func (t *transformer) runNormalizePass(ctx context.Context, srcPath, dstPath string, c audioCodec, p AudioParams, filter string) error {
-	args := []string{"-y", "-i", srcPath, "-af", filter, "-c:a", c.codec}
+func (t *transformer) runNormalizePass(
+	ctx context.Context,
+	srcPath, dstPath string,
+	c audioCodec,
+	p AudioParams,
+	filter string,
+) error {
+	args := []string{"-y", "-i", srcPath, "-af", filter, ffmpegArgAudioCodec, c.codec}
 	if !c.lossless {
 		args = append(args, "-b:a", p.Bitrate)
 	}
@@ -212,13 +232,13 @@ func AudioMimeType(format string) string {
 	if c, ok := audioCodecs[strings.ToLower(strings.TrimSpace(format))]; ok {
 		return c.mimeType
 	}
-	return "audio/mpeg"
+	return audioMimeMPEG
 }
 
 func AudioFormatFromMimeType(mimeType string) string {
 	switch mimeType {
-	case "audio/mpeg", "audio/mp3":
-		return "mp3"
+	case audioMimeMPEG, "audio/mp3":
+		return audioFormatMP3
 	case "audio/aac", "audio/mp4", "audio/x-m4a":
 		return "aac"
 	case "audio/ogg", "audio/opus":
@@ -228,7 +248,7 @@ func AudioFormatFromMimeType(mimeType string) string {
 	case "audio/wav", "audio/x-wav":
 		return "wav"
 	default:
-		return "mp3"
+		return audioFormatMP3
 	}
 }
 
@@ -287,14 +307,15 @@ func parseLoudnormStats(stderr string) (loudnormStats, error) {
 	re := regexp.MustCompile(`(?s)\{[^{}]*"input_i"[^{}]*\}`)
 	raw := re.FindString(stderr)
 	if raw == "" {
-		return loudnormStats{}, fmt.Errorf("loudnorm stats JSON not found")
+		return loudnormStats{}, errors.New("loudnorm stats JSON not found")
 	}
 	var stats loudnormStats
 	if err := json.Unmarshal([]byte(raw), &stats); err != nil {
 		return loudnormStats{}, err
 	}
-	if stats.InputI == "" || stats.InputTP == "" || stats.InputLRA == "" || stats.InputThresh == "" || stats.TargetOffset == "" {
-		return loudnormStats{}, fmt.Errorf("loudnorm stats incomplete")
+	if stats.InputI == "" || stats.InputTP == "" || stats.InputLRA == "" || stats.InputThresh == "" ||
+		stats.TargetOffset == "" {
+		return loudnormStats{}, errors.New("loudnorm stats incomplete")
 	}
 	return stats, nil
 }

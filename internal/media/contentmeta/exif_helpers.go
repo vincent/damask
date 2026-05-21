@@ -2,6 +2,7 @@ package contentmeta
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,7 +36,7 @@ func getRational(x *exif.Exif, tag exif.FieldName) *string {
 	}
 	var s string
 	if den == 1 {
-		s = fmt.Sprintf("%d", num)
+		s = strconv.FormatInt(num, 10)
 	} else {
 		s = fmt.Sprintf("%d/%d", num, den)
 	}
@@ -139,7 +140,7 @@ func getWhiteBalanceString(x *exif.Exif) *string {
 	case 1:
 		s = "Manual"
 	default:
-		s = fmt.Sprintf("%d", v)
+		s = strconv.Itoa(v)
 	}
 	return &s
 }

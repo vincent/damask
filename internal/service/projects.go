@@ -131,7 +131,11 @@ func (s *projectService) List(ctx context.Context, workspaceID string) ([]*Proje
 	return out, nil
 }
 
-func (s *projectService) Update(ctx context.Context, workspaceID, id string, p UpdateProjectParams) (*ProjectDTO, error) {
+func (s *projectService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p UpdateProjectParams,
+) (*ProjectDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}

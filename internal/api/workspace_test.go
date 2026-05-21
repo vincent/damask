@@ -5,7 +5,7 @@ package api_test
 import (
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -20,7 +20,7 @@ func TestCreateWorkspace_Success(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonBody(api.CreateWorkspaceRequest{Name: "My New Workspace"}), result.Cookie)
+		th.JSONBody(api.CreateWorkspaceRequest{Name: "My New Workspace"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -50,7 +50,7 @@ func TestCreateWorkspace_MissingName(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonBody(api.CreateWorkspaceRequest{Name: ""}), result.Cookie)
+		th.JSONBody(api.CreateWorkspaceRequest{Name: ""}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -65,7 +65,7 @@ func TestCreateWorkspace_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonBody(api.CreateWorkspaceRequest{Name: "My Workspace"}))
+		th.JSONBody(api.CreateWorkspaceRequest{Name: "My Workspace"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -152,7 +152,7 @@ func TestCreateInvite_AsOwner(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
+		th.JSONBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -180,7 +180,7 @@ func TestCreateInvite_AsEditor_Forbidden(t *testing.T) {
 	editorToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Editor)
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "carol@example.com", Role: auth.Viewer}), editorToken)
+		th.JSONBody(api.CreateInviteRequest{Email: "carol@example.com", Role: auth.Viewer}), editorToken)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -195,7 +195,7 @@ func TestCreateInvite_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}))
+		th.JSONBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -213,7 +213,7 @@ func TestAcceptInvite_Success(t *testing.T) {
 
 	// Create an invite as owner
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), owner.Cookie)
+		th.JSONBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), owner.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil {
 		t.Fatalf("create invite request: %v", err)
@@ -229,7 +229,7 @@ func TestAcceptInvite_Success(t *testing.T) {
 
 	// Accept the invite
 	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept",
-		th.JsonBody(api.AcceptInviteRequest{Token: invite.InviteToken, Name: "Bob", Password: "password123"}))
+		th.JSONBody(api.AcceptInviteRequest{Token: invite.InviteToken, Name: "Bob", Password: "password123"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -250,7 +250,7 @@ func TestAcceptInvite_InvalidToken(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept",
-		th.JsonBody(api.AcceptInviteRequest{Token: "does-not-exist", Name: "Bob", Password: "password123"}))
+		th.JSONBody(api.AcceptInviteRequest{Token: "does-not-exist", Name: "Bob", Password: "password123"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -296,7 +296,7 @@ func TestListWorkspaces_MultipleWorkspaces(t *testing.T) {
 
 	// Create a second workspace
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonBody(api.CreateWorkspaceRequest{Name: "Second Workspace"}), result.Cookie)
+		th.JSONBody(api.CreateWorkspaceRequest{Name: "Second Workspace"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("create workspace request: %v", err)
@@ -342,7 +342,7 @@ func TestSwitchWorkspace_Success(t *testing.T) {
 
 	// Create a second workspace
 	createReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace",
-		th.JsonBody(api.CreateWorkspaceRequest{Name: "Second Workspace"}), result.Cookie)
+		th.JSONBody(api.CreateWorkspaceRequest{Name: "Second Workspace"}), result.Cookie)
 	createResp, err := env.App.Test(createReq)
 	if err != nil {
 		t.Fatalf("create workspace request: %v", err)
@@ -355,7 +355,7 @@ func TestSwitchWorkspace_Success(t *testing.T) {
 
 	// Switch to second workspace
 	switchReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: secondID}), result.Cookie)
+		th.JSONBody(api.SwitchWorkspaceRequest{WorkspaceID: secondID}), result.Cookie)
 	switchResp, err := env.App.Test(switchReq)
 	if err != nil {
 		t.Fatalf("switch request: %v", err)
@@ -408,7 +408,7 @@ func TestSwitchWorkspace_NotMember(t *testing.T) {
 	aliceResult := th.Register(t, env, "Alice2", "alice2@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: aliceResult.WorkspaceID}), bob.Cookie)
+		th.JSONBody(api.SwitchWorkspaceRequest{WorkspaceID: aliceResult.WorkspaceID}), bob.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -423,7 +423,7 @@ func TestSwitchWorkspace_InvalidWorkspaceID(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: "does-not-exist"}), result.Cookie)
+		th.JSONBody(api.SwitchWorkspaceRequest{WorkspaceID: "does-not-exist"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -437,7 +437,7 @@ func TestSwitchWorkspace_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspace/switch",
-		th.JsonBody(api.SwitchWorkspaceRequest{WorkspaceID: "anything"}))
+		th.JSONBody(api.SwitchWorkspaceRequest{WorkspaceID: "anything"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -454,7 +454,7 @@ func TestAcceptInvite_ExpiredInvite(t *testing.T) {
 
 	// Create an invite
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), owner.Cookie)
+		th.JSONBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), owner.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil {
 		t.Fatalf("create invite request: %v", err)
@@ -465,7 +465,7 @@ func TestAcceptInvite_ExpiredInvite(t *testing.T) {
 	}
 
 	// Expire the invite directly in the DB
-	_, err = env.SqlDB.Exec(
+	_, err = env.Database.Exec(
 		`UPDATE workspace_invites SET expires_at = datetime('now', '-1 day') WHERE token = ?`,
 		invite.InviteToken,
 	)
@@ -475,7 +475,7 @@ func TestAcceptInvite_ExpiredInvite(t *testing.T) {
 
 	// Attempt to accept the expired invite
 	req := httptest.NewRequest(http.MethodPost, "/auth/invite/accept",
-		th.JsonBody(api.AcceptInviteRequest{Token: invite.InviteToken, Name: "Bob", Password: "password123"}))
+		th.JSONBody(api.AcceptInviteRequest{Token: invite.InviteToken, Name: "Bob", Password: "password123"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := env.App.Test(req)
 	if err != nil {
@@ -496,7 +496,7 @@ func TestUpdateWorkspaceSettings_ExifKeep(t *testing.T) {
 		"exif_keep":               true,
 		"exif_keep_gps":           false,
 	}
-	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/settings", th.JsonBody(body), result.Cookie)
+	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/settings", th.JSONBody(body), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -527,7 +527,7 @@ func TestUpdateWorkspaceSettings_ExifKeep_NonOwner(t *testing.T) {
 	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	body := map[string]any{"version_retention_count": 0, "exif_keep": true}
-	req := th.BearerRequest(http.MethodPut, "/api/v1/workspace/settings", th.JsonBody(body), editorToken)
+	req := th.BearerRequest(http.MethodPut, "/api/v1/workspace/settings", th.JSONBody(body), editorToken)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -666,7 +666,7 @@ func TestRemoveMember_Success(t *testing.T) {
 
 	// Find the editor's user ID
 	var editorUserID string
-	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	row := env.Database.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
 	if err := row.Scan(&editorUserID); err != nil {
 		t.Fatalf("find editor: %v", err)
 	}
@@ -716,13 +716,13 @@ func TestUpdateMemberRole_Success(t *testing.T) {
 	th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	var editorUserID string
-	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	row := env.Database.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
 	if err := row.Scan(&editorUserID); err != nil {
 		t.Fatalf("find editor: %v", err)
 	}
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+editorUserID,
-		th.JsonBody(api.UpdateMemberRoleRequest{Role: auth.Viewer}), result.Cookie)
+		th.JSONBody(api.UpdateMemberRoleRequest{Role: auth.Viewer}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -738,13 +738,13 @@ func TestUpdateMemberRole_InvalidRole(t *testing.T) {
 	th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
 
 	var editorUserID string
-	row := env.SqlDB.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	row := env.Database.QueryRow(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
 	if err := row.Scan(&editorUserID); err != nil {
 		t.Fatalf("find editor: %v", err)
 	}
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+editorUserID,
-		th.JsonBody(api.UpdateMemberRoleRequest{Role: "superadmin"}), result.Cookie)
+		th.JSONBody(api.UpdateMemberRoleRequest{Role: "superadmin"}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -759,7 +759,7 @@ func TestUpdateMemberRole_DemoteLastOwner(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+result.UserID,
-		th.JsonBody(api.UpdateMemberRoleRequest{Role: auth.Editor}), result.Cookie)
+		th.JSONBody(api.UpdateMemberRoleRequest{Role: auth.Editor}), result.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -777,7 +777,7 @@ func TestListInvites_Owner(t *testing.T) {
 
 	// Create an invite first
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
+		th.JSONBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil || invResp.StatusCode != http.StatusCreated {
 		t.Fatalf("create invite failed: %v / %d", err, invResp.StatusCode)
@@ -808,7 +808,7 @@ func TestDeleteInvite_Success(t *testing.T) {
 	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	invReq := th.AuthRequest(http.MethodPost, "/api/v1/workspace/invites",
-		th.JsonBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
+		th.JSONBody(api.CreateInviteRequest{Email: "bob@example.com", Role: auth.Editor}), result.Cookie)
 	invResp, err := env.App.Test(invReq)
 	if err != nil || invResp.StatusCode != http.StatusCreated {
 		t.Fatalf("create invite: %v / %d", err, invResp.StatusCode)

@@ -21,12 +21,21 @@ func NewWorkflowRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.WorkflowReposit
 }
 
 func (r *workflowRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Workflow, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE id = ? AND workspace_id = ?`, id, workspaceID)
+	row := r.sqlDB.QueryRowContext(
+		ctx,
+		`SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE id = ? AND workspace_id = ?`,
+		id,
+		workspaceID,
+	)
 	return scanWorkflow(row)
 }
 
 func (r *workflowRepo) List(ctx context.Context, workspaceID string) ([]repository.Workflow, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE workspace_id = ? ORDER BY created_at DESC, id DESC`, workspaceID)
+	rows, err := r.sqlDB.QueryContext(
+		ctx,
+		`SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE workspace_id = ? ORDER BY created_at DESC, id DESC`,
+		workspaceID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +44,11 @@ func (r *workflowRepo) List(ctx context.Context, workspaceID string) ([]reposito
 }
 
 func (r *workflowRepo) ListByTrigger(ctx context.Context, triggerType string) ([]repository.Workflow, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE trigger_type = ? AND enabled = 1 ORDER BY created_at DESC, id DESC`, triggerType)
+	rows, err := r.sqlDB.QueryContext(
+		ctx,
+		`SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE trigger_type = ? AND enabled = 1 ORDER BY created_at DESC, id DESC`,
+		triggerType,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +57,19 @@ func (r *workflowRepo) ListByTrigger(ctx context.Context, triggerType string) ([
 }
 
 func (r *workflowRepo) Create(ctx context.Context, p repository.CreateWorkflowParams) (repository.Workflow, error) {
-	_, err := r.sqlDB.ExecContext(ctx, `INSERT INTO workflows (id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.WorkspaceID, p.Name, p.Description, workflowBoolToInt(p.Enabled), p.TriggerType, defaultString(p.TriggerConfig, "{}"), p.Graph, p.NotifyOnFailureEmail, p.CreatedBy,
+	_, err := r.sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO workflows (id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID,
+		p.WorkspaceID,
+		p.Name,
+		p.Description,
+		workflowBoolToInt(p.Enabled),
+		p.TriggerType,
+		defaultString(p.TriggerConfig, "{}"),
+		p.Graph,
+		p.NotifyOnFailureEmail,
+		p.CreatedBy,
 	)
 	if err != nil {
 		return repository.Workflow{}, err
@@ -76,8 +100,17 @@ func (r *workflowRepo) Update(ctx context.Context, p repository.UpdateWorkflowPa
 	if p.NotifyOnFailureEmail != nil {
 		current.NotifyOnFailureEmail = *p.NotifyOnFailureEmail
 	}
-	_, err = r.sqlDB.ExecContext(ctx, `UPDATE workflows SET name = ?, description = ?, trigger_type = ?, trigger_config = ?, graph = ?, notify_on_failure_email = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?`,
-		current.Name, current.Description, current.TriggerType, defaultString(current.TriggerConfig, "{}"), current.Graph, current.NotifyOnFailureEmail, current.ID, current.WorkspaceID,
+	_, err = r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE workflows SET name = ?, description = ?, trigger_type = ?, trigger_config = ?, graph = ?, notify_on_failure_email = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?`,
+		current.Name,
+		current.Description,
+		current.TriggerType,
+		defaultString(current.TriggerConfig, "{}"),
+		current.Graph,
+		current.NotifyOnFailureEmail,
+		current.ID,
+		current.WorkspaceID,
 	)
 	if err != nil {
 		return repository.Workflow{}, err
@@ -85,7 +118,10 @@ func (r *workflowRepo) Update(ctx context.Context, p repository.UpdateWorkflowPa
 	return r.GetByID(ctx, p.WorkspaceID, p.ID)
 }
 
-func (r *workflowRepo) FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*repository.CoveringWorkflow, error) {
+func (r *workflowRepo) FindCoveringWorkflow(
+	ctx context.Context,
+	workspaceID, assetProjectID, assetFolderID string,
+) (*repository.CoveringWorkflow, error) {
 	const q = `
 		SELECT id, name, trigger_type, trigger_config, enabled
 		FROM workflows
@@ -118,7 +154,13 @@ func (r *workflowRepo) FindCoveringWorkflow(ctx context.Context, workspaceID, as
 }
 
 func (r *workflowRepo) SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error {
-	res, err := r.sqlDB.ExecContext(ctx, `UPDATE workflows SET enabled = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?`, workflowBoolToInt(enabled), id, workspaceID)
+	res, err := r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE workflows SET enabled = ?, updated_at = datetime('now') WHERE id = ? AND workspace_id = ?`,
+		workflowBoolToInt(enabled),
+		id,
+		workspaceID,
+	)
 	if err != nil {
 		return err
 	}
@@ -134,7 +176,11 @@ func (r *workflowRepo) Delete(ctx context.Context, workspaceID, id string) error
 }
 
 func (r *workflowRepo) TouchLastRunAt(ctx context.Context, id string) error {
-	res, err := r.sqlDB.ExecContext(ctx, `UPDATE workflows SET last_run_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`, id)
+	res, err := r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE workflows SET last_run_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`,
+		id,
+	)
 	if err != nil {
 		return err
 	}
@@ -161,11 +207,20 @@ func NewWorkflowRunRepo(_ *dbgen.Queries, sqlDB *sql.DB) repository.WorkflowRunR
 }
 
 func (r *workflowRunRepo) GetByID(ctx context.Context, id string) (repository.WorkflowRun, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `SELECT id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at, created_at FROM workflow_runs WHERE id = ?`, id)
+	row := r.sqlDB.QueryRowContext(
+		ctx,
+		`SELECT id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at, created_at FROM workflow_runs WHERE id = ?`,
+		id,
+	)
 	return scanWorkflowRun(row)
 }
 
-func (r *workflowRunRepo) List(ctx context.Context, workflowID string, limit int, cursor string) ([]repository.WorkflowRun, error) {
+func (r *workflowRunRepo) List(
+	ctx context.Context,
+	workflowID string,
+	limit int,
+	cursor string,
+) ([]repository.WorkflowRun, error) {
 	query := `SELECT id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at, created_at FROM workflow_runs WHERE workflow_id = ?`
 	args := []any{workflowID}
 	if cursor != "" {
@@ -182,9 +237,22 @@ func (r *workflowRunRepo) List(ctx context.Context, workflowID string, limit int
 	return scanWorkflowRunRows(rows)
 }
 
-func (r *workflowRunRepo) Create(ctx context.Context, p repository.CreateWorkflowRunParams) (repository.WorkflowRun, error) {
-	_, err := r.sqlDB.ExecContext(ctx, `INSERT INTO workflow_runs (id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.WorkflowID, p.WorkspaceID, defaultString(p.Status, "pending"), defaultString(p.TriggerData, "{}"), defaultString(p.Context, "{}"), p.Error, p.StartedAt, p.CompletedAt,
+func (r *workflowRunRepo) Create(
+	ctx context.Context,
+	p repository.CreateWorkflowRunParams,
+) (repository.WorkflowRun, error) {
+	_, err := r.sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO workflow_runs (id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID,
+		p.WorkflowID,
+		p.WorkspaceID,
+		defaultString(p.Status, "pending"),
+		defaultString(p.TriggerData, "{}"),
+		defaultString(p.Context, "{}"),
+		p.Error,
+		p.StartedAt,
+		p.CompletedAt,
 	)
 	if err != nil {
 		return repository.WorkflowRun{}, err
@@ -197,7 +265,13 @@ func (r *workflowRunRepo) SetStatus(ctx context.Context, id, status string) erro
 	if status == "running" {
 		startedAt = time.Now().UTC()
 	}
-	res, err := r.sqlDB.ExecContext(ctx, `UPDATE workflow_runs SET status = ?, started_at = COALESCE(started_at, ?) WHERE id = ?`, status, startedAt, id)
+	res, err := r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE workflow_runs SET status = ?, started_at = COALESCE(started_at, ?) WHERE id = ?`,
+		status,
+		startedAt,
+		id,
+	)
 	if err != nil {
 		return err
 	}
@@ -209,7 +283,15 @@ func (r *workflowRunRepo) SetFinal(ctx context.Context, p repository.SetWorkflow
 	if completedAt == nil {
 		completedAt = func() *time.Time { now := time.Now().UTC(); return &now }()
 	}
-	res, err := r.sqlDB.ExecContext(ctx, `UPDATE workflow_runs SET status = ?, context = ?, error = ?, completed_at = ? WHERE id = ?`, p.Status, p.Context, p.Error, completedAt, p.ID)
+	res, err := r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE workflow_runs SET status = ?, context = ?, error = ?, completed_at = ? WHERE id = ?`,
+		p.Status,
+		p.Context,
+		p.Error,
+		completedAt,
+		p.ID,
+	)
 	if err != nil {
 		return err
 	}
@@ -217,7 +299,11 @@ func (r *workflowRunRepo) SetFinal(ctx context.Context, p repository.SetWorkflow
 }
 
 func (r *workflowRunRepo) ListSteps(ctx context.Context, runID string) ([]repository.WorkflowRunStep, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `SELECT id, run_id, node_id, node_type, status, attempt, input_ctx, output_ctx, error, started_at, completed_at FROM workflow_run_steps WHERE run_id = ? ORDER BY started_at ASC, id ASC`, runID)
+	rows, err := r.sqlDB.QueryContext(
+		ctx,
+		`SELECT id, run_id, node_id, node_type, status, attempt, input_ctx, output_ctx, error, started_at, completed_at FROM workflow_run_steps WHERE run_id = ? ORDER BY started_at ASC, id ASC`,
+		runID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -225,9 +311,24 @@ func (r *workflowRunRepo) ListSteps(ctx context.Context, runID string) ([]reposi
 	return scanWorkflowStepRows(rows)
 }
 
-func (r *workflowRunRepo) CreateStep(ctx context.Context, p repository.CreateWorkflowRunStepParams) (repository.WorkflowRunStep, error) {
-	_, err := r.sqlDB.ExecContext(ctx, `INSERT INTO workflow_run_steps (id, run_id, node_id, node_type, status, attempt, input_ctx, output_ctx, error, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.RunID, p.NodeID, p.NodeType, defaultString(p.Status, "pending"), defaultInt(p.Attempt, 1), defaultString(p.InputCtx, "{}"), p.OutputCtx, p.Error, p.StartedAt, p.CompletedAt,
+func (r *workflowRunRepo) CreateStep(
+	ctx context.Context,
+	p repository.CreateWorkflowRunStepParams,
+) (repository.WorkflowRunStep, error) {
+	_, err := r.sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO workflow_run_steps (id, run_id, node_id, node_type, status, attempt, input_ctx, output_ctx, error, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID,
+		p.RunID,
+		p.NodeID,
+		p.NodeType,
+		defaultString(p.Status, "pending"),
+		defaultInt(p.Attempt, 1),
+		defaultString(p.InputCtx, "{}"),
+		p.OutputCtx,
+		p.Error,
+		p.StartedAt,
+		p.CompletedAt,
 	)
 	if err != nil {
 		return repository.WorkflowRunStep{}, err
@@ -253,7 +354,13 @@ func (r *workflowRunRepo) SetStepStatus(ctx context.Context, id, status string) 
 }
 
 func (r *workflowRunRepo) SetStepFailed(ctx context.Context, id, errMsg string) error {
-	res, err := r.sqlDB.ExecContext(ctx, `UPDATE workflow_run_steps SET status = 'failed', error = ?, completed_at = ? WHERE id = ?`, errMsg, time.Now().UTC(), id)
+	res, err := r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE workflow_run_steps SET status = 'failed', error = ?, completed_at = ? WHERE id = ?`,
+		errMsg,
+		time.Now().UTC(),
+		id,
+	)
 	if err != nil {
 		return err
 	}
@@ -261,7 +368,13 @@ func (r *workflowRunRepo) SetStepFailed(ctx context.Context, id, errMsg string) 
 }
 
 func (r *workflowRunRepo) SetStepCompleted(ctx context.Context, id, outputCtx string) error {
-	res, err := r.sqlDB.ExecContext(ctx, `UPDATE workflow_run_steps SET status = 'completed', output_ctx = ?, completed_at = ? WHERE id = ?`, outputCtx, time.Now().UTC(), id)
+	res, err := r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE workflow_run_steps SET status = 'completed', output_ctx = ?, completed_at = ? WHERE id = ?`,
+		outputCtx,
+		time.Now().UTC(),
+		id,
+	)
 	if err != nil {
 		return err
 	}
@@ -284,7 +397,8 @@ func NewWorkflowWebhookRepo(_ *dbgen.Queries, sqlDB *sql.DB) repository.Workflow
 
 func (r *workflowWebhookRepo) GetTokenHash(ctx context.Context, workflowID string) (string, error) {
 	var tokenHash string
-	err := r.sqlDB.QueryRowContext(ctx, `SELECT token_hash FROM workflow_webhook_tokens WHERE workflow_id = ?`, workflowID).Scan(&tokenHash)
+	err := r.sqlDB.QueryRowContext(ctx, `SELECT token_hash FROM workflow_webhook_tokens WHERE workflow_id = ?`, workflowID).
+		Scan(&tokenHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", apperr.ErrNotFound
@@ -295,7 +409,12 @@ func (r *workflowWebhookRepo) GetTokenHash(ctx context.Context, workflowID strin
 }
 
 func (r *workflowWebhookRepo) Upsert(ctx context.Context, workflowID, tokenHash string) error {
-	_, err := r.sqlDB.ExecContext(ctx, `INSERT INTO workflow_webhook_tokens (workflow_id, token_hash) VALUES (?, ?) ON CONFLICT(workflow_id) DO UPDATE SET token_hash = excluded.token_hash`, workflowID, tokenHash)
+	_, err := r.sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO workflow_webhook_tokens (workflow_id, token_hash) VALUES (?, ?) ON CONFLICT(workflow_id) DO UPDATE SET token_hash = excluded.token_hash`,
+		workflowID,
+		tokenHash,
+	)
 	return err
 }
 
@@ -307,7 +426,21 @@ func (r *workflowWebhookRepo) Delete(ctx context.Context, workflowID string) err
 func scanWorkflow(row scanner) (repository.Workflow, error) {
 	var wf repository.Workflow
 	var enabled int
-	err := row.Scan(&wf.ID, &wf.WorkspaceID, &wf.Name, &wf.Description, &enabled, &wf.TriggerType, &wf.TriggerConfig, &wf.Graph, &wf.NotifyOnFailureEmail, &wf.LastRunAt, &wf.CreatedBy, &wf.CreatedAt, &wf.UpdatedAt)
+	err := row.Scan(
+		&wf.ID,
+		&wf.WorkspaceID,
+		&wf.Name,
+		&wf.Description,
+		&enabled,
+		&wf.TriggerType,
+		&wf.TriggerConfig,
+		&wf.Graph,
+		&wf.NotifyOnFailureEmail,
+		&wf.LastRunAt,
+		&wf.CreatedBy,
+		&wf.CreatedAt,
+		&wf.UpdatedAt,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.Workflow{}, apperr.ErrNotFound
@@ -335,7 +468,18 @@ func scanWorkflowRows(rows *sql.Rows) ([]repository.Workflow, error) {
 
 func scanWorkflowRun(row scanner) (repository.WorkflowRun, error) {
 	var run repository.WorkflowRun
-	err := row.Scan(&run.ID, &run.WorkflowID, &run.WorkspaceID, &run.Status, &run.TriggerData, &run.Context, &run.Error, &run.StartedAt, &run.CompletedAt, &run.CreatedAt)
+	err := row.Scan(
+		&run.ID,
+		&run.WorkflowID,
+		&run.WorkspaceID,
+		&run.Status,
+		&run.TriggerData,
+		&run.Context,
+		&run.Error,
+		&run.StartedAt,
+		&run.CompletedAt,
+		&run.CreatedAt,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.WorkflowRun{}, apperr.ErrNotFound
@@ -361,7 +505,19 @@ func scanWorkflowStepRows(rows *sql.Rows) ([]repository.WorkflowRunStep, error) 
 	out := []repository.WorkflowRunStep{}
 	for rows.Next() {
 		var step repository.WorkflowRunStep
-		if err := rows.Scan(&step.ID, &step.RunID, &step.NodeID, &step.NodeType, &step.Status, &step.Attempt, &step.InputCtx, &step.OutputCtx, &step.Error, &step.StartedAt, &step.CompletedAt); err != nil {
+		if err := rows.Scan(
+			&step.ID,
+			&step.RunID,
+			&step.NodeID,
+			&step.NodeType,
+			&step.Status,
+			&step.Attempt,
+			&step.InputCtx,
+			&step.OutputCtx,
+			&step.Error,
+			&step.StartedAt,
+			&step.CompletedAt,
+		); err != nil {
 			return nil, err
 		}
 		out = append(out, step)

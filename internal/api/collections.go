@@ -57,7 +57,7 @@ func collectionDTOToResponse(d *service.CollectionDTO) CollectionResponse {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "One or more assets not in workspace"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/collections [post]
+// @Router /api/v1/collections [post].
 func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -96,7 +96,7 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Success 200 {array} CollectionResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/collections [get]
+// @Router /api/v1/collections [get].
 func (s *Server) handleListCollections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -121,7 +121,7 @@ func (s *Server) handleListCollections(c fiber.Ctx) error {
 // @Success 200 {object} CollectionResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Collection not found"
-// @Router /api/v1/collections/{id} [get]
+// @Router /api/v1/collections/{id} [get].
 func (s *Server) handleGetCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -138,6 +138,7 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 
 	type collectionDetailResponse struct {
 		CollectionResponse
+
 		Assets []AssetResponse `json:"assets"`
 	}
 
@@ -165,7 +166,7 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 // @Failure 403 {object} ErrorResponse "Insufficient role"
 // @Failure 404 {object} ErrorResponse "Collection not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/collections/{id} [put]
+// @Router /api/v1/collections/{id} [put].
 func (s *Server) handleUpdateCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -196,7 +197,7 @@ func (s *Server) handleUpdateCollection(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "Insufficient role"
 // @Failure 404 {object} ErrorResponse "Collection not found"
-// @Router /api/v1/collections/{id} [delete]
+// @Router /api/v1/collections/{id} [delete].
 func (s *Server) handleDeleteCollection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -219,7 +220,7 @@ func (s *Server) handleDeleteCollection(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "Insufficient role"
 // @Failure 404 {object} ErrorResponse "Collection or asset not found"
-// @Router /api/v1/collections/{id}/assets/{aid} [post]
+// @Router /api/v1/collections/{id}/assets/{aid} [post].
 func (s *Server) handleAddCollectionAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -247,7 +248,7 @@ func (s *Server) handleAddCollectionAsset(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "Insufficient role"
 // @Failure 404 {object} ErrorResponse "Collection not found"
-// @Router /api/v1/collections/{id}/assets/{aid} [delete]
+// @Router /api/v1/collections/{id}/assets/{aid} [delete].
 func (s *Server) handleRemoveCollectionAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -269,7 +270,7 @@ func (s *Server) handleRemoveCollectionAsset(c fiber.Ctx) error {
 // @Success 200 {array} CollectionResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id}/collections [get]
+// @Router /api/v1/assets/{id}/collections [get].
 func (s *Server) handleListAssetCollections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")

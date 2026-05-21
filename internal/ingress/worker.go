@@ -28,6 +28,11 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
+const (
+	sniffFirstBytes  = 512
+	ErrorCountCutoff = 5
+)
+
 // Worker handles ingest_poll and ingest_fetch jobs.
 type Worker struct {
 	db       *dbgen.Queries
@@ -41,8 +46,26 @@ type Worker struct {
 }
 
 // NewWorker creates a Worker.
-func NewWorker(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, qu queue.JobQueue, cfg *config.Config, au *audit.EventWriter, mailer mail.Mailer, injestor assetio.Injestor) *Worker {
-	return &Worker{db: db, sqlDB: sqlDB, storage: stor, queue: qu, cfg: cfg, audit: au, mailer: mailer, injestor: injestor}
+func NewWorker(
+	db *dbgen.Queries,
+	sqlDB *sql.DB,
+	stor storage.Storage,
+	qu queue.JobQueue,
+	cfg *config.Config,
+	au *audit.EventWriter,
+	mailer mail.Mailer,
+	injestor assetio.Injestor,
+) *Worker {
+	return &Worker{
+		db:       db,
+		sqlDB:    sqlDB,
+		storage:  stor,
+		queue:    qu,
+		cfg:      cfg,
+		audit:    au,
+		mailer:   mailer,
+		injestor: injestor,
+	}
 }
 
 // PollJobPayload is the JSON payload for a JobTypeIngestPoll job.
@@ -197,7 +220,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	// Evaluate rules
 	rules, err := w.db.ListIngressRules(ctx, src.ID)
 	if err != nil {
-		slog.Warn("ingest_fetch: list rules (continuing without rules)", "source_id", src.ID, "error", err)
+		slog.WarnContext(ctx, "ingest_fetch: list rules (continuing without rules)", "source_id", src.ID, "error", err)
 	}
 
 	span.SetAttributes(attribute.Int("damask.ingest.entry_source_rules", len(rules)))
@@ -205,9 +228,9 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	ruleResult := EvaluateRules(rules, ItemMeta{Filename: entry.Filename})
 	span.SetAttributes(attribute.Bool("damask.ingest.entry_source_rules_pass", ruleResult.Allow))
 	if !ruleResult.Allow {
-		skipped := "skipped"
+		skipped := ingressStatusSkipped
 		_ = w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
-			Status: "skipped", ID: entry.ID, Error: &skipped,
+			Status: ingressStatusSkipped, ID: entry.ID, Error: &skipped,
 		})
 		return nil
 	}
@@ -249,7 +272,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	defer rc.Close()
 
 	// Sniff MIME type from first 512 bytes, then stream to temp file
-	sniff := make([]byte, 512)
+	sniff := make([]byte, sniffFirstBytes)
 	n, _ := io.ReadFull(rc, sniff)
 	sniff = sniff[:n]
 	mimeType := http.DetectContentType(sniff)
@@ -294,7 +317,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 
 	assetID := asset.ID
 	if err := w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
-		Status:  "imported",
+		Status:  ingressStatusImported,
 		AssetID: &assetID,
 		ID:      entry.ID,
 	}); err != nil {
@@ -308,7 +331,12 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 		UserID:      nil,
 		ActorType:   audit.ActorTypeSystem,
 		EventType:   audit.EventAssetCreated,
-		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "ingress", SourceID: src.Label},
+		Payload: audit.AssetCreatedPayload{
+			V:        1,
+			Filename: asset.OriginalFilename,
+			Source:   "ingress",
+			SourceID: src.Label,
+		},
 	})
 
 	tag, err := w.db.GetOrCreateTag(ctx, dbgen.GetOrCreateTagParams{
@@ -340,7 +368,7 @@ func (w *Worker) failSource(ctx context.Context, src dbgen.IngressSource, err er
 	updated, dbErr := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: src.ID, WorkspaceID: src.WorkspaceID,
 	})
-	disabled := dbErr == nil && updated.ErrorCount > 5
+	disabled := dbErr == nil && updated.ErrorCount > ErrorCountCutoff
 	w.notifySourceFailure(ctx, src, msg, disabled)
 	return err
 }
@@ -394,7 +422,7 @@ func (w *Worker) failEntry(ctx context.Context, entryID string, src dbgen.Ingres
 	updated, dbErr := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: src.ID, WorkspaceID: src.WorkspaceID,
 	})
-	disabled := dbErr == nil && updated.ErrorCount > 5
+	disabled := dbErr == nil && updated.ErrorCount > ErrorCountCutoff
 	w.notifySourceFailure(ctx, src, msg, disabled)
 	return err
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,9 +18,16 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	videoFormatMP4  = "mp4"
+	videoFormatWebM = "webm"
+	mimeVideoMP4    = "video/mp4"
+	mimeVideoWebM   = "video/webm"
+)
+
 func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var p VariantJobPayload
@@ -60,7 +68,14 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 	}
 	paramsJSON, _ := json.Marshal(params)
 	paramsHash := canonicalParamsHash(string(paramsJSON))
-	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoCaptureImage, paramsHash, ".jpg")
+	storageKey := storage.VersionedVariantKey(
+		p.WorkspaceID,
+		p.AssetID,
+		p.VersionNum,
+		queue.JobTypeVideoCaptureImage,
+		paramsHash,
+		".jpg",
+	)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
@@ -101,7 +116,7 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 
 func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var p VariantJobPayload
@@ -116,7 +131,7 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 		}
 	}
 	if params.Format == "" {
-		params.Format = "mp4"
+		params.Format = videoFormatMP4
 	}
 
 	rc, err := s.storage.Get(p.StorageKey)
@@ -152,16 +167,23 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 	paramsJSON, _ := json.Marshal(params)
 	pj := string(paramsJSON)
 	paramsHash := canonicalParamsHash(pj)
-	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoTranscode, paramsHash, ext)
+	storageKey := storage.VersionedVariantKey(
+		p.WorkspaceID,
+		p.AssetID,
+		p.VersionNum,
+		queue.JobTypeVideoTranscode,
+		paramsHash,
+		ext,
+	)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
 	sz := int64(len(dstData))
-	outputMime := "video/mp4"
-	if params.Format == "webm" {
-		outputMime = "video/webm"
+	outputMime := mimeVideoMP4
+	if params.Format == videoFormatWebM {
+		outputMime = mimeVideoWebM
 	}
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
@@ -181,7 +203,7 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 
 func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var p VariantJobPayload
@@ -197,7 +219,7 @@ func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error 
 	}
 	params.Normalize()
 	if params.WatermarkAssetID == "" {
-		return fmt.Errorf("watermark asset id is required")
+		return errors.New("watermark asset id is required")
 	}
 
 	rc, err := s.storage.Get(p.StorageKey)
@@ -246,16 +268,23 @@ func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error 
 	paramsJSON, _ := json.Marshal(params)
 	pj := string(paramsJSON)
 	paramsHash := canonicalParamsHash(pj)
-	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoWatermark, paramsHash, ext)
+	storageKey := storage.VersionedVariantKey(
+		p.WorkspaceID,
+		p.AssetID,
+		p.VersionNum,
+		queue.JobTypeVideoWatermark,
+		paramsHash,
+		ext,
+	)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
 	sz := int64(len(dstData))
-	outputMime := "video/mp4"
-	if params.Format == "webm" {
-		outputMime = "video/webm"
+	outputMime := mimeVideoMP4
+	if params.Format == videoFormatWebM {
+		outputMime = mimeVideoWebM
 	}
 	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              variantID,
@@ -279,7 +308,7 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 	paramsJSON, paramsHash string,
 ) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var params transform.VideoThumbnailParams
@@ -305,7 +334,14 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 		return fmt.Errorf("extract thumbnail: %w", err)
 	}
 
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, queue.JobTypeVideoCaptureImage, paramsHash, ".jpg")
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		queue.JobTypeVideoCaptureImage,
+		paramsHash,
+		".jpg",
+	)
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
@@ -334,7 +370,7 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 	paramsJSON, paramsHash string,
 ) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var params transform.TranscodeParams
@@ -344,7 +380,7 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 		}
 	}
 	if params.Format == "" {
-		params.Format = "mp4"
+		params.Format = videoFormatMP4
 	}
 
 	rc, err := s.storage.Get(ver.StorageKey)
@@ -373,14 +409,21 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 		return fmt.Errorf("read output: %w", err)
 	}
 
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, queue.JobTypeVideoTranscode, paramsHash, ext)
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		queue.JobTypeVideoTranscode,
+		paramsHash,
+		ext,
+	)
 	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
-	outputMime := "video/mp4"
-	if params.Format == "webm" {
-		outputMime = "video/webm"
+	outputMime := mimeVideoMP4
+	if params.Format == videoFormatWebM {
+		outputMime = mimeVideoWebM
 	}
 	sz := int64(len(dstData))
 	vid := uuid.NewString()
@@ -406,7 +449,7 @@ func (s *JobServer) rebuildVideoWatermarkVariant(
 	paramsJSON, paramsHash string,
 ) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var params transform.VideoWatermarkParams
@@ -417,7 +460,7 @@ func (s *JobServer) rebuildVideoWatermarkVariant(
 	}
 	params.Normalize()
 	if params.WatermarkAssetID == "" {
-		return fmt.Errorf("watermark asset id is required")
+		return errors.New("watermark asset id is required")
 	}
 
 	rc, err := s.storage.Get(ver.StorageKey)
@@ -459,7 +502,14 @@ func (s *JobServer) rebuildVideoWatermarkVariant(
 		return fmt.Errorf("read output: %w", err)
 	}
 
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, queue.JobTypeVideoWatermark, paramsHash, ext)
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		queue.JobTypeVideoWatermark,
+		paramsHash,
+		ext,
+	)
 	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
@@ -477,9 +527,9 @@ func (s *JobServer) rebuildVideoWatermarkVariant(
 	})
 	if err == nil {
 		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
-		outputMime := "video/mp4"
-		if params.Format == "webm" {
-			outputMime = "video/webm"
+		outputMime := mimeVideoMP4
+		if params.Format == videoFormatWebM {
+			outputMime = mimeVideoWebM
 		}
 		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, outputMime)
 	}

@@ -27,17 +27,22 @@ var (
 	ErrInvalidVariantReq  = errors.New("invalid variant request")
 )
 
-type invalidVariantInput string
+const (
+	maxVariantTitleLength = 255
+	defaultAudioBitrate   = "192k"
+)
 
-func (e invalidVariantInput) Error() string { return string(e) }
+type invalidVariantInputError string
 
-func (e invalidVariantInput) Unwrap() error { return apperr.ErrInvalidInput }
+func (e invalidVariantInputError) Error() string { return string(e) }
 
-type invalidVariantRequest string
+func (e invalidVariantInputError) Unwrap() error { return apperr.ErrInvalidInput }
 
-func (e invalidVariantRequest) Error() string { return string(e) }
+type invalidVariantRequestError string
 
-func (e invalidVariantRequest) Unwrap() error { return ErrInvalidVariantReq }
+func (e invalidVariantRequestError) Error() string { return string(e) }
+
+func (e invalidVariantRequestError) Unwrap() error { return ErrInvalidVariantReq }
 
 // VariantDTO is the output of VariantService methods.
 type VariantDTO struct {
@@ -64,6 +69,7 @@ type UpdateVariantsSharingParams struct {
 
 type SharedVariantDTO struct {
 	VariantDTO
+
 	AssetID string
 }
 
@@ -79,7 +85,12 @@ type variantService struct {
 }
 
 // NewVariantService returns a VariantService.
-func NewVariantService(variants repository.VariantRepository, assets repository.AssetRepository, tags TagService, aw audit.Writer) VariantService {
+func NewVariantService(
+	variants repository.VariantRepository,
+	assets repository.AssetRepository,
+	tags TagService,
+	aw audit.Writer,
+) VariantService {
 	return &variantService{variants: variants, assets: assets, tags: tags, audit: aw}
 }
 
@@ -92,7 +103,13 @@ type VariantServiceDeps struct {
 
 // NewVariantServiceWithDeps returns a VariantService with the extra dependencies
 // required by advanced variant actions such as promote and rerun.
-func NewVariantServiceWithDeps(variants repository.VariantRepository, assets repository.AssetRepository, tags TagService, aw audit.Writer, deps VariantServiceDeps) VariantService {
+func NewVariantServiceWithDeps(
+	variants repository.VariantRepository,
+	assets repository.AssetRepository,
+	tags TagService,
+	aw audit.Writer,
+	deps VariantServiceDeps,
+) VariantService {
 	return &variantService{
 		variants:  variants,
 		assets:    assets,
@@ -144,7 +161,10 @@ func ResolvedTitle(v repository.Variant, position int) string {
 	return AutoTitle(v.Type, position)
 }
 
-func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error) {
+func (s *variantService) PrepareCreate(
+	ctx context.Context,
+	p PrepareCreateVariantParams,
+) (PreparedCreateVariant, error) {
 	params := json.RawMessage("{}")
 	if len(p.Params) > 0 {
 		params = p.Params
@@ -157,17 +177,17 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 	switch {
 	case requiresVideoAsset(p.Type) && !strings.HasPrefix(p.AssetMimeType, "video/"):
 		if p.Type == queue.JobTypeExtractAudio {
-			return PreparedCreateVariant{}, invalidVariantInput("asset_not_video")
+			return PreparedCreateVariant{}, invalidVariantInputError("asset_not_video")
 		}
-		return PreparedCreateVariant{}, invalidVariantRequest("video transforms require a video asset")
+		return PreparedCreateVariant{}, invalidVariantRequestError("video transforms require a video asset")
 	case requiresImageAsset(p.Type) && !strings.HasPrefix(p.AssetMimeType, "image/"):
-		return PreparedCreateVariant{}, invalidVariantRequest("image transforms require an image asset")
+		return PreparedCreateVariant{}, invalidVariantRequestError("image transforms require an image asset")
 	case requiresAudioAsset(p.Type) && !strings.HasPrefix(p.AssetMimeType, "audio/"):
-		return PreparedCreateVariant{}, invalidVariantInput("asset_not_audio")
+		return PreparedCreateVariant{}, invalidVariantInputError("asset_not_audio")
 	}
 
 	if (p.Type == queue.JobTypeImageBgRemove || p.Type == queue.JobTypeImageWithPrompt) && !p.ImageRouterConfigured {
-		return PreparedCreateVariant{}, invalidVariantInput("imagerouter_not_configured")
+		return PreparedCreateVariant{}, invalidVariantInputError("imagerouter_not_configured")
 	}
 
 	meta := func(typ string, prm json.RawMessage) PreparedCreateVariant {
@@ -214,10 +234,14 @@ func (s *variantService) PrepareCreate(ctx context.Context, p PrepareCreateVaria
 	return meta(p.Type, normalized), nil
 }
 
-func (s *variantService) prepareImageWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+func (s *variantService) prepareImageWatermarkParams(
+	ctx context.Context,
+	p PrepareCreateVariantParams,
+	raw json.RawMessage,
+) (json.RawMessage, error) {
 	var params transform.WatermarkParams
 	if err := json.Unmarshal(raw, &params); err != nil {
-		return nil, invalidVariantInput("invalid watermark params")
+		return nil, invalidVariantInputError("invalid watermark params")
 	}
 	params.WatermarkAssetID = ""
 	params.Normalize()
@@ -230,10 +254,14 @@ func (s *variantService) prepareImageWatermarkParams(ctx context.Context, p Prep
 	return marshalRaw(params), nil
 }
 
-func (s *variantService) prepareVideoWatermarkParams(ctx context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+func (s *variantService) prepareVideoWatermarkParams(
+	ctx context.Context,
+	p PrepareCreateVariantParams,
+	raw json.RawMessage,
+) (json.RawMessage, error) {
 	var params transform.VideoWatermarkParams
 	if err := json.Unmarshal(raw, &params); err != nil {
-		return nil, invalidVariantInput("invalid watermark params")
+		return nil, invalidVariantInputError("invalid watermark params")
 	}
 	params.WatermarkAssetID = ""
 	params.Normalize()
@@ -246,9 +274,12 @@ func (s *variantService) prepareVideoWatermarkParams(ctx context.Context, p Prep
 	return marshalRaw(params), nil
 }
 
-func (s *variantService) resolveSystemTagAsset(ctx context.Context, workspaceID, assetID, tagName string) (*AssetDTO, error) {
+func (s *variantService) resolveSystemTagAsset(
+	ctx context.Context,
+	workspaceID, assetID, tagName string,
+) (*AssetDTO, error) {
 	if s.tags == nil {
-		return nil, fmt.Errorf("tag service unavailable")
+		return nil, errors.New("tag service unavailable")
 	}
 
 	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
@@ -264,7 +295,7 @@ func (s *variantService) resolveSystemTagAsset(ctx context.Context, workspaceID,
 		return nil, err
 	}
 	if resolved == nil {
-		return nil, invalidVariantInput("no_watermark_asset")
+		return nil, invalidVariantInputError("no_watermark_asset")
 	}
 	return resolved, nil
 }
@@ -282,7 +313,18 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "variant create failed", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "type", p.Type, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"variant create failed",
+				"workspace_id",
+				p.WorkspaceID,
+				"asset_id",
+				p.AssetID,
+				"type",
+				p.Type,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -322,7 +364,7 @@ func (s *variantService) UpdateTitle(ctx context.Context, workspaceID, variantID
 	defer apptelemetry.EndSpan(span, err)
 
 	trimmed := strings.TrimSpace(title)
-	if len(trimmed) > 255 {
+	if len(trimmed) > maxVariantTitleLength {
 		return apperr.ErrInvalidInput
 	}
 	var value *string
@@ -457,43 +499,43 @@ func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage
 	case queue.JobTypeExtractAudio:
 		var p transform.AudioParams
 		if err := json.Unmarshal(raw, &p); err != nil {
-			return nil, invalidVariantInput("invalid audio params")
+			return nil, invalidVariantInputError("invalid audio params")
 		}
 		if p.OutputFormat == "" {
 			p.OutputFormat = "aac"
 		}
 		if p.Bitrate == "" {
-			p.Bitrate = "192k"
+			p.Bitrate = defaultAudioBitrate
 		}
 		if !isAllowedAudioBitrate(p.Bitrate) {
-			return nil, invalidVariantInput("unsupported audio bitrate")
+			return nil, invalidVariantInputError("unsupported audio bitrate")
 		}
 		if !isAllowedAudioFormat(p.OutputFormat, "aac", "mp3", "opus", "flac") {
-			return nil, invalidVariantInput("unsupported audio format")
+			return nil, invalidVariantInputError("unsupported audio format")
 		}
 		return marshalRaw(p), nil
 	case queue.JobTypeTranscodeAudio:
 		var p transform.AudioParams
 		if err := json.Unmarshal(raw, &p); err != nil {
-			return nil, invalidVariantInput("invalid audio params")
+			return nil, invalidVariantInputError("invalid audio params")
 		}
 		if p.OutputFormat == "" {
-			return nil, invalidVariantInput("format is required")
+			return nil, invalidVariantInputError("format is required")
 		}
 		if p.Bitrate == "" {
-			p.Bitrate = "192k"
+			p.Bitrate = defaultAudioBitrate
 		}
 		if !isAllowedAudioBitrate(p.Bitrate) {
-			return nil, invalidVariantInput("unsupported audio bitrate")
+			return nil, invalidVariantInputError("unsupported audio bitrate")
 		}
 		if !isAllowedAudioFormat(p.OutputFormat, "mp3", "aac", "opus", "ogg", "flac", "wav") {
-			return nil, invalidVariantInput("unsupported audio format")
+			return nil, invalidVariantInputError("unsupported audio format")
 		}
 		return marshalRaw(p), nil
 	case queue.JobTypeNormalizeAudio:
 		var p transform.AudioParams
 		if err := json.Unmarshal(raw, &p); err != nil {
-			return nil, invalidVariantInput("invalid audio params")
+			return nil, invalidVariantInputError("invalid audio params")
 		}
 		if p.OutputFormat == "" {
 			p.OutputFormat = "source"
@@ -502,13 +544,13 @@ func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage
 			p.OutputFormat = transform.AudioFormatFromMimeType(mimeType)
 		}
 		if p.TargetLUFS == 0 {
-			p.TargetLUFS = -16
+			p.TargetLUFS = transform.DefaultLUFS
 		}
-		if p.TargetLUFS < -70 || p.TargetLUFS > 0 {
-			return nil, invalidVariantInput("target_lufs must be between -70 and 0")
+		if p.TargetLUFS < transform.MinLUFS || p.TargetLUFS > transform.MaxLUFS {
+			return nil, invalidVariantInputError("target_lufs must be between -70 and 0")
 		}
 		if !isAllowedAudioFormat(p.OutputFormat, "mp3", "aac", "wav", "ogg", "flac") {
-			return nil, invalidVariantInput("unsupported audio format")
+			return nil, invalidVariantInputError("unsupported audio format")
 		}
 		return marshalRaw(p), nil
 	default:
@@ -527,7 +569,7 @@ func prepareImageRouterBgRemoveParams(raw json.RawMessage, defaultModel string) 
 		Prompt string `json:"prompt"`
 	}
 	if err := json.Unmarshal(raw, &params); err != nil {
-		return nil, invalidVariantInput("invalid image background removal params")
+		return nil, invalidVariantInputError("invalid image background removal params")
 	}
 	params.Model = strings.TrimSpace(params.Model)
 	params.Prompt = strings.TrimSpace(params.Prompt)
@@ -535,7 +577,7 @@ func prepareImageRouterBgRemoveParams(raw json.RawMessage, defaultModel string) 
 		params.Model = defaultModel
 	}
 	if params.Model == "" {
-		return nil, invalidVariantInput("model is required")
+		return nil, invalidVariantInputError("model is required")
 	}
 	return marshalRaw(params), nil
 }
@@ -546,18 +588,18 @@ func prepareImageRouterPromptParams(raw json.RawMessage, defaultModel string) (j
 		Model  string `json:"model"`
 	}
 	if err := json.Unmarshal(raw, &params); err != nil {
-		return nil, invalidVariantInput("invalid image prompt params")
+		return nil, invalidVariantInputError("invalid image prompt params")
 	}
 	params.Prompt = strings.TrimSpace(params.Prompt)
 	params.Model = strings.TrimSpace(params.Model)
 	if params.Prompt == "" {
-		return nil, invalidVariantRequest("prompt_required")
+		return nil, invalidVariantRequestError("prompt_required")
 	}
 	if params.Model == "" {
 		params.Model = defaultModel
 	}
 	if params.Model == "" {
-		return nil, invalidVariantInput("model is required")
+		return nil, invalidVariantInputError("model is required")
 	}
 	return marshalRaw(params), nil
 }
@@ -573,7 +615,7 @@ func isAllowedAudioFormat(format string, allowed ...string) bool {
 
 func isAllowedAudioBitrate(bitrate string) bool {
 	switch bitrate {
-	case "64k", "96k", "128k", "192k", "256k", "320k":
+	case "64k", "96k", "128k", defaultAudioBitrate, "256k", "320k":
 		return true
 	default:
 		return false
@@ -594,7 +636,9 @@ func (s *variantService) WriteVariantQueued(ctx context.Context, workspaceID, as
 }
 
 // WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.
-func (s *variantService) WriteVariantDownloadedAsync(workspaceID, assetID, variantID, variantType, shareID, visitorName string) {
+func (s *variantService) WriteVariantDownloadedAsync(
+	workspaceID, assetID, variantID, variantType, shareID, visitorName string,
+) {
 	var payloadShareID *string
 	if shareID != "" {
 		payloadShareID = &shareID
@@ -632,7 +676,18 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "variant delete failed", "workspace_id", workspaceID, "asset_id", assetID, "variant_id", variantID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"variant delete failed",
+				"workspace_id",
+				workspaceID,
+				"asset_id",
+				assetID,
+				"variant_id",
+				variantID,
+				"error",
+				err,
+			)
 		}
 	}()
 

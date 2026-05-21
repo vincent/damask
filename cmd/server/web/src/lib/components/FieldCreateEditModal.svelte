@@ -54,7 +54,7 @@
       selectedType = editing.field_type
       name = editing.name
       generatedKey = editing.key
-      required = editing.required
+      required = editing.validationRequired
       inheritFromProject = editing.inherit_from_project
       optionItems = editing.options
         ? (JSON.parse(editing.options) as string[])

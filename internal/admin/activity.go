@@ -11,7 +11,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const activityLimit = 200
+const (
+	activityLimit             = 200
+	activityFilterSystemActor = "system_actor"
+	activityEventAssetCreated = "asset_created"
+	activityEventAssetDeleted = "asset_deleted"
+)
 
 // ─── messages ────────────────────────────────────────────────
 
@@ -42,9 +47,9 @@ var filterLabels = map[activityFilter]string{
 
 var filterEventTypes = map[activityFilter]string{
 	filterAll:     "",
-	filterUploads: "asset_created",
+	filterUploads: activityEventAssetCreated,
 	filterChanges: "asset_renamed",
-	filterDeletes: "asset_deleted",
+	filterDeletes: activityEventAssetDeleted,
 	filterSystem:  "",
 }
 
@@ -102,7 +107,7 @@ func (m ActivityModel) Update(msg tea.Msg) (ActivityModel, tea.Cmd) {
 			m.loading = true
 			filter := filterEventTypes[m.filter]
 			if m.filter == filterSystem {
-				filter = "system_actor"
+				filter = activityFilterSystemActor
 			}
 			return m, loadActivityCmd(m.db, filter)
 		case "up", "k":
@@ -141,7 +146,7 @@ func (m ActivityModel) Refresh() tea.Cmd { return m.refreshCmd() }
 func (m ActivityModel) refreshCmd() tea.Cmd {
 	filter := filterEventTypes[m.filter]
 	if m.filter == filterSystem {
-		filter = "system_actor"
+		filter = activityFilterSystemActor
 	}
 	return loadActivityCmd(m.db, filter)
 }
@@ -171,10 +176,7 @@ func (m ActivityModel) View() string {
 	}
 
 	// Calculate visible rows
-	visibleH := m.height - 4
-	if visibleH < 1 {
-		visibleH = 1
-	}
+	visibleH := max(m.height-4, 1)
 
 	start := m.cursor
 	end := clamp(start+visibleH, 0, len(m.rows))
@@ -276,11 +278,11 @@ func formatEventType(evType, payload string) string {
 func extractPayloadField(payload, field string) string {
 	// Simple JSON field extractor without importing encoding/json for performance
 	key := `"` + field + `"`
-	idx := strings.Index(payload, key)
-	if idx < 0 {
+	_, after, ok := strings.Cut(payload, key)
+	if !ok {
 		return ""
 	}
-	rest := payload[idx+len(key):]
+	rest := after
 	colonIdx := strings.Index(rest, ":")
 	if colonIdx < 0 {
 		return ""
@@ -304,13 +306,13 @@ func extractPayloadField(payload, field string) string {
 	return strings.TrimSpace(rest[:end])
 }
 
-func countNewRows(old, new []ActivityRow) int {
-	if len(old) == 0 || len(new) == 0 {
+func countNewRows(old, newRow []ActivityRow) int {
+	if len(old) == 0 || len(newRow) == 0 {
 		return 0
 	}
 	firstOld := old[0].CreatedAt
 	count := 0
-	for _, r := range new {
+	for _, r := range newRow {
 		if r.CreatedAt.After(firstOld) {
 			count++
 		}
@@ -327,7 +329,7 @@ func loadActivityCmd(db *sql.DB, filter string) tea.Cmd {
 
 		// Special case: system filter means actor_type = 'system'
 		actualFilter := filter
-		if filter == "system_actor" {
+		if filter == activityFilterSystemActor {
 			actualFilter = ""
 		}
 		rows, err := QueryRecentActivity(ctx, db, activityLimit, actualFilter)
@@ -335,7 +337,7 @@ func loadActivityCmd(db *sql.DB, filter string) tea.Cmd {
 			return activityDataMsg{err: err}
 		}
 		// Apply system filter in-memory
-		if filter == "system_actor" {
+		if filter == activityFilterSystemActor {
 			var filtered []ActivityRow
 			for _, r := range rows {
 				if r.ActorType == "system" {

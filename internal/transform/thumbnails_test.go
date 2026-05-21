@@ -3,13 +3,14 @@ package transform_test
 import (
 	"bytes"
 	"context"
-	"damask/server/internal/storage"
-	"damask/server/internal/transform"
 	"errors"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"testing"
+
+	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 )
 
 // createTestJPEG creates a minimal valid JPEG image for testing.
@@ -162,7 +163,12 @@ func TestGenerateThumbnailData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotBytes, gotExt, gotErr := thumbnailer.GenerateThumbnailData(context.Background(), tt.storage, tt.mimeType, tt.storageKey)
+			gotBytes, gotExt, gotErr := thumbnailer.GenerateThumbnailData(
+				context.Background(),
+				tt.storage,
+				tt.mimeType,
+				tt.storageKey,
+			)
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("GenerateThumbnailData() failed: %v", gotErr)

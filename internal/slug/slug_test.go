@@ -1,8 +1,9 @@
 package slug_test
 
 import (
-	"damask/server/internal/slug"
 	"testing"
+
+	"damask/server/internal/slug"
 )
 
 func TestToSlug(t *testing.T) {

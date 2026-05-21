@@ -25,6 +25,7 @@ func approxEqual(a, b, eps float64) bool {
 }
 
 func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
+	t.Parallel()
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 
 	result, err := ExtractImageEXIF(t.Context(), bytes.NewReader(data), true)
@@ -36,6 +37,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	}
 
 	t.Run("Make", func(t *testing.T) {
+		t.Parallel()
 		if result.Make == nil {
 			t.Fatal("Make is nil")
 		}
@@ -45,6 +47,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	})
 
 	t.Run("Model", func(t *testing.T) {
+		t.Parallel()
 		if result.Model == nil {
 			t.Fatal("Model is nil")
 		}
@@ -54,6 +57,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	})
 
 	t.Run("FNumber", func(t *testing.T) {
+		t.Parallel()
 		if result.FNumber == nil {
 			t.Fatal("FNumber is nil — rational tag not decoded")
 		}
@@ -64,6 +68,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	})
 
 	t.Run("FocalLength", func(t *testing.T) {
+		t.Parallel()
 		if result.FocalLength == nil {
 			t.Fatal("FocalLength is nil — rational tag not decoded")
 		}
@@ -74,6 +79,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	})
 
 	t.Run("FocalLength35", func(t *testing.T) {
+		t.Parallel()
 		if result.FocalLength35 == nil {
 			t.Fatal("FocalLength35 is nil — SHORT tag not decoded")
 		}
@@ -84,6 +90,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	})
 
 	t.Run("ISO", func(t *testing.T) {
+		t.Parallel()
 		if result.ISO == nil {
 			t.Fatal("ISO is nil")
 		}
@@ -93,6 +100,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	})
 
 	t.Run("ExposureTime", func(t *testing.T) {
+		t.Parallel()
 		if result.ExposureTime == nil {
 			t.Fatal("ExposureTime is nil")
 		}
@@ -102,6 +110,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 	})
 
 	t.Run("TakenAt", func(t *testing.T) {
+		t.Parallel()
 		if result.TakenAt == nil {
 			t.Fatal("TakenAt is nil")
 		}
@@ -112,6 +121,7 @@ func TestExtractImageEXIF_KodakPixpro(t *testing.T) {
 }
 
 func TestExtractImageEXIF_KodakPixpro_StripGPS(t *testing.T) {
+	t.Parallel()
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 
 	result, err := ExtractImageEXIF(t.Context(), bytes.NewReader(data), false)
@@ -127,6 +137,7 @@ func TestExtractImageEXIF_KodakPixpro_StripGPS(t *testing.T) {
 }
 
 func TestExtractImageEXIF_NoEXIF(t *testing.T) {
+	t.Parallel()
 	result, err := ExtractImageEXIF(t.Context(), bytes.NewReader([]byte{0xFF, 0xD8, 0xFF, 0xE0}), true)
 	if err != nil {
 		t.Fatalf("unexpected error for no-EXIF data: %v", err)
@@ -137,12 +148,14 @@ func TestExtractImageEXIF_NoEXIF(t *testing.T) {
 }
 
 func TestExtractImageEXIF_Panic(t *testing.T) {
+	t.Parallel()
 	result, err := ExtractImageEXIF(t.Context(), bytes.NewReader(nil), true)
 	_ = result
 	_ = err
 }
 
 func TestExtractImageEXIF_TakenAt_Format(t *testing.T) {
+	t.Parallel()
 	data := loadFile(t, "/home/vincent/Downloads/100_2479.JPG")
 	result, _ := ExtractImageEXIF(t.Context(), bytes.NewReader(data), false)
 	if result == nil || result.TakenAt == nil {

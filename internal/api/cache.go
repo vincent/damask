@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -50,12 +51,12 @@ func setCacheHeaders(c fiber.Ctx, etag string, lastMod time.Time, immutable bool
 // parseVersionTime parses an AssetVersion.CreatedAt string (RFC3339 or SQLite
 // datetime format) into a time.Time. Returns the zero time on failure so the
 // caller skips conditional-cache logic rather than serving a stale 304.
-func parseVersionTime(s string) time.Time {
+func parseVersionTime(ctx context.Context, s string) time.Time {
 	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"} {
 		if t, err := time.Parse(layout, s); err == nil {
 			return t
 		}
 	}
-	slog.Warn("parseVersionTime: unrecognized format", "value", s)
+	slog.WarnContext(ctx, "parseVersionTime: unrecognized format", "value", s)
 	return time.Time{}
 }

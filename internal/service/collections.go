@@ -62,7 +62,10 @@ type collectionService struct {
 }
 
 // NewCollectionService returns a CollectionService.
-func NewCollectionService(collections repository.CollectionRepository, assets repository.AssetRepository) CollectionService {
+func NewCollectionService(
+	collections repository.CollectionRepository,
+	assets repository.AssetRepository,
+) CollectionService {
 	return &collectionService{collections: collections, assets: assets}
 }
 
@@ -86,7 +89,11 @@ func (s *collectionService) Get(ctx context.Context, workspaceID, id string) (*C
 	return toCollectionDTO(col), nil
 }
 
-func (s *collectionService) Create(ctx context.Context, workspaceID string, p CreateCollectionParams) (*CollectionDTO, error) {
+func (s *collectionService) Create(
+	ctx context.Context,
+	workspaceID string,
+	p CreateCollectionParams,
+) (*CollectionDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
@@ -118,7 +125,11 @@ func (s *collectionService) Create(ctx context.Context, workspaceID string, p Cr
 	return toCollectionDTO(col), nil
 }
 
-func (s *collectionService) Update(ctx context.Context, workspaceID, id string, p UpdateCollectionParams) (*CollectionDTO, error) {
+func (s *collectionService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p UpdateCollectionParams,
+) (*CollectionDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}

@@ -8,29 +8,38 @@ import (
 
 // MockAuditLogService is a no-op implementation of service.AuditLogService.
 type MockAuditLogService struct {
-	ListAssetEventsFn        func(ctx context.Context, p service.ListAssetEventsParams) (*service.AuditEventListDTO, error)
-	ListProjectEventsFn      func(ctx context.Context, p service.ListProjectEventsParams) (*service.AuditEventListDTO, error)
-	ListWorkspaceActivityFn  func(ctx context.Context, p service.ListWorkspaceActivityParams) (*service.ActivityListDTO, error)
-	ExportActivityFn         func(ctx context.Context, p service.ExportActivityParams) (string, error)
+	ListAssetEventsFn       func(ctx context.Context, p service.ListAssetEventsParams) (*service.AuditEventListDTO, error)
+	ListProjectEventsFn     func(ctx context.Context, p service.ListProjectEventsParams) (*service.AuditEventListDTO, error)
+	ListWorkspaceActivityFn func(ctx context.Context, p service.ListWorkspaceActivityParams) (*service.ActivityListDTO, error)
+	ExportActivityFn        func(ctx context.Context, p service.ExportActivityParams) (string, error)
 }
 
 func NewAuditLogService() *MockAuditLogService { return &MockAuditLogService{} }
 
-func (m *MockAuditLogService) ListAssetEvents(ctx context.Context, p service.ListAssetEventsParams) (*service.AuditEventListDTO, error) {
+func (m *MockAuditLogService) ListAssetEvents(
+	ctx context.Context,
+	p service.ListAssetEventsParams,
+) (*service.AuditEventListDTO, error) {
 	if m.ListAssetEventsFn != nil {
 		return m.ListAssetEventsFn(ctx, p)
 	}
 	return nil, nil
 }
 
-func (m *MockAuditLogService) ListProjectEvents(ctx context.Context, p service.ListProjectEventsParams) (*service.AuditEventListDTO, error) {
+func (m *MockAuditLogService) ListProjectEvents(
+	ctx context.Context,
+	p service.ListProjectEventsParams,
+) (*service.AuditEventListDTO, error) {
 	if m.ListProjectEventsFn != nil {
 		return m.ListProjectEventsFn(ctx, p)
 	}
 	return nil, nil
 }
 
-func (m *MockAuditLogService) ListWorkspaceActivity(ctx context.Context, p service.ListWorkspaceActivityParams) (*service.ActivityListDTO, error) {
+func (m *MockAuditLogService) ListWorkspaceActivity(
+	ctx context.Context,
+	p service.ListWorkspaceActivityParams,
+) (*service.ActivityListDTO, error) {
 	if m.ListWorkspaceActivityFn != nil {
 		return m.ListWorkspaceActivityFn(ctx, p)
 	}

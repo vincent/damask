@@ -19,7 +19,7 @@ func TestStackMerge_ValidEnqueue(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/stack/merge",
-		testutil.JsonBody(map[string]any{
+		testutil.JSONBody(map[string]any{
 			"asset_ids":   []string{"ast_1", "ast_2"},
 			"output_type": "gif",
 			"filename":    "my-merge",

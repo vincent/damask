@@ -8,31 +8,34 @@ import (
 
 // MockUserService is a no-op implementation of service.UserService.
 type MockUserService struct {
-	RegisterFn        func(ctx context.Context, p service.RegisterUserParams) (*service.RegisterUserResult, error)
-	LoginFn           func(ctx context.Context, p service.LoginUserParams) (*service.LoginUserResult, error)
-	GetByIDFn         func(ctx context.Context, userID string) (*service.UserDTO, error)
-	CreateWorkspaceFn func(ctx context.Context, userID, name string) (*service.WorkspaceDTO, error)
-	GetProfileFn      func(ctx context.Context, userID string) (*service.OIDCUserDTO, error)
-	GetProfileByEmailFn func(ctx context.Context, email string) (*service.OIDCUserDTO, error)
-	UpdateProfileFn   func(ctx context.Context, userID, displayName string) (*service.OIDCUserDTO, error)
-	UploadAvatarFn    func(ctx context.Context, userID string, data []byte) (*service.OIDCUserDTO, error)
-	DeleteAvatarFn    func(ctx context.Context, userID string) error
-	UpdateAvatarKeyFn func(ctx context.Context, userID, storageKey string) (*service.OIDCUserDTO, error)
-	ClearAvatarFn     func(ctx context.Context, userID string) (*service.OIDCUserDTO, error)
-	ResetPasswordFn   func(ctx context.Context, userID, passwordHash string) error
-	ChangePasswordFn  func(ctx context.Context, userID, currentPassword, newPasswordHash string) error
+	RegisterFn           func(ctx context.Context, p service.RegisterUserParams) (*service.RegisterUserResult, error)
+	LoginFn              func(ctx context.Context, p service.LoginUserParams) (*service.LoginUserResult, error)
+	GetByIDFn            func(ctx context.Context, userID string) (*service.UserDTO, error)
+	CreateWorkspaceFn    func(ctx context.Context, userID, name string) (*service.WorkspaceDTO, error)
+	GetProfileFn         func(ctx context.Context, userID string) (*service.OIDCUserDTO, error)
+	GetProfileByEmailFn  func(ctx context.Context, email string) (*service.OIDCUserDTO, error)
+	UpdateProfileFn      func(ctx context.Context, userID, displayName string) (*service.OIDCUserDTO, error)
+	UploadAvatarFn       func(ctx context.Context, userID string, data []byte) (*service.OIDCUserDTO, error)
+	DeleteAvatarFn       func(ctx context.Context, userID string) error
+	UpdateAvatarKeyFn    func(ctx context.Context, userID, storageKey string) (*service.OIDCUserDTO, error)
+	ClearAvatarFn        func(ctx context.Context, userID string) (*service.OIDCUserDTO, error)
+	ResetPasswordFn      func(ctx context.Context, userID, passwordHash string) error
+	ChangePasswordFn     func(ctx context.Context, userID, currentPassword, newPasswordHash string) error
 	RequestEmailChangeFn func(ctx context.Context, userID, email string) error
 	CancelEmailChangeFn  func(ctx context.Context, userID string) error
 	ConfirmEmailChangeFn func(ctx context.Context, userID, email string) (*service.OIDCUserDTO, error)
 	DeleteAccountFn      func(ctx context.Context, userID, password string, hardDelete bool) error
-	UpsertOIDCUserFn  func(ctx context.Context, p service.UpsertOIDCUserParams) (*service.OIDCUserDTO, error)
-	UpsertCanvaUserFn func(ctx context.Context, p service.UpsertCanvaUserParams) (*service.OIDCUserDTO, error)
-	UnlinkProviderFn  func(ctx context.Context, userID, provider string) (*service.OIDCUserDTO, error)
+	UpsertOIDCUserFn     func(ctx context.Context, p service.UpsertOIDCUserParams) (*service.OIDCUserDTO, error)
+	UpsertCanvaUserFn    func(ctx context.Context, p service.UpsertCanvaUserParams) (*service.OIDCUserDTO, error)
+	UnlinkProviderFn     func(ctx context.Context, userID, provider string) (*service.OIDCUserDTO, error)
 }
 
 func NewUserService() *MockUserService { return &MockUserService{} }
 
-func (m *MockUserService) Register(ctx context.Context, p service.RegisterUserParams) (*service.RegisterUserResult, error) {
+func (m *MockUserService) Register(
+	ctx context.Context,
+	p service.RegisterUserParams,
+) (*service.RegisterUserResult, error) {
 	if m.RegisterFn != nil {
 		return m.RegisterFn(ctx, p)
 	}
@@ -95,7 +98,10 @@ func (m *MockUserService) DeleteAvatar(ctx context.Context, userID string) error
 	return nil
 }
 
-func (m *MockUserService) UpdateAvatarKey(ctx context.Context, userID, storageKey string) (*service.OIDCUserDTO, error) {
+func (m *MockUserService) UpdateAvatarKey(
+	ctx context.Context,
+	userID, storageKey string,
+) (*service.OIDCUserDTO, error) {
 	if m.UpdateAvatarKeyFn != nil {
 		return m.UpdateAvatarKeyFn(ctx, userID, storageKey)
 	}
@@ -151,14 +157,20 @@ func (m *MockUserService) DeleteAccount(ctx context.Context, userID, password st
 	return nil
 }
 
-func (m *MockUserService) UpsertOIDCUser(ctx context.Context, p service.UpsertOIDCUserParams) (*service.OIDCUserDTO, error) {
+func (m *MockUserService) UpsertOIDCUser(
+	ctx context.Context,
+	p service.UpsertOIDCUserParams,
+) (*service.OIDCUserDTO, error) {
 	if m.UpsertOIDCUserFn != nil {
 		return m.UpsertOIDCUserFn(ctx, p)
 	}
 	return nil, nil
 }
 
-func (m *MockUserService) UpsertCanvaUser(ctx context.Context, p service.UpsertCanvaUserParams) (*service.OIDCUserDTO, error) {
+func (m *MockUserService) UpsertCanvaUser(
+	ctx context.Context,
+	p service.UpsertCanvaUserParams,
+) (*service.OIDCUserDTO, error) {
 	if m.UpsertCanvaUserFn != nil {
 		return m.UpsertCanvaUserFn(ctx, p)
 	}

@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"damask/server/internal/apperr"
@@ -26,7 +27,7 @@ func NewRealTagRepo() *RealTagRepo {
 	}
 }
 
-func (r *RealTagRepo) GetByName(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
+func (r *RealTagRepo) GetByName(_ context.Context, workspaceID, name string) (repository.Tag, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, t := range r.tags {
@@ -37,7 +38,7 @@ func (r *RealTagRepo) GetByName(ctx context.Context, workspaceID, name string) (
 	return repository.Tag{}, fmt.Errorf("tag %q: %w", name, apperr.ErrNotFound)
 }
 
-func (r *RealTagRepo) List(ctx context.Context, workspaceID string, includeSystem bool) ([]repository.Tag, error) {
+func (r *RealTagRepo) List(_ context.Context, workspaceID string, includeSystem bool) ([]repository.Tag, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []repository.Tag
@@ -52,7 +53,7 @@ func (r *RealTagRepo) List(ctx context.Context, workspaceID string, includeSyste
 	return out, nil
 }
 
-func (r *RealTagRepo) Upsert(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
+func (r *RealTagRepo) Upsert(_ context.Context, workspaceID, name string) (repository.Tag, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, t := range r.tags {
@@ -69,7 +70,7 @@ func (r *RealTagRepo) Upsert(ctx context.Context, workspaceID, name string) (rep
 	return t, nil
 }
 
-func (r *RealTagRepo) EnsureSystemTag(ctx context.Context, workspaceID, name string) error {
+func (r *RealTagRepo) EnsureSystemTag(_ context.Context, workspaceID, name string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	groupName := "system"
@@ -106,7 +107,7 @@ func (r *RealTagRepo) UpdateMetadata(_ context.Context, workspaceID, name string
 	return apperr.ErrNotFound
 }
 
-func (r *RealTagRepo) Rename(ctx context.Context, workspaceID, oldName, newName string) error {
+func (r *RealTagRepo) Rename(_ context.Context, workspaceID, oldName, newName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for id, t := range r.tags {
@@ -119,7 +120,7 @@ func (r *RealTagRepo) Rename(ctx context.Context, workspaceID, oldName, newName 
 	return fmt.Errorf("tag %q: %w", oldName, apperr.ErrNotFound)
 }
 
-func (r *RealTagRepo) Delete(ctx context.Context, workspaceID string, names []string) error {
+func (r *RealTagRepo) Delete(_ context.Context, workspaceID string, names []string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	nameSet := make(map[string]bool, len(names))
@@ -134,7 +135,7 @@ func (r *RealTagRepo) Delete(ctx context.Context, workspaceID string, names []st
 	return nil
 }
 
-func (r *RealTagRepo) ListForAsset(ctx context.Context, assetID string) ([]repository.Tag, error) {
+func (r *RealTagRepo) ListForAsset(_ context.Context, assetID string) ([]repository.Tag, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	ids := r.assetTags[assetID]
@@ -147,13 +148,11 @@ func (r *RealTagRepo) ListForAsset(ctx context.Context, assetID string) ([]repos
 	return out, nil
 }
 
-func (r *RealTagRepo) AddToAsset(ctx context.Context, assetID, tagID string) error {
+func (r *RealTagRepo) AddToAsset(_ context.Context, assetID, tagID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, id := range r.assetTags[assetID] {
-		if id == tagID {
-			return nil // idempotent
-		}
+	if slices.Contains(r.assetTags[assetID], tagID) {
+		return nil // idempotent
 	}
 	r.assetTags[assetID] = append(r.assetTags[assetID], tagID)
 	return nil

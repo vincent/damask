@@ -24,6 +24,8 @@ import (
 	"damask/server/internal/workflow"
 )
 
+const schedulerCronInterval = 24 * time.Hour
+
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
 	db             *dbgen.Queries
@@ -39,7 +41,7 @@ type JobServer struct {
 	tmb            transform.Thumbnailer
 	injestor       assetio.Injestor
 	imgKeyResolver imagerouter.KeyResolver
-	workflowExec   *workflow.WorkflowExecutor
+	workflowExec   *workflow.Executor
 }
 
 func NewJobServer(
@@ -54,7 +56,7 @@ func NewJobServer(
 	cfg *config.Config,
 	injestor assetio.Injestor,
 	imgKeyResolver imagerouter.KeyResolver,
-	workflowExec *workflow.WorkflowExecutor,
+	workflowExec *workflow.Executor,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
@@ -149,7 +151,7 @@ func (s *JobServer) RegisterJobHandlers() {
 
 // ---- OS helpers ----
 
-func writeToTempFile(ctx context.Context, src io.Reader, ext string) (string, func(), error) {
+func writeToTempFile(_ context.Context, src io.Reader, ext string) (string, func(), error) {
 	f, err := os.CreateTemp("", "damask-*"+ext)
 	if err != nil {
 		return "", nil, fmt.Errorf("create temp: %w", err)
@@ -189,11 +191,11 @@ func MimeToExt(ct string) string {
 }
 
 // NextDaily returns the next occurrence of hour:min UTC on or after now.
-func NextDaily(hour, min int) time.Time {
+func NextDaily(hour, minute int) time.Time {
 	now := time.Now().UTC()
-	next := time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, time.UTC)
+	next := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, time.UTC)
 	if !next.After(now) {
-		next = next.Add(24 * time.Hour)
+		next = next.Add(schedulerCronInterval)
 	}
 	return next
 }

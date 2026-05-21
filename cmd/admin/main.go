@@ -1,10 +1,11 @@
 package main
 
 import (
-	"damask/server/internal/admin"
 	"flag"
 	"fmt"
 	"os"
+
+	"damask/server/internal/admin"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -45,6 +46,6 @@ func main() {
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "damask-admin: %v\n", err)
-		os.Exit(1)
+		os.Exit(1) //nolint: gocritic // Defered db.Close() is not needed on exit.
 	}
 }

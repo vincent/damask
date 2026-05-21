@@ -37,13 +37,12 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 	ticker := time.NewTicker(period)
 	oneMb := float64(1_048_576)
 	for range ticker.C {
-
 		_, _ = meter.Float64ObservableGauge(
 			"mem.used",
 			metric.WithDescription("Allocated memory"),
 			metric.WithUnit("MB"),
 			metric.WithFloat64Callback(
-				func(ctx context.Context, fo metric.Float64Observer) error {
+				func(_ context.Context, fo metric.Float64Observer) error {
 					var memStats runtime.MemStats
 					runtime.ReadMemStats(&memStats)
 					fo.Observe(float64(memStats.Alloc) / oneMb)
@@ -57,7 +56,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Total system memory"),
 			metric.WithUnit("MB"),
 			metric.WithFloat64Callback(
-				func(ctx context.Context, fo metric.Float64Observer) error {
+				func(_ context.Context, fo metric.Float64Observer) error {
 					totalMemoryMB, err := totalSystemMemoryMB()
 					if err != nil {
 						return err
@@ -73,7 +72,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("CPU usage percentage"),
 			metric.WithUnit("%"),
 			metric.WithFloat64Callback(
-				func(ctx context.Context, fo metric.Float64Observer) error {
+				func(_ context.Context, fo metric.Float64Observer) error {
 					currentCPUTimes, err := readCPUTimes()
 					if err != nil {
 						return err
@@ -107,7 +106,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Active goroutine count"),
 			metric.WithUnit("count"),
 			metric.WithInt64Callback(
-				func(ctx context.Context, io metric.Int64Observer) error {
+				func(_ context.Context, io metric.Int64Observer) error {
 					io.Observe(int64(runtime.NumGoroutine()))
 					return nil
 				},
@@ -119,7 +118,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Heap object count"),
 			metric.WithUnit("count"),
 			metric.WithInt64Callback(
-				func(ctx context.Context, io metric.Int64Observer) error {
+				func(_ context.Context, io metric.Int64Observer) error {
 					var memStats runtime.MemStats
 					runtime.ReadMemStats(&memStats)
 					io.Observe(int64(memStats.HeapObjects))
@@ -133,7 +132,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Total GC cycles"),
 			metric.WithUnit("count"),
 			metric.WithInt64Callback(
-				func(ctx context.Context, io metric.Int64Observer) error {
+				func(_ context.Context, io metric.Int64Observer) error {
 					var memStats runtime.MemStats
 					runtime.ReadMemStats(&memStats)
 					io.Observe(int64(memStats.NumGC))
@@ -147,7 +146,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Total GC pause time"),
 			metric.WithUnit("ns"),
 			metric.WithInt64Callback(
-				func(ctx context.Context, io metric.Int64Observer) error {
+				func(_ context.Context, io metric.Int64Observer) error {
 					var memStats runtime.MemStats
 					runtime.ReadMemStats(&memStats)
 					io.Observe(int64(memStats.PauseTotalNs))
@@ -161,7 +160,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Used filesystem space"),
 			metric.WithUnit("MB"),
 			metric.WithFloat64Callback(
-				func(ctx context.Context, fo metric.Float64Observer) error {
+				func(_ context.Context, fo metric.Float64Observer) error {
 					stats, err := filesystemUsage("/")
 					if err != nil {
 						return err
@@ -177,7 +176,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Total filesystem space"),
 			metric.WithUnit("MB"),
 			metric.WithFloat64Callback(
-				func(ctx context.Context, fo metric.Float64Observer) error {
+				func(_ context.Context, fo metric.Float64Observer) error {
 					stats, err := filesystemUsage("/")
 					if err != nil {
 						return err
@@ -193,7 +192,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Filesystem usage percentage"),
 			metric.WithUnit("%"),
 			metric.WithFloat64Callback(
-				func(ctx context.Context, fo metric.Float64Observer) error {
+				func(_ context.Context, fo metric.Float64Observer) error {
 					stats, err := filesystemUsage("/")
 					if err != nil {
 						return err
@@ -209,7 +208,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Disk bytes read"),
 			metric.WithUnit("By"),
 			metric.WithInt64Callback(
-				func(ctx context.Context, io metric.Int64Observer) error {
+				func(_ context.Context, io metric.Int64Observer) error {
 					stats, err := diskIOStats()
 					if err != nil {
 						return err
@@ -225,7 +224,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Disk bytes written"),
 			metric.WithUnit("By"),
 			metric.WithInt64Callback(
-				func(ctx context.Context, io metric.Int64Observer) error {
+				func(_ context.Context, io metric.Int64Observer) error {
 					stats, err := diskIOStats()
 					if err != nil {
 						return err
@@ -241,7 +240,7 @@ func collectMachineResourceMetrics(meter metric.Meter) {
 			metric.WithDescription("Open TCP connection count"),
 			metric.WithUnit("count"),
 			metric.WithInt64Callback(
-				func(ctx context.Context, io metric.Int64Observer) error {
+				func(_ context.Context, io metric.Int64Observer) error {
 					count, err := openTCPConnectionCount()
 					if err != nil {
 						return err
@@ -319,7 +318,7 @@ func getOtelMetricsCollectorExporter(ctx context.Context, cfg Config) (metricsdk
 	exporter, err := otlpmetrichttp.New(ctx,
 		otlpmetrichttp.WithEndpointURL(cfg.Endpoint+"/metrics"),
 		otlpmetrichttp.WithHeaders(map[string]string{
-			"Authorization": "Bearer " + cfg.Token,
+			authorizationHeader: "Bearer " + cfg.Token,
 		}),
 		otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
 		otlpmetrichttp.WithInsecure(),

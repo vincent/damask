@@ -25,7 +25,11 @@ type NodeSchema struct {
 
 type Node interface {
 	Schema() NodeSchema
-	Execute(ctx context.Context, rc *RunContext, cfg json.RawMessage) (outputPort string, updates map[string]any, err error)
+	Execute(
+		ctx context.Context,
+		rc *RunContext,
+		cfg json.RawMessage,
+	) (outputPort string, updates map[string]any, err error)
 }
 
 type Factory func(Deps) Node
@@ -74,10 +78,10 @@ func NodeSchemas() []NodeSchema {
 		if out[i].Category == out[j].Category {
 			return out[i].Label < out[j].Label
 		}
-		if out[i].Category == "trigger" {
+		if out[i].Category == nodeCategoryTrigger {
 			return true
 		}
-		if out[j].Category == "trigger" {
+		if out[j].Category == nodeCategoryTrigger {
 			return false
 		}
 		return out[i].Category < out[j].Category

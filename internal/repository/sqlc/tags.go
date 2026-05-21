@@ -190,7 +190,10 @@ func (r *tagRepo) TouchLastUsed(ctx context.Context, workspaceID, name string) e
 	})
 }
 
-func (r *tagRepo) FindAssetBySystemTagInFolder(ctx context.Context, workspaceID, tagName, folderID string) (repository.Asset, error) {
+func (r *tagRepo) FindAssetBySystemTagInFolder(
+	ctx context.Context,
+	workspaceID, tagName, folderID string,
+) (repository.Asset, error) {
 	row, err := r.q.FindAssetBySystemTagInFolder(ctx, dbgen.FindAssetBySystemTagInFolderParams{
 		WorkspaceID: workspaceID,
 		Name:        tagName,
@@ -205,7 +208,10 @@ func (r *tagRepo) FindAssetBySystemTagInFolder(ctx context.Context, workspaceID,
 	return toAsset(row), nil
 }
 
-func (r *tagRepo) FindAssetBySystemTagInProject(ctx context.Context, workspaceID, tagName, projectID string) (repository.Asset, error) {
+func (r *tagRepo) FindAssetBySystemTagInProject(
+	ctx context.Context,
+	workspaceID, tagName, projectID string,
+) (repository.Asset, error) {
 	row, err := r.q.FindAssetBySystemTagInProject(ctx, dbgen.FindAssetBySystemTagInProjectParams{
 		WorkspaceID: workspaceID,
 		Name:        tagName,
@@ -220,7 +226,10 @@ func (r *tagRepo) FindAssetBySystemTagInProject(ctx context.Context, workspaceID
 	return toAsset(row), nil
 }
 
-func (r *tagRepo) FindAssetBySystemTagInWorkspace(ctx context.Context, workspaceID, tagName string) (repository.Asset, error) {
+func (r *tagRepo) FindAssetBySystemTagInWorkspace(
+	ctx context.Context,
+	workspaceID, tagName string,
+) (repository.Asset, error) {
 	row, err := r.q.FindAssetBySystemTagInWorkspace(ctx, dbgen.FindAssetBySystemTagInWorkspaceParams{
 		WorkspaceID: workspaceID,
 		Name:        tagName,
@@ -239,7 +248,7 @@ func (r *tagRepo) RunInTx(ctx context.Context, fn func(tx repository.TagReposito
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	txRepo := &tagRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}
 	if err := fn(txRepo); err != nil {
 		return err

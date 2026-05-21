@@ -79,7 +79,16 @@ func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "list text tracks failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"list text tracks failed",
+				"workspace_id",
+				claims.WorkspaceID,
+				"asset_id",
+				assetID,
+				apiErrorKey,
+				err,
+			)
 		}
 	}()
 
@@ -87,7 +96,16 @@ func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
 		apptelemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
-		slog.ErrorContext(ctx, "list text tracks: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", loadErr)
+		slog.ErrorContext(
+			ctx,
+			"list text tracks: load asset",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			apiErrorKey,
+			loadErr,
+		)
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
@@ -98,7 +116,16 @@ func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 	apptelemetry.EndSpan(listSpan, err)
 	if err != nil {
 		span.RecordError(err)
-		slog.ErrorContext(ctx, "list text tracks: fetch tracks", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"list text tracks: fetch tracks",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			apiErrorKey,
+			err,
+		)
 		return ErrorStatusResponse(c, err)
 	}
 	span.SetAttributes(attribute.Int("damask.text_tracks.result_count", len(tracks)))
@@ -122,7 +149,18 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "get text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"get text track failed",
+				"workspace_id",
+				claims.WorkspaceID,
+				"asset_id",
+				assetID,
+				"track_id",
+				trackID,
+				apiErrorKey,
+				err,
+			)
 		}
 	}()
 
@@ -130,7 +168,18 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
 		apptelemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
-		slog.ErrorContext(ctx, "get text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", loadErr)
+		slog.ErrorContext(
+			ctx,
+			"get text track: load asset",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			apiErrorKey,
+			loadErr,
+		)
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
@@ -141,7 +190,18 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 	apptelemetry.EndSpan(trackSpan, err)
 	if err != nil {
 		span.RecordError(err)
-		slog.ErrorContext(ctx, "get text track: fetch track", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"get text track: fetch track",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			apiErrorKey,
+			err,
+		)
 		return ErrorStatusResponse(c, err)
 	}
 	span.SetAttributes(
@@ -165,7 +225,16 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "create text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"create text track failed",
+				"workspace_id",
+				claims.WorkspaceID,
+				"asset_id",
+				assetID,
+				apiErrorKey,
+				err,
+			)
 		}
 	}()
 
@@ -174,7 +243,16 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	apptelemetry.EndSpan(assetSpan, assetErr)
 	if assetErr != nil {
 		span.RecordError(assetErr)
-		slog.ErrorContext(ctx, "create text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", assetErr)
+		slog.ErrorContext(
+			ctx,
+			"create text track: load asset",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			apiErrorKey,
+			assetErr,
+		)
 		err = ErrorStatusResponse(c, assetErr)
 		return err
 	}
@@ -186,7 +264,7 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 
 	params := body.Params
 	if params == nil {
-		params = map[string]interface{}{}
+		params = map[string]any{}
 	}
 	span.SetAttributes(attribute.String("damask.text_track.source", body.Source))
 
@@ -230,7 +308,16 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 		apptelemetry.EndSpan(versionSpan, versionErr)
 		if versionErr != nil {
 			span.RecordError(versionErr)
-			slog.ErrorContext(ctx, "create text track: load current version", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "error", versionErr)
+			slog.ErrorContext(
+				ctx,
+				"create text track: load current version",
+				"workspace_id",
+				claims.WorkspaceID,
+				"asset_id",
+				assetID,
+				apiErrorKey,
+				versionErr,
+			)
 			err = ErrorStatusResponse(c, versionErr)
 			return err
 		}
@@ -255,7 +342,18 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	apptelemetry.EndSpan(createSpan, err)
 	if err != nil {
 		span.RecordError(err)
-		slog.ErrorContext(ctx, "create text track: persist", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "source", body.Source, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"create text track: persist",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"source",
+			body.Source,
+			apiErrorKey,
+			err,
+		)
 		return ErrorStatusResponse(c, err)
 	}
 	span.SetAttributes(
@@ -283,7 +381,18 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "delete text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"delete text track failed",
+				"workspace_id",
+				claims.WorkspaceID,
+				"asset_id",
+				assetID,
+				"track_id",
+				trackID,
+				apiErrorKey,
+				err,
+			)
 		}
 	}()
 
@@ -291,7 +400,18 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
 		apptelemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
-		slog.ErrorContext(ctx, "delete text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", loadErr)
+		slog.ErrorContext(
+			ctx,
+			"delete text track: load asset",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			apiErrorKey,
+			loadErr,
+		)
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
@@ -302,7 +422,18 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 	apptelemetry.EndSpan(trackSpan, err)
 	if err != nil {
 		span.RecordError(err)
-		slog.ErrorContext(ctx, "delete text track: fetch track", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"delete text track: fetch track",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			apiErrorKey,
+			err,
+		)
 		return ErrorStatusResponse(c, err)
 	}
 	span.SetAttributes(
@@ -316,7 +447,18 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 	if deleteErr := s.textTracks.Delete(deleteCtx, claims.WorkspaceID, trackID); deleteErr != nil {
 		apptelemetry.EndSpan(deleteSpan, deleteErr)
 		span.RecordError(deleteErr)
-		slog.ErrorContext(ctx, "delete text track: remove", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", deleteErr)
+		slog.ErrorContext(
+			ctx,
+			"delete text track: remove",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			apiErrorKey,
+			deleteErr,
+		)
 		err = ErrorStatusResponse(c, deleteErr)
 		return err
 	}
@@ -336,7 +478,18 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "download text track failed", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"download text track failed",
+				"workspace_id",
+				claims.WorkspaceID,
+				"asset_id",
+				assetID,
+				"track_id",
+				trackID,
+				apiErrorKey,
+				err,
+			)
 		}
 	}()
 
@@ -344,7 +497,18 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
 		apptelemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
-		slog.ErrorContext(ctx, "download text track: load asset", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", loadErr)
+		slog.ErrorContext(
+			ctx,
+			"download text track: load asset",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			apiErrorKey,
+			loadErr,
+		)
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
@@ -355,7 +519,18 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 	apptelemetry.EndSpan(trackSpan, err)
 	if err != nil {
 		span.RecordError(err)
-		slog.ErrorContext(ctx, "download text track: fetch track", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"download text track: fetch track",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			apiErrorKey,
+			err,
+		)
 		return ErrorStatusResponse(c, err)
 	}
 	if track.AssetID != assetID {
@@ -375,7 +550,20 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 	apptelemetry.EndSpan(fileSpan, err)
 	if err != nil {
 		span.RecordError(err)
-		slog.ErrorContext(ctx, "download text track: open storage", "workspace_id", claims.WorkspaceID, "asset_id", assetID, "track_id", trackID, "storage_key", *track.StorageKey, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"download text track: open storage",
+			"workspace_id",
+			claims.WorkspaceID,
+			"asset_id",
+			assetID,
+			"track_id",
+			trackID,
+			"storage_key",
+			*track.StorageKey,
+			apiErrorKey,
+			err,
+		)
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
 	contentType := "text/plain; charset=utf-8"
@@ -392,7 +580,7 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 	}
 	c.Set("Content-Type", contentType)
 	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{
-		"filename": fmt.Sprintf("%s-%s%s", assetID, track.Source, ext),
+		apiFilenameKey: fmt.Sprintf("%s-%s%s", assetID, track.Source, ext),
 	}))
 	return c.SendStream(rc)
 }

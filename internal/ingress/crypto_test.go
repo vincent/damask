@@ -6,6 +6,7 @@ import (
 )
 
 func TestEncryptDecryptRoundtrip(t *testing.T) {
+	t.Parallel()
 	secret := "test-app-secret-for-ingress!!"
 	plain := []byte(`{"host":"imap.example.com","password":"s3cr3t"}`)
 
@@ -27,6 +28,7 @@ func TestEncryptDecryptRoundtrip(t *testing.T) {
 }
 
 func TestEncryptProducesUniqueValues(t *testing.T) {
+	t.Parallel()
 	// Each call uses a fresh random nonce — ciphertexts must differ.
 	secret := "test-app-secret-for-ingress!!"
 	plain := []byte(`{"key":"value"}`)
@@ -39,6 +41,7 @@ func TestEncryptProducesUniqueValues(t *testing.T) {
 }
 
 func TestDecryptWrongKey(t *testing.T) {
+	t.Parallel()
 	plain := []byte(`{"password":"secret"}`)
 	enc, _ := EncryptConfig("correct-secret-key-32chars!!!", plain)
 
@@ -49,6 +52,7 @@ func TestDecryptWrongKey(t *testing.T) {
 }
 
 func TestDecryptTruncatedCiphertext(t *testing.T) {
+	t.Parallel()
 	secret := "test-app-secret-for-ingress!!"
 	enc, _ := EncryptConfig(secret, []byte(`{"x":1}`))
 
@@ -61,6 +65,7 @@ func TestDecryptTruncatedCiphertext(t *testing.T) {
 }
 
 func TestDecryptInvalidBase64(t *testing.T) {
+	t.Parallel()
 	_, err := DecryptConfig("any-secret", "!!!not-base64!!!")
 	if err == nil {
 		t.Fatal("expected error on invalid base64, got nil")
@@ -71,6 +76,7 @@ func TestDecryptInvalidBase64(t *testing.T) {
 }
 
 func TestEncryptEmptyPlaintext(t *testing.T) {
+	t.Parallel()
 	secret := "test-app-secret-for-ingress!!"
 	enc, err := EncryptConfig(secret, []byte{})
 	if err != nil {

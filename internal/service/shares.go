@@ -46,7 +46,11 @@ type CreateShareParams struct {
 
 func (p *CreateShareParams) Validate() error {
 	p.Label = strings.TrimSpace(p.Label)
-	validTargets := map[string]bool{"asset": true, "project": true, "collection": true}
+	validTargets := map[string]bool{
+		string(AutomationScopeAsset):   true,
+		string(AutomationScopeProject): true,
+		"collection":                   true,
+	}
 	if !validTargets[p.TargetType] {
 		return fmt.Errorf("target_type must be asset, project, or collection: %w", apperr.ErrInvalidInput)
 	}
@@ -67,7 +71,7 @@ type UpdateShareParams struct {
 	AllowDownload *bool
 }
 
-// BcryptCost is the cost used for password hashing. Overridden to MinCost in tests.
+// ShareBcryptCost is the cost used for password hashing. Overridden to MinCost in tests.
 var ShareBcryptCost = bcrypt.DefaultCost
 
 type shareService struct {
@@ -146,7 +150,12 @@ func (s *shareService) Create(ctx context.Context, workspaceID string, p CreateS
 			UserID:      actor.UserID,
 			ActorType:   actor.Type,
 			EventType:   audit.EventAssetShared,
-			Payload:     audit.AssetSharedPayload{V: 1, ShareID: dto.ID, TargetType: dto.TargetType, ExpiresAt: dto.ExpiresAt},
+			Payload: audit.AssetSharedPayload{
+				V:          1,
+				ShareID:    dto.ID,
+				TargetType: dto.TargetType,
+				ExpiresAt:  dto.ExpiresAt,
+			},
 		})
 	}
 	return dto, nil

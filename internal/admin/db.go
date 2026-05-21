@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" //nolint:nolintlint // to register the sqlite driver
 )
 
 func OpenReadOnly(path string) (*sql.DB, error) {

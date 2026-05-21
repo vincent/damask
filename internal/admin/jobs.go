@@ -3,7 +3,7 @@ package admin
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -161,7 +161,7 @@ func (m JobsModel) View() string {
 	return view
 }
 
-func renderJobHealthTable(rows []JobRow, width int, focused bool) string {
+func renderJobHealthTable(rows []JobRow, width int, _ bool) string {
 	if len(rows) == 0 {
 		return MutedStyle.Render("  No jobs in queue")
 	}
@@ -212,13 +212,13 @@ func renderJobHealthTable(rows []JobRow, width int, focused bool) string {
 
 	for _, typ := range order {
 		s := byType[typ]
-		failedStr := fmt.Sprintf("%d", s.failed)
+		failedStr := strconv.Itoa(s.failed)
 		failedStyle := lipgloss.NewStyle().Width(8)
 		if s.failed > 0 {
 			failedStyle = failedStyle.Bold(true).Foreground(ColorDanger)
 		}
 
-		procStr := fmt.Sprintf("%d", s.processing)
+		procStr := strconv.Itoa(s.processing)
 		procStyle := lipgloss.NewStyle().Width(12)
 		if s.processing > 0 {
 			procStyle = procStyle.Foreground(ColorWarning)
@@ -231,7 +231,7 @@ func renderJobHealthTable(rows []JobRow, width int, focused bool) string {
 
 		line := lipgloss.JoinHorizontal(lipgloss.Left,
 			lipgloss.NewStyle().Width(typeW).Render(truncate(typ, typeW)),
-			lipgloss.NewStyle().Width(10).Render(fmt.Sprintf("%d", s.pending)),
+			lipgloss.NewStyle().Width(10).Render(strconv.Itoa(s.pending)),
 			procStyle.Render(procStr+warning),
 			lipgloss.NewStyle().Width(8).Render(commaSep(s.done)),
 			failedStyle.Render(failedStr),
@@ -263,7 +263,7 @@ func (m *JobsModel) rebuildFailedTable() {
 		rows = append(rows, table.Row{
 			r.ID,
 			truncate(r.Type, 16),
-			fmt.Sprintf("%d", r.Attempts),
+			strconv.Itoa(r.Attempts),
 			timeAgo(r.UpdatedAt),
 			truncate(r.Error, errW),
 		})
@@ -290,7 +290,7 @@ func (m JobsModel) renderJobModal() string {
 	sb.WriteString("\n")
 	sb.WriteString(field("Status", j.Status))
 	sb.WriteString("\n")
-	sb.WriteString(field("Attempts", fmt.Sprintf("%d", j.Attempts)))
+	sb.WriteString(field("Attempts", strconv.Itoa(j.Attempts)))
 	sb.WriteString("\n")
 	sb.WriteString(field("Created", j.CreatedAt.Format("2006-01-02 15:04:05")))
 	sb.WriteString("\n")

@@ -26,7 +26,7 @@ func TestBulkFieldPreview_ReturnsOverwriteCounts(t *testing.T) {
 	}
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/fields/preview",
-		testutil.JsonStr(`{"asset_ids":["a1","a2","a3","a4","a5"],"field_ids":["fld_1"]}`),
+		testutil.JSONStr(`{"asset_ids":["a1","a2","a3","a4","a5"],"field_ids":["fld_1"]}`),
 		cookie)
 
 	resp, err := env.App.Test(req)
@@ -60,7 +60,7 @@ func TestBulkFieldPreview_ExcludesEmptyValues(t *testing.T) {
 	}
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/fields/preview",
-		testutil.JsonStr(`{"asset_ids":["a1","a2"]}`), cookie)
+		testutil.JSONStr(`{"asset_ids":["a1","a2"]}`), cookie)
 
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
@@ -89,7 +89,7 @@ func TestBulkFieldPreview_DistinctValuesCappedAt5(t *testing.T) {
 	}
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/fields/preview",
-		testutil.JsonStr(`{"asset_ids":["a1"]}`), cookie)
+		testutil.JSONStr(`{"asset_ids":["a1"]}`), cookie)
 
 	resp, _ := env.App.Test(req)
 	var body api.BulkFieldsPreviewResponse
@@ -109,7 +109,7 @@ func TestBulkFieldPreview_RejectsViewer(t *testing.T) {
 	// No workspace service override → getRoleFn returns Viewer, which should block Editor-gated route.
 	// We test rejection by omitting the auth cookie entirely.
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/fields/preview",
-		testutil.JsonStr(`{"asset_ids":["a1"]}`), nil)
+		testutil.JSONStr(`{"asset_ids":["a1"]}`), nil)
 
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -122,7 +122,7 @@ func TestBulkFieldPreview_RequiresAssetIDs(t *testing.T) {
 	cookie := env.MintCookie(t, "user_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/fields/preview",
-		testutil.JsonStr(`{"asset_ids":[]}`), cookie)
+		testutil.JSONStr(`{"asset_ids":[]}`), cookie)
 
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
@@ -141,7 +141,7 @@ func TestBulkFieldClear_NullDeletesValues(t *testing.T) {
 	}
 
 	req := testutil.AuthRequest(http.MethodPatch, "/api/v1/assets/bulk/fields",
-		testutil.JsonStr(`{"asset_ids":["a1"],"values":[{"field_id":"fld_1","value":null}]}`),
+		testutil.JSONStr(`{"asset_ids":["a1"],"values":[{"field_id":"fld_1","value":null}]}`),
 		cookie)
 
 	resp, _ := env.App.Test(req)
@@ -175,7 +175,7 @@ func TestBulkTagRemove_RemovesFromAllAssets(t *testing.T) {
 	}
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/tag",
-		testutil.JsonStr(`{"asset_ids":["a1","a2"],"tag_name":"urgent","mode":"remove"}`),
+		testutil.JSONStr(`{"asset_ids":["a1","a2"],"tag_name":"urgent","mode":"remove"}`),
 		cookie)
 
 	resp, _ := env.App.Test(req)
@@ -205,7 +205,7 @@ func TestBulkTagAdd_DefaultsToAddMode(t *testing.T) {
 
 	// Omit mode entirely — should default to add.
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/tag",
-		testutil.JsonStr(`{"asset_ids":["a1"],"tag_name":"urgent"}`),
+		testutil.JSONStr(`{"asset_ids":["a1"],"tag_name":"urgent"}`),
 		cookie)
 
 	resp, _ := env.App.Test(req)
@@ -277,7 +277,7 @@ func TestBulkTagRemove_InvalidModeRejected(t *testing.T) {
 	cookie := env.MintCookie(t, "user_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/bulk/tag",
-		testutil.JsonStr(`{"asset_ids":["a1"],"tag_name":"urgent","mode":"upsert"}`),
+		testutil.JSONStr(`{"asset_ids":["a1"],"tag_name":"urgent","mode":"upsert"}`),
 		cookie)
 
 	resp, _ := env.App.Test(req)

@@ -58,16 +58,16 @@ type ffprobeOut struct {
 }
 
 type ffprobeStream struct {
-	CodecName     string `json:"codec_name"`
-	CodecType     string `json:"codec_type"`
-	SampleRate    string `json:"sample_rate"`
-	Channels      int    `json:"channels"`
-	ChannelLayout string `json:"channel_layout"`
+	CodecName     string     `json:"codec_name"`
+	CodecType     string     `json:"codec_type"`
+	SampleRate    string     `json:"sample_rate"`
+	Channels      int        `json:"channels"`
+	ChannelLayout string     `json:"channel_layout"`
 	BitsPerSample ffprobeInt `json:"bits_per_raw_sample"`
-	BitRate       string `json:"bit_rate"`
-	Width         int    `json:"width"`
-	Height        int    `json:"height"`
-	RFrameRate    string `json:"r_frame_rate"`
+	BitRate       string     `json:"bit_rate"`
+	Width         int        `json:"width"`
+	Height        int        `json:"height"`
+	RFrameRate    string     `json:"r_frame_rate"`
 	Disposition   struct {
 		AttachedPic int `json:"attached_pic"`
 	} `json:"disposition"`
@@ -230,8 +230,8 @@ func (r *AVTags) applyTags(tags map[string]string) {
 		}
 		for _, k := range keys {
 			raw := strings.TrimSpace(tags[k])
-			if i := strings.IndexByte(raw, '/'); i >= 0 {
-				if v, err := strconv.Atoi(strings.TrimSpace(raw[i+1:])); err == nil {
+			if _, after, ok := strings.Cut(raw, "/"); ok {
+				if v, err := strconv.Atoi(strings.TrimSpace(after)); err == nil {
 					*dst = ptr(v)
 					return
 				}

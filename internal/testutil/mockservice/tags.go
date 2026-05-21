@@ -8,21 +8,21 @@ import (
 
 // MockTagService is a no-op implementation of service.TagService.
 type MockTagService struct {
-	ListFn             func(ctx context.Context, workspaceID string, includeSystem bool) ([]*service.TagDTO, error)
-	GetByNameFn        func(ctx context.Context, workspaceID, name string) (*service.TagDTO, error)
-	CreateFn           func(ctx context.Context, workspaceID string, p service.CreateTagParams) (*service.TagDTO, error)
-	PatchFn            func(ctx context.Context, workspaceID, currentName string, p service.PatchTagParams) (*service.TagDTO, error)
-	EnsureSystemTagFn  func(ctx context.Context, workspaceID, name string) error
-	DeleteFn           func(ctx context.Context, workspaceID string, names []string) error
-	BulkDeleteFn       func(ctx context.Context, workspaceID string, names []string) (service.BulkDeleteTagsResult, error)
-	MergeFn            func(ctx context.Context, workspaceID string, sources []string, target string) (service.MergeTagsResult, error)
-	ResolveSystemTagFn func(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error)
-	TouchLastUsedFn    func(ctx context.Context, workspaceID, name string) error
-	ListForAssetFn     func(ctx context.Context, assetID string) ([]*service.TagDTO, error)
-	AddToAssetFn       func(ctx context.Context, workspaceID, assetID, tagName string) (*service.TagDTO, error)
-	RemoveFromAssetFn  func(ctx context.Context, workspaceID, assetID, tagName string) error
-	UpsertForAssetFn        func(ctx context.Context, workspaceID, assetID, tagName string) error
-	BatchTagsForAssetsFn    func(ctx context.Context, assetIDs []string) (map[string][]string, error)
+	ListFn               func(ctx context.Context, workspaceID string, includeSystem bool) ([]*service.TagDTO, error)
+	GetByNameFn          func(ctx context.Context, workspaceID, name string) (*service.TagDTO, error)
+	CreateFn             func(ctx context.Context, workspaceID string, p service.CreateTagParams) (*service.TagDTO, error)
+	PatchFn              func(ctx context.Context, workspaceID, currentName string, p service.PatchTagParams) (*service.TagDTO, error)
+	EnsureSystemTagFn    func(ctx context.Context, workspaceID, name string) error
+	DeleteFn             func(ctx context.Context, workspaceID string, names []string) error
+	BulkDeleteFn         func(ctx context.Context, workspaceID string, names []string) (service.BulkDeleteTagsResult, error)
+	MergeFn              func(ctx context.Context, workspaceID string, sources []string, target string) (service.MergeTagsResult, error)
+	ResolveSystemTagFn   func(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error)
+	TouchLastUsedFn      func(ctx context.Context, workspaceID, name string) error
+	ListForAssetFn       func(ctx context.Context, assetID string) ([]*service.TagDTO, error)
+	AddToAssetFn         func(ctx context.Context, workspaceID, assetID, tagName string) (*service.TagDTO, error)
+	RemoveFromAssetFn    func(ctx context.Context, workspaceID, assetID, tagName string) error
+	UpsertForAssetFn     func(ctx context.Context, workspaceID, assetID, tagName string) error
+	BatchTagsForAssetsFn func(ctx context.Context, assetIDs []string) (map[string][]string, error)
 }
 
 func NewTagService() *MockTagService { return &MockTagService{} }
@@ -41,14 +41,22 @@ func (m *MockTagService) GetByName(ctx context.Context, workspaceID, name string
 	return nil, nil
 }
 
-func (m *MockTagService) Create(ctx context.Context, workspaceID string, p service.CreateTagParams) (*service.TagDTO, error) {
+func (m *MockTagService) Create(
+	ctx context.Context,
+	workspaceID string,
+	p service.CreateTagParams,
+) (*service.TagDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
 	return nil, nil
 }
 
-func (m *MockTagService) Patch(ctx context.Context, workspaceID, currentName string, p service.PatchTagParams) (*service.TagDTO, error) {
+func (m *MockTagService) Patch(
+	ctx context.Context,
+	workspaceID, currentName string,
+	p service.PatchTagParams,
+) (*service.TagDTO, error) {
 	if m.PatchFn != nil {
 		return m.PatchFn(ctx, workspaceID, currentName, p)
 	}
@@ -69,21 +77,34 @@ func (m *MockTagService) Delete(ctx context.Context, workspaceID string, names [
 	return nil
 }
 
-func (m *MockTagService) BulkDelete(ctx context.Context, workspaceID string, names []string) (service.BulkDeleteTagsResult, error) {
+func (m *MockTagService) BulkDelete(
+	ctx context.Context,
+	workspaceID string,
+	names []string,
+) (service.BulkDeleteTagsResult, error) {
 	if m.BulkDeleteFn != nil {
 		return m.BulkDeleteFn(ctx, workspaceID, names)
 	}
 	return service.BulkDeleteTagsResult{}, nil
 }
 
-func (m *MockTagService) Merge(ctx context.Context, workspaceID string, sources []string, target string) (service.MergeTagsResult, error) {
+func (m *MockTagService) Merge(
+	ctx context.Context,
+	workspaceID string,
+	sources []string,
+	target string,
+) (service.MergeTagsResult, error) {
 	if m.MergeFn != nil {
 		return m.MergeFn(ctx, workspaceID, sources, target)
 	}
 	return service.MergeTagsResult{}, nil
 }
 
-func (m *MockTagService) ResolveSystemTag(ctx context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
+func (m *MockTagService) ResolveSystemTag(
+	ctx context.Context,
+	workspaceID, tagName string,
+	scope service.SystemTagScope,
+) (*service.AssetDTO, error) {
 	if m.ResolveSystemTagFn != nil {
 		return m.ResolveSystemTagFn(ctx, workspaceID, tagName, scope)
 	}
@@ -104,7 +125,10 @@ func (m *MockTagService) ListForAsset(ctx context.Context, assetID string) ([]*s
 	return nil, nil
 }
 
-func (m *MockTagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagName string) (*service.TagDTO, error) {
+func (m *MockTagService) AddToAsset(
+	ctx context.Context,
+	workspaceID, assetID, tagName string,
+) (*service.TagDTO, error) {
 	if m.AddToAssetFn != nil {
 		return m.AddToAssetFn(ctx, workspaceID, assetID, tagName)
 	}

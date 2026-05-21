@@ -2,10 +2,11 @@ package contentmeta
 
 import (
 	"context"
-	"damask/server/internal/telemetry"
 	"fmt"
 	"io"
 	"time"
+
+	"damask/server/internal/telemetry"
 
 	"github.com/rwcarlsen/goexif/exif"
 	"github.com/rwcarlsen/goexif/mknote"

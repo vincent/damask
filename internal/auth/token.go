@@ -9,25 +9,29 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+const appSecretLength = 32
+
 // Claims is the payload stored in every workspace auth token.
 type Claims struct {
+	jwt.RegisteredClaims
+
 	UserID      string `json:"user_id"`
 	WorkspaceID string `json:"workspace_id"`
 	IsDemo      bool   `json:"is_demo,omitempty"`
-	jwt.RegisteredClaims
 }
 
 // ShareClaims is the payload stored in a short-lived share session token.
 // It is issued by POST /shared/:id/access and used only on /shared/ public routes.
 // It must never grant workspace-level access.
 type ShareClaims struct {
+	jwt.RegisteredClaims
+
 	ShareID       string `json:"share_id"`
 	TargetType    string `json:"target_type"`
 	TargetID      string `json:"target_id"`
 	AllowComments bool   `json:"allow_comments"`
 	AllowDownload bool   `json:"allow_download"`
 	VisitorName   string `json:"visitor_name"`
-	jwt.RegisteredClaims
 }
 
 // Maker creates and verifies tokens.
@@ -37,7 +41,7 @@ type Maker struct {
 
 // NewMaker returns a Maker using the provided secret key.
 func NewMaker(secret string) (*Maker, error) {
-	if len(secret) < 32 {
+	if len(secret) < appSecretLength {
 		return nil, errors.New("JWT_SECRET must be at least 32 characters")
 	}
 	return &Maker{secret: []byte(secret)}, nil
@@ -74,7 +78,12 @@ func (m *Maker) CreateDemoToken(userID, workspaceID string, duration time.Durati
 }
 
 // CreateShareToken issues a signed share session token valid for the given duration.
-func (m *Maker) CreateShareToken(shareID, targetType, targetID string, allowComments, allowDownload bool, visitorName string, duration time.Duration) (string, error) {
+func (m *Maker) CreateShareToken(
+	shareID, targetType, targetID string,
+	allowComments, allowDownload bool,
+	visitorName string,
+	duration time.Duration,
+) (string, error) {
 	claims := &ShareClaims{
 		ShareID:       shareID,
 		TargetType:    targetType,

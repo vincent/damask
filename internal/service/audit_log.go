@@ -18,6 +18,13 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+const (
+	minAssetEventsPageSize       = 50
+	maxAssetEventsPageSize       = 200
+	minWorkspaceActivityPageSize = 20
+	maxWorkspaceActivityPageSize = 100
+)
+
 // AuditEventActorDTO is the actor embedded in each audit event.
 type AuditEventActorDTO struct {
 	Type string  `json:"type"`
@@ -38,6 +45,7 @@ type AuditEventDTO struct {
 // ActivityEventDTO extends AuditEventDTO with entity context for the workspace feed.
 type ActivityEventDTO struct {
 	AuditEventDTO
+
 	EntityType string `json:"entity_type"` // "asset" | "project"
 	EntityID   string `json:"entity_id"`
 }
@@ -99,11 +107,12 @@ func NewAuditLogService(db *dbgen.Queries) AuditLogService {
 	return &auditLogService{db: db}
 }
 
+//nolint:dupl // Asset and project event listing differ only by sqlc-generated row and param types.
 func (s *auditLogService) ListAssetEvents(ctx context.Context, p ListAssetEventsParams) (*AuditEventListDTO, error) {
-	limit := clampLimit(p.Limit, 50, 200)
+	limit := clampLimit(p.Limit, minAssetEventsPageSize, maxAssetEventsPageSize)
 	typesFilter := makeTypesFilter(p.Types)
 
-	var cursorArg interface{}
+	var cursorArg any
 	if p.Cursor != "" {
 		cursorArg = p.Cursor
 	}
@@ -119,21 +128,22 @@ func (s *auditLogService) ListAssetEvents(ctx context.Context, p ListAssetEvents
 		return nil, err
 	}
 
-	events := make([]AuditEventDTO, 0, len(rows))
-	for _, r := range rows {
-		if len(typesFilter) > 0 && !typesFilter[r.EventType] {
-			continue
-		}
-		events = append(events, buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType))
-	}
-	return paginateAuditEvents(events, limit), nil
+	return listAuditEvents(rows, limit, typesFilter, func(r dbgen.ListAssetEventsRow) string {
+		return r.EventType
+	}, func(r dbgen.ListAssetEventsRow) AuditEventDTO {
+		return buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType)
+	}), nil
 }
 
-func (s *auditLogService) ListProjectEvents(ctx context.Context, p ListProjectEventsParams) (*AuditEventListDTO, error) {
-	limit := clampLimit(p.Limit, 50, 200)
+//nolint:dupl // Asset and project event listing differ only by sqlc-generated row and param types.
+func (s *auditLogService) ListProjectEvents(
+	ctx context.Context,
+	p ListProjectEventsParams,
+) (*AuditEventListDTO, error) {
+	limit := clampLimit(p.Limit, minAssetEventsPageSize, maxAssetEventsPageSize)
 	typesFilter := makeTypesFilter(p.Types)
 
-	var cursorArg interface{}
+	var cursorArg any
 	if p.Cursor != "" {
 		cursorArg = p.Cursor
 	}
@@ -149,17 +159,34 @@ func (s *auditLogService) ListProjectEvents(ctx context.Context, p ListProjectEv
 		return nil, err
 	}
 
-	events := make([]AuditEventDTO, 0, len(rows))
-	for _, r := range rows {
-		if len(typesFilter) > 0 && !typesFilter[r.EventType] {
-			continue
-		}
-		events = append(events, buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType))
-	}
-	return paginateAuditEvents(events, limit), nil
+	return listAuditEvents(rows, limit, typesFilter, func(r dbgen.ListProjectEventsRow) string {
+		return r.EventType
+	}, func(r dbgen.ListProjectEventsRow) AuditEventDTO {
+		return buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType)
+	}), nil
 }
 
-func (s *auditLogService) ListWorkspaceActivity(ctx context.Context, p ListWorkspaceActivityParams) (out *ActivityListDTO, err error) {
+func listAuditEvents[T any](
+	rows []T,
+	limit int64,
+	typesFilter map[string]bool,
+	eventType func(T) string,
+	build func(T) AuditEventDTO,
+) *AuditEventListDTO {
+	events := make([]AuditEventDTO, 0, len(rows))
+	for _, r := range rows {
+		if len(typesFilter) > 0 && !typesFilter[eventType(r)] {
+			continue
+		}
+		events = append(events, build(r))
+	}
+	return paginateAuditEvents(events, limit)
+}
+
+func (s *auditLogService) ListWorkspaceActivity(
+	ctx context.Context,
+	p ListWorkspaceActivityParams,
+) (out *ActivityListDTO, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.audit.list_workspace_activity",
 		attribute.String("damask.workspace_id", p.WorkspaceID),
 		attribute.Int64("damask.audit.limit", p.Limit),
@@ -177,14 +204,14 @@ func (s *auditLogService) ListWorkspaceActivity(ctx context.Context, p ListWorks
 		}
 	}()
 
-	limit := clampLimit(p.Limit, 20, 100)
+	limit := clampLimit(p.Limit, minWorkspaceActivityPageSize, maxWorkspaceActivityPageSize)
 	typesFilter := makeTypesFilter(p.Types)
 
-	var cursorArg interface{}
+	var cursorArg any
 	if p.Cursor != "" {
 		cursorArg = p.Cursor
 	}
-	var userIDArg interface{}
+	var userIDArg any
 	if p.UserID != "" {
 		userIDArg = p.UserID
 	}
@@ -217,9 +244,17 @@ func (s *auditLogService) ListWorkspaceActivity(ctx context.Context, p ListWorks
 			continue
 		}
 		merged = append(merged, ActivityEventDTO{
-			AuditEventDTO: buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType),
-			EntityType:    "asset",
-			EntityID:      r.AssetID,
+			AuditEventDTO: buildAuditEventDTO(
+				r.ID,
+				r.EventType,
+				r.CreatedAt,
+				r.Payload,
+				r.UserID,
+				r.UserName,
+				r.ActorType,
+			),
+			EntityType: string(AutomationScopeAsset),
+			EntityID:   r.AssetID,
 		})
 	}
 	for _, r := range projectRows {
@@ -227,9 +262,17 @@ func (s *auditLogService) ListWorkspaceActivity(ctx context.Context, p ListWorks
 			continue
 		}
 		merged = append(merged, ActivityEventDTO{
-			AuditEventDTO: buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType),
-			EntityType:    "project",
-			EntityID:      r.ProjectID,
+			AuditEventDTO: buildAuditEventDTO(
+				r.ID,
+				r.EventType,
+				r.CreatedAt,
+				r.Payload,
+				r.UserID,
+				r.UserName,
+				r.ActorType,
+			),
+			EntityType: "project",
+			EntityID:   r.ProjectID,
 		})
 	}
 
@@ -267,7 +310,7 @@ func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityPa
 		}
 	}()
 
-	var cursorArg interface{}
+	var cursorArg any
 	if p.Until != "" {
 		cursorArg = p.Until + " 23:59:59"
 	}
@@ -324,7 +367,11 @@ func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityPa
 
 // -- helpers --
 
-func buildAuditEventDTO(id, eventType, createdAt, payload string, userID, userName *string, actorType string) AuditEventDTO {
+func buildAuditEventDTO(
+	id, eventType, createdAt, payload string,
+	userID, userName *string,
+	actorType string,
+) AuditEventDTO {
 	return AuditEventDTO{
 		ID:            id,
 		EventType:     eventType,
@@ -351,12 +398,12 @@ func paginateAuditEvents(events []AuditEventDTO, limit int64) *AuditEventListDTO
 	return &AuditEventListDTO{Events: events, NextCursor: nextCursor, HasMore: hasMore}
 }
 
-func clampLimit(v, defaultVal, max int64) int64 {
+func clampLimit(v, defaultVal, maxValue int64) int64 {
 	if v <= 0 {
 		return defaultVal
 	}
-	if v > max {
-		return max
+	if v > maxValue {
+		return maxValue
 	}
 	return v
 }
@@ -378,7 +425,7 @@ func makeTypesFilter(types []string) map[string]bool {
 	return m
 }
 
-func singleType(types map[string]bool) interface{} {
+func singleType(types map[string]bool) any {
 	if len(types) == 1 {
 		for t := range types {
 			return t
@@ -396,7 +443,7 @@ func csvEscape(s string) string {
 }
 
 // ParseLimit parses a string limit query param, returning defaultVal on invalid input.
-func ParseLimit(s string, defaultVal, max int64) int64 {
+func ParseLimit(s string, defaultVal, maxValue int64) int64 {
 	if s == "" {
 		return defaultVal
 	}
@@ -404,8 +451,8 @@ func ParseLimit(s string, defaultVal, max int64) int64 {
 	if err != nil || n <= 0 {
 		return defaultVal
 	}
-	if n > max {
-		return max
+	if n > maxValue {
+		return maxValue
 	}
 	return n
 }

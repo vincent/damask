@@ -24,7 +24,7 @@ func TestCollections_Create(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
-		testutil.JsonBody(map[string]any{"name": "My Collection"}), cookie))
+		testutil.JSONBody(map[string]any{"name": "My Collection"}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestCollections_CreateWithAssets(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
-		testutil.JsonBody(map[string]any{"name": "Stack Save", "asset_ids": []string{"ast_1"}}), cookie))
+		testutil.JSONBody(map[string]any{"name": "Stack Save", "asset_ids": []string{"ast_1"}}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestCollections_Update(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/collections/col_1",
-		testutil.JsonBody(map[string]any{"name": "After", "description": "desc"}), cookie))
+		testutil.JSONBody(map[string]any{"name": "After", "description": "desc"}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestCollections_CreateWithForeignAsset(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
-		testutil.JsonBody(map[string]any{"name": "Bad", "asset_ids": []string{"ast_foreign"}}), cookie))
+		testutil.JSONBody(map[string]any{"name": "Bad", "asset_ids": []string{"ast_foreign"}}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestCollections_CreateMixedOwnership(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/collections",
-		testutil.JsonBody(map[string]any{"name": "Mixed", "asset_ids": []string{"ast_1", "ast_foreign"}}), cookie))
+		testutil.JSONBody(map[string]any{"name": "Mixed", "asset_ids": []string{"ast_1", "ast_foreign"}}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}

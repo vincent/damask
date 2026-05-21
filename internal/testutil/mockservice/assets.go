@@ -11,26 +11,26 @@ import (
 
 // MockAssetService is a no-op implementation of service.AssetService.
 type MockAssetService struct {
-	GetFn                          func(ctx context.Context, workspaceID, assetID string) (*service.AssetDTO, error)
-	ListFn                         func(ctx context.Context, params service.ListAssetsParams) ([]*service.AssetDTO, error)
-	MoveFn                         func(ctx context.Context, workspaceID, assetID string, p service.MoveAssetParams) (*service.AssetDTO, error)
-	RenameFn                       func(ctx context.Context, workspaceID, assetID, newStem string) (*service.AssetDTO, error)
-	DeleteFn                       func(ctx context.Context, workspaceID, assetID string) error
-	HardDeleteFn                   func(ctx context.Context, workspaceID, assetID string) error
-	BulkHardDeleteFn               func(ctx context.Context, workspaceID string, assetIDs []string) error
-	BulkTagFn                      func(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
-	BulkRemoveTagFn                func(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
-	BulkMoveProjectFn              func(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error
-	GetCommentsFn                  func(ctx context.Context, workspaceID, assetID string) ([]service.AssetCommentDTO, error)
-	CountVersionsByAssetFn         func(ctx context.Context, assetID string) (int64, error)
+	GetFn                           func(ctx context.Context, workspaceID, assetID string) (*service.AssetDTO, error)
+	ListFn                          func(ctx context.Context, params service.ListAssetsParams) ([]*service.AssetDTO, error)
+	MoveFn                          func(ctx context.Context, workspaceID, assetID string, p service.MoveAssetParams) (*service.AssetDTO, error)
+	RenameFn                        func(ctx context.Context, workspaceID, assetID, newStem string) (*service.AssetDTO, error)
+	DeleteFn                        func(ctx context.Context, workspaceID, assetID string) error
+	HardDeleteFn                    func(ctx context.Context, workspaceID, assetID string) error
+	BulkHardDeleteFn                func(ctx context.Context, workspaceID string, assetIDs []string) error
+	BulkTagFn                       func(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
+	BulkRemoveTagFn                 func(ctx context.Context, workspaceID, tagName string, assetIDs []string) error
+	BulkMoveProjectFn               func(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error
+	GetCommentsFn                   func(ctx context.Context, workspaceID, assetID string) ([]service.AssetCommentDTO, error)
+	CountVersionsByAssetFn          func(ctx context.Context, assetID string) (int64, error)
 	CountVariantsByCurrentVersionFn func(ctx context.Context, assetID string) (int64, error)
-	IsRebuildingVariantsFn         func(ctx context.Context, versionID string) (bool, error)
-	CountByIDsFn                   func(ctx context.Context, workspaceID string, ids []string) (int64, error)
-	RefreshFTSFn                   func(ctx context.Context, assetID string) error
-	ListByFieldsFn                 func(ctx context.Context, params service.ListAssetsByFieldsParams) ([]*service.AssetDTO, error)
-	BatchVersionCountsFn           func(ctx context.Context, assetIDs []string) (map[string]int64, error)
-	BatchVariantCountsFn           func(ctx context.Context, assetIDs []string) (map[string]int64, error)
-	RegenerateThumbnailFn          func(ctx context.Context, workspaceID string, assetIDs []string) ([]string, error)
+	IsRebuildingVariantsFn          func(ctx context.Context, versionID string) (bool, error)
+	CountByIDsFn                    func(ctx context.Context, workspaceID string, ids []string) (int64, error)
+	RefreshFTSFn                    func(ctx context.Context, assetID string) error
+	ListByFieldsFn                  func(ctx context.Context, params service.ListAssetsByFieldsParams) ([]*service.AssetDTO, error)
+	BatchVersionCountsFn            func(ctx context.Context, assetIDs []string) (map[string]int64, error)
+	BatchVariantCountsFn            func(ctx context.Context, assetIDs []string) (map[string]int64, error)
+	RegenerateThumbnailFn           func(ctx context.Context, workspaceID string, assetIDs []string) ([]string, error)
 }
 
 func NewAssetService() *MockAssetService { return &MockAssetService{} }
@@ -49,14 +49,21 @@ func (m *MockAssetService) List(ctx context.Context, params service.ListAssetsPa
 	return nil, nil
 }
 
-func (m *MockAssetService) Move(ctx context.Context, workspaceID, assetID string, p service.MoveAssetParams) (*service.AssetDTO, error) {
+func (m *MockAssetService) Move(
+	ctx context.Context,
+	workspaceID, assetID string,
+	p service.MoveAssetParams,
+) (*service.AssetDTO, error) {
 	if m.MoveFn != nil {
 		return m.MoveFn(ctx, workspaceID, assetID, p)
 	}
 	return nil, nil
 }
 
-func (m *MockAssetService) Rename(ctx context.Context, workspaceID, assetID, newStem string) (*service.AssetDTO, error) {
+func (m *MockAssetService) Rename(
+	ctx context.Context,
+	workspaceID, assetID, newStem string,
+) (*service.AssetDTO, error) {
 	if m.RenameFn != nil {
 		return m.RenameFn(ctx, workspaceID, assetID, newStem)
 	}
@@ -98,14 +105,22 @@ func (m *MockAssetService) BulkRemoveTag(ctx context.Context, workspaceID, tagNa
 	return nil
 }
 
-func (m *MockAssetService) BulkMoveProject(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) error {
+func (m *MockAssetService) BulkMoveProject(
+	ctx context.Context,
+	workspaceID string,
+	assetIDs []string,
+	projectID *string,
+) error {
 	if m.BulkMoveProjectFn != nil {
 		return m.BulkMoveProjectFn(ctx, workspaceID, assetIDs, projectID)
 	}
 	return nil
 }
 
-func (m *MockAssetService) GetComments(ctx context.Context, workspaceID, assetID string) ([]service.AssetCommentDTO, error) {
+func (m *MockAssetService) GetComments(
+	ctx context.Context,
+	workspaceID, assetID string,
+) ([]service.AssetCommentDTO, error) {
 	if m.GetCommentsFn != nil {
 		return m.GetCommentsFn(ctx, workspaceID, assetID)
 	}
@@ -147,7 +162,10 @@ func (m *MockAssetService) RefreshFTS(ctx context.Context, assetID string) error
 	return nil
 }
 
-func (m *MockAssetService) ListByFields(ctx context.Context, params service.ListAssetsByFieldsParams) ([]*service.AssetDTO, error) {
+func (m *MockAssetService) ListByFields(
+	ctx context.Context,
+	params service.ListAssetsByFieldsParams,
+) ([]*service.AssetDTO, error) {
 	if m.ListByFieldsFn != nil {
 		return m.ListByFieldsFn(ctx, params)
 	}
@@ -168,7 +186,11 @@ func (m *MockAssetService) BatchVariantCounts(ctx context.Context, assetIDs []st
 	return nil, nil
 }
 
-func (m *MockAssetService) RegenerateThumbnail(ctx context.Context, workspaceID string, assetIDs []string) ([]string, error) {
+func (m *MockAssetService) RegenerateThumbnail(
+	ctx context.Context,
+	workspaceID string,
+	assetIDs []string,
+) ([]string, error) {
 	if m.RegenerateThumbnailFn != nil {
 		return m.RegenerateThumbnailFn(ctx, workspaceID, assetIDs)
 	}
@@ -184,7 +206,12 @@ type MockUploadService struct {
 
 func NewUploadService() *MockUploadService { return &MockUploadService{} }
 
-func (m *MockUploadService) Ingest(ctx context.Context, workspaceID string, r io.Reader, meta service.UploadMeta) (*service.AssetDTO, error) {
+func (m *MockUploadService) Ingest(
+	ctx context.Context,
+	workspaceID string,
+	r io.Reader,
+	meta service.UploadMeta,
+) (*service.AssetDTO, error) {
 	if m.IngestFn != nil {
 		return m.IngestFn(ctx, workspaceID, r, meta)
 	}

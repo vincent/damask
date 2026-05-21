@@ -28,7 +28,10 @@ func EnqueueVariantThumbnailJob(ctx context.Context, s *JobServer, p VariantThum
 }
 
 // enqueueVariantThumbRaw is the low-level helper used by rebuild jobs that don't have a VariantJobPayload.
-func (s *JobServer) enqueueVariantThumbRaw(ctx context.Context, workspaceID, assetID, variantID, storageKey, mimeType string) {
+func (s *JobServer) enqueueVariantThumbRaw(
+	ctx context.Context,
+	workspaceID, assetID, variantID, storageKey, mimeType string,
+) {
 	_ = EnqueueVariantThumbnailJob(ctx, s, VariantThumbnailJobPayload{
 		VariantID:   variantID,
 		WorkspaceID: workspaceID,

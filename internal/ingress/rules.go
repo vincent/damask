@@ -7,6 +7,19 @@ import (
 	dbgen "damask/server/internal/db/gen"
 )
 
+const (
+	ingressActionDeny         = "deny"
+	ingressActionSetFolder    = "set_folder"
+	ingressFieldFilename      = "filename"
+	ingressFieldMimeType      = "mime_type"
+	ingressOperatorEquals     = "equals"
+	ingressOperatorContains   = "contains"
+	ingressOperatorStartsWith = "starts_with"
+	ingressOperatorEndsWith   = "ends_with"
+	ingressStatusSkipped      = "skipped"
+	ingressStatusImported     = "imported"
+)
+
 // ItemMeta is the metadata available when rules are evaluated.
 type ItemMeta struct {
 	Filename string
@@ -33,14 +46,14 @@ func EvaluateRules(rules []dbgen.IngressRule, meta ItemMeta) RuleResult {
 			continue
 		}
 		switch r.Action {
-		case "deny":
+		case ingressActionDeny:
 			return RuleResult{Allow: false}
 		case "allow":
 			result.Allow = true
 		case "set_project":
 			v := r.Value
 			result.ProjectID = &v
-		case "set_folder":
+		case ingressActionSetFolder:
 			v := r.Value
 			result.FolderID = &v
 		}
@@ -51,9 +64,9 @@ func EvaluateRules(rules []dbgen.IngressRule, meta ItemMeta) RuleResult {
 func matchesRule(r *dbgen.IngressRule, meta ItemMeta) bool {
 	var subject string
 	switch r.Field {
-	case "filename":
+	case ingressFieldFilename:
 		subject = meta.Filename
-	case "mime_type":
+	case ingressFieldMimeType:
 		subject = meta.MimeType
 	case "size":
 		n, err := strconv.ParseInt(r.Value, 10, 64)
@@ -72,13 +85,13 @@ func matchesRule(r *dbgen.IngressRule, meta ItemMeta) bool {
 	}
 
 	switch r.Operator {
-	case "equals":
+	case ingressOperatorEquals:
 		return strings.EqualFold(subject, r.Value)
-	case "contains":
+	case ingressOperatorContains:
 		return strings.Contains(strings.ToLower(subject), strings.ToLower(r.Value))
-	case "starts_with":
+	case ingressOperatorStartsWith:
 		return strings.HasPrefix(strings.ToLower(subject), strings.ToLower(r.Value))
-	case "ends_with":
+	case ingressOperatorEndsWith:
 		return strings.HasSuffix(strings.ToLower(subject), strings.ToLower(r.Value))
 	}
 	return false

@@ -31,8 +31,8 @@ type Config struct {
 	Mailbox  string `json:"mailbox"`
 }
 
-// IMAPSource pulls messages from an IMAP mailbox.
-type IMAPSource struct {
+// Source pulls messages from an IMAP mailbox.
+type Source struct {
 	cfg Config
 }
 
@@ -52,12 +52,12 @@ func New(configJSON []byte) (ingress.Source, error) {
 			cfg.Port = 143
 		}
 	}
-	return &IMAPSource{cfg: cfg}, nil
+	return &Source{cfg: cfg}, nil
 }
 
-func (s *IMAPSource) Type() string { return "imap" }
+func (s *Source) Type() string { return "imap" }
 
-func (s *IMAPSource) Validate(ctx context.Context) error {
+func (s *Source) Validate(_ context.Context) error {
 	c, err := s.connect()
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (s *IMAPSource) Validate(ctx context.Context) error {
 	return nil
 }
 
-func (s *IMAPSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
+func (s *Source) Poll(_ context.Context) ([]ingress.IngestItem, error) {
 	c, err := s.connect()
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (s *IMAPSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 
 // Fetch downloads the raw RFC 5322 message for the given item.
 // It opens a fresh connection and wraps it so Close() closes the connection.
-func (s *IMAPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
+func (s *Source) Fetch(_ context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
 	uidVal, err := strconv.ParseUint(item.RemoteID, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("imap: parse uid %s: %w", item.RemoteID, err)
@@ -185,7 +185,7 @@ func (s *IMAPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Rea
 }
 
 // connect opens an authenticated IMAP connection.
-func (s *IMAPSource) connect() (*imapclient.Client, error) {
+func (s *Source) connect() (*imapclient.Client, error) {
 	addr := net.JoinHostPort(s.cfg.Host, strconv.Itoa(s.cfg.Port))
 	var (
 		c   *imapclient.Client

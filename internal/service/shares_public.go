@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 // ErrGone is returned when a share has expired.
-var ErrGone = fmt.Errorf("gone")
+var ErrGone = errors.New("gone")
 
 // PublicAssetDTO is the asset view returned by public share endpoints.
 type PublicAssetDTO struct {
@@ -192,7 +193,10 @@ func (s *sharePublicService) ListCommentsByShare(ctx context.Context, shareID st
 	return out, nil
 }
 
-func (s *sharePublicService) ListCommentsByShareAndAsset(ctx context.Context, shareID, assetID string) ([]*ShareCommentDTO, error) {
+func (s *sharePublicService) ListCommentsByShareAndAsset(
+	ctx context.Context,
+	shareID, assetID string,
+) ([]*ShareCommentDTO, error) {
 	rows, err := s.shares.ListCommentsByShareAndAsset(ctx, shareID, assetID)
 	if err != nil {
 		return nil, err

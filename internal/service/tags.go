@@ -205,7 +205,11 @@ func (s *tagService) Delete(ctx context.Context, workspaceID string, names []str
 	return s.tags.Delete(ctx, workspaceID, names)
 }
 
-func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names []string) (result BulkDeleteTagsResult, err error) {
+func (s *tagService) BulkDelete(
+	ctx context.Context,
+	workspaceID string,
+	names []string,
+) (result BulkDeleteTagsResult, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.tags.bulk_delete",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.tags.requested_count", len(names)),
@@ -217,7 +221,16 @@ func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names [
 		)
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "tag bulk delete failed", "workspace_id", workspaceID, "tag_count", len(names), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"tag bulk delete failed",
+				"workspace_id",
+				workspaceID,
+				"tag_count",
+				len(names),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -248,7 +261,12 @@ func (s *tagService) BulkDelete(ctx context.Context, workspaceID string, names [
 	return result, err
 }
 
-func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []string, target string) (result MergeTagsResult, err error) {
+func (s *tagService) Merge(
+	ctx context.Context,
+	workspaceID string,
+	sources []string,
+	target string,
+) (result MergeTagsResult, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.tags.merge",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.tags.source_count", len(sources)),
@@ -258,7 +276,18 @@ func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []st
 		span.SetAttributes(attribute.Int64("damask.assets.affected_count", result.MergedAssets))
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "tag merge failed", "workspace_id", workspaceID, "source_count", len(sources), "target", target, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"tag merge failed",
+				"workspace_id",
+				workspaceID,
+				"source_count",
+				len(sources),
+				"target",
+				target,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -305,7 +334,11 @@ func (s *tagService) Merge(ctx context.Context, workspaceID string, sources []st
 	return result, err
 }
 
-func (s *tagService) ResolveSystemTag(ctx context.Context, workspaceID, tagName string, scope SystemTagScope) (*AssetDTO, error) {
+func (s *tagService) ResolveSystemTag(
+	ctx context.Context,
+	workspaceID, tagName string,
+	scope SystemTagScope,
+) (*AssetDTO, error) {
 	tagName = strings.ToLower(strings.TrimSpace(tagName))
 	if !systemtags.IsSystem(tagName) {
 		return nil, fmt.Errorf("unknown system tag %q: %w", tagName, apperr.ErrInvalidInput)
@@ -398,7 +431,7 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 		Payload:     audit.AssetTaggedPayload{V: 1, Tag: dto.Name},
 	})
 	if asset != nil {
-		publishWorkflowTriggerAsync(s.triggers, "trigger.tag_added", map[string]any{
+		publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.tag_added", map[string]any{
 			"asset_id":          assetID,
 			"workspace_id":      workspaceID,
 			"project_id":        asset.ProjectID,
@@ -458,7 +491,12 @@ func (s *tagService) guardMutableTags(ctx context.Context, workspaceID string, n
 	return guardMutableTagsRepo(ctx, s.tags, workspaceID, names...)
 }
 
-func guardMutableTagsRepo(ctx context.Context, repo repository.TagRepository, workspaceID string, names ...string) error {
+func guardMutableTagsRepo(
+	ctx context.Context,
+	repo repository.TagRepository,
+	workspaceID string,
+	names ...string,
+) error {
 	for _, name := range names {
 		tag, err := repo.GetByName(ctx, workspaceID, name)
 		if isNotFound(err) {
@@ -491,5 +529,5 @@ func isNotFound(err error) bool {
 	return errors.Is(err, apperr.ErrNotFound)
 }
 
-// ensure uuid import is used
+// ensure uuid import is used.
 var _ = uuid.NewString

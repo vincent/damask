@@ -10,14 +10,15 @@ import (
 // fakeSource is a minimal Source implementation for registry tests.
 type fakeSource struct{ typ string }
 
-func (f *fakeSource) Type() string                                          { return f.typ }
-func (f *fakeSource) Validate(_ context.Context) error                     { return nil }
-func (f *fakeSource) Poll(_ context.Context) ([]IngestItem, error)         { return nil, nil }
+func (f *fakeSource) Type() string                                 { return f.typ }
+func (f *fakeSource) Validate(_ context.Context) error             { return nil }
+func (f *fakeSource) Poll(_ context.Context) ([]IngestItem, error) { return nil, nil }
 func (f *fakeSource) Fetch(_ context.Context, _ IngestItem) (io.ReadCloser, error) {
 	return nil, errors.New("not implemented")
 }
 
 func TestBuild_UnknownType(t *testing.T) {
+	t.Parallel()
 	_, err := Build("nonexistent_type", []byte(`{}`))
 	if err == nil {
 		t.Fatal("expected error for unknown source type")
@@ -25,8 +26,9 @@ func TestBuild_UnknownType(t *testing.T) {
 }
 
 func TestBuild_RegisteredType(t *testing.T) {
+	t.Parallel()
 	const typ = "fake_test_source"
-	Register(typ, func(configJSON []byte) (Source, error) {
+	Register(typ, func(_ []byte) (Source, error) {
 		return &fakeSource{typ: typ}, nil
 	})
 
@@ -40,8 +42,9 @@ func TestBuild_RegisteredType(t *testing.T) {
 }
 
 func TestBuild_ConstructorError(t *testing.T) {
+	t.Parallel()
 	const typ = "bad_constructor"
-	Register(typ, func(configJSON []byte) (Source, error) {
+	Register(typ, func(_ []byte) (Source, error) {
 		return nil, errors.New("bad config")
 	})
 
@@ -52,11 +55,12 @@ func TestBuild_ConstructorError(t *testing.T) {
 }
 
 func TestRegister_OverwritesExisting(t *testing.T) {
+	t.Parallel()
 	const typ = "overwrite_source"
-	Register(typ, func(configJSON []byte) (Source, error) {
+	Register(typ, func(_ []byte) (Source, error) {
 		return &fakeSource{typ: "original"}, nil
 	})
-	Register(typ, func(configJSON []byte) (Source, error) {
+	Register(typ, func(_ []byte) (Source, error) {
 		return &fakeSource{typ: "overwritten"}, nil
 	})
 

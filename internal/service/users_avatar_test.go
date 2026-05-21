@@ -70,8 +70,8 @@ func (s *errStorage) List(prefix string) ([]string, error) {
 func makePNG(t *testing.T) []byte {
 	t.Helper()
 	img := image.NewNRGBA(image.Rect(0, 0, 8, 8))
-	for y := 0; y < 8; y++ {
-		for x := 0; x < 8; x++ {
+	for y := range 8 {
+		for x := range 8 {
 			img.Set(x, y, color.NRGBA{R: uint8(x * 10), G: uint8(y * 10), B: 120, A: 255})
 		}
 	}
@@ -241,7 +241,10 @@ func TestUserService_DeleteAvatar_NoAvatar(t *testing.T) {
 
 func TestUserService_DeleteAvatar_StorageFailure(t *testing.T) {
 	key := "avatars/u_1.webp"
-	users := memoryUserRepoWithSeed(t, repository.User{ID: "u_1", Email: "avatar@example.com", Name: "Avatar", AvatarStorageKey: &key})
+	users := memoryUserRepoWithSeed(
+		t,
+		repository.User{ID: "u_1", Email: "avatar@example.com", Name: "Avatar", AvatarStorageKey: &key},
+	)
 	workspaces := memoryWorkspaceRepo(t, users)
 	svc := service.NewUserService(users, workspaces, &errStorage{deleteErr: errors.New("boom")})
 

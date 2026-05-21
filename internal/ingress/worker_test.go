@@ -27,7 +27,11 @@ const testAppSecret = "test-app-secret-for-tests!!"
 // It inserts a minimal asset row so FK constraints on asset_id pass.
 type stubInjestor struct{ db *dbgen.Queries }
 
-func (s stubInjestor) IngestFile(ctx context.Context, workspaceID, _ string, _ assetio.IngestFileOpts) (assetio.AssetSummary, error) {
+func (s stubInjestor) IngestFile(
+	ctx context.Context,
+	workspaceID, _ string,
+	_ assetio.IngestFileOpts,
+) (assetio.AssetSummary, error) {
 	id := uuid.NewString()
 	if _, err := s.db.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               id,
@@ -77,7 +81,16 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 
 	cfg := &config.Config{AppSecret: testAppSecret}
 	q := queue.New(queries, 1)
-	w := NewWorker(queries, sqlDB, stor, q, cfg, audit.New(sqlDB), mail.NewMailer(&mail.MailSenderConfig{}), stubInjestor{db: queries})
+	w := NewWorker(
+		queries,
+		sqlDB,
+		stor,
+		q,
+		cfg,
+		audit.New(sqlDB),
+		mail.NewMailer(&mail.Config{}),
+		stubInjestor{db: queries},
+	)
 	return w, queries
 }
 
@@ -111,7 +124,7 @@ func insertWorkspaceAndSource(t *testing.T, queries *dbgen.Queries, label string
 	}
 
 	// Encrypt an empty config for a fake source type
-	Register("fake_worker_test", func(configJSON []byte) (Source, error) {
+	Register("fake_worker_test", func(_ []byte) (Source, error) {
 		return &fakeSource{typ: "fake_worker_test"}, nil
 	})
 	configJSON, err := EncryptConfig(testAppSecret, []byte(`{}`))
@@ -139,7 +152,12 @@ func insertWorkspaceAndSource(t *testing.T, queries *dbgen.Queries, label string
 
 // insertWorkspaceAndPollSource is like insertWorkspaceAndSource but registers
 // a pollSource that returns items and can serve Fetch content.
-func insertWorkspaceAndPollSource(t *testing.T, queries *dbgen.Queries, label string, items []IngestItem) (workspaceID, sourceID string) {
+func insertWorkspaceAndPollSource(
+	t *testing.T,
+	queries *dbgen.Queries,
+	label string,
+	items []IngestItem,
+) (workspaceID, sourceID string) {
 	t.Helper()
 	ctx := context.Background()
 	workspaceID = uuid.NewString()
@@ -165,7 +183,7 @@ func insertWorkspaceAndPollSource(t *testing.T, queries *dbgen.Queries, label st
 	}
 
 	const typ = "fake_poll_source"
-	Register(typ, func(configJSON []byte) (Source, error) {
+	Register(typ, func(_ []byte) (Source, error) {
 		return &pollSource{typ: typ, items: items}, nil
 	})
 	configJSON, err := EncryptConfig(testAppSecret, []byte(`{}`))
@@ -192,6 +210,7 @@ func insertWorkspaceAndPollSource(t *testing.T, queries *dbgen.Queries, label st
 }
 
 func TestHandleFetch_TagsAssetWithSourceLabel(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -211,7 +230,7 @@ func TestHandleFetch_TagsAssetWithSourceLabel(t *testing.T) {
 	}
 
 	// Write a real temp file so HandleFetch can use TmpPath
-	tmp, err := os.CreateTemp("", "worker-test-*.txt")
+	tmp, err := os.CreateTemp(t.TempDir(), "worker-test-*.txt")
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
@@ -260,6 +279,7 @@ func TestHandleFetch_TagsAssetWithSourceLabel(t *testing.T) {
 }
 
 func TestHandleFetch_Idempotent_AlreadyImported(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -308,6 +328,7 @@ func TestHandleFetch_Idempotent_AlreadyImported(t *testing.T) {
 }
 
 func TestHandleFetch_DenyRule_MarksSkipped(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -338,7 +359,7 @@ func TestHandleFetch_DenyRule_MarksSkipped(t *testing.T) {
 		t.Fatalf("insert log entry: %v", err)
 	}
 
-	tmp, err := os.CreateTemp("", "worker-deny-*.exe")
+	tmp, err := os.CreateTemp(t.TempDir(), "worker-deny-*.exe")
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
@@ -371,11 +392,12 @@ func TestHandleFetch_DenyRule_MarksSkipped(t *testing.T) {
 }
 
 func TestHandleFetch_PullSource_FetchesViaSource(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
 	const typ = "fake_pull_fetch"
-	Register(typ, func(configJSON []byte) (Source, error) {
+	Register(typ, func(_ []byte) (Source, error) {
 		return &pollSource{typ: typ}, nil
 	})
 
@@ -384,7 +406,10 @@ func TestHandleFetch_PullSource_FetchesViaSource(t *testing.T) {
 	sourceID := uuid.NewString()
 
 	_, _ = queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: workspaceID, Name: "WS"})
-	_, _ = queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "pull@example.com", PasswordHash: "x", Name: "Pull"})
+	_, _ = queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "pull@example.com", PasswordHash: "x", Name: "Pull"},
+	)
 	configJSON, _ := EncryptConfig(testAppSecret, []byte(`{}`))
 	_, _ = queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
 		ID:              sourceID,
@@ -452,6 +477,7 @@ func (s *captureSource) Fetch(_ context.Context, item IngestItem) (io.ReadCloser
 }
 
 func TestHandleFetch_MetaPassedToSource(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -472,7 +498,10 @@ func TestHandleFetch_MetaPassedToSource(t *testing.T) {
 	workspaceID := uuid.NewString()
 	sourceID := uuid.NewString()
 	_, _ = queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: workspaceID, Name: "WS"})
-	_, _ = queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "meta@example.com", PasswordHash: "x", Name: "Meta"})
+	_, _ = queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "meta@example.com", PasswordHash: "x", Name: "Meta"},
+	)
 	configJSON, _ := EncryptConfig(testAppSecret, []byte(`{}`))
 	_, _ = queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
 		ID:              sourceID,
@@ -512,6 +541,7 @@ func TestHandleFetch_MetaPassedToSource(t *testing.T) {
 }
 
 func TestHandleFetch_BadPayload_ReturnsError(t *testing.T) {
+	t.Parallel()
 	w, _ := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -522,6 +552,7 @@ func TestHandleFetch_BadPayload_ReturnsError(t *testing.T) {
 }
 
 func TestHandlePoll_EnqueuesItemsFromSource(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -594,6 +625,7 @@ func TestHandlePoll_DuplicateItem_IsSkipped(t *testing.T) {
 }
 
 func TestHandlePoll_DisabledSource_DoesNothing(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -642,6 +674,7 @@ func TestHandlePoll_DisabledSource_DoesNothing(t *testing.T) {
 }
 
 func TestHandlePoll_BadPayload_ReturnsError(t *testing.T) {
+	t.Parallel()
 	w, _ := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -654,9 +687,11 @@ func TestHandlePoll_BadPayload_ReturnsError(t *testing.T) {
 // errorPollSource always returns an error from Poll.
 type errorPollSource struct{}
 
-func (e *errorPollSource) Type() string                                          { return "error_poll_source" }
-func (e *errorPollSource) Validate(_ context.Context) error                     { return nil }
-func (e *errorPollSource) Poll(_ context.Context) ([]IngestItem, error)         { return nil, errors.New("poll failed") }
+func (e *errorPollSource) Type() string                     { return "error_poll_source" }
+func (e *errorPollSource) Validate(_ context.Context) error { return nil }
+func (e *errorPollSource) Poll(_ context.Context) ([]IngestItem, error) {
+	return nil, errors.New("poll failed")
+}
 func (e *errorPollSource) Fetch(_ context.Context, _ IngestItem) (io.ReadCloser, error) {
 	return nil, errors.New("not implemented")
 }
@@ -698,12 +733,12 @@ func insertErrorPollSource(t *testing.T, queries *dbgen.Queries) (workspaceID, s
 	return workspaceID, sourceID
 }
 
-func pollSourceN(t *testing.T, w *Worker, queries *dbgen.Queries, workspaceID, sourceID string, n int) {
+func pollSourceN(t *testing.T, w *Worker, _ *dbgen.Queries, workspaceID, sourceID string, n int) {
 	t.Helper()
 	ctx := context.Background()
 	payload, _ := json.Marshal(PollJobPayload{SourceID: sourceID, WorkspaceID: workspaceID})
 	job := dbgen.Job{Payload: string(payload)}
-	for i := 0; i < n; i++ {
+	for range n {
 		_ = w.HandlePoll(ctx, job) // errors expected; ignore return value
 	}
 }
@@ -722,6 +757,7 @@ func getErrorCount(t *testing.T, queries *dbgen.Queries, workspaceID, sourceID s
 // TestErrorCount_IncreasesOnPollFailure verifies that error_count increments
 // each time HandlePoll fails, and the source still appears in due list at count=5.
 func TestErrorCount_IncreasesOnPollFailure(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	workspaceID, sourceID := insertErrorPollSource(t, queries)
 
@@ -734,8 +770,11 @@ func TestErrorCount_IncreasesOnPollFailure(t *testing.T) {
 	// Source with error_count=5 must still appear in ListDueIngressSources.
 	ctx := context.Background()
 	// Reset last_polled_at so the source is considered due.
-	if _, execErr := w.sqlDB.ExecContext(ctx,
-		"UPDATE ingress_sources SET last_polled_at = datetime('now', '-2 hours') WHERE id = ?", sourceID); execErr != nil {
+	if _, execErr := w.sqlDB.ExecContext(
+		ctx,
+		"UPDATE ingress_sources SET last_polled_at = datetime('now', '-2 hours') WHERE id = ?",
+		sourceID,
+	); execErr != nil {
 		t.Fatalf("reset last_polled_at: %v", execErr)
 	}
 	due, err := queries.ListDueIngressSources(ctx)
@@ -757,6 +796,7 @@ func TestErrorCount_IncreasesOnPollFailure(t *testing.T) {
 // TestErrorCount_SkipsSourceAfterSixFailures verifies that a source with
 // error_count > 5 is excluded from ListDueIngressSources.
 func TestErrorCount_SkipsSourceAfterSixFailures(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	workspaceID, sourceID := insertErrorPollSource(t, queries)
 
@@ -787,6 +827,7 @@ func TestErrorCount_SkipsSourceAfterSixFailures(t *testing.T) {
 
 // TestErrorCount_ResetsOnSuccess verifies that a successful poll resets error_count to 0.
 func TestErrorCount_ResetsOnSuccess(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 
@@ -813,6 +854,7 @@ func TestErrorCount_ResetsOnSuccess(t *testing.T) {
 
 // TestErrorCount_ResetsOnSourceEdit verifies that updating a source resets error_count.
 func TestErrorCount_ResetsOnSourceEdit(t *testing.T) {
+	t.Parallel()
 	w, queries := setupWorkerTest(t)
 	ctx := context.Background()
 	workspaceID, sourceID := insertErrorPollSource(t, queries)

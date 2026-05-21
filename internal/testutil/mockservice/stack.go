@@ -15,14 +15,23 @@ type MockStackService struct {
 
 func NewStackService() *MockStackService { return &MockStackService{} }
 
-func (m *MockStackService) ExportZip(ctx context.Context, workspaceID string, p service.ExportZipParams, w io.Writer) error {
+func (m *MockStackService) ExportZip(
+	ctx context.Context,
+	workspaceID string,
+	p service.ExportZipParams,
+	w io.Writer,
+) error {
 	if m.ExportZipFn != nil {
 		return m.ExportZipFn(ctx, workspaceID, p, w)
 	}
 	return nil
 }
 
-func (m *MockStackService) EnqueueMerge(ctx context.Context, workspaceID, userID string, p service.MergeParams) (string, error) {
+func (m *MockStackService) EnqueueMerge(
+	ctx context.Context,
+	workspaceID, userID string,
+	p service.MergeParams,
+) (string, error) {
 	if m.EnqueueMergeFn != nil {
 		return m.EnqueueMergeFn(ctx, workspaceID, userID, p)
 	}
@@ -38,7 +47,10 @@ type MockIntegrationService struct {
 
 func NewIntegrationService() *MockIntegrationService { return &MockIntegrationService{} }
 
-func (m *MockIntegrationService) ListConnections(ctx context.Context, workspaceID string) ([]*service.ConnectionDTO, error) {
+func (m *MockIntegrationService) ListConnections(
+	ctx context.Context,
+	workspaceID string,
+) ([]*service.ConnectionDTO, error) {
 	if m.ListConnectionsFn != nil {
 		return m.ListConnectionsFn(ctx, workspaceID)
 	}

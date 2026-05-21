@@ -251,7 +251,10 @@ type WorkspaceRepository interface {
 	RunInTx(ctx context.Context, fn func(tx WorkspaceRepository) error) error
 	// RunRegistrationTx executes fn with tx-scoped UserRepository and WorkspaceRepository
 	// sharing the same underlying database transaction. Used only by UserService.Register.
-	RunRegistrationTx(ctx context.Context, fn func(ctx context.Context, txUsers UserRepository, txWorkspaces WorkspaceRepository) error) error
+	RunRegistrationTx(
+		ctx context.Context,
+		fn func(ctx context.Context, txUsers UserRepository, txWorkspaces WorkspaceRepository) error,
+	) error
 }
 
 // UserRepository handles persistence for User records.
@@ -318,7 +321,10 @@ type WorkflowRepository interface {
 	ListByTrigger(ctx context.Context, triggerType string) ([]Workflow, error)
 	Create(ctx context.Context, p CreateWorkflowParams) (Workflow, error)
 	Update(ctx context.Context, p UpdateWorkflowParams) (Workflow, error)
-	FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflow, error)
+	FindCoveringWorkflow(
+		ctx context.Context,
+		workspaceID, assetProjectID, assetFolderID string,
+	) (*CoveringWorkflow, error)
 	SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error
 	Delete(ctx context.Context, workspaceID, id string) error
 	TouchLastRunAt(ctx context.Context, id string) error

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -27,6 +28,8 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
+
+const maxCommentLength = 500
 
 // VersionDTO is the output of VersionService methods.
 type VersionDTO struct {
@@ -68,7 +71,11 @@ type VersionServiceDeps struct {
 }
 
 // NewVersionService returns a VersionService.
-func NewVersionService(versions repository.VersionRepository, aw audit.Writer, deps ...VersionServiceDeps) VersionService {
+func NewVersionService(
+	versions repository.VersionRepository,
+	aw audit.Writer,
+	deps ...VersionServiceDeps,
+) VersionService {
 	cfg := VersionServiceDeps{}
 	if len(deps) > 0 {
 		cfg = deps[0]
@@ -160,7 +167,16 @@ func (s *versionService) Create(ctx context.Context, v *VersionDTO) (out *Versio
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "version create failed", "workspace_id", v.WorkspaceID, "asset_id", v.AssetID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"version create failed",
+				"workspace_id",
+				v.WorkspaceID,
+				"asset_id",
+				v.AssetID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -185,7 +201,10 @@ func (s *versionService) Create(ctx context.Context, v *VersionDTO) (out *Versio
 	return toVersionDTO(created), nil
 }
 
-func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVersionParams) (out *UploadAssetVersionResult, err error) {
+func (s *versionService) UploadNewVersion(
+	ctx context.Context,
+	p UploadAssetVersionParams,
+) (out *UploadAssetVersionResult, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.upload_new",
 		attribute.String("damask.workspace_id", p.WorkspaceID),
 		attribute.String("damask.asset_id", p.AssetID),
@@ -197,7 +216,18 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "version upload failed", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "filename", p.Filename, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"version upload failed",
+				"workspace_id",
+				p.WorkspaceID,
+				"asset_id",
+				p.AssetID,
+				"filename",
+				p.Filename,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -205,11 +235,14 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 		return nil, err
 	}
 	if p.WorkspaceID == "" || p.AssetID == "" || p.Filename == "" || p.UserID == "" || p.Reader == nil {
-		return nil, fmt.Errorf("workspace_id, asset_id, filename, user_id, and reader are required: %w", apperr.ErrInvalidInput)
+		return nil, fmt.Errorf(
+			"workspace_id, asset_id, filename, user_id, and reader are required: %w",
+			apperr.ErrInvalidInput,
+		)
 	}
 
 	comment := strings.TrimSpace(p.Comment)
-	if len(comment) > 500 {
+	if len(comment) > maxCommentLength {
 		return nil, fmt.Errorf("comment must be 500 characters or fewer: %w", apperr.ErrInvalidInput)
 	}
 
@@ -269,7 +302,16 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 	meta := ingest.FileMeta{}
 	if s.media != nil {
 		if extracted, metaErr := s.media.ExtractMeta(ctx, tmpPath, mimeType); metaErr != nil {
-			slog.WarnContext(ctx, "version metadata extraction failed", "asset_id", p.AssetID, "mime_type", mimeType, "error", metaErr)
+			slog.WarnContext(
+				ctx,
+				"version metadata extraction failed",
+				"asset_id",
+				p.AssetID,
+				"mime_type",
+				mimeType,
+				"error",
+				metaErr,
+			)
 		} else {
 			meta = extracted
 		}
@@ -321,7 +363,16 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 	newVersion.IsCurrent = true
 
 	if err := s.SetAssetThumbnail(ctx, p.AssetID, nil); err != nil {
-		slog.ErrorContext(ctx, "clear asset thumbnail", "asset_id", p.AssetID, "version_id", newVersion.ID, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"clear asset thumbnail",
+			"asset_id",
+			p.AssetID,
+			"version_id",
+			newVersion.ID,
+			"error",
+			err,
+		)
 	}
 
 	s.enqueueVersionThumbnail(ctx, asset, newVersion)
@@ -332,13 +383,38 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 			WorkspaceID: p.WorkspaceID,
 		})
 		if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeExtractMediaTags, string(payload)); err != nil {
-			slog.ErrorContext(ctx, "enqueue extract_media_tags", "asset_id", p.AssetID, "version_id", newVersion.ID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"enqueue extract_media_tags",
+				"asset_id",
+				p.AssetID,
+				"version_id",
+				newVersion.ID,
+				"error",
+				err,
+			)
 		}
 	}
 
 	// todo: remove me ?
-	if err := jobs.EnqueueRebuildVariantsJob(ctx, s.queue, p.WorkspaceID, p.AssetID, newVersion.ID, prevVersionID); err != nil {
-		slog.ErrorContext(ctx, "enqueue rebuild variants", "asset_id", p.AssetID, "version_id", newVersion.ID, "error", err)
+	if err := jobs.EnqueueRebuildVariantsJob(
+		ctx,
+		s.queue,
+		p.WorkspaceID,
+		p.AssetID,
+		newVersion.ID,
+		prevVersionID,
+	); err != nil {
+		slog.ErrorContext(
+			ctx,
+			"enqueue rebuild variants",
+			"asset_id",
+			p.AssetID,
+			"version_id",
+			newVersion.ID,
+			"error",
+			err,
+		)
 	}
 
 	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
@@ -347,7 +423,7 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 	}
 
 	s.WriteVersionUploaded(ctx, p.WorkspaceID, p.AssetID, newVersion, comment)
-	publishWorkflowTriggerAsync(s.triggers, "trigger.version_uploaded", map[string]any{
+	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.version_uploaded", map[string]any{
 		"asset_id":          updatedAsset.ID,
 		"workspace_id":      updatedAsset.WorkspaceID,
 		"project_id":        updatedAsset.ProjectID,
@@ -369,13 +445,13 @@ func (s *versionService) UploadNewVersion(ctx context.Context, p UploadAssetVers
 
 func (s *versionService) validateUploadNewVersionDeps() error {
 	if s.assets == nil {
-		return fmt.Errorf("version upload requires asset repository (misconfigured service)")
+		return errors.New("version upload requires asset repository (misconfigured service)")
 	}
 	if s.storage == nil {
-		return fmt.Errorf("version upload requires storage (misconfigured service)")
+		return errors.New("version upload requires storage (misconfigured service)")
 	}
 	if s.queue == nil {
-		return fmt.Errorf("version upload requires queue (misconfigured service)")
+		return errors.New("version upload requires queue (misconfigured service)")
 	}
 	return nil
 }
@@ -389,7 +465,16 @@ func (s *versionService) enqueueVersionThumbnail(ctx context.Context, asset repo
 		MimeType:    version.MimeType,
 	}
 	if err := jobs.EnqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
-		slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "version_id", version.ID, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"enqueue version thumbnail",
+			"asset_id",
+			asset.ID,
+			"version_id",
+			version.ID,
+			"error",
+			err,
+		)
 	}
 }
 
@@ -416,7 +501,18 @@ func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versi
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "version delete failed", "workspace_id", workspaceID, "asset_id", assetID, "version_id", versionID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"version delete failed",
+				"workspace_id",
+				workspaceID,
+				"asset_id",
+				assetID,
+				"version_id",
+				versionID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -454,7 +550,12 @@ func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versi
 
 // WriteVersionUploaded emits an asset_version_uploaded audit event.
 // Called by handlers that orchestrate the multi-step upload flow.
-func (s *versionService) WriteVersionUploaded(ctx context.Context, workspaceID, assetID string, v *VersionDTO, comment string) {
+func (s *versionService) WriteVersionUploaded(
+	ctx context.Context,
+	workspaceID, assetID string,
+	v *VersionDTO,
+	comment string,
+) {
 	actor := auth.ActorFromCtx(ctx)
 	s.audit.WriteAsset(ctx, audit.AssetEvent{
 		WorkspaceID: workspaceID,
@@ -468,7 +569,11 @@ func (s *versionService) WriteVersionUploaded(ctx context.Context, workspaceID, 
 
 // WriteVersionRestored emits an asset_version_restored audit event.
 // Called by handlers after SetCurrent succeeds.
-func (s *versionService) WriteVersionRestored(ctx context.Context, workspaceID, assetID string, fromVersionNum, toVersionNum int64) {
+func (s *versionService) WriteVersionRestored(
+	ctx context.Context,
+	workspaceID, assetID string,
+	fromVersionNum, toVersionNum int64,
+) {
 	actor := auth.ActorFromCtx(ctx)
 	s.audit.WriteAsset(ctx, audit.AssetEvent{
 		WorkspaceID: workspaceID,
@@ -476,7 +581,11 @@ func (s *versionService) WriteVersionRestored(ctx context.Context, workspaceID, 
 		UserID:      actor.UserID,
 		ActorType:   actor.Type,
 		EventType:   audit.EventAssetVersionRestored,
-		Payload:     audit.AssetVersionRestoredPayload{V: 1, FromVersionNum: fromVersionNum, ToVersionNum: toVersionNum},
+		Payload: audit.AssetVersionRestoredPayload{
+			V:              1,
+			FromVersionNum: fromVersionNum,
+			ToVersionNum:   toVersionNum,
+		},
 	})
 }
 

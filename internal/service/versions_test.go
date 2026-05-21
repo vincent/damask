@@ -11,10 +11,10 @@ import (
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/media/ingest"
+	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	reposqlc "damask/server/internal/repository/sqlc"
-	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
@@ -198,7 +198,10 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "u@example.com", PasswordHash: "x", Name: "u"}); err != nil {
+	if _, err := queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "u@example.com", PasswordHash: "x", Name: "u"},
+	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 
@@ -271,7 +274,10 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "u2@example.com", PasswordHash: "x", Name: "u2"}); err != nil {
+	if _, err := queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "u2@example.com", PasswordHash: "x", Name: "u2"},
+	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 

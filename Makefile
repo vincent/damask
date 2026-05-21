@@ -45,6 +45,11 @@ lint:
 	golangci-lint run --config .golangci.yaml
 	cd cmd/server/web && npm run check
 
+# Run linters
+lint-hardened:
+	golangci-lint run --config .golangci.hardened.yaml
+	cd cmd/server/web && npm run check
+
 # Run sqlc code generation
 generate:
 	sqlc generate -f internal/db/sqlc.yaml

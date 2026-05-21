@@ -73,7 +73,11 @@ func (r *RealWorkspaceRepo) Update(_ context.Context, ws repository.Workspace) (
 	return ws, nil
 }
 
-func (r *RealWorkspaceRepo) UpdateLockedTaxonomy(_ context.Context, workspaceID string, locked bool) (repository.Workspace, error) {
+func (r *RealWorkspaceRepo) UpdateLockedTaxonomy(
+	_ context.Context,
+	workspaceID string,
+	locked bool,
+) (repository.Workspace, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	ws, ok := r.workspaces[workspaceID]
@@ -267,7 +271,10 @@ func (r *RealWorkspaceRepo) RunInTx(_ context.Context, fn func(repository.Worksp
 }
 
 // RunRegistrationTx runs fn with the same repo instances (memory is already atomic).
-func (r *RealWorkspaceRepo) RunRegistrationTx(_ context.Context, fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error) error {
+func (r *RealWorkspaceRepo) RunRegistrationTx(
+	_ context.Context,
+	fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error,
+) error {
 	// The caller must supply the user repo; here we use an inline no-op stub that
 	// delegates back to whatever real user repo is in use. Since memory tests inject
 	// a RealUserRepo, we need access to it. We expose a SetUserRepo method for that.

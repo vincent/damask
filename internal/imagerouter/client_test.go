@@ -75,7 +75,7 @@ func TestBgRemoveSuccess(t *testing.T) {
 
 func TestBgRemoveAPIError(t *testing.T) {
 	source := encodePNG(t)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "bad request", http.StatusBadGateway)
 	}))
 	defer srv.Close()
@@ -198,7 +198,11 @@ func TestTransformRetriesWithoutFreeSuffixOnConfiguredFreeLimit429(t *testing.T)
 			models = append(models, r.FormValue("model"))
 			if len(models) == 1 {
 				w.WriteHeader(http.StatusTooManyRequests)
-				_, _ = w.Write([]byte(`{"error":{"message":"Daily limit of 3 free requests reached. Remove \":free\" from the model name to continue with the paid model."}}`))
+				_, _ = w.Write(
+					[]byte(
+						`{"error":{"message":"Daily limit of 3 free requests reached. Remove \":free\" from the model name to continue with the paid model."}}`,
+					),
+				)
 				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -249,7 +253,11 @@ func TestTransformDoesNotRetryWithoutConfigOnFreeLimit429(t *testing.T) {
 		}
 		requests++
 		w.WriteHeader(http.StatusTooManyRequests)
-		_, _ = w.Write([]byte(`{"error":{"message":"Daily limit of 3 free requests reached. Remove \":free\" from the model name to continue with the paid model."}}`))
+		_, _ = w.Write(
+			[]byte(
+				`{"error":{"message":"Daily limit of 3 free requests reached. Remove \":free\" from the model name to continue with the paid model."}}`,
+			),
+		)
 	}))
 	defer srv.Close()
 
@@ -270,7 +278,7 @@ func TestTransformDoesNotRetryWithoutConfigOnFreeLimit429(t *testing.T) {
 }
 
 func TestValidateMapsUnauthorizedToInvalidKey(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 	}))
 	defer srv.Close()

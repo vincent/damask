@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,15 @@ import (
 	"damask/server/internal/apperr"
 
 	"github.com/google/uuid"
+)
+
+const (
+	nodeCategoryTrigger = "trigger"
+	portError           = "error"
+	portOut             = "out"
+	portMatch           = "match"
+	labelError          = "Error"
+	labelOut            = "Out"
 )
 
 func mustConfigSchema(raw string) json.RawMessage {
@@ -20,21 +30,25 @@ func triggerSchema(nodeType, label, desc string, configSchema json.RawMessage) N
 	return NodeSchema{
 		Type:         nodeType,
 		Label:        label,
-		Category:     "trigger",
+		Category:     nodeCategoryTrigger,
 		Description:  desc,
-		Outputs:      []Port{{ID: "out", Label: "Out"}, {ID: "error", Label: "Error"}},
+		Outputs:      []Port{{ID: portOut, Label: labelOut}, {ID: portError, Label: labelError}},
 		ConfigSchema: configSchema,
 	}
 }
 
 func filterSchema(nodeType, label, desc string, configSchema json.RawMessage) NodeSchema {
 	return NodeSchema{
-		Type:         nodeType,
-		Label:        label,
-		Category:     "filter",
-		Description:  desc,
-		Inputs:       []Port{{ID: "in", Label: "In"}},
-		Outputs:      []Port{{ID: "match", Label: "Match"}, {ID: "no_match", Label: "No match"}, {ID: "error", Label: "Error"}},
+		Type:        nodeType,
+		Label:       label,
+		Category:    "filter",
+		Description: desc,
+		Inputs:      []Port{{ID: "in", Label: "In"}},
+		Outputs: []Port{
+			{ID: portMatch, Label: "Match"},
+			{ID: "no_match", Label: "No match"},
+			{ID: portError, Label: labelError},
+		},
 		ConfigSchema: configSchema,
 	}
 }
@@ -46,7 +60,7 @@ func actionSchema(nodeType, label, desc string, configSchema json.RawMessage) No
 		Category:     "action",
 		Description:  desc,
 		Inputs:       []Port{{ID: "in", Label: "In"}},
-		Outputs:      []Port{{ID: "out", Label: "Out"}, {ID: "error", Label: "Error"}},
+		Outputs:      []Port{{ID: portOut, Label: labelOut}, {ID: portError, Label: labelError}},
 		ConfigSchema: configSchema,
 	}
 }
@@ -56,57 +70,330 @@ func init() {
 		schema := triggerSchema(nodeType, label, desc, configSchema)
 		Register(schema, func(Deps) Node { return passThroughNode{schema: schema} })
 	}
-	registerPassThroughTrigger("trigger.manual", "Manual Trigger", "Starts a workflow manually.", mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`))
-	registerPassThroughTrigger("trigger.asset_created", "Asset Created", "Starts when an asset is uploaded.", mustConfigSchema(`{"type":"object","properties":{"project_id":{"type":"string","title":"Project ID"},"folder_id":{"type":"string","title":"Folder ID","format":"folder"}},"additionalProperties":false}`))
-	registerPassThroughTrigger("trigger.version_uploaded", "Version Uploaded", "Starts when a new asset version is uploaded.", mustConfigSchema(`{"type":"object","properties":{"asset_id":{"type":"string","title":"Asset ID"}},"additionalProperties":false}`))
-	registerPassThroughTrigger("trigger.tag_added", "Tag Added", "Starts when a tag is added to an asset.", mustConfigSchema(`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`))
-	registerPassThroughTrigger("trigger.schedule", "Schedule Trigger", "Starts on a scheduler tick.", mustConfigSchema(`{"type":"object","properties":{"cron":{"type":"string","title":"Cron","format":"cron"}},"required":["cron"],"additionalProperties":false}`))
-	registerPassThroughTrigger("trigger.webhook", "Webhook Trigger", "Starts from an inbound webhook.", mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`))
+	registerPassThroughTrigger(
+		"trigger.manual",
+		"Manual Trigger",
+		"Starts a workflow manually.",
+		mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`),
+	)
+	registerPassThroughTrigger(
+		"trigger.asset_created",
+		"Asset Created",
+		"Starts when an asset is uploaded.",
+		mustConfigSchema(
+			`{"type":"object","properties":{"project_id":{"type":"string","title":"Project ID"},"folder_id":{"type":"string","title":"Folder ID","format":"folder"}},"additionalProperties":false}`,
+		),
+	)
+	registerPassThroughTrigger(
+		"trigger.version_uploaded",
+		"Version Uploaded",
+		"Starts when a new asset version is uploaded.",
+		mustConfigSchema(
+			`{"type":"object","properties":{"asset_id":{"type":"string","title":"Asset ID"}},"additionalProperties":false}`,
+		),
+	)
+	registerPassThroughTrigger(
+		"trigger.tag_added",
+		"Tag Added",
+		"Starts when a tag is added to an asset.",
+		mustConfigSchema(
+			`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`,
+		),
+	)
+	registerPassThroughTrigger(
+		"trigger.schedule",
+		"Schedule Trigger",
+		"Starts on a scheduler tick.",
+		mustConfigSchema(
+			`{"type":"object","properties":{"cron":{"type":"string","title":"Cron","format":"cron"}},"required":["cron"],"additionalProperties":false}`,
+		),
+	)
+	registerPassThroughTrigger(
+		"trigger.webhook",
+		"Webhook Trigger",
+		"Starts from an inbound webhook.",
+		mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`),
+	)
 
-	Register(filterSchema("filter.mime", "Filter MIME Type", "Routes based on MIME type.", mustConfigSchema(`{"type":"object","properties":{"prefix":{"type":"string","title":"MIME Prefix","placeholder":"image/"}},"required":["prefix"],"additionalProperties":false}`)), func(Deps) Node {
-		return filterNode{schema: filterSchema("filter.mime", "Filter MIME Type", "Routes based on MIME type.", mustConfigSchema(`{"type":"object","properties":{"prefix":{"type":"string","title":"MIME Prefix","placeholder":"image/"}},"required":["prefix"],"additionalProperties":false}`)), matchFn: matchMime}
-	})
-	Register(filterSchema("filter.filename", "Filter Filename", "Routes based on filename.", mustConfigSchema(`{"type":"object","properties":{"contains":{"type":"string","title":"Contains"},"extension":{"type":"string","title":"Extension","placeholder":".pdf"}},"additionalProperties":false}`)), func(Deps) Node {
-		return filterNode{schema: filterSchema("filter.filename", "Filter Filename", "Routes based on filename.", mustConfigSchema(`{"type":"object","properties":{"contains":{"type":"string","title":"Contains"},"extension":{"type":"string","title":"Extension","placeholder":".pdf"}},"additionalProperties":false}`)), matchFn: matchFilename}
-	})
-	Register(filterSchema("filter.size", "Filter Size", "Routes based on file size.", mustConfigSchema(`{"type":"object","properties":{"min":{"type":"number","title":"Min Bytes"},"max":{"type":"number","title":"Max Bytes"}},"additionalProperties":false}`)), func(Deps) Node {
-		return filterNode{schema: filterSchema("filter.size", "Filter Size", "Routes based on file size.", mustConfigSchema(`{"type":"object","properties":{"min":{"type":"number","title":"Min Bytes"},"max":{"type":"number","title":"Max Bytes"}},"additionalProperties":false}`)), matchFn: matchSize}
-	})
-	Register(filterSchema("filter.tag", "Filter Tag", "Routes based on tag name.", mustConfigSchema(`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`)), func(Deps) Node {
-		return filterNode{schema: filterSchema("filter.tag", "Filter Tag", "Routes based on tag name.", mustConfigSchema(`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`)), matchFn: matchTag}
-	})
-	Register(filterSchema("filter.folder", "Filter Folder", "Routes based on folder id.", mustConfigSchema(`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"}},"required":["folder_id"],"additionalProperties":false}`)), func(Deps) Node {
-		return filterNode{schema: filterSchema("filter.folder", "Filter Folder", "Routes based on folder id.", mustConfigSchema(`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"}},"required":["folder_id"],"additionalProperties":false}`)), matchFn: matchFolder}
-	})
-	Register(filterSchema("filter.expression", "Filter Expression", "Routes based on a key/value comparison.", mustConfigSchema(`{"type":"object","properties":{"key":{"type":"string","title":"Context Key"},"value":{"type":"string","title":"Expected Value"}},"required":["key","value"],"additionalProperties":false}`)), func(Deps) Node {
-		return filterNode{schema: filterSchema("filter.expression", "Filter Expression", "Routes based on a key/value comparison.", mustConfigSchema(`{"type":"object","properties":{"key":{"type":"string","title":"Context Key"},"value":{"type":"string","title":"Expected Value"}},"required":["key","value"],"additionalProperties":false}`)), matchFn: matchExpression}
-	})
+	Register(
+		filterSchema(
+			"filter.mime",
+			"Filter MIME Type",
+			"Routes based on MIME type.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"prefix":{"type":"string","title":"MIME Prefix","placeholder":"image/"}},"required":["prefix"],"additionalProperties":false}`,
+			),
+		),
+		func(Deps) Node {
+			return filterNode{
+				schema: filterSchema(
+					"filter.mime",
+					"Filter MIME Type",
+					"Routes based on MIME type.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"prefix":{"type":"string","title":"MIME Prefix","placeholder":"image/"}},"required":["prefix"],"additionalProperties":false}`,
+					),
+				),
+				matchFn: matchMime,
+			}
+		},
+	)
+	Register(
+		filterSchema(
+			"filter.filename",
+			"Filter Filename",
+			"Routes based on filename.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"contains":{"type":"string","title":"Contains"},"extension":{"type":"string","title":"Extension","placeholder":".pdf"}},"additionalProperties":false}`,
+			),
+		),
+		func(Deps) Node {
+			return filterNode{
+				schema: filterSchema(
+					"filter.filename",
+					"Filter Filename",
+					"Routes based on filename.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"contains":{"type":"string","title":"Contains"},"extension":{"type":"string","title":"Extension","placeholder":".pdf"}},"additionalProperties":false}`,
+					),
+				),
+				matchFn: matchFilename,
+			}
+		},
+	)
+	Register(
+		filterSchema(
+			"filter.size",
+			"Filter Size",
+			"Routes based on file size.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"min":{"type":"number","title":"Min Bytes"},"max":{"type":"number","title":"Max Bytes"}},"additionalProperties":false}`,
+			),
+		),
+		func(Deps) Node {
+			return filterNode{
+				schema: filterSchema(
+					"filter.size",
+					"Filter Size",
+					"Routes based on file size.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"min":{"type":"number","title":"Min Bytes"},"max":{"type":"number","title":"Max Bytes"}},"additionalProperties":false}`,
+					),
+				),
+				matchFn: matchSize,
+			}
+		},
+	)
+	Register(
+		filterSchema(
+			"filter.tag",
+			"Filter Tag",
+			"Routes based on tag name.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`,
+			),
+		),
+		func(Deps) Node {
+			return filterNode{
+				schema: filterSchema(
+					"filter.tag",
+					"Filter Tag",
+					"Routes based on tag name.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`,
+					),
+				),
+				matchFn: matchTag,
+			}
+		},
+	)
+	Register(
+		filterSchema(
+			"filter.folder",
+			"Filter Folder",
+			"Routes based on folder id.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"}},"required":["folder_id"],"additionalProperties":false}`,
+			),
+		),
+		func(Deps) Node {
+			return filterNode{
+				schema: filterSchema(
+					"filter.folder",
+					"Filter Folder",
+					"Routes based on folder id.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"}},"required":["folder_id"],"additionalProperties":false}`,
+					),
+				),
+				matchFn: matchFolder,
+			}
+		},
+	)
+	Register(
+		filterSchema(
+			"filter.expression",
+			"Filter Expression",
+			"Routes based on a key/value comparison.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"key":{"type":"string","title":"Context Key"},"value":{"type":"string","title":"Expected Value"}},"required":["key","value"],"additionalProperties":false}`,
+			),
+		),
+		func(Deps) Node {
+			return filterNode{
+				schema: filterSchema(
+					"filter.expression",
+					"Filter Expression",
+					"Routes based on a key/value comparison.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"key":{"type":"string","title":"Context Key"},"value":{"type":"string","title":"Expected Value"}},"required":["key","value"],"additionalProperties":false}`,
+					),
+				),
+				matchFn: matchExpression,
+			}
+		},
+	)
 
-	Register(actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`)), func(deps Deps) Node {
-		return createVariantNode{deps: deps, schema: actionSchema("action.create_variant", "Create Variant", "Queues a new variant job.", mustConfigSchema(`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`))}
-	})
-	Register(actionSchema("action.share", "Create Share", "Creates a share for the asset.", mustConfigSchema(`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`)), func(deps Deps) Node {
-		return createShareNode{deps: deps, schema: actionSchema("action.share", "Create Share", "Creates a share for the asset.", mustConfigSchema(`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`))}
-	})
-	Register(actionSchema("action.tag", "Tag Asset", "Adds a tag to the asset.", mustConfigSchema(`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`)), func(deps Deps) Node {
-		return tagAssetNode{deps: deps, schema: actionSchema("action.tag", "Tag Asset", "Adds a tag to the asset.", mustConfigSchema(`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`))}
-	})
-	Register(actionSchema("action.move_folder", "Move Asset", "Moves the asset to a folder or project.", mustConfigSchema(`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"},"project_id":{"type":"string","title":"Project ID"}},"additionalProperties":false}`)), func(deps Deps) Node {
-		return moveAssetNode{deps: deps, schema: actionSchema("action.move_folder", "Move Asset", "Moves the asset to a folder or project.", mustConfigSchema(`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"},"project_id":{"type":"string","title":"Project ID"}},"additionalProperties":false}`))}
-	})
-	Register(actionSchema("action.set_field", "Set Asset Field", "Sets a custom field value on the asset.", mustConfigSchema(`{"type":"object","properties":{"field_id":{"type":"string","title":"Field ID"},"value":{"title":"Value","format":"json"}},"required":["field_id"],"additionalProperties":false}`)), func(deps Deps) Node {
-		return setFieldNode{deps: deps, schema: actionSchema("action.set_field", "Set Asset Field", "Sets a custom field value on the asset.", mustConfigSchema(`{"type":"object","properties":{"field_id":{"type":"string","title":"Field ID"},"value":{"title":"Value","format":"json"}},"required":["field_id"],"additionalProperties":false}`))}
-	})
-	Register(actionSchema("control.fan_out", "Fan Out", "Forwards execution to every connected branch.", mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`)), func(Deps) Node {
-		return passThroughNode{schema: actionSchema("control.fan_out", "Fan Out", "Forwards execution to every connected branch.", mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`))}
-	})
+	Register(
+		actionSchema(
+			"action.create_variant",
+			"Create Variant",
+			"Queues a new variant job.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`,
+			),
+		),
+		func(deps Deps) Node {
+			return createVariantNode{
+				deps: deps,
+				schema: actionSchema(
+					"action.create_variant",
+					"Create Variant",
+					"Queues a new variant job.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`,
+					),
+				),
+			}
+		},
+	)
+	Register(
+		actionSchema(
+			"action.share",
+			"Create Share",
+			"Creates a share for the asset.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`,
+			),
+		),
+		func(deps Deps) Node {
+			return createShareNode{
+				deps: deps,
+				schema: actionSchema(
+					"action.share",
+					"Create Share",
+					"Creates a share for the asset.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"label":{"type":"string","title":"Label"},"allow_comments":{"type":"boolean","title":"Allow Comments"},"allow_download":{"type":"boolean","title":"Allow Download"},"expires_in_days":{"type":"number","title":"Expires In Days"}},"additionalProperties":false}`,
+					),
+				),
+			}
+		},
+	)
+	Register(
+		actionSchema(
+			"action.tag",
+			"Tag Asset",
+			"Adds a tag to the asset.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`,
+			),
+		),
+		func(deps Deps) Node {
+			return tagAssetNode{
+				deps: deps,
+				schema: actionSchema(
+					"action.tag",
+					"Tag Asset",
+					"Adds a tag to the asset.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`,
+					),
+				),
+			}
+		},
+	)
+	Register(
+		actionSchema(
+			"action.move_folder",
+			"Move Asset",
+			"Moves the asset to a folder or project.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"},"project_id":{"type":"string","title":"Project ID"}},"additionalProperties":false}`,
+			),
+		),
+		func(deps Deps) Node {
+			return moveAssetNode{
+				deps: deps,
+				schema: actionSchema(
+					"action.move_folder",
+					"Move Asset",
+					"Moves the asset to a folder or project.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"folder_id":{"type":"string","title":"Folder ID","format":"folder"},"project_id":{"type":"string","title":"Project ID"}},"additionalProperties":false}`,
+					),
+				),
+			}
+		},
+	)
+	Register(
+		actionSchema(
+			"action.set_field",
+			"Set Asset Field",
+			"Sets a custom field value on the asset.",
+			mustConfigSchema(
+				`{"type":"object","properties":{"field_id":{"type":"string","title":"Field ID"},"value":{"title":"Value","format":"json"}},"required":["field_id"],"additionalProperties":false}`,
+			),
+		),
+		func(deps Deps) Node {
+			return setFieldNode{
+				deps: deps,
+				schema: actionSchema(
+					"action.set_field",
+					"Set Asset Field",
+					"Sets a custom field value on the asset.",
+					mustConfigSchema(
+						`{"type":"object","properties":{"field_id":{"type":"string","title":"Field ID"},"value":{"title":"Value","format":"json"}},"required":["field_id"],"additionalProperties":false}`,
+					),
+				),
+			}
+		},
+	)
+	Register(
+		actionSchema(
+			"control.fan_out",
+			"Fan Out",
+			"Forwards execution to every connected branch.",
+			mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`),
+		),
+		func(Deps) Node {
+			return passThroughNode{
+				schema: actionSchema(
+					"control.fan_out",
+					"Fan Out",
+					"Forwards execution to every connected branch.",
+					mustConfigSchema(`{"type":"object","properties":{},"additionalProperties":false}`),
+				),
+			}
+		},
+	)
 }
 
 type passThroughNode struct{ schema NodeSchema }
 
 func (n passThroughNode) Schema() NodeSchema { return n.schema }
 func (n passThroughNode) Execute(_ context.Context, _ *RunContext, _ json.RawMessage) (string, map[string]any, error) {
-	return "out", nil, nil
+	return portOut, nil, nil
 }
 
 type filterNode struct {
@@ -121,7 +408,7 @@ func (n filterNode) Execute(_ context.Context, rc *RunContext, cfg json.RawMessa
 		return "", nil, err
 	}
 	if match {
-		return "match", nil, nil
+		return portMatch, nil, nil
 	}
 	return "no_match", nil, nil
 }
@@ -211,7 +498,12 @@ type createVariantNode struct {
 }
 
 func (n createVariantNode) Schema() NodeSchema { return n.schema }
-func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawMessage) (string, map[string]any, error) {
+
+func (n createVariantNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
 	assetID, err := rcRequireString(rc, "asset_id")
 	if err != nil {
 		return "", nil, err
@@ -220,8 +512,9 @@ func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json
 	if err != nil {
 		return "", nil, err
 	}
-	if n.deps.Assets == nil || n.deps.Variants == nil || n.deps.Workspace == nil || n.deps.Queue == nil || n.deps.Config == nil {
-		return "", nil, fmt.Errorf("workflow create_variant dependencies not configured")
+	if n.deps.Assets == nil || n.deps.Variants == nil || n.deps.Workspace == nil || n.deps.Queue == nil ||
+		n.deps.Config == nil {
+		return "", nil, errors.New("workflow create_variant dependencies not configured")
 	}
 	asset, err := n.deps.Assets.Get(ctx, workspaceID, assetID)
 	if err != nil {
@@ -290,7 +583,11 @@ func (n createVariantNode) Execute(ctx context.Context, rc *RunContext, cfg json
 	if err != nil {
 		return "", nil, err
 	}
-	return "out", map[string]any{"variant_id": variantID, "variant_job_id": job.ID, "variant_type": prepared.Type}, nil
+	return portOut, map[string]any{
+		"variant_id":     variantID,
+		"variant_job_id": job.ID,
+		"variant_type":   prepared.Type,
+	}, nil
 }
 
 type createShareNode struct {
@@ -299,7 +596,12 @@ type createShareNode struct {
 }
 
 func (n createShareNode) Schema() NodeSchema { return n.schema }
-func (n createShareNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawMessage) (string, map[string]any, error) {
+
+func (n createShareNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
 	assetID, err := rcRequireString(rc, "asset_id")
 	if err != nil {
 		return "", nil, err
@@ -333,7 +635,7 @@ func (n createShareNode) Execute(ctx context.Context, rc *RunContext, cfg json.R
 	if err != nil {
 		return "", nil, err
 	}
-	return "out", map[string]any{"share_id": shareID}, nil
+	return portOut, map[string]any{"share_id": shareID}, nil
 }
 
 type tagAssetNode struct {
@@ -342,7 +644,12 @@ type tagAssetNode struct {
 }
 
 func (n tagAssetNode) Schema() NodeSchema { return n.schema }
-func (n tagAssetNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawMessage) (string, map[string]any, error) {
+
+func (n tagAssetNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
 	workspaceID, err := rcRequireString(rc, "workspace_id")
 	if err != nil {
 		return "", nil, err
@@ -361,7 +668,7 @@ func (n tagAssetNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawM
 	if err != nil {
 		return "", nil, err
 	}
-	return "out", map[string]any{"tag_name": tagName}, nil
+	return portOut, map[string]any{"tag_name": tagName}, nil
 }
 
 type moveAssetNode struct {
@@ -370,7 +677,12 @@ type moveAssetNode struct {
 }
 
 func (n moveAssetNode) Schema() NodeSchema { return n.schema }
-func (n moveAssetNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawMessage) (string, map[string]any, error) {
+
+func (n moveAssetNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
 	workspaceID, err := rcRequireString(rc, "workspace_id")
 	if err != nil {
 		return "", nil, err
@@ -393,7 +705,7 @@ func (n moveAssetNode) Execute(ctx context.Context, rc *RunContext, cfg json.Raw
 	if err != nil {
 		return "", nil, err
 	}
-	return "out", map[string]any{"folder_id": asset.FolderID, "project_id": asset.ProjectID}, nil
+	return portOut, map[string]any{"folder_id": asset.FolderID, "project_id": asset.ProjectID}, nil
 }
 
 type setFieldNode struct {
@@ -402,7 +714,12 @@ type setFieldNode struct {
 }
 
 func (n setFieldNode) Schema() NodeSchema { return n.schema }
-func (n setFieldNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawMessage) (string, map[string]any, error) {
+
+func (n setFieldNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
 	workspaceID, err := rcRequireString(rc, "workspace_id")
 	if err != nil {
 		return "", nil, err
@@ -412,7 +729,7 @@ func (n setFieldNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawM
 		return "", nil, err
 	}
 	if n.deps.AssetFields == nil {
-		return "", nil, fmt.Errorf("asset field service unavailable")
+		return "", nil, errors.New("asset field service unavailable")
 	}
 	var nodeCfg struct {
 		FieldID string `json:"field_id"`
@@ -432,5 +749,5 @@ func (n setFieldNode) Execute(ctx context.Context, rc *RunContext, cfg json.RawM
 	if err != nil {
 		return "", nil, err
 	}
-	return "out", map[string]any{"field_id": nodeCfg.FieldID, "field_value": nodeCfg.Value}, nil
+	return portOut, map[string]any{"field_id": nodeCfg.FieldID, "field_value": nodeCfg.Value}, nil
 }

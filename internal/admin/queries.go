@@ -34,17 +34,19 @@ func QueryOverviewStats(ctx context.Context, db *sql.DB) (OverviewStats, error) 
 	if err != nil {
 		return OverviewStats{}, err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 
 	var s OverviewStats
 
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&s.TotalUsers); err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now')`).Scan(&s.NewUsersToday); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now')`).
+		Scan(&s.NewUsersToday); err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now', '-7 days')`).Scan(&s.NewUsersThisWeek); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now', '-7 days')`).
+		Scan(&s.NewUsersThisWeek); err != nil {
 		return s, err
 	}
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspaces`).Scan(&s.TotalWorkspaces); err != nil {
@@ -144,7 +146,12 @@ type UserRow struct {
 	CreatedAt     time.Time
 }
 
-func QueryUsers(ctx context.Context, db *sql.DB, limit, offset int, search, orderBy, orderDir string) ([]UserRow, int, error) {
+func QueryUsers(
+	ctx context.Context,
+	db *sql.DB,
+	limit, offset int,
+	search, orderBy, orderDir string,
+) ([]UserRow, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -208,7 +215,7 @@ func QueryUsers(ctx context.Context, db *sql.DB, limit, offset int, search, orde
 		return nil, 0, err
 	}
 
-	dataArgs := append(args, limit, offset)
+	dataArgs := append(args, limit, offset) //nolint:gocritic // False positive on append of an unknown slice
 	rows, err := db.QueryContext(ctx, dataQ, dataArgs...)
 	if err != nil {
 		return nil, 0, err
@@ -220,7 +227,15 @@ func QueryUsers(ctx context.Context, db *sql.DB, limit, offset int, search, orde
 		var r UserRow
 		var lastUpload *string
 		var createdAtStr string
-		if err := rows.Scan(&r.ID, &r.Email, &r.WorkspaceName, &r.Role, &r.AssetCount, &lastUpload, &createdAtStr); err != nil {
+		if err := rows.Scan(
+			&r.ID,
+			&r.Email,
+			&r.WorkspaceName,
+			&r.Role,
+			&r.AssetCount,
+			&lastUpload,
+			&createdAtStr,
+		); err != nil {
 			return nil, 0, err
 		}
 		if lastUpload != nil {
@@ -282,7 +297,15 @@ func QueryRecentActivity(ctx context.Context, db *sql.DB, limit int, eventFilter
 	for rows.Next() {
 		var r ActivityRow
 		var createdAtStr string
-		if err := rows.Scan(&r.EventType, &r.AssetName, &r.ActorEmail, &r.ActorType, &r.WorkspaceName, &r.Payload, &createdAtStr); err != nil {
+		if err := rows.Scan(
+			&r.EventType,
+			&r.AssetName,
+			&r.ActorEmail,
+			&r.ActorType,
+			&r.WorkspaceName,
+			&r.Payload,
+			&createdAtStr,
+		); err != nil {
 			return nil, err
 		}
 		r.CreatedAt, _ = time.Parse("2006-01-02T15:04:05Z", createdAtStr)
@@ -337,7 +360,14 @@ func QueryStorageBreakdown(ctx context.Context, db *sql.DB) ([]StorageRow, error
 	for rows.Next() {
 		var r StorageRow
 		var oldest, newest *string
-		if err := rows.Scan(&r.WorkspaceName, &r.AssetCount, &r.VersionCount, &r.TotalMB, &oldest, &newest); err != nil {
+		if err := rows.Scan(
+			&r.WorkspaceName,
+			&r.AssetCount,
+			&r.VersionCount,
+			&r.TotalMB,
+			&oldest,
+			&newest,
+		); err != nil {
 			return nil, err
 		}
 		if oldest != nil {
@@ -451,7 +481,16 @@ func QueryFailedJobs(ctx context.Context, db *sql.DB, limit int) ([]JobDetailRow
 	for rows.Next() {
 		var r JobDetailRow
 		var createdStr, updatedStr string
-		if err := rows.Scan(&r.ID, &r.Type, &r.Status, &r.Payload, &r.Attempts, &r.Error, &createdStr, &updatedStr); err != nil {
+		if err := rows.Scan(
+			&r.ID,
+			&r.Type,
+			&r.Status,
+			&r.Payload,
+			&r.Attempts,
+			&r.Error,
+			&createdStr,
+			&updatedStr,
+		); err != nil {
 			return nil, err
 		}
 		r.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)

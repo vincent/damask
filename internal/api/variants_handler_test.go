@@ -26,7 +26,12 @@ func TestListVariantsCoveringWorkflowPresent(t *testing.T) {
 			CoveringWorkflow: &service.CoveringWorkflowDTO{ID: "wf_1", Name: "Auto resize", Scope: "project"},
 		}, nil
 	}
-	req := testutil.BearerRequest(http.MethodGet, "/api/v1/assets/ast_1/variants", nil, env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodGet,
+		"/api/v1/assets/ast_1/variants",
+		nil,
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -43,12 +48,18 @@ func TestListVariantsCoveringWorkflowPresent(t *testing.T) {
 func TestAutomateVariantsOK(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	env.Workflows.CreateFromVariantsFn = func(_ context.Context, workspaceID string, p service.CreateVariantAutomationParams) (*service.WorkflowDTO, error) {
-		if workspaceID != "ws_1" || p.AssetID != "ast_1" || p.Scope != service.AutomationScopeProject || p.CreatedBy != "usr_1" {
+		if workspaceID != "ws_1" || p.AssetID != "ast_1" || p.Scope != service.AutomationScopeProject ||
+			p.CreatedBy != "usr_1" {
 			t.Fatalf("unexpected create params: workspace=%s params=%#v", workspaceID, p)
 		}
 		return &service.WorkflowDTO{ID: "wf_new"}, nil
 	}
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/variants/automate", testutil.JsonBody(map[string]string{"scope": "project"}), env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/assets/ast_1/variants/automate",
+		testutil.JSONBody(map[string]string{"scope": "project"}),
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +77,12 @@ func TestAutomateVariantsConflictAndViewer(t *testing.T) {
 	env.Workflows.CreateFromVariantsFn = func(context.Context, string, service.CreateVariantAutomationParams) (*service.WorkflowDTO, error) {
 		return nil, apperr.ErrConflict
 	}
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/variants/automate", testutil.JsonBody(map[string]string{"scope": "project"}), env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/assets/ast_1/variants/automate",
+		testutil.JSONBody(map[string]string{"scope": "project"}),
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +93,12 @@ func TestAutomateVariantsConflictAndViewer(t *testing.T) {
 	env.Workspace.GetMemberFn = func(_ context.Context, _, userID string) (*service.MemberDTO, error) {
 		return &service.MemberDTO{UserID: userID, Role: string(auth.Viewer)}, nil
 	}
-	req = testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/variants/automate", testutil.JsonBody(map[string]string{"scope": "project"}), env.MintToken(t, "usr_1", "ws_1"))
+	req = testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/assets/ast_1/variants/automate",
+		testutil.JSONBody(map[string]string{"scope": "project"}),
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err = env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)

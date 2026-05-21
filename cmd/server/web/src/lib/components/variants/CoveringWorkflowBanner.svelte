@@ -9,6 +9,7 @@
     workspace: m.variant_automation_covered_scope_workspace(),
     project: m.variant_automation_covered_scope_project(),
     folder: m.variant_automation_covered_scope_folder(),
+    asset: m.variant_automation_covered_scope_asset(),
   }
 </script>
 

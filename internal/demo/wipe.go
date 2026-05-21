@@ -87,7 +87,7 @@ func (s *Seeder) Wipe(ctx context.Context) error {
 	// Delete storage files after the transaction succeeds
 	if err := s.storage.Delete(fmt.Sprintf("demo/%s", workspaceID)); err != nil {
 		// Non-fatal: log and continue
-		slog.Warn("demo: wipe storage delete", "error", err)
+		slog.WarnContext(ctx, "demo: wipe storage delete", "error", err)
 	}
 
 	slog.InfoContext(ctx, "demo: wipe complete", "assets_deleted", assetsDeleted, "versions_deleted", versionsDeleted, "storage_files_deleted", len(storageKeys))

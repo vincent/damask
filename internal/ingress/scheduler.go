@@ -26,7 +26,7 @@ func NewScheduler(db *dbgen.Queries, qu queue.JobQueue) *Scheduler {
 // Exits when ctx is cancelled.
 func (s *Scheduler) Start(ctx context.Context) {
 	go func() {
-		ticker := time.NewTicker(60 * time.Second)
+		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 		// Fire immediately on startup to pick up overdue sources
 		s.tick(ctx)

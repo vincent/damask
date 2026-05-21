@@ -29,6 +29,7 @@ func resolvedFFprobePath(t *testing.T) string {
 }
 
 func TestNewTransformer_FFmpegPathFallsBackToPATH(t *testing.T) {
+	t.Parallel()
 	ffmpegPath := resolvedFFmpegPath(t)
 	ffprobePath := resolvedFFprobePath(t)
 
@@ -45,6 +46,7 @@ func TestNewTransformer_FFmpegPathFallsBackToPATH(t *testing.T) {
 }
 
 func TestNewTransformer_FFmpegPathResolvesExplicitBinary(t *testing.T) {
+	t.Parallel()
 	ffmpegPath := resolvedFFmpegPath(t)
 	ffprobePath := resolvedFFprobePath(t)
 
@@ -58,17 +60,23 @@ func TestNewTransformer_FFmpegPathResolvesExplicitBinary(t *testing.T) {
 }
 
 func TestNewTransformer_InvalidFFmpegPathDisablesAvailability(t *testing.T) {
+	t.Parallel()
 	tr := NewTransformer(config.FFmpegConfig{Path: "/definitely/missing/ffmpeg"}).(*transformer)
 	if tr.FFmpegAvailable() {
 		t.Fatal("expected ffmpeg to be unavailable")
 	}
-	_, err := tr.VideoExtractThumbnail(context.Background(), testdataPath(t, "sample_video_with_audio.mp4"), VideoThumbnailParams{})
+	_, err := tr.VideoExtractThumbnail(
+		context.Background(),
+		testdataPath(t, "sample_video_with_audio.mp4"),
+		VideoThumbnailParams{},
+	)
 	if err == nil || !strings.Contains(err.Error(), "FFMPEG_PATH") {
 		t.Fatalf("expected actionable FFMPEG_PATH error, got %v", err)
 	}
 }
 
 func TestFFmpegRuntime_WithVideoDecodeAddsHWAccelArgs(t *testing.T) {
+	t.Parallel()
 	tr := NewTransformer(config.FFmpegConfig{HWAccel: "cuda"}).(*transformer)
 	args := tr.ffmpeg.withVideoDecode("-y", "-i", "input.mp4")
 	if len(args) < 2 || args[0] != "-hwaccel" || args[1] != "cuda" {
@@ -77,6 +85,7 @@ func TestFFmpegRuntime_WithVideoDecodeAddsHWAccelArgs(t *testing.T) {
 }
 
 func TestFFmpegRuntime_WithoutHWAccelLeavesArgsUnchanged(t *testing.T) {
+	t.Parallel()
 	tr := NewTransformer().(*transformer)
 	args := []string{"-y", "-i", "input.mp4"}
 	withDecode := tr.ffmpeg.withVideoDecode(args...)

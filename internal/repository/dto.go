@@ -51,6 +51,7 @@ type Folder struct {
 // FolderTree is a folder with asset count and pre-built children list.
 type FolderTree struct {
 	Folder
+
 	AssetCount int64
 	Children   []FolderTree
 }
@@ -148,6 +149,7 @@ type AssetVersion struct {
 // AssetVersionWithCount is an AssetVersion enriched with its derived variant count.
 type AssetVersionWithCount struct {
 	AssetVersion
+
 	VariantCount int64
 }
 
@@ -190,6 +192,7 @@ type Workspace struct {
 // WorkspaceWithRole is a Workspace enriched with the requesting user's role.
 type WorkspaceWithRole struct {
 	Workspace
+
 	Role string
 }
 
@@ -229,7 +232,7 @@ type User struct {
 	OidcIssuer       *string
 	GoogleUserID     *string
 	CanvaUserID      *string
-	AvatarUrl        *string
+	AvatarURL        *string
 	AvatarStorageKey *string
 	AuthMethods      string
 	PendingEmail     *string
@@ -311,12 +314,14 @@ type Variant struct {
 
 type VariantWithAssetID struct {
 	Variant
+
 	AssetID string
 }
 
 // ProjectWithCount is a Project enriched with its asset count.
 type ProjectWithCount struct {
 	Project
+
 	AssetCount int64
 }
 

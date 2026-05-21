@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const sniffFirstBytes = 512
+
 // DetectMimeType sniffs the MIME type of the file at filePath.
 // When content sniffing returns a generic type (zip, octet-stream, plain text),
 // it falls back to extension-based lookup to correctly identify OOXML/ODF formats
@@ -19,7 +21,7 @@ func DetectMimeType(filePath string) (string, error) {
 	}
 	defer f.Close()
 
-	sniff := make([]byte, 512)
+	sniff := make([]byte, sniffFirstBytes)
 	n, _ := f.Read(sniff)
 	mimeType := stripMimeParams(http.DetectContentType(sniff[:n]))
 
@@ -35,8 +37,8 @@ func DetectMimeType(filePath string) (string, error) {
 }
 
 func stripMimeParams(ct string) string {
-	if idx := strings.Index(ct, ";"); idx != -1 {
-		return strings.TrimSpace(ct[:idx])
+	if before, _, ok := strings.Cut(ct, ";"); ok {
+		return strings.TrimSpace(before)
 	}
 	return ct
 }

@@ -51,7 +51,7 @@ type AuthResponse struct {
 // @Failure 400 {object} ErrorResponse "Invalid request body"
 // @Failure 409 {object} ErrorResponse "Email already in use"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /auth/register [post]
+// @Router /auth/register [post].
 func (s *Server) handleRegister(c fiber.Ctx) error {
 	req, ok := decodeAndValidate(c, &RegisterRequest{})
 	if !ok {
@@ -87,8 +87,13 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 	s.setAuthCookie(c, token)
 	wr := workspaceDTOToResponse(ws)
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{
-		Token:     token,
-		User:      UserResponse{ID: result.User.ID, Email: result.User.Email, Name: result.User.Name, CreatedAt: result.User.CreatedAt},
+		Token: token,
+		User: UserResponse{
+			ID:        result.User.ID,
+			Email:     result.User.Email,
+			Name:      result.User.Name,
+			CreatedAt: result.User.CreatedAt,
+		},
 		Workspace: &wr,
 	})
 }
@@ -104,7 +109,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 // @Success 200 {object} AuthResponse
 // @Failure 401 {object} ErrorResponse "Invalid credentials"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /auth/login [post]
+// @Router /auth/login [post].
 func (s *Server) handleLogin(c fiber.Ctx) error {
 	req, ok := decodeAndValidate(c, &LoginRequest{})
 	if !ok {
@@ -132,8 +137,13 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 	s.setAuthCookie(c, token)
 	wr := workspaceDTOToResponse(ws)
 	return c.JSON(AuthResponse{
-		Token:     token,
-		User:      UserResponse{ID: result.User.ID, Email: result.User.Email, Name: result.User.Name, CreatedAt: result.User.CreatedAt},
+		Token: token,
+		User: UserResponse{
+			ID:        result.User.ID,
+			Email:     result.User.Email,
+			Name:      result.User.Name,
+			CreatedAt: result.User.CreatedAt,
+		},
 		Workspace: &wr,
 	})
 }
@@ -147,7 +157,7 @@ func (s *Server) handleLogin(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Success 200 {object} map[string]string "token"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /auth/refresh [post]
+// @Router /auth/refresh [post].
 func (s *Server) handleRefresh(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -157,7 +167,7 @@ func (s *Server) handleRefresh(c fiber.Ctx) error {
 	}
 
 	s.setAuthCookie(c, token)
-	return c.JSON(fiber.Map{"token": token})
+	return c.JSON(fiber.Map{apiTokenKey: token})
 }
 
 // handleLogout clears the auth cookie and ends the session.
@@ -167,14 +177,14 @@ func (s *Server) handleRefresh(c fiber.Ctx) error {
 // @Tags Auth
 // @Produce json
 // @Success 200 {object} map[string]bool "ok"
-// @Router /auth/logout [post]
+// @Router /auth/logout [post].
 func (s *Server) handleLogout(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    "",
 		HTTPOnly: true,
-		Secure:   s.cfg.AppEnv != "development",
-		SameSite: "Lax",
+		Secure:   s.cfg.AppEnv != appEnvDevelopment,
+		SameSite: apiSameSiteLax,
 		MaxAge:   -1,
 		Path:     "/",
 	})
@@ -186,8 +196,8 @@ func (s *Server) setAuthCookie(c fiber.Ctx, token string) {
 		Name:     "auth_token",
 		Value:    token,
 		HTTPOnly: true,
-		Secure:   s.cfg.AppEnv != "development",
-		SameSite: "Lax",
+		Secure:   s.cfg.AppEnv != appEnvDevelopment,
+		SameSite: apiSameSiteLax,
 		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
 		Path:     "/",
 	})

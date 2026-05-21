@@ -3,6 +3,7 @@
 package telemetry
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -27,12 +28,12 @@ func readCPUTimes() (cpuTimes, error) {
 
 	lines := strings.Split(string(data), "\n")
 	if len(lines) == 0 {
-		return cpuTimes{}, fmt.Errorf("could not read CPU stats: missing cpu line")
+		return cpuTimes{}, errors.New("could not read CPU stats: missing cpu line")
 	}
 
 	fields := strings.Fields(lines[0])
 	if len(fields) < 5 || fields[0] != "cpu" {
-		return cpuTimes{}, fmt.Errorf("could not read CPU stats: invalid cpu line")
+		return cpuTimes{}, errors.New("could not read CPU stats: invalid cpu line")
 	}
 
 	values := make([]uint64, 0, len(fields)-1)
@@ -86,7 +87,7 @@ func diskIOStats() (diskIO, error) {
 	}
 
 	var stats diskIO
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 10 || !isWholeDisk(fields[2]) {
 			continue
@@ -149,7 +150,8 @@ func openTCPConnectionCountForFile(path string) (int, error) {
 }
 
 func isWholeDisk(name string) bool {
-	if strings.HasPrefix(name, "loop") || strings.HasPrefix(name, "ram") || strings.HasPrefix(name, "fd") || strings.HasPrefix(name, "sr") {
+	if strings.HasPrefix(name, "loop") || strings.HasPrefix(name, "ram") || strings.HasPrefix(name, "fd") ||
+		strings.HasPrefix(name, "sr") {
 		return false
 	}
 	if strings.HasPrefix(name, "dm-") || strings.HasPrefix(name, "md") {

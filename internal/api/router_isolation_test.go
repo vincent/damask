@@ -4,7 +4,7 @@ package api_test
 
 import (
 	"damask/server/internal/api"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -68,7 +68,7 @@ func TestIsolation_UpdateProject(t *testing.T) {
 
 	hackedName := "Hacked"
 	req := th.AuthRequest(http.MethodPut, "/api/v1/projects/"+p.ID,
-		th.JsonBody(api.UpdateProjectRequest{Name: &hackedName}), ws2.Cookie)
+		th.JSONBody(api.UpdateProjectRequest{Name: &hackedName}), ws2.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -101,7 +101,7 @@ func TestIsolation_CreateFolderInOtherProject(t *testing.T) {
 	p := createProject(t, env, ws1.Cookie, "WS1 Project", "#ff0000")
 
 	req := th.AuthRequest(http.MethodPost, fmt.Sprintf("/api/v1/projects/%s/folders", p.ID),
-		th.JsonBody(api.CreateFolderRequest{Name: "Intruder"}), ws2.Cookie)
+		th.JSONBody(api.CreateFolderRequest{Name: "Intruder"}), ws2.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -136,7 +136,7 @@ func TestIsolation_UpdateFolder(t *testing.T) {
 
 	hackedFolderName := "Hacked"
 	req := th.AuthRequest(http.MethodPut, "/api/v1/folders/"+folderID,
-		th.JsonBody(api.UpdateFolderRequest{Name: &hackedFolderName}), ws2.Cookie)
+		th.JSONBody(api.UpdateFolderRequest{Name: &hackedFolderName}), ws2.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -225,7 +225,7 @@ func TestIsolation_UpdateAssetFolder(t *testing.T) {
 	assetID := uploadTestAsset(t, env, ws1)
 
 	req := th.AuthRequest(http.MethodPatch, "/api/v1/assets/"+assetID,
-		th.JsonBody(api.UpdateAssetFolderRequest{FolderID: nil}), ws2.Cookie)
+		th.JSONBody(api.UpdateAssetFolderRequest{FolderID: nil}), ws2.Cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -256,7 +256,7 @@ func TestIsolation_RenameAsset(t *testing.T) {
 	assetID := uploadTestAsset(t, env, ws1)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/assets/"+assetID+"/rename",
-		th.JsonBody(api.RenameAssetRequest{Name: "hacked"}), ws2.Cookie)
+		th.JSONBody(api.RenameAssetRequest{Name: "hacked"}), ws2.Cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -274,7 +274,7 @@ func TestIsolation_ListTags(t *testing.T) {
 	// Add a tag to ws1's asset so there is something to be isolated
 	assetID := uploadTestAsset(t, env, ws1)
 	tagReq := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
-		th.JsonBody(api.AddTagRequest{Name: "secret-tag"}), ws1.Cookie)
+		th.JSONBody(api.AddTagRequest{Name: "secret-tag"}), ws1.Cookie)
 	env.App.Test(tagReq, fiber.TestConfig{Timeout: 5000}) //nolint:errcheck
 
 	req := th.AuthRequest(http.MethodGet, "/api/v1/tags", nil, ws2.Cookie)
@@ -315,7 +315,7 @@ func TestIsolation_AddTagToAsset(t *testing.T) {
 	assetID := uploadTestAsset(t, env, ws1)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
-		th.JsonBody(api.AddTagRequest{Name: "intruder"}), ws2.Cookie)
+		th.JSONBody(api.AddTagRequest{Name: "intruder"}), ws2.Cookie)
 	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
 	if err != nil {
 		t.Fatalf("request: %v", err)

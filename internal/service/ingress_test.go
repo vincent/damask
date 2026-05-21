@@ -49,7 +49,7 @@ func newIngressEnv(t *testing.T) *ingressTestEnv {
 		t.Fatalf("seed user: %v", err)
 	}
 
-	mailer := mail.NewMailer(&mail.MailSenderConfig{})
+	mailer := mail.NewMailer(&mail.Config{})
 	svc := service.NewIngressService(queries, testAppSecret, nil, mailer)
 	return &ingressTestEnv{db: queries, svc: svc, workspaceID: wsID, userID: userID}
 }
@@ -57,10 +57,15 @@ func newIngressEnv(t *testing.T) *ingressTestEnv {
 // seedSource creates an ingress source via the service.
 func seedSource(t *testing.T, env *ingressTestEnv, label string) *service.IngressSourceDTO {
 	t.Helper()
-	dto, err := env.svc.CreateSource(context.Background(), env.workspaceID, env.userID, service.CreateIngressSourceParams{
-		Type:  "sftp",
-		Label: label,
-	})
+	dto, err := env.svc.CreateSource(
+		context.Background(),
+		env.workspaceID,
+		env.userID,
+		service.CreateIngressSourceParams{
+			Type:  "sftp",
+			Label: label,
+		},
+	)
 	if err != nil {
 		t.Fatalf("seed source: %v", err)
 	}
@@ -129,11 +134,16 @@ func TestIngressService_CreateSource_EmptyType(t *testing.T) {
 
 func TestIngressService_CreateSource_DefaultInterval(t *testing.T) {
 	env := newIngressEnv(t)
-	dto, err := env.svc.CreateSource(context.Background(), env.workspaceID, env.userID, service.CreateIngressSourceParams{
-		Type:            "sftp",
-		Label:           "src",
-		PollIntervalMin: 0, // should default to 15
-	})
+	dto, err := env.svc.CreateSource(
+		context.Background(),
+		env.workspaceID,
+		env.userID,
+		service.CreateIngressSourceParams{
+			Type:            "sftp",
+			Label:           "src",
+			PollIntervalMin: 0, // should default to 15
+		},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -144,15 +154,20 @@ func TestIngressService_CreateSource_DefaultInterval(t *testing.T) {
 
 func TestIngressService_CreateSource_OK(t *testing.T) {
 	env := newIngressEnv(t)
-	dto, err := env.svc.CreateSource(context.Background(), env.workspaceID, env.userID, service.CreateIngressSourceParams{
-		Type:  "sftp",
-		Label: "production sftp",
-		Config: map[string]any{
-			"host":     "sftp.example.com",
-			"password": "s3cr3t",
+	dto, err := env.svc.CreateSource(
+		context.Background(),
+		env.workspaceID,
+		env.userID,
+		service.CreateIngressSourceParams{
+			Type:  "sftp",
+			Label: "production sftp",
+			Config: map[string]any{
+				"host":     "sftp.example.com",
+				"password": "s3cr3t",
+			},
+			PollIntervalMin: 30,
 		},
-		PollIntervalMin: 30,
-	})
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -173,13 +188,18 @@ func TestIngressService_CreateSource_OK(t *testing.T) {
 
 func TestIngressService_CreateSource_WithRules(t *testing.T) {
 	env := newIngressEnv(t)
-	dto, err := env.svc.CreateSource(context.Background(), env.workspaceID, env.userID, service.CreateIngressSourceParams{
-		Type:  "sftp",
-		Label: "sftp with rules",
-		Rules: []service.CreateIngressRuleParams{
-			{Position: 1, Field: "filename", Operator: "contains", Value: ".jpg", Action: "include"},
+	dto, err := env.svc.CreateSource(
+		context.Background(),
+		env.workspaceID,
+		env.userID,
+		service.CreateIngressSourceParams{
+			Type:  "sftp",
+			Label: "sftp with rules",
+			Rules: []service.CreateIngressRuleParams{
+				{Position: 1, Field: "filename", Operator: "contains", Value: ".jpg", Action: "include"},
+			},
 		},
-	})
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -209,9 +229,14 @@ func TestIngressService_UpdateSource_LabelKeptWhenEmpty(t *testing.T) {
 	env := newIngressEnv(t)
 	src := seedSource(t, env, "original label")
 
-	updated, err := env.svc.UpdateSource(context.Background(), env.workspaceID, src.ID, service.UpdateIngressSourceParams{
-		Label: "", // empty = keep original
-	})
+	updated, err := env.svc.UpdateSource(
+		context.Background(),
+		env.workspaceID,
+		src.ID,
+		service.UpdateIngressSourceParams{
+			Label: "", // empty = keep original
+		},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

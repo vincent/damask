@@ -2,6 +2,7 @@ package api
 
 import (
 	"io/fs"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -38,7 +39,7 @@ func serveFile(c fiber.Ctx, fsys fs.FS, path string) error {
 	// Read the entire file into memory for serving
 	data, err := fs.ReadFile(fsys, path)
 	if err != nil {
-		return c.Status(404).SendString("Not Found")
+		return c.Status(http.StatusNotFound).SendString("Not Found")
 	}
 	// Let Fiber handle content-type detection based on the path
 	c.Set("Content-Type", getContentType(path))
@@ -61,7 +62,7 @@ func getContentType(path string) string {
 	case strings.HasSuffix(path, ".png"):
 		return "image/png"
 	case strings.HasSuffix(path, ".jpg") || strings.HasSuffix(path, ".jpeg"):
-		return "image/jpeg"
+		return contentTypeImageJPEG
 	case strings.HasSuffix(path, ".gif"):
 		return "image/gif"
 	case strings.HasSuffix(path, ".woff"):
@@ -73,7 +74,7 @@ func getContentType(path string) string {
 	case strings.HasSuffix(path, ".eot"):
 		return "application/vnd.ms-fontobject"
 	default:
-		return "application/octet-stream"
+		return contentTypeOctetStream
 	}
 }
 
@@ -98,7 +99,7 @@ func newViteProxy() fiber.Handler {
 		resp := &fasthttp.Response{}
 		client := &fasthttp.Client{}
 		if err := client.Do(req, resp); err != nil {
-			return c.Status(500).SendString("Proxy error: " + err.Error())
+			return c.Status(http.StatusInternalServerError).SendString("Proxy error: " + err.Error())
 		}
 
 		// Copy response headers

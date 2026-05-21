@@ -13,6 +13,7 @@ package testutil
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -167,7 +168,7 @@ func (e *TestEnv) MintCookie(t *testing.T, userID, workspaceID string) *http.Coo
 // AuthRequest builds an HTTP request carrying the given cookie.
 // body may be nil.
 func AuthRequest(method, path string, body io.Reader, cookie *http.Cookie) *http.Request {
-	req := httptest.NewRequest(method, path, body)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, body)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -180,7 +181,7 @@ func AuthRequest(method, path string, body io.Reader, cookie *http.Cookie) *http
 // BearerRequest builds an HTTP request with an Authorization: Bearer <token> header.
 // body may be nil.
 func BearerRequest(method, path string, body io.Reader, token string) *http.Request {
-	req := httptest.NewRequest(method, path, body)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, body)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -190,16 +191,16 @@ func BearerRequest(method, path string, body io.Reader, token string) *http.Requ
 	return req
 }
 
-// JsonStr returns an io.Reader over a raw JSON string literal.
-func JsonStr(s string) io.Reader {
+// JSONStr returns an io.Reader over a raw JSON string literal.
+func JSONStr(s string) io.Reader {
 	return strings.NewReader(s)
 }
 
-// JsonBody marshals v to JSON and returns it as an io.Reader.
-func JsonBody(v any) io.Reader {
+// JSONBody marshals v to JSON and returns it as an io.Reader.
+func JSONBody(v any) io.Reader {
 	b, err := json.Marshal(v)
 	if err != nil {
-		panic("testutil.JsonBody: " + err.Error())
+		panic("testutil.JSONBody: " + err.Error())
 	}
 	return bytes.NewReader(b)
 }

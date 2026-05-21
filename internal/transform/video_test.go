@@ -57,7 +57,13 @@ func TestVideoWatermark_MP4KeepsOutputWithinSourceBounds(t *testing.T) {
 		t.Fatalf("output resolution: %v", err)
 	}
 	if outRes.Width > srcRes.Width || outRes.Height > srcRes.Height {
-		t.Fatalf("output resolution %dx%d exceeds source %dx%d", outRes.Width, outRes.Height, srcRes.Width, srcRes.Height)
+		t.Fatalf(
+			"output resolution %dx%d exceeds source %dx%d",
+			outRes.Width,
+			outRes.Height,
+			srcRes.Width,
+			srcRes.Height,
+		)
 	}
 	if outRes.Width%2 != 0 || outRes.Height%2 != 0 {
 		t.Fatalf("expected even output dimensions for mp4, got %dx%d", outRes.Width, outRes.Height)
@@ -91,6 +97,12 @@ func TestVideoWatermark_WEBMPreservesSourceResolution(t *testing.T) {
 		t.Fatalf("output resolution: %v", err)
 	}
 	if outRes.Width != srcRes.Width || outRes.Height != srcRes.Height {
-		t.Fatalf("expected webm output resolution %dx%d, got %dx%d", srcRes.Width, srcRes.Height, outRes.Width, outRes.Height)
+		t.Fatalf(
+			"expected webm output resolution %dx%d, got %dx%d",
+			srcRes.Width,
+			srcRes.Height,
+			outRes.Width,
+			outRes.Height,
+		)
 	}
 }

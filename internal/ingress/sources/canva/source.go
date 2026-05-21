@@ -5,9 +5,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -53,7 +55,7 @@ func New(configJSON []byte) (ingress.Source, error) {
 		return nil, fmt.Errorf("canva: parse config: %w", err)
 	}
 	if cfg.ConnectionID == "" {
-		return nil, fmt.Errorf("canva: connection_id is required")
+		return nil, errors.New("canva: connection_id is required")
 	}
 	if cfg.ExportFormat == "" {
 		cfg.ExportFormat = "pdf"
@@ -61,27 +63,27 @@ func New(configJSON []byte) (ingress.Source, error) {
 	if cfg.Ownership == "" {
 		cfg.Ownership = "owned"
 	}
-	return &CanvaSource{cfg: cfg}, nil
+	return &Source{cfg: cfg}, nil
 }
 
-// CanvaSource polls Canva for new or updated designs and exports them.
-type CanvaSource struct {
+// Source polls Canva for new or updated designs and exports them.
+type Source struct {
 	cfg Config
 }
 
-func (s *CanvaSource) Type() string { return "canva" }
+func (s *Source) Type() string { return "canva" }
 
-func (s *CanvaSource) accessToken(ctx context.Context) (string, error) {
+func (s *Source) accessToken(ctx context.Context) (string, error) {
 	refresherMu.RLock()
 	r := globalRefresher
 	refresherMu.RUnlock()
 	if r == nil {
-		return "", fmt.Errorf("canva: token refresher not initialised")
+		return "", errors.New("canva: token refresher not initialised")
 	}
 	return r.EnsureFreshToken(ctx, s.cfg.WorkspaceID, s.cfg.ConnectionID)
 }
 
-func (s *CanvaSource) Validate(ctx context.Context) error {
+func (s *Source) Validate(ctx context.Context) error {
 	token, err := s.accessToken(ctx)
 	if err != nil {
 		return err
@@ -91,7 +93,7 @@ func (s *CanvaSource) Validate(ctx context.Context) error {
 	return err
 }
 
-func (s *CanvaSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
+func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	token, err := s.accessToken(ctx)
 	if err != nil {
 		return nil, err
@@ -139,7 +141,7 @@ func (s *CanvaSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 					continue
 				}
 			}
-			remoteID := d.ID + "#" + fmt.Sprint(d.UpdatedAt)
+			remoteID := d.ID + "#" + strconv.FormatInt(d.UpdatedAt, 10)
 			items = append(items, ingress.IngestItem{
 				RemoteID: remoteID,
 				Filename: d.Title + "." + s.cfg.ExportFormat,
@@ -160,7 +162,7 @@ func (s *CanvaSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	return items, nil
 }
 
-func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
+func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
 	// Separate timeout for export creation + polling only — does not apply to the download stream.
 	pollCtx, pollCancel := context.WithTimeout(ctx, 90*time.Second)
 	defer pollCancel()
@@ -195,7 +197,7 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 
 	// Step 2: poll until done.
 	var downloadURL string
-	for attempt := 0; attempt < exportPollMax; attempt++ {
+	for range exportPollMax {
 		body, err := s.doGet(pollCtx, token, canvaAPIBase+"/exports/"+jobID)
 		if err != nil {
 			return nil, fmt.Errorf("canva: poll export: %w", err)
@@ -214,7 +216,7 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 		switch status.Job.Status {
 		case "success":
 			if len(status.Job.Urls) == 0 {
-				return nil, fmt.Errorf("canva: export succeeded but no download URLs")
+				return nil, errors.New("canva: export succeeded but no download URLs")
 			}
 			downloadURL = status.Job.Urls[0]
 		case "failed":
@@ -234,7 +236,7 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 	// pollCtx's defer fires upon returning from this function.
 	dlCtx, dlCancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	req, _ := http.NewRequestWithContext(dlCtx, http.MethodGet, downloadURL, nil)
-	dlResp, err := http.DefaultClient.Do(req)
+	dlResp, err := http.DefaultClient.Do(req) //nolint:bodyclose // caller closes the returned ReadCloser
 	if err != nil {
 		dlCancel()
 		return nil, fmt.Errorf("canva: download export: %w", err)
@@ -246,6 +248,7 @@ func (s *CanvaSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Re
 // ensuring the download context is released when the caller is done streaming.
 type cancelOnClose struct {
 	io.ReadCloser
+
 	cancel context.CancelFunc
 }
 
@@ -254,7 +257,7 @@ func (c *cancelOnClose) Close() error {
 	return c.ReadCloser.Close()
 }
 
-func (s *CanvaSource) doGet(ctx context.Context, token, url string) ([]byte, error) {
+func (s *Source) doGet(ctx context.Context, token, url string) ([]byte, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := http.DefaultClient.Do(req)
@@ -263,13 +266,13 @@ func (s *CanvaSource) doGet(ctx context.Context, token, url string) ([]byte, err
 	}
 	defer resp.Body.Close()
 	// slog.InfoContext(ctx, "get canva", "url", url, "token", token)
-	if resp.StatusCode >= 300 {
+	if resp.StatusCode >= http.StatusMultipleChoices {
 		return nil, fmt.Errorf("canva API %s: status %d", url, resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
 }
 
-func (s *CanvaSource) doPost(ctx context.Context, token, url string, body []byte) ([]byte, error) {
+func (s *Source) doPost(ctx context.Context, token, url string, body []byte) ([]byte, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
@@ -279,7 +282,7 @@ func (s *CanvaSource) doPost(ctx context.Context, token, url string, body []byte
 	}
 	defer resp.Body.Close()
 	// slog.InfoContext(ctx, "post canva", "url", url, "token", token, "body", string(body))
-	if resp.StatusCode >= 300 {
+	if resp.StatusCode >= http.StatusMultipleChoices {
 		return nil, fmt.Errorf("canva API %s: status %d", url, resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)

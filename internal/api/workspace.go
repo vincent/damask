@@ -63,7 +63,7 @@ type WorkspaceMeResponse struct {
 // @Success 200 {object} WorkspaceMeResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Workspace or user not found"
-// @Router /api/v1/workspace/me [get]
+// @Router /api/v1/workspace/me [get].
 func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -97,7 +97,7 @@ func (s *Server) handleWorkspaceMe(c fiber.Ctx) error {
 // @Success 201 {object} AuthResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/workspace [post]
+// @Router /api/v1/workspace [post].
 func (s *Server) handleCreateWorkspace(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -133,7 +133,7 @@ type WorkspaceWithRoleResponse struct {
 // @Security BearerAuth
 // @Success 200 {array} WorkspaceWithRoleResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/workspaces [get]
+// @Router /api/v1/workspaces [get].
 func (s *Server) handleListWorkspaces(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -175,7 +175,7 @@ type SwitchWorkspaceResponse struct {
 // @Success 200 {object} SwitchWorkspaceResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "Not a member of this workspace"
-// @Router /api/v1/workspace/switch [post]
+// @Router /api/v1/workspace/switch [post].
 func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -219,7 +219,7 @@ func (s *Server) handleSwitchWorkspace(c fiber.Ctx) error {
 // @Success 200 {object} WorkspaceResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/workspace/settings [put]
+// @Router /api/v1/workspace/settings [put].
 func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -257,7 +257,7 @@ var triggerableJobs = map[string]string{
 // @Success 202 {object} map[string]int "enqueued count"
 // @Failure 400 {object} ErrorResponse "Unknown job type"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/workspace/jobs/{type}/trigger [post]
+// @Router /api/v1/workspace/jobs/{type}/trigger [post].
 func (s *Server) handleTriggerWorkspaceJob(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	jobTypeKey := c.Params("type")
@@ -316,7 +316,7 @@ type MemberResponse struct {
 // @Security BearerAuth
 // @Success 200 {array} MemberResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/workspace/members [get]
+// @Router /api/v1/workspace/members [get].
 func (s *Server) handleListMembers(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -349,7 +349,7 @@ func (s *Server) handleListMembers(c fiber.Ctx) error {
 // @Success 204
 // @Failure 400 {object} ErrorResponse "Cannot remove yourself or the last owner"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/workspace/members/{userId} [delete]
+// @Router /api/v1/workspace/members/{userId} [delete].
 func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	targetUserID := c.Params("userId")
@@ -377,7 +377,7 @@ func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 // @Failure 400 {object} ErrorResponse "Cannot demote the last owner"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/workspace/members/{userId} [put]
+// @Router /api/v1/workspace/members/{userId} [put].
 func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	targetUserID := c.Params("userId")
@@ -387,7 +387,13 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 		return nil
 	}
 
-	if err := s.workspace.UpdateMemberRole(c.Context(), claims.WorkspaceID, claims.UserID, targetUserID, string(body.Role)); err != nil {
+	if err := s.workspace.UpdateMemberRole(
+		c.Context(),
+		claims.WorkspaceID,
+		claims.UserID,
+		targetUserID,
+		string(body.Role),
+	); err != nil {
 		if isInvalidInput(err) {
 			return errRes(c, fiber.StatusBadRequest, err.Error())
 		}
@@ -401,8 +407,8 @@ type InviteResponse struct {
 	InviteToken string    `json:"invite_token,omitempty"`
 	Email       string    `json:"email"`
 	Role        string    `json:"role"`
-	ExpiresAt   time.Time `json:"expires_at,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // handleListInvites lists all pending invites for the workspace.
@@ -414,7 +420,7 @@ type InviteResponse struct {
 // @Security BearerAuth
 // @Success 200 {array} InviteResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/workspace/invites [get]
+// @Router /api/v1/workspace/invites [get].
 func (s *Server) handleListInvites(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -446,7 +452,7 @@ func (s *Server) handleListInvites(c fiber.Ctx) error {
 // @Param inviteId path string true "Invite ID"
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/workspace/invites/{inviteId} [delete]
+// @Router /api/v1/workspace/invites/{inviteId} [delete].
 func (s *Server) handleDeleteInvite(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	inviteID := c.Params("inviteId")
@@ -470,7 +476,7 @@ func (s *Server) handleDeleteInvite(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "Insufficient role — owner required"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/workspace/invites [post]
+// @Router /api/v1/workspace/invites [post].
 func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -511,7 +517,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 // @Failure 404 {object} ErrorResponse "Invalid or expired invite token"
 // @Failure 409 {object} ErrorResponse "Email already in use"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /auth/invite/accept [post]
+// @Router /auth/invite/accept [post].
 func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	req, ok := decodeAndValidate(c, &AcceptInviteRequest{})
 	if !ok {
@@ -539,7 +545,13 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	}
 
 	if inviter, err := s.users.GetByID(c.Context(), result.InviterID); err == nil {
-		if err := s.mailer.SendInviteAccepted(c.Context(), inviter.Email, result.UserName, result.UserEmail, result.InviteRole); err != nil {
+		if err := s.mailer.SendInviteAccepted(
+			c.Context(),
+			inviter.Email,
+			result.UserName,
+			result.UserEmail,
+			result.InviteRole,
+		); err != nil {
 			slog.ErrorContext(c.Context(), "failed to send invite accepted mail", "error", err)
 		}
 	}
@@ -552,6 +564,11 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	s.setAuthCookie(c, token)
 	return c.Status(fiber.StatusCreated).JSON(AuthResponse{
 		Token: token,
-		User:  UserResponse{ID: result.UserID, Email: result.UserEmail, Name: result.UserName, CreatedAt: result.UserCreatedAt},
+		User: UserResponse{
+			ID:        result.UserID,
+			Email:     result.UserEmail,
+			Name:      result.UserName,
+			CreatedAt: result.UserCreatedAt,
+		},
 	})
 }

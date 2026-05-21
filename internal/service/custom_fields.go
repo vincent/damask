@@ -22,7 +22,16 @@ import (
 
 var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
-const maxFieldDefinitionsPerScope = 50
+const (
+	maxMissingExifAssets        = 1000
+	maxFieldDefinitionsPerScope = 50
+	fieldTypeBoolean            = "boolean"
+	fieldTypeDate               = "date"
+	fieldTypeNumber             = "number"
+	fieldTypeSelect             = "select"
+	fieldTypeText               = "text"
+	fieldTypeURL                = "url"
+)
 
 // FieldDefinitionDTO is the output of FieldService methods.
 type FieldDefinitionDTO struct {
@@ -64,17 +73,17 @@ func (p *CreateFieldDefinitionParams) Validate() error {
 	if p.Key == "" {
 		return fmt.Errorf("key is required: %w", apperr.ErrInvalidInput)
 	}
-	if p.Scope != "asset" && p.Scope != "project" {
+	if p.Scope != string(AutomationScopeAsset) && p.Scope != string(AutomationScopeProject) {
 		return fmt.Errorf("scope must be 'asset' or 'project': %w", apperr.ErrInvalidInput)
 	}
 	validTypes := map[string]bool{
-		"text": true, "number": true, "date": true,
-		"boolean": true, "select": true, "url": true,
+		fieldTypeText: true, fieldTypeNumber: true, fieldTypeDate: true,
+		fieldTypeBoolean: true, fieldTypeSelect: true, fieldTypeURL: true,
 	}
 	if !validTypes[p.FieldType] {
 		return fmt.Errorf("invalid field_type %q: %w", p.FieldType, apperr.ErrInvalidInput)
 	}
-	if p.FieldType != "select" {
+	if p.FieldType != fieldTypeSelect {
 		p.Options = nil
 	}
 	return nil
@@ -124,7 +133,11 @@ func (s *fieldService) Get(ctx context.Context, workspaceID, id string) (*FieldD
 	return toFieldDTO(f), nil
 }
 
-func (s *fieldService) Create(ctx context.Context, workspaceID string, p CreateFieldDefinitionParams) (*FieldDefinitionDTO, error) {
+func (s *fieldService) Create(
+	ctx context.Context,
+	workspaceID string,
+	p CreateFieldDefinitionParams,
+) (*FieldDefinitionDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
@@ -133,7 +146,11 @@ func (s *fieldService) Create(ctx context.Context, workspaceID string, p CreateF
 		return nil, err
 	}
 	if count >= maxFieldDefinitionsPerScope {
-		return nil, fmt.Errorf("maximum of %d field definitions per scope reached: %w", maxFieldDefinitionsPerScope, apperr.ErrInvalidInput)
+		return nil, fmt.Errorf(
+			"maximum of %d field definitions per scope reached: %w",
+			maxFieldDefinitionsPerScope,
+			apperr.ErrInvalidInput,
+		)
 	}
 	f, err := s.fields.Create(ctx, repository.FieldDefinition{
 		ID:                 uuid.NewString(),
@@ -157,7 +174,11 @@ func (s *fieldService) Create(ctx context.Context, workspaceID string, p CreateF
 	return toFieldDTO(f), nil
 }
 
-func (s *fieldService) Update(ctx context.Context, workspaceID, id string, p UpdateFieldDefinitionParams) (*FieldDefinitionDTO, error) {
+func (s *fieldService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p UpdateFieldDefinitionParams,
+) (*FieldDefinitionDTO, error) {
 	existing, err := s.fields.GetByID(ctx, workspaceID, id)
 	if err != nil {
 		return nil, err
@@ -234,7 +255,10 @@ func (s *fieldService) Reorder(ctx context.Context, workspaceID string, items []
 	return nil
 }
 
-func (s *fieldService) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) (err error) {
+func (s *fieldService) InheritProjectFields(
+	ctx context.Context,
+	workspaceID, assetID, projectID, userID string,
+) (err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.fields.inherit_project_fields",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
@@ -243,7 +267,18 @@ func (s *fieldService) InheritProjectFields(ctx context.Context, workspaceID, as
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "field inheritance failed", "workspace_id", workspaceID, "asset_id", assetID, "project_id", projectID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"field inheritance failed",
+				"workspace_id",
+				workspaceID,
+				"asset_id",
+				assetID,
+				"project_id",
+				projectID,
+				"error",
+				err,
+			)
 		}
 	}()
 	return s.fields.InheritProjectFields(ctx, workspaceID, assetID, projectID, userID)
@@ -258,7 +293,7 @@ func (s *fieldService) ListAssetsMissingExif(ctx context.Context, workspaceID st
 		// No tombstone field yet — return all image asset IDs.
 		return s.fields.ListImageAssetIDs(ctx, workspaceID)
 	}
-	return s.fields.ListMissingExifField(ctx, workspaceID, tombstone.ID, 10000)
+	return s.fields.ListMissingExifField(ctx, workspaceID, tombstone.ID, maxMissingExifAssets)
 }
 
 func toFieldDTO(f repository.FieldDefinition) *FieldDefinitionDTO {
@@ -290,7 +325,12 @@ type assetFieldService struct {
 }
 
 // NewAssetFieldService returns an AssetFieldService.
-func NewAssetFieldService(assets repository.AssetRepository, fields repository.FieldRepository, assetFields repository.AssetFieldRepository, aw audit.Writer) AssetFieldService {
+func NewAssetFieldService(
+	assets repository.AssetRepository,
+	fields repository.FieldRepository,
+	assetFields repository.AssetFieldRepository,
+	aw audit.Writer,
+) AssetFieldService {
 	return &assetFieldService{assets: assets, fields: fields, assetFields: assetFields, audit: aw}
 }
 
@@ -303,7 +343,16 @@ func (s *assetFieldService) GetValues(ctx context.Context, workspaceID, assetID 
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset fields get values failed", "workspace_id", workspaceID, "asset_id", assetID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset fields get values failed",
+				"workspace_id",
+				workspaceID,
+				"asset_id",
+				assetID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -320,7 +369,11 @@ func (s *assetFieldService) GetValues(ctx context.Context, workspaceID, assetID 
 	return dtos, nil
 }
 
-func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error) {
+func (s *assetFieldService) SetValues(
+	ctx context.Context,
+	workspaceID, assetID, userID string,
+	inputs []SetFieldValueInput,
+) ([]*FieldValueDTO, error) {
 	if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
 		return nil, err
 	}
@@ -369,42 +422,51 @@ func (s *assetFieldService) SetValues(ctx context.Context, workspaceID, assetID,
 	for _, v := range dtos {
 		afterByFieldID[v.FieldID] = v
 	}
-	for _, input := range inputs {
-		before := existingByFieldID[input.FieldID]
-		after := afterByFieldID[input.FieldID]
-		var beforeVal interface{}
-		if before != nil {
-			beforeVal = before.Value
-		}
-		if input.Value == nil {
-			s.audit.WriteAsset(ctx, audit.AssetEvent{
-				WorkspaceID: workspaceID,
-				AssetID:     assetID,
-				UserID:      actor.UserID,
-				ActorType:   actor.Type,
-				EventType:   audit.EventAssetFieldCleared,
-				Payload:     audit.AssetFieldClearedPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal},
-			})
-		} else {
-			var afterVal interface{}
-			if after != nil {
-				afterVal = after.Value
-			}
-			s.audit.WriteAsset(ctx, audit.AssetEvent{
-				WorkspaceID: workspaceID,
-				AssetID:     assetID,
-				UserID:      actor.UserID,
-				ActorType:   actor.Type,
-				EventType:   audit.EventAssetFieldSet,
-				Payload:     audit.AssetFieldSetPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal, After: afterVal},
-			})
-		}
-	}
+	//nolint:dupl // Asset and project audit payloads are parallel event types with different writer methods.
+	emitFieldValueAuditEvents(inputs, existingByFieldID, afterByFieldID, func(
+		input SetFieldValueInput, // TODO: check why unused
+		before, after *FieldValueDTO,
+		beforeVal any,
+	) {
+		s.audit.WriteAsset(ctx, audit.AssetEvent{
+			WorkspaceID: workspaceID,
+			AssetID:     assetID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventAssetFieldCleared,
+			Payload: audit.AssetFieldClearedPayload{
+				V:         1,
+				FieldKey:  fieldKeyOf(before, after),
+				FieldName: fieldNameOf(before, after),
+				Before:    beforeVal,
+			},
+		})
+	}, func(input SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
+		s.audit.WriteAsset(ctx, audit.AssetEvent{
+			WorkspaceID: workspaceID,
+			AssetID:     assetID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventAssetFieldSet,
+			Payload: audit.AssetFieldSetPayload{
+				V:         1,
+				FieldKey:  fieldKeyOf(before, after),
+				FieldName: fieldNameOf(before, after),
+				Before:    beforeVal,
+				After:     afterVal,
+			},
+		})
+	})
 
 	return dtos, nil
 }
 
-func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (result BulkSetValuesResult, err error) {
+func (s *assetFieldService) BulkSetValues(
+	ctx context.Context,
+	workspaceID, userID string,
+	assetIDs []string,
+	inputs []SetFieldValueInput,
+) (result BulkSetValuesResult, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.asset_fields.bulk_set_values",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.assets.requested_count", len(assetIDs)),
@@ -417,7 +479,18 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 		)
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset fields bulk set failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "input_count", len(inputs), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset fields bulk set failed",
+				"workspace_id",
+				workspaceID,
+				"asset_count",
+				len(assetIDs),
+				"input_count",
+				len(inputs),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -488,11 +561,15 @@ func (s *assetFieldService) BulkSetValues(ctx context.Context, workspaceID, user
 	return result, nil
 }
 
-func (s *assetFieldService) BulkPreview(ctx context.Context, workspaceID string, assetIDs, fieldIDs []string) ([]BulkPreviewEntry, error) {
+func (s *assetFieldService) BulkPreview(
+	ctx context.Context,
+	workspaceID string,
+	assetIDs, fieldIDs []string,
+) ([]BulkPreviewEntry, error) {
 	// Resolve field definitions.
 	var defs []repository.FieldDefinition
 	if len(fieldIDs) == 0 {
-		all, err := s.fields.List(ctx, workspaceID, "asset")
+		all, err := s.fields.List(ctx, workspaceID, string(AutomationScopeAsset))
 		if err != nil {
 			return nil, err
 		}
@@ -607,7 +684,12 @@ type projectFieldService struct {
 }
 
 // NewProjectFieldService returns a ProjectFieldService.
-func NewProjectFieldService(projects repository.ProjectRepository, fields repository.FieldRepository, projectFields repository.ProjectFieldRepository, aw audit.Writer) ProjectFieldService {
+func NewProjectFieldService(
+	projects repository.ProjectRepository,
+	fields repository.FieldRepository,
+	projectFields repository.ProjectFieldRepository,
+	aw audit.Writer,
+) ProjectFieldService {
 	return &projectFieldService{projects: projects, fields: fields, projectFields: projectFields, audit: aw}
 }
 
@@ -622,7 +704,11 @@ func (s *projectFieldService) GetValues(ctx context.Context, workspaceID, projec
 	return toFieldValueDTOs(rows), nil
 }
 
-func (s *projectFieldService) SetValues(ctx context.Context, workspaceID, projectID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error) {
+func (s *projectFieldService) SetValues(
+	ctx context.Context,
+	workspaceID, projectID, userID string,
+	inputs []SetFieldValueInput,
+) ([]*FieldValueDTO, error) {
 	if _, err := s.projects.GetByID(ctx, workspaceID, projectID); err != nil {
 		return nil, err
 	}
@@ -638,7 +724,7 @@ func (s *projectFieldService) SetValues(ctx context.Context, workspaceID, projec
 		if err != nil {
 			return nil, err
 		}
-		if def.Scope != "project" {
+		if def.Scope != string(AutomationScopeProject) {
 			return nil, fmt.Errorf("field %s is not a project field: %w", def.Key, apperr.ErrInvalidInput)
 		}
 		if input.Value == nil {
@@ -668,44 +754,74 @@ func (s *projectFieldService) SetValues(ctx context.Context, workspaceID, projec
 	for _, v := range dtos {
 		afterByFieldID[v.FieldID] = v
 	}
-	for _, input := range inputs {
-		before := existingByFieldID[input.FieldID]
-		after := afterByFieldID[input.FieldID]
-		var beforeVal interface{}
-		if before != nil {
-			beforeVal = before.Value
-		}
-		if input.Value == nil {
-			s.audit.WriteProject(ctx, audit.ProjectEvent{
-				WorkspaceID: workspaceID,
-				ProjectID:   projectID,
-				UserID:      actor.UserID,
-				ActorType:   actor.Type,
-				EventType:   audit.EventProjectFieldCleared,
-				Payload:     audit.ProjectFieldClearedPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal},
-			})
-		} else {
-			var afterVal interface{}
-			if after != nil {
-				afterVal = after.Value
-			}
-			s.audit.WriteProject(ctx, audit.ProjectEvent{
-				WorkspaceID: workspaceID,
-				ProjectID:   projectID,
-				UserID:      actor.UserID,
-				ActorType:   actor.Type,
-				EventType:   audit.EventProjectFieldSet,
-				Payload:     audit.ProjectFieldSetPayload{V: 1, FieldKey: fieldKeyOf(before, after), FieldName: fieldNameOf(before, after), Before: beforeVal, After: afterVal},
-			})
-		}
-	}
+	//nolint:dupl // Asset and project audit payloads are parallel event types with different writer methods.
+	emitFieldValueAuditEvents(inputs, existingByFieldID, afterByFieldID, func(
+		input SetFieldValueInput,
+		before, after *FieldValueDTO,
+		beforeVal any,
+	) {
+		s.audit.WriteProject(ctx, audit.ProjectEvent{
+			WorkspaceID: workspaceID,
+			ProjectID:   projectID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventProjectFieldCleared,
+			Payload: audit.ProjectFieldClearedPayload{
+				V:         1,
+				FieldKey:  fieldKeyOf(before, after),
+				FieldName: fieldNameOf(before, after),
+				Before:    beforeVal,
+			},
+		})
+	}, func(input SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
+		s.audit.WriteProject(ctx, audit.ProjectEvent{
+			WorkspaceID: workspaceID,
+			ProjectID:   projectID,
+			UserID:      actor.UserID,
+			ActorType:   actor.Type,
+			EventType:   audit.EventProjectFieldSet,
+			Payload: audit.ProjectFieldSetPayload{
+				V:         1,
+				FieldKey:  fieldKeyOf(before, after),
+				FieldName: fieldNameOf(before, after),
+				Before:    beforeVal,
+				After:     afterVal,
+			},
+		})
+	})
 
 	return dtos, nil
 }
 
 // -- Shared helpers -----------------------------------------------------------
 
-func resolveFieldValue(fieldID, fieldType string, options *string, value interface{}) (repository.SetFieldValueParams, error) {
+func emitFieldValueAuditEvents(
+	inputs []SetFieldValueInput,
+	existingByFieldID map[string]*FieldValueDTO,
+	afterByFieldID map[string]*FieldValueDTO,
+	writeCleared func(SetFieldValueInput, *FieldValueDTO, *FieldValueDTO, any),
+	writeSet func(SetFieldValueInput, *FieldValueDTO, *FieldValueDTO, any, any),
+) {
+	for _, input := range inputs {
+		before := existingByFieldID[input.FieldID]
+		after := afterByFieldID[input.FieldID]
+		beforeVal := fieldValueOrNil(before)
+		if input.Value == nil {
+			writeCleared(input, before, after, beforeVal)
+			continue
+		}
+		writeSet(input, before, after, beforeVal, fieldValueOrNil(after))
+	}
+}
+
+func fieldValueOrNil(value *FieldValueDTO) any {
+	if value == nil {
+		return nil
+	}
+	return value.Value
+}
+
+func resolveFieldValue(fieldID, fieldType string, options *string, value any) (repository.SetFieldValueParams, error) {
 	p := repository.SetFieldValueParams{FieldID: fieldID}
 	switch fieldType {
 	case "text", "url":
@@ -714,7 +830,7 @@ func resolveFieldValue(fieldID, fieldType string, options *string, value interfa
 			return p, fmt.Errorf("field %s expects a string value", fieldID)
 		}
 		p.ValueText = &s
-	case "select":
+	case fieldTypeSelect:
 		s, ok := value.(string)
 		if !ok {
 			return p, fmt.Errorf("field %s expects a string value", fieldID)
@@ -722,13 +838,7 @@ func resolveFieldValue(fieldID, fieldType string, options *string, value interfa
 		if options != nil {
 			var opts []string
 			if err := json.Unmarshal([]byte(*options), &opts); err == nil {
-				valid := false
-				for _, o := range opts {
-					if o == s {
-						valid = true
-						break
-					}
-				}
+				valid := slices.Contains(opts, s)
 				if !valid {
 					return p, fmt.Errorf("value '%s' is not a valid option for field %s", s, fieldID)
 				}
@@ -787,7 +897,7 @@ func toFieldValueDTO(row repository.FieldValue) *FieldValueDTO {
 		DefinitionDeleted: row.DefinitionDeleted,
 	}
 	switch row.FieldType {
-	case "text", "url", "select":
+	case fieldTypeText, fieldTypeURL, fieldTypeSelect:
 		if row.ValueText != nil {
 			dto.Value = *row.ValueText
 		}

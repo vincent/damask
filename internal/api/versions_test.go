@@ -13,7 +13,7 @@ import (
 
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -553,7 +553,7 @@ func TestUploadVersion_EnqueuesRebuildVariantsJob(t *testing.T) {
 	if err := json.NewDecoder(resp2.Body).Decode(&result); err != nil {
 		// Body was already consumed; fetch the version ID from the DB instead.
 		var newVersionID string
-		_ = env.SqlDB.QueryRow(
+		_ = env.Database.QueryRow(
 			`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, asset.ID,
 		).Scan(&newVersionID)
 		result.Version.ID = newVersionID
@@ -561,7 +561,7 @@ func TestUploadVersion_EnqueuesRebuildVariantsJob(t *testing.T) {
 
 	// Verify a rebuild_variants job was enqueued for the new version.
 	var count int
-	err := env.SqlDB.QueryRow(
+	err := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'rebuild_variants'
 		   AND JSON_EXTRACT(payload, '$.new_version_id') = ?`,
 		result.Version.ID,
@@ -581,7 +581,7 @@ func TestUploadVersion_FirstUploadNoRebuildJob(t *testing.T) {
 
 	// There should be no rebuild_variants job for the first version (no previous version).
 	var count int
-	_ = env.SqlDB.QueryRow(
+	_ = env.Database.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'rebuild_variants'`,
 	).Scan(&count)
 	if count != 0 {
@@ -620,7 +620,7 @@ func TestRestoreVersion_NoRebuildJobEnqueued(t *testing.T) {
 
 	// Count rebuild jobs before restore.
 	var before int
-	env.SqlDB.QueryRow(`SELECT COUNT(*) FROM jobs WHERE type = 'rebuild_variants'`).Scan(&before) //nolint:errcheck
+	env.Database.QueryRow(`SELECT COUNT(*) FROM jobs WHERE type = 'rebuild_variants'`).Scan(&before) //nolint:errcheck
 
 	// Restore v1.
 	restoreURL := fmt.Sprintf("/api/v1/assets/%s/versions/%s/restore", asset.ID, v1ID)
@@ -632,7 +632,7 @@ func TestRestoreVersion_NoRebuildJobEnqueued(t *testing.T) {
 
 	// No new rebuild job should have been enqueued by the restore.
 	var after int
-	env.SqlDB.QueryRow(`SELECT COUNT(*) FROM jobs WHERE type = 'rebuild_variants'`).Scan(&after) //nolint:errcheck
+	env.Database.QueryRow(`SELECT COUNT(*) FROM jobs WHERE type = 'rebuild_variants'`).Scan(&after) //nolint:errcheck
 	if after != before {
 		t.Errorf("restore enqueued an unexpected rebuild_variants job (before=%d, after=%d)", before, after)
 	}

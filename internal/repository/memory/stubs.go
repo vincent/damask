@@ -278,7 +278,11 @@ func (r *WorkspaceRepo) ListByUserID(_ context.Context, _ string) ([]repository.
 func (r *WorkspaceRepo) RunInTx(_ context.Context, fn func(repository.WorkspaceRepository) error) error {
 	return fn(r)
 }
-func (r *WorkspaceRepo) RunRegistrationTx(_ context.Context, fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error) error {
+
+func (r *WorkspaceRepo) RunRegistrationTx(
+	_ context.Context,
+	fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error,
+) error {
 	return fn(context.Background(), &UserRepo{}, r)
 }
 

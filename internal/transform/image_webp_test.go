@@ -14,8 +14,8 @@ func makeTestPNG(t *testing.T) []byte {
 	t.Helper()
 
 	img := image.NewNRGBA(image.Rect(0, 0, 16, 12))
-	for y := 0; y < 12; y++ {
-		for x := 0; x < 16; x++ {
+	for y := range 12 {
+		for x := range 16 {
 			img.Set(x, y, color.NRGBA{
 				R: uint8(x * 10),
 				G: uint8(y * 15),

@@ -78,7 +78,10 @@ func (r *RealVersionRepo) GetFirstByAsset(_ context.Context, assetID string) (re
 	return *first, nil
 }
 
-func (r *RealVersionRepo) GetByIDForWorkspace(_ context.Context, workspaceID, id string) (repository.AssetVersion, error) {
+func (r *RealVersionRepo) GetByIDForWorkspace(
+	_ context.Context,
+	workspaceID, id string,
+) (repository.AssetVersion, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	v, ok := r.versions[id]
@@ -162,13 +165,13 @@ func (r *RealVersionRepo) GetByHash(_ context.Context, assetID, contentHash stri
 func (r *RealVersionRepo) NextVersionNum(_ context.Context, assetID string) (int64, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	var max int64
+	var maxVersion int64
 	for _, v := range r.versions {
-		if v.AssetID == assetID && v.VersionNum > max {
-			max = v.VersionNum
+		if v.AssetID == assetID && v.VersionNum > maxVersion {
+			maxVersion = v.VersionNum
 		}
 	}
-	return max + 1, nil
+	return maxVersion + 1, nil
 }
 
 func (r *RealVersionRepo) SetCurrent(_ context.Context, assetID, versionID string) error {
@@ -185,7 +188,10 @@ func (r *RealVersionRepo) SetCurrent(_ context.Context, assetID, versionID strin
 
 func (r *RealVersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *string) error { return nil }
 
-func (r *RealVersionRepo) ListWithVariantCount(_ context.Context, assetID string) ([]repository.AssetVersionWithCount, error) {
+func (r *RealVersionRepo) ListWithVariantCount(
+	_ context.Context,
+	assetID string,
+) ([]repository.AssetVersionWithCount, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []repository.AssetVersionWithCount

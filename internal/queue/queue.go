@@ -4,6 +4,7 @@ package queue
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/debug"
@@ -17,6 +18,11 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+)
+
+const (
+	transcodeSemaphoreLimit = 2
+	rebuildSemaphoreLimit   = 2
 )
 
 // HandlerFunc processes a job payload and returns an error on failure.
@@ -41,9 +47,9 @@ type Queue struct {
 	done   chan struct{}
 	wg     sync.WaitGroup
 
-	// Semaphore limiting concurrent transcode jobs to 2.
+	// Semaphore limiting concurrent transcode jobs.
 	transcodeSem chan struct{}
-	// Semaphore limiting concurrent rebuild_variants jobs to 2.
+	// Semaphore limiting concurrent rebuild_variants jobs.
 	rebuildSem chan struct{}
 }
 
@@ -58,8 +64,8 @@ func New(db *dbgen.Queries, workers int) *Queue {
 		handlers:     make(map[string]HandlerFunc),
 		notify:       make(chan struct{}, workers),
 		done:         make(chan struct{}),
-		transcodeSem: make(chan struct{}, 2),
-		rebuildSem:   make(chan struct{}, 2),
+		transcodeSem: make(chan struct{}, transcodeSemaphoreLimit),
+		rebuildSem:   make(chan struct{}, rebuildSemaphoreLimit),
 	}
 }
 
@@ -75,7 +81,7 @@ func (q *Queue) Start(ctx context.Context) {
 		slog.ErrorContext(ctx, "queue: requeue stalled", "error", err)
 	}
 
-	for i := 0; i < q.workers; i++ {
+	for range q.workers {
 		q.wg.Add(1)
 		go q.worker(ctx)
 	}
@@ -146,14 +152,25 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	job, err := q.db.ClaimNextJob(ctx)
 	if err != nil {
-		if err != sql.ErrNoRows {
+		if !errors.Is(err, sql.ErrNoRows) {
 			span.SetStatus(codes.Error, err.Error())
 			slog.ErrorContext(ctx, "queue: claim job", "error", err)
 		}
 		return
 	}
 
-	defer slog.DebugContext(ctx, "end background job", "job", "service.queue.job."+job.Type, "job_id", job.ID, "workspace_id", job.WorkspaceID, "attempt", job.Attempts)
+	defer slog.DebugContext(
+		ctx,
+		"end background job",
+		"job",
+		"service.queue.job."+job.Type,
+		"job_id",
+		job.ID,
+		"workspace_id",
+		job.WorkspaceID,
+		"attempt",
+		job.Attempts,
+	)
 
 	span.SetAttributes(attribute.String("damask.job.id", job.ID))
 	span.SetAttributes(attribute.String("damask.job.type", job.Type))
@@ -191,7 +208,18 @@ func (q *Queue) processNext(ctx context.Context) {
 		attribute.String("damask.workspace_id", job.WorkspaceID),
 	)
 
-	slog.DebugContext(ctx, "start background job", "job", "service.queue.job."+job.Type, "job_id", job.ID, "workspace_id", job.WorkspaceID, "attempt", job.Attempts)
+	slog.DebugContext(
+		ctx,
+		"start background job",
+		"job",
+		"service.queue.job."+job.Type,
+		"job_id",
+		job.ID,
+		"workspace_id",
+		job.WorkspaceID,
+		"attempt",
+		job.Attempts,
+	)
 
 	var jobFailed bool
 	func() {
@@ -201,7 +229,18 @@ func (q *Queue) processNext(ctx context.Context) {
 				panicErr := fmt.Errorf("panic: %v", r)
 				telemetry.RecordError(jobSpan, panicErr)
 				span.SetStatus(codes.Error, "queue: job panicked")
-				slog.ErrorContext(ctx, "queue: job panicked", "job_id", job.ID, "job_type", job.Type, "panic", r, "stack", string(debug.Stack()))
+				slog.ErrorContext(
+					ctx,
+					"queue: job panicked",
+					"job_id",
+					job.ID,
+					"job_type",
+					job.Type,
+					"panic",
+					r,
+					"stack",
+					string(debug.Stack()),
+				)
 				errMsg := panicErr.Error()
 				_ = q.db.FailJob(ctx, dbgen.FailJobParams{
 					Error: &errMsg,

@@ -3,16 +3,19 @@ package events
 import (
 	"bufio"
 	"context"
-	"damask/server/internal/auth"
-	"damask/server/internal/telemetry"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
+	"damask/server/internal/auth"
+	"damask/server/internal/telemetry"
+
 	"github.com/gofiber/fiber/v3"
 )
+
+const sseEventTicker = 10 * time.Second
 
 // Event is an payload sent to connected clients.
 type Event struct {
@@ -55,7 +58,7 @@ func (h *EventHubImpl) Subscribe(workspaceID string) (<-chan Event, func()) {
 
 	h.counter++
 	id := h.counter
-	ch := make(chan Event, 8)
+	ch := make(chan Event, 8) //nolint:mnd // fixed buffer size for all subscribers
 
 	if h.subs[workspaceID] == nil {
 		h.subs[workspaceID] = make(map[uint64]chan Event)
@@ -82,7 +85,20 @@ func (h *EventHubImpl) Publish(ctx context.Context, workspaceID string, ev Event
 	_, span := telemetry.StartSpan(ctx, "service.events.publish")
 	defer func() { telemetry.EndSpan(span, err) }()
 
-	slog.DebugContext(ctx, "publishing event", "workspace_id", workspaceID, "event_type", ev.Type, "asset_id", ev.AssetID, "variant_id", ev.VariantID, "job_id", ev.JobID)
+	slog.DebugContext(
+		ctx,
+		"publishing event",
+		"workspace_id",
+		workspaceID,
+		"event_type",
+		ev.Type,
+		"asset_id",
+		ev.AssetID,
+		"variant_id",
+		ev.VariantID,
+		"job_id",
+		ev.JobID,
+	)
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -112,7 +128,7 @@ func (h *EventHubImpl) EventHandler(c fiber.Ctx) error {
 			return
 		}
 
-		ticker := time.NewTicker(25 * time.Second)
+		ticker := time.NewTicker(sseEventTicker)
 		defer ticker.Stop()
 
 		for {

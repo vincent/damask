@@ -3,6 +3,7 @@ package transform
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -45,7 +46,7 @@ func (p *VideoWatermarkParams) normalize() {
 		p.Opacity = 0.5
 	}
 	if p.Format == "" {
-		p.Format = "mp4"
+		p.Format = formatMP4
 	}
 }
 
@@ -57,7 +58,6 @@ func (p *VideoWatermarkParams) Normalize() {
 // srcPath must be a filesystem path to the source video.
 // Returns VideoResolution.
 func (t *transformer) VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResolution, error) {
-
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -102,9 +102,13 @@ func (t *transformer) VideoExtractResolution(ctx context.Context, srcPath string
 // VideoExtractThumbnail runs ffmpeg to extract a single frame from a video file.
 // srcPath must be a filesystem path to the source video.
 // Returns JPEG bytes.
-func (t *transformer) VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error) {
+func (t *transformer) VideoExtractThumbnail(
+	ctx context.Context,
+	srcPath string,
+	p VideoThumbnailParams,
+) ([]byte, error) {
 	if len(strings.TrimSpace(srcPath)) == 0 {
-		return nil, fmt.Errorf("source path is empty")
+		return nil, errors.New("source path is empty")
 	}
 
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
@@ -185,7 +189,7 @@ type VideoClipParams struct {
 // Returns MP4 bytes.
 func (t *transformer) VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) ([]byte, error) {
 	if len(strings.TrimSpace(srcPath)) == 0 {
-		return nil, fmt.Errorf("source path is empty")
+		return nil, errors.New("source path is empty")
 	}
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("source path does not exist: %s", srcPath)
@@ -257,7 +261,7 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 
 	// Video codec
 	switch p.Format {
-	case "webm":
+	case formatWebM:
 		args = append(args, "-c:v", "libvpx-vp9")
 	default: // mp4
 		args = append(args, "-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast")
@@ -268,10 +272,10 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 		args = append(args, "-an")
 	} else {
 		switch p.Format {
-		case "webm":
-			args = append(args, "-c:a", "libopus")
+		case formatWebM:
+			args = append(args, ffmpegArgAudioCodec, "libopus")
 		default:
-			args = append(args, "-c:a", "aac")
+			args = append(args, ffmpegArgAudioCodec, "aac")
 		}
 	}
 
@@ -294,15 +298,20 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 	return nil
 }
 
-func (t *transformer) VideoWatermark(ctx context.Context, srcPath, dstPath string, wm io.Reader, p VideoWatermarkParams) error {
+func (t *transformer) VideoWatermark(
+	ctx context.Context,
+	srcPath, dstPath string,
+	wm io.Reader,
+	p VideoWatermarkParams,
+) error {
 	if len(strings.TrimSpace(srcPath)) == 0 {
-		return fmt.Errorf("source path is empty")
+		return errors.New("source path is empty")
 	}
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
 		return fmt.Errorf("source path does not exist: %s", srcPath)
 	}
 	if strings.TrimSpace(p.WatermarkAssetID) == "" {
-		return fmt.Errorf("watermark asset id is required")
+		return errors.New("watermark asset id is required")
 	}
 	p.normalize()
 
@@ -358,15 +367,15 @@ func (t *transformer) VideoWatermark(ctx context.Context, srcPath, dstPath strin
 	}
 
 	switch p.Format {
-	case "webm":
+	case formatWebM:
 		args = append(args, "-c:v", "libvpx-vp9")
 		if !p.StripAudio {
-			args = append(args, "-c:a", "libopus")
+			args = append(args, ffmpegArgAudioCodec, "libopus")
 		}
 	default:
 		args = append(args, "-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast")
 		if !p.StripAudio {
-			args = append(args, "-c:a", "aac")
+			args = append(args, ffmpegArgAudioCodec, "aac")
 		}
 	}
 
@@ -392,7 +401,7 @@ func ffmpegOutputFilters(format, resolution string) string {
 	}
 
 	switch strings.ToLower(strings.TrimSpace(format)) {
-	case "", "mp4":
+	case "", formatMP4:
 		// libx264 requires even dimensions; keep the output bounded by the source
 		// by trimming odd dimensions down to the nearest even pixel.
 		filters = append(filters, "scale=trunc(iw/2)*2:trunc(ih/2)*2")

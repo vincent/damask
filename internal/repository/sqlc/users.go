@@ -27,11 +27,19 @@ func NewUserRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.UserRepository {
 }
 
 func (r *userRepo) GetByID(ctx context.Context, id string) (repository.User, error) {
-	return r.getOne(ctx, `SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`, id)
+	return r.getOne(
+		ctx,
+		`SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+		id,
+	)
 }
 
 func (r *userRepo) GetByEmail(ctx context.Context, email string) (repository.User, error) {
-	return r.getOne(ctx, `SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1`, email)
+	return r.getOne(
+		ctx,
+		`SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1`,
+		email,
+	)
 }
 
 func (r *userRepo) Create(ctx context.Context, u repository.User) (repository.User, error) {
@@ -52,62 +60,108 @@ func (r *userRepo) Update(ctx context.Context, u repository.User) (repository.Us
 }
 
 func (r *userRepo) UpdateProfile(ctx context.Context, id, displayName string) (repository.User, error) {
-	if _, err := r.db.ExecContext(ctx, `UPDATE users SET display_name = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`, displayName, id); err != nil {
+	if _, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET display_name = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
+		displayName,
+		id,
+	); err != nil {
 		return repository.User{}, err
 	}
 	return r.GetByID(ctx, id)
 }
 
 func (r *userRepo) UpdateAvatarKey(ctx context.Context, id, storageKey string) (repository.User, error) {
-	if _, err := r.db.ExecContext(ctx, `UPDATE users SET avatar_storage_key = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`, storageKey, id); err != nil {
+	if _, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET avatar_storage_key = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
+		storageKey,
+		id,
+	); err != nil {
 		return repository.User{}, err
 	}
 	return r.GetByID(ctx, id)
 }
 
 func (r *userRepo) ClearAvatarKey(ctx context.Context, id string) (repository.User, error) {
-	if _, err := r.db.ExecContext(ctx, `UPDATE users SET avatar_storage_key = NULL, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`, id); err != nil {
+	if _, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET avatar_storage_key = NULL, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
+		id,
+	); err != nil {
 		return repository.User{}, err
 	}
 	return r.GetByID(ctx, id)
 }
 
 func (r *userRepo) SetPassword(ctx context.Context, id, passwordHash string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`, passwordHash, id)
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
+		passwordHash,
+		id,
+	)
 	return err
 }
 
 func (r *userRepo) SetAuthMethods(ctx context.Context, id, authMethods string) (repository.User, error) {
-	if _, err := r.db.ExecContext(ctx, `UPDATE users SET auth_methods = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`, authMethods, id); err != nil {
+	if _, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET auth_methods = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
+		authMethods,
+		id,
+	); err != nil {
 		return repository.User{}, err
 	}
 	return r.GetByID(ctx, id)
 }
 
 func (r *userRepo) SetPendingEmail(ctx context.Context, id, email string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE users SET pending_email = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`, email, id)
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET pending_email = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
+		email,
+		id,
+	)
 	return err
 }
 
 func (r *userRepo) ClearPendingEmail(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE users SET pending_email = NULL, updated_at = datetime('now') WHERE id = ?`, id)
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET pending_email = NULL, updated_at = datetime('now') WHERE id = ?`,
+		id,
+	)
 	return err
 }
 
 func (r *userRepo) ConfirmEmailChange(ctx context.Context, id, pendingEmail string) (repository.User, error) {
-	if _, err := r.db.ExecContext(ctx, `UPDATE users SET email = pending_email, pending_email = NULL, updated_at = datetime('now') WHERE id = ? AND pending_email = ? AND deleted_at IS NULL`, id, pendingEmail); err != nil {
+	if _, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET email = pending_email, pending_email = NULL, updated_at = datetime('now') WHERE id = ? AND pending_email = ? AND deleted_at IS NULL`,
+		id,
+		pendingEmail,
+	); err != nil {
 		return repository.User{}, err
 	}
 	return r.GetByID(ctx, id)
 }
 
 func (r *userRepo) SoftDelete(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE users SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`, id)
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
+		id,
+	)
 	return err
 }
 
 func (r *userRepo) AnonymizeDeletedUser(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE users SET email = 'deleted_' || id || '@deleted.invalid', display_name = 'Deleted user', password_hash = '', avatar_storage_key = NULL, avatar_url = NULL, pending_email = NULL, auth_methods = '[]', updated_at = datetime('now') WHERE id = ?`, id)
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE users SET email = 'deleted_' || id || '@deleted.invalid', display_name = 'Deleted user', password_hash = '', avatar_storage_key = NULL, avatar_url = NULL, pending_email = NULL, auth_methods = '[]', updated_at = datetime('now') WHERE id = ?`,
+		id,
+	)
 	return err
 }
 
@@ -117,15 +171,28 @@ func (r *userRepo) HardDelete(ctx context.Context, id string) error {
 }
 
 func (r *userRepo) GetByGoogleID(ctx context.Context, googleUserID string) (repository.User, error) {
-	return r.getOne(ctx, `SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE google_user_id = ? AND deleted_at IS NULL LIMIT 1`, googleUserID)
+	return r.getOne(
+		ctx,
+		`SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE google_user_id = ? AND deleted_at IS NULL LIMIT 1`,
+		googleUserID,
+	)
 }
 
 func (r *userRepo) GetByCanvaID(ctx context.Context, canvaUserID string) (repository.User, error) {
-	return r.getOne(ctx, `SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE canva_user_id = ? AND deleted_at IS NULL LIMIT 1`, canvaUserID)
+	return r.getOne(
+		ctx,
+		`SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE canva_user_id = ? AND deleted_at IS NULL LIMIT 1`,
+		canvaUserID,
+	)
 }
 
 func (r *userRepo) GetByOIDC(ctx context.Context, issuer, sub string) (repository.User, error) {
-	return r.getOne(ctx, `SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE oidc_issuer = ? AND oidc_sub = ? AND deleted_at IS NULL LIMIT 1`, issuer, sub)
+	return r.getOne(
+		ctx,
+		`SELECT id, email, password_hash, name, created_at, updated_at, oidc_sub, oidc_issuer, canva_user_id, google_user_id, avatar_url, auth_methods, avatar_storage_key, pending_email, display_name, deleted_at FROM users WHERE oidc_issuer = ? AND oidc_sub = ? AND deleted_at IS NULL LIMIT 1`,
+		issuer,
+		sub,
+	)
 }
 
 func (r *userRepo) CreateWithGoogle(ctx context.Context, u repository.User) (repository.User, error) {
@@ -134,7 +201,7 @@ func (r *userRepo) CreateWithGoogle(ctx context.Context, u repository.User) (rep
 		Email:        u.Email,
 		Name:         u.Name,
 		GoogleUserID: u.GoogleUserID,
-		AvatarUrl:    u.AvatarUrl,
+		AvatarUrl:    u.AvatarURL,
 		AuthMethods:  u.AuthMethods,
 	})
 	if err != nil {
@@ -150,7 +217,7 @@ func (r *userRepo) CreateWithOIDC(ctx context.Context, u repository.User) (repos
 		Name:        u.Name,
 		OidcIssuer:  u.OidcIssuer,
 		OidcSub:     u.OidcSub,
-		AvatarUrl:   u.AvatarUrl,
+		AvatarUrl:   u.AvatarURL,
 		AuthMethods: u.AuthMethods,
 	})
 	if err != nil {
@@ -165,7 +232,7 @@ func (r *userRepo) CreateWithCanva(ctx context.Context, u repository.User) (repo
 		Email:       u.Email,
 		Name:        u.Name,
 		CanvaUserID: u.CanvaUserID,
-		AvatarUrl:   u.AvatarUrl,
+		AvatarUrl:   u.AvatarURL,
 		AuthMethods: u.AuthMethods,
 	})
 	if err != nil {
@@ -178,7 +245,7 @@ func (r *userRepo) LinkGoogle(ctx context.Context, u repository.User) (repositor
 	_, err := r.q.LinkGoogle(ctx, dbgen.LinkGoogleParams{
 		ID:           u.ID,
 		GoogleUserID: u.GoogleUserID,
-		AvatarUrl:    u.AvatarUrl,
+		AvatarUrl:    u.AvatarURL,
 		AuthMethods:  u.AuthMethods,
 	})
 	if err != nil {
@@ -192,7 +259,7 @@ func (r *userRepo) LinkOIDC(ctx context.Context, u repository.User) (repository.
 		ID:          u.ID,
 		OidcIssuer:  u.OidcIssuer,
 		OidcSub:     u.OidcSub,
-		AvatarUrl:   u.AvatarUrl,
+		AvatarUrl:   u.AvatarURL,
 		AuthMethods: u.AuthMethods,
 	})
 	if err != nil {
@@ -205,7 +272,7 @@ func (r *userRepo) LinkCanva(ctx context.Context, u repository.User) (repository
 	_, err := r.q.LinkCanva(ctx, dbgen.LinkCanvaParams{
 		ID:          u.ID,
 		CanvaUserID: u.CanvaUserID,
-		AvatarUrl:   u.AvatarUrl,
+		AvatarUrl:   u.AvatarURL,
 		AuthMethods: u.AuthMethods,
 	})
 	if err != nil {
@@ -264,7 +331,7 @@ func (r *userRepo) RunInTx(ctx context.Context, fn func(repository.UserRepositor
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	if err := fn(&userRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB, db: tx}); err != nil {
 		return err
 	}
@@ -285,7 +352,7 @@ func (r *userRepo) getOne(ctx context.Context, query string, args ...any) (repos
 		&u.OidcIssuer,
 		&u.CanvaUserID,
 		&u.GoogleUserID,
-		&u.AvatarUrl,
+		&u.AvatarURL,
 		&u.AuthMethods,
 		&u.AvatarStorageKey,
 		&u.PendingEmail,

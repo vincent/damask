@@ -49,7 +49,7 @@ func projectDTOToResponse(d *service.ProjectDTO) ProjectResponse {
 // @Success 201 {object} ProjectResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/projects [post]
+// @Router /api/v1/projects [post].
 func (s *Server) handleCreateProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -79,7 +79,7 @@ func (s *Server) handleCreateProject(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Success 200 {array} ProjectResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/projects [get]
+// @Router /api/v1/projects [get].
 func (s *Server) handleListProjects(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -106,7 +106,7 @@ func (s *Server) handleListProjects(c fiber.Ctx) error {
 // @Success 200 {object} ProjectResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project not found"
-// @Router /api/v1/projects/{id} [get]
+// @Router /api/v1/projects/{id} [get].
 func (s *Server) handleGetProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -131,7 +131,7 @@ func (s *Server) handleGetProject(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/projects/{id} [put]
+// @Router /api/v1/projects/{id} [put].
 func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -165,7 +165,7 @@ func (s *Server) handleUpdateProject(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project not found"
-// @Router /api/v1/projects/{id} [delete]
+// @Router /api/v1/projects/{id} [delete].
 func (s *Server) handleDeleteProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")

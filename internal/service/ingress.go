@@ -21,6 +21,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+const publicTokenLength = 20
+
 // IngressSourceDTO is the output of IngressService source methods.
 type IngressSourceDTO struct {
 	ID              string         `json:"id"`
@@ -154,7 +156,11 @@ func (s *ingressService) GetSource(ctx context.Context, workspaceID, id string) 
 	return s.toSourceDTO(src)
 }
 
-func (s *ingressService) CreateSource(ctx context.Context, workspaceID, userID string, p CreateIngressSourceParams) (*IngressSourceDTO, error) {
+func (s *ingressService) CreateSource(
+	ctx context.Context,
+	workspaceID, userID string,
+	p CreateIngressSourceParams,
+) (*IngressSourceDTO, error) {
 	p.Label = strings.TrimSpace(p.Label)
 	if p.Label == "" {
 		return nil, fmt.Errorf("label is required: %w", apperr.ErrInvalidInput)
@@ -191,7 +197,7 @@ func (s *ingressService) CreateSource(ctx context.Context, workspaceID, userID s
 		enabled = 0
 	}
 
-	publicToken, err := ingress.GenerateToken(20)
+	publicToken, err := ingress.GenerateToken(publicTokenLength)
 	if err != nil {
 		return nil, fmt.Errorf("could not generate public token: %w", err)
 	}
@@ -237,7 +243,11 @@ func (s *ingressService) CreateSource(ctx context.Context, workspaceID, userID s
 	return s.toSourceDTO(src)
 }
 
-func (s *ingressService) UpdateSource(ctx context.Context, workspaceID, id string, p UpdateIngressSourceParams) (*IngressSourceDTO, error) {
+func (s *ingressService) UpdateSource(
+	ctx context.Context,
+	workspaceID, id string,
+	p UpdateIngressSourceParams,
+) (*IngressSourceDTO, error) {
 	existing, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
@@ -319,7 +329,16 @@ func (s *ingressService) TestSource(ctx context.Context, workspaceID, id string)
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "ingress source test failed", "workspace_id", workspaceID, "source_id", id, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"ingress source test failed",
+				"workspace_id",
+				workspaceID,
+				"source_id",
+				id,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -363,7 +382,16 @@ func (s *ingressService) TriggerPoll(ctx context.Context, workspaceID, id string
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "ingress poll trigger failed", "workspace_id", workspaceID, "source_id", id, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"ingress poll trigger failed",
+				"workspace_id",
+				workspaceID,
+				"source_id",
+				id,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -410,7 +438,11 @@ func (s *ingressService) ListRules(ctx context.Context, workspaceID, sourceID st
 	return out, nil
 }
 
-func (s *ingressService) CreateRule(ctx context.Context, workspaceID, sourceID string, p CreateIngressRuleParams) (*IngressRuleDTO, error) {
+func (s *ingressService) CreateRule(
+	ctx context.Context,
+	workspaceID, sourceID string,
+	p CreateIngressRuleParams,
+) (*IngressRuleDTO, error) {
 	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
@@ -434,7 +466,11 @@ func (s *ingressService) CreateRule(ctx context.Context, workspaceID, sourceID s
 	return toRuleDTO(r), nil
 }
 
-func (s *ingressService) UpdateRule(ctx context.Context, workspaceID, sourceID, ruleID string, p UpdateIngressRuleParams) (*IngressRuleDTO, error) {
+func (s *ingressService) UpdateRule(
+	ctx context.Context,
+	workspaceID, sourceID, ruleID string,
+	p UpdateIngressRuleParams,
+) (*IngressRuleDTO, error) {
 	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
@@ -507,7 +543,11 @@ func (s *ingressService) DeleteRule(ctx context.Context, workspaceID, sourceID, 
 	return s.db.DeleteIngressRule(ctx, ruleID)
 }
 
-func (s *ingressService) ReorderRules(ctx context.Context, workspaceID, sourceID string, entries []ReorderRuleEntry) ([]*IngressRuleDTO, error) {
+func (s *ingressService) ReorderRules(
+	ctx context.Context,
+	workspaceID, sourceID string,
+	entries []ReorderRuleEntry,
+) ([]*IngressRuleDTO, error) {
 	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
@@ -552,8 +592,13 @@ func (s *ingressService) ReorderRules(ctx context.Context, workspaceID, sourceID
 
 // -- Log --
 
-func (s *ingressService) ListLog(ctx context.Context, workspaceID string, statusFilter string, limit, offset int64) ([]*IngressLogEntryDTO, error) {
-	var statusArg interface{}
+func (s *ingressService) ListLog(
+	ctx context.Context,
+	workspaceID string,
+	statusFilter string,
+	limit, offset int64,
+) ([]*IngressLogEntryDTO, error) {
+	var statusArg any
 	if statusFilter != "" {
 		statusArg = statusFilter
 	}
@@ -573,7 +618,11 @@ func (s *ingressService) ListLog(ctx context.Context, workspaceID string, status
 	return out, nil
 }
 
-func (s *ingressService) ListSourceLog(ctx context.Context, workspaceID, sourceID string, limit, offset int64) ([]*IngressLogEntryDTO, error) {
+func (s *ingressService) ListSourceLog(
+	ctx context.Context,
+	workspaceID, sourceID string,
+	limit, offset int64,
+) ([]*IngressLogEntryDTO, error) {
 	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
@@ -628,7 +677,16 @@ func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "ingress retry failed", "workspace_id", workspaceID, "entry_id", entryID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"ingress retry failed",
+				"workspace_id",
+				workspaceID,
+				"entry_id",
+				entryID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -650,12 +708,12 @@ func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID
 		return "", err
 	}
 
-	if entry.Status == "imported" || entry.Status == "pending" {
+	if entry.Status == "imported" || entry.Status == WorkflowRunStatusPending {
 		return "", fmt.Errorf("only error or skipped entries can be retried: %w", apperr.ErrInvalidInput)
 	}
 
 	if err := s.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
-		Status: "pending",
+		Status: WorkflowRunStatusPending,
 		ID:     entryID,
 	}); err != nil {
 		return "", err

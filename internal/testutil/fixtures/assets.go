@@ -11,13 +11,18 @@ import (
 
 var fixedTime = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
+const (
+	fixtureWorkspaceID = "ws_fixture_1"
+	fixtureProjectID   = "prj_fixture_1"
+)
+
 // Asset returns a canned AssetDTO. Apply option funcs to override specific fields.
 func Asset(overrides ...func(*service.AssetDTO)) *service.AssetDTO {
 	a := &service.AssetDTO{
 		ID:               "ast_fixture_1",
-		WorkspaceID:      "ws_fixture_1",
+		WorkspaceID:      fixtureWorkspaceID,
 		OriginalFilename: "fixture.jpg",
-		StorageKey:       "ws_fixture_1/ast_fixture_1/original.jpg",
+		StorageKey:       fixtureWorkspaceID + "/ast_fixture_1/original.jpg",
 		MimeType:         "image/jpeg",
 		Size:             12345,
 		CreatedAt:        fixedTime,
@@ -32,8 +37,8 @@ func Asset(overrides ...func(*service.AssetDTO)) *service.AssetDTO {
 // Project returns a canned ProjectDTO.
 func Project(overrides ...func(*service.ProjectDTO)) *service.ProjectDTO {
 	p := &service.ProjectDTO{
-		ID:          "prj_fixture_1",
-		WorkspaceID: "ws_fixture_1",
+		ID:          fixtureProjectID,
+		WorkspaceID: fixtureWorkspaceID,
 		Name:        "Fixture Project",
 		CreatedAt:   fixedTime,
 		UpdatedAt:   fixedTime,
@@ -48,8 +53,8 @@ func Project(overrides ...func(*service.ProjectDTO)) *service.ProjectDTO {
 func Folder(overrides ...func(*service.FolderDTO)) *service.FolderDTO {
 	f := &service.FolderDTO{
 		ID:          "fld_fixture_1",
-		WorkspaceID: "ws_fixture_1",
-		ProjectID:   "prj_fixture_1",
+		WorkspaceID: fixtureWorkspaceID,
+		ProjectID:   fixtureProjectID,
 		Name:        "Fixture Folder",
 		CreatedAt:   fixedTime,
 	}
@@ -63,7 +68,7 @@ func Folder(overrides ...func(*service.FolderDTO)) *service.FolderDTO {
 func Tag(overrides ...func(*service.TagDTO)) *service.TagDTO {
 	t := &service.TagDTO{
 		Name:        "fixture-tag",
-		WorkspaceID: "ws_fixture_1",
+		WorkspaceID: fixtureWorkspaceID,
 		AssetCount:  1,
 	}
 	for _, o := range overrides {
@@ -76,7 +81,7 @@ func Tag(overrides ...func(*service.TagDTO)) *service.TagDTO {
 func Collection(overrides ...func(*service.CollectionDTO)) *service.CollectionDTO {
 	c := &service.CollectionDTO{
 		ID:          "col_fixture_1",
-		WorkspaceID: "ws_fixture_1",
+		WorkspaceID: fixtureWorkspaceID,
 		Name:        "Fixture Collection",
 		CreatedAt:   fixedTime,
 		UpdatedAt:   fixedTime,
@@ -90,10 +95,10 @@ func Collection(overrides ...func(*service.CollectionDTO)) *service.CollectionDT
 // Share returns a canned ShareDTO.
 func Share(overrides ...func(*service.ShareDTO)) *service.ShareDTO {
 	targetType := "project"
-	targetID := "prj_fixture_1"
+	targetID := fixtureProjectID
 	s := &service.ShareDTO{
 		ID:          "shr_fixture_1",
-		WorkspaceID: "ws_fixture_1",
+		WorkspaceID: fixtureWorkspaceID,
 		TargetType:  targetType,
 		TargetID:    targetID,
 		CreatedAt:   fixedTime,
@@ -109,7 +114,7 @@ func Version(overrides ...func(*service.VersionDTO)) *service.VersionDTO {
 	v := &service.VersionDTO{
 		ID:          "ver_fixture_1",
 		AssetID:     "ast_fixture_1",
-		WorkspaceID: "ws_fixture_1",
+		WorkspaceID: fixtureWorkspaceID,
 		VersionNum:  1,
 		StorageKey:  "ws_fixture_1/ast_fixture_1/v1/original.jpg",
 		MimeType:    "image/jpeg",

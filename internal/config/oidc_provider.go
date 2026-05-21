@@ -2,10 +2,11 @@ package config
 
 import (
 	"context"
-	"damask/server/internal/telemetry"
 	"log/slog"
 	"sync"
 	"time"
+
+	"damask/server/internal/telemetry"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"go.opentelemetry.io/otel/attribute"
@@ -73,15 +74,19 @@ func GetGoogleRuntime() *OIDCRuntime {
 	return RuntimeProviders.Google
 }
 
-func discoverWithRetry(ctx context.Context, name, issuerURL, clientID, clientSecret, redirectURL string, set func(*OIDCRuntime)) {
+func discoverWithRetry(
+	ctx context.Context,
+	name, issuerURL, clientID, clientSecret, redirectURL string,
+	set func(*OIDCRuntime),
+) {
 	for {
 		rt, err := discover(ctx, issuerURL, clientID, clientSecret, redirectURL)
 		if err != nil {
-			slog.Warn("oidc discovery failed, retrying in 60s", "provider", name, "error", err)
+			slog.WarnContext(ctx, "oidc discovery failed, retrying in 60s", "provider", name, "error", err)
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(60 * time.Second):
+			case <-time.After(time.Minute):
 			}
 			continue
 		}

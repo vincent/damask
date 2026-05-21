@@ -12,16 +12,16 @@ import (
 	"testing"
 
 	"damask/server/internal/api"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 
 	"github.com/gofiber/fiber/v3"
 )
 
-// createShare is a test helper for tests still using tests_helpers (th).
+// createShare is a test helper for tests still using testhelpers (th).
 // Remove this once share_collection_test.go and shares_public_test.go are migrated to testutil.
 func createShare(t *testing.T, env *th.TestEnv, cookie *http.Cookie, req api.CreateShareRequest) api.ShareResponse {
 	t.Helper()
-	httpReq := th.AuthRequest(http.MethodPost, "/api/v1/shares", th.JsonBody(req), cookie)
+	httpReq := th.AuthRequest(http.MethodPost, "/api/v1/shares", th.JSONBody(req), cookie)
 	resp, err := env.App.Test(httpReq)
 	if err != nil {
 		t.Fatalf("create share request: %v", err)
@@ -65,7 +65,7 @@ func Test_ShareCollection_InvalidCollectionID(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonBody(api.CreateShareRequest{
+		th.JSONBody(api.CreateShareRequest{
 			TargetType: "collection",
 			TargetID:   "nonexistent-collection-id",
 			Label:      "bad",
@@ -89,7 +89,7 @@ func Test_ShareCollection_WrongWorkspace(t *testing.T) {
 
 	// Try to share it from workspace 1 — collection not found in ws1.
 	req := th.AuthRequest(http.MethodPost, "/api/v1/shares",
-		th.JsonBody(api.CreateShareRequest{
+		th.JSONBody(api.CreateShareRequest{
 			TargetType: "collection",
 			TargetID:   col.ID,
 			Label:      "cross-workspace",
@@ -335,7 +335,7 @@ func createCollection(t *testing.T, env *th.TestEnv, cookie *http.Cookie, name s
 		body["asset_ids"] = assetIDs
 	}
 	resp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/collections",
-		th.JsonBody(body), cookie))
+		th.JSONBody(body), cookie))
 	if err != nil {
 		t.Fatalf("create collection: %v", err)
 	}

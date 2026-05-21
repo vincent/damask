@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/valyala/fasthttp"

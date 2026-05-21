@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -35,10 +36,10 @@ type SFTPStorage struct {
 // SFTP server does not prevent the application from starting.
 func NewSFTPStorage(cfg SFTPConfig) (Storage, error) {
 	if cfg.Host == "" {
-		return nil, fmt.Errorf("sftp storage: STORAGE_SFTP_HOST is required")
+		return nil, errors.New("sftp storage: STORAGE_SFTP_HOST is required")
 	}
 	if cfg.User == "" {
-		return nil, fmt.Errorf("sftp storage: STORAGE_SFTP_USER is required")
+		return nil, errors.New("sftp storage: STORAGE_SFTP_USER is required")
 	}
 	if cfg.Port == 0 {
 		cfg.Port = 22
@@ -66,7 +67,7 @@ func (s *SFTPStorage) connect() (*gsftp.Client, *ssh.Client, error) {
 	sshCfg := &ssh.ClientConfig{
 		User:            s.cfg.User,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec — acceptable for internal storage backend
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 	sshConn, err := ssh.Dial("tcp", addr, sshCfg)
 	if err != nil {
@@ -185,7 +186,8 @@ func (s *SFTPStorage) List(prefix string) ([]string, error) {
 
 // isNotExist reports whether the error indicates a missing file on the remote server.
 func isNotExist(err error) bool {
-	if statusErr, ok := err.(*gsftp.StatusError); ok {
+	statusErr := &gsftp.StatusError{}
+	if errors.As(err, &statusErr) {
 		return statusErr.FxCode() == gsftp.ErrSSHFxNoSuchFile
 	}
 	return false

@@ -99,12 +99,18 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "u@t.com", PasswordHash: "x", Name: "t"}); err != nil {
+	if _, err := queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "u@t.com", PasswordHash: "x", Name: "t"},
+	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 
 	q2 := queue.New(queries, 1)
-	svc := service.NewUploadService(service.NewAssetInjestor(queries, sqlDB, stor, q2, ingest.NewRegistry(transform.NewTransformer())), audit.NopWriter{})
+	svc := service.NewUploadService(
+		service.NewAssetInjestor(queries, sqlDB, stor, q2, ingest.NewRegistry(transform.NewTransformer())),
+		audit.NopWriter{},
+	)
 
 	dto, err := svc.Ingest(ctx, wsID, strings.NewReader("fake image bytes"), service.UploadMeta{
 		OriginalFilename: "photo.jpg",
@@ -142,14 +148,20 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "a@t.com", PasswordHash: "x", Name: "t"}); err != nil {
+	if _, err := queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "a@t.com", PasswordHash: "x", Name: "t"},
+	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 
 	// Rebuild svc with the seeded DB so the workspace FK constraint passes.
 	stor, _ := storage.NewAferoMemoryStorage()
 	q := queue.New(queries, 1)
-	svc = service.NewUploadService(service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())), spy)
+	svc = service.NewUploadService(
+		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		spy,
+	)
 
 	_, err = svc.Ingest(ctx, wsID, strings.NewReader("bytes"), service.UploadMeta{
 		OriginalFilename: "shot.jpg",
@@ -180,7 +192,10 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "t@t.com", PasswordHash: "x", Name: "t"}); err != nil {
+	if _, err := queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "t@t.com", PasswordHash: "x", Name: "t"},
+	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 

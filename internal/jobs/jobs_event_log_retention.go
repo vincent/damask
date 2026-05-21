@@ -10,12 +10,17 @@ import (
 	"damask/server/internal/queue"
 )
 
+const (
+	eventLogSchedulerCronHour   = 4
+	eventLogSchedulerCronMinute = 0
+)
+
 // jobPurgeAuditLog runs the event log retention policy for all workspaces.
 // For each workspace it:
 //  1. Deletes asset_downloaded events older than download_log_retention_days.
 //  2. Deletes all other events older than event_log_retention_days.
 //  3. Deletes project events older than event_log_retention_days.
-func (s *JobServer) jobPurgeAuditLog(ctx context.Context, job dbgen.Job) error {
+func (s *JobServer) jobPurgeAuditLog(ctx context.Context, _ dbgen.Job) error {
 	workspaces, err := s.db.ListWorkspacesForEventRetention(ctx)
 	if err != nil {
 		return fmt.Errorf("list workspaces: %w", err)
@@ -41,7 +46,14 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.List
 		}); err != nil {
 			slog.ErrorContext(ctx, "audit-log retention: purge downloads", "workspace_id", ws.ID, "error", err)
 		} else {
-			slog.InfoContext(ctx, "audit-log retention: purged download events", "workspace_id", ws.ID, "cutoff", cutoff)
+			slog.InfoContext(
+				ctx,
+				"audit-log retention: purged download events",
+				"workspace_id",
+				ws.ID,
+				"cutoff",
+				cutoff,
+			)
 		}
 	}
 
@@ -81,7 +93,7 @@ func NewAuditLogRetentionScheduler(q queue.JobQueue) *AuditLogRetentionScheduler
 func (r *AuditLogRetentionScheduler) Start(ctx context.Context) {
 	go func() {
 		for {
-			next := NextDaily(4, 0)
+			next := NextDaily(eventLogSchedulerCronHour, eventLogSchedulerCronMinute)
 			select {
 			case <-ctx.Done():
 				return

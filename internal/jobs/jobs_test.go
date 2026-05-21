@@ -1,9 +1,10 @@
 package jobs_test
 
 import (
-	"damask/server/internal/jobs"
 	"testing"
 	"time"
+
+	"damask/server/internal/jobs"
 )
 
 func TestNextRunAt(t *testing.T) {

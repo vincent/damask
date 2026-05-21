@@ -15,7 +15,7 @@ var (
 
 // ToSlug converts a folder name to a URL-safe routing slug.
 // "Campaign Photos" → "campaign-photos"
-// "Q2 / Summer 2026" → "q2-summer-2026"
+// "Q2 / Summer 2026" → "q2-summer-2026".
 func ToSlug(name string) string {
 	// Normalise unicode, decompose accented characters
 	name = norm.NFD.String(name)
@@ -38,10 +38,10 @@ func ToSlug(name string) string {
 // into token "ws_abc123" and tag "brand-assets".
 // Returns tag = "" if no subaddress is present or the tag is empty.
 func ParseSubaddress(localPart string) (token, tag string) {
-	idx := strings.IndexByte(localPart, '+')
-	if idx == -1 {
+	before, after, ok := strings.Cut(localPart, "+")
+	if !ok {
 		return localPart, ""
 	}
-	tag = strings.ToLower(strings.TrimSpace(localPart[idx+1:]))
-	return localPart[:idx], tag
+	tag = strings.ToLower(strings.TrimSpace(after))
+	return before, tag
 }

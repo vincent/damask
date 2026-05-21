@@ -18,7 +18,7 @@ import (
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "One or more assets not in workspace"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed (e.g. output_type not gif/pdf)"
-// @Router /api/v1/stack/merge [post]
+// @Router /api/v1/stack/merge [post].
 func (s *Server) handleStackMerge(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -37,5 +37,5 @@ func (s *Server) handleStackMerge(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"job_id": jobID})
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{apiJobIDKey: jobID})
 }

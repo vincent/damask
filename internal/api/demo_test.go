@@ -27,7 +27,7 @@ import (
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
@@ -236,7 +236,7 @@ func TestDemoUploadCap_AssetLimit(t *testing.T) {
 
 	for i := 0; i < api.DemoMaxAssets; i++ {
 		assetID := "cap-asset-" + string(rune('A'+i%26)) + string(rune('0'+i/26))
-		_, err := env.SqlDB.Exec(`
+		_, err := env.Database.Exec(`
 			INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size, created_at, updated_at)
 			VALUES (?, ?, 'fake.jpg', ?, 'image/jpeg', 1000, datetime('now'), datetime('now'))
 		`, assetID, workspaceID, "fake/key/"+assetID)

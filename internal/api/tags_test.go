@@ -5,7 +5,7 @@ package api_test
 import (
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -153,7 +153,7 @@ func TestAddTag_SystemTag_EnsuresTagRow(t *testing.T) {
 	}
 
 	var groupName string
-	if err := env.SqlDB.QueryRow(`SELECT group_name FROM tags WHERE workspace_id = ? AND name = ?`, owner.WorkspaceID, "_watermark").Scan(&groupName); err != nil {
+	if err := env.Database.QueryRow(`SELECT group_name FROM tags WHERE workspace_id = ? AND name = ?`, owner.WorkspaceID, "_watermark").Scan(&groupName); err != nil {
 		t.Fatalf("load tag row: %v", err)
 	}
 	if groupName != "system" {
@@ -368,10 +368,10 @@ func TestCreateTag_RequiresEditor(t *testing.T) {
 
 	// Viewer token cannot create tags
 	viewerToken, _ := env.Maker.CreateToken("viewer-user", owner.WorkspaceID, 0)
-	_, _ = env.SqlDB.Exec(
+	_, _ = env.Database.Exec(
 		`INSERT INTO users (id, name, email, password_hash) VALUES ('viewer-user','V','v@test.com','x')`,
 	)
-	_, _ = env.SqlDB.Exec(
+	_, _ = env.Database.Exec(
 		`INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, 'viewer-user', 'viewer')`,
 		owner.WorkspaceID,
 	)

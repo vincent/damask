@@ -35,14 +35,22 @@ func (m *MockCollectionService) Get(ctx context.Context, workspaceID, id string)
 	return nil, nil
 }
 
-func (m *MockCollectionService) Create(ctx context.Context, workspaceID string, p service.CreateCollectionParams) (*service.CollectionDTO, error) {
+func (m *MockCollectionService) Create(
+	ctx context.Context,
+	workspaceID string,
+	p service.CreateCollectionParams,
+) (*service.CollectionDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
 	return nil, nil
 }
 
-func (m *MockCollectionService) Update(ctx context.Context, workspaceID, id string, p service.UpdateCollectionParams) (*service.CollectionDTO, error) {
+func (m *MockCollectionService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p service.UpdateCollectionParams,
+) (*service.CollectionDTO, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
@@ -70,14 +78,20 @@ func (m *MockCollectionService) RemoveAsset(ctx context.Context, workspaceID, co
 	return nil
 }
 
-func (m *MockCollectionService) ListForAsset(ctx context.Context, workspaceID, assetID string) ([]*service.CollectionDTO, error) {
+func (m *MockCollectionService) ListForAsset(
+	ctx context.Context,
+	workspaceID, assetID string,
+) ([]*service.CollectionDTO, error) {
 	if m.ListForAssetFn != nil {
 		return m.ListForAssetFn(ctx, workspaceID, assetID)
 	}
 	return nil, nil
 }
 
-func (m *MockCollectionService) ListAssets(ctx context.Context, workspaceID, collectionID string) ([]*service.AssetDTO, error) {
+func (m *MockCollectionService) ListAssets(
+	ctx context.Context,
+	workspaceID, collectionID string,
+) ([]*service.AssetDTO, error) {
 	if m.ListAssetsFn != nil {
 		return m.ListAssetsFn(ctx, workspaceID, collectionID)
 	}

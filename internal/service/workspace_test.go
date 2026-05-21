@@ -48,7 +48,11 @@ func TestWorkspaceService_Update_VersionRetention(t *testing.T) {
 	svc, repo := newWorkspaceSvc(t)
 	repo.Seed(repository.Workspace{ID: "ws_1", Name: "Test", VersionRetentionCount: 3})
 	newCount := int64(10)
-	dto, err := svc.Update(context.Background(), "ws_1", service.UpdateWorkspaceParams{VersionRetentionCount: &newCount})
+	dto, err := svc.Update(
+		context.Background(),
+		"ws_1",
+		service.UpdateWorkspaceParams{VersionRetentionCount: &newCount},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

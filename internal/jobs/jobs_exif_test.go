@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 )
 
 // TestExtractExif_EnqueuedOnImageUpload verifies that uploading an image asset
@@ -17,7 +17,7 @@ func TestExtractExif_EnqueuedOnImageUpload(t *testing.T) {
 	th.UploadAsset(t, env, owner.Cookie)
 
 	var count int
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'extract_exif' AND workspace_id = ?`,
 		owner.WorkspaceID,
 	).Scan(&count); err != nil {
@@ -45,7 +45,7 @@ func TestExtractExif_NotEnqueuedForNonImage(t *testing.T) {
 	}
 
 	var count int
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'extract_exif' AND workspace_id = ?`,
 		owner.WorkspaceID,
 	).Scan(&count); err != nil {
@@ -68,7 +68,7 @@ func TestExtractExif_HandlerDisabledWhenExifKeepOff(t *testing.T) {
 	th.DrainJobs(t, env)
 
 	var count int
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM asset_field_values afv
 		 JOIN field_definitions fd ON fd.id = afv.field_id
 		 WHERE fd.key LIKE '_exif_%' AND fd.workspace_id = ?`,
@@ -88,7 +88,7 @@ func TestExtractExif_HandlerWritesTombstoneForJPEGWithNoExif(t *testing.T) {
 	owner := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	// Enable EXIF extraction
-	_, err := env.SqlDB.Exec(
+	_, err := env.Database.Exec(
 		`UPDATE workspaces SET exif_keep = 1 WHERE id = ?`, owner.WorkspaceID,
 	)
 	if err != nil {
@@ -101,7 +101,7 @@ func TestExtractExif_HandlerWritesTombstoneForJPEGWithNoExif(t *testing.T) {
 
 	// The _exif_make field definition should now exist
 	var fieldCount int
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM field_definitions WHERE key = '_exif_make' AND workspace_id = ?`,
 		owner.WorkspaceID,
 	).Scan(&fieldCount); err != nil {
@@ -112,7 +112,7 @@ func TestExtractExif_HandlerWritesTombstoneForJPEGWithNoExif(t *testing.T) {
 	}
 
 	var source string
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT source FROM field_definitions WHERE key = '_exif_make' AND workspace_id = ?`,
 		owner.WorkspaceID,
 	).Scan(&source); err != nil {
@@ -124,7 +124,7 @@ func TestExtractExif_HandlerWritesTombstoneForJPEGWithNoExif(t *testing.T) {
 
 	// A tombstone value row should exist for _exif_make
 	var valueCount int
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM asset_field_values afv
 		 JOIN field_definitions fd ON fd.id = afv.field_id
 		 WHERE fd.key = '_exif_make' AND fd.workspace_id = ?`,
@@ -143,7 +143,7 @@ func TestExtractExif_EnsureExifFields_Idempotent(t *testing.T) {
 	env := th.SetupTestApp(t)
 	owner := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
-	_, err := env.SqlDB.Exec(`UPDATE workspaces SET exif_keep = 1 WHERE id = ?`, owner.WorkspaceID)
+	_, err := env.Database.Exec(`UPDATE workspaces SET exif_keep = 1 WHERE id = ?`, owner.WorkspaceID)
 	if err != nil {
 		t.Fatalf("enable exif: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestExtractExif_EnsureExifFields_Idempotent(t *testing.T) {
 	th.DrainJobs(t, env)
 
 	// Each _exif_ field key must appear exactly once per workspace
-	rows, err := env.SqlDB.QueryContext(context.Background(),
+	rows, err := env.Database.QueryContext(context.Background(),
 		`SELECT key, COUNT(*) AS cnt FROM field_definitions
 		 WHERE workspace_id = ? AND key LIKE '_exif_%'
 		 GROUP BY key HAVING cnt > 1`,

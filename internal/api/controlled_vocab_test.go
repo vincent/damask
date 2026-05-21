@@ -39,7 +39,7 @@ func TestLockedTaxonomy_OwnerCanEnable(t *testing.T) {
 
 	tok := env.MintToken(t, "usr_1", "ws_1")
 	req := testutil.BearerRequest(http.MethodPut, "/api/v1/workspace/settings",
-		testutil.JsonBody(map[string]any{"locked_taxonomy": true}), tok)
+		testutil.JSONBody(map[string]any{"locked_taxonomy": true}), tok)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)
@@ -57,7 +57,7 @@ func TestLockedTaxonomy_EditorCannotEnable(t *testing.T) {
 
 	tok := env.MintToken(t, "usr_editor", "ws_1")
 	req := testutil.BearerRequest(http.MethodPut, "/api/v1/workspace/settings",
-		testutil.JsonBody(map[string]any{"locked_taxonomy": true}), tok)
+		testutil.JSONBody(map[string]any{"locked_taxonomy": true}), tok)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)
@@ -75,7 +75,7 @@ func TestLockedTaxonomy_ViewerCannotEnable(t *testing.T) {
 
 	tok := env.MintToken(t, "usr_viewer", "ws_1")
 	req := testutil.BearerRequest(http.MethodPut, "/api/v1/workspace/settings",
-		testutil.JsonBody(map[string]any{"locked_taxonomy": true}), tok)
+		testutil.JSONBody(map[string]any{"locked_taxonomy": true}), tok)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)
@@ -107,7 +107,7 @@ func TestAddTag_LockedWorkspace_ExistingTag_OK(t *testing.T) {
 
 	tok := env.MintToken(t, "usr_editor", "ws_1")
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/tags",
-		testutil.JsonBody(map[string]string{"name": "existing"}), tok)
+		testutil.JSONBody(map[string]string{"name": "existing"}), tok)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)
@@ -134,7 +134,7 @@ func TestAddTag_LockedWorkspace_NewTag_NonOwner_Rejected(t *testing.T) {
 
 	tok := env.MintToken(t, "usr_editor", "ws_1")
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/tags",
-		testutil.JsonBody(map[string]string{"name": "brandnew"}), tok)
+		testutil.JSONBody(map[string]string{"name": "brandnew"}), tok)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)
@@ -164,7 +164,7 @@ func TestAddTag_LockedWorkspace_NewTag_Owner_OK(t *testing.T) {
 
 	tok := env.MintToken(t, "usr_owner", "ws_1")
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/tags",
-		testutil.JsonBody(map[string]string{"name": "brandnew"}), tok)
+		testutil.JSONBody(map[string]string{"name": "brandnew"}), tok)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)
@@ -187,7 +187,7 @@ func TestCreateTag_LockedWorkspace_NonOwner_Forbidden(t *testing.T) {
 
 	tok := env.MintToken(t, "usr_editor", "ws_1")
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/tags",
-		testutil.JsonBody(map[string]string{"name": "newtag"}), tok)
+		testutil.JSONBody(map[string]string{"name": "newtag"}), tok)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)

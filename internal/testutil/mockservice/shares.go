@@ -31,14 +31,22 @@ func (m *MockShareService) Get(ctx context.Context, workspaceID, id string) (*se
 	return nil, nil
 }
 
-func (m *MockShareService) Create(ctx context.Context, workspaceID string, p service.CreateShareParams) (*service.ShareDTO, error) {
+func (m *MockShareService) Create(
+	ctx context.Context,
+	workspaceID string,
+	p service.CreateShareParams,
+) (*service.ShareDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
 	return nil, nil
 }
 
-func (m *MockShareService) Update(ctx context.Context, workspaceID, id string, p service.UpdateShareParams) (*service.ShareDTO, error) {
+func (m *MockShareService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p service.UpdateShareParams,
+) (*service.ShareDTO, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
@@ -84,7 +92,10 @@ func (m *MockSharePublicService) IncrementViewCount(ctx context.Context, shareID
 	return nil
 }
 
-func (m *MockSharePublicService) ListAssets(ctx context.Context, targetType, targetID string) ([]*service.PublicAssetDTO, error) {
+func (m *MockSharePublicService) ListAssets(
+	ctx context.Context,
+	targetType, targetID string,
+) ([]*service.PublicAssetDTO, error) {
 	if m.ListAssetsFn != nil {
 		return m.ListAssetsFn(ctx, targetType, targetID)
 	}
@@ -98,42 +109,60 @@ func (m *MockSharePublicService) GetAsset(ctx context.Context, assetID string) (
 	return nil, nil
 }
 
-func (m *MockSharePublicService) GetAssetFile(ctx context.Context, assetID string) (*service.PublicAssetFileDTO, error) {
+func (m *MockSharePublicService) GetAssetFile(
+	ctx context.Context,
+	assetID string,
+) (*service.PublicAssetFileDTO, error) {
 	if m.GetAssetFileFn != nil {
 		return m.GetAssetFileFn(ctx, assetID)
 	}
 	return nil, nil
 }
 
-func (m *MockSharePublicService) GetAssetThumb(ctx context.Context, assetID string) (*service.PublicAssetThumbDTO, error) {
+func (m *MockSharePublicService) GetAssetThumb(
+	ctx context.Context,
+	assetID string,
+) (*service.PublicAssetThumbDTO, error) {
 	if m.GetAssetThumbFn != nil {
 		return m.GetAssetThumbFn(ctx, assetID)
 	}
 	return nil, nil
 }
 
-func (m *MockSharePublicService) IsAssetInTarget(ctx context.Context, targetType, targetID, assetID string) (bool, error) {
+func (m *MockSharePublicService) IsAssetInTarget(
+	ctx context.Context,
+	targetType, targetID, assetID string,
+) (bool, error) {
 	if m.IsAssetInTargetFn != nil {
 		return m.IsAssetInTargetFn(ctx, targetType, targetID, assetID)
 	}
 	return false, nil
 }
 
-func (m *MockSharePublicService) CreateComment(ctx context.Context, p service.CreateShareCommentParams) (*service.ShareCommentDTO, error) {
+func (m *MockSharePublicService) CreateComment(
+	ctx context.Context,
+	p service.CreateShareCommentParams,
+) (*service.ShareCommentDTO, error) {
 	if m.CreateCommentFn != nil {
 		return m.CreateCommentFn(ctx, p)
 	}
 	return nil, nil
 }
 
-func (m *MockSharePublicService) ListCommentsByShare(ctx context.Context, shareID string) ([]*service.ShareCommentDTO, error) {
+func (m *MockSharePublicService) ListCommentsByShare(
+	ctx context.Context,
+	shareID string,
+) ([]*service.ShareCommentDTO, error) {
 	if m.ListCommentsByShareFn != nil {
 		return m.ListCommentsByShareFn(ctx, shareID)
 	}
 	return nil, nil
 }
 
-func (m *MockSharePublicService) ListCommentsByShareAndAsset(ctx context.Context, shareID, assetID string) ([]*service.ShareCommentDTO, error) {
+func (m *MockSharePublicService) ListCommentsByShareAndAsset(
+	ctx context.Context,
+	shareID, assetID string,
+) ([]*service.ShareCommentDTO, error) {
 	if m.ListCommentsByShareAndAssetFn != nil {
 		return m.ListCommentsByShareAndAssetFn(ctx, shareID, assetID)
 	}
@@ -147,7 +176,10 @@ func (m *MockSharePublicService) DeleteComment(ctx context.Context, shareID, com
 	return nil
 }
 
-func (m *MockSharePublicService) GetOwnerShare(ctx context.Context, workspaceID, shareID string) (*service.ShareDTO, error) {
+func (m *MockSharePublicService) GetOwnerShare(
+	ctx context.Context,
+	workspaceID, shareID string,
+) (*service.ShareDTO, error) {
 	if m.GetOwnerShareFn != nil {
 		return m.GetOwnerShareFn(ctx, workspaceID, shareID)
 	}

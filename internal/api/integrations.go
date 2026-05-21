@@ -16,6 +16,9 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+const nonceLength = 16
+const verifierLength = 64
+
 // connectionResponse is the safe public shape — tokens are never included.
 type connectionResponse struct {
 	ID            string   `json:"id"`
@@ -35,7 +38,7 @@ func toConnectionResponse(dto *service.ConnectionDTO) connectionResponse {
 	}
 }
 
-// GET /integrations/connections
+// GET /integrations/connections.
 func (s *Server) handleListConnections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	conns, err := s.integrations.ListConnections(c.Context(), claims.WorkspaceID)
@@ -49,7 +52,7 @@ func (s *Server) handleListConnections(c fiber.Ctx) error {
 	return c.JSON(out)
 }
 
-// DELETE /integrations/connections/:id
+// DELETE /integrations/connections/:id.
 func (s *Server) handleDeleteConnection(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -83,17 +86,24 @@ func (s *Server) canvaImportOAuth2Config() oauth2.Config {
 			AuthURL:  canvaAuthURL,
 			TokenURL: canvaTokenURL,
 		},
-		Scopes: []string{"profile:read", "asset:read", "brandtemplate:content:read", "brandtemplate:meta:read", "design:content:read", "design:meta:read"},
+		Scopes: []string{
+			"profile:read",
+			"asset:read",
+			"brandtemplate:content:read",
+			"brandtemplate:meta:read",
+			"design:content:read",
+			"design:meta:read",
+		},
 	}
 }
 
-// GET /integrations/connect/google
+// GET /integrations/connect/google.
 func (s *Server) handleConnectGoogle(c fiber.Ctx) error {
 	if s.cfg.Google.ClientID == "" {
 		return errRes(c, fiber.StatusServiceUnavailable, "Google not configured")
 	}
 	claims := auth.GetClaims(c)
-	nonce, err := generateRandom(16)
+	nonce, err := generateRandom(nonceLength)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate nonce")
 	}
@@ -115,7 +125,7 @@ func (s *Server) handleConnectGoogle(c fiber.Ctx) error {
 	return c.Redirect().To(url)
 }
 
-// GET /integrations/callback/google
+// GET /integrations/callback/google.
 func (s *Server) handleCallbackGoogle(c fiber.Ctx) error {
 	rawState := c.Query("state")
 	st, err := verifyState(rawState, s.cfg.AppSecret)
@@ -160,13 +170,13 @@ func (s *Server) handleCallbackGoogle(c fiber.Ctx) error {
 	return c.Redirect().To(redirect)
 }
 
-// GET /integrations/connect/canva
+// GET /integrations/connect/canva.
 func (s *Server) handleConnectCanva(c fiber.Ctx) error {
 	if s.cfg.Canva.ClientID == "" {
 		return errRes(c, fiber.StatusServiceUnavailable, "Canva not configured")
 	}
 	claims := auth.GetClaims(c)
-	nonce, err := generateRandom(16)
+	nonce, err := generateRandom(nonceLength)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate nonce")
 	}
@@ -180,7 +190,7 @@ func (s *Server) handleConnectCanva(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate state")
 	}
 
-	verifier, err := generateRandom(64)
+	verifier, err := generateRandom(verifierLength)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate pkce verifier")
 	}
@@ -194,7 +204,7 @@ func (s *Server) handleConnectCanva(c fiber.Ctx) error {
 	return c.Redirect().To(url)
 }
 
-// GET /integrations/callback/canva
+// GET /integrations/callback/canva.
 func (s *Server) handleCallbackCanva(c fiber.Ctx) error {
 	rawState := c.Query("state")
 	st, err := verifyState(rawState, s.cfg.AppSecret)

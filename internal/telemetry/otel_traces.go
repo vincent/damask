@@ -22,7 +22,7 @@ func SetupTraces(ctx context.Context, cfg Config) (func(context.Context) error, 
 	spanExporter, err := otlptracehttp.New(ctx,
 		otlptracehttp.WithEndpointURL(cfg.Endpoint+"/traces"),
 		otlptracehttp.WithHeaders(map[string]string{
-			"Authorization": "Bearer " + cfg.Token,
+			authorizationHeader: "Bearer " + cfg.Token,
 		}),
 	)
 	if err != nil {

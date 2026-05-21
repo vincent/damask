@@ -26,7 +26,11 @@ import (
 // AssetInjestor extends assetio.Injestor with a richer return used within the service layer.
 type AssetInjestor interface {
 	assetio.Injestor
-	IngestFileWithDetails(ctx context.Context, workspaceID, filePath string, opts assetio.IngestFileOpts) (*AssetDTO, error)
+	IngestFileWithDetails(
+		ctx context.Context,
+		workspaceID, filePath string,
+		opts assetio.IngestFileOpts,
+	) (*AssetDTO, error)
 }
 
 type versionThumbnailPayload struct {
@@ -46,11 +50,21 @@ type injestorImpl struct {
 }
 
 // NewAssetInjestor returns an AssetInjestor backed by the given dependencies.
-func NewAssetInjestor(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, q queue.JobQueue, media *ingest.Registry) AssetInjestor {
+func NewAssetInjestor(
+	db *dbgen.Queries,
+	sqlDB *sql.DB,
+	stor storage.Storage,
+	q queue.JobQueue,
+	media *ingest.Registry,
+) AssetInjestor {
 	return &injestorImpl{db: db, sqlDB: sqlDB, stor: stor, q: q, media: media}
 }
 
-func (s *injestorImpl) IngestFile(ctx context.Context, workspaceID, filePath string, opts assetio.IngestFileOpts) (assetio.AssetSummary, error) {
+func (s *injestorImpl) IngestFile(
+	ctx context.Context,
+	workspaceID, filePath string,
+	opts assetio.IngestFileOpts,
+) (assetio.AssetSummary, error) {
 	asset, err := s.ingest(ctx, workspaceID, filePath, opts)
 	if err != nil {
 		return assetio.AssetSummary{}, err
@@ -64,7 +78,11 @@ func (s *injestorImpl) IngestFile(ctx context.Context, workspaceID, filePath str
 	}, nil
 }
 
-func (s *injestorImpl) IngestFileWithDetails(ctx context.Context, workspaceID, filePath string, opts assetio.IngestFileOpts) (*AssetDTO, error) {
+func (s *injestorImpl) IngestFileWithDetails(
+	ctx context.Context,
+	workspaceID, filePath string,
+	opts assetio.IngestFileOpts,
+) (*AssetDTO, error) {
 	asset, err := s.ingest(ctx, workspaceID, filePath, opts)
 	if err != nil {
 		return nil, err
@@ -89,7 +107,11 @@ func (s *injestorImpl) IngestFileWithDetails(ctx context.Context, workspaceID, f
 }
 
 // ingest is the shared implementation called by IngestFile and IngestFileFull.
-func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string, opts assetio.IngestFileOpts) (asset dbgen.Asset, err error) {
+func (s *injestorImpl) ingest(
+	ctx context.Context,
+	workspaceID, filePath string,
+	opts assetio.IngestFileOpts,
+) (asset dbgen.Asset, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.injestor.ingest",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Bool("damask.upload.has_project", opts.ProjectID != nil),
@@ -109,7 +131,16 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		}
 	}()
 
-	slog.DebugContext(ctx, "starting asset ingest", "workspace_id", workspaceID, "file_path", filePath, "opts", opts)
+	slog.DebugContext(
+		ctx,
+		"starting asset ingest",
+		"workspace_id",
+		workspaceID,
+		"file_path",
+		filePath,
+		"opts",
+		opts,
+	)
 
 	stat, err := os.Stat(filePath)
 	if err != nil {
@@ -158,7 +189,12 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		}
 		metaSpan.End()
 	} else {
-		slog.DebugContext(ctx, "no handler for MIME type, skipping metadata extraction", "mime_type", mimeType)
+		slog.DebugContext(
+			ctx,
+			"no handler for MIME type, skipping metadata extraction",
+			"mime_type",
+			mimeType,
+		)
 	}
 
 	_, createSpan := apptelemetry.StartSpan(ctx, "service.injestor.create_asset")
@@ -178,7 +214,16 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		return dbgen.Asset{}, fmt.Errorf("could not save asset: %w", err)
 	}
 
-	slog.DebugContext(ctx, "created asset", "asset_id", asset.ID, "mime_type", asset.MimeType, "size", asset.Size)
+	slog.DebugContext(
+		ctx,
+		"created asset",
+		"asset_id",
+		asset.ID,
+		"mime_type",
+		asset.MimeType,
+		"size",
+		asset.Size,
+	)
 
 	initialVersionID, vErr := s.createInitialVersion(ctx, asset, filePath, storageKey, mimeType, meta, opts.UserID)
 	if vErr != nil {
@@ -206,7 +251,20 @@ func (s *injestorImpl) ingest(ctx context.Context, workspaceID, filePath string,
 		inheritSpan.End()
 	}
 
-	slog.DebugContext(ctx, "asset ingest completed", "asset_id", asset.ID, "workspace_id", workspaceID, "mime_type", asset.MimeType, "size", asset.Size, "supported_media", s.media.Supports(mimeType))
+	slog.DebugContext(
+		ctx,
+		"asset ingest completed",
+		"asset_id",
+		asset.ID,
+		"workspace_id",
+		workspaceID,
+		"mime_type",
+		asset.MimeType,
+		"size",
+		asset.Size,
+		"supported_media",
+		s.media.Supports(mimeType),
+	)
 
 	if s.media.Supports(mimeType) && initialVersionID != "" {
 		payload, _ := json.Marshal(versionThumbnailPayload{
@@ -293,7 +351,7 @@ func (s *injestorImpl) createInitialVersion(
 	if err != nil {
 		return "", fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 
 	qtx := s.db.WithTx(tx)
 
@@ -317,7 +375,13 @@ func (s *injestorImpl) createInitialVersion(
 		CreatedBy:   createdByPtr,
 		IsCurrent:   1,
 	}); err != nil {
-		return "", fmt.Errorf("create version row (asset_id, workspace_id, created_by) (%s, %s, %v): %w", asset.ID, asset.WorkspaceID, createdByPtr, err)
+		return "", fmt.Errorf(
+			"create version row (asset_id, workspace_id, created_by) (%s, %s, %v): %w",
+			asset.ID,
+			asset.WorkspaceID,
+			createdByPtr,
+			err,
+		)
 	}
 
 	if err = qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{

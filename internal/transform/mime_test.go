@@ -36,19 +36,19 @@ func TestDetectMimeType(t *testing.T) {
 			name:     "xlsx by extension fallback",
 			filename: "spreadsheet.xlsx",
 			content:  []byte("PK\x03\x04fake zip content"),
-			want:    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			want:     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
 			name:     "pptx by extension fallback",
 			filename: "presentation.pptx",
 			content:  []byte("PK\x03\x04fake zip content"),
-			want:    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+			want:     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 		},
 		{
 			name:     "odt by extension fallback",
 			filename: "document.odt",
 			content:  []byte("PK\x03\x04fake zip content"),
-			want:    "application/vnd.oasis.opendocument.text",
+			want:     "application/vnd.oasis.opendocument.text",
 		},
 		{
 			name:     "csv by extension fallback",

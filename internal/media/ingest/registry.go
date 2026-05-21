@@ -32,7 +32,12 @@ type Registry struct {
 // External dependency availability is checked; missing deps are logged.
 func NewRegistry(trf transform.Transformer) *Registry {
 	if missing := trf.CheckExternalDeps(); len(missing) > 0 {
-		slog.Warn("external dependencies missing — some thumbnail types will be skipped", "missing", missing)
+		slog.WarnContext(
+			context.Background(),
+			"external dependencies missing — some thumbnail types will be skipped",
+			"missing",
+			missing,
+		)
 	}
 	return &Registry{
 		handlers: []MediaHandler{

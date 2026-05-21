@@ -17,10 +17,10 @@ type RetryPolicy struct {
 
 func DefaultRetryPolicy() RetryPolicy {
 	return RetryPolicy{
-		MaxAttempts: 3,
-		InitialWait: 2 * time.Second,
-		Multiplier:  2,
-		MaxWait:     30 * time.Second,
+		MaxAttempts: 3,                //nolint:mnd // default to 3 attempts
+		InitialWait: 2 * time.Second,  //nolint:mnd // default to 2 seconds
+		Multiplier:  2,                //nolint:mnd // default to doubling the wait time each attempt
+		MaxWait:     30 * time.Second, //nolint:mnd // default to max 30 seconds wait
 	}
 }
 
@@ -28,7 +28,8 @@ func (p RetryPolicy) ShouldRetry(attempt int, err error) bool {
 	if attempt >= p.MaxAttempts {
 		return false
 	}
-	if errors.Is(err, apperr.ErrNotFound) || errors.Is(err, apperr.ErrForbidden) || errors.Is(err, apperr.ErrInvalidInput) {
+	if errors.Is(err, apperr.ErrNotFound) || errors.Is(err, apperr.ErrForbidden) ||
+		errors.Is(err, apperr.ErrInvalidInput) {
 		return false
 	}
 	return true

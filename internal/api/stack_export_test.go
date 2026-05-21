@@ -20,7 +20,7 @@ func TestStackExport_EmptyAssetIDs(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/stack/export",
-		testutil.JsonBody(map[string]any{"asset_ids": []string{}}), cookie))
+		testutil.JSONBody(map[string]any{"asset_ids": []string{}}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestStackExport_ValidZip(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/stack/export",
-		testutil.JsonBody(map[string]any{"asset_ids": []string{"ast_1"}, "filename": "my-export"}), cookie))
+		testutil.JSONBody(map[string]any{"asset_ids": []string{"ast_1"}, "filename": "my-export"}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestStackExport_FilenameSanitised(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	resp, err := env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/stack/export",
-		testutil.JsonBody(map[string]any{"asset_ids": []string{"ast_1"}, "filename": "../../../etc/passwd"}), cookie))
+		testutil.JSONBody(map[string]any{"asset_ids": []string{"ast_1"}, "filename": "../../../etc/passwd"}), cookie))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestStackExport_Unauthenticated(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/stack/export",
-		testutil.JsonBody(map[string]any{"asset_ids": []string{"x"}}))
+		testutil.JSONBody(map[string]any{"asset_ids": []string{"x"}}))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := env.App.Test(req)

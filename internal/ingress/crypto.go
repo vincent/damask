@@ -13,11 +13,13 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
+const appSecretLength = 32 // must be at least 32 bytes for AES-256
+
 // deriveKey produces a 32-byte AES-256 key using HKDF-SHA256 with a fixed
 // info string. HKDF provides domain separation and is the idiomatic Go KDF.
 func deriveKey(appSecret string) []byte {
 	r := hkdf.New(sha256.New, []byte(appSecret), nil, []byte("damask ingress config v1"))
-	key := make([]byte, 32)
+	key := make([]byte, appSecretLength)
 	if _, err := io.ReadFull(r, key); err != nil {
 		panic(fmt.Sprintf("ingress/crypto: deriveKey: %v", err))
 	}

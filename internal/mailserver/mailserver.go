@@ -14,7 +14,7 @@ type MailServer interface {
 	NewSession(c *smtp.Conn) (smtp.Session, error)
 }
 
-type MailServerImpl struct {
+type Impl struct {
 	srv   *smtp.Server
 	hooks []Hook
 	db    *dbgen.Queries
@@ -22,7 +22,7 @@ type MailServerImpl struct {
 }
 
 func NewMailServer(addr, domain string, db *dbgen.Queries, q queue.JobQueue) MailServer {
-	backend := &MailServerImpl{db: db, queue: q}
+	backend := &Impl{db: db, queue: q}
 	backend.srv = smtp.NewServer(backend)
 
 	backend.srv.Addr = addr
@@ -32,13 +32,13 @@ func NewMailServer(addr, domain string, db *dbgen.Queries, q queue.JobQueue) Mai
 	return backend
 }
 
-func (backend *MailServerImpl) Start() error {
+func (backend *Impl) Start() error {
 	err := backend.srv.ListenAndServe()
 	return err
 }
 
 // NewSession is called after client greeting (EHLO, HELO).
-func (backend *MailServerImpl) NewSession(c *smtp.Conn) (smtp.Session, error) {
+func (backend *Impl) NewSession(_ *smtp.Conn) (smtp.Session, error) {
 	return &Session{
 		hooks: backend.hooks,
 		db:    backend.db,
@@ -47,6 +47,6 @@ func (backend *MailServerImpl) NewSession(c *smtp.Conn) (smtp.Session, error) {
 }
 
 // AddHook adds a new hook to the mail server.
-func (backend *MailServerImpl) AddHook(hook Hook) {
+func (backend *Impl) AddHook(hook Hook) {
 	backend.hooks = append(backend.hooks, hook)
 }

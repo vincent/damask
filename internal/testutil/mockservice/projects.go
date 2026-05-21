@@ -17,7 +17,11 @@ type MockProjectService struct {
 
 func NewProjectService() *MockProjectService { return &MockProjectService{} }
 
-func (m *MockProjectService) Create(ctx context.Context, workspaceID string, p service.CreateProjectParams) (*service.ProjectDTO, error) {
+func (m *MockProjectService) Create(
+	ctx context.Context,
+	workspaceID string,
+	p service.CreateProjectParams,
+) (*service.ProjectDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
@@ -38,7 +42,11 @@ func (m *MockProjectService) List(ctx context.Context, workspaceID string) ([]*s
 	return nil, nil
 }
 
-func (m *MockProjectService) Update(ctx context.Context, workspaceID, id string, p service.UpdateProjectParams) (*service.ProjectDTO, error) {
+func (m *MockProjectService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p service.UpdateProjectParams,
+) (*service.ProjectDTO, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}

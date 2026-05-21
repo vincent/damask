@@ -29,6 +29,7 @@ func baseFieldParams() service.CreateFieldDefinitionParams {
 // --- Create ---
 
 func TestFieldService_Create_OK(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	dto, err := svc.Create(context.Background(), "ws_1", baseFieldParams())
 	if err != nil {
@@ -43,6 +44,7 @@ func TestFieldService_Create_OK(t *testing.T) {
 }
 
 func TestFieldService_Create_EmptyName(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	p := baseFieldParams()
 	p.Name = "   "
@@ -53,6 +55,7 @@ func TestFieldService_Create_EmptyName(t *testing.T) {
 }
 
 func TestFieldService_Create_InvalidScope(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	p := baseFieldParams()
 	p.Scope = "invalid"
@@ -63,6 +66,7 @@ func TestFieldService_Create_InvalidScope(t *testing.T) {
 }
 
 func TestFieldService_Create_DuplicateKey(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	if _, err := svc.Create(context.Background(), "ws_1", baseFieldParams()); err != nil {
 		t.Fatalf("first create: %v", err)
@@ -74,8 +78,9 @@ func TestFieldService_Create_DuplicateKey(t *testing.T) {
 }
 
 func TestFieldService_Create_MaxFields(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		p := baseFieldParams()
 		p.Key = "field_" + string(rune('a'+i%26)) + string(rune('0'+i/26))
 		p.Name = "Field " + p.Key
@@ -96,6 +101,7 @@ func TestFieldService_Create_MaxFields(t *testing.T) {
 // --- Get ---
 
 func TestFieldService_Get_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	_, err := svc.Get(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -106,6 +112,7 @@ func TestFieldService_Get_NotFound(t *testing.T) {
 // --- Update ---
 
 func TestFieldService_Update_ImmutableKey(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseFieldParams())
 	newKey := "new_key"
@@ -116,6 +123,7 @@ func TestFieldService_Update_ImmutableKey(t *testing.T) {
 }
 
 func TestFieldService_Update_ImmutableFieldType(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseFieldParams())
 	newType := "text"
@@ -126,10 +134,16 @@ func TestFieldService_Update_ImmutableFieldType(t *testing.T) {
 }
 
 func TestFieldService_Update_OK(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseFieldParams())
 	newName := "Score"
-	updated, err := svc.Update(context.Background(), "ws_1", dto.ID, service.UpdateFieldDefinitionParams{Name: &newName})
+	updated, err := svc.Update(
+		context.Background(),
+		"ws_1",
+		dto.ID,
+		service.UpdateFieldDefinitionParams{Name: &newName},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -139,6 +153,7 @@ func TestFieldService_Update_OK(t *testing.T) {
 }
 
 func TestFieldService_Update_EmptyName(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseFieldParams())
 	empty := ""
@@ -151,6 +166,7 @@ func TestFieldService_Update_EmptyName(t *testing.T) {
 // --- Delete ---
 
 func TestFieldService_Delete_OK(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseFieldParams())
 	if err := svc.Delete(context.Background(), "ws_1", dto.ID); err != nil {
@@ -164,6 +180,7 @@ func TestFieldService_Delete_OK(t *testing.T) {
 }
 
 func TestFieldService_Delete_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFieldSvc(t)
 	err := svc.Delete(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {

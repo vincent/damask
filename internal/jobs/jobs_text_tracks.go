@@ -44,7 +44,18 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) (err
 	defer func() {
 		telemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "text track OCR job failed", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "track_id", p.TrackID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"text track OCR job failed",
+				"workspace_id",
+				p.WorkspaceID,
+				"asset_id",
+				p.AssetID,
+				"track_id",
+				p.TrackID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -138,7 +149,20 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) (err
 		attribute.Int("damask.text_track.word_count", wordCount),
 		attribute.Bool("damask.text_track.has_file", storageKey != nil),
 	)
-	slog.DebugContext(ctx, "text track OCR completed", "workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "track_id", p.TrackID, "word_count", wordCount, "output_format", p.OutputFormat)
+	slog.DebugContext(
+		ctx,
+		"text track OCR completed",
+		"workspace_id",
+		p.WorkspaceID,
+		"asset_id",
+		p.AssetID,
+		"track_id",
+		p.TrackID,
+		"word_count",
+		wordCount,
+		"output_format",
+		p.OutputFormat,
+	)
 
 	return nil
 }

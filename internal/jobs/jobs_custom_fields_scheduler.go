@@ -9,6 +9,11 @@ import (
 	"damask/server/internal/queue"
 )
 
+const (
+	schedulerCronHour   = 3
+	schedulerCronMinute = 0
+)
+
 // FieldCleanupScheduler enqueues a purge_deleted_fields job once per day at 03:00 UTC.
 type FieldCleanupScheduler struct {
 	db    *dbgen.Queries
@@ -24,7 +29,7 @@ func NewFieldCleanupScheduler(db *dbgen.Queries, q queue.JobQueue) *FieldCleanup
 func (s *FieldCleanupScheduler) Start(ctx context.Context) {
 	go func() {
 		for {
-			next := NextDaily(3, 0)
+			next := NextDaily(schedulerCronHour, schedulerCronMinute)
 			select {
 			case <-ctx.Done():
 				return
@@ -39,7 +44,7 @@ func (s *FieldCleanupScheduler) Start(ctx context.Context) {
 
 // jobPurgeDeletedFields hard-deletes field_definitions (and their values) that
 // have been soft-deleted for more than 30 days.
-func (s *JobServer) jobPurgeDeletedFields(ctx context.Context, job dbgen.Job) error {
+func (s *JobServer) jobPurgeDeletedFields(ctx context.Context, _ dbgen.Job) error {
 	ids, err := s.db.HardDeleteExpiredFieldDefinitions(ctx)
 	if err != nil {
 		return err
@@ -53,7 +58,7 @@ func (s *JobServer) jobPurgeDeletedFields(ctx context.Context, job dbgen.Job) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after commit or earlier query errors.
 	qtx := s.db.WithTx(tx)
 
 	for _, id := range ids {

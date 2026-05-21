@@ -65,7 +65,10 @@ func TestUpdateWorkflowParamsValidate(t *testing.T) {
 	if err := (service.UpdateWorkflowParams{Graph: &badGraph}).Validate(); !errors.Is(err, apperr.ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput for graph, got %v", err)
 	}
-	if err := (service.UpdateWorkflowParams{NotifyOnFailureEmail: &badEmail}).Validate(); !errors.Is(err, apperr.ErrInvalidInput) {
+	if err := (service.UpdateWorkflowParams{NotifyOnFailureEmail: &badEmail}).Validate(); !errors.Is(
+		err,
+		apperr.ErrInvalidInput,
+	) {
 		t.Fatalf("expected ErrInvalidInput for email, got %v", err)
 	}
 }
@@ -76,11 +79,23 @@ func TestCreateVariantAutomationParamsValidate(t *testing.T) {
 		in   service.CreateVariantAutomationParams
 		want error
 	}{
-		{"workspace", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeWorkspace}, nil},
-		{"project", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeProject}, nil},
+		{
+			"workspace",
+			service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeWorkspace},
+			nil,
+		},
+		{
+			"project",
+			service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeProject},
+			nil,
+		},
 		{"folder", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeFolder}, nil},
 		{"asset", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: service.AutomationScopeAsset}, nil},
-		{"missing asset", service.CreateVariantAutomationParams{Scope: service.AutomationScopeWorkspace}, apperr.ErrInvalidInput},
+		{
+			"missing asset",
+			service.CreateVariantAutomationParams{Scope: service.AutomationScopeWorkspace},
+			apperr.ErrInvalidInput,
+		},
 		{"bad scope", service.CreateVariantAutomationParams{AssetID: "ast_1", Scope: "global"}, apperr.ErrInvalidInput},
 	}
 	for _, tt := range tests {

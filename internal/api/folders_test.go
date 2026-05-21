@@ -33,7 +33,7 @@ func TestCreateFolder_Success(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
-		testutil.JsonBody(api.CreateFolderRequest{Name: "Assets"}), cookie)
+		testutil.JSONBody(api.CreateFolderRequest{Name: "Assets"}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ func TestCreateFolder_SubfolderSuccess(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
-		testutil.JsonBody(api.CreateFolderRequest{Name: "Sub", ParentID: &parentID}), cookie)
+		testutil.JSONBody(api.CreateFolderRequest{Name: "Sub", ParentID: &parentID}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func TestCreateFolder_DuplicateName(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects/prj_1/folders",
-		testutil.JsonBody(api.CreateFolderRequest{Name: "Dupe"}), cookie)
+		testutil.JSONBody(api.CreateFolderRequest{Name: "Dupe"}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusConflict)
 }
@@ -120,7 +120,7 @@ func TestUpdateFolder_Rename(t *testing.T) {
 
 	newName := "NewName"
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/folders/fld_1",
-		testutil.JsonBody(api.UpdateFolderRequest{Name: &newName}), cookie)
+		testutil.JSONBody(api.UpdateFolderRequest{Name: &newName}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusOK)
 

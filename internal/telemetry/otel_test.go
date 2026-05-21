@@ -10,6 +10,7 @@ import (
 )
 
 func TestSetup_Disabled(t *testing.T) {
+	t.Parallel()
 	shutdown, err := SetupTraces(context.Background(), Config{Enabled: false})
 	if err != nil {
 		t.Fatalf("Setup disabled: %v", err)
@@ -23,6 +24,7 @@ func TestSetup_Disabled(t *testing.T) {
 }
 
 func TestSetup_EnabledUnreachableEndpoint(t *testing.T) {
+	t.Parallel()
 	shutdown, err := SetupTraces(context.Background(), Config{
 		Enabled:     true,
 		Endpoint:    "http://127.0.0.1:1/v1/traces",
@@ -40,6 +42,7 @@ func TestSetup_EnabledUnreachableEndpoint(t *testing.T) {
 }
 
 func TestSetup_ShutdownIdempotent(t *testing.T) {
+	t.Parallel()
 	shutdown, err := SetupTraces(context.Background(), Config{Enabled: false})
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
@@ -53,6 +56,7 @@ func TestSetup_ShutdownIdempotent(t *testing.T) {
 }
 
 func TestTracer_Named(t *testing.T) {
+	t.Parallel()
 	recorder := tracetest.NewSpanRecorder()
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 	otel.SetTracerProvider(tp)

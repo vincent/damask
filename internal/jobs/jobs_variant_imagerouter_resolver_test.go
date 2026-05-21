@@ -68,9 +68,14 @@ func TestRunImageRouterJobWorkspaceOverrideBeatsEnv(t *testing.T) {
 	restore := imagerouter.SetBaseURLForTest(srv.URL + "/v1")
 	defer restore()
 
-	_, err := s.runImageRouterJob(context.Background(), "ws_1", seedSourceImage(t, s), func(client *imagerouter.Client, _ []byte) ([]byte, error) {
-		return nil, client.Validate(context.Background())
-	})
+	_, err := s.runImageRouterJob(
+		context.Background(),
+		"ws_1",
+		seedSourceImage(t, s),
+		func(client *imagerouter.Client, _ []byte) ([]byte, error) {
+			return nil, client.Validate(context.Background())
+		},
+	)
 	if err != nil {
 		t.Fatalf("runImageRouterJob: %v", err)
 	}
@@ -95,9 +100,14 @@ func TestRunImageRouterJobFallsBackToEnv(t *testing.T) {
 	restore := imagerouter.SetBaseURLForTest(srv.URL + "/v1")
 	defer restore()
 
-	_, err := s.runImageRouterJob(context.Background(), "ws_1", seedSourceImage(t, s), func(client *imagerouter.Client, _ []byte) ([]byte, error) {
-		return nil, client.Validate(context.Background())
-	})
+	_, err := s.runImageRouterJob(
+		context.Background(),
+		"ws_1",
+		seedSourceImage(t, s),
+		func(client *imagerouter.Client, _ []byte) ([]byte, error) {
+			return nil, client.Validate(context.Background())
+		},
+	)
 	if err != nil {
 		t.Fatalf("runImageRouterJob: %v", err)
 	}
@@ -108,9 +118,14 @@ func TestRunImageRouterJobMissingKeyFailsCleanly(t *testing.T) {
 		return "", imagerouter.SourceNone, nil
 	})
 
-	_, err := s.runImageRouterJob(context.Background(), "ws_1", seedSourceImage(t, s), func(client *imagerouter.Client, _ []byte) ([]byte, error) {
-		return nil, client.Validate(context.Background())
-	})
+	_, err := s.runImageRouterJob(
+		context.Background(),
+		"ws_1",
+		seedSourceImage(t, s),
+		func(client *imagerouter.Client, _ []byte) ([]byte, error) {
+			return nil, client.Validate(context.Background())
+		},
+	)
 	if !errors.Is(err, imagerouter.ErrNotConfigured) {
 		t.Fatalf("expected ErrNotConfigured, got %v", err)
 	}
@@ -122,9 +137,14 @@ func TestRunImageRouterJobCorruptWorkspaceCiphertextFailsCleanly(t *testing.T) {
 		return "", imagerouter.SourceNone, want
 	})
 
-	_, err := s.runImageRouterJob(context.Background(), "ws_1", seedSourceImage(t, s), func(client *imagerouter.Client, _ []byte) ([]byte, error) {
-		return nil, client.Validate(context.Background())
-	})
+	_, err := s.runImageRouterJob(
+		context.Background(),
+		"ws_1",
+		seedSourceImage(t, s),
+		func(client *imagerouter.Client, _ []byte) ([]byte, error) {
+			return nil, client.Validate(context.Background())
+		},
+	)
 	if !errors.Is(err, want) {
 		t.Fatalf("expected %v, got %v", want, err)
 	}

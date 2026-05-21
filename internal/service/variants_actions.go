@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"mime"
 	"path/filepath"
 	"strings"
@@ -84,12 +85,15 @@ func NewSQLVariantActionsStore(db *sql.DB) VariantActionsStore {
 	return &sqlVariantActionsStore{db: db}
 }
 
-func (s *sqlVariantActionsStore) Promote(ctx context.Context, p promoteVariantDBParams) (promoteVariantDBResult, error) {
+func (s *sqlVariantActionsStore) Promote(
+	ctx context.Context,
+	p promoteVariantDBParams,
+) (promoteVariantDBResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return promoteVariantDBResult{}, err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO assets (
@@ -147,7 +151,12 @@ func (s *sqlVariantActionsStore) Promote(ctx context.Context, p promoteVariantDB
 		return promoteVariantDBResult{}, err
 	}
 
-	if _, err := tx.ExecContext(ctx, `DELETE FROM variants WHERE id = ? AND workspace_id = ?`, p.SourceVariantID, p.WorkspaceID); err != nil {
+	if _, err := tx.ExecContext(
+		ctx,
+		`DELETE FROM variants WHERE id = ? AND workspace_id = ?`,
+		p.SourceVariantID,
+		p.WorkspaceID,
+	); err != nil {
 		return promoteVariantDBResult{}, err
 	}
 
@@ -162,7 +171,7 @@ func (s *sqlVariantActionsStore) SetAsThumbnail(ctx context.Context, p setVarian
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE assets
@@ -185,7 +194,11 @@ func (s *sqlVariantActionsStore) SetAsThumbnail(ctx context.Context, p setVarian
 	return tx.Commit()
 }
 
-func (s *sqlVariantActionsStore) MarkVariantPending(ctx context.Context, workspaceID, variantID string, transformParams *string) error {
+func (s *sqlVariantActionsStore) MarkVariantPending(
+	ctx context.Context,
+	workspaceID, variantID string,
+	transformParams *string,
+) error {
 	_, err := s.db.ExecContext(ctx, `
 		UPDATE variants
 		SET storage_key = '',
@@ -211,7 +224,13 @@ func (s *sqlVariantActionsStore) GetVersion(ctx context.Context, versionID strin
 }
 
 func (s *sqlVariantActionsStore) SetVariantStatus(ctx context.Context, variantID, workspaceID, status string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE variants SET status = ? WHERE id = ? AND workspace_id = ?`, status, variantID, workspaceID)
+	_, err := s.db.ExecContext(
+		ctx,
+		`UPDATE variants SET status = ? WHERE id = ? AND workspace_id = ?`,
+		status,
+		variantID,
+		workspaceID,
+	)
 	return err
 }
 
@@ -222,7 +241,10 @@ func (s *variantService) Promote(ctx context.Context, p PromoteVariantParams) (P
 
 	name := strings.TrimSpace(p.Name)
 	if name == "" || len(name) > 255 {
-		return PromoteVariantResult{}, fmt.Errorf("name is required and must be 255 characters or fewer: %w", apperr.ErrInvalidInput)
+		return PromoteVariantResult{}, fmt.Errorf(
+			"name is required and must be 255 characters or fewer: %w",
+			apperr.ErrInvalidInput,
+		)
 	}
 
 	asset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
@@ -234,7 +256,10 @@ func (s *variantService) Promote(ctx context.Context, p PromoteVariantParams) (P
 		return PromoteVariantResult{}, err
 	}
 	if asset.CurrentVersionID == nil || variant.AssetVersionID != *asset.CurrentVersionID {
-		return PromoteVariantResult{}, fmt.Errorf("cannot promote a variant from a previous version: %w", apperr.ErrConflict)
+		return PromoteVariantResult{}, fmt.Errorf(
+			"cannot promote a variant from a previous version: %w",
+			apperr.ErrConflict,
+		)
 	}
 	if strings.TrimSpace(variant.StorageKey) == "" {
 		return PromoteVariantResult{}, fmt.Errorf("variant output is not ready: %w", apperr.ErrConflict)
@@ -284,7 +309,14 @@ func (s *variantService) Promote(ctx context.Context, p PromoteVariantParams) (P
 			"mime_type":    mimeType,
 		})
 		if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload)); err != nil {
-			slog.WarnContext(ctx, "enqueue thumbnail for promoted variant", "asset_id", result.NewAssetID, "error", err)
+			slog.WarnContext(
+				ctx,
+				"enqueue thumbnail for promoted variant",
+				"asset_id",
+				result.NewAssetID,
+				"error",
+				err,
+			)
 		}
 	}
 
@@ -439,9 +471,7 @@ func mergeVariantParams(existing *string, overrides map[string]any) (map[string]
 			return nil, err
 		}
 	}
-	for k, v := range overrides {
-		merged[k] = v
-	}
+	maps.Copy(merged, overrides)
 	return merged, nil
 }
 

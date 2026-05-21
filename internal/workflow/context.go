@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"maps"
 	"sync"
 )
 
@@ -12,9 +13,7 @@ type RunContext struct {
 
 func NewRunContext(seed map[string]any) *RunContext {
 	data := map[string]any{}
-	for k, v := range seed {
-		data[k] = v
-	}
+	maps.Copy(data, seed)
 	return &RunContext{data: data}
 }
 
@@ -34,18 +33,14 @@ func (rc *RunContext) Set(key string, val any) {
 func (rc *RunContext) Merge(updates map[string]any) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
-	for k, v := range updates {
-		rc.data[k] = v
-	}
+	maps.Copy(rc.data, updates)
 }
 
 func (rc *RunContext) Clone() *RunContext {
 	rc.mu.RLock()
 	defer rc.mu.RUnlock()
 	clone := make(map[string]any, len(rc.data))
-	for k, v := range rc.data {
-		clone[k] = v
-	}
+	maps.Copy(clone, rc.data)
 	return &RunContext{data: clone}
 }
 

@@ -45,7 +45,12 @@ func NewUploadService(injestor AssetInjestor, aw audit.Writer, triggers ...Workf
 
 // Ingest writes r to a temp file, calls AssetInjestor.IngestFileFull, then removes the temp file.
 // Queue enqueue failures are logged but do not fail the upload (fire-and-forget).
-func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (asset *AssetDTO, err error) {
+func (s *uploadServiceImpl) Ingest(
+	ctx context.Context,
+	workspaceID string,
+	r io.Reader,
+	meta UploadMeta,
+) (asset *AssetDTO, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.upload.ingest",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Bool("damask.upload.has_project", meta.ProjectID != nil),
@@ -57,7 +62,16 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "upload ingest failed", "workspace_id", workspaceID, "filename", meta.OriginalFilename, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"upload ingest failed",
+				"workspace_id",
+				workspaceID,
+				"filename",
+				meta.OriginalFilename,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -106,7 +120,7 @@ func (s *uploadServiceImpl) Ingest(ctx context.Context, workspaceID string, r io
 		EventType:   audit.EventAssetCreated,
 		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "upload"},
 	})
-	publishWorkflowTriggerAsync(s.triggers, "trigger.asset_created", map[string]any{
+	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.asset_created", map[string]any{
 		"asset_id":          asset.ID,
 		"workspace_id":      asset.WorkspaceID,
 		"project_id":        asset.ProjectID,

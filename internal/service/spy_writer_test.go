@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"maps"
 	"sync"
 
 	"damask/server/internal/audit"
@@ -9,8 +10,8 @@ import (
 
 // spyWriter captures audit events for use in tests.
 type spyWriter struct {
-	mu     sync.Mutex
-	asset  []audit.AssetEvent
+	mu      sync.Mutex
+	asset   []audit.AssetEvent
 	project []audit.ProjectEvent
 }
 
@@ -74,9 +75,7 @@ func (s *triggerSpy) Dispatch(_ context.Context, eventType string, data map[stri
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cp := make(map[string]any, len(data))
-	for k, v := range data {
-		cp[k] = v
-	}
+	maps.Copy(cp, data)
 	s.calls = append(s.calls, triggerCall{eventType: eventType, data: cp})
 	return s.err
 }

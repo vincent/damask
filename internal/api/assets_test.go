@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,12 +21,12 @@ import (
 )
 
 // createFolder creates a folder in the given project via the HTTP API and returns its parsed response.
-// Used by tests that still rely on tests_helpers (th). Remove once assets_test.go and
+// Used by tests that still rely on testhelpers (th). Remove once assets_test.go and
 // router_isolation_test.go are migrated to testutil.
 func createFolder(t *testing.T, env *th.TestEnv, cookie *http.Cookie, projectID, name string, parentID *string) api.FolderResponse {
 	t.Helper()
 	req := th.AuthRequest(http.MethodPost, "/api/v1/projects/"+projectID+"/folders",
-		th.JsonBody(api.CreateFolderRequest{Name: name, ParentID: parentID}), cookie)
+		th.JSONBody(api.CreateFolderRequest{Name: name, ParentID: parentID}), cookie)
 	res, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ func TestUploadAsset_InFolder(t *testing.T) {
 
 	// Create a project
 	projRes, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "My Project"}), owner.Cookie))
+		th.JSONBody(api.CreateProjectRequest{Name: "My Project"}), owner.Cookie))
 	if err != nil {
 		t.Fatalf("create project: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestUploadAsset_ViewerForbidden(t *testing.T) {
 		t.Fatalf("close form: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/assets", &body)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/assets", &body)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.Header.Set("Authorization", "Bearer "+viewerToken)
 
@@ -531,7 +531,7 @@ func TestSearchAssets_Pagination(t *testing.T) {
 func insertAssetWithSize(t *testing.T, env *th.TestEnv, workspaceID string, size int64) string {
 	t.Helper()
 	id := fmt.Sprintf("asset-%d", size)
-	_, err := env.SqlDB.Exec(`
+	_, err := env.Database.Exec(`
 		INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
 	`, id, workspaceID, fmt.Sprintf("file-%d.bin", size), fmt.Sprintf("key-%d", size), "application/octet-stream", size)
@@ -760,7 +760,7 @@ func TestGetComments_Unauthenticated(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	asset := th.UploadAsset(t, env, owner.Cookie)
 
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/comments", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/assets/"+asset.ID+"/comments", nil)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -795,7 +795,7 @@ func TestGetAssetThumb_Ready(t *testing.T) {
 	if err := env.Storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
 		t.Fatalf("put thumbnail: %v", err)
 	}
-	if _, err := env.SqlDB.Exec(`UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, asset.ID); err != nil {
+	if _, err := env.Database.Exec(`UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, asset.ID); err != nil {
 		t.Fatalf("set thumbnail_key: %v", err)
 	}
 
@@ -830,7 +830,7 @@ func TestGetAssetThumb_Unauthenticated(t *testing.T) {
 	env, owner := th.SetupWithOwner(t)
 	asset := th.UploadAsset(t, env, owner.Cookie)
 
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/assets/"+asset.ID+"/thumb", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/assets/"+asset.ID+"/thumb", nil)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -968,7 +968,7 @@ func TestListAssets_SortByTakenAt(t *testing.T) {
 	a3 := th.UploadAsset(t, env, owner.Cookie) // no EXIF date — should sort last
 
 	// Enable exif_keep and create the field definition
-	_, err := env.SqlDB.Exec(`UPDATE workspaces SET exif_keep = 1 WHERE id = ?`, owner.WorkspaceID)
+	_, err := env.Database.Exec(`UPDATE workspaces SET exif_keep = 1 WHERE id = ?`, owner.WorkspaceID)
 	if err != nil {
 		t.Fatalf("enable exif: %v", err)
 	}
@@ -978,7 +978,7 @@ func TestListAssets_SortByTakenAt(t *testing.T) {
 
 	// Manually set taken_at values for a1 and a2
 	var fieldID string
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT id FROM field_definitions WHERE key = '_exif_taken_at' AND workspace_id = ?`,
 		owner.WorkspaceID,
 	).Scan(&fieldID); err != nil {
@@ -994,7 +994,7 @@ func TestListAssets_SortByTakenAt(t *testing.T) {
 		{a1.ID, "2023-06-15"},
 		{a2.ID, "2024-01-20"},
 	} {
-		_, err := env.SqlDB.Exec(
+		_, err := env.Database.Exec(
 			`INSERT OR REPLACE INTO asset_field_values (id, asset_id, field_id, value_date, created_by)
 			 VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?)`,
 			row.assetID, fieldID, row.date, userID,
@@ -1049,7 +1049,7 @@ func TestDeleteAsset_ConflictProjectCover(t *testing.T) {
 
 	// Create project
 	projResp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "Proj"}), owner.Cookie))
+		th.JSONBody(api.CreateProjectRequest{Name: "Proj"}), owner.Cookie))
 	if err != nil || projResp.StatusCode != http.StatusCreated {
 		t.Fatalf("create project: status %d err %v", projResp.StatusCode, err)
 	}
@@ -1058,7 +1058,7 @@ func TestDeleteAsset_ConflictProjectCover(t *testing.T) {
 
 	// Set asset as project cover
 	updateResp, err := env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/projects/"+proj.ID,
-		th.JsonBody(api.UpdateProjectRequest{CoverAssetID: &asset.ID}), owner.Cookie))
+		th.JSONBody(api.UpdateProjectRequest{CoverAssetID: &asset.ID}), owner.Cookie))
 	if err != nil || updateResp.StatusCode != http.StatusOK {
 		t.Fatalf("update project cover: status %d err %v", updateResp.StatusCode, err)
 	}
@@ -1086,7 +1086,7 @@ func TestDeleteAsset_ConflictWorkspaceIcon(t *testing.T) {
 	_ = json.NewDecoder(uploadResp.Body).Decode(&asset)
 
 	// Set asset as workspace icon via direct SQL
-	_, err = env.SqlDB.Exec("UPDATE workspaces SET icon_asset_id = ? WHERE id = ?", asset.ID, owner.WorkspaceID)
+	_, err = env.Database.Exec("UPDATE workspaces SET icon_asset_id = ? WHERE id = ?", asset.ID, owner.WorkspaceID)
 	if err != nil {
 		t.Fatalf("set icon: %v", err)
 	}
@@ -1115,7 +1115,7 @@ func TestDeleteAsset_OkAfterCoverCleared(t *testing.T) {
 
 	// Create project and set cover
 	projResp, err := env.App.Test(th.AuthRequest(http.MethodPost, "/api/v1/projects",
-		th.JsonBody(api.CreateProjectRequest{Name: "Proj"}), owner.Cookie))
+		th.JSONBody(api.CreateProjectRequest{Name: "Proj"}), owner.Cookie))
 	if err != nil || projResp.StatusCode != http.StatusCreated {
 		t.Fatalf("create project: %v", err)
 	}
@@ -1123,13 +1123,13 @@ func TestDeleteAsset_OkAfterCoverCleared(t *testing.T) {
 	_ = json.NewDecoder(projResp.Body).Decode(&proj)
 
 	_, err = env.App.Test(th.AuthRequest(http.MethodPut, "/api/v1/projects/"+proj.ID,
-		th.JsonBody(api.UpdateProjectRequest{CoverAssetID: &asset.ID}), owner.Cookie))
+		th.JSONBody(api.UpdateProjectRequest{CoverAssetID: &asset.ID}), owner.Cookie))
 	if err != nil {
 		t.Fatalf("set cover: %v", err)
 	}
 
 	// Clear cover via direct SQL (no API endpoint to null it)
-	_, err = env.SqlDB.Exec("UPDATE projects SET cover_asset_id = NULL WHERE id = ?", proj.ID)
+	_, err = env.Database.Exec("UPDATE projects SET cover_asset_id = NULL WHERE id = ?", proj.ID)
 	if err != nil {
 		t.Fatalf("clear cover: %v", err)
 	}
@@ -1161,7 +1161,7 @@ func TestGetAsset_VariantCount(t *testing.T) {
 
 	// Insert a variant directly and re-fetch.
 	var ws struct{ WorkspaceID string }
-	_ = env.SqlDB.QueryRow("SELECT workspace_id FROM assets WHERE id = ?", assetID).Scan(&ws.WorkspaceID)
+	_ = env.Database.QueryRow("SELECT workspace_id FROM assets WHERE id = ?", assetID).Scan(&ws.WorkspaceID)
 	insertVariantDirectly(t, env, assetID, ws.WorkspaceID)
 
 	resp2, err := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie))
@@ -1180,7 +1180,7 @@ func TestListAssets_VariantCount(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	var workspaceID string
-	_ = env.SqlDB.QueryRow("SELECT workspace_id FROM assets WHERE id = ?", assetID).Scan(&workspaceID)
+	_ = env.Database.QueryRow("SELECT workspace_id FROM assets WHERE id = ?", assetID).Scan(&workspaceID)
 	insertVariantDirectly(t, env, assetID, workspaceID)
 
 	resp, err := env.App.Test(th.AuthRequest(http.MethodGet, "/api/v1/assets", nil, cookie))

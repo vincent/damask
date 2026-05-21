@@ -4,7 +4,7 @@ package api_test
 
 import (
 	"damask/server/internal/api"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -104,7 +104,7 @@ func TestShareAccess_WrongPassword(t *testing.T) {
 		Password:   &password,
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: "password"}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JSONBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: "password"}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -123,7 +123,7 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 		Password:   &password,
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JSONBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -133,7 +133,7 @@ func TestShareAccess_MissingPassword(t *testing.T) {
 
 func TestShareAccess_NotFound(t *testing.T) {
 	env := th.SetupTestApp(t)
-	req := httptest.NewRequest(http.MethodPost, "/shared/nonexistent/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/nonexistent/access", th.JSONBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
@@ -154,7 +154,7 @@ func TestShareAccess_Revoked(t *testing.T) {
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, owner.Cookie)
 	env.App.Test(req) //nolint:errcheck
 
-	req2 := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
+	req2 := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JSONBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req2.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req2)
 	if resp.StatusCode != http.StatusNotFound {
@@ -240,9 +240,9 @@ func TestShareAccess_Expired(t *testing.T) {
 	})
 
 	// Force expiry
-	env.SqlDB.Exec(`UPDATE shares SET expires_at = datetime('now', '-1 day') WHERE id = ?`, sh.ID) //nolint:errcheck
+	env.Database.Exec(`UPDATE shares SET expires_at = datetime('now', '-1 day') WHERE id = ?`, sh.ID) //nolint:errcheck
 
-	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JsonBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
+	req := httptest.NewRequest(http.MethodPost, "/shared/"+sh.ID+"/access", th.JSONBody(api.ShareAccessRequest{VisitorName: "Visitor", Password: ""}))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusGone {
@@ -283,7 +283,7 @@ func TestShareListAssets_Project(t *testing.T) {
 	p := createProject(t, env, owner.Cookie, "Project", "#f00")
 	assetID := uploadTestAsset(t, env, owner)
 	// Assign asset to project directly via SQL
-	if _, err := env.SqlDB.Exec(`UPDATE assets SET project_id = ? WHERE id = ?`, p.ID, assetID); err != nil {
+	if _, err := env.Database.Exec(`UPDATE assets SET project_id = ? WHERE id = ?`, p.ID, assetID); err != nil {
 		t.Fatalf("assign asset to project: %v", err)
 	}
 
@@ -621,7 +621,7 @@ func TestShareListComments_Grouped(t *testing.T) {
 	// Upload two assets and assign them to the project directly via SQL.
 	a1 := uploadTestAsset(t, env, owner)
 	a2 := uploadTestAsset(t, env, owner)
-	if _, err := env.SqlDB.Exec(`UPDATE assets SET project_id = ? WHERE id IN (?, ?)`, p.ID, a1, a2); err != nil {
+	if _, err := env.Database.Exec(`UPDATE assets SET project_id = ? WHERE id IN (?, ?)`, p.ID, a1, a2); err != nil {
 		t.Fatalf("assign assets to project: %v", err)
 	}
 

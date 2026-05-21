@@ -31,8 +31,8 @@ type Config struct {
 	Recursive  bool   `json:"recursive"`
 }
 
-// SFTPSource watches a remote directory for new files.
-type SFTPSource struct {
+// Source watches a remote directory for new files.
+type Source struct {
 	cfg Config
 }
 
@@ -48,12 +48,12 @@ func New(configJSON []byte) (ingress.Source, error) {
 	if cfg.RemotePath == "" {
 		cfg.RemotePath = "/"
 	}
-	return &SFTPSource{cfg: cfg}, nil
+	return &Source{cfg: cfg}, nil
 }
 
-func (s *SFTPSource) Type() string { return "sftp" }
+func (s *Source) Type() string { return "sftp" }
 
-func (s *SFTPSource) Validate(ctx context.Context) error {
+func (s *Source) Validate(_ context.Context) error {
 	client, sshConn, err := s.connect()
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ func (s *SFTPSource) Validate(ctx context.Context) error {
 	return nil
 }
 
-func (s *SFTPSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
+func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	client, sshConn, err := s.connect()
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (s *SFTPSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	defer client.Close()
 	defer sshConn.Close()
 
-	entries, err := client.ReadDir(s.cfg.RemotePath)
+	entries, err := client.ReadDirContext(ctx, s.cfg.RemotePath)
 	if err != nil {
 		return nil, fmt.Errorf("sftp: readdir %s: %w", s.cfg.RemotePath, err)
 	}
@@ -100,7 +100,7 @@ func (s *SFTPSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	return items, nil
 }
 
-func (s *SFTPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
+func (s *Source) Fetch(_ context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
 	client, sshConn, err := s.connect()
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (s *SFTPSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Rea
 	return &sftpReadCloser{f: f, client: client, ssh: sshConn}, nil
 }
 
-func (s *SFTPSource) connect() (*gsftp.Client, *ssh.Client, error) {
+func (s *Source) connect() (*gsftp.Client, *ssh.Client, error) {
 	addr := net.JoinHostPort(s.cfg.Host, strconv.Itoa(s.cfg.Port))
 
 	var authMethods []ssh.AuthMethod
@@ -133,7 +133,7 @@ func (s *SFTPSource) connect() (*gsftp.Client, *ssh.Client, error) {
 	sshCfg := &ssh.ClientConfig{
 		User:            s.cfg.Username,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec — acceptable for internal use
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 	sshConn, err := ssh.Dial("tcp", addr, sshCfg)
 	if err != nil {

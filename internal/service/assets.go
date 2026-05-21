@@ -31,7 +31,15 @@ type assetService struct {
 }
 
 // NewAssetService returns an AssetService backed by the given repository.
-func NewAssetService(assets repository.AssetRepository, versions repository.VersionRepository, tags repository.TagRepository, fields repository.FieldRepository, stor storage.Storage, aw audit.Writer, q queue.JobQueue) AssetService {
+func NewAssetService(
+	assets repository.AssetRepository,
+	versions repository.VersionRepository,
+	tags repository.TagRepository,
+	fields repository.FieldRepository,
+	stor storage.Storage,
+	aw audit.Writer,
+	q queue.JobQueue,
+) AssetService {
 	return &assetService{assets: assets, versions: versions, tags: tags, fields: fields, stor: stor, audit: aw, q: q}
 }
 
@@ -185,7 +193,16 @@ func (s *assetService) ListByFields(ctx context.Context, params ListAssetsByFiel
 		span.SetAttributes(attribute.Int("damask.assets.result_count", len(out)))
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset list by fields failed", "workspace_id", params.WorkspaceID, "filters", len(params.FieldFilters), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset list by fields failed",
+				"workspace_id",
+				params.WorkspaceID,
+				"filters",
+				len(params.FieldFilters),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -218,7 +235,16 @@ func (s *assetService) Delete(ctx context.Context, workspaceID, assetID string) 
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset delete failed", "workspace_id", workspaceID, "asset_id", assetID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset delete failed",
+				"workspace_id",
+				workspaceID,
+				"asset_id",
+				assetID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -247,7 +273,16 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset hard delete failed", "workspace_id", workspaceID, "asset_id", assetID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset hard delete failed",
+				"workspace_id",
+				workspaceID,
+				"asset_id",
+				assetID,
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -293,7 +328,16 @@ func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, a
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset bulk hard delete failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset bulk hard delete failed",
+				"workspace_id",
+				workspaceID,
+				"asset_count",
+				len(assetIDs),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -346,7 +390,18 @@ func (s *assetService) BulkSetTag(ctx context.Context, workspaceID, tagName stri
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset bulk tag failed", "workspace_id", workspaceID, "tag", tagName, "asset_count", len(assetIDs), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset bulk tag failed",
+				"workspace_id",
+				workspaceID,
+				"tag",
+				tagName,
+				"asset_count",
+				len(assetIDs),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -373,7 +428,18 @@ func (s *assetService) BulkRemoveTag(ctx context.Context, workspaceID, tagName s
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset bulk remove tag failed", "workspace_id", workspaceID, "tag", tagName, "asset_count", len(assetIDs), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset bulk remove tag failed",
+				"workspace_id",
+				workspaceID,
+				"tag",
+				tagName,
+				"asset_count",
+				len(assetIDs),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -388,7 +454,12 @@ func (s *assetService) BulkRemoveTag(ctx context.Context, workspaceID, tagName s
 	return nil
 }
 
-func (s *assetService) BulkMoveProject(ctx context.Context, workspaceID string, assetIDs []string, projectID *string) (err error) {
+func (s *assetService) BulkMoveProject(
+	ctx context.Context,
+	workspaceID string,
+	assetIDs []string,
+	projectID *string,
+) (err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.bulk_move_project",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.assets.requested_count", len(assetIDs)),
@@ -397,7 +468,16 @@ func (s *assetService) BulkMoveProject(ctx context.Context, workspaceID string, 
 	defer func() {
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset bulk project move failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset bulk project move failed",
+				"workspace_id",
+				workspaceID,
+				"asset_count",
+				len(assetIDs),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -467,7 +547,11 @@ func (s *assetService) WriteAssetDownloadedAsync(workspaceID, assetID, userID st
 }
 
 // RegenerateThumbnail re-enqueues a version_thumbnail job for the asset's current version.
-func (s *assetService) RegenerateThumbnail(ctx context.Context, workspaceID string, assetIDs []string) (jobIDs []string, err error) {
+func (s *assetService) RegenerateThumbnail(
+	ctx context.Context,
+	workspaceID string,
+	assetIDs []string,
+) (jobIDs []string, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.assets.regenerate_thumbnail",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.assets.requested_count", len(assetIDs)),
@@ -476,7 +560,16 @@ func (s *assetService) RegenerateThumbnail(ctx context.Context, workspaceID stri
 		span.SetAttributes(attribute.Int("damask.jobs.enqueued_count", len(jobIDs)))
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset thumbnail regeneration failed", "workspace_id", workspaceID, "asset_count", len(assetIDs), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"asset thumbnail regeneration failed",
+				"workspace_id",
+				workspaceID,
+				"asset_count",
+				len(assetIDs),
+				"error",
+				err,
+			)
 		}
 	}()
 

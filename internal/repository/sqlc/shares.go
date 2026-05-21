@@ -111,7 +111,10 @@ func (r *shareRepo) IncrementViewCount(ctx context.Context, id string) error {
 	return r.q.IncrementShareViewCount(ctx, id)
 }
 
-func (r *shareRepo) ListAssetsByTarget(ctx context.Context, targetType, targetID string) ([]repository.PublicAsset, error) {
+func (r *shareRepo) ListAssetsByTarget(
+	ctx context.Context,
+	targetType, targetID string,
+) ([]repository.PublicAsset, error) {
 	var query string
 	switch targetType {
 	case "asset":
@@ -185,7 +188,14 @@ func (r *shareRepo) GetPublicAssetFile(ctx context.Context, assetID string) (rep
 		JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
 		WHERE a.id = ?`, assetID)
 	var f repository.PublicAssetFile
-	if err := row.Scan(&f.MimeType, &f.OriginalFilename, &f.StorageKey, &f.ContentHash, &f.Size, &f.VersionCreatedAt); err != nil {
+	if err := row.Scan(
+		&f.MimeType,
+		&f.OriginalFilename,
+		&f.StorageKey,
+		&f.ContentHash,
+		&f.Size,
+		&f.VersionCreatedAt,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.PublicAssetFile{}, apperr.ErrNotFound
 		}
@@ -209,16 +219,16 @@ func (r *shareRepo) GetPublicAssetThumb(ctx context.Context, assetID string) (*s
 
 func (r *shareRepo) IsAssetInTarget(ctx context.Context, targetType, targetID, assetID string) (bool, error) {
 	var query string
-	var args []interface{}
+	var args []any
 	switch targetType {
 	case "asset":
 		return assetID == targetID, nil
 	case "project":
 		query = `SELECT COUNT(1) FROM assets WHERE id = ? AND project_id = ?`
-		args = []interface{}{assetID, targetID}
+		args = []any{assetID, targetID}
 	case "collection":
 		query = `SELECT COUNT(1) FROM collection_assets WHERE collection_id = ? AND asset_id = ?`
-		args = []interface{}{targetID, assetID}
+		args = []any{targetID, assetID}
 	default:
 		return false, nil
 	}
@@ -257,7 +267,10 @@ func (r *shareRepo) ListCommentsByShare(ctx context.Context, shareID string) ([]
 	return out, nil
 }
 
-func (r *shareRepo) ListCommentsByShareAndAsset(ctx context.Context, shareID, assetID string) ([]repository.ShareComment, error) {
+func (r *shareRepo) ListCommentsByShareAndAsset(
+	ctx context.Context,
+	shareID, assetID string,
+) ([]repository.ShareComment, error) {
 	rows, err := r.q.ListCommentsByShareAndAsset(ctx, dbgen.ListCommentsByShareAndAssetParams{
 		ShareID: shareID,
 		AssetID: assetID,

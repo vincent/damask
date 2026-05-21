@@ -119,7 +119,10 @@ func (r *collectionRepo) RemoveAsset(ctx context.Context, collectionID, assetID 
 	})
 }
 
-func (r *collectionRepo) ListForAsset(ctx context.Context, workspaceID, assetID string) ([]repository.Collection, error) {
+func (r *collectionRepo) ListForAsset(
+	ctx context.Context,
+	workspaceID, assetID string,
+) ([]repository.Collection, error) {
 	rows, err := r.q.ListCollectionsForAsset(ctx, dbgen.ListCollectionsForAssetParams{
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,

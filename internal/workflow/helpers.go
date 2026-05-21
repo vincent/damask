@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -42,7 +43,7 @@ type Deps struct {
 	Config      *config.Config
 }
 
-type WorkflowAsset struct {
+type Asset struct {
 	ID               string
 	WorkspaceID      string
 	MimeType         string
@@ -57,8 +58,8 @@ type AssetMoveParams struct {
 }
 
 type AssetManager interface {
-	Get(ctx context.Context, workspaceID, assetID string) (*WorkflowAsset, error)
-	Move(ctx context.Context, workspaceID, assetID string, p AssetMoveParams) (*WorkflowAsset, error)
+	Get(ctx context.Context, workspaceID, assetID string) (*Asset, error)
+	Move(ctx context.Context, workspaceID, assetID string, p AssetMoveParams) (*Asset, error)
 }
 
 type VariantPrepareRequest struct {
@@ -156,7 +157,6 @@ func jsonToMap(raw string) map[string]any {
 	return out
 }
 
-
 func sha256Hex(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
@@ -165,7 +165,7 @@ func sha256Hex(raw string) string {
 func newToken() (string, error) {
 	id := uuid.NewString() + uuid.NewString()
 	if id == "" {
-		return "", fmt.Errorf("failed to generate token")
+		return "", errors.New("failed to generate token")
 	}
 	return id, nil
 }

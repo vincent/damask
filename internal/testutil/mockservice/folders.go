@@ -18,7 +18,11 @@ type MockFolderService struct {
 
 func NewFolderService() *MockFolderService { return &MockFolderService{} }
 
-func (m *MockFolderService) Create(ctx context.Context, workspaceID, projectID string, p service.CreateFolderParams) (*service.FolderDTO, error) {
+func (m *MockFolderService) Create(
+	ctx context.Context,
+	workspaceID, projectID string,
+	p service.CreateFolderParams,
+) (*service.FolderDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, projectID, p)
 	}
@@ -39,14 +43,21 @@ func (m *MockFolderService) List(ctx context.Context, workspaceID, projectID str
 	return nil, nil
 }
 
-func (m *MockFolderService) ListTree(ctx context.Context, workspaceID, projectID string) ([]*service.FolderTreeDTO, error) {
+func (m *MockFolderService) ListTree(
+	ctx context.Context,
+	workspaceID, projectID string,
+) ([]*service.FolderTreeDTO, error) {
 	if m.ListTreeFn != nil {
 		return m.ListTreeFn(ctx, workspaceID, projectID)
 	}
 	return nil, nil
 }
 
-func (m *MockFolderService) Update(ctx context.Context, workspaceID, id string, p service.UpdateFolderParams) (*service.FolderDTO, error) {
+func (m *MockFolderService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p service.UpdateFolderParams,
+) (*service.FolderDTO, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}

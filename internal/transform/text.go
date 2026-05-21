@@ -29,7 +29,6 @@ type ImageOfTextOptions struct {
 }
 
 func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextOptions) ([]byte, error) {
-
 	var err error
 	var openTypeFont *opentype.Font
 	if opts.FontFile == nil {
@@ -85,6 +84,7 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 	}
 
 	if opts.FontSize <= 0 {
+		//nolint:mnd // heuristic font size based on width and text length
 		opts.FontSize = max(8, min(32, float64(opts.Width)/float64(maxLen)*1.5))
 	}
 
@@ -98,8 +98,8 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 	}
 
 	metrics := face.Metrics()
-	lineHeight := (int(metrics.Height) + 63) / 64
-	ascent := (metrics.Ascent + 63) &^ 63
+	lineHeight := (int(metrics.Height) + 63) / 64 //nolint:mnd // round to nearest integer
+	ascent := (metrics.Ascent + 63) &^ 63         //nolint:mnd // round to nearest integer
 
 	margin := 10
 	maxWidth := opts.Width - 2*margin
@@ -115,7 +115,7 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 	}
 
 	var wrappedLines []string
-	for _, line := range strings.Split(opts.TextContent, "\n") {
+	for line := range strings.SplitSeq(opts.TextContent, "\n") {
 		words := strings.Fields(line)
 		if len(words) == 0 {
 			wrappedLines = append(wrappedLines, "")

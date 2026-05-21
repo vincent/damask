@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
 
@@ -14,7 +16,11 @@ const (
 
 func getLocalWorkspace(c fiber.Ctx, svc service.WorkspaceService) (*service.WorkspaceDTO, error) {
 	if v := c.Locals(localWorkspace); v != nil {
-		return v.(*service.WorkspaceDTO), nil
+		ws, ok := v.(*service.WorkspaceDTO)
+		if !ok {
+			return nil, errors.New("cached workspace has unexpected type")
+		}
+		return ws, nil
 	}
 	claims := auth.GetClaims(c)
 	ws, err := svc.Get(c.Context(), claims.WorkspaceID)
@@ -27,7 +33,11 @@ func getLocalWorkspace(c fiber.Ctx, svc service.WorkspaceService) (*service.Work
 
 func getLocalMember(c fiber.Ctx, svc service.WorkspaceService) (*service.MemberDTO, error) {
 	if v := c.Locals(localMember); v != nil {
-		return v.(*service.MemberDTO), nil
+		member, ok := v.(*service.MemberDTO)
+		if !ok {
+			return nil, errors.New("cached member has unexpected type")
+		}
+		return member, nil
 	}
 	claims := auth.GetClaims(c)
 	m, err := svc.GetMember(c.Context(), claims.WorkspaceID, claims.UserID)

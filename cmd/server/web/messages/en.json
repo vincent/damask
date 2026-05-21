@@ -420,6 +420,7 @@
   "variant_automation_covered_scope_workspace": "(workspace-wide)",
   "variant_automation_covered_scope_project": "(this project)",
   "variant_automation_covered_scope_folder": "(this folder)",
+  "variant_automation_covered_scope_asset": "(this asset)",
   "upload_new_version": "Upload new version",
   "quick_actions": "Quick Actions",
   "onboard_upload": "Upload files",

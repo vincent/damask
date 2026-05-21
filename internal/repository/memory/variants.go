@@ -38,7 +38,7 @@ func (r *RealVariantRepo) GetByID(_ context.Context, workspaceID, id string) (re
 	return v, nil
 }
 
-func (r *RealVariantRepo) ListByAsset(_ context.Context, workspaceID, assetID string) ([]repository.Variant, error) {
+func (r *RealVariantRepo) ListByAsset(_ context.Context, workspaceID, _ string) ([]repository.Variant, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	// In tests we just filter by workspaceID -- without a join to the asset table
@@ -114,7 +114,10 @@ func (r *RealVariantRepo) UpdateSharedBatch(_ context.Context, workspaceID strin
 	return nil
 }
 
-func (r *RealVariantRepo) ListSharedByAssetIDs(_ context.Context, assetIDs []string) ([]repository.VariantWithAssetID, error) {
+func (r *RealVariantRepo) ListSharedByAssetIDs(
+	_ context.Context,
+	assetIDs []string,
+) ([]repository.VariantWithAssetID, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if len(assetIDs) == 0 {
@@ -152,7 +155,10 @@ func (r *RealVariantRepo) ListSharedByAssetIDs(_ context.Context, assetIDs []str
 	return out, nil
 }
 
-func (r *RealVariantRepo) GetSharedByVariantAndAsset(_ context.Context, variantID, assetID string) (repository.Variant, error) {
+func (r *RealVariantRepo) GetSharedByVariantAndAsset(
+	_ context.Context,
+	variantID, assetID string,
+) (repository.Variant, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	v, ok := r.variants[variantID]

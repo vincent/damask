@@ -29,7 +29,10 @@ func (m *MockTextTrackService) Get(ctx context.Context, workspaceID, trackID str
 	return service.TextTrackDTO{}, nil
 }
 
-func (m *MockTextTrackService) Create(ctx context.Context, p service.CreateTextTrackParams) (service.TextTrackDTO, error) {
+func (m *MockTextTrackService) Create(
+	ctx context.Context,
+	p service.CreateTextTrackParams,
+) (service.TextTrackDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, p)
 	}

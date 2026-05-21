@@ -19,6 +19,7 @@ func writeFakeFFprobe(t *testing.T, body string) string {
 }
 
 func TestExtractAVTags_MP3FullTags(t *testing.T) {
+	t.Parallel()
 	ffprobe := writeFakeFFprobe(t, `{
   "format": {
     "format_name": "mp3",
@@ -69,6 +70,7 @@ func TestExtractAVTags_MP3FullTags(t *testing.T) {
 }
 
 func TestExtractAVTags_StreamLevelVorbisTags(t *testing.T) {
+	t.Parallel()
 	ffprobe := writeFakeFFprobe(t, `{
   "format": { "format_name": "ogg", "duration": "10.0", "bit_rate": "128000", "tags": {} },
   "streams": [
@@ -99,6 +101,7 @@ func TestExtractAVTags_StreamLevelVorbisTags(t *testing.T) {
 }
 
 func TestExtractAVTags_VideoStreamAndFrameRate(t *testing.T) {
+	t.Parallel()
 	ffprobe := writeFakeFFprobe(t, `{
   "format": {
     "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
@@ -133,6 +136,7 @@ func TestExtractAVTags_VideoStreamAndFrameRate(t *testing.T) {
 }
 
 func TestExtractAVTags_NoUsefulTagsReturnsNil(t *testing.T) {
+	t.Parallel()
 	ffprobe := writeFakeFFprobe(t, `{
   "format": { "format_name": "", "duration": "", "bit_rate": "", "tags": {} },
   "streams": []
@@ -148,6 +152,7 @@ func TestExtractAVTags_NoUsefulTagsReturnsNil(t *testing.T) {
 }
 
 func TestExtractAVTags_StringBitsPerRawSampleOnCoverArt(t *testing.T) {
+	t.Parallel()
 	ffprobe := writeFakeFFprobe(t, `{
   "format": {
     "format_name": "mp3",

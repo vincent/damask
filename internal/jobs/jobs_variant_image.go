@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
+
+const variantStatusReady = "ready"
 
 // VariantJobPayload is the payload for user-triggered variant creation jobs.
 // VersionID and VersionNum identify the asset version the variant is bound to.
@@ -36,7 +39,11 @@ type VariantJobPayload struct {
 }
 
 // enqueueVariantThumb enqueues a generate_variant_thumbnail job after a variant row is created.
-func (s *JobServer) enqueueVariantThumb(ctx context.Context, p VariantJobPayload, variantID, storageKey, contentType string) {
+func (s *JobServer) enqueueVariantThumb(
+	ctx context.Context,
+	p VariantJobPayload,
+	variantID, storageKey, contentType string,
+) {
 	_ = EnqueueVariantThumbnailJob(ctx, s, VariantThumbnailJobPayload{
 		VariantID:   variantID,
 		WorkspaceID: p.WorkspaceID,
@@ -86,7 +93,7 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
 		if params.WatermarkAssetID == "" {
-			return fmt.Errorf("watermark asset id is required")
+			return errors.New("watermark asset id is required")
 		}
 		var wm dbgen.Asset
 		wm, err = s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
@@ -138,7 +145,7 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		StorageKey:      storageKey,
 		TransformParams: &paramsStr,
 		Size:            &sz,
-		Status:          "ready",
+		Status:          variantStatusReady,
 		Title:           p.Title,
 		IsShared:        boolToInt64(p.IsShared),
 	})
@@ -163,14 +170,21 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("parse bg remove params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, p.WorkspaceID, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{
-			Model:  params.Model,
-			Prompt: params.Prompt,
-		})
-	})
+	result, err := s.runImageRouterJob(
+		ctx,
+		p.WorkspaceID,
+		p.StorageKey,
+		func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+			return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{
+				Model:  params.Model,
+				Prompt: params.Prompt,
+			})
+		},
+	)
 	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
-		return fmt.Errorf("the selected model is not available for background removal. please choose another model and try again")
+		return errors.New(
+			"the selected model is not available for background removal. please choose another model and try again",
+		)
 	}
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
@@ -182,7 +196,14 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 	}
 	paramsStr := string(p.Params)
 	paramsHash := canonicalParamsHash(paramsStr)
-	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeImageBgRemove, paramsHash, ".png")
+	storageKey := storage.VersionedVariantKey(
+		p.WorkspaceID,
+		p.AssetID,
+		p.VersionNum,
+		queue.JobTypeImageBgRemove,
+		paramsHash,
+		".png",
+	)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
@@ -197,7 +218,7 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		StorageKey:      storageKey,
 		TransformParams: &paramsStr,
 		Size:            &sz,
-		Status:          "ready",
+		Status:          variantStatusReady,
 		Title:           p.Title,
 		IsShared:        boolToInt64(p.IsShared),
 	})
@@ -222,12 +243,17 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 		return fmt.Errorf("parse image prompt params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, p.WorkspaceID, p.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-		return client.Transform(ctx, imageData, imagerouter.PromptParams{
-			Prompt: params.Prompt,
-			Model:  params.Model,
-		})
-	})
+	result, err := s.runImageRouterJob(
+		ctx,
+		p.WorkspaceID,
+		p.StorageKey,
+		func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+			return client.Transform(ctx, imageData, imagerouter.PromptParams{
+				Prompt: params.Prompt,
+				Model:  params.Model,
+			})
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("image transform with prompt: %w", err)
 	}
@@ -238,7 +264,14 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 	}
 	paramsStr := string(p.Params)
 	paramsHash := canonicalParamsHash(paramsStr)
-	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeImageWithPrompt, paramsHash, ".png")
+	storageKey := storage.VersionedVariantKey(
+		p.WorkspaceID,
+		p.AssetID,
+		p.VersionNum,
+		queue.JobTypeImageWithPrompt,
+		paramsHash,
+		".png",
+	)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
@@ -253,7 +286,7 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 		StorageKey:      storageKey,
 		TransformParams: &paramsStr,
 		Size:            &sz,
-		Status:          "ready",
+		Status:          variantStatusReady,
 		Title:           p.Title,
 		IsShared:        boolToInt64(p.IsShared),
 	})
@@ -306,7 +339,7 @@ func (s *JobServer) rebuildImageVariant(
 			return fmt.Errorf("parse watermark params: %w", err)
 		}
 		if params.WatermarkAssetID == "" {
-			return fmt.Errorf("watermark asset id is required")
+			return errors.New("watermark asset id is required")
 		}
 		var wm dbgen.Asset
 		wm, err = s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
@@ -335,7 +368,14 @@ func (s *JobServer) rebuildImageVariant(
 	}
 
 	ext := MimeToExt(contentType)
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, variantType, paramsHash, ext)
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		variantType,
+		paramsHash,
+		ext,
+	)
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
@@ -370,17 +410,31 @@ func (s *JobServer) rebuildBgRemoveVariant(
 		return fmt.Errorf("parse bg remove params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, ver.WorkspaceID, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-		return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
-	})
+	result, err := s.runImageRouterJob(
+		ctx,
+		ver.WorkspaceID,
+		ver.StorageKey,
+		func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+			return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{Model: params.Model})
+		},
+	)
 	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
-		return fmt.Errorf("the selected model is not available for background removal. please choose another model and try again")
+		return errors.New(
+			"the selected model is not available for background removal. please choose another model and try again",
+		)
 	}
 	if err != nil {
 		return fmt.Errorf("remove background: %w", err)
 	}
 
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, queue.JobTypeImageBgRemove, paramsHash, ".png")
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		queue.JobTypeImageBgRemove,
+		paramsHash,
+		".png",
+	)
 	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
@@ -416,17 +470,29 @@ func (s *JobServer) rebuildImageWithPromptVariant(
 		return fmt.Errorf("parse image prompt params: %w", err)
 	}
 
-	result, err := s.runImageRouterJob(ctx, ver.WorkspaceID, ver.StorageKey, func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-		return client.Transform(ctx, imageData, imagerouter.PromptParams{
-			Prompt: params.Prompt,
-			Model:  params.Model,
-		})
-	})
+	result, err := s.runImageRouterJob(
+		ctx,
+		ver.WorkspaceID,
+		ver.StorageKey,
+		func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
+			return client.Transform(ctx, imageData, imagerouter.PromptParams{
+				Prompt: params.Prompt,
+				Model:  params.Model,
+			})
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("image transform with prompt: %w", err)
 	}
 
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, queue.JobTypeImageWithPrompt, paramsHash, ".png")
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		queue.JobTypeImageWithPrompt,
+		paramsHash,
+		".png",
+	)
 	if err := s.storage.Put(storageKey, bytes.NewReader(result)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}

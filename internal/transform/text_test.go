@@ -2,12 +2,13 @@ package transform_test
 
 import (
 	"bytes"
-	"damask/server/internal/transform"
 	"image/png"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"damask/server/internal/transform"
 )
 
 func TestGenerateImageOfText_DefaultFont(t *testing.T) {
@@ -56,6 +57,7 @@ func TestGenerateImageOfText_DefaultFont(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := tf.GenerateImageOfText(t.Context(), transform.ImageOfTextOptions{
 				TextContent: tt.textContent,
 				FgColorHex:  tt.fgColorHex,
@@ -77,8 +79,9 @@ func TestGenerateImageOfText_DefaultFont(t *testing.T) {
 }
 
 func TestGenerateImageOfText_CustomFont(t *testing.T) {
+	t.Parallel()
 	tf := &mockTransformer{}
-	fontPath := filepath.Join("AovelSansRounded-rdDL.ttf")
+	fontPath := "AovelSansRounded-rdDL.ttf"
 
 	if _, err := os.Stat(fontPath); os.IsNotExist(err) {
 		t.Skipf("Font file %s not found", fontPath)
@@ -137,6 +140,7 @@ func TestGenerateImageOfText_CustomFont(t *testing.T) {
 }
 
 func TestGenerateImageOfText_ErrorCases(t *testing.T) {
+	t.Parallel()
 	tf := transform.NewTransformer()
 	tests := []struct {
 		name        string

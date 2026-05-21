@@ -170,7 +170,7 @@ func TestNormalizeAudio_TwoPass(t *testing.T) {
 	err := NewTransformer().NormalizeAudio(context.Background(), testdataPath(t, "sample_audio_loud.mp3"), dst, AudioParams{
 		OutputFormat: "mp3",
 		Bitrate:      "128k",
-		TargetLUFS:   -16,
+		TargetLUFS:   DefaultLUFS,
 	})
 	if err != nil {
 		t.Fatalf("NormalizeAudio: %v", err)
@@ -198,7 +198,7 @@ func TestNormalizeAudio_ShortFile(t *testing.T) {
 	dst := filepath.Join(tmp, "out.wav")
 	err := NewTransformer().NormalizeAudio(context.Background(), src, dst, AudioParams{
 		OutputFormat: "wav",
-		TargetLUFS:   -16,
+		TargetLUFS:   DefaultLUFS,
 	})
 	if err != nil {
 		t.Fatalf("NormalizeAudio: %v", err)

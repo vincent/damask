@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 
@@ -25,7 +26,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
-	_ "damask/server/internal/docs"
+	_ "damask/server/internal/docs" //nolint:nolintlint // to register swaggo docs
 )
 
 const defaultBodyLimitBytes = 100 * 1024 * 1024 // 100 MB
@@ -38,7 +39,7 @@ type Server struct {
 	queue         queue.JobQueue
 	mailer        mail.Mailer
 	hub           events.EventHub
-	previewCache  *lruPreviewCache
+	previewCache  *LruPreviewCache
 	cfg           *config.Config
 	trf           transform.Transformer
 	media         *ingest.Registry
@@ -66,7 +67,7 @@ type Server struct {
 	workflows     service.WorkflowService
 }
 
-func NewHttpServer(
+func NewHTTPServer(
 	db *dbgen.Queries,
 	sqlDB *sql.DB,
 	tokenMaker *auth.Maker,
@@ -101,12 +102,18 @@ func NewHttpServer(
 		Assets:   assetRepo,
 		Triggers: triggerDispatcher,
 	})
-	variantsSvc := service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
-		Actions:   service.NewSQLVariantActionsStore(sqlDB),
-		Queue:     q,
-		Storage:   stor,
-		Workflows: workflowRepo,
-	})
+	variantsSvc := service.NewVariantServiceWithDeps(
+		variantRepo,
+		assetRepo,
+		tagSvc,
+		auditWriter,
+		service.VariantServiceDeps{
+			Actions:   service.NewSQLVariantActionsStore(sqlDB),
+			Queue:     q,
+			Storage:   stor,
+			Workflows: workflowRepo,
+		},
+	)
 	return &Server{
 		db:            db,
 		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
@@ -123,7 +130,7 @@ func NewHttpServer(
 		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
 		mailer:        mailer,
 		media:         media,
-		previewCache:  NewLRUPreviewCache(100),
+		previewCache:  NewLRUPreviewCache(100), //nolint:mnd // arbitrary cache size
 		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
 		projects:      service.NewProjectService(projectRepo, auditWriter),
 		queue:         q,
@@ -134,9 +141,13 @@ func NewHttpServer(
 		tags:          tagSvc,
 		trf:           trf,
 		textTracks:    service.NewTextTrackService(db, q, stor),
-		upload:        service.NewUploadService(service.NewAssetInjestor(db, sqlDB, stor, q, media), auditWriter, triggerDispatcher),
-		users:         service.NewUserService(userRepo, workspaceRepo, stor),
-		variants:      variantsSvc,
+		upload: service.NewUploadService(
+			service.NewAssetInjestor(db, sqlDB, stor, q, media),
+			auditWriter,
+			triggerDispatcher,
+		),
+		users:    service.NewUserService(userRepo, workspaceRepo, stor),
+		variants: variantsSvc,
 		versions: service.NewVersionService(versionRepo, auditWriter, service.VersionServiceDeps{
 			Assets:   assetRepo,
 			Storage:  stor,
@@ -144,8 +155,14 @@ func NewHttpServer(
 			Media:    media,
 			Triggers: triggerDispatcher,
 		}),
-		workspace:     service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
-		workflows:     service.NewWorkflowServiceWithDeps(workflowRepo, workflowRunRepo, workflowWebhookRepo, q, service.WorkflowServiceDeps{Assets: assetRepo, Variants: variantRepo}),
+		workspace: service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
+		workflows: service.NewWorkflowServiceWithDeps(
+			workflowRepo,
+			workflowRunRepo,
+			workflowWebhookRepo,
+			q,
+			service.WorkflowServiceDeps{Assets: assetRepo, Variants: variantRepo},
+		),
 	}
 }
 
@@ -163,7 +180,7 @@ func NewHttpServer(
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 
 // @BasePath /
-// @schemes http
+// @schemes http.
 func NewRouter(
 	db *dbgen.Queries,
 	sqlDB *sql.DB,
@@ -177,7 +194,7 @@ func NewRouter(
 	demoSeeder DemoSeeder,
 	uiFS fs.FS,
 ) *fiber.App {
-	s := NewHttpServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder)
+	s := NewHTTPServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder)
 
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {
@@ -239,26 +256,60 @@ func NewRouter(
 	}
 
 	// Workspace settings — owner only; blocked in demo mode
-	api.Put("/workspace/settings", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateWorkspaceSettings)
-	api.Get("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleGetWorkspaceImageRouterStatus)
-	api.Put("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handlePutWorkspaceImageRouterKey)
-	api.Delete("/workspace/settings/imagerouter", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteWorkspaceImageRouterKey)
-	api.Post("/workspace/settings/imagerouter/test", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTestWorkspaceImageRouterKey)
+	api.Put(
+		"/workspace/settings",
+		demoBlockMiddleware(),
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleUpdateWorkspaceSettings,
+	)
+	api.Get(
+		"/workspace/settings/imagerouter",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleGetWorkspaceImageRouterStatus,
+	)
+	api.Put(
+		"/workspace/settings/imagerouter",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handlePutWorkspaceImageRouterKey,
+	)
+	api.Delete(
+		"/workspace/settings/imagerouter",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleDeleteWorkspaceImageRouterKey,
+	)
+	api.Post(
+		"/workspace/settings/imagerouter/test",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleTestWorkspaceImageRouterKey,
+	)
 
 	// Generic job trigger — owner only
-	api.Post("/workspace/jobs/:type/trigger", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTriggerWorkspaceJob)
+	api.Post(
+		"/workspace/jobs/:type/trigger",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleTriggerWorkspaceJob,
+	)
 
-	api.Get("/admin/telemetry", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleTelemetryStatus)
+	api.Get("/admin/telemetry", auth.RequireRole(getRoleFn, auth.Owner), s.handleTelemetryStatus)
 
 	// Invites — owner only; blocked in demo mode
-	api.Post("/workspace/invites", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleCreateInvite)
-	api.Get("/workspace/invites", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleListInvites)
-	api.Delete("/workspace/invites/:inviteId", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteInvite)
+	api.Post(
+		"/workspace/invites",
+		demoBlockMiddleware(),
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleCreateInvite,
+	)
+	api.Get("/workspace/invites", auth.RequireRole(getRoleFn, auth.Owner), s.handleListInvites)
+	api.Delete(
+		"/workspace/invites/:inviteId",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleDeleteInvite,
+	)
 
 	// Members — owner only
-	api.Get("/workspace/members", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleListMembers)
-	api.Delete("/workspace/members/:userId", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleRemoveMember)
-	api.Put("/workspace/members/:userId", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateMemberRole)
+	api.Get("/workspace/members", auth.RequireRole(getRoleFn, auth.Owner), s.handleListMembers)
+	api.Delete("/workspace/members/:userId", auth.RequireRole(getRoleFn, auth.Owner), s.handleRemoveMember)
+	api.Put("/workspace/members/:userId", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateMemberRole)
 
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)
@@ -287,7 +338,11 @@ func NewRouter(
 
 	// OAuth workspace connections (authenticated)
 	api.Get("/integrations/connections", s.handleListConnections)
-	api.Delete("/integrations/connections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteConnection)
+	api.Delete(
+		"/integrations/connections/:id",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDeleteConnection,
+	)
 	intGroup := app.Group("/integrations", auth.RequireAuth(tokenMaker))
 	intGroup.Get("/connect/google", s.handleConnectGoogle)
 	intGroup.Get("/callback/google", s.handleCallbackGoogle)
@@ -296,126 +351,202 @@ func NewRouter(
 
 	// Field definitions — reorder must be registered before /:id to avoid conflict
 	api.Get("/field-definitions", s.handleListFieldDefinitions)
-	api.Post("/field-definitions", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateFieldDefinition)
-	api.Put("/field-definitions/reorder", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleReorderFieldDefinitions)
+	api.Post("/field-definitions", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateFieldDefinition)
+	api.Put(
+		"/field-definitions/reorder",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleReorderFieldDefinitions,
+	)
 	api.Get("/field-definitions/:id", s.handleGetFieldDefinition)
 	api.Get("/field-definitions/:id/stats", s.handleGetFieldDefinitionStats)
-	api.Put("/field-definitions/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateFieldDefinition)
-	api.Delete("/field-definitions/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteFieldDefinition)
+	api.Put(
+		"/field-definitions/:id",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleUpdateFieldDefinition,
+	)
+	api.Delete(
+		"/field-definitions/:id",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDeleteFieldDefinition,
+	)
 
 	// Projects
-	api.Post("/projects", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateProject)
+	api.Post("/projects", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateProject)
 	api.Get("/projects", s.handleListProjects)
 	api.Get("/projects/:id", s.handleGetProject)
-	api.Put("/projects/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateProject)
-	api.Delete("/projects/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteProject)
+	api.Put("/projects/:id", auth.RequireRole(getRoleFn, auth.Editor), s.handleUpdateProject)
+	api.Delete("/projects/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteProject)
 
 	// Project field values
 	api.Get("/projects/:id/fields", s.handleGetProjectFields)
-	api.Patch("/projects/:id/fields", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePatchProjectFields)
+	api.Patch("/projects/:id/fields", auth.RequireRole(getRoleFn, auth.Editor), s.handlePatchProjectFields)
 
 	// Tags
 	api.Get("/tags", s.handleListTags)
-	api.Post("/tags", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateTag)
-	api.Patch("/tags/:name", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePatchTag)
-	api.Delete("/tags", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkDeleteTags)
-	api.Post("/tags/merge", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleMergeTags)
+	api.Post("/tags", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateTag)
+	api.Patch("/tags/:name", auth.RequireRole(getRoleFn, auth.Editor), s.handlePatchTag)
+	api.Delete("/tags", auth.RequireRole(getRoleFn, auth.Editor), s.handleBulkDeleteTags)
+	api.Post("/tags/merge", auth.RequireRole(getRoleFn, auth.Editor), s.handleMergeTags)
 	api.Get("/tags/suggestions/duplicates", s.handleTagDuplicateSuggestions)
 
 	// Workflows
 	api.Get("/workflows", s.handleListWorkflows)
-	api.Post("/workflows", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleCreateWorkflow)
+	api.Post("/workflows", auth.RequireRole(getRoleFn, auth.Owner), s.handleCreateWorkflow)
 	api.Get("/workflows/node-schemas", s.handleGetWorkflowNodeSchemas)
 	api.Get("/workflows/templates", s.handleGetWorkflowTemplates)
 	api.Get("/workflows/:id", s.handleGetWorkflow)
-	api.Put("/workflows/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleUpdateWorkflow)
-	api.Patch("/workflows/:id/enabled", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleToggleWorkflow)
-	api.Delete("/workflows/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteWorkflow)
-	api.Post("/workflows/:id/runs", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleManualWorkflowRun)
+	api.Put("/workflows/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateWorkflow)
+	api.Patch("/workflows/:id/enabled", auth.RequireRole(getRoleFn, auth.Owner), s.handleToggleWorkflow)
+	api.Delete("/workflows/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteWorkflow)
+	api.Post("/workflows/:id/runs", auth.RequireRole(getRoleFn, auth.Owner), s.handleManualWorkflowRun)
 	api.Get("/workflows/:id/runs", s.handleListWorkflowRuns)
 	api.Get("/workflows/:id/runs/:rid", s.handleGetWorkflowRun)
-	api.Get("/workflows/:id/webhook-token", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleGetWorkflowWebhookToken)
-	api.Post("/workflows/:id/webhook-token/regenerate", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleRegenerateWorkflowWebhookToken)
+	api.Get(
+		"/workflows/:id/webhook-token",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleGetWorkflowWebhookToken,
+	)
+	api.Post(
+		"/workflows/:id/webhook-token/regenerate",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleRegenerateWorkflowWebhookToken,
+	)
 
 	// Folders
-	api.Post("/projects/:id/folders", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateFolder)
+	api.Post("/projects/:id/folders", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateFolder)
 	api.Get("/projects/:id/folders", s.handleGetFolders)
-	api.Put("/folders/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateFolder)
-	api.Delete("/folders/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteFolder)
+	api.Put("/folders/:id", auth.RequireRole(getRoleFn, auth.Editor), s.handleUpdateFolder)
+	api.Delete("/folders/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteFolder)
 
 	// Stack — export and merge
-	api.Post("/stack/export", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleStackExport)
-	api.Post("/stack/merge", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleStackMerge)
+	api.Post("/stack/export", auth.RequireRole(getRoleFn, auth.Editor), s.handleStackExport)
+	api.Post("/stack/merge", auth.RequireRole(getRoleFn, auth.Editor), s.handleStackMerge)
 
 	// Collections
 	api.Get("/collections", s.handleListCollections)
-	api.Post("/collections", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateCollection)
+	api.Post("/collections", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateCollection)
 	api.Get("/collections/:id", s.handleGetCollection)
-	api.Put("/collections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateCollection)
-	api.Delete("/collections/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteCollection)
-	api.Post("/collections/:id/assets/:aid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAddCollectionAsset)
-	api.Delete("/collections/:id/assets/:aid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRemoveCollectionAsset)
+	api.Put("/collections/:id", auth.RequireRole(getRoleFn, auth.Editor), s.handleUpdateCollection)
+	api.Delete("/collections/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteCollection)
+	api.Post(
+		"/collections/:id/assets/:aid",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleAddCollectionAsset,
+	)
+	api.Delete(
+		"/collections/:id/assets/:aid",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleRemoveCollectionAsset,
+	)
 
 	// Assets — bulk routes must be registered before /:id to avoid conflict
-	api.Post("/assets/bulk/tag", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkTag)
-	api.Post("/assets/bulk/project", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkProject)
-	api.Delete("/assets/bulk", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleBulkDelete)
-	api.Post("/assets/bulk/fields/preview", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkFieldsPreview)
-	api.Patch("/assets/bulk/fields", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleBulkPatchAssetFields)
+	api.Post("/assets/bulk/tag", auth.RequireRole(getRoleFn, auth.Editor), s.handleBulkTag)
+	api.Post("/assets/bulk/project", auth.RequireRole(getRoleFn, auth.Editor), s.handleBulkProject)
+	api.Delete("/assets/bulk", auth.RequireRole(getRoleFn, auth.Owner), s.handleBulkDelete)
+	api.Post(
+		"/assets/bulk/fields/preview",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleBulkFieldsPreview,
+	)
+	api.Patch("/assets/bulk/fields", auth.RequireRole(getRoleFn, auth.Editor), s.handleBulkPatchAssetFields)
 
-	api.Post("/assets", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadAsset)
+	api.Post("/assets", auth.RequireRole(getRoleFn, auth.Editor), s.handleUploadAsset)
 	api.Get("/assets", s.handleListAssets)
-	api.Patch("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateAssetFolder)
-	api.Put("/assets/:id/rename", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRenameAsset)
+	api.Patch("/assets/:id", auth.RequireRole(getRoleFn, auth.Editor), s.handleUpdateAssetFolder)
+	api.Put("/assets/:id/rename", auth.RequireRole(getRoleFn, auth.Editor), s.handleRenameAsset)
 	api.Get("/assets/:id", s.handleGetAsset)
 	api.Get("/assets/:id/comments", s.handleGetComments)
 	api.Get("/assets/:id/file", s.handleGetAssetFile)
 	api.Get("/assets/:id/thumb", s.handleGetAssetThumb)
-	api.Post("/assets/:id/thumb/regenerate", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRegenerateThumbnail)
-	api.Delete("/assets/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteAsset)
+	api.Post(
+		"/assets/:id/thumb/regenerate",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleRegenerateThumbnail,
+	)
+	api.Delete("/assets/:id", auth.RequireRole(getRoleFn, auth.Editor), s.handleDeleteAsset)
 
 	// Asset field values
 	api.Get("/assets/:id/fields", s.handleGetAssetFields)
-	api.Patch("/assets/:id/fields", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePatchAssetFields)
+	api.Patch("/assets/:id/fields", auth.RequireRole(getRoleFn, auth.Editor), s.handlePatchAssetFields)
 
 	// Asset collections membership
 	api.Get("/assets/:id/collections", s.handleListAssetCollections)
 
 	// Asset tags
 	api.Get("/assets/:id/tags", s.handleGetAssetTags)
-	api.Post("/assets/:id/tags", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAddTagToAsset)
-	api.Delete("/assets/:id/tags/:name", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRemoveTagFromAsset)
+	api.Post("/assets/:id/tags", auth.RequireRole(getRoleFn, auth.Editor), s.handleAddTagToAsset)
+	api.Delete(
+		"/assets/:id/tags/:name",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleRemoveTagFromAsset,
+	)
 
 	// Variants
 	api.Get("/imagerouter/models", s.handleListImageRouterModels)
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
-	api.Post("/assets/:id/variants", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateVariant)
-	api.Post("/assets/:id/variants/automate", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleAutomateVariants)
-	api.Post("/assets/:id/variants/upload", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadManualVariant)
-	api.Put("/assets/:id/variants/sharing", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateVariantsSharing)
-	api.Patch("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePatchVariant)
-	api.Post("/assets/:id/variants/:vid/promote", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePromoteVariant)
-	api.Post("/assets/:id/variants/:vid/set-thumbnail", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleSetVariantThumbnail)
-	api.Post("/assets/:id/variants/:vid/rerun", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRerunVariant)
+	api.Post("/assets/:id/variants", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateVariant)
+	api.Post(
+		"/assets/:id/variants/automate",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleAutomateVariants,
+	)
+	api.Post(
+		"/assets/:id/variants/upload",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleUploadManualVariant,
+	)
+	api.Put(
+		"/assets/:id/variants/sharing",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleUpdateVariantsSharing,
+	)
+	api.Patch("/assets/:id/variants/:vid", auth.RequireRole(getRoleFn, auth.Editor), s.handlePatchVariant)
+	api.Post(
+		"/assets/:id/variants/:vid/promote",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handlePromoteVariant,
+	)
+	api.Post(
+		"/assets/:id/variants/:vid/set-thumbnail",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleSetVariantThumbnail,
+	)
+	api.Post(
+		"/assets/:id/variants/:vid/rerun",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleRerunVariant,
+	)
 	api.Get("/assets/:id/variants/:vid/file", s.handleGetVariantFile)
 	api.Get("/assets/:id/variants/:vid/thumb", s.handleGetVariantThumb)
-	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteVariant)
+	api.Delete("/assets/:id/variants/:vid", auth.RequireRole(getRoleFn, auth.Editor), s.handleDeleteVariant)
 
 	// Text tracks
 	api.Get("/assets/:id/text-tracks", s.handleListTextTracks)
-	api.Post("/assets/:id/text-tracks", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateTextTrack)
+	api.Post("/assets/:id/text-tracks", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateTextTrack)
 	api.Get("/assets/:id/text-tracks/:tid", s.handleGetTextTrack)
 	api.Get("/assets/:id/text-tracks/:tid/download", s.handleDownloadTextTrack)
-	api.Delete("/assets/:id/text-tracks/:tid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteTextTrack)
+	api.Delete(
+		"/assets/:id/text-tracks/:tid",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDeleteTextTrack,
+	)
 
 	// Asset versions
 	api.Get("/assets/:id/versions", s.handleListAssetVersions)
-	api.Post("/assets/:id/versions", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUploadAssetVersion)
-	api.Post("/assets/:id/versions/:vid/restore", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRestoreAssetVersion)
+	api.Post("/assets/:id/versions", auth.RequireRole(getRoleFn, auth.Editor), s.handleUploadAssetVersion)
+	api.Post(
+		"/assets/:id/versions/:vid/restore",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleRestoreAssetVersion,
+	)
 	api.Get("/assets/:id/versions/:vid/file", s.handleGetVersionFile)
 	api.Get("/assets/:id/versions/:vid/thumb", s.handleGetVersionThumb)
-	api.Delete("/assets/:id/versions/:vid", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteAssetVersion)
+	api.Delete(
+		"/assets/:id/versions/:vid",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleDeleteAssetVersion,
+	)
 
 	// Transform preview (in-memory, no storage write)
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)
@@ -435,24 +566,61 @@ func NewRouter(
 
 	// Ingress sources
 	ingressGroup := api.Group("/ingress")
-	ingressGroup.Post("/sources", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateIngressSource)
+	ingressGroup.Post("/sources", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateIngressSource)
 	ingressGroup.Get("/sources", s.handleListIngressSources)
 	ingressGroup.Get("/sources/:id", s.handleGetIngressSource)
-	ingressGroup.Put("/sources/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateIngressSource)
-	ingressGroup.Delete("/sources/:id", auth.RequireRole(tokenMaker, getRoleFn, auth.Owner), s.handleDeleteIngressSource)
-	ingressGroup.Post("/sources/:id/test", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleTestIngressSource)
-	ingressGroup.Post("/sources/:id/poll", demoBlockMiddleware(), auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handlePollIngressSource)
+	ingressGroup.Put("/sources/:id", auth.RequireRole(getRoleFn, auth.Editor), s.handleUpdateIngressSource)
+	ingressGroup.Delete(
+		"/sources/:id",
+		auth.RequireRole(getRoleFn, auth.Owner),
+		s.handleDeleteIngressSource,
+	)
+	ingressGroup.Post(
+		"/sources/:id/test",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleTestIngressSource,
+	)
+	ingressGroup.Post(
+		"/sources/:id/poll",
+		demoBlockMiddleware(),
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handlePollIngressSource,
+	)
 	ingressGroup.Get("/sources/:id/log", s.handleListIngressSourceLog)
 	ingressGroup.Get("/log", s.handleListIngressLog)
-	ingressGroup.Delete("/log/:entry_id", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteIngressLogEntry)
-	ingressGroup.Post("/log/:entry_id/retry", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleRetryIngressLogEntry)
+	ingressGroup.Delete(
+		"/log/:entry_id",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDeleteIngressLogEntry,
+	)
+	ingressGroup.Post(
+		"/log/:entry_id/retry",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleRetryIngressLogEntry,
+	)
 
 	// Ingress rules — reorder must be registered before /:rid to avoid conflict
 	ingressGroup.Get("/sources/:id/rules", s.handleListIngressRules)
-	ingressGroup.Post("/sources/:id/rules", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleCreateIngressRule)
-	ingressGroup.Put("/sources/:id/rules/reorder", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleReorderIngressRules)
-	ingressGroup.Put("/sources/:id/rules/:rid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleUpdateIngressRule)
-	ingressGroup.Delete("/sources/:id/rules/:rid", auth.RequireRole(tokenMaker, getRoleFn, auth.Editor), s.handleDeleteIngressRule)
+	ingressGroup.Post(
+		"/sources/:id/rules",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleCreateIngressRule,
+	)
+	ingressGroup.Put(
+		"/sources/:id/rules/reorder",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleReorderIngressRules,
+	)
+	ingressGroup.Put(
+		"/sources/:id/rules/:rid",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleUpdateIngressRule,
+	)
+	ingressGroup.Delete(
+		"/sources/:id/rules/:rid",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDeleteIngressRule,
+	)
 
 	// Shares — authenticated, workspace-scoped
 	api.Post("/shares", s.handleCreateShare)
@@ -499,16 +667,18 @@ func NewRouter(
 }
 
 func createDefaultErrorHandler(bodyLimitBytes int) func(c fiber.Ctx, err error) error {
-	bodyLimitMb := fmt.Sprintf("%.2f", float32(bodyLimitBytes)/(1<<20))
+	bodyLimitMb := fmt.Sprintf("%.2f", float32(bodyLimitBytes)/(1<<20)) //nolint:mnd // string formatting
 
 	return func(c fiber.Ctx, err error) error {
 		code := fiber.StatusInternalServerError
-		if e, ok := err.(*fiber.Error); ok {
+		e := &fiber.Error{}
+		if errors.As(err, &e) {
 			code = e.Code
 		}
 		if code == fiber.StatusRequestEntityTooLarge {
-			return c.Status(code).JSON(fiber.Map{"error": "file too large: maximum upload size is " + bodyLimitMb + " MB"})
+			return c.Status(code).
+				JSON(fiber.Map{apiErrorKey: "file too large: maximum upload size is " + bodyLimitMb + " MB"})
 		}
-		return c.Status(code).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(code).JSON(fiber.Map{apiErrorKey: err.Error()})
 	}
 }

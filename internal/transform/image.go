@@ -19,6 +19,13 @@ import (
 	"github.com/muesli/smartcrop/nfnt"
 )
 
+const (
+	maxPreviewSize = 800
+	mimeImageJPEG  = "image/jpeg"
+	mimeImagePNG   = "image/png"
+	mimeImageWebP  = "image/webp"
+)
+
 // WatermarkParams defines parameters for image watermark transforms.
 type WatermarkParams struct {
 	WatermarkAssetID string  `json:"watermark_asset_id"`
@@ -35,7 +42,7 @@ func (p *WatermarkParams) normalize() {
 		p.Quality = 85
 	}
 	if p.Format == "" {
-		p.Format = "jpeg"
+		p.Format = formatJPEG
 	}
 }
 
@@ -109,7 +116,12 @@ type PreviewParams struct {
 }
 
 // ApplyWatermark decodes, composites, and returns the final NRGBA image.
-func ApplyWatermark(_ context.Context, srcReader io.Reader, wmReader io.Reader, params WatermarkParams) (*image.NRGBA, error) {
+func ApplyWatermark(
+	_ context.Context,
+	srcReader io.Reader,
+	wmReader io.Reader,
+	params WatermarkParams,
+) (*image.NRGBA, error) {
 	params.normalize()
 
 	srcImg, err := imaging.Decode(srcReader, imaging.AutoOrientation(true))
@@ -145,7 +157,10 @@ func applyWatermarkOpacity(img image.Image, opacity float64) *image.NRGBA {
 	dst := image.NewNRGBA(src.Bounds())
 	for y := src.Bounds().Min.Y; y < src.Bounds().Max.Y; y++ {
 		for x := src.Bounds().Min.X; x < src.Bounds().Max.X; x++ {
-			c := color.NRGBAModel.Convert(src.At(x, y)).(color.NRGBA)
+			c, ok := color.NRGBAModel.Convert(src.At(x, y)).(color.NRGBA)
+			if !ok {
+				continue
+			}
 			c.A = uint8(math.Round(float64(c.A) * opacity))
 			dst.SetNRGBA(x, y, c)
 		}
@@ -233,7 +248,11 @@ func (t *transformer) ImageSmartCrop(src io.Reader, p SmartCropParams) ([]byte, 
 	type subImager interface {
 		SubImage(r image.Rectangle) image.Image
 	}
-	cropped := img.(subImager).SubImage(topCrop)
+	sub, ok := img.(subImager)
+	if !ok {
+		return nil, "", errors.New("decoded image does not support subimage")
+	}
+	cropped := sub.SubImage(topCrop)
 	result := imaging.Resize(cropped, p.Width, p.Height, imaging.Lanczos)
 
 	return encodeImage(result, p.Format, p.Quality)
@@ -245,14 +264,14 @@ func (t *transformer) ImagePreview(src io.Reader, p PreviewParams) ([]byte, stri
 		p.Quality = 80
 	}
 	// Cap preview at 800px.
-	if p.Width > 800 {
-		p.Width = 800
+	if p.Width > maxPreviewSize {
+		p.Width = maxPreviewSize
 	}
-	if p.Height > 800 {
-		p.Height = 800
+	if p.Height > maxPreviewSize {
+		p.Height = maxPreviewSize
 	}
 	if p.Width <= 0 && p.Height <= 0 {
-		p.Width = 800
+		p.Width = maxPreviewSize
 	}
 
 	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
@@ -270,7 +289,7 @@ func (t *transformer) ImagePreview(src io.Reader, p PreviewParams) ([]byte, stri
 	}
 
 	if p.Format == "" {
-		p.Format = "jpeg"
+		p.Format = formatJPEG
 	}
 	return encodeImage(result, p.Format, p.Quality)
 }
@@ -280,28 +299,28 @@ func encodeImage(img image.Image, format string, quality int) ([]byte, string, e
 	var buf bytes.Buffer
 	var contentType string
 	switch strings.ToLower(format) {
-	case "png":
+	case formatPNG:
 		if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
 			return nil, "", fmt.Errorf("encode png: %w", err)
 		}
-		contentType = "image/png"
+		contentType = mimeImagePNG
 	case "tiff":
 		if err := imaging.Encode(&buf, img, imaging.TIFF); err != nil {
 			return nil, "", fmt.Errorf("encode tiff: %w", err)
 		}
 		contentType = "image/tiff"
-	case "webp":
+	case formatWebP:
 		if err := nativewebp.Encode(&buf, img, &nativewebp.Options{
 			CompressionLevel: nativewebp.BestCompression,
 		}); err != nil {
 			return nil, "", fmt.Errorf("encode webp: %w", err)
 		}
-		contentType = "image/webp"
+		contentType = mimeImageWebP
 	default: // jpeg
 		if err := imaging.Encode(&buf, img, imaging.JPEG, imaging.JPEGQuality(quality)); err != nil {
 			return nil, "", fmt.Errorf("encode jpeg: %w", err)
 		}
-		contentType = "image/jpeg"
+		contentType = mimeImageJPEG
 	}
 	return buf.Bytes(), contentType, nil
 }

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,9 +49,9 @@ func (s *Server) setStateCookie(c fiber.Ctx, state string) {
 		Value:    state,
 		MaxAge:   stateCookieTTL,
 		HTTPOnly: true,
-		SameSite: "Lax",
+		SameSite: apiSameSiteLax,
 		Path:     "/",
-		Secure:   s.cfg.AppEnv != "development",
+		Secure:   s.cfg.AppEnv != appEnvDevelopment,
 	})
 }
 
@@ -60,9 +61,9 @@ func (s *Server) setPKCECookie(c fiber.Ctx, verifier string) {
 		Value:    verifier,
 		MaxAge:   stateCookieTTL,
 		HTTPOnly: true,
-		SameSite: "Lax",
+		SameSite: apiSameSiteLax,
 		Path:     "/",
-		Secure:   s.cfg.AppEnv != "development",
+		Secure:   s.cfg.AppEnv != appEnvDevelopment,
 	})
 }
 
@@ -74,11 +75,11 @@ func (s *Server) clearOIDCCookies(c fiber.Ctx) {
 
 // initiateOAuth starts an OAuth flow: sets state+PKCE cookies, returns the redirect URL.
 func (s *Server) initiateOAuth(c fiber.Ctx, oauth2Cfg oauth2.Config, extraOpts ...oauth2.AuthCodeOption) error {
-	state, err := generateRandom(32)
+	state, err := generateRandom(nonceLength)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate state")
 	}
-	verifier, err := generateRandom(64)
+	verifier, err := generateRandom(verifierLength)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not generate pkce verifier")
 	}
@@ -100,9 +101,9 @@ func (s *Server) validateOAuthCallback(c fiber.Ctx, oauth2Cfg oauth2.Config) (*o
 	stateCookie := c.Cookies(oidcStateCookie)
 	if stateParam == "" || stateCookie == "" || !hmac.Equal([]byte(stateParam), []byte(stateCookie)) {
 		s.clearOIDCCookies(c)
-		return nil, fmt.Errorf("state mismatch")
+		return nil, errors.New("state mismatch")
 	}
-	if errParam := c.Query("error"); errParam != "" {
+	if errParam := c.Query(apiErrorKey); errParam != "" {
 		s.clearOIDCCookies(c)
 		return nil, fmt.Errorf("provider error: %s", errParam)
 	}
@@ -129,7 +130,7 @@ func (s *Server) validateOAuthCallback(c fiber.Ctx, oauth2Cfg oauth2.Config) (*o
 // @Success 302 {string} string "Redirect to OIDC provider"
 // @Failure 503 {object} ErrorResponse "OIDC not configured"
 // @Router /auth/oidc/login [get]
-// GET /auth/oidc/login
+// GET /auth/oidc/login.
 func (s *Server) handleOIDCLogin(c fiber.Ctx) error {
 	rt := config.GetOIDCRuntime()
 	if rt == nil {
@@ -147,13 +148,25 @@ func (s *Server) handleOIDCLogin(c fiber.Ctx) error {
 // @Param state query string true "State parameter (CSRF token)"
 // @Success 302 {string} string "Redirect to / on success, or /login?error=... on failure"
 // @Router /auth/oidc/callback [get]
-// GET /auth/oidc/callback
+// GET /auth/oidc/callback.
 func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 	rt := config.GetOIDCRuntime()
 	if rt == nil {
 		return c.Redirect().To("/login?error=oidc_error")
 	}
 
+	return s.handleOIDCProviderCallback(c, rt, false)
+}
+
+type oidcUserClaims struct {
+	Sub           string `json:"sub"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}
+
+func (s *Server) handleOIDCProviderCallback(c fiber.Ctx, rt *config.OIDCRuntime, isGoogle bool) error {
 	token, err := s.validateOAuthCallback(c, rt.OAuth2Config)
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
@@ -168,13 +181,7 @@ func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
 
-	var claims struct {
-		Sub           string `json:"sub"`
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-		Name          string `json:"name"`
-		Picture       string `json:"picture"`
-	}
+	var claims oidcUserClaims
 	if err := idToken.Claims(&claims); err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
@@ -188,7 +195,7 @@ func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 		Email:     claims.Email,
 		Name:      claims.Name,
 		AvatarURL: claims.Picture,
-		IsGoogle:  false,
+		IsGoogle:  isGoogle,
 	})
 	if err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
@@ -212,7 +219,7 @@ func (s *Server) handleOIDCCallback(c fiber.Ctx) error {
 // @Success 302 {string} string "Redirect to Google OAuth2"
 // @Failure 503 {object} ErrorResponse "Google login not configured"
 // @Router /auth/google/login [get]
-// GET /auth/google/login
+// GET /auth/google/login.
 func (s *Server) handleGoogleLogin(c fiber.Ctx) error {
 	rt := config.GetGoogleRuntime()
 	if rt == nil {
@@ -232,59 +239,14 @@ func (s *Server) handleGoogleLogin(c fiber.Ctx) error {
 // @Param state query string true "State parameter (CSRF token)"
 // @Success 302 {string} string "Redirect to / on success, or /login?error=... on failure"
 // @Router /auth/google/callback [get]
-// GET /auth/google/callback
+// GET /auth/google/callback.
 func (s *Server) handleGoogleCallback(c fiber.Ctx) error {
 	rt := config.GetGoogleRuntime()
 	if rt == nil {
 		return c.Redirect().To("/login?error=oidc_error")
 	}
 
-	token, err := s.validateOAuthCallback(c, rt.OAuth2Config)
-	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
-	}
-
-	rawIDToken, ok := token.Extra("id_token").(string)
-	if !ok {
-		return c.Redirect().To("/login?error=oidc_exchange")
-	}
-	idToken, err := rt.Verifier.Verify(c.Context(), rawIDToken)
-	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
-	}
-
-	var claims struct {
-		Sub           string `json:"sub"`
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-		Name          string `json:"name"`
-		Picture       string `json:"picture"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
-	}
-	if !claims.EmailVerified {
-		return c.Redirect().To("/login?error=email_not_verified")
-	}
-
-	dto, err := s.users.UpsertOIDCUser(c.Context(), service.UpsertOIDCUserParams{
-		Issuer:    idToken.Issuer,
-		Sub:       claims.Sub,
-		Email:     claims.Email,
-		Name:      claims.Name,
-		AvatarURL: claims.Picture,
-		IsGoogle:  true,
-	})
-	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
-	}
-
-	jwtToken, err := s.auth.CreateToken(dto.ID, dto.WorkspaceID, sessionDuration)
-	if err != nil {
-		return c.Redirect().To("/login?error=oidc_exchange")
-	}
-	s.setAuthCookie(c, jwtToken)
-	return c.Redirect().To("/")
+	return s.handleOIDCProviderCallback(c, rt, true)
 }
 
 // --- Canva handlers ---
@@ -314,7 +276,7 @@ func (s *Server) canvaOAuth2Config() oauth2.Config {
 // @Success 302 {string} string "Redirect to Canva OAuth2"
 // @Failure 503 {object} ErrorResponse "Canva login not configured"
 // @Router /auth/canva/login [get]
-// GET /auth/canva/login
+// GET /auth/canva/login.
 func (s *Server) handleCanvaLogin(c fiber.Ctx) error {
 	if s.cfg.Canva.ClientID == "" {
 		return errRes(c, fiber.StatusServiceUnavailable, "Canva login not configured")
@@ -331,7 +293,7 @@ func (s *Server) handleCanvaLogin(c fiber.Ctx) error {
 // @Param state query string true "State parameter (CSRF token)"
 // @Success 302 {string} string "Redirect to / on success, or /login?error=... on failure"
 // @Router /auth/canva/callback [get]
-// GET /auth/canva/callback
+// GET /auth/canva/callback.
 func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 	if s.cfg.Canva.ClientID == "" {
 		return c.Redirect().To("/login?error=oidc_error")
@@ -413,7 +375,7 @@ type meResponse struct {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 500 {object} ErrorResponse "Could not load user"
 // @Router /auth/me [get]
-// GET /auth/me
+// GET /auth/me.
 func (s *Server) handleGetMe(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	dto, err := s.users.GetProfile(c.Context(), claims.UserID)
@@ -436,7 +398,7 @@ func (s *Server) handleGetMe(c fiber.Ctx) error {
 // @Failure 422 {object} ErrorResponse "Cannot unlink — only auth method remaining"
 // @Failure 500 {object} ErrorResponse "Could not unlink"
 // @Router /auth/oidc/link [delete]
-// DELETE /auth/oidc/link
+// DELETE /auth/oidc/link.
 func (s *Server) handleUnlinkOIDC(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	dto, err := s.users.UnlinkProvider(c.Context(), claims.UserID, "oidc")
@@ -458,7 +420,7 @@ func (s *Server) handleUnlinkOIDC(c fiber.Ctx) error {
 // @Failure 422 {object} ErrorResponse "Cannot unlink — only auth method remaining"
 // @Failure 500 {object} ErrorResponse "Could not unlink"
 // @Router /auth/google/link [delete]
-// DELETE /auth/google/link
+// DELETE /auth/google/link.
 func (s *Server) handleUnlinkGoogle(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	dto, err := s.users.UnlinkProvider(c.Context(), claims.UserID, "google")
@@ -480,7 +442,7 @@ func (s *Server) handleUnlinkGoogle(c fiber.Ctx) error {
 // @Failure 422 {object} ErrorResponse "Cannot unlink — only auth method remaining"
 // @Failure 500 {object} ErrorResponse "Could not unlink"
 // @Router /auth/canva/link [delete]
-// DELETE /auth/canva/link
+// DELETE /auth/canva/link.
 func (s *Server) handleUnlinkCanva(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	dto, err := s.users.UnlinkProvider(c.Context(), claims.UserID, "canva")
@@ -522,13 +484,13 @@ func signState(payload oauthState, secret string) (string, error) {
 func verifyState(raw, secret string) (oauthState, error) {
 	parts := strings.SplitN(raw, ".", 2)
 	if len(parts) != 2 {
-		return oauthState{}, fmt.Errorf("invalid state format")
+		return oauthState{}, errors.New("invalid state format")
 	}
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(parts[0]))
 	expected := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(expected), []byte(parts[1])) {
-		return oauthState{}, fmt.Errorf("state signature invalid")
+		return oauthState{}, errors.New("state signature invalid")
 	}
 	b, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {

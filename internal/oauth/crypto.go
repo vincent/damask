@@ -13,9 +13,11 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
+const keyLength = 32
+
 func deriveKey(appSecret string) []byte {
 	r := hkdf.New(sha256.New, []byte(appSecret), nil, []byte("damask oauth token v1"))
-	key := make([]byte, 32)
+	key := make([]byte, keyLength)
 	if _, err := io.ReadFull(r, key); err != nil {
 		panic(fmt.Sprintf("oauth/crypto: deriveKey: %v", err))
 	}

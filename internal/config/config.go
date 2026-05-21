@@ -1,8 +1,6 @@
 package config
 
 import (
-	"damask/server/internal/mail"
-	"damask/server/internal/storage"
 	"errors"
 	"log/slog"
 	"net/url"
@@ -10,8 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"damask/server/internal/mail"
+	"damask/server/internal/storage"
+
 	"github.com/joho/godotenv"
 )
+
+const defaultSMTPPort = 25
 
 // OIDCConfig holds config for a generic OIDC provider (selfhosted IDP).
 // Provider and Verifier are populated at startup via OIDC discovery.
@@ -51,7 +54,7 @@ type FFmpegConfig struct {
 type Config struct {
 	MailServerPort   string
 	MailServerHost   string
-	MailSenderConfig mail.MailSenderConfig
+	MailSenderConfig mail.Config
 	Port             string
 	DBPath           string
 	StoragePath      string
@@ -130,9 +133,9 @@ func Load() (*Config, error) {
 		DBPath:         getEnv("DB_PATH", "./damask.db"),
 		StoragePath:    getEnv("STORAGE_LOCAL_PATH", "./storage"),
 		StorageType:    getEnv("STORAGE", "local"),
-		MailSenderConfig: mail.MailSenderConfig{
+		MailSenderConfig: mail.Config{
 			Host:     os.Getenv("SMTP_HOST"),
-			Port:     getEnvInt("SMTP_PORT", 25),
+			Port:     getEnvInt("SMTP_PORT", defaultSMTPPort),
 			Sender:   os.Getenv("SMTP_SENDER"),
 			User:     os.Getenv("SMTP_USER"),
 			Password: os.Getenv("SMTP_PASS"),
@@ -219,7 +222,7 @@ func Load() (*Config, error) {
 		return nil, errors.New("BASE_URL env var is required")
 	}
 	cfg.BaseURL = baseURL
-	cfg.MailSenderConfig.BaseUrl = baseURL.String()
+	cfg.MailSenderConfig.BaseURL = baseURL.String()
 
 	mailHost := strings.TrimSpace(os.Getenv("MAIL_HOST"))
 	if len(mailHost) == 0 {

@@ -35,14 +35,22 @@ func (m *MockFieldService) Get(ctx context.Context, workspaceID, id string) (*se
 	return nil, nil
 }
 
-func (m *MockFieldService) Create(ctx context.Context, workspaceID string, p service.CreateFieldDefinitionParams) (*service.FieldDefinitionDTO, error) {
+func (m *MockFieldService) Create(
+	ctx context.Context,
+	workspaceID string,
+	p service.CreateFieldDefinitionParams,
+) (*service.FieldDefinitionDTO, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
 	return nil, nil
 }
 
-func (m *MockFieldService) Update(ctx context.Context, workspaceID, id string, p service.UpdateFieldDefinitionParams) (*service.FieldDefinitionDTO, error) {
+func (m *MockFieldService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p service.UpdateFieldDefinitionParams,
+) (*service.FieldDefinitionDTO, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
@@ -70,7 +78,10 @@ func (m *MockFieldService) Reorder(ctx context.Context, workspaceID string, item
 	return nil
 }
 
-func (m *MockFieldService) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error {
+func (m *MockFieldService) InheritProjectFields(
+	ctx context.Context,
+	workspaceID, assetID, projectID, userID string,
+) error {
 	if m.InheritProjectFieldsFn != nil {
 		return m.InheritProjectFieldsFn(ctx, workspaceID, assetID, projectID, userID)
 	}
@@ -94,28 +105,44 @@ type MockAssetFieldService struct {
 
 func NewAssetFieldService() *MockAssetFieldService { return &MockAssetFieldService{} }
 
-func (m *MockAssetFieldService) GetValues(ctx context.Context, workspaceID, assetID string) ([]*service.FieldValueDTO, error) {
+func (m *MockAssetFieldService) GetValues(
+	ctx context.Context,
+	workspaceID, assetID string,
+) ([]*service.FieldValueDTO, error) {
 	if m.GetValuesFn != nil {
 		return m.GetValuesFn(ctx, workspaceID, assetID)
 	}
 	return nil, nil
 }
 
-func (m *MockAssetFieldService) SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []service.SetFieldValueInput) ([]*service.FieldValueDTO, error) {
+func (m *MockAssetFieldService) SetValues(
+	ctx context.Context,
+	workspaceID, assetID, userID string,
+	inputs []service.SetFieldValueInput,
+) ([]*service.FieldValueDTO, error) {
 	if m.SetValuesFn != nil {
 		return m.SetValuesFn(ctx, workspaceID, assetID, userID, inputs)
 	}
 	return nil, nil
 }
 
-func (m *MockAssetFieldService) BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []service.SetFieldValueInput) (service.BulkSetValuesResult, error) {
+func (m *MockAssetFieldService) BulkSetValues(
+	ctx context.Context,
+	workspaceID, userID string,
+	assetIDs []string,
+	inputs []service.SetFieldValueInput,
+) (service.BulkSetValuesResult, error) {
 	if m.BulkSetValuesFn != nil {
 		return m.BulkSetValuesFn(ctx, workspaceID, userID, assetIDs, inputs)
 	}
 	return service.BulkSetValuesResult{}, nil
 }
 
-func (m *MockAssetFieldService) BulkPreview(ctx context.Context, workspaceID string, assetIDs, fieldIDs []string) ([]service.BulkPreviewEntry, error) {
+func (m *MockAssetFieldService) BulkPreview(
+	ctx context.Context,
+	workspaceID string,
+	assetIDs, fieldIDs []string,
+) ([]service.BulkPreviewEntry, error) {
 	if m.BulkPreviewFn != nil {
 		return m.BulkPreviewFn(ctx, workspaceID, assetIDs, fieldIDs)
 	}
@@ -130,14 +157,21 @@ type MockProjectFieldService struct {
 
 func NewProjectFieldService() *MockProjectFieldService { return &MockProjectFieldService{} }
 
-func (m *MockProjectFieldService) GetValues(ctx context.Context, workspaceID, projectID string) ([]*service.FieldValueDTO, error) {
+func (m *MockProjectFieldService) GetValues(
+	ctx context.Context,
+	workspaceID, projectID string,
+) ([]*service.FieldValueDTO, error) {
 	if m.GetValuesFn != nil {
 		return m.GetValuesFn(ctx, workspaceID, projectID)
 	}
 	return nil, nil
 }
 
-func (m *MockProjectFieldService) SetValues(ctx context.Context, workspaceID, projectID, userID string, inputs []service.SetFieldValueInput) ([]*service.FieldValueDTO, error) {
+func (m *MockProjectFieldService) SetValues(
+	ctx context.Context,
+	workspaceID, projectID, userID string,
+	inputs []service.SetFieldValueInput,
+) ([]*service.FieldValueDTO, error) {
 	if m.SetValuesFn != nil {
 		return m.SetValuesFn(ctx, workspaceID, projectID, userID, inputs)
 	}

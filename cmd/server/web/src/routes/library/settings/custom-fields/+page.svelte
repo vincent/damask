@@ -197,7 +197,7 @@
                 <span class="font-mono text-xs text-[var(--text-muted)]"
                   >{field.key}</span
                 >
-                {#if field.required}
+                {#if field.validationRequired}
                   <span
                     class="text-xs font-medium text-orange-500 dark:text-orange-400"
                     >{m.required()}</span

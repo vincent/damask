@@ -1,5 +1,7 @@
 package systemtags
 
+import "slices"
+
 const (
 	GroupName = "system"
 	Watermark = "_watermark"
@@ -13,10 +15,5 @@ func All() []string {
 
 // IsSystem reports whether name is a known system tag.
 func IsSystem(name string) bool {
-	for _, s := range All() {
-		if s == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(All(), name)
 }

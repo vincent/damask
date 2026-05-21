@@ -3,7 +3,6 @@ package admin
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Color palette
 	ColorPrimary = lipgloss.Color("63")  // soft purple
 	ColorMuted   = lipgloss.Color("241") // gray
 	ColorSuccess = lipgloss.Color("78")  // green
@@ -11,7 +10,6 @@ var (
 	ColorDanger  = lipgloss.Color("196") // red
 	ColorAccent  = lipgloss.Color("86")  // teal
 
-	// Title
 	TitleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(ColorPrimary).
@@ -21,7 +19,6 @@ var (
 				Bold(true).
 				Foreground(ColorMuted)
 
-	// Tabs
 	TabActiveStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("0")).
@@ -32,7 +29,6 @@ var (
 				Foreground(ColorMuted).
 				Padding(0, 2)
 
-	// Stat boxes
 	StatBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorMuted).
@@ -70,7 +66,6 @@ var (
 			Foreground(ColorMuted).
 			Align(lipgloss.Center)
 
-	// Table
 	TableHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(ColorMuted)
@@ -83,7 +78,6 @@ var (
 	TableCellStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252"))
 
-	// Status / errors
 	ErrorStyle = lipgloss.NewStyle().
 			Foreground(ColorDanger).
 			Bold(true)
@@ -105,11 +99,9 @@ var (
 			Foreground(ColorMuted).
 			Italic(true)
 
-	// Status bar
 	StatusBarStyle = lipgloss.NewStyle().
 			Foreground(ColorMuted)
 
-	// Modal / overlay
 	ModalStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ColorPrimary).
@@ -134,11 +126,9 @@ var (
 	DimStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("238"))
 
-	// Divider
 	DividerStyle = lipgloss.NewStyle().
 			Foreground(ColorMuted)
 
-	// Search input
 	SearchPromptStyle = lipgloss.NewStyle().
 				Foreground(ColorAccent).
 				Bold(true)

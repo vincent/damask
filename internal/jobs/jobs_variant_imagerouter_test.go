@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"damask/server/internal/imagerouter"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 )
 
 func encodeTinyPNG(t *testing.T) []byte {
@@ -29,7 +29,7 @@ func encodeTinyPNG(t *testing.T) []byte {
 
 func TestImageBgRemoveJobCreatesVariantAndThumbnail(t *testing.T) {
 	outputPNG := encodeTinyPNG(t)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]string{{"b64_json": base64.StdEncoding.EncodeToString(outputPNG)}},
 		})
@@ -44,7 +44,7 @@ func TestImageBgRemoveJobCreatesVariantAndThumbnail(t *testing.T) {
 	assetID := env.UploadTestAsset(t, res.Cookie)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(map[string]any{"type": "image_bg_remove", "params": map[string]any{}}), res.Cookie)
+		th.JSONBody(map[string]any{"type": "image_bg_remove", "params": map[string]any{}}), res.Cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,8 @@ func TestImageBgRemoveJobCreatesVariantAndThumbnail(t *testing.T) {
 	env.JobServer.DrainForTest(context.Background())
 
 	var count int
-	if err := env.SqlDB.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_bg_remove'`).Scan(&count); err != nil {
+	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_bg_remove'`).
+		Scan(&count); err != nil {
 		t.Fatalf("count variants: %v", err)
 	}
 	if count != 1 {
@@ -64,7 +65,8 @@ func TestImageBgRemoveJobCreatesVariantAndThumbnail(t *testing.T) {
 	}
 
 	var thumbKey string
-	if err := env.SqlDB.QueryRow(`SELECT COALESCE(thumbnail_key, '') FROM variants WHERE type = 'image_bg_remove' LIMIT 1`).Scan(&thumbKey); err != nil {
+	if err := env.Database.QueryRow(`SELECT COALESCE(thumbnail_key, '') FROM variants WHERE type = 'image_bg_remove' LIMIT 1`).
+		Scan(&thumbKey); err != nil {
 		t.Fatalf("load thumbnail_key: %v", err)
 	}
 	if thumbKey == "" {
@@ -73,7 +75,7 @@ func TestImageBgRemoveJobCreatesVariantAndThumbnail(t *testing.T) {
 }
 
 func TestImageWithPromptJobFailureDoesNotCreateVariant(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "invalid model", http.StatusUnprocessableEntity)
 	}))
 	defer srv.Close()
@@ -86,7 +88,7 @@ func TestImageWithPromptJobFailureDoesNotCreateVariant(t *testing.T) {
 	assetID := env.UploadTestAsset(t, res.Cookie)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(map[string]any{
+		th.JSONBody(map[string]any{
 			"type": "image_with_prompt",
 			"params": map[string]any{
 				"prompt": "add mist",
@@ -111,7 +113,8 @@ func TestImageWithPromptJobFailureDoesNotCreateVariant(t *testing.T) {
 	env.JobServer.DrainForTest(context.Background())
 
 	var count int
-	if err := env.SqlDB.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).Scan(&count); err != nil {
+	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).
+		Scan(&count); err != nil {
 		t.Fatalf("count variants: %v", err)
 	}
 	if count != 0 {
@@ -129,7 +132,11 @@ func TestImageWithPromptJobRetriesPaidModelWhenConfigured(t *testing.T) {
 		models = append(models, r.FormValue("model"))
 		if len(models) == 1 {
 			w.WriteHeader(http.StatusTooManyRequests)
-			_, _ = w.Write([]byte(`{"error":{"message":"Daily limit of 3 free requests reached. Remove \":free\" from the model name to continue with the paid model."}}`))
+			_, _ = w.Write(
+				[]byte(
+					`{"error":{"message":"Daily limit of 3 free requests reached. Remove \":free\" from the model name to continue with the paid model."}}`,
+				),
+			)
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -150,7 +157,7 @@ func TestImageWithPromptJobRetriesPaidModelWhenConfigured(t *testing.T) {
 	assetID := env.UploadTestAsset(t, res.Cookie)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(map[string]any{
+		th.JSONBody(map[string]any{
 			"type": "image_with_prompt",
 			"params": map[string]any{
 				"prompt": "add mist",
@@ -178,7 +185,8 @@ func TestImageWithPromptJobRetriesPaidModelWhenConfigured(t *testing.T) {
 	}
 
 	var count int
-	if err := env.SqlDB.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).Scan(&count); err != nil {
+	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).
+		Scan(&count); err != nil {
 		t.Fatalf("count variants: %v", err)
 	}
 	if count != 1 {

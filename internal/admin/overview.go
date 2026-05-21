@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -73,16 +74,16 @@ func (m OverviewModel) View() string {
 	narrow := m.width < 100
 
 	row1 := []string{
-		renderStatBox("total users", fmt.Sprintf("%d", s.TotalUsers), false, false),
+		renderStatBox("total users", strconv.Itoa(s.TotalUsers), false, false),
 		renderStatBox("new today", fmt.Sprintf("+%d", s.NewUsersToday), false, false),
 		renderStatBox("total assets", commaSep(s.TotalAssets), false, false),
 		renderStatBox("storage", formatMB(s.TotalStorageMB), false, false),
 	}
 	row2 := []string{
 		renderStatBox("this week", fmt.Sprintf("+%d", s.NewUsersThisWeek), false, false),
-		renderStatBox("active workspaces", fmt.Sprintf("%d", s.ActiveWorkspaces), false, false),
-		renderStatBox("failed jobs", fmt.Sprintf("%d", s.JobsFailed), s.JobsFailed > 0, false),
-		renderStatBox("processing", fmt.Sprintf("%d", s.JobsProcessing), false, s.JobsProcessing > 0),
+		renderStatBox("active workspaces", strconv.Itoa(s.ActiveWorkspaces), false, false),
+		renderStatBox("failed jobs", strconv.Itoa(s.JobsFailed), s.JobsFailed > 0, false),
+		renderStatBox("processing", strconv.Itoa(s.JobsProcessing), false, s.JobsProcessing > 0),
 	}
 
 	var lines []string
@@ -133,11 +134,11 @@ func renderStatBox(label, value string, danger, warning bool) string {
 
 var barBlocks = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
 
-func blockChar(value, max int) rune {
-	if max == 0 {
+func blockChar(value, maxBlock int) rune {
+	if maxBlock == 0 {
 		return barBlocks[0]
 	}
-	idx := int(float64(value) / float64(max) * float64(len(barBlocks)-1))
+	idx := int(float64(value) / float64(maxBlock) * float64(len(barBlocks)-1))
 	if idx >= len(barBlocks) {
 		idx = len(barBlocks) - 1
 	}
@@ -182,10 +183,7 @@ func renderSparkline(days []DayCount) string {
 func renderSectionDivider(title string, width int) string {
 	titleStr := SectionTitleStyle.Render(title)
 	titleLen := utf8.RuneCountInString(title)
-	dashCount := width - titleLen - 2
-	if dashCount < 2 {
-		dashCount = 2
-	}
+	dashCount := max(width-titleLen-2, 2)
 	dashes := DividerStyle.Render(strings.Repeat("─", dashCount))
 	return titleStr + " " + dashes
 }
@@ -198,7 +196,7 @@ func viewCenterErr(err error, w, h int) string {
 }
 
 func commaSep(n int) string {
-	s := fmt.Sprintf("%d", n)
+	s := strconv.Itoa(n)
 	if n < 1000 {
 		return s
 	}

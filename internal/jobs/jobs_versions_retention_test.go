@@ -1,11 +1,12 @@
 package jobs_test
 
 import (
-	dbgen "damask/server/internal/db/gen"
-	th "damask/server/internal/tests_helpers"
 	"fmt"
 	"net/http"
 	"testing"
+
+	dbgen "damask/server/internal/db/gen"
+	th "damask/server/internal/testhelpers"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -19,7 +20,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 	owner := th.Register(t, env, "Owner", "owner@example.com", "password123")
 
 	// Set workspace retention to keep=2.
-	if _, err := env.SqlDB.Exec(
+	if _, err := env.Database.Exec(
 		`UPDATE workspaces SET version_retention_count = 2 WHERE id = ?`, owner.WorkspaceID,
 	); err != nil {
 		t.Fatalf("set retention: %v", err)
@@ -32,7 +33,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 	for i := range jpegData {
 		jpegData[i] = th.MakeJPEG(10+i, 10+i)
 	}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		r := th.BuildVersionUploadRequest(t, asset.ID, fmt.Sprintf("v%d.jpg", i+2), jpegData[i+1], "", owner.Cookie)
 		resp, _ := env.App.Test(r, fiber.TestConfig{Timeout: 5000})
 		if resp.StatusCode != http.StatusCreated {
@@ -42,7 +43,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 
 	// Confirm we have 5 active versions before enforcement.
 	var countBefore int64
-	_ = env.SqlDB.QueryRow(
+	_ = env.Database.QueryRow(
 		`SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL`, asset.ID,
 	).Scan(&countBefore)
 	if countBefore != 5 {
@@ -52,7 +53,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 	// Run retention enforcement.
 	var wsName string
 	var wsRetention int64
-	if err := env.SqlDB.QueryRow(
+	if err := env.Database.QueryRow(
 		`SELECT name, version_retention_count FROM workspaces WHERE id = ?`, owner.WorkspaceID,
 	).Scan(&wsName, &wsRetention); err != nil {
 		t.Fatalf("get workspace: %v", err)
@@ -64,7 +65,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 
 	// Count non-current active versions after enforcement.
 	var nonCurrentActive int64
-	_ = env.SqlDB.QueryRow(
+	_ = env.Database.QueryRow(
 		`SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL AND is_current = 0`, asset.ID,
 	).Scan(&nonCurrentActive)
 
@@ -74,7 +75,7 @@ func TestEnforceRetention_KeepExactN(t *testing.T) {
 
 	// Current version must still be alive.
 	var currentActive int64
-	_ = env.SqlDB.QueryRow(
+	_ = env.Database.QueryRow(
 		`SELECT COUNT(*) FROM asset_versions WHERE asset_id = ? AND deleted_at IS NULL AND is_current = 1`, asset.ID,
 	).Scan(&currentActive)
 	if currentActive != 1 {

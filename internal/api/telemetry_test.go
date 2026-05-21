@@ -4,12 +4,10 @@ package api_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 
 	"damask/server/internal/apperr"
-	"damask/server/internal/config"
 	"damask/server/internal/service"
 	"damask/server/internal/testutil"
 	"damask/server/internal/testutil/fixtures"
@@ -61,60 +59,6 @@ func TestAssetHandler_Span404(t *testing.T) {
 	if span.Status().Code != codes.Error {
 		t.Fatalf("status code = %v, want Error", span.Status().Code)
 	}
-}
-
-func TestGetTelemetryStatus_Disabled(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	token := env.MintToken(t, "user_1", "ws_1")
-
-	resp, err := env.App.Test(testutil.BearerRequest(http.MethodGet, "/api/admin/telemetry", nil, token))
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
-	testutil.AssertStatus(t, resp, http.StatusOK)
-
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if body.Enabled {
-		t.Fatalf("unexpected telemetry status: %+v", body)
-	}
-}
-
-func TestGetTelemetryStatus_Enabled(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	env.Server.SetConfigForTest(&config.Config{
-		Telemetry: config.TelemetryConfig{Enabled: true, ServiceName: "damask", Env: "test"},
-	})
-	token := env.MintToken(t, "user_1", "ws_1")
-
-	resp, err := env.App.Test(testutil.BearerRequest(http.MethodGet, "/api/admin/telemetry", nil, token))
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
-	testutil.AssertStatus(t, resp, http.StatusOK)
-
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if !body.Enabled {
-		t.Fatal("expected enabled")
-	}
-}
-
-func TestGetTelemetryStatus_Unauthorized(t *testing.T) {
-	env := testutil.NewTestEnv(t)
-	resp, err := env.App.Test(testutil.BearerRequest(http.MethodGet, "/api/admin/telemetry", nil, ""))
-	if err != nil {
-		t.Fatalf("request: %v", err)
-	}
-	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
 }
 
 func installSpanRecorder(t *testing.T) *tracetest.SpanRecorder {

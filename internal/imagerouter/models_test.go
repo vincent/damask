@@ -37,7 +37,7 @@ func TestFetchModelsSuccess(t *testing.T) {
 }
 
 func TestFetchModelsFallbackOnError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "boom", http.StatusBadGateway)
 	}))
 	defer srv.Close()
@@ -55,7 +55,7 @@ func TestFetchModelsFallbackOnError(t *testing.T) {
 }
 
 func TestFetchModelsFallbackOnTimeout(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(200 * time.Millisecond)
 		_ = json.NewEncoder(w).Encode([]any{})
 	}))

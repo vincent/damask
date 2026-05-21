@@ -20,6 +20,7 @@ func newFolderSvc(t *testing.T) (service.FolderService, *memory.RealFolderRepo) 
 // --- Create ---
 
 func TestFolderService_Create_OK(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFolderSvc(t)
 	dto, err := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Drafts"})
 	if err != nil {
@@ -37,6 +38,7 @@ func TestFolderService_Create_OK(t *testing.T) {
 }
 
 func TestFolderService_Create_EmptyName(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFolderSvc(t)
 	_, err := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "   "})
 	if !errors.Is(err, apperr.ErrInvalidInput) {
@@ -45,6 +47,7 @@ func TestFolderService_Create_EmptyName(t *testing.T) {
 }
 
 func TestFolderService_Create_ParentNotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFolderSvc(t)
 	parentID := "nonexistent"
 	_, err := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{
@@ -57,6 +60,7 @@ func TestFolderService_Create_ParentNotFound(t *testing.T) {
 }
 
 func TestFolderService_Create_MaxDepth(t *testing.T) {
+	t.Parallel()
 	svc, repo := newFolderSvc(t)
 	parentID := "parent_1"
 	grandparentID := "grand_1"
@@ -78,6 +82,7 @@ func TestFolderService_Create_MaxDepth(t *testing.T) {
 }
 
 func TestFolderService_Create_ParentDifferentProject(t *testing.T) {
+	t.Parallel()
 	svc, repo := newFolderSvc(t)
 	repo.Seed(repository.Folder{
 		ID:          "parent_1",
@@ -96,8 +101,14 @@ func TestFolderService_Create_ParentDifferentProject(t *testing.T) {
 }
 
 func TestFolderService_Create_DuplicateName(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFolderSvc(t)
-	if _, err := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Drafts"}); err != nil {
+	if _, err := svc.Create(
+		context.Background(),
+		"ws_1",
+		"proj_1",
+		service.CreateFolderParams{Name: "Drafts"},
+	); err != nil {
 		t.Fatalf("first create: %v", err)
 	}
 	_, err := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Drafts"})
@@ -109,6 +120,7 @@ func TestFolderService_Create_DuplicateName(t *testing.T) {
 // --- Get ---
 
 func TestFolderService_Get_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFolderSvc(t)
 	_, err := svc.Get(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -119,6 +131,7 @@ func TestFolderService_Get_NotFound(t *testing.T) {
 // --- Update ---
 
 func TestFolderService_Update_EmptyName(t *testing.T) {
+	t.Parallel()
 	svc, repo := newFolderSvc(t)
 	repo.Seed(repository.Folder{ID: "f1", WorkspaceID: "ws_1", ProjectID: "p1", Name: "Original"})
 	empty := ""
@@ -129,6 +142,7 @@ func TestFolderService_Update_EmptyName(t *testing.T) {
 }
 
 func TestFolderService_Update_OK(t *testing.T) {
+	t.Parallel()
 	svc, repo := newFolderSvc(t)
 	repo.Seed(repository.Folder{ID: "f1", WorkspaceID: "ws_1", ProjectID: "p1", Name: "Old"})
 	newName := "New"
@@ -144,6 +158,7 @@ func TestFolderService_Update_OK(t *testing.T) {
 // folderNullifySpyRepo wraps RealFolderRepo and records whether NullifyAssets was called.
 type folderNullifySpyRepo struct {
 	*memory.RealFolderRepo
+
 	nullifyCalled bool
 }
 
@@ -155,6 +170,7 @@ func (r *folderNullifySpyRepo) NullifyAssets(_ context.Context, _, _ string) err
 // --- Delete ---
 
 func TestFolderService_Delete_NullifiesAssets(t *testing.T) {
+	t.Parallel()
 	inner := memory.NewRealFolderRepo()
 	spy := &folderNullifySpyRepo{RealFolderRepo: inner}
 	svc := service.NewFolderService(spy)
@@ -169,6 +185,7 @@ func TestFolderService_Delete_NullifiesAssets(t *testing.T) {
 }
 
 func TestFolderService_Delete_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newFolderSvc(t)
 	err := svc.Delete(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -177,6 +194,7 @@ func TestFolderService_Delete_NotFound(t *testing.T) {
 }
 
 func TestFolderService_Delete_CascadesChildren(t *testing.T) {
+	t.Parallel()
 	svc, repo := newFolderSvc(t)
 	parentID := "parent_1"
 	repo.Seed(

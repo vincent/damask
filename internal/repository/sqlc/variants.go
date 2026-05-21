@@ -58,12 +58,23 @@ func (r *variantRepo) Create(ctx context.Context, v repository.Variant) (reposit
 	if status == "" {
 		status = "ready"
 	}
-	row := r.sqlDB.QueryRowContext(ctx, `
+	row := r.sqlDB.QueryRowContext(
+		ctx,
+		`
 		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size,
 		          status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at`,
-		v.ID, v.WorkspaceID, v.AssetVersionID, v.Type, v.StorageKey, v.TransformParams, v.Size, status, v.Title, v.IsShared,
+		v.ID,
+		v.WorkspaceID,
+		v.AssetVersionID,
+		v.Type,
+		v.StorageKey,
+		v.TransformParams,
+		v.Size,
+		status,
+		v.Title,
+		v.IsShared,
 	)
 	return scanVariant(row)
 }
@@ -74,7 +85,13 @@ func (r *variantRepo) Delete(ctx context.Context, workspaceID, id string) error 
 }
 
 func (r *variantRepo) UpdateTitle(ctx context.Context, workspaceID, variantID string, title *string) error {
-	res, err := r.sqlDB.ExecContext(ctx, `UPDATE variants SET title = ? WHERE id = ? AND workspace_id = ?`, title, variantID, workspaceID)
+	res, err := r.sqlDB.ExecContext(
+		ctx,
+		`UPDATE variants SET title = ? WHERE id = ? AND workspace_id = ?`,
+		title,
+		variantID,
+		workspaceID,
+	)
 	if err != nil {
 		return err
 	}
@@ -104,7 +121,10 @@ func (r *variantRepo) UpdateSharedBatch(ctx context.Context, workspaceID string,
 	return err
 }
 
-func (r *variantRepo) ListSharedByAssetIDs(ctx context.Context, assetIDs []string) ([]repository.VariantWithAssetID, error) {
+func (r *variantRepo) ListSharedByAssetIDs(
+	ctx context.Context,
+	assetIDs []string,
+) ([]repository.VariantWithAssetID, error) {
 	if len(assetIDs) == 0 {
 		return nil, nil
 	}
@@ -133,8 +153,20 @@ func (r *variantRepo) ListSharedByAssetIDs(ctx context.Context, assetIDs []strin
 	for rows.Next() {
 		var item repository.VariantWithAssetID
 		if err := rows.Scan(
-			&item.ID, &item.WorkspaceID, &item.AssetVersionID, &item.Type, &item.StorageKey, &item.TransformParams, &item.Size,
-			&item.Status, &item.ThumbnailKey, &item.ThumbnailContentType, &item.Title, &item.IsShared, &item.CreatedAt, &item.AssetID,
+			&item.ID,
+			&item.WorkspaceID,
+			&item.AssetVersionID,
+			&item.Type,
+			&item.StorageKey,
+			&item.TransformParams,
+			&item.Size,
+			&item.Status,
+			&item.ThumbnailKey,
+			&item.ThumbnailContentType,
+			&item.Title,
+			&item.IsShared,
+			&item.CreatedAt,
+			&item.AssetID,
 		); err != nil {
 			return nil, err
 		}
@@ -143,7 +175,10 @@ func (r *variantRepo) ListSharedByAssetIDs(ctx context.Context, assetIDs []strin
 	return out, rows.Err()
 }
 
-func (r *variantRepo) GetSharedByVariantAndAsset(ctx context.Context, variantID, assetID string) (repository.Variant, error) {
+func (r *variantRepo) GetSharedByVariantAndAsset(
+	ctx context.Context,
+	variantID, assetID string,
+) (repository.Variant, error) {
 	row := r.sqlDB.QueryRowContext(ctx, `
 		SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
 		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.created_at

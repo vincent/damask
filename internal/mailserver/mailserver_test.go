@@ -22,6 +22,7 @@ const rawEmail = "From: sender@example.com\r\n" +
 	"Hello, world!\r\n"
 
 func TestSession_HookTriggeredOnMatchingRecipient(t *testing.T) {
+	t.Parallel()
 	hook := Hook{
 		Address:     "hook@example.com",
 		Name:        "test-hook",
@@ -43,13 +44,14 @@ func TestSession_HookTriggeredOnMatchingRecipient(t *testing.T) {
 }
 
 func TestMailServerImpl_AddHookAndNewSession(t *testing.T) {
+	t.Parallel()
 	hook := Hook{
 		Address:     "hook@example.com",
 		Name:        "test-hook",
 		WorkspaceID: "ws-1",
 	}
 
-	impl := &MailServerImpl{}
+	impl := &Impl{}
 	impl.AddHook(hook)
 
 	session, err := impl.NewSession(nil)
@@ -99,8 +101,10 @@ func setupMailserverDB(t *testing.T) (*dbgen.Queries, *sql.DB) {
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	ctx := context.Background()
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`); err != nil {
+	if _, err := sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`,
+	); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
 	if _, err := sqlDB.ExecContext(ctx,
@@ -118,6 +122,7 @@ func setupMailserverDB(t *testing.T) (*dbgen.Queries, *sql.DB) {
 }
 
 func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
 	queries, sqlDB, err := dbpkg.Open(dbPath)
@@ -129,8 +134,10 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert a workspace and user to satisfy FK constraints.
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`); err != nil {
+	if _, err := sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`,
+	); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
 	if _, err := sqlDB.ExecContext(ctx,
@@ -158,7 +165,10 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	}
 
 	// One ingress_log entry should exist with status=pending.
-	rows, err := sqlDB.QueryContext(ctx, `SELECT id, source_id, filename, status FROM ingress_log WHERE source_id = 'src1'`)
+	rows, err := sqlDB.QueryContext(
+		ctx,
+		`SELECT id, source_id, filename, status FROM ingress_log WHERE source_id = 'src1'`,
+	)
 	if err != nil {
 		t.Fatalf("query ingress_log: %v", err)
 	}
@@ -227,11 +237,14 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 }
 
 func TestSession_FolderRoutingViaSubaddress(t *testing.T) {
+	t.Parallel()
 	queries, sqlDB := setupMailserverDB(t)
 	ctx := context.Background()
 
-	if _, err := sqlDB.ExecContext(ctx,
-		`INSERT INTO projects (id, workspace_id, name, created_at, updated_at) VALUES ('p1','ws1','Default',datetime('now'),datetime('now'))`); err != nil {
+	if _, err := sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO projects (id, workspace_id, name, created_at, updated_at) VALUES ('p1','ws1','Default',datetime('now'),datetime('now'))`,
+	); err != nil {
 		t.Fatalf("insert project: %v", err)
 	}
 	// Insert a folder with slug "brand-assets" in ws1
@@ -269,6 +282,7 @@ func TestSession_FolderRoutingViaSubaddress(t *testing.T) {
 }
 
 func TestSession_FolderRouting_UnknownTagFallsBack(t *testing.T) {
+	t.Parallel()
 	queries, _ := setupMailserverDB(t)
 	ctx := context.Background()
 
@@ -309,6 +323,7 @@ func TestSession_FolderRouting_UnknownTagFallsBack(t *testing.T) {
 }
 
 func TestSession_DataNotTriggeredForNonMatchingHook(t *testing.T) {
+	t.Parallel()
 	// Hook address differs from the accepted recipient — Data should not call Trigger.
 	// We register two hooks: only one matches the recipient.
 	hookMatch := Hook{Address: "hook@example.com", Name: "match", WorkspaceID: "ws-1"}

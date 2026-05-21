@@ -1,6 +1,6 @@
 package audit
 
-// Asset event types
+// Asset event types.
 const (
 	EventAssetCreated                 = "asset_created"
 	EventAssetThumbnailRegen          = "asset_thumbnail_regen"
@@ -25,7 +25,7 @@ const (
 	EventAssetVariantRerun            = "asset_variant_rerun"
 )
 
-// Project event types
+// Project event types.
 const (
 	EventProjectCreated      = "project_created"
 	EventProjectRenamed      = "project_renamed"
@@ -34,7 +34,7 @@ const (
 	EventProjectDeleted      = "project_deleted"
 )
 
-// Actor types
+// Actor types.
 const (
 	ActorTypeUser   = "user"
 	ActorTypeSystem = "system"

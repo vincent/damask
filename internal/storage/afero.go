@@ -42,7 +42,7 @@ func NewAferoS3Storage(cfg AferoS3Config) (Storage, error) {
 
 func (s *AferoStorage) Put(key string, r io.Reader) error {
 	dst := filepath.Join(s.base, filepath.FromSlash(key))
-	if err := s.fs.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(dst), 0755); err != nil { //nolint:mnd // 0755 is appropriate for directories
 		return err
 	}
 	f, err := s.fs.Create(dst)

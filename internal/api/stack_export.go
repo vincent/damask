@@ -23,7 +23,7 @@ import (
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "One or more assets not in workspace"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/stack/export [post]
+// @Router /api/v1/stack/export [post].
 func (s *Server) handleStackExport(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -45,7 +45,10 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 	}
 
 	c.Set("Content-Type", "application/zip")
-	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename + ".zip"}))
+	c.Set(
+		"Content-Disposition",
+		mime.FormatMediaType("attachment", map[string]string{apiFilenameKey: filename + ".zip"}),
+	)
 
 	workspaceID := claims.WorkspaceID
 	params := service.ExportZipParams{AssetIDs: body.AssetIDs, Filename: body.Filename}

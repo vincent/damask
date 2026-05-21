@@ -3,10 +3,11 @@ package mail
 import (
 	"bytes"
 	"context"
-	"damask/server/internal/telemetry"
 	"embed"
 	"html/template"
 	"log/slog"
+
+	"damask/server/internal/telemetry"
 
 	"github.com/wneessen/go-mail"
 	"go.opentelemetry.io/otel/codes"
@@ -15,13 +16,21 @@ import (
 //go:embed templates/*.html
 var templates embed.FS
 
-type MailSenderConfig struct {
+const (
+	mailTemplateTitle      = "Title"
+	mailTemplateText       = "Text"
+	mailTemplateActionText = "ActionText"
+	mailTemplateActionURL  = "ActionUrl"
+	mailActionViewSources  = "View sources"
+)
+
+type Config struct {
 	Sender   string
 	Host     string
 	Port     int
 	User     string
 	Password string
-	BaseUrl  string
+	BaseURL  string
 }
 
 type Mailer interface {
@@ -37,7 +46,7 @@ type Mailer interface {
 	SendWorkflowRunFailed(ctx context.Context, to, workflowName, errMsg, workspaceID string) error
 }
 
-func NewMailer(config *MailSenderConfig) Mailer {
+func NewMailer(config *Config) Mailer {
 	mailer := &MailerImpl{
 		config,
 		nil,
@@ -52,7 +61,15 @@ func NewMailer(config *MailSenderConfig) Mailer {
 			mail.WithPassword(config.Password),
 		)
 		if err != nil {
-			slog.Error("mailer: failed to create new mail delivery client", "error", err, "host", config.Host, "port", config.Port)
+			slog.Error(
+				"mailer: failed to create new mail delivery client",
+				"error",
+				err,
+				"host",
+				config.Host,
+				"port",
+				config.Port,
+			)
 			panic("unrecoverable error: mailer config is not usable")
 		}
 		mailer.client = client
@@ -61,11 +78,16 @@ func NewMailer(config *MailSenderConfig) Mailer {
 }
 
 type MailerImpl struct {
-	config *MailSenderConfig
+	config *Config
 	client *mail.Client
 }
 
-func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateName string, to, subject string, data map[string]string) (err error) {
+func (m *MailerImpl) PrepareAndSendWithTemplate(
+	ctx context.Context,
+	templateName string,
+	to, subject string,
+	data map[string]string,
+) (err error) {
 	ctx, span := telemetry.StartSpan(ctx, "mail.prepare")
 	defer telemetry.EndSpan(span, err)
 
@@ -81,10 +103,10 @@ func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateNam
 		return err
 	}
 
-	data["BaseUrl"] = m.config.BaseUrl
+	data["BaseUrl"] = m.config.BaseURL
 	data["FooterText"] = "Lorem ipsum"
-	if len(data["ActionUrl"]) > 0 {
-		data["ActionUrl"] = m.config.BaseUrl + data["ActionUrl"]
+	if len(data[mailTemplateActionURL]) > 0 {
+		data[mailTemplateActionURL] = m.config.BaseURL + data[mailTemplateActionURL]
 	}
 
 	var buf bytes.Buffer
@@ -97,14 +119,21 @@ func (m *MailerImpl) PrepareAndSendWithTemplate(ctx context.Context, templateNam
 	if err != nil {
 		slog.ErrorContext(ctx, "mailer: failed to prepare mail", "error", err)
 		return err
-
-	} else {
-		slog.InfoContext(ctx, "mailer: send mail", "to", to)
-		err = m.Send(ctx, msg)
-		if err != nil {
-			slog.ErrorContext(ctx, "mailer: failed to send mail", "error", err, "host", m.config.Host, "port", m.config.Port)
-			return err
-		}
+	}
+	slog.InfoContext(ctx, "mailer: send mail", "to", to)
+	err = m.Send(ctx, msg)
+	if err != nil {
+		slog.ErrorContext(
+			ctx,
+			"mailer: failed to send mail",
+			"error",
+			err,
+			"host",
+			m.config.Host,
+			"port",
+			m.config.Port,
+		)
+		return err
 	}
 
 	return nil
@@ -157,10 +186,10 @@ func (m *MailerImpl) SendInvite(ctx context.Context, to, role, token string) err
 		to,
 		"You've been invited to a Damask workspace",
 		map[string]string{
-			"Title":      "You're invited!",
-			"Text":       "Someone thinks you'd be a great fit! you've been invited to collaborate on a Damask workspace as " + role + ". Damask is a self-hosted digital asset manager: upload, organise, tag, and share your files with your team. Click below to create your account and join the workspace.",
-			"ActionText": "Accept invitation",
-			"ActionUrl":  "/invite?token=" + token,
+			mailTemplateTitle:      "You're invited!",
+			mailTemplateText:       "Someone thinks you'd be a great fit! you've been invited to collaborate on a Damask workspace as " + role + ". Damask is a self-hosted digital asset manager: upload, organise, tag, and share your files with your team. Click below to create your account and join the workspace.",
+			mailTemplateActionText: "Accept invitation",
+			mailTemplateActionURL:  "/invite?token=" + token,
 		},
 	)
 }
@@ -171,10 +200,10 @@ func (m *MailerImpl) SendWelcome(ctx context.Context, to, username, workspaceID 
 		to,
 		"Welcome to Damask, "+username+"!",
 		map[string]string{
-			"Title":      "Your workspace is ready, " + username + "!",
-			"Text":       "Welcome to Damask, your home for digital assets. Upload images, videos, PDFs, and more; organise them with folders, projects, and tags; create shareable links with optional passwords and expiry; and set up ingress sources to pull files in automatically.",
-			"ActionText": "Explore your library",
-			"ActionUrl":  "/library?ws=" + workspaceID,
+			mailTemplateTitle:      "Your workspace is ready, " + username + "!",
+			mailTemplateText:       "Welcome to Damask, your home for digital assets. Upload images, videos, PDFs, and more; organise them with folders, projects, and tags; create shareable links with optional passwords and expiry; and set up ingress sources to pull files in automatically.",
+			mailTemplateActionText: "Explore your library",
+			mailTemplateActionURL:  "/library?ws=" + workspaceID,
 		},
 	)
 }
@@ -185,8 +214,8 @@ func (m *MailerImpl) SendInviteAccepted(ctx context.Context, to, newMemberName, 
 		to,
 		"A new member joined your workspace",
 		map[string]string{
-			"Title": "A new member joined your workspace",
-			"Text":  newMemberName + " (" + newMemberEmail + ") accepted your invite and joined as " + role + ".",
+			mailTemplateTitle: "A new member joined your workspace",
+			mailTemplateText:  newMemberName + " (" + newMemberEmail + ") accepted your invite and joined as " + role + ".",
 		},
 	)
 }
@@ -197,10 +226,10 @@ func (m *MailerImpl) SendIngressSourceAdded(ctx context.Context, to, sourceName,
 		to,
 		"Ingress source configured: "+sourceName,
 		map[string]string{
-			"Title":      "Ingress source configured",
-			"Text":       "Your ingress source \"" + sourceName + "\" is set up and will start polling shortly.",
-			"ActionText": "View sources",
-			"ActionUrl":  "/library/ingress?ws=" + workspaceID,
+			mailTemplateTitle:      "Ingress source configured",
+			mailTemplateText:       "Your ingress source \"" + sourceName + "\" is set up and will start polling shortly.",
+			mailTemplateActionText: mailActionViewSources,
+			mailTemplateActionURL:  "/library/ingress?ws=" + workspaceID,
 		},
 	)
 }
@@ -211,10 +240,10 @@ func (m *MailerImpl) SendIngressSourceFailed(ctx context.Context, to, sourceName
 		to,
 		"Ingress source error: "+sourceName,
 		map[string]string{
-			"Title":      "Ingress source error",
-			"Text":       "The ingress source \"" + sourceName + "\" encountered an error: " + errMsg,
-			"ActionText": "View sources",
-			"ActionUrl":  "/library/ingress?ws=" + workspaceID,
+			mailTemplateTitle:      "Ingress source error",
+			mailTemplateText:       "The ingress source \"" + sourceName + "\" encountered an error: " + errMsg,
+			mailTemplateActionText: mailActionViewSources,
+			mailTemplateActionURL:  "/library/ingress?ws=" + workspaceID,
 		},
 	)
 }
@@ -225,10 +254,10 @@ func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceNa
 		to,
 		"Ingress source disabled: "+sourceName,
 		map[string]string{
-			"Title":      "Ingress source disabled",
-			"Text":       "The ingress source \"" + sourceName + "\" has been disabled after too many consecutive errors. Last error: " + errMsg + "\n\nEdit the source to re-enable polling.",
-			"ActionText": "View sources",
-			"ActionUrl":  "/library/ingress?ws=" + workspaceID,
+			mailTemplateTitle:      "Ingress source disabled",
+			mailTemplateText:       "The ingress source \"" + sourceName + "\" has been disabled after too many consecutive errors. Last error: " + errMsg + "\n\nEdit the source to re-enable polling.",
+			mailTemplateActionText: mailActionViewSources,
+			mailTemplateActionURL:  "/library/ingress?ws=" + workspaceID,
 		},
 	)
 }
@@ -239,10 +268,10 @@ func (m *MailerImpl) SendPasswordReset(ctx context.Context, to, token string) er
 		to,
 		"Reset your Damask password",
 		map[string]string{
-			"Title":      "Reset your password",
-			"Text":       "Someone requested a password reset for your Damask account. If this wasn't you, you can ignore this email. This link expires in 1 hour.",
-			"ActionText": "Reset password",
-			"ActionUrl":  "/reset-password?token=" + token,
+			mailTemplateTitle:      "Reset your password",
+			mailTemplateText:       "Someone requested a password reset for your Damask account. If this wasn't you, you can ignore this email. This link expires in 1 hour.",
+			mailTemplateActionText: "Reset password",
+			mailTemplateActionURL:  "/reset-password?token=" + token,
 		},
 	)
 }
@@ -253,10 +282,10 @@ func (m *MailerImpl) SendEmailChangeConfirmation(ctx context.Context, to, newEma
 		to,
 		"Confirm your email address change",
 		map[string]string{
-			"Title":      "Confirm your email change",
-			"Text":       "You requested to change your Damask account email to " + newEmail + ". If you didn't request this, your account is safe and no change has been made. This link expires in 24 hours.",
-			"ActionText": "Confirm email change",
-			"ActionUrl":  "/auth/confirm-email-change?token=" + token,
+			mailTemplateTitle:      "Confirm your email change",
+			mailTemplateText:       "You requested to change your Damask account email to " + newEmail + ". If you didn't request this, your account is safe and no change has been made. This link expires in 24 hours.",
+			mailTemplateActionText: "Confirm email change",
+			mailTemplateActionURL:  "/auth/confirm-email-change?token=" + token,
 		},
 	)
 }
@@ -267,10 +296,10 @@ func (m *MailerImpl) SendWorkflowRunFailed(ctx context.Context, to, workflowName
 		to,
 		"Workflow failed: "+workflowName,
 		map[string]string{
-			"Title":      "Workflow failed",
-			"Text":       "The workflow \"" + workflowName + "\" failed. Error: " + errMsg,
-			"ActionText": "Open workflows",
-			"ActionUrl":  "/library/settings/workflows?ws=" + workspaceID,
+			mailTemplateTitle:      "Workflow failed",
+			mailTemplateText:       "The workflow \"" + workflowName + "\" failed. Error: " + errMsg,
+			mailTemplateActionText: "Open workflows",
+			mailTemplateActionURL:  "/library/settings/workflows?ws=" + workspaceID,
 		},
 	)
 }
@@ -281,8 +310,8 @@ func (m *MailerImpl) SendCommentPosted(ctx context.Context, to, authorName, shar
 		to,
 		"New comment on your share: "+shareLabel,
 		map[string]string{
-			"Title": "New comment on \"" + shareLabel + "\"",
-			"Text":  authorName + " wrote: " + commentBody,
+			mailTemplateTitle: "New comment on \"" + shareLabel + "\"",
+			mailTemplateText:  authorName + " wrote: " + commentBody,
 		},
 	)
 }

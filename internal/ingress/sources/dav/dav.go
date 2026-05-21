@@ -25,8 +25,8 @@ type Config struct {
 	Path     string `json:"path"`
 }
 
-// DAVSource watches a WebDAV collection for new files.
-type DAVSource struct {
+// Source watches a WebDAV collection for new files.
+type Source struct {
 	cfg Config
 }
 
@@ -39,12 +39,12 @@ func New(configJSON []byte) (ingress.Source, error) {
 	if cfg.Path == "" {
 		cfg.Path = "/"
 	}
-	return &DAVSource{cfg: cfg}, nil
+	return &Source{cfg: cfg}, nil
 }
 
-func (s *DAVSource) Type() string { return "dav" }
+func (s *Source) Type() string { return "dav" }
 
-func (s *DAVSource) Validate(ctx context.Context) error {
+func (s *Source) Validate(_ context.Context) error {
 	c := s.client()
 	if err := c.Connect(); err != nil {
 		return fmt.Errorf("dav: connect %s: %w", s.cfg.URL, err)
@@ -55,7 +55,7 @@ func (s *DAVSource) Validate(ctx context.Context) error {
 	return nil
 }
 
-func (s *DAVSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
+func (s *Source) Poll(_ context.Context) ([]ingress.IngestItem, error) {
 	c := s.client()
 
 	entries, err := c.ReadDir(s.cfg.Path)
@@ -79,7 +79,7 @@ func (s *DAVSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	return items, nil
 }
 
-func (s *DAVSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
+func (s *Source) Fetch(_ context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
 	c := s.client()
 	rc, err := c.ReadStream(item.RemoteID)
 	if err != nil {
@@ -88,6 +88,6 @@ func (s *DAVSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.Read
 	return rc, nil
 }
 
-func (s *DAVSource) client() *gowebdav.Client {
+func (s *Source) client() *gowebdav.Client {
 	return gowebdav.NewClient(s.cfg.URL, s.cfg.Username, s.cfg.Password)
 }

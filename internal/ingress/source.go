@@ -5,10 +5,11 @@ package ingress
 
 import (
 	"context"
-	dbgen "damask/server/internal/db/gen"
 	"fmt"
 	"io"
 	"time"
+
+	dbgen "damask/server/internal/db/gen"
 )
 
 // IngestItem represents a single remote item to be fetched.
@@ -70,7 +71,7 @@ func RegisterOnCreate(sourceType string, fn OnCreateHookFn) {
 	onCreateRegistry[sourceType] = fn
 }
 
-// OnCreateHookFn is run after the source creation.
+// OnAfterCreateHookFn is run after the source creation.
 type OnAfterCreateHookFn func(source dbgen.IngressSource) error
 
 var onAfterCreateRegistry = map[string]OnAfterCreateHookFn{}

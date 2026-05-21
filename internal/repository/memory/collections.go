@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"damask/server/internal/apperr"
@@ -78,10 +79,8 @@ func (r *RealCollectionRepo) Delete(_ context.Context, workspaceID, id string) e
 func (r *RealCollectionRepo) AddAsset(_ context.Context, collectionID, assetID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, id := range r.assets[collectionID] {
-		if id == assetID {
-			return nil
-		}
+	if slices.Contains(r.assets[collectionID], assetID) {
+		return nil
 	}
 	r.assets[collectionID] = append(r.assets[collectionID], assetID)
 	return nil
@@ -101,17 +100,17 @@ func (r *RealCollectionRepo) RemoveAsset(_ context.Context, collectionID, assetI
 	return nil
 }
 
-func (r *RealCollectionRepo) ListForAsset(_ context.Context, workspaceID, assetID string) ([]repository.Collection, error) {
+func (r *RealCollectionRepo) ListForAsset(
+	_ context.Context,
+	workspaceID, assetID string,
+) ([]repository.Collection, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []repository.Collection
 	for collID, assetIDs := range r.assets {
-		for _, aid := range assetIDs {
-			if aid == assetID {
-				if c, ok := r.collections[collID]; ok && c.WorkspaceID == workspaceID {
-					out = append(out, c)
-				}
-				break
+		if slices.Contains(assetIDs, assetID) {
+			if c, ok := r.collections[collID]; ok && c.WorkspaceID == workspaceID {
+				out = append(out, c)
 			}
 		}
 	}

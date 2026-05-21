@@ -16,6 +16,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const maxSimilarityScore = 0.3
+
 var hexColorRegex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 // TagResponse is the extended shape returned by all tag endpoints.
@@ -55,7 +57,7 @@ func tagDTOToResponse(d *service.TagDTO) TagResponse {
 // @Security BearerAuth
 // @Success 200 {array} TagResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/tags [get]
+// @Router /api/v1/tags [get].
 func (s *Server) handleListTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	includeSystem, _ := strconv.ParseBool(c.Query("system", "false"))
@@ -99,7 +101,7 @@ func (s *Server) handleListTags(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 409 {object} ErrorResponse "Tag already exists"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/tags [post]
+// @Router /api/v1/tags [post].
 func (s *Server) handleCreateTag(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -146,7 +148,7 @@ func (s *Server) handleCreateTag(c fiber.Ctx) error {
 // @Failure 404 {object} ErrorResponse "Tag not found"
 // @Failure 409 {object} ErrorResponse "Target name already in use"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/tags/{name} [patch]
+// @Router /api/v1/tags/{name} [patch].
 func (s *Server) handlePatchTag(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	tagName := strings.ToLower(c.Params("name"))
@@ -183,7 +185,7 @@ func (s *Server) handlePatchTag(c fiber.Ctx) error {
 // @Success 200 {object} map[string]int
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/tags [delete]
+// @Router /api/v1/tags [delete].
 func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -218,7 +220,7 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 // @Success 200 {object} map[string]interface{}
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/tags/merge [post]
+// @Router /api/v1/tags/merge [post].
 func (s *Server) handleMergeTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -250,7 +252,7 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Success 200 {array} map[string]interface{}
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/tags/suggestions/duplicates [get]
+// @Router /api/v1/tags/suggestions/duplicates [get].
 func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -283,11 +285,11 @@ func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 			}
 			dist := levenshtein.ComputeDistance(a, b)
 			score := float64(dist) / maxLen
-			if score < 0.3 {
+			if score < maxSimilarityScore {
 				pairs = append(pairs, pair{
 					A:     active[i].Name,
 					B:     active[j].Name,
-					Score: math.Round(score*100) / 100,
+					Score: math.Round(score*100) / 100, //nolint:mnd // round to 2 decimals
 				})
 			}
 		}
@@ -311,7 +313,7 @@ func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 // @Success 200 {array} string
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id}/tags [get]
+// @Router /api/v1/assets/{id}/tags [get].
 func (s *Server) handleGetAssetTags(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -345,7 +347,7 @@ func (s *Server) handleGetAssetTags(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/assets/{id}/tags [post]
+// @Router /api/v1/assets/{id}/tags [post].
 func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -392,7 +394,7 @@ func (s *Server) handleAddTagToAsset(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id}/tags/{name} [delete]
+// @Router /api/v1/assets/{id}/tags/{name} [delete].
 func (s *Server) handleRemoveTagFromAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")

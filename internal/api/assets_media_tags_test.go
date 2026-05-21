@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 )
 
 func TestPostAsset_AudioMime_EnqueuesExtractMediaTags(t *testing.T) {
@@ -28,7 +28,7 @@ func TestPostAsset_AudioMime_EnqueuesExtractMediaTags(t *testing.T) {
 	}
 
 	var count int
-	if err := env.SqlDB.QueryRow(`SELECT COUNT(*) FROM jobs WHERE workspace_id = ? AND type = 'extract_media_tags'`, owner.WorkspaceID).Scan(&count); err != nil {
+	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM jobs WHERE workspace_id = ? AND type = 'extract_media_tags'`, owner.WorkspaceID).Scan(&count); err != nil {
 		t.Fatalf("count jobs: %v", err)
 	}
 	if count == 0 {
@@ -53,7 +53,7 @@ func TestPostAsset_VideoMime_EnqueuesExtractMediaTags(t *testing.T) {
 	}
 
 	var count int
-	if err := env.SqlDB.QueryRow(`SELECT COUNT(*) FROM jobs WHERE workspace_id = ? AND type = 'extract_media_tags'`, owner.WorkspaceID).Scan(&count); err != nil {
+	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM jobs WHERE workspace_id = ? AND type = 'extract_media_tags'`, owner.WorkspaceID).Scan(&count); err != nil {
 		t.Fatalf("count jobs: %v", err)
 	}
 	if count == 0 {
@@ -73,7 +73,7 @@ func TestPostAsset_ImageMime_DoesNotEnqueueExtractMediaTags(t *testing.T) {
 	}
 
 	var count int
-	if err := env.SqlDB.QueryRow(`SELECT COUNT(*) FROM jobs WHERE workspace_id = ? AND type = 'extract_media_tags'`, owner.WorkspaceID).Scan(&count); err != nil {
+	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM jobs WHERE workspace_id = ? AND type = 'extract_media_tags'`, owner.WorkspaceID).Scan(&count); err != nil {
 		t.Fatalf("count jobs: %v", err)
 	}
 	if count != 0 {

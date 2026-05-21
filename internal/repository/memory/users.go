@@ -184,7 +184,7 @@ func (r *RealUserRepo) AnonymizeDeletedUser(_ context.Context, id string) error 
 	u.DisplayName = ptrString("Deleted user")
 	u.PasswordHash = ""
 	u.AvatarStorageKey = nil
-	u.AvatarUrl = nil
+	u.AvatarURL = nil
 	u.PendingEmail = nil
 	u.AuthMethods = "[]"
 	r.byID[id] = u

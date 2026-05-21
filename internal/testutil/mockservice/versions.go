@@ -31,7 +31,10 @@ func (m *MockVersionService) List(ctx context.Context, assetID string) ([]*servi
 	return nil, nil
 }
 
-func (m *MockVersionService) ListWithVariantCount(ctx context.Context, assetID string) ([]*service.VersionWithCountDTO, error) {
+func (m *MockVersionService) ListWithVariantCount(
+	ctx context.Context,
+	assetID string,
+) ([]*service.VersionWithCountDTO, error) {
 	if m.ListWithVariantCountFn != nil {
 		return m.ListWithVariantCountFn(ctx, assetID)
 	}
@@ -80,7 +83,10 @@ func (m *MockVersionService) Create(ctx context.Context, v *service.VersionDTO) 
 	return nil, nil
 }
 
-func (m *MockVersionService) UploadNewVersion(ctx context.Context, p service.UploadAssetVersionParams) (*service.UploadAssetVersionResult, error) {
+func (m *MockVersionService) UploadNewVersion(
+	ctx context.Context,
+	p service.UploadAssetVersionParams,
+) (*service.UploadAssetVersionResult, error) {
 	if m.UploadNewVersionFn != nil {
 		return m.UploadNewVersionFn(ctx, p)
 	}
@@ -132,7 +138,10 @@ type MockVariantService struct {
 
 func NewVariantService() *MockVariantService { return &MockVariantService{} }
 
-func (m *MockVariantService) List(ctx context.Context, p service.ListVariantsParams) (*service.ListVariantsResult, error) {
+func (m *MockVariantService) List(
+	ctx context.Context,
+	p service.ListVariantsParams,
+) (*service.ListVariantsResult, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, p)
 	}
@@ -146,7 +155,10 @@ func (m *MockVariantService) Get(ctx context.Context, workspaceID, id string) (*
 	return nil, nil
 }
 
-func (m *MockVariantService) PrepareCreate(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error) {
+func (m *MockVariantService) PrepareCreate(
+	ctx context.Context,
+	p service.PrepareCreateVariantParams,
+) (service.PreparedCreateVariant, error) {
 	if m.PrepareCreateFn != nil {
 		return m.PrepareCreateFn(ctx, p)
 	}
@@ -174,14 +186,20 @@ func (m *MockVariantService) UpdateSharing(ctx context.Context, p service.Update
 	return nil
 }
 
-func (m *MockVariantService) ListSharedByAssets(ctx context.Context, assetIDs []string) ([]service.SharedVariantDTO, error) {
+func (m *MockVariantService) ListSharedByAssets(
+	ctx context.Context,
+	assetIDs []string,
+) ([]service.SharedVariantDTO, error) {
 	if m.ListSharedFn != nil {
 		return m.ListSharedFn(ctx, assetIDs)
 	}
 	return nil, nil
 }
 
-func (m *MockVariantService) GetSharedForShare(ctx context.Context, variantID, assetID string) (*service.VariantDTO, error) {
+func (m *MockVariantService) GetSharedForShare(
+	ctx context.Context,
+	variantID, assetID string,
+) (*service.VariantDTO, error) {
 	if m.GetSharedForFn != nil {
 		return m.GetSharedForFn(ctx, variantID, assetID)
 	}
@@ -195,7 +213,10 @@ func (m *MockVariantService) Delete(ctx context.Context, workspaceID, assetID, v
 	return nil
 }
 
-func (m *MockVariantService) Promote(ctx context.Context, p service.PromoteVariantParams) (service.PromoteVariantResult, error) {
+func (m *MockVariantService) Promote(
+	ctx context.Context,
+	p service.PromoteVariantParams,
+) (service.PromoteVariantResult, error) {
 	if m.PromoteFn != nil {
 		return m.PromoteFn(ctx, p)
 	}

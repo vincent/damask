@@ -28,7 +28,7 @@ func (h VideoHandler) ExtractMeta(ctx context.Context, filePath string) (FileMet
 		width = &res.Width
 		height = &res.Height
 	} else {
-		slog.Warn("video meta extraction failed", "error", err)
+		slog.WarnContext(ctx, "video meta extraction failed", "error", err)
 	}
 
 	return FileMeta{

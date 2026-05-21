@@ -2,12 +2,15 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
 )
+
+const deletedAtMarker = "deleted"
 
 // RealFieldRepo is a map-backed FieldRepository for unit tests.
 type RealFieldRepo struct {
@@ -46,8 +49,9 @@ func (r *RealFieldRepo) Create(_ context.Context, f repository.FieldDefinition) 
 	defer r.mu.Unlock()
 	// Check unique key within (workspace, scope)
 	for _, existing := range r.fields {
-		if existing.WorkspaceID == f.WorkspaceID && existing.Scope == f.Scope && existing.Key == f.Key && existing.DeletedAt == nil {
-			return repository.FieldDefinition{}, fmt.Errorf("UNIQUE constraint failed: field_definitions.key")
+		if existing.WorkspaceID == f.WorkspaceID && existing.Scope == f.Scope && existing.Key == f.Key &&
+			existing.DeletedAt == nil {
+			return repository.FieldDefinition{}, errors.New("UNIQUE constraint failed: field_definitions.key")
 		}
 	}
 	r.fields[f.ID] = f
@@ -72,7 +76,7 @@ func (r *RealFieldRepo) SoftDelete(_ context.Context, workspaceID, id string) er
 	if !ok || f.WorkspaceID != workspaceID {
 		return fmt.Errorf("field %q: %w", id, apperr.ErrNotFound)
 	}
-	now := "deleted"
+	now := deletedAtMarker
 	f.DeletedAt = &now
 	r.fields[id] = f
 	return nil
@@ -90,11 +94,11 @@ func (r *RealFieldRepo) CountByWorkspaceAndScope(_ context.Context, workspaceID,
 	return count, nil
 }
 
-func (r *RealFieldRepo) CountAssetValues(_ context.Context, fieldID string) (int64, error) {
+func (r *RealFieldRepo) CountAssetValues(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }
 
-func (r *RealFieldRepo) CountProjectValues(_ context.Context, fieldID string) (int64, error) {
+func (r *RealFieldRepo) CountProjectValues(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }
 

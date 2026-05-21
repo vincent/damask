@@ -46,7 +46,8 @@ func (t *transformer) DocumentThumbnail(ctx context.Context, src io.Reader, mime
 
 	// HTML must be converted to PDF first; soffice cannot render it directly to PNG.
 	if mimeType == "text/html" {
-		out, err := exec.CommandContext(ctx, "soffice", "--headless", "--convert-to", "pdf", "--outdir", outDir, tmpPath).CombinedOutput()
+		out, err := exec.CommandContext(ctx, "soffice", "--headless", "--convert-to", "pdf", "--outdir", outDir, tmpPath).
+			CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("soffice html→pdf: %w: %s", err, strings.TrimSpace(string(out)))
 		}
@@ -57,7 +58,8 @@ func (t *transformer) DocumentThumbnail(ctx context.Context, src io.Reader, mime
 		srcPath = pdfPath
 	}
 
-	out, err := exec.CommandContext(ctx, "soffice", "--headless", "--convert-to", "png", "--outdir", outDir, srcPath).CombinedOutput()
+	out, err := exec.CommandContext(ctx, "soffice", "--headless", "--convert-to", "png", "--outdir", outDir, srcPath).
+		CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("soffice: %w: %s", err, strings.TrimSpace(string(out)))
 	}

@@ -143,10 +143,12 @@ func TestExecutorReportsRunFailures(t *testing.T) {
 	if len(hub.published) != 3 {
 		t.Fatalf("expected trigger step, failed step, and workflow failure events, got %+v", hub.published)
 	}
-	if hub.published[0].Type != "workflow_run_step_updated" || hub.published[0].NodeID != "trigger" || hub.published[0].Status != "completed" {
+	if hub.published[0].Type != "workflow_run_step_updated" || hub.published[0].NodeID != "trigger" ||
+		hub.published[0].Status != "completed" {
 		t.Fatalf("expected trigger completion event, got %+v", hub.published[0])
 	}
-	if hub.published[1].Type != "workflow_run_step_updated" || hub.published[1].NodeID != "fail" || hub.published[1].Status != "failed" {
+	if hub.published[1].Type != "workflow_run_step_updated" || hub.published[1].NodeID != "fail" ||
+		hub.published[1].Status != "failed" {
 		t.Fatalf("expected failed step update event, got %+v", hub.published[1])
 	}
 	if hub.published[2].Type != "workflow_run_failed" {

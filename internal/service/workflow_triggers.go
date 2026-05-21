@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"maps"
 )
 
 type nopWorkflowTriggerPublisher struct{}
@@ -18,19 +19,22 @@ func workflowTriggerPublisherOrNop(publishers ...WorkflowTriggerPublisher) Workf
 	return nopWorkflowTriggerPublisher{}
 }
 
-func publishWorkflowTriggerAsync(publisher WorkflowTriggerPublisher, eventType string, data map[string]any) {
+func publishWorkflowTriggerAsync(
+	ctx context.Context,
+	publisher WorkflowTriggerPublisher,
+	eventType string,
+	data map[string]any,
+) {
 	if _, ok := publisher.(nopWorkflowTriggerPublisher); ok {
 		return
 	}
 
 	payload := make(map[string]any, len(data))
-	for k, v := range data {
-		payload[k] = v
-	}
+	maps.Copy(payload, data)
 
 	go func() {
-		if err := publisher.Dispatch(context.Background(), eventType, payload); err != nil {
-			slog.Warn("workflow trigger dispatch failed", "trigger_type", eventType, "error", err)
+		if err := publisher.Dispatch(ctx, eventType, payload); err != nil {
+			slog.WarnContext(ctx, "workflow trigger dispatch failed", "trigger_type", eventType, "error", err)
 		}
 	}()
 }

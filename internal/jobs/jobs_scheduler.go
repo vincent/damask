@@ -8,6 +8,8 @@ import (
 	"damask/server/internal/queue"
 )
 
+const runsInterval = 24 * time.Hour
+
 // RetentionScheduler fires the enforce_version_retention job once per night
 // at approximately 02:00 UTC.
 type RetentionScheduler struct {
@@ -42,7 +44,7 @@ func (r *RetentionScheduler) Start(ctx context.Context) {
 func NextRunAt(t time.Time) time.Time {
 	next := time.Date(t.Year(), t.Month(), t.Day(), 2, 0, 0, 0, time.UTC)
 	if !next.After(t) {
-		next = next.Add(24 * time.Hour)
+		next = next.Add(runsInterval)
 	}
 	return next
 }

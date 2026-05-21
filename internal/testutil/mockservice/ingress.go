@@ -42,14 +42,22 @@ func (m *MockIngressService) GetSource(ctx context.Context, workspaceID, id stri
 	return nil, nil
 }
 
-func (m *MockIngressService) CreateSource(ctx context.Context, workspaceID, userID string, p service.CreateIngressSourceParams) (*service.IngressSourceDTO, error) {
+func (m *MockIngressService) CreateSource(
+	ctx context.Context,
+	workspaceID, userID string,
+	p service.CreateIngressSourceParams,
+) (*service.IngressSourceDTO, error) {
 	if m.CreateSourceFn != nil {
 		return m.CreateSourceFn(ctx, workspaceID, userID, p)
 	}
 	return nil, nil
 }
 
-func (m *MockIngressService) UpdateSource(ctx context.Context, workspaceID, id string, p service.UpdateIngressSourceParams) (*service.IngressSourceDTO, error) {
+func (m *MockIngressService) UpdateSource(
+	ctx context.Context,
+	workspaceID, id string,
+	p service.UpdateIngressSourceParams,
+) (*service.IngressSourceDTO, error) {
 	if m.UpdateSourceFn != nil {
 		return m.UpdateSourceFn(ctx, workspaceID, id, p)
 	}
@@ -77,21 +85,32 @@ func (m *MockIngressService) TriggerPoll(ctx context.Context, workspaceID, id st
 	return "", nil
 }
 
-func (m *MockIngressService) ListRules(ctx context.Context, workspaceID, sourceID string) ([]*service.IngressRuleDTO, error) {
+func (m *MockIngressService) ListRules(
+	ctx context.Context,
+	workspaceID, sourceID string,
+) ([]*service.IngressRuleDTO, error) {
 	if m.ListRulesFn != nil {
 		return m.ListRulesFn(ctx, workspaceID, sourceID)
 	}
 	return nil, nil
 }
 
-func (m *MockIngressService) CreateRule(ctx context.Context, workspaceID, sourceID string, p service.CreateIngressRuleParams) (*service.IngressRuleDTO, error) {
+func (m *MockIngressService) CreateRule(
+	ctx context.Context,
+	workspaceID, sourceID string,
+	p service.CreateIngressRuleParams,
+) (*service.IngressRuleDTO, error) {
 	if m.CreateRuleFn != nil {
 		return m.CreateRuleFn(ctx, workspaceID, sourceID, p)
 	}
 	return nil, nil
 }
 
-func (m *MockIngressService) UpdateRule(ctx context.Context, workspaceID, sourceID, ruleID string, p service.UpdateIngressRuleParams) (*service.IngressRuleDTO, error) {
+func (m *MockIngressService) UpdateRule(
+	ctx context.Context,
+	workspaceID, sourceID, ruleID string,
+	p service.UpdateIngressRuleParams,
+) (*service.IngressRuleDTO, error) {
 	if m.UpdateRuleFn != nil {
 		return m.UpdateRuleFn(ctx, workspaceID, sourceID, ruleID, p)
 	}
@@ -105,21 +124,33 @@ func (m *MockIngressService) DeleteRule(ctx context.Context, workspaceID, source
 	return nil
 }
 
-func (m *MockIngressService) ReorderRules(ctx context.Context, workspaceID, sourceID string, entries []service.ReorderRuleEntry) ([]*service.IngressRuleDTO, error) {
+func (m *MockIngressService) ReorderRules(
+	ctx context.Context,
+	workspaceID, sourceID string,
+	entries []service.ReorderRuleEntry,
+) ([]*service.IngressRuleDTO, error) {
 	if m.ReorderRulesFn != nil {
 		return m.ReorderRulesFn(ctx, workspaceID, sourceID, entries)
 	}
 	return nil, nil
 }
 
-func (m *MockIngressService) ListLog(ctx context.Context, workspaceID, statusFilter string, limit, offset int64) ([]*service.IngressLogEntryDTO, error) {
+func (m *MockIngressService) ListLog(
+	ctx context.Context,
+	workspaceID, statusFilter string,
+	limit, offset int64,
+) ([]*service.IngressLogEntryDTO, error) {
 	if m.ListLogFn != nil {
 		return m.ListLogFn(ctx, workspaceID, statusFilter, limit, offset)
 	}
 	return nil, nil
 }
 
-func (m *MockIngressService) ListSourceLog(ctx context.Context, workspaceID, sourceID string, limit, offset int64) ([]*service.IngressLogEntryDTO, error) {
+func (m *MockIngressService) ListSourceLog(
+	ctx context.Context,
+	workspaceID, sourceID string,
+	limit, offset int64,
+) ([]*service.IngressLogEntryDTO, error) {
 	if m.ListSourceLogFn != nil {
 		return m.ListSourceLogFn(ctx, workspaceID, sourceID, limit, offset)
 	}

@@ -107,7 +107,7 @@ func TestCreateShare_ProjectTarget(t *testing.T) {
 	allowDownload := true
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{
+		testutil.JSONBody(api.CreateShareRequest{
 			Label:         "Nike Q3 delivery",
 			TargetType:    "project",
 			TargetID:      "prj_1",
@@ -140,7 +140,7 @@ func TestCreateShare_AssetTarget(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "asset", TargetID: "ast_1"}), cookie)
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "asset", TargetID: "ast_1"}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusCreated)
 
@@ -157,7 +157,7 @@ func TestCreateShare_WithPassword(t *testing.T) {
 	password := "hunter2"
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1", Password: &password}), cookie)
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1", Password: &password}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusCreated)
 
@@ -174,7 +174,7 @@ func TestCreateShare_WithExpiry(t *testing.T) {
 	expiresInDays := 14
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1", ExpiresInDays: &expiresInDays}), cookie)
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1", ExpiresInDays: &expiresInDays}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusCreated)
 
@@ -196,7 +196,7 @@ func TestCreateShare_TargetNotFound(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "nonexistent"}), cookie)
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "nonexistent"}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
@@ -213,7 +213,7 @@ func TestCreateShare_TargetFromOtherWorkspace(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_2", "ws_2")
 
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie)
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
@@ -221,7 +221,7 @@ func TestCreateShare_TargetFromOtherWorkspace(t *testing.T) {
 func TestCreateShare_Unauthenticated(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/shares",
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "x"}), nil)
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "x"}), nil)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
 }
@@ -290,11 +290,11 @@ func TestUpdateShare_Label(t *testing.T) {
 	// Create the share first so it exists in the mock store
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
 	label := "New Label"
 	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
-		testutil.JsonBody(api.UpdateShareRequest{Label: &label}), cookie))
+		testutil.JSONBody(api.UpdateShareRequest{Label: &label}), cookie))
 	testutil.AssertStatus(t, resp, http.StatusOK)
 
 	var got api.ShareResponse
@@ -308,11 +308,11 @@ func TestUpdateShare_SetAndClearPassword(t *testing.T) {
 	env, _ := shareEnv(t)
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
 	password := "s3cr3t"
 	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
-		testutil.JsonBody(api.UpdateShareRequest{Password: &password}), cookie))
+		testutil.JSONBody(api.UpdateShareRequest{Password: &password}), cookie))
 	testutil.AssertStatus(t, resp, http.StatusOK)
 	var got api.ShareResponse
 	testutil.DecodeJSON(t, resp, &got)
@@ -322,7 +322,7 @@ func TestUpdateShare_SetAndClearPassword(t *testing.T) {
 
 	clearPassword := true
 	resp2, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
-		testutil.JsonBody(api.UpdateShareRequest{ClearPassword: &clearPassword}), cookie))
+		testutil.JSONBody(api.UpdateShareRequest{ClearPassword: &clearPassword}), cookie))
 	testutil.AssertStatus(t, resp2, http.StatusOK)
 	var got2 api.ShareResponse
 	testutil.DecodeJSON(t, resp2, &got2)
@@ -335,7 +335,7 @@ func TestUpdateShare_AllowComments(t *testing.T) {
 	env, sh := shareEnv(t)
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
 	if sh.AllowComments {
 		t.Fatal("expected allow_comments = false by default")
@@ -343,7 +343,7 @@ func TestUpdateShare_AllowComments(t *testing.T) {
 
 	allowComments := true
 	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/shr_1",
-		testutil.JsonBody(api.UpdateShareRequest{AllowComments: &allowComments}), cookie))
+		testutil.JSONBody(api.UpdateShareRequest{AllowComments: &allowComments}), cookie))
 	var got api.ShareResponse
 	testutil.DecodeJSON(t, resp, &got)
 	if !got.AllowComments {
@@ -360,7 +360,7 @@ func TestUpdateShare_NotFound(t *testing.T) {
 
 	x := "x"
 	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodPut, "/api/v1/shares/nonexistent",
-		testutil.JsonBody(api.UpdateShareRequest{Label: &x}), cookie))
+		testutil.JSONBody(api.UpdateShareRequest{Label: &x}), cookie))
 	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
@@ -371,7 +371,7 @@ func TestRevokeShare_Success(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	// Populate the share in the mock store
 	env.App.Test(testutil.AuthRequest(http.MethodPost, "/api/v1/shares", //nolint:errcheck
-		testutil.JsonBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
+		testutil.JSONBody(api.CreateShareRequest{TargetType: "project", TargetID: "prj_1"}), cookie))
 
 	resp, _ := env.App.Test(testutil.AuthRequest(http.MethodDelete, "/api/v1/shares/"+sh.ID, nil, cookie))
 	testutil.AssertStatus(t, resp, http.StatusNoContent)

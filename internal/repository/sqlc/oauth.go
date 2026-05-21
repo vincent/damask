@@ -45,7 +45,10 @@ func (r *oauthRepo) GetByID(ctx context.Context, workspaceID, id string) (reposi
 	return toOAuthConnection(row), nil
 }
 
-func (r *oauthRepo) GetByProviderUserID(ctx context.Context, workspaceID, provider, providerUserID string) (repository.OAuthConnection, error) {
+func (r *oauthRepo) GetByProviderUserID(
+	ctx context.Context,
+	workspaceID, provider, providerUserID string,
+) (repository.OAuthConnection, error) {
 	row, err := r.q.GetOAuthConnectionByProviderUserID(ctx, dbgen.GetOAuthConnectionByProviderUserIDParams{
 		WorkspaceID:    workspaceID,
 		Provider:       provider,
@@ -76,7 +79,12 @@ func (r *oauthRepo) Create(ctx context.Context, c repository.OAuthConnection) er
 	return err
 }
 
-func (r *oauthRepo) UpdateTokens(ctx context.Context, id, accessToken string, refreshToken *string, expiresAt *string) error {
+func (r *oauthRepo) UpdateTokens(
+	ctx context.Context,
+	id, accessToken string,
+	refreshToken *string,
+	expiresAt *string,
+) error {
 	_, err := r.q.UpdateOAuthConnectionTokens(ctx, dbgen.UpdateOAuthConnectionTokensParams{
 		ID:           id,
 		AccessToken:  accessToken,

@@ -18,19 +18,36 @@ func newAssetSvcSpy(t *testing.T) (service.AssetService, *memory.AssetRepo, *spy
 	spy := newSpy()
 	repo := memory.NewAssetRepo()
 	stor, _ := storage.NewAferoMemoryStorage()
-	return service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, spy, nil), repo, spy
+	return service.NewAssetService(
+		repo,
+		memory.NewVersionRepo(),
+		memory.NewTagRepo(),
+		memory.NewRealFieldRepo(),
+		stor,
+		spy,
+		nil,
+	), repo, spy
 }
 
 func newAssetSvc(t *testing.T) (service.AssetService, *memory.AssetRepo) {
 	t.Helper()
 	repo := memory.NewAssetRepo()
 	stor, _ := storage.NewAferoMemoryStorage()
-	return service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}, nil), repo
+	return service.NewAssetService(
+		repo,
+		memory.NewVersionRepo(),
+		memory.NewTagRepo(),
+		memory.NewRealFieldRepo(),
+		stor,
+		audit.NopWriter{},
+		nil,
+	), repo
 }
 
 // coverFlagRepo wraps AssetRepo and lets a single asset report as a project cover or workspace icon.
 type coverFlagRepo struct {
 	*memory.AssetRepo
+
 	coverID string
 	iconID  string
 }
@@ -45,6 +62,7 @@ func (r *coverFlagRepo) IsWorkspaceIcon(_ context.Context, _, assetID string) (b
 // --- Get ---
 
 func TestAssetService_Get_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newAssetSvc(t)
 	_, err := svc.Get(context.Background(), "ws_1", "nonexistent")
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -53,6 +71,7 @@ func TestAssetService_Get_NotFound(t *testing.T) {
 }
 
 func TestAssetService_Get_WrongWorkspace(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_A"})
 	_, err := svc.Get(context.Background(), "ws_B", "ast_1")
@@ -62,6 +81,7 @@ func TestAssetService_Get_WrongWorkspace(t *testing.T) {
 }
 
 func TestAssetService_Get_OK(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(repository.Asset{
 		ID:               "ast_1",
@@ -87,6 +107,7 @@ func TestAssetService_Get_OK(t *testing.T) {
 // --- List ---
 
 func TestAssetService_List_Empty(t *testing.T) {
+	t.Parallel()
 	svc, _ := newAssetSvc(t)
 	out, err := svc.List(context.Background(), service.ListAssetsParams{WorkspaceID: "ws_1", Limit: 50})
 	if err != nil {
@@ -98,6 +119,7 @@ func TestAssetService_List_Empty(t *testing.T) {
 }
 
 func TestAssetService_List_WorkspaceIsolation(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(
 		repository.Asset{ID: "a1", WorkspaceID: "ws_A", OriginalFilename: "a.jpg"},
@@ -118,6 +140,7 @@ func TestAssetService_List_WorkspaceIsolation(t *testing.T) {
 // --- Rename ---
 
 func TestAssetService_Rename_EmptyStem(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"})
 	_, err := svc.Rename(context.Background(), "ws_1", "a1", "   ")
@@ -127,6 +150,7 @@ func TestAssetService_Rename_EmptyStem(t *testing.T) {
 }
 
 func TestAssetService_Rename_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newAssetSvc(t)
 	_, err := svc.Rename(context.Background(), "ws_1", "nope", "newname")
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -135,6 +159,7 @@ func TestAssetService_Rename_NotFound(t *testing.T) {
 }
 
 func TestAssetService_Rename_PreservesExtension(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"})
 	dto, err := svc.Rename(context.Background(), "ws_1", "a1", "banner")
@@ -147,6 +172,7 @@ func TestAssetService_Rename_PreservesExtension(t *testing.T) {
 }
 
 func TestAssetService_Rename_NoOp(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"})
 	dto, err := svc.Rename(context.Background(), "ws_1", "a1", "photo")
@@ -161,6 +187,7 @@ func TestAssetService_Rename_NoOp(t *testing.T) {
 // --- Move ---
 
 func TestAssetService_Move_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newAssetSvc(t)
 	folderID := "f1"
 	_, err := svc.Move(context.Background(), "ws_1", "nope", service.MoveAssetParams{FolderID: &folderID})
@@ -170,6 +197,7 @@ func TestAssetService_Move_NotFound(t *testing.T) {
 }
 
 func TestAssetService_Move_OK(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "doc.pdf"})
 	folderID := "folder_42"
@@ -185,6 +213,7 @@ func TestAssetService_Move_OK(t *testing.T) {
 // --- Delete ---
 
 func TestAssetService_Delete_NotFound(t *testing.T) {
+	t.Parallel()
 	svc, _ := newAssetSvc(t)
 	err := svc.Delete(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -193,6 +222,7 @@ func TestAssetService_Delete_NotFound(t *testing.T) {
 }
 
 func TestAssetService_Delete_OK(t *testing.T) {
+	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "old.png"})
 	if err := svc.Delete(context.Background(), "ws_1", "a1"); err != nil {
@@ -205,11 +235,20 @@ func TestAssetService_Delete_OK(t *testing.T) {
 }
 
 func TestAssetService_Delete_ConflictProjectCover(t *testing.T) {
+	t.Parallel()
 	inner := memory.NewAssetRepo()
 	inner.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "cover.jpg"})
 	repo := &coverFlagRepo{AssetRepo: inner, coverID: "a1"}
 	stor, _ := storage.NewAferoMemoryStorage()
-	svc := service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}, nil)
+	svc := service.NewAssetService(
+		repo,
+		memory.NewVersionRepo(),
+		memory.NewTagRepo(),
+		memory.NewRealFieldRepo(),
+		stor,
+		audit.NopWriter{},
+		nil,
+	)
 
 	err := svc.Delete(context.Background(), "ws_1", "a1")
 	if !errors.Is(err, apperr.ErrConflict) {
@@ -218,11 +257,20 @@ func TestAssetService_Delete_ConflictProjectCover(t *testing.T) {
 }
 
 func TestAssetService_Delete_ConflictWorkspaceIcon(t *testing.T) {
+	t.Parallel()
 	inner := memory.NewAssetRepo()
 	inner.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "icon.png"})
 	repo := &coverFlagRepo{AssetRepo: inner, iconID: "a1"}
 	stor, _ := storage.NewAferoMemoryStorage()
-	svc := service.NewAssetService(repo, memory.NewVersionRepo(), memory.NewTagRepo(), memory.NewRealFieldRepo(), stor, audit.NopWriter{}, nil)
+	svc := service.NewAssetService(
+		repo,
+		memory.NewVersionRepo(),
+		memory.NewTagRepo(),
+		memory.NewRealFieldRepo(),
+		stor,
+		audit.NopWriter{},
+		nil,
+	)
 
 	err := svc.Delete(context.Background(), "ws_1", "a1")
 	if !errors.Is(err, apperr.ErrConflict) {
@@ -233,6 +281,7 @@ func TestAssetService_Delete_ConflictWorkspaceIcon(t *testing.T) {
 // --- Audit events ---
 
 func TestAssetService_Rename_EmitsAuditEvent(t *testing.T) {
+	t.Parallel()
 	svc, repo, spy := newAssetSvcSpy(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"})
 	if _, err := svc.Rename(context.Background(), "ws_1", "a1", "banner"); err != nil {
@@ -251,6 +300,7 @@ func TestAssetService_Rename_EmitsAuditEvent(t *testing.T) {
 }
 
 func TestAssetService_Rename_NoAuditOnNoOp(t *testing.T) {
+	t.Parallel()
 	svc, repo, spy := newAssetSvcSpy(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "photo.jpg"})
 	if _, err := svc.Rename(context.Background(), "ws_1", "a1", "photo"); err != nil {
@@ -262,10 +312,16 @@ func TestAssetService_Rename_NoAuditOnNoOp(t *testing.T) {
 }
 
 func TestAssetService_Move_EmitsAuditEvent(t *testing.T) {
+	t.Parallel()
 	svc, repo, spy := newAssetSvcSpy(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "doc.pdf"})
 	folderID := "folder_42"
-	if _, err := svc.Move(context.Background(), "ws_1", "a1", service.MoveAssetParams{FolderID: &folderID}); err != nil {
+	if _, err := svc.Move(
+		context.Background(),
+		"ws_1",
+		"a1",
+		service.MoveAssetParams{FolderID: &folderID},
+	); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	e := spy.lastAsset()
@@ -278,6 +334,7 @@ func TestAssetService_Move_EmitsAuditEvent(t *testing.T) {
 }
 
 func TestAssetService_HardDelete_EmitsAuditEvent(t *testing.T) {
+	t.Parallel()
 	svc, repo, spy := newAssetSvcSpy(t)
 	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "old.png"})
 	if err := svc.HardDelete(context.Background(), "ws_1", "a1"); err != nil {

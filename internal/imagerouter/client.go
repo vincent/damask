@@ -25,6 +25,12 @@ var (
 
 var apiBaseURL = "https://api.imagerouter.io/v1"
 
+const (
+	clientTimeout                   = 120 * time.Second
+	contentTypeImagePNG             = "image/png"
+	imageRouterGenerationFailedText = "ImageRouter generation failed"
+)
+
 type Client struct {
 	apiKey                  string
 	httpClient              *http.Client
@@ -79,7 +85,7 @@ func NewClient(apiKey string, retryPaidOnFreeLimit429 bool) *Client {
 		apiKey:                  apiKey,
 		retryPaidOnFreeLimit429: retryPaidOnFreeLimit429,
 		httpClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: clientTimeout,
 		},
 	}
 }
@@ -105,7 +111,7 @@ func (c *Client) Transform(ctx context.Context, imageData []byte, p PromptParams
 		return nil, fmt.Errorf("%w: empty model", ErrInvalidModel)
 	}
 	if strings.TrimSpace(p.Prompt) == "" {
-		return nil, fmt.Errorf("imagerouter: prompt is required")
+		return nil, errors.New("imagerouter: prompt is required")
 	}
 	return c.editImage(ctx, imageData, p.Model, p.Prompt)
 }
@@ -151,7 +157,13 @@ func (c *Client) editImage(ctx context.Context, imageData []byte, model, prompt 
 	}
 
 	retryModel := strings.TrimSuffix(model, ":free")
-	slog.Info("imagerouter retrying without free suffix after free-tier limit", "model", model, "retry_model", retryModel)
+	slog.InfoContext(ctx,
+		"imagerouter retrying without free suffix after free-tier limit",
+		"model",
+		model,
+		"retry_model",
+		retryModel,
+	)
 	result, _, _, retryErr := c.performEditImage(ctx, imageData, retryModel, prompt)
 	if retryErr != nil {
 		return nil, retryErr
@@ -159,7 +171,11 @@ func (c *Client) editImage(ctx context.Context, imageData []byte, model, prompt 
 	return result, nil
 }
 
-func (c *Client) performEditImage(ctx context.Context, imageData []byte, model, prompt string) ([]byte, int, string, error) {
+func (c *Client) performEditImage(
+	ctx context.Context,
+	imageData []byte,
+	model, prompt string,
+) ([]byte, int, string, error) {
 	ctx, span := startGenAISpan(ctx, "edit-image", model, prompt)
 
 	filename, contentType, err := detectImageUpload(imageData)
@@ -229,7 +245,7 @@ func (c *Client) performEditImage(ctx context.Context, imageData []byte, model, 
 	if len(envelope.Data) == 0 {
 		emptyErr := parseImageRouterAPIError(ErrAPIError, payload, &apiError{
 			cause:   ErrAPIError,
-			message: "ImageRouter generation failed",
+			message: imageRouterGenerationFailedText,
 		})
 		endGenAISpan(span, model, nil, emptyErr)
 		return nil, resp.StatusCode, payloadText, emptyErr
@@ -246,7 +262,7 @@ func (c *Client) performEditImage(ctx context.Context, imageData []byte, model, 
 		return downloaded, resp.StatusCode, payloadText, nil
 	}
 	if strings.TrimSpace(item.B64JSON) == "" {
-		missingErr := fmt.Errorf("imagerouter: response missing image url")
+		missingErr := errors.New("imagerouter: response missing image url")
 		endGenAISpan(span, model, nil, missingErr)
 		return nil, resp.StatusCode, payloadText, missingErr
 	}
@@ -295,7 +311,11 @@ func (c *Client) fetchImageURL(ctx context.Context, rawURL string) ([]byte, erro
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		payload, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("imagerouter: image download failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(payload)))
+		return nil, fmt.Errorf(
+			"imagerouter: image download failed: status=%d body=%s",
+			resp.StatusCode,
+			strings.TrimSpace(string(payload)),
+		)
 	}
 
 	downloaded, err := io.ReadAll(resp.Body)
@@ -303,25 +323,28 @@ func (c *Client) fetchImageURL(ctx context.Context, rawURL string) ([]byte, erro
 		return nil, fmt.Errorf("imagerouter: read downloaded image: %w", err)
 	}
 	if len(downloaded) == 0 {
-		return nil, fmt.Errorf("imagerouter: downloaded image is empty")
+		return nil, errors.New("imagerouter: downloaded image is empty")
 	}
 	return downloaded, nil
 }
 
 func detectImageUpload(imageData []byte) (filename string, contentType string, err error) {
 	if len(imageData) == 0 {
-		return "", "", fmt.Errorf("imagerouter: source image is empty")
+		return "", "", errors.New("imagerouter: source image is empty")
 	}
 
 	switch http.DetectContentType(imageData) {
-	case "image/png":
-		return "source.png", "image/png", nil
+	case contentTypeImagePNG:
+		return "source.png", contentTypeImagePNG, nil
 	case "image/jpeg":
 		return "source.jpg", "image/jpeg", nil
 	case "image/webp":
 		return "source.webp", "image/webp", nil
 	default:
-		return "", "", fmt.Errorf("imagerouter: unsupported source image format %q; expected PNG, JPEG, or WEBP", http.DetectContentType(imageData))
+		return "", "", fmt.Errorf(
+			"imagerouter: unsupported source image format %q; expected PNG, JPEG, or WEBP",
+			http.DetectContentType(imageData),
+		)
 	}
 }
 

@@ -89,7 +89,10 @@ func (r *versionRepo) GetFirstByAsset(ctx context.Context, assetID string) (repo
 	return toVersion(row), nil
 }
 
-func (r *versionRepo) GetByIDForWorkspace(ctx context.Context, workspaceID, id string) (repository.AssetVersion, error) {
+func (r *versionRepo) GetByIDForWorkspace(
+	ctx context.Context,
+	workspaceID, id string,
+) (repository.AssetVersion, error) {
 	row, err := r.q.GetVersionByID(ctx, dbgen.GetVersionByIDParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
@@ -156,7 +159,7 @@ func (r *versionRepo) SetCurrent(ctx context.Context, assetID, versionID string)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	qtx := r.q.WithTx(tx)
 	if err := qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
 		return err
@@ -180,7 +183,10 @@ func (r *versionRepo) SetAssetThumbnail(ctx context.Context, assetID string, key
 	})
 }
 
-func (r *versionRepo) ListWithVariantCount(ctx context.Context, assetID string) ([]repository.AssetVersionWithCount, error) {
+func (r *versionRepo) ListWithVariantCount(
+	ctx context.Context,
+	assetID string,
+) ([]repository.AssetVersionWithCount, error) {
 	rows, err := r.q.ListVersionsWithVariantCount(ctx, assetID)
 	if err != nil {
 		return nil, err

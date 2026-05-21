@@ -11,7 +11,7 @@ func (r *AVTags) isEmpty() bool {
 		return true
 	}
 	v := reflect.ValueOf(*r)
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		f := v.Field(i)
 		if f.Kind() == reflect.Bool && f.Bool() {
 			return false

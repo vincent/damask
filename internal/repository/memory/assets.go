@@ -30,7 +30,7 @@ func (r *AssetRepo) Seed(assets ...repository.Asset) {
 	}
 }
 
-func (r *AssetRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Asset, error) {
+func (r *AssetRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Asset, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	a, ok := r.assets[id]
@@ -40,7 +40,7 @@ func (r *AssetRepo) GetByID(ctx context.Context, workspaceID, id string) (reposi
 	return a, nil
 }
 
-func (r *AssetRepo) List(ctx context.Context, params repository.ListAssetsParams) ([]repository.Asset, error) {
+func (r *AssetRepo) List(_ context.Context, params repository.ListAssetsParams) ([]repository.Asset, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []repository.Asset
@@ -53,30 +53,30 @@ func (r *AssetRepo) List(ctx context.Context, params repository.ListAssetsParams
 	return out, nil
 }
 
-func (r *AssetRepo) Create(ctx context.Context, params repository.CreateAssetParams) (repository.Asset, error) {
+func (r *AssetRepo) Create(_ context.Context, params repository.CreateAssetParams) (repository.Asset, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a := repository.Asset{
-		ID:               params.ID,
-		WorkspaceID:      params.WorkspaceID,
-		ProjectID:        params.ProjectID,
-		FolderID:         params.FolderID,
-		DerivedFromAssetID: params.DerivedFromAssetID,
-		OriginalFilename: params.OriginalFilename,
-		StorageKey:       params.StorageKey,
-		MimeType:         params.MimeType,
-		Size:             params.Size,
-		Width:            params.Width,
-		Height:           params.Height,
-		ThumbnailKey:     params.ThumbnailKey,
+		ID:                   params.ID,
+		WorkspaceID:          params.WorkspaceID,
+		ProjectID:            params.ProjectID,
+		FolderID:             params.FolderID,
+		DerivedFromAssetID:   params.DerivedFromAssetID,
+		OriginalFilename:     params.OriginalFilename,
+		StorageKey:           params.StorageKey,
+		MimeType:             params.MimeType,
+		Size:                 params.Size,
+		Width:                params.Width,
+		Height:               params.Height,
+		ThumbnailKey:         params.ThumbnailKey,
 		ThumbnailContentType: params.ThumbnailContentType,
-		Metadata:         params.Metadata,
+		Metadata:             params.Metadata,
 	}
 	r.assets[a.ID] = a
 	return a, nil
 }
 
-func (r *AssetRepo) Update(ctx context.Context, params repository.UpdateAssetParams) (repository.Asset, error) {
+func (r *AssetRepo) Update(_ context.Context, params repository.UpdateAssetParams) (repository.Asset, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, ok := r.assets[params.ID]
@@ -108,7 +108,7 @@ func (r *AssetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 	return a, nil
 }
 
-func (r *AssetRepo) SoftDelete(ctx context.Context, workspaceID, id string) error {
+func (r *AssetRepo) SoftDelete(_ context.Context, workspaceID, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, ok := r.assets[id]
@@ -119,12 +119,15 @@ func (r *AssetRepo) SoftDelete(ctx context.Context, workspaceID, id string) erro
 	return nil
 }
 
-func (r *AssetRepo) IsProjectCover(_ context.Context, _, _ string) (bool, error) { return false, nil }
+func (r *AssetRepo) IsProjectCover(_ context.Context, _, _ string) (bool, error)  { return false, nil }
 func (r *AssetRepo) IsWorkspaceIcon(_ context.Context, _, _ string) (bool, error) { return false, nil }
 
 func (r *AssetRepo) RefreshFTS(_ context.Context, _ string) error { return nil }
 
-func (r *AssetRepo) ListByFields(_ context.Context, params repository.ListAssetsByFieldsParams) ([]repository.Asset, error) {
+func (r *AssetRepo) ListByFields(
+	_ context.Context,
+	_ repository.ListAssetsByFieldsParams,
+) ([]repository.Asset, error) {
 	return nil, nil
 }
 

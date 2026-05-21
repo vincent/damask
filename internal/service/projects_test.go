@@ -140,6 +140,7 @@ func TestProjectService_Delete_OK(t *testing.T) {
 // nullifySpyRepo wraps ProjectRepo and records whether NullifyAssets was called.
 type nullifySpyRepo struct {
 	*memory.ProjectRepo
+
 	nullifyCalled bool
 }
 
@@ -197,7 +198,12 @@ func TestProjectService_Update_Rename_EmitsAuditEvent(t *testing.T) {
 	svc, repo, spy := newProjectSvcSpy(t)
 	repo.Seed(repository.Project{ID: "p1", WorkspaceID: "ws_1", Name: "Old"})
 	newName := "New"
-	if _, err := svc.Update(context.Background(), "ws_1", "p1", service.UpdateProjectParams{Name: &newName}); err != nil {
+	if _, err := svc.Update(
+		context.Background(),
+		"ws_1",
+		"p1",
+		service.UpdateProjectParams{Name: &newName},
+	); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	e := spy.lastProject()

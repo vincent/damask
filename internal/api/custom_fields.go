@@ -16,6 +16,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const maxBulkFieldSize = 20
+
 // hasFieldFilters returns true if the request contains any field[...] query params.
 func hasFieldFilters(c fiber.Ctx) bool {
 	for k := range c.Queries() {
@@ -39,7 +41,7 @@ func (s *Server) newInheritProjectFieldsFunc() assetio.FieldInheritanceFunc {
 	return func(ctx context.Context, workspaceID, assetID, projectID, userID string) {
 		if err := s.fields.InheritProjectFields(ctx, workspaceID, assetID, projectID, userID); err != nil {
 			slog.ErrorContext(ctx, "field inheritance", "workspace_id", workspaceID, "asset_id", assetID,
-				"project_id", projectID, "error", err)
+				"project_id", projectID, apiErrorKey, err)
 		}
 	}
 }
@@ -80,7 +82,11 @@ const maxFieldFilters = 5
 func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit int64) error {
 	defs := parseFieldFilters(c)
 	if len(defs) > maxFieldFilters {
-		return errRes(c, fiber.StatusUnprocessableEntity, fmt.Sprintf("maximum of %d field filters allowed", maxFieldFilters))
+		return errRes(
+			c,
+			fiber.StatusUnprocessableEntity,
+			fmt.Sprintf("maximum of %d field filters allowed", maxFieldFilters),
+		)
 	}
 	if len(defs) == 0 {
 		return errRes(c, fiber.StatusBadRequest, "no valid field filters provided")
@@ -116,7 +122,7 @@ func (s *Server) handleListAssetsByFields(c fiber.Ctx, workspaceID string, limit
 	// batchVersionCounts / batchVariantCounts still use s.db; that is handled
 	// by the assets handler layer which calls those helpers directly.
 	// For now return the slim asset list without counts (consistent with other list paths).
-	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, "created_at", nil, nil, nil))
+	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, apiCreatedAtField, nil, nil, nil))
 }
 
 var keyRegexp = regexp.MustCompile(`^[a-z0-9_]+$`)
@@ -169,11 +175,11 @@ func fieldDTOToResponse(f *service.FieldDefinitionDTO) FieldDefinitionResponse {
 // @Success 200 {array} FieldDefinitionResponse
 // @Failure 400 {object} ErrorResponse "Invalid scope value"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/field-definitions [get]
+// @Router /api/v1/field-definitions [get].
 func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	scope := c.Query("scope", "asset")
-	if scope != "asset" && scope != "project" {
+	scope := c.Query("scope", apiTargetAsset)
+	if scope != apiTargetAsset && scope != apiTargetProject {
 		return errRes(c, fiber.StatusBadRequest, "scope must be 'asset' or 'project'")
 	}
 
@@ -200,7 +206,7 @@ func (s *Server) handleListFieldDefinitions(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 409 {object} ErrorResponse "Key already exists in this scope"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed or 50-field limit reached"
-// @Router /api/v1/field-definitions [post]
+// @Router /api/v1/field-definitions [post].
 func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -236,7 +242,7 @@ func (s *Server) handleCreateFieldDefinition(c fiber.Ctx) error {
 // @Success 200 {object} FieldDefinitionResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Field definition not found"
-// @Router /api/v1/field-definitions/{id} [get]
+// @Router /api/v1/field-definitions/{id} [get].
 func (s *Server) handleGetFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -258,7 +264,7 @@ func (s *Server) handleGetFieldDefinition(c fiber.Ctx) error {
 // @Success 200 {object} FieldDefinitionStatsResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Field definition not found"
-// @Router /api/v1/field-definitions/{id}/stats [get]
+// @Router /api/v1/field-definitions/{id}/stats [get].
 func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -287,7 +293,7 @@ func (s *Server) handleGetFieldDefinitionStats(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Field definition not found"
 // @Failure 422 {object} ErrorResponse "Attempt to change immutable key or field_type"
-// @Router /api/v1/field-definitions/{id} [put]
+// @Router /api/v1/field-definitions/{id} [put].
 func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -346,7 +352,7 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Field definition not found"
-// @Router /api/v1/field-definitions/{id} [delete]
+// @Router /api/v1/field-definitions/{id} [delete].
 func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -368,7 +374,7 @@ func (s *Server) handleDeleteFieldDefinition(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/field-definitions/reorder [put]
+// @Router /api/v1/field-definitions/reorder [put].
 func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -387,12 +393,12 @@ func (s *Server) handleReorderFieldDefinitions(c fiber.Ctx) error {
 }
 
 type projectFieldValueResponse struct {
-	FieldID           string      `json:"field_id"`
-	Key               string      `json:"key"`
-	Name              string      `json:"name"`
-	FieldType         string      `json:"field_type"`
-	Value             interface{} `json:"value"`
-	DefinitionDeleted bool        `json:"definition_deleted"`
+	FieldID           string `json:"field_id"`
+	Key               string `json:"key"`
+	Name              string `json:"name"`
+	FieldType         string `json:"field_type"`
+	Value             any    `json:"value"`
+	DefinitionDeleted bool   `json:"definition_deleted"`
 }
 
 type GetProjectFieldsResponse struct {
@@ -421,7 +427,7 @@ func projectFieldValueDTOToResponse(dto *service.FieldValueDTO) projectFieldValu
 // @Success 200 {object} GetProjectFieldsResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project not found"
-// @Router /api/v1/projects/{id}/fields [get]
+// @Router /api/v1/projects/{id}/fields [get].
 func (s *Server) handleGetProjectFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -452,7 +458,7 @@ func (s *Server) handleGetProjectFields(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project or field not found"
 // @Failure 422 {object} ErrorResponse "Value validation failed or wrong scope"
-// @Router /api/v1/projects/{id}/fields [patch]
+// @Router /api/v1/projects/{id}/fields [patch].
 func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -482,13 +488,13 @@ func (s *Server) handlePatchProjectFields(c fiber.Ctx) error {
 // -- Asset field values response ----------------------------------------------
 
 type assetFieldValueResponse struct {
-	FieldID           string      `json:"field_id"`
-	Key               string      `json:"key"`
-	Name              string      `json:"name"`
-	FieldType         string      `json:"field_type"`
-	Source            string      `json:"source"`
-	Value             interface{} `json:"value"`
-	DefinitionDeleted bool        `json:"definition_deleted"`
+	FieldID           string `json:"field_id"`
+	Key               string `json:"key"`
+	Name              string `json:"name"`
+	FieldType         string `json:"field_type"`
+	Source            string `json:"source"`
+	Value             any    `json:"value"`
+	DefinitionDeleted bool   `json:"definition_deleted"`
 }
 
 type GetAssetFieldsResponse struct {
@@ -531,7 +537,7 @@ func fieldValueDTOsToResponse(dtos []*service.FieldValueDTO) []assetFieldValueRe
 // @Success 200 {object} GetAssetFieldsResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id}/fields [get]
+// @Router /api/v1/assets/{id}/fields [get].
 func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -558,7 +564,7 @@ func (s *Server) handleGetAssetFields(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
 // @Failure 422 {object} ErrorResponse "Value validation failed"
-// @Router /api/v1/assets/{id}/fields [patch]
+// @Router /api/v1/assets/{id}/fields [patch].
 func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -595,7 +601,7 @@ func (s *Server) handlePatchAssetFields(c fiber.Ctx) error {
 // @Success 200 {object} BulkPatchAssetFieldsResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ErrorResponse "Value validation failed"
-// @Router /api/v1/assets/bulk/fields [patch]
+// @Router /api/v1/assets/bulk/fields [patch].
 func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -627,8 +633,8 @@ func (s *Server) handleBulkPatchAssetFields(c fiber.Ctx) error {
 
 // FieldValueInput is the unexported alias for backward compatibility.
 type FieldValueInput struct {
-	FieldID string      `json:"field_id"`
-	Value   interface{} `json:"value"`
+	FieldID string `json:"field_id"`
+	Value   any    `json:"value"`
 }
 
 // -- Bulk fields preview -------------------------------------------------------
@@ -643,8 +649,8 @@ func (r *BulkFieldsPreviewRequest) Valid(_ context.Context) map[string]string {
 	if len(r.AssetIDs) == 0 {
 		p["asset_ids"] = "required"
 	}
-	if len(r.FieldIDs) > 20 {
-		p["field_ids"] = "must not exceed 20"
+	if len(r.FieldIDs) > maxBulkFieldSize {
+		p["field_ids"] = fmt.Sprintf("must not exceed %d", maxBulkFieldSize)
 	}
 	return p
 }
@@ -673,7 +679,7 @@ type BulkFieldsPreviewResponse struct {
 // @Success 200 {object} BulkFieldsPreviewResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ErrorResponse "Validation failed"
-// @Router /api/v1/assets/bulk/fields/preview [post]
+// @Router /api/v1/assets/bulk/fields/preview [post].
 func (s *Server) handleBulkFieldsPreview(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 

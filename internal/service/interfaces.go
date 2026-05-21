@@ -206,6 +206,7 @@ type WorkspaceService interface {
 // VersionWithCountDTO is a VersionDTO enriched with its derived variant count.
 type VersionWithCountDTO struct {
 	VersionDTO
+
 	VariantCount int64
 }
 
@@ -262,7 +263,10 @@ type WorkflowService interface {
 	TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRun(ctx context.Context, workspaceID, runID string) (*WorkflowRunDTO, error)
 	ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error)
-	FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflowDTO, error)
+	FindCoveringWorkflow(
+		ctx context.Context,
+		workspaceID, assetProjectID, assetFolderID string,
+	) (*CoveringWorkflowDTO, error)
 	CreateFromVariants(ctx context.Context, workspaceID string, p CreateVariantAutomationParams) (*WorkflowDTO, error)
 	GetWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
 	RegenerateWebhookToken(ctx context.Context, workspaceID, id string) (string, error)
@@ -306,14 +310,14 @@ type FieldValueDTO struct {
 	FieldType         string
 	FieldSource       string
 	FieldOptions      *string
-	Value             interface{}
+	Value             any
 	DefinitionDeleted bool
 }
 
 // SetFieldValueInput is one entry in a patch-fields request.
 type SetFieldValueInput struct {
 	FieldID string
-	Value   interface{}
+	Value   any
 }
 
 // BulkPreviewEntry holds per-field overwrite impact for a set of assets.
@@ -334,9 +338,18 @@ type BulkSetValuesResult struct {
 // AssetFieldService handles business logic for asset field values.
 type AssetFieldService interface {
 	GetValues(ctx context.Context, workspaceID, assetID string) ([]*FieldValueDTO, error)
-	SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error)
+	SetValues(
+		ctx context.Context,
+		workspaceID, assetID, userID string,
+		inputs []SetFieldValueInput,
+	) ([]*FieldValueDTO, error)
 	// BulkSetValues applies inputs to all assetIDs; returns updated and cleared counts.
-	BulkSetValues(ctx context.Context, workspaceID, userID string, assetIDs []string, inputs []SetFieldValueInput) (BulkSetValuesResult, error)
+	BulkSetValues(
+		ctx context.Context,
+		workspaceID, userID string,
+		assetIDs []string,
+		inputs []SetFieldValueInput,
+	) (BulkSetValuesResult, error)
 	// BulkPreview returns overwrite impact per field for the given asset selection.
 	// If fieldIDs is empty, all active (non-deleted) fields for the workspace are used.
 	BulkPreview(ctx context.Context, workspaceID string, assetIDs, fieldIDs []string) ([]BulkPreviewEntry, error)
@@ -345,7 +358,11 @@ type AssetFieldService interface {
 // ProjectFieldService handles business logic for project field values.
 type ProjectFieldService interface {
 	GetValues(ctx context.Context, workspaceID, projectID string) ([]*FieldValueDTO, error)
-	SetValues(ctx context.Context, workspaceID, projectID, userID string, inputs []SetFieldValueInput) ([]*FieldValueDTO, error)
+	SetValues(
+		ctx context.Context,
+		workspaceID, projectID, userID string,
+		inputs []SetFieldValueInput,
+	) ([]*FieldValueDTO, error)
 }
 
 // CollectionService handles business logic for collection records.
@@ -501,7 +518,11 @@ type IngressService interface {
 	// Sources
 	ListSources(ctx context.Context, workspaceID string) ([]*IngressSourceDTO, error)
 	GetSource(ctx context.Context, workspaceID, id string) (*IngressSourceDTO, error)
-	CreateSource(ctx context.Context, workspaceID, userID string, p CreateIngressSourceParams) (*IngressSourceDTO, error)
+	CreateSource(
+		ctx context.Context,
+		workspaceID, userID string,
+		p CreateIngressSourceParams,
+	) (*IngressSourceDTO, error)
 	UpdateSource(ctx context.Context, workspaceID, id string, p UpdateIngressSourceParams) (*IngressSourceDTO, error)
 	DeleteSource(ctx context.Context, workspaceID, id string) error
 	TestSource(ctx context.Context, workspaceID, id string) error
@@ -509,9 +530,17 @@ type IngressService interface {
 	// Rules
 	ListRules(ctx context.Context, workspaceID, sourceID string) ([]*IngressRuleDTO, error)
 	CreateRule(ctx context.Context, workspaceID, sourceID string, p CreateIngressRuleParams) (*IngressRuleDTO, error)
-	UpdateRule(ctx context.Context, workspaceID, sourceID, ruleID string, p UpdateIngressRuleParams) (*IngressRuleDTO, error)
+	UpdateRule(
+		ctx context.Context,
+		workspaceID, sourceID, ruleID string,
+		p UpdateIngressRuleParams,
+	) (*IngressRuleDTO, error)
 	DeleteRule(ctx context.Context, workspaceID, sourceID, ruleID string) error
-	ReorderRules(ctx context.Context, workspaceID, sourceID string, entries []ReorderRuleEntry) ([]*IngressRuleDTO, error)
+	ReorderRules(
+		ctx context.Context,
+		workspaceID, sourceID string,
+		entries []ReorderRuleEntry,
+	) ([]*IngressRuleDTO, error)
 	// Log
 	ListLog(ctx context.Context, workspaceID, statusFilter string, limit, offset int64) ([]*IngressLogEntryDTO, error)
 	ListSourceLog(ctx context.Context, workspaceID, sourceID string, limit, offset int64) ([]*IngressLogEntryDTO, error)

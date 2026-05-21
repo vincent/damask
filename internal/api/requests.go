@@ -2,10 +2,40 @@ package api
 
 import (
 	"context"
-	"damask/server/internal/auth"
 	"encoding/json"
+	"fmt"
 	"net/mail"
 	"strings"
+
+	"damask/server/internal/auth"
+)
+
+const (
+	minPasswordLength           = 8
+	maxDisplayNameLength        = 100
+	maxVariantNameLength        = 255
+	validationRequired          = "required"
+	validationPasswordMinLength = "must be at least 8 characters"
+	validationCannotBeEmpty     = "cannot be empty"
+
+	apiTargetAsset   = "asset"
+	apiTargetProject = "project"
+	fieldTypeSelect  = "select"
+
+	appEnvDevelopment      = "development"
+	apiCreatedAtField      = "created_at"
+	apiErrorKey            = "error"
+	apiFilenameKey         = "filename"
+	apiJobIDKey            = "job_id"
+	apiSameSiteLax         = "Lax"
+	apiStatusKey           = "status"
+	apiStatusPending       = "pending"
+	apiTokenKey            = "token"
+	apiTargetNotFound      = "target not found"
+	sortFieldSize          = "size"
+	sortFieldTakenAt       = "taken_at"
+	contentTypeImageJPEG   = "image/jpeg"
+	contentTypeOctetStream = "application/octet-stream"
 )
 
 // -- auth.go ------------------------------------------------------------------
@@ -21,15 +51,15 @@ func (r *RegisterRequest) Valid(_ context.Context) map[string]string {
 	r.Name = strings.TrimSpace(r.Name)
 	r.Email = strings.TrimSpace(r.Email)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	if r.Email == "" {
-		p["email"] = "required"
+		p["email"] = validationRequired
 	}
 	if r.Password == "" {
-		p["password"] = "required"
-	} else if len(r.Password) < 8 {
-		p["password"] = "must be at least 8 characters"
+		p["password"] = validationRequired
+	} else if len(r.Password) < minPasswordLength {
+		p["password"] = validationPasswordMinLength
 	}
 	return p
 }
@@ -42,10 +72,10 @@ type LoginRequest struct {
 func (r *LoginRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Email == "" {
-		p["email"] = "required"
+		p["email"] = validationRequired
 	}
 	if r.Password == "" {
-		p["password"] = "required"
+		p["password"] = validationRequired
 	}
 	return p
 }
@@ -60,7 +90,7 @@ func (r *CreateWorkspaceRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	return p
 }
@@ -73,7 +103,7 @@ type CreateInviteRequest struct {
 func (r *CreateInviteRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Email == "" {
-		p["email"] = "required"
+		p["email"] = validationRequired
 	}
 	if r.Role == "" {
 		r.Role = auth.Editor
@@ -105,15 +135,15 @@ type AcceptInviteRequest struct {
 func (r *AcceptInviteRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Token == "" {
-		p["token"] = "required"
+		p["token"] = validationRequired
 	}
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	if r.Password == "" {
-		p["password"] = "required"
-	} else if len(r.Password) < 8 {
-		p["password"] = "must be at least 8 characters"
+		p["password"] = validationRequired
+	} else if len(r.Password) < minPasswordLength {
+		p["password"] = validationPasswordMinLength
 	}
 	return p
 }
@@ -125,7 +155,7 @@ type SwitchWorkspaceRequest struct {
 func (r *SwitchWorkspaceRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.WorkspaceID == "" {
-		p["workspace_id"] = "required"
+		p["workspace_id"] = validationRequired
 	}
 	return p
 }
@@ -140,8 +170,8 @@ func (r *UpdateMeRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.DisplayName = strings.TrimSpace(r.DisplayName)
 	if r.DisplayName == "" {
-		p["display_name"] = "required"
-	} else if len(r.DisplayName) > 100 {
+		p["display_name"] = validationRequired
+	} else if len(r.DisplayName) > maxDisplayNameLength {
 		p["display_name"] = "must be 100 characters or fewer"
 	}
 	return p
@@ -155,7 +185,7 @@ func (r *ForgotPasswordRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Email = strings.TrimSpace(r.Email)
 	if r.Email == "" {
-		p["email"] = "required"
+		p["email"] = validationRequired
 	} else if _, err := mail.ParseAddress(r.Email); err != nil {
 		p["email"] = "invalid"
 	}
@@ -170,10 +200,10 @@ type ResetPasswordRequest struct {
 func (r *ResetPasswordRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if strings.TrimSpace(r.Token) == "" {
-		p["token"] = "required"
+		p["token"] = validationRequired
 	}
-	if len(r.Password) < 8 {
-		p["password"] = "must be at least 8 characters"
+	if len(r.Password) < minPasswordLength {
+		p["password"] = validationPasswordMinLength
 	}
 	return p
 }
@@ -185,8 +215,8 @@ type ChangePasswordRequest struct {
 
 func (r *ChangePasswordRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
-	if len(r.NewPassword) < 8 {
-		p["new_password"] = "must be at least 8 characters"
+	if len(r.NewPassword) < minPasswordLength {
+		p["new_password"] = validationPasswordMinLength
 	}
 	return p
 }
@@ -199,7 +229,7 @@ func (r *RequestEmailChangeRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Email = strings.TrimSpace(r.Email)
 	if r.Email == "" {
-		p["email"] = "required"
+		p["email"] = validationRequired
 	} else if _, err := mail.ParseAddress(r.Email); err != nil {
 		p["email"] = "invalid"
 	}
@@ -219,9 +249,9 @@ func (r *ShareAccessRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.VisitorName = strings.TrimSpace(r.VisitorName)
 	if r.VisitorName == "" {
-		p["visitor_name"] = "required"
+		p["visitor_name"] = validationRequired
 	}
-	if len(r.VisitorName) > 100 {
+	if len(r.VisitorName) > maxDisplayNameLength {
 		p["visitor_name"] = "max 100 characters"
 	}
 	return p
@@ -254,7 +284,7 @@ func (r *CreateProjectRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	return p
 }
@@ -271,7 +301,7 @@ func (r *UpdateProjectRequest) Valid(_ context.Context) map[string]string {
 	if r.Name != nil {
 		trimmed := strings.TrimSpace(*r.Name)
 		if trimmed == "" {
-			p["name"] = "cannot be empty"
+			p["name"] = validationCannotBeEmpty
 		} else {
 			r.Name = &trimmed
 		}
@@ -291,7 +321,7 @@ func (r *CreateFolderRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	return p
 }
@@ -306,7 +336,7 @@ func (r *UpdateFolderRequest) Valid(_ context.Context) map[string]string {
 	if r.Name != nil {
 		trimmed := strings.TrimSpace(*r.Name)
 		if trimmed == "" {
-			p["name"] = "cannot be empty"
+			p["name"] = validationCannotBeEmpty
 		} else {
 			r.Name = &trimmed
 		}
@@ -326,7 +356,7 @@ func (r *BulkTagRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.TagName = strings.TrimSpace(strings.ToLower(r.TagName))
 	if r.TagName == "" {
-		p["tag_name"] = "required"
+		p["tag_name"] = validationRequired
 	}
 	if len(r.AssetIDs) == 0 {
 		p["asset_ids"] = "required, must contain at least one id"
@@ -347,7 +377,7 @@ type BulkProjectRequest struct {
 func (r *BulkProjectRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.AssetIDs) == 0 {
-		p["asset_ids"] = "required"
+		p["asset_ids"] = validationRequired
 	}
 	return p
 }
@@ -368,7 +398,7 @@ func (r *RenameAssetRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	return p
 }
@@ -380,7 +410,7 @@ type BulkDeleteRequest struct {
 func (r *BulkDeleteRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.AssetIDs) == 0 {
-		p["asset_ids"] = "required"
+		p["asset_ids"] = validationRequired
 	}
 	return p
 }
@@ -395,7 +425,7 @@ func (r *AddTagRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(strings.ToLower(r.Name))
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	return p
 }
@@ -410,7 +440,7 @@ func (r *createTagRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(strings.ToLower(r.Name))
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	if r.Color != nil {
 		*r.Color = strings.ToLower(strings.TrimSpace(*r.Color))
@@ -451,7 +481,7 @@ type bulkDeleteTagsRequest struct {
 func (r *bulkDeleteTagsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Names) == 0 {
-		p["names"] = "required"
+		p["names"] = validationRequired
 	}
 	for i, n := range r.Names {
 		r.Names[i] = strings.TrimSpace(strings.ToLower(n))
@@ -468,10 +498,10 @@ func (r *mergeTagsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Target = strings.TrimSpace(strings.ToLower(r.Target))
 	if r.Target == "" {
-		p["target"] = "required"
+		p["target"] = validationRequired
 	}
 	if len(r.Sources) == 0 {
-		p["sources"] = "required"
+		p["sources"] = validationRequired
 	}
 	for i, s := range r.Sources {
 		r.Sources[i] = strings.TrimSpace(strings.ToLower(s))
@@ -493,12 +523,12 @@ type CreateShareRequest struct {
 
 func (r *CreateShareRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
-	validTargetTypes := map[string]bool{"collection": true, "asset": true, "project": true}
+	validTargetTypes := map[string]bool{"collection": true, apiTargetAsset: true, apiTargetProject: true}
 	if !validTargetTypes[r.TargetType] {
 		p["target_type"] = "must be one of: collection, asset, project"
 	}
 	if r.TargetID == "" {
-		p["target_id"] = "required"
+		p["target_id"] = validationRequired
 	}
 	return p
 }
@@ -531,13 +561,13 @@ func (r *CreateCommentRequest) Valid(_ context.Context) map[string]string {
 	r.AuthorName = strings.TrimSpace(r.AuthorName)
 	r.Body = strings.TrimSpace(r.Body)
 	if r.AuthorName == "" {
-		p["author_name"] = "required"
+		p["author_name"] = validationRequired
 	}
 	if r.Body == "" {
-		p["body"] = "required"
+		p["body"] = validationRequired
 	}
 	if r.AssetID == "" {
-		p["asset_id"] = "required"
+		p["asset_id"] = validationRequired
 	}
 	return p
 }
@@ -552,7 +582,7 @@ type CreateVariantRequest struct {
 func (r *CreateVariantRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Type == "" {
-		p["type"] = "required"
+		p["type"] = validationRequired
 	}
 	if len(r.Params) > 0 && !json.Valid(r.Params) {
 		p["params"] = "invalid json"
@@ -568,9 +598,9 @@ func (r *PromoteVariantRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
-	if len(r.Name) > 255 {
+	if len(r.Name) > maxVariantNameLength {
 		p["name"] = "max 255 chars"
 	}
 	return p
@@ -591,7 +621,7 @@ type UpdateVariantsSharingRequest struct {
 func (r *UpdateVariantsSharingRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Updates) == 0 {
-		p["updates"] = "required"
+		p["updates"] = validationRequired
 	}
 	return p
 }
@@ -602,23 +632,23 @@ type PatchVariantRequest struct {
 
 func (r *PatchVariantRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
-	if len(strings.TrimSpace(r.Title)) > 255 {
-		p["title"] = "max 255 chars"
+	if len(strings.TrimSpace(r.Title)) > maxVariantNameLength {
+		p["title"] = fmt.Sprintf("max %d chars", maxVariantNameLength)
 	}
 	return p
 }
 
 type CreateTextTrackRequest struct {
-	Source string                 `json:"source"`
-	Lang   *string                `json:"lang"`
-	Params map[string]interface{} `json:"params"`
+	Source string         `json:"source"`
+	Lang   *string        `json:"lang"`
+	Params map[string]any `json:"params"`
 }
 
 func (r *CreateTextTrackRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Source = strings.TrimSpace(r.Source)
 	if r.Source == "" {
-		p["source"] = "required"
+		p["source"] = validationRequired
 	}
 	return p
 }
@@ -636,16 +666,16 @@ type IngressRuleReq struct {
 func (r *IngressRuleReq) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Field == "" {
-		p["field"] = "required"
+		p["field"] = validationRequired
 	}
 	if r.Operator == "" {
-		p["operator"] = "required"
+		p["operator"] = validationRequired
 	}
 	if r.Value == "" {
-		p["value"] = "required"
+		p["value"] = validationRequired
 	}
 	if r.Action == "" {
-		p["action"] = "required"
+		p["action"] = validationRequired
 	}
 	return p
 }
@@ -664,10 +694,10 @@ type CreateIngressSourceReq struct {
 func (r *CreateIngressSourceReq) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.Type == "" {
-		p["type"] = "required"
+		p["type"] = validationRequired
 	}
 	if r.Label == "" {
-		p["label"] = "required"
+		p["label"] = validationRequired
 	}
 	return p
 }
@@ -675,8 +705,8 @@ func (r *CreateIngressSourceReq) Valid(_ context.Context) map[string]string {
 type UpdateIngressSourceReq struct {
 	Label           string           `json:"label"`
 	Config          map[string]any   `json:"config"`
-	DestFolderID    *json.RawMessage `json:"dest_folder_id" swaggertype:"string"`
-	DestProjectID   *json.RawMessage `json:"dest_project_id" swaggertype:"string"`
+	DestFolderID    *json.RawMessage `json:"dest_folder_id"    swaggertype:"string"`
+	DestProjectID   *json.RawMessage `json:"dest_project_id"   swaggertype:"string"`
 	Enabled         *bool            `json:"enabled"`
 	PollIntervalMin int64            `json:"poll_interval_min"`
 }
@@ -723,7 +753,7 @@ type CreateFieldDefinitionRequest struct {
 	Key                string  `json:"key"`
 	FieldType          string  `json:"field_type"`
 	Options            *string `json:"options"`
-	Required           bool    `json:"required"`
+	Required           bool    `json:"validationRequired"`
 	Position           int64   `json:"position"`
 	InheritFromProject bool    `json:"inherit_from_project"`
 }
@@ -732,19 +762,26 @@ func (r *CreateFieldDefinitionRequest) Valid(_ context.Context) map[string]strin
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
-	if r.Scope != "asset" && r.Scope != "project" {
+	if r.Scope != apiTargetAsset && r.Scope != apiTargetProject {
 		p["scope"] = "must be 'asset' or 'project'"
 	}
-	validTypes := map[string]bool{"text": true, "number": true, "date": true, "boolean": true, "select": true, "url": true}
+	validTypes := map[string]bool{
+		"text":          true,
+		"number":        true,
+		"date":          true,
+		"boolean":       true,
+		fieldTypeSelect: true,
+		"url":           true,
+	}
 	if !validTypes[r.FieldType] {
 		p["field_type"] = "must be one of: text, number, date, boolean, select, url"
 	}
 	if !keyRegexp.MatchString(r.Key) {
 		p["key"] = "must match /^[a-z0-9_]+$/"
 	}
-	if r.FieldType == "select" {
+	if r.FieldType == fieldTypeSelect {
 		if r.Options == nil || *r.Options == "" {
 			p["options"] = "required for select fields"
 		} else {
@@ -762,7 +799,7 @@ type UpdateFieldDefinitionRequest struct {
 	Key                *string `json:"key"`
 	FieldType          *string `json:"field_type"`
 	Options            *string `json:"options"`
-	Required           *bool   `json:"required"`
+	Required           *bool   `json:"validationRequired"`
 	Position           *int64  `json:"position"`
 	InheritFromProject *bool   `json:"inherit_from_project"`
 }
@@ -772,7 +809,7 @@ func (r *UpdateFieldDefinitionRequest) Valid(_ context.Context) map[string]strin
 	if r.Name != nil {
 		trimmed := strings.TrimSpace(*r.Name)
 		if trimmed == "" {
-			p["name"] = "cannot be empty"
+			p["name"] = validationCannotBeEmpty
 		} else {
 			r.Name = &trimmed
 		}
@@ -789,7 +826,7 @@ type PatchAssetFieldsRequest struct {
 func (r *PatchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Values) == 0 {
-		p["values"] = "required"
+		p["values"] = validationRequired
 	}
 	return p
 }
@@ -802,10 +839,10 @@ type BulkPatchAssetFieldsRequest struct {
 func (r *BulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.AssetIDs) == 0 {
-		p["asset_ids"] = "required"
+		p["asset_ids"] = validationRequired
 	}
 	if len(r.Values) == 0 {
-		p["values"] = "required"
+		p["values"] = validationRequired
 	}
 	return p
 }
@@ -824,7 +861,7 @@ func (r *stackExportRequest) Valid(_ context.Context) map[string]string {
 		r.Filename = "stack-export"
 	}
 	if len(r.AssetIDs) == 0 {
-		p["asset_ids"] = "required"
+		p["asset_ids"] = validationRequired
 	}
 	return p
 }
@@ -868,7 +905,7 @@ func (r *createCollectionRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	return p
 }
@@ -882,7 +919,7 @@ func (r *updateCollectionRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
-		p["name"] = "required"
+		p["name"] = validationRequired
 	}
 	return p
 }
@@ -896,7 +933,7 @@ type PatchProjectFieldsRequest struct {
 func (r *PatchProjectFieldsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if len(r.Values) == 0 {
-		p["values"] = "required"
+		p["values"] = validationRequired
 	}
 	return p
 }

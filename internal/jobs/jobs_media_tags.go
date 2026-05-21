@@ -11,11 +11,12 @@ import (
 
 	"github.com/google/uuid"
 
+	"go.opentelemetry.io/otel/attribute"
+
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/media/contentmeta"
 	"damask/server/internal/queue"
 	"damask/server/internal/telemetry"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const mediaTagsSource = "media_tags"
@@ -33,40 +34,40 @@ type mediaTagFieldDef struct {
 }
 
 var mediaTagFields = []mediaTagFieldDef{
-	{"_media_title", "Title", "text", 0},
-	{"_media_artist", "Artist", "text", 1},
-	{"_media_album", "Album", "text", 2},
-	{"_media_album_artist", "Album artist", "text", 3},
-	{"_media_date", "Date", "text", 4},
-	{"_media_year", "Year", "number", 5},
-	{"_media_track_number", "Track number", "number", 6},
-	{"_media_track_total", "Track total", "number", 7},
-	{"_media_disc_number", "Disc number", "number", 8},
-	{"_media_disc_total", "Disc total", "number", 9},
-	{"_media_genre", "Genre", "text", 10},
-	{"_media_composer", "Composer", "text", 11},
-	{"_media_lyricist", "Lyricist", "text", 12},
-	{"_media_comment", "Comment", "text", 13},
-	{"_media_lyrics", "Lyrics", "text", 14},
-	{"_media_bpm", "BPM", "number", 15},
+	{"_media_title", "Title", customFieldTypeText, 0},
+	{"_media_artist", "Artist", customFieldTypeText, 1},
+	{"_media_album", "Album", customFieldTypeText, 2},
+	{"_media_album_artist", "Album artist", customFieldTypeText, 3},
+	{"_media_date", "Date", customFieldTypeText, 4},
+	{"_media_year", "Year", customFieldTypeNumber, 5},
+	{"_media_track_number", "Track number", customFieldTypeNumber, 6},
+	{"_media_track_total", "Track total", customFieldTypeNumber, 7},
+	{"_media_disc_number", "Disc number", customFieldTypeNumber, 8},
+	{"_media_disc_total", "Disc total", customFieldTypeNumber, 9},
+	{"_media_genre", "Genre", customFieldTypeText, 10},
+	{"_media_composer", "Composer", customFieldTypeText, 11},
+	{"_media_lyricist", "Lyricist", customFieldTypeText, 12},
+	{"_media_comment", "Comment", customFieldTypeText, 13},
+	{"_media_lyrics", "Lyrics", customFieldTypeText, 14},
+	{"_media_bpm", "BPM", customFieldTypeNumber, 15},
 	{"_media_compilation", "Compilation", "boolean", 16},
-	{"_media_copyright", "Copyright", "text", 17},
-	{"_media_encoder", "Encoder", "text", 18},
-	{"_media_encoded_by", "Encoded by", "text", 19},
-	{"_media_language", "Language", "text", 20},
-	{"_media_container", "Container", "text", 21},
-	{"_media_duration_sec", "Duration", "number", 22},
-	{"_media_overall_bitrate", "Overall bitrate", "number", 23},
-	{"_media_audio_codec", "Audio codec", "text", 24},
-	{"_media_audio_bitrate", "Audio bitrate", "number", 25},
-	{"_media_sample_rate", "Sample rate", "number", 26},
-	{"_media_channels", "Channels", "number", 27},
-	{"_media_channel_layout", "Channel layout", "text", 28},
-	{"_media_bits_per_sample", "Bit depth", "number", 29},
-	{"_media_video_codec", "Video codec", "text", 30},
-	{"_media_video_width", "Video width", "number", 31},
-	{"_media_video_height", "Video height", "number", 32},
-	{"_media_frame_rate", "Frame rate", "text", 33},
+	{"_media_copyright", "Copyright", customFieldTypeText, 17},
+	{"_media_encoder", "Encoder", customFieldTypeText, 18},
+	{"_media_encoded_by", "Encoded by", customFieldTypeText, 19},
+	{"_media_language", "Language", customFieldTypeText, 20},
+	{"_media_container", "Container", customFieldTypeText, 21},
+	{"_media_duration_sec", "Duration", customFieldTypeNumber, 22},
+	{"_media_overall_bitrate", "Overall bitrate", customFieldTypeNumber, 23},
+	{"_media_audio_codec", "Audio codec", customFieldTypeText, 24},
+	{"_media_audio_bitrate", "Audio bitrate", customFieldTypeNumber, 25},
+	{"_media_sample_rate", "Sample rate", customFieldTypeNumber, 26},
+	{"_media_channels", "Channels", customFieldTypeNumber, 27},
+	{"_media_channel_layout", "Channel layout", customFieldTypeText, 28},
+	{"_media_bits_per_sample", "Bit depth", customFieldTypeNumber, 29},
+	{"_media_video_codec", "Video codec", customFieldTypeText, 30},
+	{"_media_video_width", "Video width", customFieldTypeNumber, 31},
+	{"_media_video_height", "Video height", customFieldTypeNumber, 32},
+	{"_media_frame_rate", "Frame rate", customFieldTypeText, 33},
 	{"_media_has_cover_art", "Cover art", "boolean", 34},
 }
 
@@ -177,7 +178,7 @@ func (s *JobServer) ensureMediaTagFields(ctx context.Context, workspaceID string
 		if err != nil {
 			return nil, err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 		qtx := s.db.WithTx(tx)
 		for _, fd := range mediaTagFields {
 			if err := qtx.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
@@ -247,7 +248,12 @@ func (s *JobServer) mediaTagFilePath(ctx context.Context, storageKey string) (st
 	return writeToTempFile(ctx, r, ".bin")
 }
 
-func (s *JobServer) writeMediaTagValues(ctx context.Context, assetID string, fieldIDs map[string]string, result *contentmeta.AVTags) (int, error) {
+func (s *JobServer) writeMediaTagValues(
+	ctx context.Context,
+	assetID string,
+	fieldIDs map[string]string,
+	result *contentmeta.AVTags,
+) (int, error) {
 	written := 0
 	upsert := func(key string, params dbgen.UpsertAssetFieldValueParams) error {
 		fieldID, ok := fieldIDs[key]

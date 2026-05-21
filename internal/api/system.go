@@ -15,9 +15,9 @@ import (
 // @Accept */*
 // @Produce json
 // @Success 200 {object} map[string]interface{}
-// @Router /healthz [get]
+// @Router /healthz [get].
 func handleHealthz(c fiber.Ctx) error {
-	return c.JSON(fiber.Map{"status": "ok"})
+	return c.JSON(fiber.Map{apiStatusKey: "ok"})
 }
 
 // handleSSEEvents streams workspace-scoped Server-Sent Events to the caller.
@@ -29,7 +29,7 @@ func handleHealthz(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Success 200 {string} string "SSE stream"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/events [get]
+// @Router /api/v1/events [get].
 func (s *Server) handleSSEEvents(c fiber.Ctx) error {
 	return s.hub.EventHandler(c)
 }
@@ -42,7 +42,7 @@ func (s *Server) handleSSEEvents(c fiber.Ctx) error {
 // @Produce json
 // @Success 200 {object} object{demo=bool, mailHost=string}
 // @Router /config [get]
-// GET /config
+// GET /config.
 func (s *Server) handleConfig(c fiber.Ctx) error {
 	out := fiber.Map{
 		"demo": s.cfg.Demo.DemoMode,
@@ -58,10 +58,10 @@ func (s *Server) handleAuthConfig(c fiber.Ctx) error {
 	oidcRT := config.GetOIDCRuntime()
 	googleRT := config.GetGoogleRuntime()
 	return c.JSON(fiber.Map{
-		"password_auth": true,
-		"oidc_enabled":  oidcRT != nil,
-		"oidc_label":    s.cfg.OIDC.Label,
+		"password_auth":  true,
+		"oidc_enabled":   oidcRT != nil,
+		"oidc_label":     s.cfg.OIDC.Label,
 		"google_enabled": googleRT != nil,
-		"canva_enabled": s.cfg.Canva.ClientID != "",
+		"canva_enabled":  s.cfg.Canva.ClientID != "",
 	})
 }

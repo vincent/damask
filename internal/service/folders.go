@@ -80,7 +80,11 @@ func NewFolderService(folders repository.FolderRepository) FolderService {
 	return &folderService{folders: folders}
 }
 
-func (s *folderService) Create(ctx context.Context, workspaceID, projectID string, p CreateFolderParams) (*FolderDTO, error) {
+func (s *folderService) Create(
+	ctx context.Context,
+	workspaceID, projectID string,
+	p CreateFolderParams,
+) (*FolderDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}

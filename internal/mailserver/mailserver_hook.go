@@ -1,7 +1,8 @@
 package mailserver
 
 import (
-	"fmt"
+	"context"
+	"log/slog"
 
 	"github.com/DusanKasan/parsemail"
 )
@@ -12,17 +13,16 @@ type Hook struct {
 	WorkspaceID string `yaml:"workspace_id"`
 }
 
-func NewHook(emailAddress, name, WorkspaceID string) *Hook {
+func NewHook(emailAddress, name, workspaceID string) *Hook {
 	return &Hook{
 		Address:     emailAddress,
 		Name:        name,
-		WorkspaceID: WorkspaceID,
+		WorkspaceID: workspaceID,
 	}
 }
 
-func (h Hook) Trigger(from string, email parsemail.Email) error {
-
-	fmt.Println("trigger from", from, email.Subject)
+func (h Hook) Trigger(ctx context.Context, from string, email parsemail.Email) error {
+	slog.InfoContext(ctx, "trigger from email", "from", from, "subject", email.Subject)
 
 	return nil
 }

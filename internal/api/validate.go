@@ -19,8 +19,8 @@ func decodeAndValidate[T Validator](c fiber.Ctx, body T) (T, bool) {
 	}
 	if problems := body.Valid(c.Context()); len(problems) > 0 {
 		_ = c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-			"error":  "validation failed",
-			"fields": problems,
+			apiErrorKey: "validation failed",
+			"fields":    problems,
 		})
 		return body, false
 	}

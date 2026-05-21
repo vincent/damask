@@ -40,7 +40,11 @@ func (m *MockWorkspaceService) Get(ctx context.Context, workspaceID string) (*se
 	return nil, nil
 }
 
-func (m *MockWorkspaceService) Update(ctx context.Context, workspaceID string, p service.UpdateWorkspaceParams) (*service.WorkspaceDTO, error) {
+func (m *MockWorkspaceService) Update(
+	ctx context.Context,
+	workspaceID string,
+	p service.UpdateWorkspaceParams,
+) (*service.WorkspaceDTO, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, p)
 	}
@@ -68,14 +72,20 @@ func (m *MockWorkspaceService) CountAssets(ctx context.Context, workspaceID stri
 	return 0, nil
 }
 
-func (m *MockWorkspaceService) ListImageRouterModels(ctx context.Context, workspaceID string) ([]imagerouter.Model, imagerouter.KeyStatus, error) {
+func (m *MockWorkspaceService) ListImageRouterModels(
+	ctx context.Context,
+	workspaceID string,
+) ([]imagerouter.Model, imagerouter.KeyStatus, error) {
 	if m.ListImageRouterModelsFn != nil {
 		return m.ListImageRouterModelsFn(ctx, workspaceID)
 	}
 	return nil, imagerouter.KeyStatus{}, nil
 }
 
-func (m *MockWorkspaceService) GetImageRouterKeyStatus(ctx context.Context, workspaceID string) (imagerouter.KeyStatus, error) {
+func (m *MockWorkspaceService) GetImageRouterKeyStatus(
+	ctx context.Context,
+	workspaceID string,
+) (imagerouter.KeyStatus, error) {
 	if m.GetImageRouterKeyStatusFn != nil {
 		return m.GetImageRouterKeyStatusFn(ctx, workspaceID)
 	}
@@ -129,14 +139,22 @@ func (m *MockWorkspaceService) RemoveMember(ctx context.Context, workspaceID, ca
 	return nil
 }
 
-func (m *MockWorkspaceService) UpdateMemberRole(ctx context.Context, workspaceID, callerID, targetUserID string, role string) error {
+func (m *MockWorkspaceService) UpdateMemberRole(
+	ctx context.Context,
+	workspaceID, callerID, targetUserID string,
+	role string,
+) error {
 	if m.UpdateMemberRoleFn != nil {
 		return m.UpdateMemberRoleFn(ctx, workspaceID, callerID, targetUserID, role)
 	}
 	return nil
 }
 
-func (m *MockWorkspaceService) CreateInvite(ctx context.Context, workspaceID, callerID string, p service.CreateInviteParams) (*service.InviteDTO, error) {
+func (m *MockWorkspaceService) CreateInvite(
+	ctx context.Context,
+	workspaceID, callerID string,
+	p service.CreateInviteParams,
+) (*service.InviteDTO, error) {
 	if m.CreateInviteFn != nil {
 		return m.CreateInviteFn(ctx, workspaceID, callerID, p)
 	}
@@ -157,7 +175,10 @@ func (m *MockWorkspaceService) DeleteInvite(ctx context.Context, workspaceID, in
 	return nil
 }
 
-func (m *MockWorkspaceService) AcceptInvite(ctx context.Context, p service.AcceptInviteParams) (*service.AcceptInviteResult, error) {
+func (m *MockWorkspaceService) AcceptInvite(
+	ctx context.Context,
+	p service.AcceptInviteParams,
+) (*service.AcceptInviteResult, error) {
 	if m.AcceptInviteFn != nil {
 		return m.AcceptInviteFn(ctx, p)
 	}

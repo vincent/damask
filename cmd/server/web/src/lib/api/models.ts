@@ -215,7 +215,7 @@ export interface CoveringWorkflow {
   id: string
   name: string
   workflow_url: string
-  scope: 'workspace' | 'project' | 'folder'
+  scope: 'workspace' | 'project' | 'folder' | 'asset'
 }
 
 export interface SharedVariant {
@@ -492,7 +492,7 @@ export interface FieldDefinition {
   key: string
   field_type: FieldType
   options: string | null // JSON array string for select type
-  required: boolean
+  validationRequired: boolean
   position: number
   inherit_from_project: boolean
   created_at: string

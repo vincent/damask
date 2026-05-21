@@ -3,7 +3,7 @@ package transform
 import (
 	"bytes"
 	"context"
-	"damask/server/internal/telemetry"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"damask/server/internal/telemetry"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -64,13 +66,17 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) (d
 		return nil, "", fmt.Errorf("read thumb: %w", err)
 	}
 
-	return thumbData, "image/jpeg", nil
+	return thumbData, mimeImageJPEG, nil
 }
 
 // PDFSlideshowThumbnail converts up to 6 PDF pages to JPEG frames via ImageMagick convert.
-// Single-page PDFs return a JPEG directly ("image/jpeg"). Multi-page PDFs are concatenated
+// Single-page PDFs return a JPEG directly (mimeImageJPEG). Multi-page PDFs are concatenated
 // into a silent MP4 slideshow via ffmpeg ("video/mp4").
-func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, mimeType string) (data []byte, contentType string, err error) {
+func (t *transformer) PDFSlideshowThumbnail(
+	ctx context.Context,
+	src io.Reader,
+	mimeType string,
+) (data []byte, contentType string, err error) {
 	ctx, span := telemetry.StartSpan(ctx, "transform.pdf.slideshow.thumbnail",
 		attribute.String("damask.mimeType", mimeType),
 	)
@@ -96,7 +102,7 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 	cmd := exec.CommandContext(ctx,
 		"convert",
 		"-density", "72",
-		"-format", "jpeg",
+		"-format", formatJPEG,
 		tmpPDF+"[0-5]",
 		filepath.Join(dir, "page-%d.jpg"),
 	)
@@ -109,7 +115,7 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 
 	entries, err := os.ReadDir(dir)
 	if err != nil || len(entries) == 0 {
-		return nil, "", fmt.Errorf("no pages extracted from PDF")
+		return nil, "", errors.New("no pages extracted from PDF")
 	}
 
 	n := 0
@@ -125,7 +131,7 @@ func (t *transformer) PDFSlideshowThumbnail(ctx context.Context, src io.Reader, 
 		if err != nil {
 			return nil, "", fmt.Errorf("read single page jpeg: %w", err)
 		}
-		return data, "image/jpeg", nil
+		return data, mimeImageJPEG, nil
 	}
 
 	outPath := filepath.Join(dir, "out.mp4")

@@ -4,6 +4,7 @@ package gdrive
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,6 +17,8 @@ import (
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 )
+
+const maxGDrivePollSize = 100
 
 // Config is the decrypted JSON config stored in ingress_sources.config.
 type Config struct {
@@ -52,30 +55,30 @@ func New(configJSON []byte) (ingress.Source, error) {
 		return nil, fmt.Errorf("gdrive: parse config: %w", err)
 	}
 	if cfg.WorkspaceID == "" {
-		return nil, fmt.Errorf("gdrive: workspace_id is required")
+		return nil, errors.New("gdrive: workspace_id is required")
 	}
 	if cfg.ConnectionID == "" {
-		return nil, fmt.Errorf("gdrive: connection_id is required")
+		return nil, errors.New("gdrive: connection_id is required")
 	}
 	if cfg.FolderID == "" {
-		return nil, fmt.Errorf("gdrive: folder_id is required")
+		return nil, errors.New("gdrive: folder_id is required")
 	}
-	return &GDriveSource{cfg: cfg}, nil
+	return &Source{cfg: cfg}, nil
 }
 
-// GDriveSource polls a Google Drive folder for new files.
-type GDriveSource struct {
+// Source polls a Google Drive folder for new files.
+type Source struct {
 	cfg Config
 }
 
-func (s *GDriveSource) Type() string { return "gdrive" }
+func (s *Source) Type() string { return "gdrive" }
 
-func (s *GDriveSource) driveService(ctx context.Context) (*drive.Service, error) {
+func (s *Source) driveService(ctx context.Context) (*drive.Service, error) {
 	refresherMu.RLock()
 	r := globalRefresher
 	refresherMu.RUnlock()
 	if r == nil {
-		return nil, fmt.Errorf("gdrive: token refresher not initialised")
+		return nil, errors.New("gdrive: token refresher not initialised")
 	}
 	token, err := r.EnsureFreshToken(ctx, s.cfg.WorkspaceID, s.cfg.ConnectionID)
 	if err != nil {
@@ -90,7 +93,7 @@ func (s *GDriveSource) driveService(ctx context.Context) (*drive.Service, error)
 	return svc, nil
 }
 
-func (s *GDriveSource) Validate(ctx context.Context) error {
+func (s *Source) Validate(ctx context.Context) error {
 	svc, err := s.driveService(ctx)
 	if err != nil {
 		return err
@@ -102,7 +105,7 @@ func (s *GDriveSource) Validate(ctx context.Context) error {
 	return nil
 }
 
-func (s *GDriveSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
+func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	svc, err := s.driveService(ctx)
 	if err != nil {
 		return nil, err
@@ -115,7 +118,7 @@ func (s *GDriveSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 		call := svc.Files.List().
 			Q(query).
 			Fields("nextPageToken, files(id,name,mimeType,size,modifiedTime,md5Checksum)").
-			PageSize(100).
+			PageSize(maxGDrivePollSize).
 			Context(ctx)
 		if pageToken != "" {
 			call = call.PageToken(pageToken)
@@ -152,7 +155,7 @@ func (s *GDriveSource) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	return items, nil
 }
 
-func (s *GDriveSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
+func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
 	svc, err := s.driveService(ctx)
 	if err != nil {
 		return nil, err
@@ -178,10 +181,12 @@ func (s *GDriveSource) Fetch(ctx context.Context, item ingress.IngestItem) (io.R
 	return resp.Body, nil
 }
 
+const googleWorkspacePDFMIME = "application/pdf"
+
 var googleWorkspaceMIMEs = map[string]string{
-	"application/vnd.google-apps.document":     "application/pdf",
-	"application/vnd.google-apps.spreadsheet":  "application/pdf",
-	"application/vnd.google-apps.presentation": "application/pdf",
+	"application/vnd.google-apps.document":     googleWorkspacePDFMIME,
+	"application/vnd.google-apps.spreadsheet":  googleWorkspacePDFMIME,
+	"application/vnd.google-apps.presentation": googleWorkspacePDFMIME,
 	"application/vnd.google-apps.drawing":      "image/png",
 }
 
@@ -194,7 +199,7 @@ func exportMIMEType(mimeType string) string {
 	if m, ok := googleWorkspaceMIMEs[mimeType]; ok {
 		return m
 	}
-	return "application/pdf"
+	return googleWorkspacePDFMIME
 }
 
 func exportFilename(name, mimeType string) string {

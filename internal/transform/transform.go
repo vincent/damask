@@ -11,6 +11,14 @@ import (
 	"damask/server/internal/config"
 )
 
+const (
+	formatJPEG = "jpeg"
+	formatMP4  = "mp4"
+	formatPNG  = "png"
+	formatWebM = "webm"
+	formatWebP = "webp"
+)
+
 type Transformer interface {
 	FFmpegAvailable() bool
 	FFprobePath() string
@@ -97,17 +105,17 @@ func (t *transformer) CheckExternalDeps() []string {
 // FormatExtension maps a format name to a file extension.
 func FormatExtension(format string) string {
 	switch strings.ToLower(format) {
-	case "webm":
+	case formatWebM:
 		return ".webm"
-	case "mp4":
+	case formatMP4:
 		return ".mp4"
-	case "png":
-		return ".png"
-	case "webp":
+	case formatPNG:
+		return thumbnailExtPNG
+	case formatWebP:
 		return ".webp"
 	case "tiff":
 		return ".tiff"
 	default:
-		return ".jpg"
+		return thumbnailExtJPG
 	}
 }

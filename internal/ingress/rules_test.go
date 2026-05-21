@@ -18,6 +18,7 @@ func rule(field, operator, value, action string) dbgen.IngressRule {
 // --- EvaluateRules: default behaviour
 
 func TestEvaluateRules_NoRules_AllowsEverything(t *testing.T) {
+	t.Parallel()
 	res := EvaluateRules(nil, ItemMeta{Filename: "photo.jpg", MimeType: "image/jpeg", Size: 100})
 	if !res.Allow {
 		t.Fatal("expected Allow=true with no rules")
@@ -25,6 +26,7 @@ func TestEvaluateRules_NoRules_AllowsEverything(t *testing.T) {
 }
 
 func TestEvaluateRules_NoDenyFired_AllowsByDefault(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("filename", "contains", "invoice", "deny"),
 	}
@@ -37,6 +39,7 @@ func TestEvaluateRules_NoDenyFired_AllowsByDefault(t *testing.T) {
 // --- deny action
 
 func TestEvaluateRules_DenyByFilename(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("filename", "contains", "invoice", "deny"),
 	}
@@ -47,6 +50,7 @@ func TestEvaluateRules_DenyByFilename(t *testing.T) {
 }
 
 func TestEvaluateRules_DenyByMimeType(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("mime_type", "equals", "application/pdf", "deny"),
 	}
@@ -57,6 +61,7 @@ func TestEvaluateRules_DenyByMimeType(t *testing.T) {
 }
 
 func TestEvaluateRules_DenyBySizeGt(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("size", "gt", "1000", "deny"),
 	}
@@ -67,6 +72,7 @@ func TestEvaluateRules_DenyBySizeGt(t *testing.T) {
 }
 
 func TestEvaluateRules_DenyBySizeLt(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("size", "lt", "100", "deny"),
 	}
@@ -77,6 +83,7 @@ func TestEvaluateRules_DenyBySizeLt(t *testing.T) {
 }
 
 func TestEvaluateRules_SizeGtBoundary_NotMatching(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("size", "gt", "100", "deny"),
 	}
@@ -88,6 +95,7 @@ func TestEvaluateRules_SizeGtBoundary_NotMatching(t *testing.T) {
 }
 
 func TestEvaluateRules_SizeInvalidValue_SkipsRule(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("size", "gt", "not-a-number", "deny"),
 	}
@@ -101,6 +109,7 @@ func TestEvaluateRules_SizeInvalidValue_SkipsRule(t *testing.T) {
 // --- allow action (explicit)
 
 func TestEvaluateRules_ExplicitAllowDoesNotDeny(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		rule("filename", "contains", "photo", "allow"),
 	}
@@ -117,6 +126,7 @@ func TestEvaluateRules_ExplicitAllowDoesNotDeny(t *testing.T) {
 // set_project / set_folder actions. Tests below use the same value for both.
 
 func TestEvaluateRules_SetProjectOverride(t *testing.T) {
+	t.Parallel()
 	// Value = "image/" is both the match value (starts_with) and the project ID.
 	rules := []dbgen.IngressRule{
 		{Field: "mime_type", Operator: "starts_with", Value: "image/", Action: "set_project"},
@@ -131,6 +141,7 @@ func TestEvaluateRules_SetProjectOverride(t *testing.T) {
 }
 
 func TestEvaluateRules_SetFolderOverride(t *testing.T) {
+	t.Parallel()
 	// Value = "pdf" is both the match operand (ends_with) and the folder ID.
 	rules := []dbgen.IngressRule{
 		{Field: "filename", Operator: "ends_with", Value: "pdf", Action: "set_folder"},
@@ -145,6 +156,7 @@ func TestEvaluateRules_SetFolderOverride(t *testing.T) {
 }
 
 func TestEvaluateRules_LastSetFolderWins(t *testing.T) {
+	t.Parallel()
 	// Both rules match "report.pdf" via contains; last set_folder wins.
 	rules := []dbgen.IngressRule{
 		{Field: "filename", Operator: "contains", Value: "report", Action: "set_folder"},
@@ -168,6 +180,7 @@ func TestEvaluateRules_LastSetFolderWins(t *testing.T) {
 // --- deny short-circuits everything
 
 func TestEvaluateRules_DenyShortCircuits(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		{Field: "filename", Operator: "contains", Value: "bad", Action: "deny"},
 		{Field: "filename", Operator: "contains", Value: "bad", Action: "set_folder"},
@@ -185,6 +198,7 @@ func TestEvaluateRules_DenyShortCircuits(t *testing.T) {
 // --- operator coverage: equals (case-insensitive)
 
 func TestMatchesRule_EqualsIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		{Field: "mime_type", Operator: "equals", Value: "IMAGE/JPEG", Action: "deny"},
 	}
@@ -195,6 +209,7 @@ func TestMatchesRule_EqualsIsCaseInsensitive(t *testing.T) {
 }
 
 func TestMatchesRule_StartsWithIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		{Field: "mime_type", Operator: "starts_with", Value: "IMAGE/", Action: "deny"},
 	}
@@ -205,6 +220,7 @@ func TestMatchesRule_StartsWithIsCaseInsensitive(t *testing.T) {
 }
 
 func TestMatchesRule_EndsWithIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		{Field: "filename", Operator: "ends_with", Value: ".PDF", Action: "deny"},
 	}
@@ -215,6 +231,7 @@ func TestMatchesRule_EndsWithIsCaseInsensitive(t *testing.T) {
 }
 
 func TestMatchesRule_ContainsIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		{Field: "filename", Operator: "contains", Value: "INVOICE", Action: "deny"},
 	}
@@ -227,6 +244,7 @@ func TestMatchesRule_ContainsIsCaseInsensitive(t *testing.T) {
 // --- unknown field / operator
 
 func TestMatchesRule_UnknownField_SkipsRule(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		{Field: "sender", Operator: "equals", Value: "foo@bar.com", Action: "deny"},
 	}
@@ -237,6 +255,7 @@ func TestMatchesRule_UnknownField_SkipsRule(t *testing.T) {
 }
 
 func TestMatchesRule_UnknownOperator_SkipsRule(t *testing.T) {
+	t.Parallel()
 	rules := []dbgen.IngressRule{
 		{Field: "filename", Operator: "regex", Value: ".*\\.pdf", Action: "deny"},
 	}

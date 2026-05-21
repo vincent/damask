@@ -21,7 +21,7 @@ import (
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -90,7 +90,7 @@ func uploadTestVideoAsset(t *testing.T, env *th.TestEnv, filename string, cookie
 func assignSystemTagToAsset(t *testing.T, env *th.TestEnv, cookie *http.Cookie, assetID, tagName string) {
 	t.Helper()
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/tags",
-		th.JsonBody(map[string]string{"name": tagName}), cookie)
+		th.JSONBody(map[string]string{"name": tagName}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("assign tag: %v", err)
@@ -111,7 +111,7 @@ func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID s
 
 	// Resolve the current version ID for this asset.
 	var versionID string
-	row := env.SqlDB.QueryRowContext(ctx,
+	row := env.Database.QueryRowContext(ctx,
 		`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, assetID)
 	if err := row.Scan(&versionID); err != nil {
 		t.Fatalf("resolve current version for asset %s: %v", assetID, err)
@@ -120,7 +120,7 @@ func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID s
 	storageKey := fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID)
 	_ = env.Storage.Put(storageKey, bytes.NewReader([]byte("dummy variant content")))
 
-	_, err := env.SqlDB.ExecContext(ctx, `
+	_, err := env.Database.ExecContext(ctx, `
 		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)
 		VALUES (?, ?, ?, 'image_resize', ?, '{"width":100}', 1024)
 	`, variantID, workspaceID, versionID, storageKey)
@@ -129,7 +129,7 @@ func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID s
 	}
 
 	var v dbgen.Variant
-	scanRow := env.SqlDB.QueryRowContext(ctx,
+	scanRow := env.Database.QueryRowContext(ctx,
 		`SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, created_at FROM variants WHERE id = ?`, variantID)
 	if err := scanRow.Scan(&v.ID, &v.WorkspaceID, &v.AssetVersionID, &v.Type, &v.StorageKey, &v.TransformParams, &v.Size, &v.CreatedAt); err != nil {
 		t.Fatalf("scan variant: %v", err)
@@ -214,7 +214,7 @@ func TestCreateVariant_InvalidType(t *testing.T) {
 
 	params := json.RawMessage(`{}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "invalid_type", Params: params}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "invalid_type", Params: params}), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
@@ -226,7 +226,7 @@ func TestCreateVariant_VideoOnImage(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "video_capture_image", Params: json.RawMessage(`{}`)}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "video_capture_image", Params: json.RawMessage(`{}`)}), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
@@ -241,7 +241,7 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 
 	paramsData := json.RawMessage(`{"opacity":0.5,"format":"jpeg"}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "image_watermark", Params: paramsData}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "image_watermark", Params: paramsData}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -260,7 +260,7 @@ func TestCreateVariant_WatermarkQueued(t *testing.T) {
 	}
 
 	var payload string
-	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+	if err := env.Database.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
 		t.Fatalf("load job payload: %v", err)
 	}
 	var jobPayload map[string]any
@@ -284,7 +284,7 @@ func TestCreateVariant_VideoWatermarkQueued(t *testing.T) {
 
 	paramsData := json.RawMessage(`{"opacity":0.35,"format":"webm","strip_audio":true}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "video_watermark", Params: paramsData}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "video_watermark", Params: paramsData}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -300,7 +300,7 @@ func TestCreateVariant_VideoWatermarkQueued(t *testing.T) {
 	}
 
 	var payload string
-	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+	if err := env.Database.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
 		t.Fatalf("load job payload: %v", err)
 	}
 	var jobPayload map[string]any
@@ -321,7 +321,7 @@ func TestCreateVariant_WatermarkMissingReturns422(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{
+		th.JSONBody(api.CreateVariantRequest{
 			Type:   "image_watermark",
 			Params: json.RawMessage(`{"opacity":0.5}`),
 		}), cookie)
@@ -367,7 +367,7 @@ func TestCreateVariant_ResizeQueued(t *testing.T) {
 
 	paramsData := json.RawMessage(`{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}`)
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: paramsData}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "image_resize", Params: paramsData}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -391,7 +391,7 @@ func TestCreateVariant_BgRemoveNoKey(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 (no API key), got %d", resp.StatusCode)
@@ -403,7 +403,7 @@ func TestCreateVariant_ImageBgRemoveQueued(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -415,7 +415,7 @@ func TestCreateVariant_ImageBgRemoveQueued(t *testing.T) {
 	var result api.CreateVariantResponse
 	_ = json.NewDecoder(resp.Body).Decode(&result)
 	var payload string
-	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+	if err := env.Database.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
 		t.Fatalf("load job payload: %v", err)
 	}
 	if !strings.Contains(payload, `"model":"bria/remove-background"`) {
@@ -428,7 +428,7 @@ func TestCreateVariant_ImageWithPromptQueued(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{
+		th.JSONBody(api.CreateVariantRequest{
 			Type:   "image_with_prompt",
 			Params: json.RawMessage(`{"prompt":"  add fog  "}`),
 		}), cookie)
@@ -443,7 +443,7 @@ func TestCreateVariant_ImageWithPromptQueued(t *testing.T) {
 	var result api.CreateVariantResponse
 	_ = json.NewDecoder(resp.Body).Decode(&result)
 	var payload string
-	if err := env.SqlDB.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
+	if err := env.Database.QueryRow(`SELECT payload FROM jobs WHERE id = ?`, result.JobID).Scan(&payload); err != nil {
 		t.Fatalf("load job payload: %v", err)
 	}
 	if !strings.Contains(payload, `"prompt":"add fog"`) {
@@ -456,7 +456,7 @@ func TestCreateVariant_ImageWithPromptMissingPrompt(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{
+		th.JSONBody(api.CreateVariantRequest{
 			Type:   "image_with_prompt",
 			Params: json.RawMessage(`{"prompt":"  "}`),
 		}), cookie)
@@ -471,7 +471,7 @@ func TestCreateVariant_ImageWithPromptRequiresAPIKey(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{
+		th.JSONBody(api.CreateVariantRequest{
 			Type:   "image_with_prompt",
 			Params: json.RawMessage(`{"prompt":"add fog"}`),
 		}), cookie)
@@ -486,7 +486,7 @@ func TestCreateVariant_BgRemoveOldTypeRejected(t *testing.T) {
 	assetID, cookie := createTestAsset(t, env)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "bg_remove", Params: json.RawMessage(`{}`)}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "bg_remove", Params: json.RawMessage(`{}`)}), cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
@@ -503,7 +503,7 @@ func TestCreateVariant_ImageRouterDemoBlocked(t *testing.T) {
 	}
 
 	req := th.BearerRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), token)
+		th.JSONBody(api.CreateVariantRequest{Type: "image_bg_remove", Params: json.RawMessage(`{}`)}), token)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
@@ -706,7 +706,7 @@ func TestCreateVariant_ViewerForbidden(t *testing.T) {
 
 	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, auth.Viewer)
 	createReq := th.BearerRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: json.RawMessage(`{"width":100}`)}), viewerToken)
+		th.JSONBody(api.CreateVariantRequest{Type: "image_resize", Params: json.RawMessage(`{"width":100}`)}), viewerToken)
 	createResp, _ := env.App.Test(createReq)
 	if createResp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for viewer create variant, got %d", createResp.StatusCode)
@@ -724,7 +724,7 @@ func TestCreateVariant_BlockedDuringRebuild(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&a)
 
 	var versionID string
-	_ = env.SqlDB.QueryRow(
+	_ = env.Database.QueryRow(
 		`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, assetID,
 	).Scan(&versionID)
 	if versionID == "" {
@@ -734,7 +734,7 @@ func TestCreateVariant_BlockedDuringRebuild(t *testing.T) {
 	// Simulate an in-flight rebuild by inserting a pending rebuild_variants job.
 	// Use the real workspace_id to satisfy the FK constraint.
 	payload := fmt.Sprintf(`{"asset_id":%q,"new_version_id":%q,"source_version_id":"old"}`, assetID, versionID)
-	_, err := env.SqlDB.Exec(
+	_, err := env.Database.Exec(
 		`INSERT INTO jobs (id, workspace_id, type, payload, status, created_at)
 		 VALUES ('rebuild-job-1', ?, 'rebuild_variants', ?, 'pending', datetime('now'))`,
 		a.WorkspaceID, payload,
@@ -745,7 +745,7 @@ func TestCreateVariant_BlockedDuringRebuild(t *testing.T) {
 
 	resizeParams := json.RawMessage(`{"width":200,"height":200,"fit":"contain","quality":80,"format":"jpeg"}`)
 	createReq := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
-		th.JsonBody(api.CreateVariantRequest{Type: "image_resize", Params: resizeParams}), cookie)
+		th.JSONBody(api.CreateVariantRequest{Type: "image_resize", Params: resizeParams}), cookie)
 	createResp, _ := env.App.Test(createReq)
 	if createResp.StatusCode != http.StatusConflict {
 		t.Fatalf("expected 409 while rebuild in-flight, got %d", createResp.StatusCode)

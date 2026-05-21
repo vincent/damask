@@ -8,7 +8,7 @@ import (
 
 // demoRestrictedResponse is the standard 403 body for blocked demo actions.
 var demoRestrictedResponse = fiber.Map{
-	"error":      "not_available_in_demo",
+	apiErrorKey:  "not_available_in_demo",
 	"message":    "This action is not available in the demo. Sign up for a free account to unlock it.",
 	"signup_url": "/signup",
 }

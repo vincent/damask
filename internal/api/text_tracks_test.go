@@ -31,10 +31,10 @@ func TestListTextTracksReturnsTracks(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	token := env.MintToken(t, "usr_1", "ws_1")
 	asset := textTrackTestAsset()
-	env.Assets.GetFn = func(_ context.Context, workspaceID, assetID string) (*service.AssetDTO, error) {
+	env.Assets.GetFn = func(_ context.Context, _, _ string) (*service.AssetDTO, error) {
 		return asset, nil
 	}
-	env.TextTracks.ListFn = func(_ context.Context, workspaceID, assetID string) ([]service.TextTrackDTO, error) {
+	env.TextTracks.ListFn = func(_ context.Context, _, _ string) ([]service.TextTrackDTO, error) {
 		return []service.TextTrackDTO{{
 			ID:        "tt_1",
 			AssetID:   asset.ID,
@@ -66,7 +66,7 @@ func TestCreateManualTextTrackReturnsOK(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	token := env.MintToken(t, "usr_1", "ws_1")
 	asset := textTrackTestAsset()
-	env.Assets.GetFn = func(_ context.Context, workspaceID, assetID string) (*service.AssetDTO, error) {
+	env.Assets.GetFn = func(_ context.Context, _, _ string) (*service.AssetDTO, error) {
 		return asset, nil
 	}
 	env.TextTracks.CreateFn = func(_ context.Context, p service.CreateTextTrackParams) (service.TextTrackDTO, error) {
@@ -84,10 +84,15 @@ func TestCreateManualTextTrackReturnsOK(t *testing.T) {
 		}, nil
 	}
 
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/text-tracks", testutil.JsonBody(api.CreateTextTrackRequest{
-		Source: "manual",
-		Params: map[string]any{"content": "hello world"},
-	}), token)
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/assets/ast_1/text-tracks",
+		testutil.JSONBody(api.CreateTextTrackRequest{
+			Source: "manual",
+			Params: map[string]any{"content": "hello world"},
+		}),
+		token,
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -100,14 +105,19 @@ func TestCreateOCRUnsupportedMIMEReturns422(t *testing.T) {
 	token := env.MintToken(t, "usr_1", "ws_1")
 	asset := textTrackTestAsset()
 	asset.MimeType = "application/pdf"
-	env.Assets.GetFn = func(_ context.Context, workspaceID, assetID string) (*service.AssetDTO, error) {
+	env.Assets.GetFn = func(_ context.Context, _, _ string) (*service.AssetDTO, error) {
 		return asset, nil
 	}
 
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/assets/ast_1/text-tracks", testutil.JsonBody(api.CreateTextTrackRequest{
-		Source: "ocr",
-		Params: map[string]any{"output_format": "txt"},
-	}), token)
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/assets/ast_1/text-tracks",
+		testutil.JSONBody(api.CreateTextTrackRequest{
+			Source: "ocr",
+			Params: map[string]any{"output_format": "txt"},
+		}),
+		token,
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)

@@ -12,14 +12,14 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/ingress"
 	_ "damask/server/internal/ingress/sources/email_api"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 )
 
 // createIngressSource is a test helper that POSTs to /api/v1/ingress/sources
 // and returns the parsed response. Fails the test if status != 201.
 func createIngressSource(t *testing.T, env *th.TestEnv, cookie *http.Cookie, body string) map[string]any {
 	t.Helper()
-	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources", th.JsonStr(body), cookie)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources", th.JSONStr(body), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("createIngressSource request: %v", err)
@@ -83,7 +83,7 @@ func TestCreateIngressSource_MissingType(t *testing.T) {
 	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources",
-		th.JsonStr(`{"label":"No type","config":{}}`), user.Cookie)
+		th.JSONStr(`{"label":"No type","config":{}}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for missing type, got %d", resp.StatusCode)
@@ -95,7 +95,7 @@ func TestCreateIngressSource_MissingLabel(t *testing.T) {
 	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources",
-		th.JsonStr(`{"type":"imap","config":{}}`), user.Cookie)
+		th.JSONStr(`{"type":"imap","config":{}}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for missing label, got %d", resp.StatusCode)
@@ -106,7 +106,7 @@ func TestCreateIngressSource_Unauthenticated(t *testing.T) {
 	env := th.SetupTestApp(t)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources",
-		th.JsonStr(`{"type":"imap","label":"x","config":{}}`), nil)
+		th.JSONStr(`{"type":"imap","label":"x","config":{}}`), nil)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.StatusCode)
@@ -230,7 +230,7 @@ func TestUpdateIngressSource_Label(t *testing.T) {
 	id := created["id"].(string)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
-		th.JsonStr(`{"label":"New Label"}`), user.Cookie)
+		th.JSONStr(`{"label":"New Label"}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -254,7 +254,7 @@ func TestUpdateIngressSource_EnabledFlag(t *testing.T) {
 
 	// Disable it
 	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
-		th.JsonStr(`{"enabled":false}`), user.Cookie)
+		th.JSONStr(`{"enabled":false}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -277,7 +277,7 @@ func TestUpdateIngressSource_ConfigUpdated(t *testing.T) {
 	id := created["id"].(string)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id,
-		th.JsonStr(`{"config":{"host":"new.example.com","password":"newpass"}}`), user.Cookie)
+		th.JSONStr(`{"config":{"host":"new.example.com","password":"newpass"}}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -300,7 +300,7 @@ func TestUpdateIngressSource_NotFound(t *testing.T) {
 	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/nonexistent",
-		th.JsonStr(`{"label":"x"}`), user.Cookie)
+		th.JSONStr(`{"label":"x"}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
@@ -454,7 +454,7 @@ func TestDeleteIngressLogEntry_WrongWorkspace(t *testing.T) {
 
 	// Insert a log entry directly for Alice's source
 	entryID := "test-entry-id"
-	_, err := env.SqlDB.Exec(
+	_, err := env.Database.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status)
 		 VALUES (?, ?, ?, ?, 'imported')`,
 		entryID, sourceID, "msg-001", "photo.jpg",
@@ -491,7 +491,7 @@ func TestRetryIngressLogEntry_ImportedEntryNotRetryable(t *testing.T) {
 	sourceID := created["id"].(string)
 
 	entryID := "test-entry-imported"
-	_, err := env.SqlDB.Exec(
+	_, err := env.Database.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status)
 		 VALUES (?, ?, ?, ?, 'imported')`,
 		entryID, sourceID, "msg-002", "photo.jpg",
@@ -517,7 +517,7 @@ func TestRetryIngressLogEntry_ErrorEntryRequeued(t *testing.T) {
 
 	entryID := "test-entry-error"
 	errMsg := "connection refused"
-	_, err := env.SqlDB.Exec(
+	_, err := env.Database.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status, error)
 		 VALUES (?, ?, ?, ?, 'error', ?)`,
 		entryID, sourceID, "msg-003", "photo.jpg", errMsg,
@@ -549,7 +549,7 @@ func TestRetryIngressLogEntry_SkippedEntryRequeued(t *testing.T) {
 	sourceID := created["id"].(string)
 
 	entryID := "test-entry-skipped"
-	_, err := env.SqlDB.Exec(
+	_, err := env.Database.Exec(
 		`INSERT INTO ingress_log (id, source_id, remote_id, filename, status)
 		 VALUES (?, ?, ?, ?, 'skipped')`,
 		entryID, sourceID, "msg-004", "invoice.pdf",
@@ -704,7 +704,7 @@ func TestRedactConfig(t *testing.T) {
 // createRule is a test helper: POST /api/v1/ingress/sources/:id/rules
 func createRule(t *testing.T, env *th.TestEnv, cookie *http.Cookie, sourceID, body string) map[string]any {
 	t.Helper()
-	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/"+sourceID+"/rules", th.JsonStr(body), cookie)
+	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/"+sourceID+"/rules", th.JSONStr(body), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("createRule request: %v", err)
@@ -801,7 +801,7 @@ func TestCreateIngressRule_MissingFields(t *testing.T) {
 	id := src["id"].(string)
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
-		th.JsonStr(`{"position":0,"field":"filename"}`), user.Cookie)
+		th.JSONStr(`{"position":0,"field":"filename"}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for missing fields, got %d", resp.StatusCode)
@@ -815,7 +815,7 @@ func TestCreateIngressRule_RequiresEditor(t *testing.T) {
 
 	viewerToken := th.MintEditorToken(t, env, owner.WorkspaceID, auth.Viewer)
 	req := th.BearerRequest(http.MethodPost, "/api/v1/ingress/sources/"+id+"/rules",
-		th.JsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
+		th.JSONStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
 		viewerToken)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusForbidden {
@@ -828,7 +828,7 @@ func TestCreateIngressRule_SourceNotFound(t *testing.T) {
 	user := th.Register(t, env, "Alice", "alice@example.com", "password123")
 
 	req := th.AuthRequest(http.MethodPost, "/api/v1/ingress/sources/nonexistent/rules",
-		th.JsonStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
+		th.JSONStr(`{"position":0,"field":"filename","operator":"equals","value":"x","action":"deny"}`),
 		user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
@@ -880,7 +880,7 @@ func TestUpdateIngressRule_Success(t *testing.T) {
 	rid := rule["id"].(string)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+srcID+"/rules/"+rid,
-		th.JsonStr(`{"position":5,"action":"deny"}`), user.Cookie)
+		th.JSONStr(`{"position":5,"action":"deny"}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -908,7 +908,7 @@ func TestUpdateIngressRule_NotFound(t *testing.T) {
 	id := src["id"].(string)
 
 	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id+"/rules/nonexistent",
-		th.JsonStr(`{"action":"deny"}`), user.Cookie)
+		th.JSONStr(`{"action":"deny"}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
@@ -930,7 +930,7 @@ func TestUpdateIngressRule_WrongSource(t *testing.T) {
 
 	// Try to update rule belonging to src1 via src2's URL
 	req := th.AuthRequest(http.MethodPut, "/api/v1/ingress/sources/"+id2+"/rules/"+rid,
-		th.JsonStr(`{"action":"allow"}`), user.Cookie)
+		th.JSONStr(`{"action":"allow"}`), user.Cookie)
 	resp, _ := env.App.Test(req)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 when rule doesn't belong to source, got %d", resp.StatusCode)
@@ -998,7 +998,7 @@ func TestCreateIngressSource_EmailAPI_GeneratesIngestToken(t *testing.T) {
 	// Verify the token was actually stored (non-empty) by reading from the DB.
 	srcID := src["id"].(string)
 	var encryptedConfig string
-	if err := env.SqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
+	if err := env.Database.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
 		t.Fatalf("query ingress_sources: %v", err)
 	}
 	configJSON, err := ingress.DecryptConfig("test-app-secret-for-tests!!", encryptedConfig)
@@ -1024,7 +1024,7 @@ func TestCreateIngressSource_EmailAPI_TokenIsServerGenerated(t *testing.T) {
 
 	srcID := src["id"].(string)
 	var encryptedConfig string
-	if err := env.SqlDB.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
+	if err := env.Database.QueryRow("SELECT config FROM ingress_sources WHERE id = ?", srcID).Scan(&encryptedConfig); err != nil {
 		t.Fatalf("query ingress_sources: %v", err)
 	}
 	configJSON, err := ingress.DecryptConfig("test-app-secret-for-tests!!", encryptedConfig)

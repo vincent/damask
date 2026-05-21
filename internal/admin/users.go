@@ -12,7 +12,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const usersPageSize = 50
+const (
+	usersPageSize = 50
+	keyEnter      = "enter"
+)
 
 // ─── messages ────────────────────────────────────────────────
 
@@ -88,7 +91,7 @@ func (m UsersModel) Update(msg tea.Msg) (UsersModel, tea.Cmd) {
 				m.search = ""
 				m.page = 0
 				return m, m.loadCmd()
-			case "enter":
+			case keyEnter:
 				m.typing = false
 				m.page = 0
 				return m, m.loadCmd()
@@ -144,10 +147,7 @@ func (m UsersModel) View() string {
 
 	// Header row with pagination info
 	start := m.page*usersPageSize + 1
-	end := start + len(m.rows) - 1
-	if end < start {
-		end = start
-	}
+	end := max(start+len(m.rows)-1, start)
 	pagination := MutedStyle.Render(fmt.Sprintf("Showing %d–%d of %d", start, end, m.total))
 	var filterInfo string
 	if m.search != "" {
@@ -246,7 +246,7 @@ type searchDebounceMsg struct{ query string }
 
 func (m UsersModel) debounceSearchCmd() tea.Cmd {
 	q := m.search
-	return tea.Tick(300*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(300*time.Millisecond, func(_ time.Time) tea.Msg {
 		return searchDebounceMsg{query: q}
 	})
 }
@@ -271,10 +271,10 @@ func timeAgo(t time.Time) string {
 	}
 }
 
-func truncate(s string, max int) string {
+func truncate(s string, maxLength int) string {
 	runes := []rune(s)
-	if len(runes) <= max {
+	if len(runes) <= maxLength {
 		return s
 	}
-	return string(runes[:max-1]) + "…"
+	return string(runes[:maxLength-1]) + "…"
 }

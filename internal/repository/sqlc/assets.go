@@ -42,7 +42,7 @@ func (r *assetRepo) GetByID(ctx context.Context, workspaceID, id string) (reposi
 func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]repository.Asset, error) {
 	var joins []string
 	var where []string
-	var args []interface{}
+	var args []any
 
 	// Base table alias differs when joining for taken_at sort.
 	from := "assets a"
@@ -50,16 +50,17 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	where = append(where, "a.workspace_id = ?")
 	args = append(args, p.WorkspaceID)
 
-	if p.FolderIsRoot {
+	switch {
+	case p.FolderIsRoot:
 		where = append(where, "a.folder_id IS NULL")
 		if p.ProjectID != nil {
 			where = append(where, "a.project_id = ?")
 			args = append(args, *p.ProjectID)
 		}
-	} else if p.FolderID != nil {
+	case p.FolderID != nil:
 		where = append(where, "a.folder_id = ?")
 		args = append(args, *p.FolderID)
-	} else if p.ProjectID != nil {
+	case p.ProjectID != nil:
 		where = append(where, "a.project_id = ?")
 		args = append(args, *p.ProjectID)
 	}
@@ -84,7 +85,10 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	}
 
 	if p.SearchQuery != "" {
-		where = append(where, "(a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?) OR a.id IN (SELECT asset_id FROM assets_text_fts WHERE workspace_id = ? AND assets_text_fts MATCH ?))")
+		where = append(
+			where,
+			"(a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?) OR a.id IN (SELECT asset_id FROM assets_text_fts WHERE workspace_id = ? AND assets_text_fts MATCH ?))",
+		)
 		args = append(args, p.SearchQuery+"*", p.WorkspaceID, p.SearchQuery+"*")
 	}
 
@@ -138,7 +142,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	case "taken_at":
 		joins = append(joins, "LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?")
 		// ExifFieldID goes before WHERE args — prepend it.
-		newArgs := []interface{}{p.ExifFieldID}
+		newArgs := []any{p.ExifFieldID}
 		newArgs = append(newArgs, args...)
 		args = newArgs
 		dir := "ASC"
@@ -166,7 +170,10 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 		 WHERE %s
 		 ORDER BY %s
 		 LIMIT ?`,
-		from, joinSQL, strings.Join(where, " AND "), orderBy,
+		from,
+		joinSQL,
+		strings.Join(where, " AND "),
+		orderBy,
 	)
 
 	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
@@ -368,7 +375,10 @@ func (r *assetRepo) RefreshFTS(ctx context.Context, assetID string) error {
 	return nil
 }
 
-func (r *assetRepo) ListByFields(ctx context.Context, params repository.ListAssetsByFieldsParams) ([]repository.Asset, error) {
+func (r *assetRepo) ListByFields(
+	ctx context.Context,
+	params repository.ListAssetsByFieldsParams,
+) ([]repository.Asset, error) {
 	filters := params.FieldFilters
 	if len(filters) == 0 {
 		return nil, nil
@@ -376,21 +386,23 @@ func (r *assetRepo) ListByFields(ctx context.Context, params repository.ListAsse
 
 	joins := make([]string, len(filters))
 	whereFilters := make([]string, len(filters))
-	var joinArgs []interface{}
-	var valueArgs []interface{}
+	var joinArgs []any
+	var valueArgs []any
 
 	for i, f := range filters {
 		alias := fmt.Sprintf("v%d", i+1)
 		joins[i] = fmt.Sprintf(
 			`JOIN asset_field_values %s ON %s.asset_id = a.id AND %s.field_id = (SELECT id FROM field_definitions WHERE workspace_id = ? AND key = ? AND deleted_at IS NULL LIMIT 1)`,
-			alias, alias, alias,
+			alias,
+			alias,
+			alias,
 		)
 		joinArgs = append(joinArgs, params.WorkspaceID, f.Key)
 		whereFilters[i] = fieldFilterSQL(f, alias)
 		valueArgs = append(valueArgs, fieldFilterArgs(f)...)
 	}
 
-	var args []interface{}
+	var args []any
 	args = append(args, joinArgs...)
 	args = append(args, params.WorkspaceID)
 	args = append(args, valueArgs...)
@@ -444,38 +456,77 @@ func (r *assetRepo) ListByFields(ctx context.Context, params repository.ListAsse
 // fieldFilterSQL returns the SQL WHERE clause for one filter using the given table alias.
 // Only the alias (internally controlled) and operator (validated allowlist) appear in the format string.
 func fieldFilterSQL(f repository.FieldFilter, alias string) string {
-	textCol := fmt.Sprintf("COALESCE(%s.value_text, %s.value_date, CAST(%s.value_boolean AS TEXT))", alias, alias, alias)
+	textCol := fmt.Sprintf(
+		"COALESCE(%s.value_text, %s.value_date, CAST(%s.value_boolean AS TEXT))",
+		alias,
+		alias,
+		alias,
+	)
 	numCol := fmt.Sprintf("CAST(%s.value_number AS REAL)", alias)
 	switch f.Operator {
 	case "eq":
-		return fmt.Sprintf("COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
-			alias, alias, alias, alias)
+		return fmt.Sprintf(
+			"COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
+			alias,
+			alias,
+			alias,
+			alias,
+		)
 	case "lt":
-		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s < ? OR %s.value_number IS NULL AND %s < ?)", alias, numCol, alias, textCol)
+		return fmt.Sprintf(
+			"(%s.value_number IS NOT NULL AND %s < ? OR %s.value_number IS NULL AND %s < ?)",
+			alias,
+			numCol,
+			alias,
+			textCol,
+		)
 	case "lte":
-		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s <= ? OR %s.value_number IS NULL AND %s <= ?)", alias, numCol, alias, textCol)
+		return fmt.Sprintf(
+			"(%s.value_number IS NOT NULL AND %s <= ? OR %s.value_number IS NULL AND %s <= ?)",
+			alias,
+			numCol,
+			alias,
+			textCol,
+		)
 	case "gt":
-		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s > ? OR %s.value_number IS NULL AND %s > ?)", alias, numCol, alias, textCol)
+		return fmt.Sprintf(
+			"(%s.value_number IS NOT NULL AND %s > ? OR %s.value_number IS NULL AND %s > ?)",
+			alias,
+			numCol,
+			alias,
+			textCol,
+		)
 	case "gte":
-		return fmt.Sprintf("(%s.value_number IS NOT NULL AND %s >= ? OR %s.value_number IS NULL AND %s >= ?)", alias, numCol, alias, textCol)
+		return fmt.Sprintf(
+			"(%s.value_number IS NOT NULL AND %s >= ? OR %s.value_number IS NULL AND %s >= ?)",
+			alias,
+			numCol,
+			alias,
+			textCol,
+		)
 	case "contains":
 		return fmt.Sprintf("%s.value_text LIKE ?", alias)
 	case "starts_with":
 		return fmt.Sprintf("%s.value_text LIKE ?", alias)
 	}
-	return fmt.Sprintf("COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
-		alias, alias, alias, alias)
+	return fmt.Sprintf(
+		"COALESCE(%s.value_text, CAST(%s.value_number AS TEXT), %s.value_date, CAST(%s.value_boolean AS TEXT)) = ?",
+		alias,
+		alias,
+		alias,
+		alias,
+	)
 }
 
 // fieldFilterArgs returns the SQL argument(s) for the filter operator.
-func fieldFilterArgs(f repository.FieldFilter) []interface{} {
+func fieldFilterArgs(f repository.FieldFilter) []any {
 	switch f.Operator {
 	case "contains":
-		return []interface{}{"%" + f.Value + "%"}
+		return []any{"%" + f.Value + "%"}
 	case "starts_with":
-		return []interface{}{f.Value + "%"}
+		return []any{f.Value + "%"}
 	case "lt", "lte", "gt", "gte":
-		return []interface{}{f.Value, f.Value}
+		return []any{f.Value, f.Value}
 	default: // eq
 		v := f.Value
 		switch strings.ToLower(v) {
@@ -484,7 +535,7 @@ func fieldFilterArgs(f repository.FieldFilter) []interface{} {
 		case "false":
 			v = "0"
 		}
-		return []interface{}{v}
+		return []any{v}
 	}
 }
 
@@ -510,7 +561,10 @@ func toAsset(a dbgen.Asset) repository.Asset {
 	}
 }
 
-func (r *assetRepo) CollectStorageKeys(ctx context.Context, workspaceID, assetID string) (repository.AssetStorageKeys, error) {
+func (r *assetRepo) CollectStorageKeys(
+	ctx context.Context,
+	workspaceID, assetID string,
+) (repository.AssetStorageKeys, error) {
 	asset, err := r.q.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: assetID, WorkspaceID: workspaceID})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -540,7 +594,12 @@ func (r *assetRepo) CollectStorageKeys(ctx context.Context, workspaceID, assetID
 		}
 		out.VersionKeys = append(out.VersionKeys, vk)
 	}
-	textTrackRows, err := r.sqlDB.QueryContext(ctx, `SELECT storage_key FROM asset_text_tracks WHERE asset_id = ? AND workspace_id = ? AND storage_key IS NOT NULL`, assetID, workspaceID)
+	textTrackRows, err := r.sqlDB.QueryContext(
+		ctx,
+		`SELECT storage_key FROM asset_text_tracks WHERE asset_id = ? AND workspace_id = ? AND storage_key IS NOT NULL`,
+		assetID,
+		workspaceID,
+	)
 	if err != nil {
 		return repository.AssetStorageKeys{}, err
 	}
@@ -573,7 +632,7 @@ func (r *assetRepo) CountVariantsByCurrentVersion(ctx context.Context, assetID s
 		`SELECT COALESCE(current_version_id, '') FROM assets WHERE id = ?`, assetID,
 	).Scan(&currentVersionID)
 	if err != nil || currentVersionID == "" {
-		return 0, nil
+		return 0, nil //nolint:nilerr
 	}
 	return r.q.CountVariantsByVersion(ctx, currentVersionID)
 }
@@ -632,55 +691,43 @@ func (r *assetRepo) BatchVariantCounts(ctx context.Context, assetIDs []string) (
 
 // batchVersionCounts returns version counts for a slice of asset IDs.
 func (r *assetRepo) batchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
-	counts := make(map[string]int64, len(assetIDs))
-	if len(assetIDs) == 0 {
-		return counts, nil
-	}
-	placeholders := make([]string, len(assetIDs))
-	args := make([]any, len(assetIDs))
-	for i, id := range assetIDs {
-		placeholders[i] = "?"
-		args[i] = id
-	}
 	query := fmt.Sprintf(
 		`SELECT asset_id, COUNT(*) FROM asset_versions WHERE deleted_at IS NULL AND asset_id IN (%s) GROUP BY asset_id`,
-		strings.Join(placeholders, ","),
+		batchCountPlaceholders(assetIDs),
 	)
-	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return counts, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		var n int64
-		if err := rows.Scan(&id, &n); err == nil {
-			counts[id] = n
-		}
-	}
-	return counts, rows.Err()
+	return r.batchCounts(ctx, assetIDs, query)
 }
 
 // batchVariantCounts returns variant counts (on current version) for a slice of asset IDs.
 func (r *assetRepo) batchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
-	counts := make(map[string]int64, len(assetIDs))
-	if len(assetIDs) == 0 {
-		return counts, nil
-	}
-	placeholders := make([]string, len(assetIDs))
-	args := make([]any, len(assetIDs))
-	for i, id := range assetIDs {
-		placeholders[i] = "?"
-		args[i] = id
-	}
 	query := fmt.Sprintf(
 		`SELECT av.asset_id, COUNT(v.id)
 		   FROM asset_versions av
 		   JOIN variants v ON v.asset_version_id = av.id
 		  WHERE av.is_current = 1 AND av.asset_id IN (%s)
 		  GROUP BY av.asset_id`,
-		strings.Join(placeholders, ","),
+		batchCountPlaceholders(assetIDs),
 	)
+	return r.batchCounts(ctx, assetIDs, query)
+}
+
+func batchCountPlaceholders(assetIDs []string) string {
+	placeholders := make([]string, len(assetIDs))
+	for i := range assetIDs {
+		placeholders[i] = "?"
+	}
+	return strings.Join(placeholders, ",")
+}
+
+func (r *assetRepo) batchCounts(ctx context.Context, assetIDs []string, query string) (map[string]int64, error) {
+	counts := make(map[string]int64, len(assetIDs))
+	if len(assetIDs) == 0 {
+		return counts, nil
+	}
+	args := make([]any, len(assetIDs))
+	for i, id := range assetIDs {
+		args[i] = id
+	}
 	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return counts, err

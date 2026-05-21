@@ -20,12 +20,19 @@ type watermarkService struct {
 	assets repository.AssetRepository
 }
 
-func NewWatermarkService(db *dbgen.Queries, assets repository.AssetRepository, folders repository.FolderRepository) WatermarkService {
+func NewWatermarkService(
+	db *dbgen.Queries,
+	assets repository.AssetRepository,
+	folders repository.FolderRepository,
+) WatermarkService {
 	_ = folders
 	return &watermarkService{db: db, assets: assets}
 }
 
-func (s *watermarkService) ResolveWatermarkAsset(ctx context.Context, workspaceID, assetID string) (*WatermarkAssetDTO, error) {
+func (s *watermarkService) ResolveWatermarkAsset(
+	ctx context.Context,
+	workspaceID, assetID string,
+) (*WatermarkAssetDTO, error) {
 	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 	if err != nil {
 		return nil, err

@@ -168,7 +168,11 @@ func (r *fieldRepo) ListImageAssetIDs(ctx context.Context, workspaceID string) (
 	return r.q.ListImageAssetIDs(ctx, workspaceID)
 }
 
-func (r *fieldRepo) ListMissingExifField(ctx context.Context, workspaceID, fieldID string, limit int64) ([]string, error) {
+func (r *fieldRepo) ListMissingExifField(
+	ctx context.Context,
+	workspaceID, fieldID string,
+	limit int64,
+) ([]string, error) {
 	return r.q.ListAssetsMissingExifField(ctx, dbgen.ListAssetsMissingExifFieldParams{
 		FieldID:     fieldID,
 		WorkspaceID: workspaceID,
@@ -226,8 +230,19 @@ func (r *assetFieldRepo) GetValues(ctx context.Context, assetID string) ([]repos
 	}
 	out := make([]repository.FieldValue, len(rows))
 	for i, row := range rows {
-		out[i] = toFieldValue(row.FieldID, row.FieldKey, row.FieldName, row.FieldType, row.FieldSource, row.FieldOptions,
-			row.ValueText, row.ValueNumber, row.ValueDate, row.ValueBoolean, row.DefinitionDeleted)
+		out[i] = toFieldValue(
+			row.FieldID,
+			row.FieldKey,
+			row.FieldName,
+			row.FieldType,
+			row.FieldSource,
+			row.FieldOptions,
+			row.ValueText,
+			row.ValueNumber,
+			row.ValueDate,
+			row.ValueBoolean,
+			row.DefinitionDeleted,
+		)
 	}
 	return out, nil
 }
@@ -269,7 +284,7 @@ func (r *assetFieldRepo) RunInTx(ctx context.Context, fn func(tx repository.Asse
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	txRepo := &assetFieldRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}
 	if err := fn(txRepo); err != nil {
 		return err

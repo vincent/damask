@@ -20,7 +20,7 @@ type ValidationErrorResponse struct {
 }
 
 func errRes(c fiber.Ctx, status int, msg string) error {
-	return c.Status(status).JSON(fiber.Map{"error": msg})
+	return c.Status(status).JSON(fiber.Map{apiErrorKey: msg})
 }
 
 func isInvalidInput(err error) bool {
@@ -33,14 +33,14 @@ func isInvalidInput(err error) bool {
 func ErrorStatusResponse(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, apperr.ErrNotFound):
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{apiErrorKey: err.Error()})
 	case errors.Is(err, apperr.ErrForbidden):
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{apiErrorKey: err.Error()})
 	case errors.Is(err, apperr.ErrConflict):
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{apiErrorKey: err.Error()})
 	case errors.Is(err, apperr.ErrInvalidInput):
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{apiErrorKey: err.Error()})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{apiErrorKey: "internal error"})
 	}
 }

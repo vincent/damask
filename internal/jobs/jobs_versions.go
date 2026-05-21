@@ -23,7 +23,12 @@ type VersionThumbnailJobPayload struct {
 }
 
 // EnqueueVersionThumbnailJob enqueues a version thumbnail job.
-func EnqueueVersionThumbnailJob(ctx context.Context, q queue.JobQueue, workspaceID string, p VersionThumbnailJobPayload) error {
+func EnqueueVersionThumbnailJob(
+	ctx context.Context,
+	q queue.JobQueue,
+	workspaceID string,
+	p VersionThumbnailJobPayload,
+) error {
 	payload, _ := json.Marshal(p)
 	_, err := q.Enqueue(ctx, workspaceID, queue.JobTypeVersionThumbnail, string(payload))
 	return err
@@ -32,7 +37,11 @@ func EnqueueVersionThumbnailJob(ctx context.Context, q queue.JobQueue, workspace
 // EnqueueRebuildVariantsJob enqueues a rebuild_variants job when a new version is uploaded.
 // sourceVersionID is the version that was current before the upload — its variant params are copied.
 // If sourceVersionID is empty (first upload), this is a no-op.
-func EnqueueRebuildVariantsJob(ctx context.Context, q queue.JobQueue, workspaceID, assetID, newVersionID, sourceVersionID string) error {
+func EnqueueRebuildVariantsJob(
+	ctx context.Context,
+	q queue.JobQueue,
+	workspaceID, assetID, newVersionID, sourceVersionID string,
+) error {
 	if sourceVersionID == "" {
 		return nil
 	}
@@ -88,7 +97,14 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 	// If this version is still current, sync the asset thumbnail too.
 	ver, err := s.db.GetVersionByIDUnchecked(ctx, p.VersionID)
 	if err == nil && ver.IsCurrent == 1 {
-		slog.DebugContext(ctx, "generate thumbnail: update current thumbnail", "assetID", p.AssetID, "thumbKey", thumbKey)
+		slog.DebugContext(
+			ctx,
+			"generate thumbnail: update current thumbnail",
+			"assetID",
+			p.AssetID,
+			"thumbKey",
+			thumbKey,
+		)
 		if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 			ThumbnailKey:         &thumbKey,
 			ThumbnailContentType: thumbContentType,

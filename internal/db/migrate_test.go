@@ -100,7 +100,8 @@ func TestRunMigrations_FieldDefinitionsOrphanedCreatedBy(t *testing.T) {
 
 	var source string
 	var createdBy sql.NullString
-	if err := sqlDB.QueryRow(`SELECT source, created_by FROM field_definitions WHERE id = 'fd1'`).Scan(&source, &createdBy); err != nil {
+	if err := sqlDB.QueryRow(`SELECT source, created_by FROM field_definitions WHERE id = 'fd1'`).
+		Scan(&source, &createdBy); err != nil {
 		t.Fatalf("read migrated row: %v", err)
 	}
 	if source != "exif" {
@@ -111,7 +112,8 @@ func TestRunMigrations_FieldDefinitionsOrphanedCreatedBy(t *testing.T) {
 	}
 
 	var afvCount int
-	if err := sqlDB.QueryRow(`SELECT COUNT(*) FROM asset_field_values WHERE field_id = 'fd1'`).Scan(&afvCount); err != nil {
+	if err := sqlDB.QueryRow(`SELECT COUNT(*) FROM asset_field_values WHERE field_id = 'fd1'`).
+		Scan(&afvCount); err != nil {
 		t.Fatalf("read asset_field_values: %v", err)
 	}
 	if afvCount != 1 {

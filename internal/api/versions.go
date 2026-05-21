@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// --- Response types ---
+const maxCommentLength = 500
 
 type VersionCreatedByResponse struct {
 	ID   string `json:"id"`
@@ -72,7 +72,10 @@ func versionDTOToResponse(v *service.VersionDTO, createdBy *VersionCreatedByResp
 	}
 }
 
-func versionWithCountDTOToResponse(v *service.VersionWithCountDTO, createdBy *VersionCreatedByResponse) VersionResponse {
+func versionWithCountDTOToResponse(
+	v *service.VersionWithCountDTO,
+	createdBy *VersionCreatedByResponse,
+) VersionResponse {
 	r := versionDTOToResponse(&v.VersionDTO, createdBy)
 	r.VariantCount = v.VariantCount
 	return r
@@ -97,7 +100,7 @@ func versionWithCountDTOToResponse(v *service.VersionWithCountDTO, createdBy *Ve
 // @Failure 404 {object} ErrorResponse "Asset not found"
 // @Failure 409 {object} ErrorResponse "File is identical to the current version"
 // @Failure 422 {object} ErrorResponse "Comment too long"
-// @Router /api/v1/assets/{id}/versions [post]
+// @Router /api/v1/assets/{id}/versions [post].
 func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -108,7 +111,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 
 	comment := strings.TrimSpace(c.FormValue("comment"))
-	if len(comment) > 500 {
+	if len(comment) > maxCommentLength {
 		return errRes(c, fiber.StatusUnprocessableEntity, "comment must be 500 characters or fewer")
 	}
 
@@ -136,8 +139,8 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 		createdBy = s.resolveCreator(c.Context(), *result.Version.CreatedBy)
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"version": versionDTOToResponse(result.Version, createdBy),
-		"asset":   assetToResponse(dtoToDBAsset(result.Asset), nil),
+		"version":      versionDTOToResponse(result.Version, createdBy),
+		apiTargetAsset: assetToResponse(dtoToDBAsset(result.Asset), nil),
 	})
 }
 
@@ -154,7 +157,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 // @Success 200 {array} VersionResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id}/versions [get]
+// @Router /api/v1/assets/{id}/versions [get].
 func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -211,7 +214,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 // @Failure 404 {object} ErrorResponse "Asset or version not found"
 // @Failure 409 {object} ErrorResponse "Version is already current"
 // @Failure 422 {object} ErrorResponse "Cannot restore a deleted version"
-// @Router /api/v1/assets/{id}/versions/{vid}/restore [post]
+// @Router /api/v1/assets/{id}/versions/{vid}/restore [post].
 func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -242,7 +245,7 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	}
 
 	if err := s.versions.SetAssetThumbnail(c.Context(), assetID, target.ThumbnailKey); err != nil {
-		slog.ErrorContext(c.Context(), "restore: sync thumbnail", "error", err)
+		slog.ErrorContext(c.Context(), "restore: sync thumbnail", apiErrorKey, err)
 	}
 
 	updatedAsset, err := s.assets.Get(c.Context(), claims.WorkspaceID, assetID)
@@ -252,7 +255,11 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 
 	var fromVersionNum int64
 	if assetBeforeRestore.CurrentVersionID != nil {
-		if prev, err := s.versions.Get(c.Context(), claims.WorkspaceID, *assetBeforeRestore.CurrentVersionID); err == nil {
+		if prev, err := s.versions.Get(
+			c.Context(),
+			claims.WorkspaceID,
+			*assetBeforeRestore.CurrentVersionID,
+		); err == nil {
 			fromVersionNum = prev.VersionNum
 		}
 	}
@@ -265,8 +272,8 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 		createdBy = s.resolveCreator(c.Context(), *target.CreatedBy)
 	}
 	return c.JSON(fiber.Map{
-		"version": versionDTOToResponse(target, createdBy),
-		"asset":   assetToResponse(dtoToDBAsset(updatedAsset), nil),
+		"version":      versionDTOToResponse(target, createdBy),
+		apiTargetAsset: assetToResponse(dtoToDBAsset(updatedAsset), nil),
 	})
 }
 
@@ -286,7 +293,7 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 // @Failure 404 {object} ErrorResponse "Asset or version not found"
 // @Failure 409 {object} ErrorResponse "Version is in use as a cover/icon"
 // @Failure 422 {object} ErrorResponse "Cannot delete the current version"
-// @Router /api/v1/assets/{id}/versions/{vid} [delete]
+// @Router /api/v1/assets/{id}/versions/{vid} [delete].
 func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -326,7 +333,7 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 // @Success 200 {file} binary
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset, version, or file not found"
-// @Router /api/v1/assets/{id}/versions/{vid}/file [get]
+// @Router /api/v1/assets/{id}/versions/{vid}/file [get].
 func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -374,7 +381,7 @@ func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 // @Success 200 {file} binary
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset, version, or thumbnail not ready"
-// @Router /api/v1/assets/{id}/versions/{vid}/thumb [get]
+// @Router /api/v1/assets/{id}/versions/{vid}/thumb [get].
 func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -405,6 +412,6 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
 
-	c.Set("Content-Type", "image/jpeg")
+	c.Set("Content-Type", contentTypeImageJPEG)
 	return c.SendStream(rc)
 }

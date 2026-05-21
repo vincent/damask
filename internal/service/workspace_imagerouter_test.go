@@ -20,7 +20,10 @@ type stubImageRouterValidator struct {
 
 func (v stubImageRouterValidator) Validate(context.Context) error { return v.err }
 
-func newWorkspaceServiceForImageRouterTests(t *testing.T, envKey string) (*workspaceService, *memory.RealWorkspaceRepo) {
+func newWorkspaceServiceForImageRouterTests(
+	t *testing.T,
+	envKey string,
+) (*workspaceService, *memory.RealWorkspaceRepo) {
 	t.Helper()
 	repo := memory.NewRealWorkspaceRepo()
 	repo.Seed(repository.Workspace{ID: "ws_1", Name: "Acme"})
@@ -36,6 +39,7 @@ func newWorkspaceServiceForImageRouterTests(t *testing.T, envKey string) (*works
 }
 
 func TestWorkspaceServiceSetImageRouterKeyEncryptsAtRest(t *testing.T) {
+	t.Parallel()
 	svc, repo := newWorkspaceServiceForImageRouterTests(t, "")
 
 	if err := svc.SetImageRouterKey(context.Background(), "ws_1", "plain-key"); err != nil {
@@ -60,6 +64,7 @@ func TestWorkspaceServiceSetImageRouterKeyEncryptsAtRest(t *testing.T) {
 }
 
 func TestWorkspaceServiceGetImageRouterKeyStatusUsesEnvFallback(t *testing.T) {
+	t.Parallel()
 	svc, _ := newWorkspaceServiceForImageRouterTests(t, "env-key")
 
 	status, err := svc.GetImageRouterKeyStatus(context.Background(), "ws_1")
@@ -72,6 +77,7 @@ func TestWorkspaceServiceGetImageRouterKeyStatusUsesEnvFallback(t *testing.T) {
 }
 
 func TestWorkspaceServiceListImageRouterModelsReturnsHardcodedWhenNotConfigured(t *testing.T) {
+	t.Parallel()
 	svc, _ := newWorkspaceServiceForImageRouterTests(t, "")
 
 	models, status, err := svc.ListImageRouterModels(context.Background(), "ws_1")
@@ -87,6 +93,7 @@ func TestWorkspaceServiceListImageRouterModelsReturnsHardcodedWhenNotConfigured(
 }
 
 func TestWorkspaceServiceListImageRouterModelsUsesResolvedKey(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer env-key" {
 			t.Fatalf("Authorization header = %q", got)
@@ -113,6 +120,7 @@ func TestWorkspaceServiceListImageRouterModelsUsesResolvedKey(t *testing.T) {
 }
 
 func TestWorkspaceServiceClearImageRouterKey(t *testing.T) {
+	t.Parallel()
 	svc, repo := newWorkspaceServiceForImageRouterTests(t, "")
 	if err := svc.SetImageRouterKey(context.Background(), "ws_1", "plain-key"); err != nil {
 		t.Fatalf("SetImageRouterKey: %v", err)
@@ -132,6 +140,7 @@ func TestWorkspaceServiceClearImageRouterKey(t *testing.T) {
 }
 
 func TestWorkspaceServiceSetImageRouterKeyRejectsEmpty(t *testing.T) {
+	t.Parallel()
 	svc, _ := newWorkspaceServiceForImageRouterTests(t, "")
 
 	err := svc.SetImageRouterKey(context.Background(), "ws_1", "   ")
@@ -141,6 +150,7 @@ func TestWorkspaceServiceSetImageRouterKeyRejectsEmpty(t *testing.T) {
 }
 
 func TestWorkspaceServiceTestImageRouterKeyUsesResolvedKey(t *testing.T) {
+	t.Parallel()
 	svc, _ := newWorkspaceServiceForImageRouterTests(t, "env-key")
 	var gotKey string
 	svc.newIRClient = func(apiKey string) imageRouterValidator {
@@ -157,6 +167,7 @@ func TestWorkspaceServiceTestImageRouterKeyUsesResolvedKey(t *testing.T) {
 }
 
 func TestWorkspaceServiceTestImageRouterKeyInvalidKey(t *testing.T) {
+	t.Parallel()
 	svc, _ := newWorkspaceServiceForImageRouterTests(t, "env-key")
 	svc.newIRClient = func(string) imageRouterValidator {
 		return stubImageRouterValidator{err: imagerouter.ErrInvalidKey}
@@ -169,6 +180,7 @@ func TestWorkspaceServiceTestImageRouterKeyInvalidKey(t *testing.T) {
 }
 
 func TestWorkspaceServiceTestImageRouterKeyNoConfiguredKey(t *testing.T) {
+	t.Parallel()
 	svc, _ := newWorkspaceServiceForImageRouterTests(t, "")
 
 	err := svc.TestImageRouterKey(context.Background(), "ws_1")

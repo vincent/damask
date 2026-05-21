@@ -87,7 +87,6 @@ func (m RootModel) Init() tea.Cmd {
 
 func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -252,10 +251,9 @@ func (m RootModel) View() string {
 	tabBar := m.renderTabBar()
 	statusBar := m.renderStatusBar()
 
-	contentH := m.height - 3 // 1 tab + 1 blank + 1 status
-	if contentH < 1 {
-		contentH = 1
-	}
+	contentH := max(
+		// 1 tab + 1 blank + 1 status
+		m.height-3, 1)
 
 	var content string
 	switch m.activeScreen {

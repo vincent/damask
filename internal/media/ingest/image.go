@@ -3,9 +3,9 @@ package ingest
 import (
 	"context"
 	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+	_ "image/gif"  //nolint:nolintlint // register GIF format
+	_ "image/jpeg" //nolint:nolintlint // register JPEG format
+	_ "image/png"  //nolint:nolintlint // register PNG format
 	"os"
 	"strings"
 )

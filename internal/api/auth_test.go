@@ -36,7 +36,7 @@ func TestRegister_Success(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register",
-		testutil.JsonBody(api.RegisterRequest{
+		testutil.JSONBody(api.RegisterRequest{
 			Name:     "Alice",
 			Email:    "alice@example.com",
 			Password: "password123",
@@ -74,7 +74,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register",
-		testutil.JsonBody(api.RegisterRequest{
+		testutil.JSONBody(api.RegisterRequest{
 			Name:     "Alice2",
 			Email:    "alice@example.com",
 			Password: "password456",
@@ -103,7 +103,7 @@ func TestRegister_InvalidBody(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/auth/register", testutil.JsonBody(tc.req))
+			req := httptest.NewRequest(http.MethodPost, "/auth/register", testutil.JSONBody(tc.req))
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := env.App.Test(req)
 			if err != nil {
@@ -124,7 +124,7 @@ func TestLogin_Success(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		testutil.JsonBody(api.LoginRequest{
+		testutil.JSONBody(api.LoginRequest{
 			Email:    "alice@example.com",
 			Password: "password123",
 		}))
@@ -149,7 +149,7 @@ func TestLogin_WrongPassword(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		testutil.JsonBody(api.LoginRequest{
+		testutil.JSONBody(api.LoginRequest{
 			Email:    "alice@example.com",
 			Password: "wrongpassword",
 		}))
@@ -169,7 +169,7 @@ func TestLogin_UnknownEmail(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/login",
-		testutil.JsonBody(api.LoginRequest{
+		testutil.JSONBody(api.LoginRequest{
 			Email:    "nobody@example.com",
 			Password: "password123",
 		}))

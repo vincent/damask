@@ -11,7 +11,7 @@ import (
 
 	"damask/server/internal/api"
 	"damask/server/internal/imagerouter"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"damask/server/internal/testutil"
 )
 

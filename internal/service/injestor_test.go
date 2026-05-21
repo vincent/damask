@@ -54,7 +54,12 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 	}
 	_, err = sqlDB.Exec(
 		`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size) VALUES (?, ?, ?, ?, ?, ?)`,
-		asset.ID, asset.WorkspaceID, asset.OriginalFilename, "test-key", asset.MimeType, asset.Size,
+		asset.ID,
+		asset.WorkspaceID,
+		asset.OriginalFilename,
+		"test-key",
+		asset.MimeType,
+		asset.Size,
 	)
 	if err != nil {
 		t.Fatalf("insert asset: %v", err)
@@ -65,13 +70,22 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 		t.Fatalf("write temp file: %v", err)
 	}
 
-	versionID, err := impl.createInitialVersion(ctx, asset, tmpFile, "test-storage-key", "text/plain", ingest.FileMeta{}, "")
+	versionID, err := impl.createInitialVersion(
+		ctx,
+		asset,
+		tmpFile,
+		"test-storage-key",
+		"text/plain",
+		ingest.FileMeta{},
+		"",
+	)
 	if err != nil {
 		t.Fatalf("createInitialVersion: %v", err)
 	}
 
 	var createdBy *string
-	if err := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).Scan(&createdBy); err != nil {
+	if err := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).
+		Scan(&createdBy); err != nil {
 		t.Fatalf("query created_by: %v", err)
 	}
 	if createdBy != nil {
@@ -112,7 +126,12 @@ func TestCreateInitialVersionWithUser(t *testing.T) {
 	}
 	_, err = sqlDB.Exec(
 		`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size) VALUES (?, ?, ?, ?, ?, ?)`,
-		asset.ID, asset.WorkspaceID, asset.OriginalFilename, "test-key", asset.MimeType, asset.Size,
+		asset.ID,
+		asset.WorkspaceID,
+		asset.OriginalFilename,
+		"test-key",
+		asset.MimeType,
+		asset.Size,
 	)
 	if err != nil {
 		t.Fatalf("insert asset: %v", err)
@@ -123,13 +142,22 @@ func TestCreateInitialVersionWithUser(t *testing.T) {
 		t.Fatalf("write temp file: %v", err)
 	}
 
-	versionID, err := impl.createInitialVersion(ctx, asset, tmpFile, "test-storage-key", "text/plain", ingest.FileMeta{}, userID)
+	versionID, err := impl.createInitialVersion(
+		ctx,
+		asset,
+		tmpFile,
+		"test-storage-key",
+		"text/plain",
+		ingest.FileMeta{},
+		userID,
+	)
 	if err != nil {
 		t.Fatalf("createInitialVersion: %v", err)
 	}
 
 	var createdBy *string
-	if err := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).Scan(&createdBy); err != nil {
+	if err := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).
+		Scan(&createdBy); err != nil {
 		t.Fatalf("query created_by: %v", err)
 	}
 	if createdBy == nil {

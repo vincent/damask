@@ -26,7 +26,7 @@ func (r *ProjectRepo) Seed(projects ...repository.Project) {
 	}
 }
 
-func (r *ProjectRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Project, error) {
+func (r *ProjectRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Project, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	p, ok := r.projects[id]
@@ -36,7 +36,7 @@ func (r *ProjectRepo) GetByID(ctx context.Context, workspaceID, id string) (repo
 	return p, nil
 }
 
-func (r *ProjectRepo) List(ctx context.Context, workspaceID string) ([]repository.ProjectWithCount, error) {
+func (r *ProjectRepo) List(_ context.Context, workspaceID string) ([]repository.ProjectWithCount, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []repository.ProjectWithCount
@@ -50,14 +50,14 @@ func (r *ProjectRepo) List(ctx context.Context, workspaceID string) ([]repositor
 
 func (r *ProjectRepo) NullifyAssets(_ context.Context, _, _ string) error { return nil }
 
-func (r *ProjectRepo) Create(ctx context.Context, p repository.Project) (repository.Project, error) {
+func (r *ProjectRepo) Create(_ context.Context, p repository.Project) (repository.Project, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.projects[p.ID] = p
 	return p, nil
 }
 
-func (r *ProjectRepo) Update(ctx context.Context, p repository.Project) (repository.Project, error) {
+func (r *ProjectRepo) Update(_ context.Context, p repository.Project) (repository.Project, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	existing, ok := r.projects[p.ID]
@@ -68,7 +68,7 @@ func (r *ProjectRepo) Update(ctx context.Context, p repository.Project) (reposit
 	return p, nil
 }
 
-func (r *ProjectRepo) Delete(ctx context.Context, workspaceID, id string) error {
+func (r *ProjectRepo) Delete(_ context.Context, workspaceID, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	p, ok := r.projects[id]

@@ -117,7 +117,12 @@ type imageRouterValidator interface {
 }
 
 // NewWorkspaceService returns a WorkspaceService.
-func NewWorkspaceService(workspaces repository.WorkspaceRepository, users repository.UserRepository, appSecret string, envIRKey string) WorkspaceService {
+func NewWorkspaceService(
+	workspaces repository.WorkspaceRepository,
+	users repository.UserRepository,
+	appSecret string,
+	envIRKey string,
+) WorkspaceService {
 	return &workspaceService{
 		workspaces: workspaces,
 		users:      users,
@@ -137,7 +142,11 @@ func (s *workspaceService) Get(ctx context.Context, workspaceID string) (*Worksp
 	return toWorkspaceDTO(ws), nil
 }
 
-func (s *workspaceService) Update(ctx context.Context, workspaceID string, p UpdateWorkspaceParams) (*WorkspaceDTO, error) {
+func (s *workspaceService) Update(
+	ctx context.Context,
+	workspaceID string,
+	p UpdateWorkspaceParams,
+) (*WorkspaceDTO, error) {
 	existing, err := s.workspaces.GetByID(ctx, workspaceID)
 	if err != nil {
 		return nil, err
@@ -215,7 +224,10 @@ func (s *workspaceService) CountAssets(ctx context.Context, workspaceID string) 
 	return s.workspaces.CountAssets(ctx, workspaceID)
 }
 
-func (s *workspaceService) ListImageRouterModels(ctx context.Context, workspaceID string) ([]imagerouter.Model, imagerouter.KeyStatus, error) {
+func (s *workspaceService) ListImageRouterModels(
+	ctx context.Context,
+	workspaceID string,
+) ([]imagerouter.Model, imagerouter.KeyStatus, error) {
 	status, err := imagerouter.GetKeyStatus(ctx, workspaceID, s.workspaces, s.appSecret, s.envIRKey)
 	if err != nil {
 		return nil, imagerouter.KeyStatus{}, err
@@ -235,7 +247,10 @@ func (s *workspaceService) ListImageRouterModels(ctx context.Context, workspaceI
 	return models, status, nil
 }
 
-func (s *workspaceService) GetImageRouterKeyStatus(ctx context.Context, workspaceID string) (imagerouter.KeyStatus, error) {
+func (s *workspaceService) GetImageRouterKeyStatus(
+	ctx context.Context,
+	workspaceID string,
+) (imagerouter.KeyStatus, error) {
 	return imagerouter.GetKeyStatus(ctx, workspaceID, s.workspaces, s.appSecret, s.envIRKey)
 }
 
@@ -308,7 +323,10 @@ func (s *workspaceService) RemoveMember(ctx context.Context, workspaceID, caller
 	return s.workspaces.DeleteMember(ctx, workspaceID, targetUserID)
 }
 
-func (s *workspaceService) UpdateMemberRole(ctx context.Context, workspaceID, callerID, targetUserID, role string) error {
+func (s *workspaceService) UpdateMemberRole(
+	ctx context.Context,
+	workspaceID, callerID, targetUserID, role string,
+) error {
 	if callerID == targetUserID && role != string(auth.Owner) {
 		members, err := s.workspaces.ListMembers(ctx, workspaceID)
 		if err != nil {
@@ -327,7 +345,11 @@ func (s *workspaceService) UpdateMemberRole(ctx context.Context, workspaceID, ca
 	return s.workspaces.UpdateMemberRole(ctx, workspaceID, targetUserID, role)
 }
 
-func (s *workspaceService) CreateInvite(ctx context.Context, workspaceID, callerID string, p CreateInviteParams) (*InviteDTO, error) {
+func (s *workspaceService) CreateInvite(
+	ctx context.Context,
+	workspaceID, callerID string,
+	p CreateInviteParams,
+) (*InviteDTO, error) {
 	inv, err := s.workspaces.CreateInvite(ctx, repository.Invite{
 		WorkspaceID: workspaceID,
 		Email:       p.Email,

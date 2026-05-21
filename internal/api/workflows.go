@@ -10,6 +10,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const maxRunPageSize = 20
+
 // workflowRequest is used for both create and update. PUT is replace-all:
 // all three fields are required.
 type workflowRequest struct {
@@ -34,7 +36,7 @@ func workflowToResponse(dto service.WorkflowDTO) fiber.Map {
 		"graph":                   dto.Graph,
 		"notify_on_failure_email": dto.NotifyOnFailureEmail,
 		"last_run_at":             dto.LastRunAt,
-		"created_at":              dto.CreatedAt,
+		apiCreatedAtField:         dto.CreatedAt,
 		"updated_at":              dto.UpdatedAt,
 	}
 }
@@ -45,25 +47,25 @@ func workflowRunToResponse(dto service.WorkflowRunDTO) fiber.Map {
 		steps[i] = fiber.Map{
 			"node_id":      step.NodeID,
 			"node_type":    step.NodeType,
-			"status":       step.Status,
+			apiStatusKey:   step.Status,
 			"attempt":      step.Attempt,
 			"input_ctx":    step.InputCtx,
 			"output_ctx":   step.OutputCtx,
-			"error":        step.Error,
+			apiErrorKey:    step.Error,
 			"started_at":   step.StartedAt,
 			"completed_at": step.CompletedAt,
 		}
 	}
 	return fiber.Map{
-		"id":           dto.ID,
-		"workflow_id":  dto.WorkflowID,
-		"status":       dto.Status,
-		"trigger_data": dto.TriggerData,
-		"error":        dto.Error,
-		"started_at":   dto.StartedAt,
-		"completed_at": dto.CompletedAt,
-		"steps":        steps,
-		"created_at":   dto.CreatedAt,
+		"id":              dto.ID,
+		"workflow_id":     dto.WorkflowID,
+		apiStatusKey:      dto.Status,
+		"trigger_data":    dto.TriggerData,
+		apiErrorKey:       dto.Error,
+		"started_at":      dto.StartedAt,
+		"completed_at":    dto.CompletedAt,
+		"steps":           steps,
+		apiCreatedAtField: dto.CreatedAt,
 	}
 }
 
@@ -161,7 +163,7 @@ func (s *Server) handleManualWorkflowRun(c fiber.Ctx) error {
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"run_id": runID, "status": "pending"})
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"run_id": runID, apiStatusKey: apiStatusPending})
 }
 
 func (s *Server) handleListWorkflowRuns(c fiber.Ctx) error {
@@ -170,7 +172,7 @@ func (s *Server) handleListWorkflowRuns(c fiber.Ctx) error {
 	if _, err := s.workflows.Get(c.Context(), claims.WorkspaceID, workflowID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	rows, err := s.workflows.ListRuns(c.Context(), workflowID, 20, c.Query("cursor"))
+	rows, err := s.workflows.ListRuns(c.Context(), workflowID, maxRunPageSize, c.Query("cursor"))
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -199,7 +201,7 @@ func (s *Server) handleGetWorkflowWebhookToken(c fiber.Ctx) error {
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	return c.JSON(fiber.Map{"token": token})
+	return c.JSON(fiber.Map{apiTokenKey: token})
 }
 
 func (s *Server) handleRegenerateWorkflowWebhookToken(c fiber.Ctx) error {
@@ -208,7 +210,7 @@ func (s *Server) handleRegenerateWorkflowWebhookToken(c fiber.Ctx) error {
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	return c.JSON(fiber.Map{"token": token})
+	return c.JSON(fiber.Map{apiTokenKey: token})
 }
 
 const webhookBodyLimit = 512 * 1024 // 512 KB
@@ -232,5 +234,5 @@ func (s *Server) handleInboundWorkflowWebhook(c fiber.Ctx) error {
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"run_id": runID, "status": "pending"})
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"run_id": runID, apiStatusKey: apiStatusPending})
 }

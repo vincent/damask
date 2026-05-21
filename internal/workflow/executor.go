@@ -16,15 +16,22 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type WorkflowExecutor struct {
+const (
+	workflowRunStatusFailed     = "failed"
+	workflowRunFailedEvent      = "workflow_run_failed"
+	workflowRunStepUpdatedEvent = "workflow_run_step_updated"
+	workflowRunStepErrorPort    = "error"
+)
+
+type Executor struct {
 	deps Deps
 }
 
-func NewExecutor(deps Deps) *WorkflowExecutor {
-	return &WorkflowExecutor{deps: deps}
+func NewExecutor(deps Deps) *Executor {
+	return &Executor{deps: deps}
 }
 
-func (e *WorkflowExecutor) Run(ctx context.Context, runID string) error {
+func (e *Executor) Run(ctx context.Context, runID string) error {
 	var err error
 	ctx, span := tracer.Start(ctx, "workflow.run", trace.WithAttributes(attribute.String("workflow.run_id", runID)))
 	defer telemetry.EndSpan(span, err)
@@ -54,7 +61,7 @@ func (e *WorkflowExecutor) Run(ctx context.Context, runID string) error {
 		span.SetStatus(codes.Error, "invalid graph JSON")
 		_ = e.deps.Runs.SetFinal(ctx, repository.SetWorkflowRunFinalParams{
 			ID:          runID,
-			Status:      "failed",
+			Status:      workflowRunStatusFailed,
 			Context:     run.Context,
 			Error:       ptr(err.Error()),
 			CompletedAt: nowPtr(),
@@ -79,7 +86,7 @@ func (e *WorkflowExecutor) Run(ctx context.Context, runID string) error {
 
 	status := "completed"
 	if runErr != nil {
-		status = "failed"
+		status = workflowRunStatusFailed
 		span.RecordError(runErr)
 		span.SetStatus(codes.Error, runErr.Error())
 	}
@@ -95,13 +102,19 @@ func (e *WorkflowExecutor) Run(ctx context.Context, runID string) error {
 		runErr = finalErr
 	}
 	_ = e.deps.Workflows.TouchLastRunAt(ctx, wf.ID)
-	if status == "failed" && runErr != nil {
+	if status == workflowRunStatusFailed && runErr != nil {
 		e.reportRunFailure(ctx, wf, runID, rc, runErr)
 	}
 	return runErr
 }
 
-func (e *WorkflowExecutor) executeNode(ctx context.Context, g *Graph, node GraphNode, rc *RunContext, runID, workspaceID, workflowID string) error {
+func (e *Executor) executeNode(
+	ctx context.Context,
+	g *Graph,
+	node GraphNode,
+	rc *RunContext,
+	runID, workspaceID, workflowID string,
+) error {
 	var err error
 	ctx, span := tracer.Start(ctx, "workflow.step", trace.WithAttributes(
 		attribute.String("workflow.node_id", node.ID),
@@ -151,13 +164,13 @@ func (e *WorkflowExecutor) executeNode(ctx context.Context, g *Graph, node Graph
 		span.RecordError(execErr)
 		span.SetStatus(codes.Error, execErr.Error())
 		_ = e.deps.Runs.SetStepFailed(ctx, stepID, execErr.Error())
-		e.publishStepEvent(ctx, workspaceID, rc, runID, workflowID, node.ID, "failed", execErr.Error())
-		for _, next := range g.Successors(node.ID, "error") {
+		e.publishStepEvent(ctx, workspaceID, rc, runID, workflowID, node.ID, workflowRunStatusFailed, execErr.Error())
+		for _, next := range g.Successors(node.ID, workflowRunStepErrorPort) {
 			if err := e.executeNode(ctx, g, next, rc.Clone(), runID, workspaceID, workflowID); err != nil {
 				return err
 			}
 		}
-		if len(g.Successors(node.ID, "error")) > 0 {
+		if len(g.Successors(node.ID, workflowRunStepErrorPort)) > 0 {
 			return nil
 		}
 		return execErr
@@ -198,11 +211,17 @@ func (e *WorkflowExecutor) executeNode(ctx context.Context, g *Graph, node Graph
 	}
 }
 
-func (e *WorkflowExecutor) reportRunFailure(ctx context.Context, wf repository.Workflow, runID string, rc *RunContext, runErr error) {
+func (e *Executor) reportRunFailure(
+	ctx context.Context,
+	wf repository.Workflow,
+	runID string,
+	rc *RunContext,
+	runErr error,
+) {
 	if e.deps.Hub != nil {
 		assetID, _ := rcGetString(rc, "asset_id")
 		e.deps.Hub.Publish(ctx, wf.WorkspaceID, events.Event{
-			Type:       "workflow_run_failed",
+			Type:       workflowRunFailedEvent,
 			AssetID:    assetID,
 			WorkflowID: wf.ID,
 			RunID:      runID,
@@ -216,12 +235,12 @@ func (e *WorkflowExecutor) reportRunFailure(ctx context.Context, wf repository.W
 				WorkspaceID: wf.WorkspaceID,
 				AssetID:     assetID,
 				ActorType:   "system",
-				EventType:   "workflow_run_failed",
+				EventType:   workflowRunFailedEvent,
 				Payload: map[string]any{
-					"workflow_id":   wf.ID,
-					"workflow_name": wf.Name,
-					"run_id":        runID,
-					"error":         runErr.Error(),
+					"workflow_id":            wf.ID,
+					"workflow_name":          wf.Name,
+					"run_id":                 runID,
+					workflowRunStepErrorPort: runErr.Error(),
 				},
 			})
 		}
@@ -232,13 +251,18 @@ func (e *WorkflowExecutor) reportRunFailure(ctx context.Context, wf repository.W
 	}
 }
 
-func (e *WorkflowExecutor) publishStepEvent(ctx context.Context, workspaceID string, rc *RunContext, runID, workflowID, nodeID, status, errMsg string) {
+func (e *Executor) publishStepEvent(
+	ctx context.Context,
+	workspaceID string,
+	rc *RunContext,
+	runID, workflowID, nodeID, status, errMsg string,
+) {
 	if e.deps.Hub == nil {
 		return
 	}
 	assetID, _ := rcGetString(rc, "asset_id")
 	e.deps.Hub.Publish(ctx, workspaceID, events.Event{
-		Type:       "workflow_run_step_updated",
+		Type:       workflowRunStepUpdatedEvent,
 		AssetID:    assetID,
 		WorkflowID: workflowID,
 		RunID:      runID,

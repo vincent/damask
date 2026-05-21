@@ -24,7 +24,7 @@ func TestRenameAsset_Success(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/assets/ast_1/rename",
-		testutil.JsonBody(api.RenameAssetRequest{Name: "renamed"}), cookie)
+		testutil.JSONBody(api.RenameAssetRequest{Name: "renamed"}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusOK)
 
@@ -39,7 +39,7 @@ func TestRenameAsset_Unauthenticated(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/assets/ast_1/rename",
-		testutil.JsonBody(api.RenameAssetRequest{Name: "new"}), nil)
+		testutil.JSONBody(api.RenameAssetRequest{Name: "new"}), nil)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
 }
@@ -52,7 +52,7 @@ func TestRenameAsset_ViewerForbidden(t *testing.T) {
 	token := env.MintToken(t, "usr_viewer", "ws_1")
 
 	req := testutil.BearerRequest(http.MethodPut, "/api/v1/assets/ast_1/rename",
-		testutil.JsonBody(api.RenameAssetRequest{Name: "new"}), token)
+		testutil.JSONBody(api.RenameAssetRequest{Name: "new"}), token)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusForbidden)
 }
@@ -62,7 +62,7 @@ func TestRenameAsset_EmptyName(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/assets/ast_1/rename",
-		testutil.JsonBody(api.RenameAssetRequest{Name: "   "}), cookie)
+		testutil.JSONBody(api.RenameAssetRequest{Name: "   "}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
 }
@@ -75,7 +75,7 @@ func TestRenameAsset_NotFound(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/assets/nonexistent/rename",
-		testutil.JsonBody(api.RenameAssetRequest{Name: "new"}), cookie)
+		testutil.JSONBody(api.RenameAssetRequest{Name: "new"}), cookie)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }

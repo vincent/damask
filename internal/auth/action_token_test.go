@@ -8,6 +8,7 @@ import (
 )
 
 func TestSignAndVerify_RoundTrip(t *testing.T) {
+	t.Parallel()
 	secret := []byte("test-secret-key-must-be-32chars!!")
 	token, err := SignActionToken(secret, ActionTokenClaims{
 		Sub:     "usr_1",
@@ -28,6 +29,7 @@ func TestSignAndVerify_RoundTrip(t *testing.T) {
 }
 
 func TestVerify_ExpiredToken(t *testing.T) {
+	t.Parallel()
 	secret := []byte("test-secret-key-must-be-32chars!!")
 	token, err := SignActionToken(secret, ActionTokenClaims{
 		Sub:     "usr_1",
@@ -43,6 +45,7 @@ func TestVerify_ExpiredToken(t *testing.T) {
 }
 
 func TestVerify_WrongSecret(t *testing.T) {
+	t.Parallel()
 	secret := []byte("test-secret-key-must-be-32chars!!")
 	token, err := SignActionToken(secret, ActionTokenClaims{
 		Sub:     "usr_1",
@@ -52,12 +55,19 @@ func TestVerify_WrongSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
-	if _, err := VerifyActionToken([]byte("another-secret-key-must-be-32chars"), token); !errors.Is(err, ErrTokenInvalid) {
+	if _, err := VerifyActionToken(
+		[]byte("another-secret-key-must-be-32chars"),
+		token,
+	); !errors.Is(
+		err,
+		ErrTokenInvalid,
+	) {
 		t.Fatalf("expected ErrTokenInvalid, got %v", err)
 	}
 }
 
 func TestVerify_TamperedPayload(t *testing.T) {
+	t.Parallel()
 	secret := []byte("test-secret-key-must-be-32chars!!")
 	token, err := SignActionToken(secret, ActionTokenClaims{
 		Sub:     "usr_1",
@@ -74,6 +84,7 @@ func TestVerify_TamperedPayload(t *testing.T) {
 }
 
 func TestVerify_PurposeMismatch(t *testing.T) {
+	t.Parallel()
 	secret := []byte("test-secret-key-must-be-32chars!!")
 	token, err := SignActionToken(secret, ActionTokenClaims{
 		Sub:     "usr_1",

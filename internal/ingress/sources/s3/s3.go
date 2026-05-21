@@ -22,7 +22,7 @@ func init() {
 
 // Config is the decrypted JSON configuration for an S3 source.
 type Config struct {
-	Endpoint        string `json:"endpoint"`          // empty = AWS, or custom endpoint
+	Endpoint        string `json:"endpoint"` // empty = AWS, or custom endpoint
 	Region          string `json:"region"`
 	Bucket          string `json:"bucket"`
 	Prefix          string `json:"prefix"`
@@ -31,8 +31,8 @@ type Config struct {
 	UsePathStyle    bool   `json:"use_path_style"`    // true for MinIO
 }
 
-// S3Source watches an S3 bucket prefix for new objects.
-type S3Source struct {
+// Source watches an S3 bucket prefix for new objects.
+type Source struct {
 	cfg Config
 }
 
@@ -45,12 +45,12 @@ func New(configJSON []byte) (ingress.Source, error) {
 	if cfg.Region == "" {
 		cfg.Region = "us-east-1"
 	}
-	return &S3Source{cfg: cfg}, nil
+	return &Source{cfg: cfg}, nil
 }
 
-func (s *S3Source) Type() string { return "s3" }
+func (s *Source) Type() string { return "s3" }
 
-func (s *S3Source) Validate(ctx context.Context) error {
+func (s *Source) Validate(ctx context.Context) error {
 	client, err := s.newClient(ctx)
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func (s *S3Source) Validate(ctx context.Context) error {
 	return nil
 }
 
-func (s *S3Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
+func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	client, err := s.newClient(ctx)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (s *S3Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 			if obj.Size != nil {
 				size = *obj.Size
 			}
-			var mt interface{}
+			var mt any
 			if modTime != nil {
 				mt = *modTime
 			}
@@ -104,7 +104,7 @@ func (s *S3Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 	return items, nil
 }
 
-func (s *S3Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
+func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadCloser, error) {
 	client, err := s.newClient(ctx)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (s *S3Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadC
 	return output.Body, nil
 }
 
-func (s *S3Source) newClient(ctx context.Context) (*s3.Client, error) {
+func (s *Source) newClient(ctx context.Context) (*s3.Client, error) {
 	optFns := []func(*awsconfig.LoadOptions) error{
 		awsconfig.WithRegion(s.cfg.Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(

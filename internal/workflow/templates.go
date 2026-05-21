@@ -30,10 +30,30 @@ var (
 func Templates() []Template {
 	templates := []Template{
 		newTemplate("blank-manual", "Start Blank", "Manual trigger with a clean canvas.", templateBlankManual),
-		newTemplate("image-resize-on-upload", "Resize Images On Upload", "Resize new image uploads into a web-friendly variant.", templateImageResizeOnUpload),
-		newTemplate("share-on-upload", "Create Share On Upload", "Generate a share link every time a new asset lands in the library.", templateShareOnUpload),
-		newTemplate("tag-video-uploads", "Tag Video Uploads", "Automatically tag video uploads for downstream review.", templateTagVideoUploads),
-		newTemplate("move-pdfs-to-folder", "Route PDFs To Folder", "Move new PDFs into a chosen folder for triage.", templateMovePDFsToFolder),
+		newTemplate(
+			"image-resize-on-upload",
+			"Resize Images On Upload",
+			"Resize new image uploads into a web-friendly variant.",
+			templateImageResizeOnUpload,
+		),
+		newTemplate(
+			"share-on-upload",
+			"Create Share On Upload",
+			"Generate a share link every time a new asset lands in the library.",
+			templateShareOnUpload,
+		),
+		newTemplate(
+			"tag-video-uploads",
+			"Tag Video Uploads",
+			"Automatically tag video uploads for downstream review.",
+			templateTagVideoUploads,
+		),
+		newTemplate(
+			"move-pdfs-to-folder",
+			"Route PDFs To Folder",
+			"Move new PDFs into a chosen folder for triage.",
+			templateMovePDFsToFolder,
+		),
 	}
 	sort.Slice(templates, func(i, j int) bool { return templates[i].Name < templates[j].Name })
 	return templates

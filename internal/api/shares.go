@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"damask/server/internal/auth"
@@ -59,29 +60,29 @@ func shareDTOToResponse(d *service.ShareDTO, baseURL string) ShareResponse {
 	}
 }
 
-// shareTargetErr is a sentinel for target validation failures.
-type shareTargetErr struct {
+// shareTargetError is a sentinel for target validation failures.
+type shareTargetError struct {
 	status int
 	msg    string
 }
 
-func (e *shareTargetErr) Error() string { return e.msg }
+func (e *shareTargetError) Error() string { return e.msg }
 
 // validateShareTarget checks that the given target_id exists in the workspace.
 func (s *Server) validateShareTarget(workspaceID, targetType, targetID string) error {
 	ctx := context.Background()
 	switch targetType {
-	case "project":
+	case apiTargetProject:
 		if _, err := s.projects.Get(ctx, workspaceID, targetID); err != nil {
-			return &shareTargetErr{status: fiber.StatusNotFound, msg: "target not found"}
+			return &shareTargetError{status: fiber.StatusNotFound, msg: apiTargetNotFound}
 		}
-	case "asset":
+	case apiTargetAsset:
 		if _, err := s.assets.Get(ctx, workspaceID, targetID); err != nil {
-			return &shareTargetErr{status: fiber.StatusNotFound, msg: "target not found"}
+			return &shareTargetError{status: fiber.StatusNotFound, msg: apiTargetNotFound}
 		}
 	case "collection":
 		if _, err := s.collections.Get(ctx, workspaceID, targetID); err != nil {
-			return &shareTargetErr{status: fiber.StatusNotFound, msg: "target not found"}
+			return &shareTargetError{status: fiber.StatusNotFound, msg: apiTargetNotFound}
 		}
 	}
 	return nil
@@ -98,7 +99,7 @@ func (s *Server) validateShareTarget(workspaceID, targetType, targetID string) e
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Target asset or project not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/shares [post]
+// @Router /api/v1/shares [post].
 func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -108,7 +109,8 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 	}
 
 	if err := s.validateShareTarget(claims.WorkspaceID, body.TargetType, body.TargetID); err != nil {
-		if te, ok := err.(*shareTargetErr); ok {
+		te := &shareTargetError{}
+		if errors.As(err, &te) {
 			return errRes(c, te.status, te.msg)
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not validate target")
@@ -143,7 +145,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Success 200 {array} ShareResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/shares [get]
+// @Router /api/v1/shares [get].
 func (s *Server) handleListShares(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -168,7 +170,7 @@ func (s *Server) handleListShares(c fiber.Ctx) error {
 // @Success 200 {object} ShareResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
-// @Router /api/v1/shares/{id} [get]
+// @Router /api/v1/shares/{id} [get].
 func (s *Server) handleGetShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -193,7 +195,7 @@ func (s *Server) handleGetShare(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/shares/{id} [put]
+// @Router /api/v1/shares/{id} [put].
 func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -237,7 +239,7 @@ func (s *Server) handleUpdateShare(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
-// @Router /api/v1/shares/{id} [delete]
+// @Router /api/v1/shares/{id} [delete].
 func (s *Server) handleRevokeShare(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")

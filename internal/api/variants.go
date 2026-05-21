@@ -107,7 +107,7 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 	}
 	ct := v.ThumbnailContentType
 	if ct == "" {
-		ct = "image/jpeg"
+		ct = contentTypeImageJPEG
 	}
 	status := v.Status
 	if status == "" {
@@ -138,7 +138,7 @@ func sharedVariantDTOToResponse(shareID, assetID string, v service.SharedVariant
 	}
 	ct := v.ThumbnailContentType
 	if ct == "" {
-		ct = "image/jpeg"
+		ct = contentTypeImageJPEG
 	}
 	mimeType := mime.TypeByExtension(strings.ToLower(filepath.Ext(v.StorageKey)))
 	if mimeType == "" {
@@ -172,7 +172,7 @@ func systemTagAssetToWatermarkResponse(v *service.AssetDTO, scope string) Waterm
 func (s *Server) isRebuildingVariants(c fiber.Ctx, versionID string) bool {
 	rebuilding, err := s.assets.IsRebuildingVariants(c.Context(), versionID)
 	if err != nil {
-		slog.ErrorContext(c, "is_rebuilding_variants", "error", err)
+		slog.ErrorContext(c, "is_rebuilding_variants", apiErrorKey, err)
 	}
 	return rebuilding
 }
@@ -245,7 +245,7 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 func (s *Server) handleAutomateVariants(c fiber.Ctx) error {
 	var req automateVariantsRequest
 	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{apiErrorKey: "invalid request body"})
 	}
 	claims := auth.GetClaims(c)
 	dto, err := s.workflows.CreateFromVariants(c.Context(), claims.WorkspaceID, service.CreateVariantAutomationParams{
@@ -323,7 +323,11 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	}
 
 	if s.isRebuildingVariants(c, *asset.CurrentVersionID) {
-		return errRes(c, fiber.StatusConflict, "variants are rebuilding — please wait for the rebuild to complete before creating new variants")
+		return errRes(
+			c,
+			fiber.StatusConflict,
+			"variants are rebuilding — please wait for the rebuild to complete before creating new variants",
+		)
 	}
 
 	body, ok := decodeAndValidate(c, &CreateVariantRequest{})
@@ -391,7 +395,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 
 	return c.Status(fiber.StatusAccepted).JSON(CreateVariantResponse{
 		JobID:   job.ID,
-		Status:  "pending",
+		Status:  apiStatusPending,
 		Message: "variant creation queued",
 	})
 }
@@ -457,7 +461,7 @@ func (s *Server) handleRerunVariant(c fiber.Ctx) error {
 
 	return c.Status(fiber.StatusAccepted).JSON(RerunVariantResponse{
 		VariantID: variantID,
-		Status:    "pending",
+		Status:    apiStatusPending,
 	})
 }
 
@@ -530,7 +534,7 @@ func (s *Server) handlePatchVariant(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset, variant, or file not found"
 // @Router /api/v1/assets/{id}/variants/{vid}/file [get]
-// handleGetVariantFile handles GET /api/v1/assets/:id/variants/:vid/file
+// handleGetVariantFile handles GET /api/v1/assets/:id/variants/:vid/file.
 func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -725,7 +729,7 @@ func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
 	}
 
 	if variant.ThumbnailKey == nil {
-		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status": "processing"})
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{apiStatusKey: "processing"})
 	}
 
 	_, getSpan := apptelemetry.StartSpan(c.Context(), "api.variants.thumbnail_storage_get",
@@ -740,7 +744,7 @@ func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
 
 	ct := variant.ThumbnailContentType
 	if ct == "" {
-		ct = "image/jpeg"
+		ct = contentTypeImageJPEG
 	}
 	c.Set("Content-Type", ct)
 	return c.SendStream(rc)
@@ -765,7 +769,7 @@ func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
 // @Failure 404 {object} ErrorResponse "Asset not found"
 // @Router /api/v1/assets/{id}/preview [get]
 // handlePreviewTransform runs a transform in-memory and returns a small image.
-// GET /api/v1/assets/:id/preview?w=&h=&fit=&format=&q=
+// GET /api/v1/assets/:id/preview?w=&h=&fit=&format=&q=.
 func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -785,7 +789,16 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	fit := c.Query("fit", "contain")
 	format := c.Query("format", "jpeg")
 
-	cacheKey := fmt.Sprintf("%s|%s|w=%d|h=%d|fit=%s|format=%s|q=%d", asset.ID, *asset.CurrentVersionID, w, h, fit, format, q)
+	cacheKey := fmt.Sprintf(
+		"%s|%s|w=%d|h=%d|fit=%s|format=%s|q=%d",
+		asset.ID,
+		*asset.CurrentVersionID,
+		w,
+		h,
+		fit,
+		format,
+		q,
+	)
 
 	// Check conditional request before doing any work (ETag = cacheKey hash).
 	if setCacheHeaders(c, cacheKey, asset.UpdatedAt, false) {

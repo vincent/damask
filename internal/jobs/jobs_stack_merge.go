@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/color/palette"
@@ -13,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"damask/server/internal/assetio"
 	dbgen "damask/server/internal/db/gen"
@@ -48,7 +50,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	for _, assetID := range p.AssetIDs {
 		ver, err := s.db.GetCurrentVersion(ctx, assetID)
 		if err != nil {
-			slog.Warn("stack_merge: skip asset (no current version)", "asset_id", assetID)
+			slog.WarnContext(ctx, "stack_merge: skip asset (no current version)", "asset_id", assetID)
 			continue
 		}
 		ext := filepath.Ext(ver.StorageKey)
@@ -58,14 +60,14 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		entries = append(entries, entry{storageKey: ver.StorageKey, ext: ext})
 	}
 	if len(entries) == 0 {
-		return fmt.Errorf("no processable assets in stack")
+		return errors.New("no processable assets in stack")
 	}
 
 	var localPaths []string
 	for i, e := range entries {
 		rc, err := s.storage.Get(e.storageKey)
 		if err != nil {
-			slog.Warn("stack_merge: skip asset (storage error)", "key", e.storageKey, "err", err)
+			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", e.storageKey, "err", err)
 			continue
 		}
 		path := filepath.Join(tmpDir, fmt.Sprintf("%04d%s", i, e.ext))
@@ -77,7 +79,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		if _, err := io.Copy(f, rc); err != nil {
 			_ = f.Close()
 			_ = rc.Close()
-			slog.Warn("stack_merge: copy error", "key", e.storageKey, "err", err)
+			slog.WarnContext(ctx, "stack_merge: copy error", "key", e.storageKey, "err", err)
 			continue
 		}
 		_ = f.Close()
@@ -85,7 +87,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		localPaths = append(localPaths, path)
 	}
 	if len(localPaths) == 0 {
-		return fmt.Errorf("no assets could be downloaded")
+		return errors.New("no assets could be downloaded")
 	}
 
 	var outPath, outExt string
@@ -125,7 +127,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		Result: &resultStr,
 		ID:     job.ID,
 	}); err != nil {
-		slog.Warn("stack_merge: could not persist result", "err", err)
+		slog.ErrorContext(ctx, "stack_merge: could not persist result", "err", err)
 	}
 
 	s.hub.Publish(ctx, p.WorkspaceID, events.Event{
@@ -138,7 +140,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 }
 
 func buildGIF(paths []string, outPath string, frameMs int) error {
-	delay := frameMs / 10
+	delay := frameMs / 10 //nolint:mnd // GIF delay is in units of 10ms
 	if delay <= 0 {
 		delay = 50
 	}
@@ -161,7 +163,7 @@ func buildGIF(paths []string, outPath string, frameMs int) error {
 		outGIF.Delay = append(outGIF.Delay, delay)
 	}
 	if len(outGIF.Image) == 0 {
-		return fmt.Errorf("no valid images to encode as GIF")
+		return errors.New("no valid images to encode as GIF")
 	}
 	out, err := os.Create(outPath)
 	if err != nil {
@@ -172,7 +174,15 @@ func buildGIF(paths []string, outPath string, frameMs int) error {
 }
 
 func buildPDF(paths []string, outPath string) error {
-	imageExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".tif": true, ".tiff": true, ".webp": true}
+	imageExts := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".gif":  true,
+		".tif":  true,
+		".tiff": true,
+		".webp": true,
+	}
 	var imgPaths []string
 	for _, p := range paths {
 		if imageExts[filepath.Ext(p)] {
@@ -202,10 +212,12 @@ func buildRawTextPDFFile(paths []string, outPath string) error {
 func makeRawTextPDF(lines []string) []byte {
 	var content string
 	y := 750
+	var contentSb205 strings.Builder
 	for _, l := range lines {
-		content += fmt.Sprintf("BT /F1 12 Tf 50 %d Td (%s) Tj ET\n", y, sanitizePDFString(l))
+		fmt.Fprintf(&contentSb205, "BT /F1 12 Tf 50 %d Td (%s) Tj ET\n", y, sanitizePDFString(l))
 		y -= 20
 	}
+	content += contentSb205.String()
 	streamLen := len(content)
 
 	var b bytes.Buffer
@@ -215,20 +227,30 @@ func makeRawTextPDF(lines []string) []byte {
 	o2 := b.Len()
 	b.WriteString("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
 	o3 := b.Len()
-	b.WriteString("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n")
+	b.WriteString(
+		"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+	)
 	o4 := b.Len()
 	fmt.Fprintf(&b, "4 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj\n", streamLen, content)
 	o5 := b.Len()
 	b.WriteString("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
 	xref := b.Len()
-	fmt.Fprintf(&b, "xref\n0 6\n0000000000 65535 f \n%010d 00000 n \n%010d 00000 n \n%010d 00000 n \n%010d 00000 n \n%010d 00000 n \n", o1, o2, o3, o4, o5)
+	fmt.Fprintf(
+		&b,
+		"xref\n0 6\n0000000000 65535 f \n%010d 00000 n \n%010d 00000 n \n%010d 00000 n \n%010d 00000 n \n%010d 00000 n \n",
+		o1,
+		o2,
+		o3,
+		o4,
+		o5,
+	)
 	fmt.Fprintf(&b, "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", xref)
 	return b.Bytes()
 }
 
 func sanitizePDFString(s string) string {
 	var out []byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if c == '(' || c == ')' || c == '\\' {
 			out = append(out, '\\')

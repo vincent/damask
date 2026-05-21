@@ -16,6 +16,16 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	WorkflowRunStatusPending  = "pending"
+	workflowPortOut           = "out"
+	workflowPortMatch         = "match"
+	workflowNodeFilterFolder  = "n_filter_folder"
+	workflowNodeFilterProject = "n_filter_project"
+	workflowNodeFilterMIME    = "n_filter_mime"
+	workflowNodeFanout        = "n_fanout"
+)
+
 type workflowService struct {
 	workflows repository.WorkflowRepository
 	runs      repository.WorkflowRunRepository
@@ -25,7 +35,12 @@ type workflowService struct {
 	queue     queue.JobQueue
 }
 
-func NewWorkflowService(workflows repository.WorkflowRepository, runs repository.WorkflowRunRepository, webhooks repository.WorkflowWebhookRepository, queue queue.JobQueue) WorkflowService {
+func NewWorkflowService(
+	workflows repository.WorkflowRepository,
+	runs repository.WorkflowRunRepository,
+	webhooks repository.WorkflowWebhookRepository,
+	queue queue.JobQueue,
+) WorkflowService {
 	return &workflowService{workflows: workflows, runs: runs, webhooks: webhooks, queue: queue}
 }
 
@@ -34,8 +49,21 @@ type WorkflowServiceDeps struct {
 	Variants repository.VariantRepository
 }
 
-func NewWorkflowServiceWithDeps(workflows repository.WorkflowRepository, runs repository.WorkflowRunRepository, webhooks repository.WorkflowWebhookRepository, queue queue.JobQueue, deps WorkflowServiceDeps) WorkflowService {
-	return &workflowService{workflows: workflows, runs: runs, webhooks: webhooks, assets: deps.Assets, variants: deps.Variants, queue: queue}
+func NewWorkflowServiceWithDeps(
+	workflows repository.WorkflowRepository,
+	runs repository.WorkflowRunRepository,
+	webhooks repository.WorkflowWebhookRepository,
+	queue queue.JobQueue,
+	deps WorkflowServiceDeps,
+) WorkflowService {
+	return &workflowService{
+		workflows: workflows,
+		runs:      runs,
+		webhooks:  webhooks,
+		assets:    deps.Assets,
+		variants:  deps.Variants,
+		queue:     queue,
+	}
 }
 
 func (s *workflowService) List(ctx context.Context, workspaceID string) ([]WorkflowDTO, error) {
@@ -59,7 +87,11 @@ func (s *workflowService) Get(ctx context.Context, workspaceID, id string) (*Wor
 	return &dto, nil
 }
 
-func (s *workflowService) Create(ctx context.Context, workspaceID, createdBy string, p CreateWorkflowParams) (*WorkflowDTO, error) {
+func (s *workflowService) Create(
+	ctx context.Context,
+	workspaceID, createdBy string,
+	p CreateWorkflowParams,
+) (*WorkflowDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
@@ -86,7 +118,11 @@ func (s *workflowService) Create(ctx context.Context, workspaceID, createdBy str
 	return &dto, nil
 }
 
-func (s *workflowService) Update(ctx context.Context, workspaceID, id string, p UpdateWorkflowParams) (*WorkflowDTO, error) {
+func (s *workflowService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p UpdateWorkflowParams,
+) (*WorkflowDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
@@ -180,7 +216,12 @@ func (s *workflowService) GetRun(ctx context.Context, workspaceID, runID string)
 	return &dto, nil
 }
 
-func (s *workflowService) ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error) {
+func (s *workflowService) ListRuns(
+	ctx context.Context,
+	workflowID string,
+	limit int,
+	cursor string,
+) ([]WorkflowRunDTO, error) {
 	rows, err := s.runs.List(ctx, workflowID, limit, cursor)
 	if err != nil {
 		return nil, err
@@ -205,7 +246,7 @@ func (s *workflowService) GetWebhookToken(ctx context.Context, workspaceID, id s
 		// Token already exists; plaintext is not stored — caller must regenerate.
 		return "", nil
 	}
-	if err != apperr.ErrNotFound {
+	if !errors.Is(err, apperr.ErrNotFound) {
 		return "", err
 	}
 	return s.regenerateWebhookToken(ctx, id)
@@ -250,16 +291,23 @@ func (s *workflowService) Templates() []WorkflowTemplateDTO {
 	return out
 }
 
-func (s *workflowService) FindCoveringWorkflow(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflowDTO, error) {
+func (s *workflowService) FindCoveringWorkflow(
+	ctx context.Context,
+	workspaceID, assetProjectID, assetFolderID string,
+) (*CoveringWorkflowDTO, error) {
 	return findCoveringWorkflowDTO(ctx, s.workflows, workspaceID, assetProjectID, assetFolderID)
 }
 
-func (s *workflowService) CreateFromVariants(ctx context.Context, workspaceID string, p CreateVariantAutomationParams) (*WorkflowDTO, error) {
+func (s *workflowService) CreateFromVariants(
+	ctx context.Context,
+	workspaceID string,
+	p CreateVariantAutomationParams,
+) (*WorkflowDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
 	if s.assets == nil || s.variants == nil {
-		return nil, fmt.Errorf("variant automation dependencies not configured")
+		return nil, errors.New("variant automation dependencies not configured")
 	}
 	assetRow, err := s.assets.GetByID(ctx, workspaceID, p.AssetID)
 	if err != nil {
@@ -306,13 +354,17 @@ func (s *workflowService) CreateFromVariants(ctx context.Context, workspaceID st
 	return &dto, nil
 }
 
-func (s *workflowService) enqueueRun(ctx context.Context, wf repository.Workflow, triggerData map[string]any) (string, error) {
+func (s *workflowService) enqueueRun(
+	ctx context.Context,
+	wf repository.Workflow,
+	triggerData map[string]any,
+) (string, error) {
 	runID := uuid.NewString()
 	_, err := s.runs.Create(ctx, repository.CreateWorkflowRunParams{
 		ID:          runID,
 		WorkflowID:  wf.ID,
 		WorkspaceID: wf.WorkspaceID,
-		Status:      "pending",
+		Status:      WorkflowRunStatusPending,
 		TriggerData: mustJSONMap(triggerData),
 		Context:     "{}",
 	})
@@ -326,7 +378,11 @@ func (s *workflowService) enqueueRun(ctx context.Context, wf repository.Workflow
 	return runID, nil
 }
 
-func findCoveringWorkflowDTO(ctx context.Context, workflows repository.WorkflowRepository, workspaceID, assetProjectID, assetFolderID string) (*CoveringWorkflowDTO, error) {
+func findCoveringWorkflowDTO(
+	ctx context.Context,
+	workflows repository.WorkflowRepository,
+	workspaceID, assetProjectID, assetFolderID string,
+) (*CoveringWorkflowDTO, error) {
 	wf, err := workflows.FindCoveringWorkflow(ctx, workspaceID, assetProjectID, assetFolderID)
 	if errors.Is(err, apperr.ErrNotFound) {
 		return nil, nil
@@ -338,23 +394,30 @@ func findCoveringWorkflowDTO(ctx context.Context, workflows repository.WorkflowR
 	var cfg struct {
 		ProjectID string `json:"project_id"`
 		FolderID  string `json:"folder_id"`
+		AssetID   string `json:"asset_id"`
 	}
 	_ = json.Unmarshal([]byte(defaultWorkflowTriggerConfig(wf.TriggerConfig)), &cfg)
 	if cfg.FolderID != "" {
 		scope = "folder"
 	} else if cfg.ProjectID != "" {
-		scope = "project"
+		scope = string(AutomationScopeProject)
+	} else if cfg.AssetID != "" {
+		scope = string(AutomationScopeAsset)
 	}
 	return &CoveringWorkflowDTO{ID: wf.ID, Name: wf.Name, Scope: scope}, nil
 }
 
-func buildVariantAutomationGraph(assetMIME string, scope AutomationScope, asset *AssetDTO, variants []*VariantDTO) workflow.Graph {
-
+func buildVariantAutomationGraph(
+	assetMIME string,
+	scope AutomationScope,
+	asset *AssetDTO,
+	variants []*VariantDTO,
+) workflow.Graph {
 	triggerNode := workflow.GraphNode{
 		ID:       "n_trigger",
 		Type:     "trigger.version_uploaded",
 		Config:   json.RawMessage(`{}`),
-		Position: workflow.GraphPosition{X: 25, Y: 25},
+		Position: workflow.GraphPosition{X: 25, Y: 25}, //nolint:mnd // coordinates are arbitrary
 	}
 
 	if scope == AutomationScopeAsset {
@@ -364,63 +427,88 @@ func buildVariantAutomationGraph(assetMIME string, scope AutomationScope, asset 
 	nodes := []workflow.GraphNode{triggerNode}
 	edges := []workflow.GraphEdge{}
 	prevID := "n_trigger"
-	prevPort := "out"
+	prevPort := workflowPortOut
 
 	if scope != AutomationScopeAsset {
 		if scope == AutomationScopeFolder && asset.FolderID != nil && *asset.FolderID != "" {
 			folderCfg, _ := json.Marshal(map[string]string{"folder_id": *asset.FolderID})
 			nodes = append(nodes, workflow.GraphNode{
-				ID:       "n_filter_folder",
+				ID:       workflowNodeFilterFolder,
 				Type:     "filter.folder",
 				Config:   folderCfg,
-				Position: workflow.GraphPosition{X: 188, Y: 173},
+				Position: workflow.GraphPosition{X: 188, Y: 173}, //nolint:mnd // coordinates are arbitrary
 			})
-			edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_filter_folder", ToPort: "in"})
-			prevID = "n_filter_folder"
-			prevPort = "match"
+			edges = append(
+				edges,
+				workflow.GraphEdge{
+					FromNode: prevID,
+					FromPort: prevPort,
+					ToNode:   workflowNodeFilterFolder,
+					ToPort:   "in",
+				},
+			)
+			prevID = workflowNodeFilterFolder
+			prevPort = workflowPortMatch
 		} else if (scope == AutomationScopeProject || scope == AutomationScopeFolder) && asset.ProjectID != nil && *asset.ProjectID != "" {
 			projectCfg, _ := json.Marshal(map[string]string{"key": "project_id", "value": *asset.ProjectID})
 			nodes = append(nodes, workflow.GraphNode{
-				ID:       "n_filter_project",
+				ID:       workflowNodeFilterProject,
 				Type:     "filter.expression",
 				Config:   projectCfg,
-				Position: workflow.GraphPosition{X: 188, Y: 173},
+				Position: workflow.GraphPosition{X: 188, Y: 173}, //nolint:mnd // coordinates are arbitrary
 			})
-			edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_filter_project", ToPort: "in"})
-			prevID = "n_filter_project"
-			prevPort = "match"
+			edges = append(
+				edges,
+				workflow.GraphEdge{
+					FromNode: prevID,
+					FromPort: prevPort,
+					ToNode:   workflowNodeFilterProject,
+					ToPort:   "in",
+				},
+			)
+			prevID = workflowNodeFilterProject
+			prevPort = workflowPortMatch
 		}
 	}
 
 	mimeCfg, _ := json.Marshal(map[string]string{"prefix": mimePrefix(assetMIME)})
 	nodes = append(nodes, workflow.GraphNode{
-		ID:       "n_filter_mime",
+		ID:       workflowNodeFilterMIME,
 		Type:     "filter.mime",
 		Config:   mimeCfg,
-		Position: workflow.GraphPosition{X: 325, Y: 337},
+		Position: workflow.GraphPosition{X: 325, Y: 337}, //nolint:mnd // coordinates are arbitrary
 	})
-	edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_filter_mime", ToPort: "in"})
-	prevID = "n_filter_mime"
-	prevPort = "match"
+	edges = append(
+		edges,
+		workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: workflowNodeFilterMIME, ToPort: "in"},
+	)
+	prevID = workflowNodeFilterMIME
+	prevPort = workflowPortMatch
 
 	if len(variants) == 1 {
 		nodes = append(nodes, workflow.GraphNode{
 			ID:       "n_variant_0",
 			Type:     "action.create_variant",
 			Config:   variantAutomationNodeConfig(variants[0]),
-			Position: workflow.GraphPosition{X: 700, Y: 161},
+			Position: workflow.GraphPosition{X: 700, Y: 161}, //nolint:mnd // coordinates are arbitrary
 		})
-		edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_variant_0", ToPort: "in"})
+		edges = append(
+			edges,
+			workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_variant_0", ToPort: "in"},
+		)
 		return workflow.Graph{Nodes: nodes, Edges: edges}
 	}
 
 	nodes = append(nodes, workflow.GraphNode{
-		ID:       "n_fanout",
+		ID:       workflowNodeFanout,
 		Type:     "control.fan_out",
 		Config:   json.RawMessage(`{}`),
-		Position: workflow.GraphPosition{X: 700, Y: 161},
+		Position: workflow.GraphPosition{X: 700, Y: 161}, //nolint:mnd // coordinates are arbitrary
 	})
-	edges = append(edges, workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: "n_fanout", ToPort: "in"})
+	edges = append(
+		edges,
+		workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: workflowNodeFanout, ToPort: "in"},
+	)
 	spread := 160.0
 	startY := 263.0 - float64(len(variants)-1)*spread/2
 	for i, v := range variants {
@@ -429,16 +517,20 @@ func buildVariantAutomationGraph(assetMIME string, scope AutomationScope, asset 
 			ID:       nodeID,
 			Type:     "action.create_variant",
 			Config:   variantAutomationNodeConfig(v),
-			Position: workflow.GraphPosition{X: 1033, Y: startY + float64(i)*spread},
+			Position: workflow.GraphPosition{X: 1033, Y: startY + float64(i)*spread}, //nolint:mnd // coordinates are arbitrary
 		})
-		edges = append(edges, workflow.GraphEdge{FromNode: "n_fanout", FromPort: "out", ToNode: nodeID, ToPort: "in"})
+		edges = append(
+			edges,
+			workflow.GraphEdge{FromNode: workflowNodeFanout, FromPort: workflowPortOut, ToNode: nodeID, ToPort: "in"},
+		)
 	}
 	return workflow.Graph{Nodes: nodes, Edges: edges}
 }
 
 func variantAutomationNodeConfig(v *VariantDTO) json.RawMessage {
 	params := json.RawMessage(`{}`)
-	if v.TransformParams != nil && strings.TrimSpace(*v.TransformParams) != "" && json.Valid([]byte(*v.TransformParams)) {
+	if v.TransformParams != nil && strings.TrimSpace(*v.TransformParams) != "" &&
+		json.Valid([]byte(*v.TransformParams)) {
 		params = json.RawMessage(*v.TransformParams)
 	}
 	b, _ := json.Marshal(map[string]any{"type": v.Type, "params": params})
@@ -454,6 +546,8 @@ func mimePrefix(mime string) string {
 
 func buildVariantAutomationTriggerConfig(scope AutomationScope, asset *AssetDTO) json.RawMessage {
 	switch scope {
+	case AutomationScopeWorkspace, AutomationScopeAsset:
+		return json.RawMessage(`{}`)
 	case AutomationScopeFolder:
 		if asset.FolderID != nil && *asset.FolderID != "" {
 			b, _ := json.Marshal(map[string]string{"folder_id": *asset.FolderID})
@@ -471,6 +565,8 @@ func buildVariantAutomationTriggerConfig(scope AutomationScope, asset *AssetDTO)
 
 func buildVariantAutomationName(scope AutomationScope, asset *AssetDTO) string {
 	switch scope {
+	case AutomationScopeWorkspace:
+		return "Variant automation - all uploads"
 	case AutomationScopeFolder:
 		if asset.FolderID != nil && *asset.FolderID != "" {
 			return fmt.Sprintf("Variant automation - folder %s", *asset.FolderID)

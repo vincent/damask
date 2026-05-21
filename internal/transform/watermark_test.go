@@ -22,8 +22,8 @@ func encodePNG(t *testing.T, img image.Image) []byte {
 func testSourcePNG(t *testing.T) []byte {
 	t.Helper()
 	img := image.NewNRGBA(image.Rect(0, 0, 120, 80))
-	for y := 0; y < 80; y++ {
-		for x := 0; x < 120; x++ {
+	for y := range 80 {
+		for x := range 120 {
 			img.Set(x, y, color.NRGBA{R: 240, G: 240, B: 240, A: 255})
 		}
 	}
@@ -33,8 +33,8 @@ func testSourcePNG(t *testing.T) []byte {
 func testWatermarkPNG(t *testing.T) []byte {
 	t.Helper()
 	img := image.NewNRGBA(image.Rect(0, 0, 40, 20))
-	for y := 0; y < 20; y++ {
-		for x := 0; x < 40; x++ {
+	for y := range 20 {
+		for x := range 40 {
 			img.Set(x, y, color.NRGBA{R: 255, G: 0, B: 0, A: 255})
 		}
 	}
@@ -42,7 +42,13 @@ func testWatermarkPNG(t *testing.T) []byte {
 }
 
 func TestApplyWatermark_DefaultPosition(t *testing.T) {
-	out, err := ApplyWatermark(context.Background(), bytes.NewReader(testSourcePNG(t)), bytes.NewReader(testWatermarkPNG(t)), WatermarkParams{})
+	t.Parallel()
+	out, err := ApplyWatermark(
+		context.Background(),
+		bytes.NewReader(testSourcePNG(t)),
+		bytes.NewReader(testWatermarkPNG(t)),
+		WatermarkParams{},
+	)
 	if err != nil {
 		t.Fatalf("ApplyWatermark: %v", err)
 	}
@@ -52,23 +58,41 @@ func TestApplyWatermark_DefaultPosition(t *testing.T) {
 }
 
 func TestApplyWatermark_InvalidSourceReturnsError(t *testing.T) {
-	_, err := ApplyWatermark(context.Background(), strings.NewReader("bad"), bytes.NewReader(testWatermarkPNG(t)), WatermarkParams{})
+	t.Parallel()
+	_, err := ApplyWatermark(
+		context.Background(),
+		strings.NewReader("bad"),
+		bytes.NewReader(testWatermarkPNG(t)),
+		WatermarkParams{},
+	)
 	if err == nil || !strings.Contains(err.Error(), "decode source image") {
 		t.Fatalf("expected source decode error, got %v", err)
 	}
 }
 
 func TestApplyWatermark_InvalidWatermarkReturnsError(t *testing.T) {
-	_, err := ApplyWatermark(context.Background(), bytes.NewReader(testSourcePNG(t)), strings.NewReader("bad"), WatermarkParams{})
+	t.Parallel()
+	_, err := ApplyWatermark(
+		context.Background(),
+		bytes.NewReader(testSourcePNG(t)),
+		strings.NewReader("bad"),
+		WatermarkParams{},
+	)
 	if err == nil || !strings.Contains(err.Error(), "decode watermark image") {
 		t.Fatalf("expected watermark decode error, got %v", err)
 	}
 }
 
 func TestApplyWatermark_TilesAcrossImage(t *testing.T) {
-	out, err := ApplyWatermark(context.Background(), bytes.NewReader(testSourcePNG(t)), bytes.NewReader(testWatermarkPNG(t)), WatermarkParams{
-		Opacity: 1,
-	})
+	t.Parallel()
+	out, err := ApplyWatermark(
+		context.Background(),
+		bytes.NewReader(testSourcePNG(t)),
+		bytes.NewReader(testWatermarkPNG(t)),
+		WatermarkParams{
+			Opacity: 1,
+		},
+	)
 	if err != nil {
 		t.Fatalf("ApplyWatermark: %v", err)
 	}

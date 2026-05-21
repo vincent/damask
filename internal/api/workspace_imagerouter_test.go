@@ -12,7 +12,7 @@ import (
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
 	"damask/server/internal/imagerouter"
-	th "damask/server/internal/tests_helpers"
+	th "damask/server/internal/testhelpers"
 	"damask/server/internal/testutil"
 )
 
@@ -71,7 +71,7 @@ func TestWorkspaceImageRouterPutAndGetOmitPlaintext(t *testing.T) {
 	res := th.Register(t, env, "Owner", "put-ir@test.com", "password123")
 
 	putReq := th.AuthRequest(http.MethodPut, "/api/v1/workspace/settings/imagerouter",
-		th.JsonBody(map[string]string{"key": "secret-key"}), res.Cookie)
+		th.JSONBody(map[string]string{"key": "secret-key"}), res.Cookie)
 	putResp, err := env.App.Test(putReq)
 	if err != nil {
 		t.Fatal(err)

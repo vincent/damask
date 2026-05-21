@@ -5,11 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func init() {
@@ -103,8 +104,8 @@ func TestShareService_Create_WithExpiry(t *testing.T) {
 
 func TestShareService_List_WorkspaceIsolation(t *testing.T) {
 	svc, _ := newShareSvc(t)
-	svc.Create(context.Background(), "ws_A", baseShareParams()) //nolint
-	svc.Create(context.Background(), "ws_B", baseShareParams()) //nolint
+	svc.Create(context.Background(), "ws_A", baseShareParams())
+	svc.Create(context.Background(), "ws_B", baseShareParams())
 
 	shares, err := svc.List(context.Background(), "ws_A")
 	if err != nil {

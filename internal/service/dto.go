@@ -12,6 +12,8 @@ import (
 	"damask/server/internal/workflow"
 )
 
+const maxWorkflowNameLength = 200
+
 // ListAssetsParams holds filters for listing assets via AssetService.List.
 type ListAssetsParams struct {
 	WorkspaceID string
@@ -104,8 +106,8 @@ func (p CreateWorkflowParams) Validate() error {
 	if strings.TrimSpace(p.Name) == "" {
 		return fmt.Errorf("name is required: %w", apperr.ErrInvalidInput)
 	}
-	if len(p.Name) > 200 {
-		return fmt.Errorf("name must not exceed 200 characters: %w", apperr.ErrInvalidInput)
+	if len(p.Name) > maxWorkflowNameLength {
+		return fmt.Errorf("name must not exceed %d characters: %w", maxWorkflowNameLength, apperr.ErrInvalidInput)
 	}
 	var graph workflow.Graph
 	if err := json.Unmarshal([]byte(p.Graph), &graph); err != nil {

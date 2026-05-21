@@ -242,7 +242,11 @@ func toWorkspace(w dbgen.Workspace) repository.Workspace {
 	}
 }
 
-func (r *workspaceRepo) UpdateLockedTaxonomy(ctx context.Context, workspaceID string, locked bool) (repository.Workspace, error) {
+func (r *workspaceRepo) UpdateLockedTaxonomy(
+	ctx context.Context,
+	workspaceID string,
+	locked bool,
+) (repository.Workspace, error) {
 	val := int64(0)
 	if locked {
 		val = 1
@@ -272,7 +276,7 @@ func (r *workspaceRepo) RunInTx(ctx context.Context, fn func(repository.Workspac
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	if err := fn(&workspaceRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
 		return err
 	}
@@ -281,12 +285,15 @@ func (r *workspaceRepo) RunInTx(ctx context.Context, fn func(repository.Workspac
 
 // RunRegistrationTx opens a single DB transaction and provides tx-scoped
 // UserRepository and WorkspaceRepository to fn. Used only by UserService.Register.
-func (r *workspaceRepo) RunRegistrationTx(ctx context.Context, fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error) error {
+func (r *workspaceRepo) RunRegistrationTx(
+	ctx context.Context,
+	fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error,
+) error {
 	tx, err := r.sqlDB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	txQ := r.q.WithTx(tx)
 	txUsers := &userRepo{q: txQ, sqlDB: r.sqlDB, db: tx}
 	txWorkspaces := &workspaceRepo{q: txQ, sqlDB: r.sqlDB}

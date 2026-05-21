@@ -31,7 +31,7 @@ func TestCreateProject_Success(t *testing.T) {
 
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 	req := testutil.AuthRequest(http.MethodPost, "/api/v1/projects",
-		testutil.JsonBody(api.CreateProjectRequest{
+		testutil.JSONBody(api.CreateProjectRequest{
 			Name:        "Campaign 2024",
 			Color:       &color,
 			Description: &desc,
@@ -64,7 +64,7 @@ func TestCreateProject_ViewerRejected(t *testing.T) {
 	token := env.MintToken(t, "usr_viewer", "ws_1")
 
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/projects",
-		testutil.JsonBody(api.CreateProjectRequest{Name: "My Project"}), token)
+		testutil.JSONBody(api.CreateProjectRequest{Name: "My Project"}), token)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -149,7 +149,7 @@ func TestUpdateProject(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
-		testutil.JsonBody(api.UpdateProjectRequest{Name: &newName, Color: &newColor}), cookie)
+		testutil.JSONBody(api.UpdateProjectRequest{Name: &newName, Color: &newColor}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -181,7 +181,7 @@ func TestUpdateProject_PartialName(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
-		testutil.JsonBody(api.UpdateProjectRequest{Name: &newName}), cookie)
+		testutil.JSONBody(api.UpdateProjectRequest{Name: &newName}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -214,7 +214,7 @@ func TestUpdateProject_PartialColor(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
-		testutil.JsonBody(api.UpdateProjectRequest{Color: &newColor}), cookie)
+		testutil.JSONBody(api.UpdateProjectRequest{Color: &newColor}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -244,7 +244,7 @@ func TestUpdateProject_PartialDescription_PreservesCoverAsset(t *testing.T) {
 	cookie := env.MintCookie(t, "usr_1", "ws_1")
 
 	req := testutil.AuthRequest(http.MethodPut, "/api/v1/projects/prj_1",
-		testutil.JsonBody(api.UpdateProjectRequest{Description: &newDesc}), cookie)
+		testutil.JSONBody(api.UpdateProjectRequest{Description: &newDesc}), cookie)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatalf("request: %v", err)

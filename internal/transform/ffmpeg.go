@@ -2,6 +2,7 @@ package transform
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -13,10 +14,10 @@ import (
 
 type ffmpegRuntime struct {
 	configuredPath string
-	ffmpegPath    string
-	ffprobePath   string
-	hwAccel       string
-	hwAccelActive bool
+	ffmpegPath     string
+	ffprobePath    string
+	hwAccel        string
+	hwAccelActive  bool
 }
 
 func newFFmpegRuntime(cfg config.FFmpegConfig) ffmpegRuntime {
@@ -117,12 +118,12 @@ func errFFmpegUnavailable(path string) error {
 	if path != "" {
 		return fmt.Errorf("ffmpeg not available: FFMPEG_PATH=%q could not be resolved", path)
 	}
-	return fmt.Errorf("ffmpeg not found in PATH")
+	return errors.New("ffmpeg not found in PATH")
 }
 
 func errFFprobeUnavailable(path string) error {
 	if path != "" {
 		return fmt.Errorf("ffprobe not available for FFMPEG_PATH=%q", path)
 	}
-	return fmt.Errorf("ffprobe not found in PATH")
+	return errors.New("ffprobe not found in PATH")
 }

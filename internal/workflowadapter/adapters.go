@@ -13,12 +13,12 @@ func NewAssetManager(svc service.AssetService) workflow.AssetManager {
 	return assetAdapter{svc: svc}
 }
 
-func (a assetAdapter) Get(ctx context.Context, workspaceID, assetID string) (*workflow.WorkflowAsset, error) {
+func (a assetAdapter) Get(ctx context.Context, workspaceID, assetID string) (*workflow.Asset, error) {
 	asset, err := a.svc.Get(ctx, workspaceID, assetID)
 	if err != nil {
 		return nil, err
 	}
-	return &workflow.WorkflowAsset{
+	return &workflow.Asset{
 		ID:               asset.ID,
 		WorkspaceID:      asset.WorkspaceID,
 		MimeType:         asset.MimeType,
@@ -28,7 +28,11 @@ func (a assetAdapter) Get(ctx context.Context, workspaceID, assetID string) (*wo
 	}, nil
 }
 
-func (a assetAdapter) Move(ctx context.Context, workspaceID, assetID string, p workflow.AssetMoveParams) (*workflow.WorkflowAsset, error) {
+func (a assetAdapter) Move(
+	ctx context.Context,
+	workspaceID, assetID string,
+	p workflow.AssetMoveParams,
+) (*workflow.Asset, error) {
 	asset, err := a.svc.Move(ctx, workspaceID, assetID, service.MoveAssetParams{
 		FolderID:  p.FolderID,
 		ProjectID: p.ProjectID,
@@ -36,7 +40,7 @@ func (a assetAdapter) Move(ctx context.Context, workspaceID, assetID string, p w
 	if err != nil {
 		return nil, err
 	}
-	return &workflow.WorkflowAsset{
+	return &workflow.Asset{
 		ID:               asset.ID,
 		WorkspaceID:      asset.WorkspaceID,
 		MimeType:         asset.MimeType,
@@ -52,7 +56,10 @@ func NewVariantManager(svc service.VariantService) workflow.VariantManager {
 	return variantAdapter{svc: svc}
 }
 
-func (a variantAdapter) PrepareCreate(ctx context.Context, p workflow.VariantPrepareRequest) (workflow.VariantPrepareResult, error) {
+func (a variantAdapter) PrepareCreate(
+	ctx context.Context,
+	p workflow.VariantPrepareRequest,
+) (workflow.VariantPrepareResult, error) {
 	prepared, err := a.svc.PrepareCreate(ctx, service.PrepareCreateVariantParams{
 		WorkspaceID:           p.WorkspaceID,
 		AssetID:               p.AssetID,
@@ -68,7 +75,12 @@ func (a variantAdapter) PrepareCreate(ctx context.Context, p workflow.VariantPre
 	if err != nil {
 		return workflow.VariantPrepareResult{}, err
 	}
-	return workflow.VariantPrepareResult{Type: prepared.Type, Params: prepared.Params, Title: prepared.Title, IsShared: prepared.IsShared}, nil
+	return workflow.VariantPrepareResult{
+		Type:     prepared.Type,
+		Params:   prepared.Params,
+		Title:    prepared.Title,
+		IsShared: prepared.IsShared,
+	}, nil
 }
 
 type shareAdapter struct{ svc service.ShareService }
@@ -113,7 +125,11 @@ func NewAssetFieldManager(svc service.AssetFieldService) workflow.AssetFieldMana
 	return assetFieldAdapter{svc: svc}
 }
 
-func (a assetFieldAdapter) SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []workflow.FieldValueInput) error {
+func (a assetFieldAdapter) SetValues(
+	ctx context.Context,
+	workspaceID, assetID, userID string,
+	inputs []workflow.FieldValueInput,
+) error {
 	serviceInputs := make([]service.SetFieldValueInput, len(inputs))
 	for i, input := range inputs {
 		serviceInputs[i] = service.SetFieldValueInput{FieldID: input.FieldID, Value: input.Value}

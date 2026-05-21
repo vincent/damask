@@ -11,22 +11,22 @@ type previewCacheEntry struct {
 	contentType string
 }
 
-type lruPreviewCache struct {
+type LruPreviewCache struct {
 	mu      sync.Mutex
 	items   map[string]*list.Element
 	order   *list.List
 	maxSize int
 }
 
-func NewLRUPreviewCache(maxSize int) *lruPreviewCache {
-	return &lruPreviewCache{
+func NewLRUPreviewCache(maxSize int) *LruPreviewCache {
+	return &LruPreviewCache{
 		items:   make(map[string]*list.Element),
 		order:   list.New(),
 		maxSize: maxSize,
 	}
 }
 
-func (c *lruPreviewCache) Get(key string) ([]byte, string) {
+func (c *LruPreviewCache) Get(key string) ([]byte, string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	el, ok := c.items[key]
@@ -34,16 +34,23 @@ func (c *lruPreviewCache) Get(key string) ([]byte, string) {
 		return nil, ""
 	}
 	c.order.MoveToFront(el)
-	entry := el.Value.(*previewCacheEntry)
+	entry, ok := el.Value.(*previewCacheEntry)
+	if !ok {
+		return nil, ""
+	}
 	return entry.data, entry.contentType
 }
 
-func (c *lruPreviewCache) Set(key string, data []byte, contentType string) {
+func (c *LruPreviewCache) Set(key string, data []byte, contentType string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if el, ok := c.items[key]; ok {
 		c.order.MoveToFront(el)
-		el.Value.(*previewCacheEntry).data = data
+		entry, ok := el.Value.(*previewCacheEntry)
+		if !ok {
+			return
+		}
+		entry.data = data
 		return
 	}
 	entry := &previewCacheEntry{key: key, data: data, contentType: contentType}
@@ -56,7 +63,11 @@ func (c *lruPreviewCache) Set(key string, data []byte, contentType string) {
 			break
 		}
 		c.order.Remove(back)
-		delete(c.items, back.Value.(*previewCacheEntry).key)
+		entry, ok := back.Value.(*previewCacheEntry)
+		if !ok {
+			continue
+		}
+		delete(c.items, entry.key)
 	}
 }
 

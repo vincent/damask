@@ -99,12 +99,30 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 			continue
 		}
 		if !errors.Is(lookupErr, sql.ErrNoRows) {
-			slog.ErrorContext(ctx, "rebuild-variants: dedup check", "version_id", p.NewVersionID, "type", spec.Type, "error", lookupErr)
+			slog.ErrorContext(
+				ctx,
+				"rebuild-variants: dedup check",
+				"version_id",
+				p.NewVersionID,
+				"type",
+				spec.Type,
+				"error",
+				lookupErr,
+			)
 			continue
 		}
 
 		if err := s.rebuildOneVariant(ctx, newVer, spec.Type, paramsStr, paramsHash); err != nil {
-			slog.ErrorContext(ctx, "rebuild-variants: variant failed", "version_id", p.NewVersionID, "type", spec.Type, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"rebuild-variants: variant failed",
+				"version_id",
+				p.NewVersionID,
+				"type",
+				spec.Type,
+				"error",
+				err,
+			)
 			// Continue with remaining variants even if one fails.
 		}
 	}

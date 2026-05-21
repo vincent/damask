@@ -19,7 +19,7 @@ import (
 
 func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var p VariantJobPayload
@@ -91,7 +91,11 @@ func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error 
 
 // runAudioVariant dispatches the ffmpeg audio operation for variantType and returns
 // the canonical JSON encoding of the resolved params.
-func (s *JobServer) runAudioVariant(ctx context.Context, variantType, srcPath, dstPath string, params transform.AudioParams) (string, error) {
+func (s *JobServer) runAudioVariant(
+	ctx context.Context,
+	variantType, srcPath, dstPath string,
+	params transform.AudioParams,
+) (string, error) {
 	var err error
 	switch variantType {
 	case queue.JobTypeExtractAudio:
@@ -131,7 +135,7 @@ func normalizeAudioJobParams(jobType, sourceMime string, p transform.AudioParams
 		p.Bitrate = "192k"
 	}
 	if p.TargetLUFS == 0 {
-		p.TargetLUFS = -16
+		p.TargetLUFS = transform.DefaultLUFS
 	}
 	return p
 }
@@ -142,7 +146,7 @@ func (s *JobServer) rebuildAudioVariant(
 	variantType, paramsJSON, paramsHash string,
 ) error {
 	if !s.trf.FFmpegAvailable() {
-		return fmt.Errorf("ffmpeg not found in PATH")
+		return errors.New("ffmpeg not found in PATH")
 	}
 
 	var params transform.AudioParams
@@ -180,7 +184,14 @@ func (s *JobServer) rebuildAudioVariant(
 		return fmt.Errorf("read output: %w", err)
 	}
 
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, variantType, paramsHash, ext)
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		variantType,
+		paramsHash,
+		ext,
+	)
 	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
@@ -198,7 +209,14 @@ func (s *JobServer) rebuildAudioVariant(
 	})
 	if err == nil {
 		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
-		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, transform.AudioMimeType(params.OutputFormat))
+		s.enqueueVariantThumbRaw(
+			ctx,
+			ver.WorkspaceID,
+			ver.AssetID,
+			vid,
+			storageKey,
+			transform.AudioMimeType(params.OutputFormat),
+		)
 	}
 	return err
 }

@@ -24,7 +24,7 @@ type EventResponse struct {
 	ID            string          `json:"id"`
 	EventType     string          `json:"event_type"`
 	Actor         EventActor      `json:"actor"`
-	Payload       json.RawMessage `json:"payload" swaggertype:"object"`
+	Payload       json.RawMessage `json:"payload"        swaggertype:"object"`
 	CreatedAt     string          `json:"created_at"`
 	HumanReadable string          `json:"human_readable"`
 }
@@ -39,6 +39,7 @@ type EventListResponse struct {
 // activityEvent is a unified event for the workspace feed.
 type activityEvent struct {
 	EventResponse
+
 	EntityType string `json:"entity_type"`
 	EntityID   string `json:"entity_id"`
 }
@@ -70,7 +71,7 @@ func auditDTOToEventResponse(d service.AuditEventDTO) EventResponse {
 // @Success 200 {object} EventListResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id}/events [get]
+// @Router /api/v1/assets/{id}/events [get].
 func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -107,7 +108,7 @@ func (s *Server) handleListAssetEvents(c fiber.Ctx) error {
 // @Success 200 {object} EventListResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project not found"
-// @Router /api/v1/projects/{id}/events [get]
+// @Router /api/v1/projects/{id}/events [get].
 func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	projectID := c.Params("id")
@@ -143,7 +144,7 @@ func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 // @Param types query string false "Comma-separated event type filter"
 // @Success 200 {object} EventListResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/activity [get]
+// @Router /api/v1/activity [get].
 func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -188,7 +189,7 @@ func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 // @Success 200 {file} binary
 // @Failure 400 {object} ErrorResponse "Invalid date format or unsupported format"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/activity/export [get]
+// @Router /api/v1/activity/export [get].
 func (s *Server) handleExportActivity(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -235,13 +236,13 @@ func parseEventQueryParams(c fiber.Ctx) (limit int64, cursor string, types []str
 	cursor = c.Query("cursor")
 	raw := strings.TrimSpace(c.Query("types"))
 	if raw != "" {
-		for _, t := range strings.Split(raw, ",") {
+		for t := range strings.SplitSeq(raw, ",") {
 			if t = strings.TrimSpace(t); t != "" {
 				types = append(types, t)
 			}
 		}
 	}
-	return
+	return limit, cursor, types
 }
 
 func auditListDTOToResponse(d *service.AuditEventListDTO) EventListResponse {

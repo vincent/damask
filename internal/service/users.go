@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -121,39 +122,42 @@ func (s *userService) Register(ctx context.Context, p RegisterUserParams) (*Regi
 	workspaceID := uuid.New().String()
 	var result RegisterUserResult
 
-	err := s.workspaces.RunRegistrationTx(ctx, func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
-		u, err := txUsers.Create(ctx, repository.User{
-			ID:           p.UserID,
-			Email:        p.Email,
-			PasswordHash: p.PasswordHash,
-			Name:         p.Name,
-		})
-		if err != nil {
-			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				return fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+	err := s.workspaces.RunRegistrationTx(
+		ctx,
+		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
+			u, err := txUsers.Create(ctx, repository.User{
+				ID:           p.UserID,
+				Email:        p.Email,
+				PasswordHash: p.PasswordHash,
+				Name:         p.Name,
+			})
+			if err != nil {
+				if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+					return fmt.Errorf("email already in use: %w", apperr.ErrConflict)
+				}
+				return fmt.Errorf("could not create user: %w", err)
 			}
-			return fmt.Errorf("could not create user: %w", err)
-		}
 
-		ws, err := txWorkspaces.Create(ctx, repository.Workspace{
-			ID:   workspaceID,
-			Name: p.WorkspaceName,
-		})
-		if err != nil {
-			return fmt.Errorf("could not create workspace: %w", err)
-		}
+			ws, err := txWorkspaces.Create(ctx, repository.Workspace{
+				ID:   workspaceID,
+				Name: p.WorkspaceName,
+			})
+			if err != nil {
+				return fmt.Errorf("could not create workspace: %w", err)
+			}
 
-		if err := txWorkspaces.CreateMember(ctx, repository.Member{
-			WorkspaceID: ws.ID,
-			UserID:      u.ID,
-			Role:        string(auth.Owner),
-		}); err != nil {
-			return fmt.Errorf("could not create membership: %w", err)
-		}
+			if err := txWorkspaces.CreateMember(ctx, repository.Member{
+				WorkspaceID: ws.ID,
+				UserID:      u.ID,
+				Role:        string(auth.Owner),
+			}); err != nil {
+				return fmt.Errorf("could not create membership: %w", err)
+			}
 
-		result = RegisterUserResult{User: toUserDTO(u), WorkspaceID: ws.ID}
-		return nil
-	})
+			result = RegisterUserResult{User: toUserDTO(u), WorkspaceID: ws.ID}
+			return nil
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +236,7 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 	}()
 
 	if s.stor == nil {
-		return nil, fmt.Errorf("storage unavailable")
+		return nil, errors.New("storage unavailable")
 	}
 
 	slog.DebugContext(ctx, "avatar upload started", "user_id", userID, "input_bytes", len(data))
@@ -249,7 +253,16 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 	img, decodeErr := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
 	apptelemetry.EndSpan(decodeSpan, decodeErr)
 	if decodeErr != nil {
-		slog.ErrorContext(decodeCtx, "avatar decode failed", "user_id", userID, "content_type", contentType, "error", decodeErr)
+		slog.ErrorContext(
+			decodeCtx,
+			"avatar decode failed",
+			"user_id",
+			userID,
+			"content_type",
+			contentType,
+			"error",
+			decodeErr,
+		)
 		err = fmt.Errorf("%w: decode failed", ErrUnsupportedAvatarType)
 		return nil, err
 	}
@@ -282,7 +295,7 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 	putErr := s.stor.Put(storageKey, bytes.NewReader(out.Bytes()))
 	apptelemetry.EndSpan(putSpan, putErr)
 	if putErr != nil {
-		err = fmt.Errorf("%w: could not store avatar: %v", ErrAvatarStorage, putErr)
+		err = fmt.Errorf("%w: could not store avatar: %w", ErrAvatarStorage, putErr)
 		return nil, err
 	}
 
@@ -301,7 +314,16 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "avatar upload completed", "user_id", userID, "storage_key", storageKey, "output_bytes", out.Len())
+	slog.DebugContext(
+		ctx,
+		"avatar upload completed",
+		"user_id",
+		userID,
+		"storage_key",
+		storageKey,
+		"output_bytes",
+		out.Len(),
+	)
 	return dto, nil
 }
 
@@ -317,7 +339,7 @@ func (s *userService) DeleteAvatar(ctx context.Context, userID string) (err erro
 	}()
 
 	if s.stor == nil {
-		return fmt.Errorf("storage unavailable")
+		return errors.New("storage unavailable")
 	}
 
 	user, err := s.users.GetByID(ctx, userID)
@@ -340,7 +362,7 @@ func (s *userService) DeleteAvatar(ctx context.Context, userID string) (err erro
 	deleteErr := s.stor.Delete(storageKey)
 	apptelemetry.EndSpan(deleteSpan, deleteErr)
 	if deleteErr != nil {
-		err = fmt.Errorf("%w: could not delete avatar: %v", ErrAvatarStorage, deleteErr)
+		err = fmt.Errorf("%w: could not delete avatar: %w", ErrAvatarStorage, deleteErr)
 		return err
 	}
 
@@ -480,27 +502,30 @@ func (s *userService) DeleteAccount(ctx context.Context, userID, password string
 		}
 	}
 
-	return s.workspaces.RunRegistrationTx(ctx, func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
-		if !hardDelete {
-			if err := txUsers.SoftDelete(ctx, userID); err != nil {
-				return err
+	return s.workspaces.RunRegistrationTx(
+		ctx,
+		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
+			if !hardDelete {
+				if err := txUsers.SoftDelete(ctx, userID); err != nil {
+					return err
+				}
+				if err := txUsers.AnonymizeDeletedUser(ctx, userID); err != nil {
+					return err
+				}
 			}
-			if err := txUsers.AnonymizeDeletedUser(ctx, userID); err != nil {
-				return err
+			for _, ws := range workspaces {
+				if err := txWorkspaces.DeleteMember(ctx, ws.ID, userID); err != nil {
+					return err
+				}
 			}
-		}
-		for _, ws := range workspaces {
-			if err := txWorkspaces.DeleteMember(ctx, ws.ID, userID); err != nil {
-				return err
+			if hardDelete {
+				if err := txUsers.HardDelete(ctx, userID); err != nil {
+					return err
+				}
 			}
-		}
-		if hardDelete {
-			if err := txUsers.HardDelete(ctx, userID); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+			return nil
+		},
+	)
 }
 
 // CreateWorkspace creates a new workspace owned by userID in a transaction.
@@ -550,7 +575,7 @@ func (s *userService) UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams
 		updated := user
 		updated.AuthMethods = addAuthMethod(user.AuthMethods, methodName(p.IsGoogle))
 		if user.AvatarStorageKey == nil {
-			updated.AvatarUrl = nilIfEmpty(p.AvatarURL)
+			updated.AvatarURL = nilIfEmpty(p.AvatarURL)
 		}
 		var err error
 		if p.IsGoogle {
@@ -575,7 +600,7 @@ func (s *userService) UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams
 	if err == nil {
 		existing.AuthMethods = addAuthMethod(existing.AuthMethods, methodName(p.IsGoogle))
 		if existing.AvatarStorageKey == nil {
-			existing.AvatarUrl = nilIfEmpty(p.AvatarURL)
+			existing.AvatarURL = nilIfEmpty(p.AvatarURL)
 		}
 		if p.IsGoogle {
 			existing.GoogleUserID = &p.Sub
@@ -600,7 +625,7 @@ func (s *userService) UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams
 		ID:          userID,
 		Email:       p.Email,
 		Name:        p.Name,
-		AvatarUrl:   nilIfEmpty(p.AvatarURL),
+		AvatarURL:   nilIfEmpty(p.AvatarURL),
 		AuthMethods: initMethods,
 	}
 	if p.IsGoogle {
@@ -610,26 +635,29 @@ func (s *userService) UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams
 		newUser.OidcSub = &p.Sub
 	}
 
-	err = s.workspaces.RunRegistrationTx(ctx, func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
-		var uErr error
-		if p.IsGoogle {
-			user, uErr = txUsers.CreateWithGoogle(ctx, newUser)
-		} else {
-			user, uErr = txUsers.CreateWithOIDC(ctx, newUser)
-		}
-		if uErr != nil {
-			return uErr
-		}
-		ws, wErr := txWorkspaces.Create(ctx, repository.Workspace{ID: workspaceID, Name: p.Name + "'s Workspace"})
-		if wErr != nil {
-			return wErr
-		}
-		return txWorkspaces.CreateMember(ctx, repository.Member{
-			WorkspaceID: ws.ID,
-			UserID:      user.ID,
-			Role:        string(auth.Owner),
-		})
-	})
+	err = s.workspaces.RunRegistrationTx(
+		ctx,
+		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
+			var uErr error
+			if p.IsGoogle {
+				user, uErr = txUsers.CreateWithGoogle(ctx, newUser)
+			} else {
+				user, uErr = txUsers.CreateWithOIDC(ctx, newUser)
+			}
+			if uErr != nil {
+				return uErr
+			}
+			ws, wErr := txWorkspaces.Create(ctx, repository.Workspace{ID: workspaceID, Name: p.Name + "'s Workspace"})
+			if wErr != nil {
+				return wErr
+			}
+			return txWorkspaces.CreateMember(ctx, repository.Member{
+				WorkspaceID: ws.ID,
+				UserID:      user.ID,
+				Role:        string(auth.Owner),
+			})
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -649,7 +677,7 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 	if err == nil {
 		user.AuthMethods = addAuthMethod(user.AuthMethods, "canva")
 		if user.AvatarStorageKey == nil {
-			user.AvatarUrl = nilIfEmpty(p.AvatarURL)
+			user.AvatarURL = nilIfEmpty(p.AvatarURL)
 		}
 		user.CanvaUserID = &p.CanvaID
 		user, err = s.users.LinkCanva(ctx, user)
@@ -664,7 +692,7 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 		if emailErr == nil {
 			existing.AuthMethods = addAuthMethod(existing.AuthMethods, "canva")
 			if existing.AvatarStorageKey == nil {
-				existing.AvatarUrl = nilIfEmpty(p.AvatarURL)
+				existing.AvatarURL = nilIfEmpty(p.AvatarURL)
 			}
 			existing.CanvaUserID = &p.CanvaID
 			existing, emailErr = s.users.LinkCanva(ctx, existing)
@@ -690,27 +718,30 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 		ID:          userID,
 		Email:       email,
 		Name:        name,
-		AvatarUrl:   nilIfEmpty(p.AvatarURL),
+		AvatarURL:   nilIfEmpty(p.AvatarURL),
 		AuthMethods: `["canva"]`,
 		CanvaUserID: &p.CanvaID,
 	}
 
-	err = s.workspaces.RunRegistrationTx(ctx, func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
-		var uErr error
-		user, uErr = txUsers.CreateWithCanva(ctx, newUser)
-		if uErr != nil {
-			return uErr
-		}
-		ws, wErr := txWorkspaces.Create(ctx, repository.Workspace{ID: workspaceID, Name: name + "'s Workspace"})
-		if wErr != nil {
-			return wErr
-		}
-		return txWorkspaces.CreateMember(ctx, repository.Member{
-			WorkspaceID: ws.ID,
-			UserID:      user.ID,
-			Role:        string(auth.Owner),
-		})
-	})
+	err = s.workspaces.RunRegistrationTx(
+		ctx,
+		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
+			var uErr error
+			user, uErr = txUsers.CreateWithCanva(ctx, newUser)
+			if uErr != nil {
+				return uErr
+			}
+			ws, wErr := txWorkspaces.Create(ctx, repository.Workspace{ID: workspaceID, Name: name + "'s Workspace"})
+			if wErr != nil {
+				return wErr
+			}
+			return txWorkspaces.CreateMember(ctx, repository.Member{
+				WorkspaceID: ws.ID,
+				UserID:      user.ID,
+				Role:        string(auth.Owner),
+			})
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -759,7 +790,7 @@ func (s *userService) toOIDCUserDTO(ctx context.Context, user repository.User) (
 		Name:             user.Name,
 		DisplayName:      displayNameForUser(user),
 		Email:            user.Email,
-		AvatarURL:        user.AvatarUrl,
+		AvatarURL:        user.AvatarURL,
 		AvatarStorageKey: user.AvatarStorageKey,
 		AuthMethods:      user.AuthMethods,
 		OIDCLinked:       user.OidcSub != nil,
@@ -787,10 +818,8 @@ func nilIfEmpty(s string) *string {
 func addAuthMethod(current, method string) string {
 	var methods []string
 	_ = json.Unmarshal([]byte(current), &methods)
-	for _, m := range methods {
-		if m == method {
-			return current
-		}
+	if slices.Contains(methods, method) {
+		return current
 	}
 	methods = append(methods, method)
 	b, _ := json.Marshal(methods)
@@ -819,12 +848,7 @@ func hasOnlyMethodStr(authMethods, method string) bool {
 func hasAuthMethod(authMethods, method string) bool {
 	var methods []string
 	_ = json.Unmarshal([]byte(authMethods), &methods)
-	for _, item := range methods {
-		if item == method {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(methods, method)
 }
 
 func displayNameForUser(user repository.User) string {

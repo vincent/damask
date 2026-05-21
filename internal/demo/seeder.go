@@ -213,7 +213,7 @@ func (s *Seeder) Seed(ctx context.Context) error {
 
 	// Events are best-effort; written outside any transaction
 	if err := s.seedEvents(ctx, &d); err != nil {
-		slog.Warn("demo: seed events (non-fatal)", "error", err)
+		slog.WarnContext(ctx, "demo: seed events (non-fatal)", "error", err)
 	}
 
 	slog.InfoContext(ctx, "demo: seed complete", "assets_created", len(d.allAssets), "duration_ms", time.Since(start).Milliseconds())
@@ -576,10 +576,10 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 				s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID)
 				s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)
 			} else {
-				slog.Warn("demo: store thumbnail failed", "name", sp.name, "error", putErr)
+				slog.WarnContext(ctx, "demo: store thumbnail failed", "name", sp.name, "error", putErr)
 			}
 		} else {
-			slog.Warn("demo: thumbnail generation failed", "name", sp.name, "error", tErr)
+			slog.WarnContext(ctx, "demo: thumbnail generation failed", "name", sp.name, "error", tErr)
 		}
 
 		d.allAssets = append(d.allAssets, assetMeta{id: assetID, name: sp.name, projectID: sp.projectID})

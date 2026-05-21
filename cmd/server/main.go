@@ -30,7 +30,7 @@ import (
 	"damask/server/internal/workflow"
 	"damask/server/internal/workflowadapter"
 
-	// Side-effect imports to register ingress source types
+	// Side-effect imports to register ingress source types.
 	"damask/server/internal/ingress/sources/canva"
 	_ "damask/server/internal/ingress/sources/dav"
 	_ "damask/server/internal/ingress/sources/email_api"
@@ -81,7 +81,7 @@ func main() {
 	tokenMaker, err := auth.NewMaker(cfg.JWTSecret)
 	if err != nil {
 		slog.Error("auth", "error", err)
-		os.Exit(1)
+		os.Exit(1) //nolint: gocritic // Defered sqlDB.Close() is not needed on exit.
 	}
 
 	eventsHub := events.NewEventHub()
@@ -124,22 +124,22 @@ func main() {
 
 	otelTracesShutdown, err := telemetry.SetupTraces(ctx, tmConfig)
 	if err != nil {
-		slog.Warn("otel setup failed; continuing without sending traces", "error", err)
+		slog.WarnContext(ctx, "otel setup failed; continuing without sending traces", "error", err)
 	}
 
 	otelLogsShutdown, err := telemetry.SetupLogs(ctx, tmConfig)
 	if err != nil {
-		slog.Warn("otel setup failed; continuing without sending logs", "error", err)
+		slog.WarnContext(ctx, "otel setup failed; continuing without sending logs", "error", err)
 	}
 
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := otelTracesShutdown(shutdownCtx); err != nil {
-			slog.Warn("otel shutdown failed", "error", err)
+			slog.WarnContext(shutdownCtx, "otel shutdown failed", "error", err)
 		}
 		if err := otelLogsShutdown(shutdownCtx); err != nil {
-			slog.Warn("otel shutdown failed", "error", err)
+			slog.WarnContext(shutdownCtx, "otel shutdown failed", "error", err)
 		}
 	}()
 
@@ -166,11 +166,17 @@ func main() {
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
 	})
-	variantSvc := service.NewVariantServiceWithDeps(variantRepo, assetRepo, tagSvc, auditWriter, service.VariantServiceDeps{
-		Actions: service.NewSQLVariantActionsStore(sqlDB),
-		Queue:   q,
-		Storage: stor,
-	})
+	variantSvc := service.NewVariantServiceWithDeps(
+		variantRepo,
+		assetRepo,
+		tagSvc,
+		auditWriter,
+		service.VariantServiceDeps{
+			Actions: service.NewSQLVariantActionsStore(sqlDB),
+			Queue:   q,
+			Storage: stor,
+		},
+	)
 	assetSvc := service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q)
 	assetFieldSvc := service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter)
 	shareSvc := service.NewShareService(reposqlc.NewShareRepo(queries, sqlDB), auditWriter)
@@ -192,7 +198,20 @@ func main() {
 		Config:      cfg,
 	})
 
-	js := jobs.NewJobServer(queries, sqlDB, stor, eventsHub, q, mailer, trf, tmb, cfg, injestor, resolveImageRouterKey, workflowExec)
+	js := jobs.NewJobServer(
+		queries,
+		sqlDB,
+		stor,
+		eventsHub,
+		q,
+		mailer,
+		trf,
+		tmb,
+		cfg,
+		injestor,
+		resolveImageRouterKey,
+		workflowExec,
+	)
 	js.RegisterJobHandlers()
 
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.

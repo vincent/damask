@@ -116,7 +116,10 @@ func (r *WorkflowMemoryRepo) Update(_ context.Context, p repository.UpdateWorkfl
 	return wf, nil
 }
 
-func (r *WorkflowMemoryRepo) FindCoveringWorkflow(_ context.Context, workspaceID, assetProjectID, assetFolderID string) (*repository.CoveringWorkflow, error) {
+func (r *WorkflowMemoryRepo) FindCoveringWorkflow(
+	_ context.Context,
+	workspaceID, assetProjectID, assetFolderID string,
+) (*repository.CoveringWorkflow, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	type candidate struct {
@@ -206,8 +209,8 @@ func defaultTriggerConfig(v string) string {
 }
 
 type WorkflowRunMemoryRepo struct {
-	mu   sync.RWMutex
-	runs map[string]repository.WorkflowRun
+	mu    sync.RWMutex
+	runs  map[string]repository.WorkflowRun
 	steps map[string]repository.WorkflowRunStep
 }
 
@@ -228,7 +231,12 @@ func (r *WorkflowRunMemoryRepo) GetByID(_ context.Context, id string) (repositor
 	return run, nil
 }
 
-func (r *WorkflowRunMemoryRepo) List(_ context.Context, workflowID string, limit int, cursor string) ([]repository.WorkflowRun, error) {
+func (r *WorkflowRunMemoryRepo) List(
+	_ context.Context,
+	workflowID string,
+	limit int,
+	cursor string,
+) ([]repository.WorkflowRun, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	out := []repository.WorkflowRun{}
@@ -253,7 +261,10 @@ func (r *WorkflowRunMemoryRepo) List(_ context.Context, workflowID string, limit
 	return out, nil
 }
 
-func (r *WorkflowRunMemoryRepo) Create(_ context.Context, p repository.CreateWorkflowRunParams) (repository.WorkflowRun, error) {
+func (r *WorkflowRunMemoryRepo) Create(
+	_ context.Context,
+	p repository.CreateWorkflowRunParams,
+) (repository.WorkflowRun, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	run := repository.WorkflowRun{
@@ -318,7 +329,10 @@ func (r *WorkflowRunMemoryRepo) ListSteps(_ context.Context, runID string) ([]re
 	return out, nil
 }
 
-func (r *WorkflowRunMemoryRepo) CreateStep(_ context.Context, p repository.CreateWorkflowRunStepParams) (repository.WorkflowRunStep, error) {
+func (r *WorkflowRunMemoryRepo) CreateStep(
+	_ context.Context,
+	p repository.CreateWorkflowRunStepParams,
+) (repository.WorkflowRunStep, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	started := p.StartedAt

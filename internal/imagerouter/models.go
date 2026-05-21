@@ -29,79 +29,84 @@ type modelResponseV2 struct {
 	} `json:"price"`
 }
 
+const (
+	FetchModelsTimeout        = 5 * time.Second
+	modelBriaRemoveBackground = "bria/remove-background"
+)
+
 var hardcodedModelDefs = []Model{
-	{ID: "black-forest-labs/FLUX-1-schnell", PricePerImage: 0.0013},
-	{ID: "black-forest-labs/FLUX-2-dev", PricePerImage: 0.009},
-	{ID: "black-forest-labs/FLUX-2-flex", PricePerImage: 0.06},
-	{ID: "black-forest-labs/FLUX-2-klein-4b-base", PricePerImage: 0.0013},
+	{ID: "black-forest-labs/FLUX-1-schnell", PricePerImage: 0.0013},       //nolint:mnd // a price
+	{ID: "black-forest-labs/FLUX-2-dev", PricePerImage: 0.009},            //nolint:mnd // a price
+	{ID: "black-forest-labs/FLUX-2-flex", PricePerImage: 0.06},            //nolint:mnd // a price
+	{ID: "black-forest-labs/FLUX-2-klein-4b-base", PricePerImage: 0.0013}, //nolint:mnd // a price
 	{ID: "black-forest-labs/FLUX-2-klein-4b:free", PricePerImage: 0},
-	{ID: "black-forest-labs/FLUX-2-klein-4b", PricePerImage: 0.0006},
-	{ID: "black-forest-labs/FLUX-2-klein-9b-base", PricePerImage: 0.0042},
-	{ID: "black-forest-labs/FLUX-2-klein-9b", PricePerImage: 0.0008},
-	{ID: "black-forest-labs/FLUX-2-max", PricePerImage: 0.07},
-	{ID: "black-forest-labs/FLUX-2-pro", PricePerImage: 0.03},
-	{ID: "black-forest-labs/flux-kontext-dev", PricePerImage: 0.0105},
-	{ID: "black-forest-labs/flux-kontext-max", PricePerImage: 0.08},
-	{ID: "black-forest-labs/flux-kontext-pro", PricePerImage: 0.04},
-	{ID: "black-forest-labs/flux-krea-dev", PricePerImage: 0.0098},
-	{ID: "bria/blur-background", PricePerImage: 0.04},
-	{ID: "bria/bria-fibo", PricePerImage: 0.04},
-	{ID: "bria/enhance", PricePerImage: 0.04},
-	{ID: "bria/erase-foreground", PricePerImage: 0.04},
+	{ID: "black-forest-labs/FLUX-2-klein-4b", PricePerImage: 0.0006},      //nolint:mnd // a price
+	{ID: "black-forest-labs/FLUX-2-klein-9b-base", PricePerImage: 0.0042}, //nolint:mnd // a price
+	{ID: "black-forest-labs/FLUX-2-klein-9b", PricePerImage: 0.0008},      //nolint:mnd // a price
+	{ID: "black-forest-labs/FLUX-2-max", PricePerImage: 0.07},             //nolint:mnd // a price
+	{ID: "black-forest-labs/FLUX-2-pro", PricePerImage: 0.03},             //nolint:mnd // a price
+	{ID: "black-forest-labs/flux-kontext-dev", PricePerImage: 0.0105},     //nolint:mnd // a price
+	{ID: "black-forest-labs/flux-kontext-max", PricePerImage: 0.08},       //nolint:mnd // a price
+	{ID: "black-forest-labs/flux-kontext-pro", PricePerImage: 0.04},       //nolint:mnd // a price
+	{ID: "black-forest-labs/flux-krea-dev", PricePerImage: 0.0098},        //nolint:mnd // a price
+	{ID: "bria/blur-background", PricePerImage: 0.04},                     //nolint:mnd // a price
+	{ID: "bria/bria-fibo", PricePerImage: 0.04},                           //nolint:mnd // a price
+	{ID: "bria/enhance", PricePerImage: 0.04},                             //nolint:mnd // a price
+	{ID: "bria/erase-foreground", PricePerImage: 0.04},                    //nolint:mnd // a price
 	{ID: "bria/remove-background:free", PricePerImage: 0},
-	{ID: "bria/remove-background", PricePerImage: 0.0006},
-	{ID: "bytedance/seededit-3", PricePerImage: 0.03},
-	{ID: "bytedance/seedream-3", PricePerImage: 0.03},
-	{ID: "bytedance/seedream-4.5", PricePerImage: 0.04},
-	{ID: "bytedance/seedream-4", PricePerImage: 0.03},
-	{ID: "bytedance/seedream-5.0-lite", PricePerImage: 0.035},
-	{ID: "cagliostrolab/animagine-xl-3.0", PricePerImage: 0.0019},
-	{ID: "csslc/ccsr-2x", PricePerImage: 0.0083},
-	{ID: "fal/flux-2-dev-turbo", PricePerImage: 0.0084},
+	{ID: modelBriaRemoveBackground, PricePerImage: 0.0006},        //nolint:mnd // a price
+	{ID: "bytedance/seededit-3", PricePerImage: 0.03},             //nolint:mnd // a price
+	{ID: "bytedance/seedream-3", PricePerImage: 0.03},             //nolint:mnd // a price
+	{ID: "bytedance/seedream-4.5", PricePerImage: 0.04},           //nolint:mnd // a price
+	{ID: "bytedance/seedream-4", PricePerImage: 0.03},             //nolint:mnd // a price
+	{ID: "bytedance/seedream-5.0-lite", PricePerImage: 0.035},     //nolint:mnd // a price
+	{ID: "cagliostrolab/animagine-xl-3.0", PricePerImage: 0.0019}, //nolint:mnd // a price
+	{ID: "csslc/ccsr-2x", PricePerImage: 0.0083},                  //nolint:mnd // a price
+	{ID: "fal/flux-2-dev-turbo", PricePerImage: 0.0084},           //nolint:mnd // a price
 	{ID: "google/gemini-2.5-flash:free", PricePerImage: 0},
-	{ID: "google/gemini-2.5-flash", PricePerImage: 0.039},
-	{ID: "google/gemini-3-pro", PricePerImage: 0.138},
+	{ID: "google/gemini-2.5-flash", PricePerImage: 0.039}, //nolint:mnd // a price
+	{ID: "google/gemini-3-pro", PricePerImage: 0.138},     //nolint:mnd // a price
 	{ID: "google/nano-banana-2:free", PricePerImage: 0},
-	{ID: "google/nano-banana-2", PricePerImage: 0.0689},
-	{ID: "HiDream-ai/HiDream-E1-1", PricePerImage: 0.06},
-	{ID: "jingyunliang/swinir-2x", PricePerImage: 0.0045},
-	{ID: "midjourney/midjourney", PricePerImage: 0.0848},
-	{ID: "onomaai/illustrious-xl", PricePerImage: 0.0019},
-	{ID: "openai/gpt-image-1-mini", PricePerImage: 0.051},
+	{ID: "google/nano-banana-2", PricePerImage: 0.0689},   //nolint:mnd // a price
+	{ID: "HiDream-ai/HiDream-E1-1", PricePerImage: 0.06},  //nolint:mnd // a price
+	{ID: "jingyunliang/swinir-2x", PricePerImage: 0.0045}, //nolint:mnd // a price
+	{ID: "midjourney/midjourney", PricePerImage: 0.0848},  //nolint:mnd // a price
+	{ID: "onomaai/illustrious-xl", PricePerImage: 0.0019}, //nolint:mnd // a price
+	{ID: "openai/gpt-image-1-mini", PricePerImage: 0.051}, //nolint:mnd // a price
 	{ID: "openai/gpt-image-1.5:free", PricePerImage: 0},
-	{ID: "openai/gpt-image-1.5", PricePerImage: 0.133},
-	{ID: "openai/gpt-image-1", PricePerImage: 0.167},
-	{ID: "openai/gpt-image-2", PricePerImage: 0.0414},
-	{ID: "philz1337x/clarity-2x", PricePerImage: 0.0038},
-	{ID: "prunaai/P-Image-1.0", PricePerImage: 0.0044},
-	{ID: "prunaai/P-Image-Upscale", PricePerImage: 0.005},
-	{ID: "purplesmartai/pony-diffusion-v6-xl", PricePerImage: 0.0019},
-	{ID: "qwen/qwen-image-2-pro", PricePerImage: 0.075},
-	{ID: "qwen/qwen-image-2", PricePerImage: 0.035},
-	{ID: "qwen/qwen-image-2512", PricePerImage: 0.0064},
-	{ID: "qwen/qwen-image-edit-2511", PricePerImage: 0.0186},
-	{ID: "qwen/qwen-image-edit-plus", PricePerImage: 0.0083},
-	{ID: "qwen/qwen-image-edit", PricePerImage: 0.0058},
-	{ID: "qwen/qwen-image-layered", PricePerImage: 0.0211},
-	{ID: "qwen/qwen-image", PricePerImage: 0.007},
-	{ID: "recraft/recraft-v3", PricePerImage: 0.04},
-	{ID: "recraft/recraft-vectorize", PricePerImage: 0.01},
-	{ID: "reve/reve-1", PricePerImage: 0.025},
-	{ID: "SG161222/RealVisXL", PricePerImage: 0.0019},
-	{ID: "sourceful/riverflow-1.1-base", PricePerImage: 0.039},
-	{ID: "sourceful/riverflow-1.1-mini", PricePerImage: 0.0303},
-	{ID: "sourceful/riverflow-1.1-pro", PricePerImage: 0.077},
-	{ID: "sourceful/riverflow-2-preview-fast", PricePerImage: 0.03},
-	{ID: "sourceful/riverflow-2-preview-max", PricePerImage: 0.075},
-	{ID: "sourceful/riverflow-2-preview-standard", PricePerImage: 0.0351},
-	{ID: "stabilityai/latent-2x", PricePerImage: 0.0038},
-	{ID: "stabilityai/sd3", PricePerImage: 0.0019},
-	{ID: "tencent/hunyuan-image-3", PricePerImage: 0.05},
+	{ID: "openai/gpt-image-1.5", PricePerImage: 0.133},                    //nolint:mnd // a price
+	{ID: "openai/gpt-image-1", PricePerImage: 0.167},                      //nolint:mnd // a price
+	{ID: "openai/gpt-image-2", PricePerImage: 0.0414},                     //nolint:mnd // a price
+	{ID: "philz1337x/clarity-2x", PricePerImage: 0.0038},                  //nolint:mnd // a price
+	{ID: "prunaai/P-Image-1.0", PricePerImage: 0.0044},                    //nolint:mnd // a price
+	{ID: "prunaai/P-Image-Upscale", PricePerImage: 0.005},                 //nolint:mnd // a price
+	{ID: "purplesmartai/pony-diffusion-v6-xl", PricePerImage: 0.0019},     //nolint:mnd // a price
+	{ID: "qwen/qwen-image-2-pro", PricePerImage: 0.075},                   //nolint:mnd // a price
+	{ID: "qwen/qwen-image-2", PricePerImage: 0.035},                       //nolint:mnd // a price
+	{ID: "qwen/qwen-image-2512", PricePerImage: 0.0064},                   //nolint:mnd // a price
+	{ID: "qwen/qwen-image-edit-2511", PricePerImage: 0.0186},              //nolint:mnd // a price
+	{ID: "qwen/qwen-image-edit-plus", PricePerImage: 0.0083},              //nolint:mnd // a price
+	{ID: "qwen/qwen-image-edit", PricePerImage: 0.0058},                   //nolint:mnd // a price
+	{ID: "qwen/qwen-image-layered", PricePerImage: 0.0211},                //nolint:mnd // a price
+	{ID: "qwen/qwen-image", PricePerImage: 0.007},                         //nolint:mnd // a price
+	{ID: "recraft/recraft-v3", PricePerImage: 0.04},                       //nolint:mnd // a price
+	{ID: "recraft/recraft-vectorize", PricePerImage: 0.01},                //nolint:mnd // a price
+	{ID: "reve/reve-1", PricePerImage: 0.025},                             //nolint:mnd // a price
+	{ID: "SG161222/RealVisXL", PricePerImage: 0.0019},                     //nolint:mnd // a price
+	{ID: "sourceful/riverflow-1.1-base", PricePerImage: 0.039},            //nolint:mnd // a price
+	{ID: "sourceful/riverflow-1.1-mini", PricePerImage: 0.0303},           //nolint:mnd // a price
+	{ID: "sourceful/riverflow-1.1-pro", PricePerImage: 0.077},             //nolint:mnd // a price
+	{ID: "sourceful/riverflow-2-preview-fast", PricePerImage: 0.03},       //nolint:mnd // a price
+	{ID: "sourceful/riverflow-2-preview-max", PricePerImage: 0.075},       //nolint:mnd // a price
+	{ID: "sourceful/riverflow-2-preview-standard", PricePerImage: 0.0351}, //nolint:mnd // a price
+	{ID: "stabilityai/latent-2x", PricePerImage: 0.0038},                  //nolint:mnd // a price
+	{ID: "stabilityai/sd3", PricePerImage: 0.0019},                        //nolint:mnd // a price
+	{ID: "tencent/hunyuan-image-3", PricePerImage: 0.05},                  //nolint:mnd // a price
 	{ID: "test/test", PricePerImage: 0},
-	{ID: "wan/wan-2.7-image-pro", PricePerImage: 0.075},
-	{ID: "wan/wan-2.7-image", PricePerImage: 0.03},
-	{ID: "wavespeed/ghibli", PricePerImage: 0.005},
-	{ID: "xAI/grok-imagine-image", PricePerImage: 0.02},
+	{ID: "wan/wan-2.7-image-pro", PricePerImage: 0.075}, //nolint:mnd // a price
+	{ID: "wan/wan-2.7-image", PricePerImage: 0.03},      //nolint:mnd // a price
+	{ID: "wavespeed/ghibli", PricePerImage: 0.005},      //nolint:mnd // a price
+	{ID: "xAI/grok-imagine-image", PricePerImage: 0.02}, //nolint:mnd // a price
 }
 
 var HardcodedModels = normalizeAndSortModels(hardcodedModelDefs)
@@ -111,30 +116,30 @@ func FetchModels(ctx context.Context, apiKey string) ([]Model, error) {
 		return append([]Model(nil), HardcodedModels...), nil
 	}
 
-	httpClient := &http.Client{Timeout: 5 * time.Second}
+	httpClient := &http.Client{Timeout: FetchModelsTimeout}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, modelsEndpointURL(), nil)
 	if err != nil {
-		return fallbackModels(ctx, err)
+		return fallbackModels(ctx, err), nil
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fallbackModels(ctx, err)
+		return fallbackModels(ctx, err), nil
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fallbackModels(ctx, err)
+		return fallbackModels(ctx, err), nil
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return fallbackModels(ctx, ErrAPIError)
+		return fallbackModels(ctx, err), nil
 	}
 
 	var parsed modelsResponseV2
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return fallbackModels(ctx, err)
+		return fallbackModels(ctx, err), nil
 	}
 
 	models := make([]Model, 0, len(parsed))
@@ -151,9 +156,9 @@ func FetchModels(ctx context.Context, apiKey string) ([]Model, error) {
 	return normalizeAndSortModels(models), nil
 }
 
-func fallbackModels(ctx context.Context, cause error) ([]Model, error) {
+func fallbackModels(ctx context.Context, cause error) []Model {
 	slog.WarnContext(ctx, "imagerouter models fallback", "error", cause)
-	return append([]Model(nil), HardcodedModels...), nil
+	return append([]Model(nil), HardcodedModels...)
 }
 
 func modelsEndpointURL() string {

@@ -60,7 +60,12 @@ type stackService struct {
 }
 
 // NewStackService returns a StackService.
-func NewStackService(assets repository.AssetRepository, versions repository.VersionRepository, stor storage.Storage, q queue.JobQueue) StackService {
+func NewStackService(
+	assets repository.AssetRepository,
+	versions repository.VersionRepository,
+	stor storage.Storage,
+	q queue.JobQueue,
+) StackService {
 	return &stackService{assets: assets, versions: versions, storage: stor, q: q}
 }
 
@@ -76,7 +81,16 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 		span.SetAttributes(attribute.Int("damask.stack.entries_written", written))
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "stack export failed", "workspace_id", workspaceID, "asset_count", len(p.AssetIDs), "error", err)
+			slog.ErrorContext(
+				ctx,
+				"stack export failed",
+				"workspace_id",
+				workspaceID,
+				"asset_count",
+				len(p.AssetIDs),
+				"error",
+				err,
+			)
 		}
 	}()
 
@@ -168,7 +182,11 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 
 // EnqueueMerge enqueues a stack_merge job and returns the job ID.
 // All asset IDs must belong to workspaceID.
-func (s *stackService) EnqueueMerge(ctx context.Context, workspaceID, userID string, p MergeParams) (jobID string, err error) {
+func (s *stackService) EnqueueMerge(
+	ctx context.Context,
+	workspaceID, userID string,
+	p MergeParams,
+) (jobID string, err error) {
 	ctx, span := apptelemetry.StartSpan(ctx, "service.stack.enqueue_merge",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Int("damask.assets.requested_count", len(p.AssetIDs)),
@@ -180,7 +198,18 @@ func (s *stackService) EnqueueMerge(ctx context.Context, workspaceID, userID str
 		}
 		apptelemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "stack merge enqueue failed", "workspace_id", workspaceID, "asset_count", len(p.AssetIDs), "output_type", p.OutputType, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"stack merge enqueue failed",
+				"workspace_id",
+				workspaceID,
+				"asset_count",
+				len(p.AssetIDs),
+				"output_type",
+				p.OutputType,
+				"error",
+				err,
+			)
 		}
 	}()
 

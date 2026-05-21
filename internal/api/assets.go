@@ -2,8 +2,6 @@ package api
 
 import (
 	"encoding/base64"
-	"errors"
-	"fmt"
 	"log/slog"
 	"mime"
 	"strconv"
@@ -21,6 +19,8 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
+const maxPageSize = int64(50)
+
 type AssetContributor struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -30,6 +30,7 @@ type AssetContributor struct {
 // Returned only by handleGetAsset; list endpoints keep returning AssetResponse.
 type AssetDetailResponse struct {
 	AssetResponse
+
 	CreatedBy *AssetContributor  `json:"created_by"`
 	Authors   []AssetContributor `json:"authors"`
 }
@@ -66,7 +67,13 @@ func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
 	return assetToResponseWithCount(a, tags, 0, 0, false)
 }
 
-func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, variantCount int64, variantsRebuilding bool) AssetResponse {
+func assetToResponseWithCount(
+	a dbgen.Asset,
+	tags []string,
+	versionCount int64,
+	variantCount int64,
+	variantsRebuilding bool,
+) AssetResponse {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -92,7 +99,11 @@ func assetToResponseWithCount(a dbgen.Asset, tags []string, versionCount int64, 
 	}
 }
 
-func assetToDetailResponse(base AssetResponse, createdBy *AssetContributor, authors []AssetContributor) AssetDetailResponse {
+func assetToDetailResponse(
+	base AssetResponse,
+	createdBy *AssetContributor,
+	authors []AssetContributor,
+) AssetDetailResponse {
 	return AssetDetailResponse{AssetResponse: base, CreatedBy: createdBy, Authors: authors}
 }
 
@@ -133,7 +144,7 @@ func dtoToDBAsset(d *service.AssetDTO) dbgen.Asset {
 // @Success 201 {object} AssetResponse
 // @Failure 400 {object} ErrorResponse "file field is required"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/assets [post]
+// @Router /api/v1/assets [post].
 func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	var asset *service.AssetDTO
@@ -145,7 +156,16 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 		apptelemetry.EndSpan(rootSpan, err)
 		if err != nil {
 			rootSpan.SetStatus(codes.Error, err.Error())
-			slog.ErrorContext(ctx, "uploaded asset", "workspace_id", claims.WorkspaceID, "asset_id", asset.ID, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"uploaded asset",
+				"workspace_id",
+				claims.WorkspaceID,
+				"asset_id",
+				asset.ID,
+				apiErrorKey,
+				err,
+			)
 		}
 	}()
 
@@ -185,7 +205,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 		InheritFields:    s.newInheritProjectFieldsFunc(),
 	})
 	if err != nil {
-		slog.ErrorContext(c, "cannot create asset", "error", err)
+		slog.ErrorContext(c, "cannot create asset", apiErrorKey, err)
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -209,12 +229,12 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 // @Param cursor query string false "Pagination cursor"
 // @Success 200 {object} AssetListResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
-// @Router /api/v1/assets [get]
+// @Router /api/v1/assets [get].
 func (s *Server) handleListAssets(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
 	_, span := apptelemetry.StartSpan(c.Context(), "parse.args")
-	limit := int64(50)
+	limit := maxPageSize
 	if l := c.Query("limit"); l != "" {
 		if n, err := strconv.ParseInt(l, 10, 64); err == nil && n > 0 && n <= 100 {
 			limit = n
@@ -238,7 +258,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 
 	// Tag filter — AND logic
 	if tagsParam := c.Query("tags"); tagsParam != "" {
-		for _, t := range strings.Split(tagsParam, ",") {
+		for t := range strings.SplitSeq(tagsParam, ",") {
 			lp.TagNames = append(lp.TagNames, strings.TrimSpace(strings.ToLower(t)))
 		}
 	}
@@ -271,10 +291,10 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	sort := c.Query("sort")
 	switch sort {
 	case "size_asc":
-		lp.SortField = "size"
+		lp.SortField = sortFieldSize
 		lp.SortDesc = false
 	case "size_desc":
-		lp.SortField = "size"
+		lp.SortField = sortFieldSize
 		lp.SortDesc = true
 	case "id_asc":
 		lp.SortField = "id"
@@ -285,11 +305,11 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	case "created_at_asc":
 		lp.SortField = "created_at_asc"
 		lp.SortDesc = false
-	case "taken_at":
-		lp.SortField = "taken_at"
+	case sortFieldTakenAt:
+		lp.SortField = sortFieldTakenAt
 		lp.SortDesc = false
 	case "taken_at_desc":
-		lp.SortField = "taken_at"
+		lp.SortField = sortFieldTakenAt
 		lp.SortDesc = true
 	default: // created_at DESC
 		lp.SortDesc = true
@@ -308,7 +328,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	ctx, span := apptelemetry.StartSpan(c.Context(), "fetch")
 	assets, err := s.assets.List(c.Context(), lp)
 	if err != nil {
-		slog.ErrorContext(ctx, "could not list assets", "error", err)
+		slog.ErrorContext(ctx, "could not list assets", apiErrorKey, err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
 	apptelemetry.EndSpan(span, err)
@@ -323,11 +343,19 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	tagsByAsset, _ := s.tags.BatchTagsForAssets(c.Context(), ids)
 	span.End()
 
-	return c.JSON(buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts, tagsByAsset))
+	return c.JSON(
+		buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts, tagsByAsset),
+	)
 }
 
 // buildAssetListResponseFromDTOs builds an AssetListResponse from service.AssetDTO slice.
-func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sortField string, versionCounts, variantCounts map[string]int64, tagsByAsset map[string][]string) AssetListResponse {
+func buildAssetListResponseFromDTOs(
+	assets []*service.AssetDTO,
+	limit int64,
+	sortField string,
+	versionCounts, variantCounts map[string]int64,
+	tagsByAsset map[string][]string,
+) AssetListResponse {
 	items := make([]AssetResponse, len(assets))
 	for i, a := range assets {
 		var vc, nVariants int64
@@ -367,9 +395,9 @@ func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sor
 		var cv cursorVal
 		cv.ID = last.ID
 		switch sortField {
-		case "size":
-			cv.Field = "size"
-			cv.Value = fmt.Sprintf("%d", last.Size)
+		case sortFieldSize:
+			cv.Field = sortFieldSize
+			cv.Value = strconv.FormatInt(last.Size, 10)
 		case "id":
 			cv.Field = "id"
 			cv.Value = last.ID
@@ -384,7 +412,7 @@ func buildAssetListResponseFromDTOs(assets []*service.AssetDTO, limit int64, sor
 }
 
 type cursorVal struct {
-	Field string // "created_at", "size", or "id"
+	Field string // apiCreatedAtField, "size", or "id"
 	Value string // stringified sort-field value
 	ID    string // asset UUID tiebreaker
 }
@@ -400,26 +428,6 @@ func decodeCursor(cursor string) (cursorVal, error) {
 		return cursorVal{}, err
 	}
 	parts := strings.SplitN(string(b), "|", 3)
-	if len(parts) != 3 {
-		// Legacy cursor format (created_at|id) — parse and upgrade transparently
-		parts2 := strings.SplitN(string(b), "|", 2)
-		if len(parts2) != 2 {
-			return cursorVal{}, errors.New("invalid cursor")
-		}
-		// Validate the first part is a timestamp (SQLite format or RFC3339)
-		_, errSQLite := time.Parse("2006-01-02 15:04:05", parts2[0])
-		_, errRFC := time.Parse(time.RFC3339Nano, parts2[0])
-		if errSQLite != nil && errRFC != nil {
-			return cursorVal{}, errors.New("invalid cursor")
-		}
-		// Normalise to SQLite format so the WHERE clause comparison works
-		val := parts2[0]
-		if errSQLite != nil {
-			t, _ := time.Parse(time.RFC3339Nano, val)
-			val = t.UTC().Format("2006-01-02 15:04:05")
-		}
-		return cursorVal{Field: "created_at", Value: val, ID: parts2[1]}, nil
-	}
 	return cursorVal{Field: parts[0], Value: parts[1], ID: parts[2]}, nil
 }
 
@@ -434,7 +442,7 @@ func decodeCursor(cursor string) (cursorVal, error) {
 // @Success 200 {array} CommentResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id}/comments [get]
+// @Router /api/v1/assets/{id}/comments [get].
 func (s *Server) handleGetComments(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -469,7 +477,7 @@ func (s *Server) handleGetComments(c fiber.Ctx) error {
 // @Success 200 {object} AssetResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id} [get]
+// @Router /api/v1/assets/{id} [get].
 func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -501,7 +509,11 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	// Resolve CreatedBy from the first (oldest) version.
 	var createdBy *AssetContributor
-	if firstVer, err := s.versions.GetFirstByAsset(c.Context(), id); err == nil && firstVer != nil && firstVer.CreatedBy != nil {
+	if firstVer, err := s.versions.GetFirstByAsset(
+		c.Context(),
+		id,
+	); err == nil && firstVer != nil &&
+		firstVer.CreatedBy != nil {
 		cb := &AssetContributor{ID: *firstVer.CreatedBy}
 		if u, err := s.users.GetByID(c.Context(), *firstVer.CreatedBy); err == nil {
 			cb.Name = u.Name
@@ -548,7 +560,7 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 // @Success 200 {file} binary
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset or file not found"
-// @Router /api/v1/assets/{id}/file [get]
+// @Router /api/v1/assets/{id}/file [get].
 func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -582,7 +594,10 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 	}
 
 	c.Set("Content-Type", assetDTO.MimeType)
-	c.Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": assetDTO.OriginalFilename}))
+	c.Set(
+		"Content-Disposition",
+		mime.FormatMediaType("inline", map[string]string{apiFilenameKey: assetDTO.OriginalFilename}),
+	)
 	if version.Size > 0 {
 		c.Set("Content-Length", strconv.FormatInt(version.Size, 10))
 	}
@@ -600,7 +615,7 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 // @Success 200 {file} binary
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found or thumbnail not ready"
-// @Router /api/v1/assets/{id}/thumb [get]
+// @Router /api/v1/assets/{id}/thumb [get].
 func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -631,7 +646,7 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 
 	ct := dto.ThumbnailContentType
 	if ct == "" {
-		ct = "image/jpeg"
+		ct = contentTypeImageJPEG
 	}
 	c.Set("Content-Type", ct)
 	return c.SendStream(rc)
@@ -651,7 +666,7 @@ func (s *Server) handleRegenerateThumbnail(c fiber.Ctx) error {
 
 	return c.Status(fiber.StatusAccepted).JSON(CreateVariantResponse{
 		JobID:   jobIDs[0],
-		Status:  "pending",
+		Status:  apiStatusPending,
 		Message: "thumbnail regeneration queued",
 	})
 }
@@ -667,7 +682,7 @@ func (s *Server) handleRegenerateThumbnail(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
-// @Router /api/v1/assets/{id} [delete]
+// @Router /api/v1/assets/{id} [delete].
 func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -691,7 +706,7 @@ func (s *Server) handleDeleteAsset(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/assets/bulk/tag [post]
+// @Router /api/v1/assets/bulk/tag [post].
 func (s *Server) handleBulkTag(c fiber.Ctx) error {
 	body, ok := decodeAndValidate(c, &BulkTagRequest{})
 	if !ok {
@@ -723,7 +738,7 @@ func (s *Server) handleBulkTag(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Project not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/assets/bulk/project [post]
+// @Router /api/v1/assets/bulk/project [post].
 func (s *Server) handleBulkProject(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -759,7 +774,7 @@ func (s *Server) handleBulkProject(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/assets/{id} [patch]
+// @Router /api/v1/assets/{id} [patch].
 func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -792,7 +807,7 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/assets/{id}/rename [put]
+// @Router /api/v1/assets/{id}/rename [put].
 func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
@@ -822,7 +837,7 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
-// @Router /api/v1/assets/bulk [delete]
+// @Router /api/v1/assets/bulk [delete].
 func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 

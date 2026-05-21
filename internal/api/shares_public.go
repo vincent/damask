@@ -21,6 +21,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const shareTokenValidityDuration = 24 * time.Hour
+
 // ShareInfoResponse is returned by GET /shared/:id/access.
 type ShareInfoResponse struct {
 	Label       string `json:"label"`
@@ -99,7 +101,7 @@ func (s *Server) loadActiveShareDTO(c fiber.Ctx, id string) (*service.ShareDTO, 
 // @Success 200 {object} ShareInfoResponse
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired"
-// @Router /shared/{id}/access [get]
+// @Router /shared/{id}/access [get].
 func (s *Server) handleShareInfo(c fiber.Ctx) error {
 	id := c.Params("id")
 	sh, err := s.loadActiveShareDTO(c, id)
@@ -126,7 +128,7 @@ func (s *Server) handleShareInfo(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Password required or incorrect"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired"
-// @Router /shared/{id}/access [post]
+// @Router /shared/{id}/access [post].
 func (s *Server) handleShareAccess(c fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -158,7 +160,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 		sh.AllowComments,
 		sh.AllowDownload,
 		body.VisitorName,
-		24*time.Hour,
+		shareTokenValidityDuration,
 	)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not issue share token")
@@ -179,7 +181,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated (share token required)"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired or been revoked"
-// @Router /shared/{id}/assets [get]
+// @Router /shared/{id}/assets [get].
 func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -258,7 +260,7 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 // @Success 200 {object} AssetResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found in this share"
-// @Router /shared/{id}/assets/{aid} [get]
+// @Router /shared/{id}/assets/{aid} [get].
 func (s *Server) handleShareGetAsset(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -366,7 +368,7 @@ func (s *Server) handleShareGetVariantThumb(c fiber.Ctx) error {
 
 	ct := v.ThumbnailContentType
 	if ct == "" {
-		ct = "image/jpeg"
+		ct = contentTypeImageJPEG
 	}
 	c.Set("Content-Type", ct)
 	return c.SendStream(rc)
@@ -385,7 +387,7 @@ func (s *Server) handleShareGetVariantThumb(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "Download not allowed for this share"
 // @Failure 404 {object} ErrorResponse "Asset or file not found"
-// @Router /shared/{id}/assets/{aid}/file [get]
+// @Router /shared/{id}/assets/{aid}/file [get].
 func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -406,7 +408,7 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	lastMod := parseVersionTime(f.VersionCreatedAt)
+	lastMod := parseVersionTime(c.Context(), f.VersionCreatedAt)
 	if setCacheHeaders(c, f.ContentHash, lastMod, false) {
 		return nil
 	}
@@ -436,7 +438,7 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 // @Success 200 {file} binary
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found or thumbnail not ready"
-// @Router /shared/{id}/assets/{aid}/thumb [get]
+// @Router /shared/{id}/assets/{aid}/thumb [get].
 func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -464,7 +466,7 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
 
-	c.Set("Content-Type", "image/jpeg")
+	c.Set("Content-Type", contentTypeImageJPEG)
 	return c.SendStream(rc)
 }
 
@@ -482,7 +484,7 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 403 {object} ErrorResponse "Comments not allowed for this share"
 // @Failure 404 {object} ErrorResponse "Asset not found in this share"
-// @Router /shared/{id}/comments [post]
+// @Router /shared/{id}/comments [post].
 func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -515,7 +517,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 		Body:        body.Body,
 	})
 	if err != nil {
-		slog.ErrorContext(c.Context(), "failed to create comment", "error", err)
+		slog.ErrorContext(c.Context(), "failed to create comment", apiErrorKey, err)
 		return errRes(c, fiber.StatusInternalServerError, "could not create comment")
 	}
 
@@ -533,7 +535,7 @@ func (s *Server) handleShareCreateComment(c fiber.Ctx) error {
 // @Success 200 {array} map[string]interface{} "Array of {asset_id, comments[]} groups"
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
-// @Router /shared/{id}/comments [get]
+// @Router /shared/{id}/comments [get].
 func (s *Server) handleShareListComments(c fiber.Ctx) error {
 	shareID := c.Params("id")
 
@@ -580,7 +582,7 @@ func (s *Server) handleShareListComments(c fiber.Ctx) error {
 // @Success 200 {array} CommentResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Asset not found in this share"
-// @Router /shared/{id}/assets/{aid}/comments [get]
+// @Router /shared/{id}/assets/{aid}/comments [get].
 func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -616,7 +618,7 @@ func (s *Server) handleShareListAssetComments(c fiber.Ctx) error {
 // @Success 200 {array} CommentResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
-// @Router /api/v1/shares/{id}/comments [get]
+// @Router /api/v1/shares/{id}/comments [get].
 func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	shareID := c.Params("id")
@@ -649,7 +651,7 @@ func (s *Server) handleOwnerListComments(c fiber.Ctx) error {
 // @Success 204
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 404 {object} ErrorResponse "Share not found"
-// @Router /api/v1/shares/{id}/comments/{cid} [delete]
+// @Router /api/v1/shares/{id}/comments/{cid} [delete].
 func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	shareID := c.Params("id")
@@ -676,7 +678,7 @@ func (s *Server) handleOwnerDeleteComment(c fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "Not authenticated (share token required)"
 // @Failure 403 {object} ErrorResponse "Download not allowed for this share"
 // @Failure 404 {object} ErrorResponse "Share not found or expired"
-// @Router /shared/{id}/export [get]
+// @Router /shared/{id}/export [get].
 func (s *Server) handleShareExport(c fiber.Ctx) error {
 	sc := auth.GetShareClaims(c)
 	shareID := c.Params("id")
@@ -719,7 +721,10 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 		}
 		collisions := map[string]int{}
 		entries = append(entries, entry{
-			name:       folder + "/" + uniqueZipChildName(collisions, "original"+strings.ToLower(filepath.Ext(d.OriginalFilename))),
+			name: folder + "/" + uniqueZipChildName(
+				collisions,
+				"original"+strings.ToLower(filepath.Ext(d.OriginalFilename)),
+			),
 			storageKey: d.StorageKey,
 		})
 		for _, v := range shared {
@@ -739,7 +744,10 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 	}
 
 	c.Set("Content-Type", "application/zip")
-	c.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename + ".zip"}))
+	c.Set(
+		"Content-Disposition",
+		mime.FormatMediaType("attachment", map[string]string{apiFilenameKey: filename + ".zip"}),
+	)
 
 	pr, pw := io.Pipe()
 	go func() {
@@ -758,7 +766,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 				continue
 			}
 			if _, err := io.Copy(fw, rc); err != nil {
-				slog.Warn("share zip copy error", "name", e.name, "err", err)
+				slog.WarnContext(c.Context(), "share zip copy error", "name", e.name, "err", err)
 			}
 			_ = rc.Close()
 		}

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestTesseractAvailableDoesNotPanic(t *testing.T) {
+func TestTesseractAvailableDoesNotPanic(_ *testing.T) {
 	_ = TesseractAvailable()
 }
 
