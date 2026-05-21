@@ -13,8 +13,3 @@ linters:
       - path: .*_test.go
         linters:
           - errcheck
-
-run:
-  timeout: 5m
-  exclude-dirs:
-    - cmd/server/web/node_modules
