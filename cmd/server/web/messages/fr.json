@@ -218,22 +218,6 @@
   "address_copied": "Adresse d'ingestion copiée",
   "cannot_copy": "Impossible de copier",
   "folder_rename_failed": "Impossible de renommer le dossier",
-  "auth": {
-    "forgot_password": {
-      "link": "Mot de passe oublié ?",
-      "title": "Réinitialiser votre mot de passe",
-      "desc": "Saisissez votre e-mail et nous vous enverrons un lien de réinitialisation.",
-      "submit": "Envoyer le lien",
-      "sent": "Vérifiez votre e-mail pour le lien de réinitialisation."
-    },
-    "reset_password": {
-      "title": "Choisissez un nouveau mot de passe",
-      "submit": "Définir le nouveau mot de passe",
-      "success": "Mot de passe mis à jour. Vous pouvez maintenant vous connecter.",
-      "invalid_token": "Ce lien de réinitialisation est invalide ou expiré."
-    },
-    "account_deleted": "Votre compte a été supprimé."
-  },
   "folder_delete_failed": "Impossible de supprimer le dossier",
   "folder_create_failed": "Impossible de créer le dossier",
   "copy_address": "Copier l'adresse d'ingestion",
@@ -1036,5 +1020,10 @@
   "variant_tool_audio_transcode": "Transcoder l'audio",
   "variant_tool_audio_transcode_sub": "Convertir le format",
   "variant_tool_audio_normalize": "Normaliser",
-  "variant_tool_audio_normalize_sub": "Normalisation EBU R128"
+  "variant_tool_audio_normalize_sub": "Normalisation EBU R128",
+  "add_workflow": "Ajouter un flux de travail",
+  "make_all_private": "Tout rendre privé",
+  "share_all": "Tout partager",
+  "variant_automation_scope_asset": "Cet asset uniquement",
+  "variants_visibility": "Visibilité des variantes"
 }

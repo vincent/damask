@@ -1019,5 +1019,11 @@
   "variant_tool_audio_transcode": "Transcodificar Audio",
   "variant_tool_audio_transcode_sub": "Convertir formato",
   "variant_tool_audio_normalize": "Normalizar",
-  "variant_tool_audio_normalize_sub": "Normalización EBU R128"
+  "variant_tool_audio_normalize_sub": "Normalización EBU R128",
+  "add_workflow": "Añadir flujo de trabajo",
+  "make_all_private": "Hacer todo privado",
+  "share_all": "Compartir todo",
+  "variant_automation_covered_scope_asset": "(este asset)",
+  "variant_automation_scope_asset": "Solo este asset",
+  "variants_visibility": "Visibilidad de variantes"
 }

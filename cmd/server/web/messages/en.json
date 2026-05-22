@@ -218,22 +218,6 @@
   "address_copied": "Ingest address copied",
   "cannot_copy": "Could not copy",
   "folder_rename_failed": "Could not rename folder",
-  "auth": {
-    "forgot_password": {
-      "link": "Forgot password?",
-      "title": "Reset your password",
-      "desc": "Enter your email and we'll send you a reset link.",
-      "submit": "Send reset link",
-      "sent": "Check your email for a reset link."
-    },
-    "reset_password": {
-      "title": "Choose a new password",
-      "submit": "Set new password",
-      "success": "Password updated. You can now sign in.",
-      "invalid_token": "This reset link is invalid or has expired."
-    },
-    "account_deleted": "Your account has been deleted."
-  },
   "folder_delete_failed": "Could not delete folder",
   "folder_create_failed": "Could not create folder",
   "copy_address": "Copy ingest address",

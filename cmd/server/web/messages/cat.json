@@ -1019,5 +1019,11 @@
   "variant_tool_audio_transcode": "Transcodificar l'àudio",
   "variant_tool_audio_transcode_sub": "Convertir el format",
   "variant_tool_audio_normalize": "Normalitzar",
-  "variant_tool_audio_normalize_sub": "Normalització EBU R128"
+  "variant_tool_audio_normalize_sub": "Normalització EBU R128",
+  "add_workflow": "Afegir flux de treball",
+  "make_all_private": "Fer-ho tot privat",
+  "share_all": "Compartir tot",
+  "variant_automation_covered_scope_asset": "(aquest asset)",
+  "variant_automation_scope_asset": "Només aquest asset",
+  "variants_visibility": "Visibilitat de les variants"
 }

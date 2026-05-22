@@ -1,4 +1,4 @@
-.PHONY: dev dev-server dev-web build build-web build-demo build-dev test test-integration lint generate migrate admin admin-run admin-install swagger
+.PHONY: dev dev-server dev-web build build-web build-demo build-dev test test-integration lint generate migrate admin admin-run admin-install swagger check-i18n
 
 # Run both server and web dev servers concurrently
 dev:
@@ -66,3 +66,18 @@ admin-run:
 
 admin-install:
 	go install ./cmd/admin
+
+check-i18n:
+	cd cmd/server/web/messages && \
+	missing_found=false; \
+	for file in *.json; do \
+		[ "$$file" = "en.json" ] && continue; \
+		missing=$$(jq -r --slurpfile ref "en.json" \
+			'($$ref[0] | keys) - keys | .[]' "$$file"); \
+		if [ -n "$$missing" ]; then \
+			missing_found=true; \
+			echo "Missing in $$file:"; \
+			echo "$$missing" | sed 's/^/  - /'; \
+		fi; \
+	done; \
+	$$missing_found || echo "All files are in sync with en.json"
