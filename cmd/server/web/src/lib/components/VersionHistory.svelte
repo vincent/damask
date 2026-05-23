@@ -15,10 +15,10 @@
 
   interface Props {
     asset: Asset
-    onversionchanged: (updatedAsset: Asset) => void
+    onVersionChanged: (updatedAsset: Asset) => void
   }
 
-  let { asset, onversionchanged }: Props = $props()
+  let { asset, onVersionChanged }: Props = $props()
 
   let versions = $state<AssetVersion[]>([])
   let loading = $state(false)
@@ -59,7 +59,7 @@
     try {
       const res = await versionApi.restore(asset.id, restoreTarget.id)
       versions = await versionApi.list(asset.id)
-      onversionchanged(res.asset)
+      onVersionChanged(res.asset)
       restoreTarget = null
     } catch (e) {
       restoreError = e instanceof Error ? e.message : m.version_restore_failed()

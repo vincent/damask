@@ -33,7 +33,9 @@
     <div class="flex items-center -space-x-2">
       {#each stackStore.assets.slice(0, MAX_THUMBS) as asset (asset.id)}
         <div
-          class="h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 border-amber-100 dark:border-amber-900 {ASSET_BACKGROUND_COLORS[mimeCategory(asset.mimeType)] ?? ''}"
+          class="h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 border-amber-100 dark:border-amber-900 {ASSET_BACKGROUND_COLORS[
+            mimeCategory(asset.mimeType)
+          ] ?? ''}"
           title={asset.name}
         >
           {#if asset.thumbnailUrl}

@@ -78,7 +78,7 @@
   }
 </script>
 
-<Backdrop {onclose}>
+<Backdrop onClose={onclose}>
   <div
     class="relative w-full max-w-md rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
     role="dialog"

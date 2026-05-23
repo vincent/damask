@@ -468,9 +468,9 @@
 
 <Lightbox
   asset={selectedAsset}
-  onclose={() => (selectedAsset = null)}
-  ondeleted={handleDeleted}
-  onassetupdated={(updated) => {
+  onClose={() => (selectedAsset = null)}
+  onDeleted={handleDeleted}
+  onAssetUpdated={(updated) => {
     selectedAsset = updated
     assetsStore.patchAsset(updated.id, updated)
     assetsStore.reloadAssetResources(updated.id)

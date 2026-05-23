@@ -1,6 +1,12 @@
 <script lang="ts">
   import { stackStore } from '$lib/stores/stack.svelte'
-  import { stackApi, collectionApi, shareApi, projectApi, mimeCategory } from '$lib/api'
+  import {
+    stackApi,
+    collectionApi,
+    shareApi,
+    projectApi,
+    mimeCategory,
+  } from '$lib/api'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { sseEvents } from '$lib/stores/assets.svelte'
   import type { Project } from '$lib/api'
@@ -310,7 +316,9 @@
             class="flex items-center gap-3 rounded-lg p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <div
-              class="h-10 w-10 shrink-0 overflow-hidden rounded-md {ASSET_BACKGROUND_COLORS[mimeCategory(asset.mimeType)] ?? 'bg-gray-100 dark:bg-gray-700'}"
+              class="h-10 w-10 shrink-0 overflow-hidden rounded-md {ASSET_BACKGROUND_COLORS[
+                mimeCategory(asset.mimeType)
+              ] ?? 'bg-gray-100 dark:bg-gray-700'}"
             >
               {#if asset.thumbnailUrl}
                 <img

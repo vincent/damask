@@ -2,10 +2,10 @@
   import type { Snippet } from 'svelte'
 
   let {
-    onclose,
+    onClose,
     children,
     class: extraClass,
-  }: { onclose?: () => void; children?: Snippet; class?: string } = $props()
+  }: { onClose?: () => void; children?: Snippet; class?: string } = $props()
 </script>
 
 <div
@@ -13,9 +13,9 @@
   role="button"
   tabindex="-1"
   onclick={(e) => {
-    if (e.target === e.currentTarget) onclose?.()
+    if (e.target === e.currentTarget) onClose?.()
   }}
-  onkeydown={(e) => e.key === 'Enter' && onclose?.()}
+  onkeydown={(e) => e.key === 'Enter' && onClose?.()}
   aria-label="Close modal"
 >
   {@render children?.()}
