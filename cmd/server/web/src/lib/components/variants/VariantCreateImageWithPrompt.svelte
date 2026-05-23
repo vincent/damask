@@ -2,8 +2,11 @@
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { type Asset, type ImageRouterModelsResponse } from '$lib/api'
+  import { generateDraft } from '$lib/api/drafts'
+  import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
   import ImageRouterModelSelect from './ImageRouterModelSelect.svelte'
+  import VariantDraftSession from './VariantDraftSession.svelte'
 
   interface Props {
     asset: Asset
@@ -12,63 +15,134 @@
       kind: string,
       params: Record<string, unknown>
     ) => void | Promise<void>
+    onDone?: () => void
+    onDraftStarted?: (nonce: string) => void
+    sessionActive?: boolean
   }
 
-  let { asset, creating, handleCreate }: Props = $props()
+  let {
+    asset,
+    creating,
+    handleCreate,
+    onDone,
+    onDraftStarted,
+    sessionActive = false,
+  }: Props = $props()
+
+  type Phase = 'form' | 'drafting'
 
   const kind = 'image_with_prompt'
 
+  let phase = $state<Phase>('form')
   let prompt = $state('')
   let model = $state('')
+  let modelsMulti = $state<string[]>([])
   let defaultModelId = $state('')
   let configured = $state(true)
+  let submitting = $state(false)
+  let sessionRef = $state<ReturnType<typeof VariantDraftSession> | undefined>(
+    undefined
+  )
 
   function handleModelsLoaded(res: ImageRouterModelsResponse) {
     configured = res.configured
     defaultModelId = res.default_model
     if (!model) model = res.default_model
   }
+
+  async function handlePreview() {
+    submitting = true
+    try {
+      const targets = modelsMulti.length > 0 ? modelsMulti : [model]
+      for (const target of targets) {
+        const res = await generateDraft(asset.id, kind, {
+          prompt: prompt.trim(),
+          model: target,
+        })
+        if (onDraftStarted) {
+          onDraftStarted(res.draft_key)
+        } else {
+          if (phase !== 'drafting') {
+            phase = 'drafting'
+            await Promise.resolve()
+          }
+          sessionRef?.addDraft(res.draft_key)
+        }
+      }
+    } catch (e: unknown) {
+      toastStore.show(
+        e instanceof Error ? e.message : m.variant_create_failed(),
+        'error'
+      )
+    } finally {
+      submitting = false
+    }
+  }
+
+  function handleAddMore() {
+    phase = 'form'
+  }
+
+  function handleDone() {
+    onDone?.()
+  }
+
+  $effect(() => {
+    if (!sessionActive) phase = 'form'
+  })
 </script>
 
-<div class="space-y-5">
-  <div class="form-header">
-    <p class="form-title">AI image transform</p>
-    <p class="form-desc">
-      Transform this image with a text prompt. Output is always PNG.
-    </p>
-  </div>
+{#if phase === 'form' || onDraftStarted}
+  <div class="space-y-5">
+    <div class="form-header">
+      <p class="form-title">{m.image_with_prompt_title()}</p>
+      <p class="form-desc">{m.image_with_prompt_description()}</p>
+    </div>
 
-  <div>
-    <label for="variant-{kind}-prompt" class="field-label">Prompt</label>
-    <textarea
-      id="variant-{kind}-prompt"
-      bind:value={prompt}
-      rows="4"
-      class="field-input textarea"
-      placeholder="Describe how you want the image transformed…"
-    ></textarea>
-  </div>
+    <div>
+      <label for="variant-{kind}-prompt" class="field-label">
+        {m.image_with_prompt_prompt_label()}
+      </label>
+      <textarea
+        id="variant-{kind}-prompt"
+        bind:value={prompt}
+        rows="4"
+        class="field-input textarea"
+        placeholder={m.image_with_prompt_prompt_placeholder()}
+      ></textarea>
+    </div>
 
-  <ImageRouterModelSelect
-    bind:value={model}
-    {defaultModelId}
-    disabled={creating}
-    onloaded={handleModelsLoaded}
+    <ImageRouterModelSelect
+      bind:value={model}
+      bind:values={modelsMulti}
+      {defaultModelId}
+      disabled={submitting}
+      allowMulti={true}
+      onloaded={handleModelsLoaded}
+    />
+
+    <p class="form-note">{m.image_with_prompt_output_note()}</p>
+
+    <Button
+      disabled={submitting ||
+        authStore.role === 'viewer' ||
+        !configured ||
+        !prompt.trim() ||
+        (modelsMulti.length === 0 && !model)}
+      onclick={handlePreview}
+      class="w-full"
+    >
+      {submitting ? m.queuing_() : m.variants_draft_preview_button()}
+    </Button>
+  </div>
+{:else}
+  <VariantDraftSession
+    bind:this={sessionRef}
+    assetId={asset.id}
+    onDone={handleDone}
+    onAddMore={handleAddMore}
   />
-
-  <p class="form-note">Output is always PNG.</p>
-
-  <Button
-    disabled={creating ||
-      authStore.role === 'viewer' ||
-      !configured ||
-      !prompt.trim()}
-    onclick={() => handleCreate(kind, { prompt: prompt.trim(), model })}
-    class="w-full"
-  >
-    {creating ? m.queuing_() : 'Create variant'}
-  </Button>
-</div>
+{/if}
 
 <style>
   .form-header {

@@ -67,6 +67,9 @@ admin-run:
 admin-install:
 	go install ./cmd/admin
 
+i18n:
+	npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+
 check-i18n:
 	cd cmd/server/web/messages && \
 	missing_found=false; \

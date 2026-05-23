@@ -48,6 +48,9 @@ export const sseEvents = $state<{
     thumbnail_key: string
     job_id?: string
     error?: string
+    nonce?: string
+    preview_url?: string
+    expires_at?: string
   } | null
 }>({ last: null })
 

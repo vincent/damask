@@ -67,7 +67,7 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 		variantID = uuid.NewString()
 	}
 	paramsJSON, _ := json.Marshal(params)
-	paramsHash := canonicalParamsHash(string(paramsJSON))
+	paramsHash := CanonicalParamsHash(string(paramsJSON))
 	storageKey := storage.VersionedVariantKey(
 		p.WorkspaceID,
 		p.AssetID,
@@ -166,7 +166,7 @@ func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error 
 	}
 	paramsJSON, _ := json.Marshal(params)
 	pj := string(paramsJSON)
-	paramsHash := canonicalParamsHash(pj)
+	paramsHash := CanonicalParamsHash(pj)
 	storageKey := storage.VersionedVariantKey(
 		p.WorkspaceID,
 		p.AssetID,
@@ -267,7 +267,7 @@ func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error 
 	}
 	paramsJSON, _ := json.Marshal(params)
 	pj := string(paramsJSON)
-	paramsHash := canonicalParamsHash(pj)
+	paramsHash := CanonicalParamsHash(pj)
 	storageKey := storage.VersionedVariantKey(
 		p.WorkspaceID,
 		p.AssetID,

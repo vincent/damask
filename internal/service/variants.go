@@ -19,6 +19,7 @@ import (
 	apptelemetry "damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -353,6 +354,41 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto
 			Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: dto.Type},
 		})
 	}
+	return dto, nil
+}
+
+// CommitDraft persists a pre-generated scratch file as a permanent variant row.
+func (s *variantService) CommitDraft(ctx context.Context, p CommitDraftParams) (dto *VariantDTO, err error) {
+	ctx, span := apptelemetry.StartSpan(ctx, "service.variants.commit_draft",
+		attribute.String("damask.workspace_id", p.WorkspaceID),
+		attribute.String("damask.asset_id", p.AssetID),
+		attribute.String("damask.variant.type", p.VariantType),
+	)
+	defer apptelemetry.EndSpan(span, err)
+
+	v, err := s.variants.Create(ctx, repository.Variant{
+		ID:              uuid.NewString(),
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.AssetVersionID,
+		Type:            p.VariantType,
+		StorageKey:      p.StorageKey,
+		TransformParams: p.TransformParams,
+		Status:          "ready",
+		Title:           p.Title,
+	})
+	if err != nil {
+		return nil, err
+	}
+	dto = toVariantDTO(v, 1)
+	actor := auth.ActorFromCtx(ctx)
+	s.audit.WriteAsset(ctx, audit.AssetEvent{
+		WorkspaceID: p.WorkspaceID,
+		AssetID:     p.AssetID,
+		UserID:      actor.UserID,
+		ActorType:   actor.Type,
+		EventType:   audit.EventAssetVariantCreated,
+		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: dto.Type},
+	})
 	return dto, nil
 }
 

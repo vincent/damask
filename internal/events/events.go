@@ -29,6 +29,10 @@ type Event struct {
 	ThumbnailKey string `json:"thumbnail_key"`
 	JobID        string `json:"job_id,omitempty"`
 	Error        string `json:"error,omitempty"`
+	// Draft event fields.
+	Nonce      string `json:"nonce,omitempty"`
+	PreviewURL string `json:"preview_url,omitempty"`
+	ExpiresAt  string `json:"expires_at,omitempty"`
 }
 
 type EventHub interface {

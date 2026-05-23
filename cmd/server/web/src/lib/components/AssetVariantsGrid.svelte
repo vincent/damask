@@ -34,6 +34,7 @@
     <VariantCard
       variant={v}
       assetId={asset.id}
+      assetMimeType={asset.mime_type}
       isSelected={selectedVariant?.id === v.id}
       onSelect={() => onSelectVariant(v)}
       {onVariantUpdated}

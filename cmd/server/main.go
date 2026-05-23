@@ -270,6 +270,8 @@ func main() {
 		slog.Info("retention scheduler started")
 		jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
 		slog.Info("audit-log retention scheduler started")
+		jobs.NewScratchPurgeScheduler(q, cfg).Start(ctx)
+		slog.Info("scratch purge scheduler started")
 	}
 
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)

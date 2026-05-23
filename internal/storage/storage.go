@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Storage is the interface that wraps basic asset storage operations.
@@ -12,6 +13,17 @@ type Storage interface {
 	Get(key string) (io.ReadCloser, error)
 	Delete(key string) error
 	List(prefix string) ([]string, error)
+}
+
+// IsNotFoundErr returns true when err indicates a missing key, regardless of backend.
+func IsNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "not found") ||
+		strings.Contains(msg, "no such file") ||
+		strings.Contains(msg, "does not exist")
 }
 
 // VersionedVariantKey returns the canonical storage path for a variant that

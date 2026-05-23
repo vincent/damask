@@ -47,6 +47,7 @@
   import { ALL_VARIANT_TOOLS } from './variants/toolDefs'
   import VariantToolPanel from './variants/VariantToolPanel.svelte'
   import VariantToolSidebar from './variants/VariantToolSidebar.svelte'
+  import VariantDraftSession from './variants/VariantDraftSession.svelte'
   import Backdrop from './ui/Backdrop.svelte'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { m } from '$lib/paraglide/messages'
@@ -193,6 +194,45 @@
   let variantPanelState = $state<
     { mode: 'list' } | { mode: 'promote'; variant: Variant }
   >({ mode: 'list' })
+
+  // --- Draft overlay (replaces asset preview when a draft tool is active) ---
+  let draftSessionRef = $state<
+    ReturnType<typeof VariantDraftSession> | undefined
+  >(undefined)
+  let showDraftOverlay = $state(false)
+  let draftAssetId = $state<string | null>(null)
+  let draftDoneTimer: ReturnType<typeof setTimeout> | null = null
+
+  function handleDraftStarted(nonce: string) {
+    draftAssetId = asset?.id ?? null
+    showDraftOverlay = true
+    // Give Svelte a tick to mount VariantDraftSession before adding the draft
+    Promise.resolve().then(() => draftSessionRef?.addDraft(nonce))
+  }
+
+  function handleDraftDone() {
+    if (draftDoneTimer) clearTimeout(draftDoneTimer)
+    draftDoneTimer = setTimeout(() => {
+      showDraftOverlay = false
+      selectedTool = null
+      draftDoneTimer = null
+      loadVariants()
+    }, 1200)
+  }
+
+  function handleDraftAddMore() {
+    // session stays open; tool panel form is already visible
+  }
+
+  $effect(() => {
+    if (!asset || selectedTool === null) {
+      showDraftOverlay = false
+      if (draftDoneTimer) {
+        clearTimeout(draftDoneTimer)
+        draftDoneTimer = null
+      }
+    }
+  })
 
   const category = $derived(asset ? mimeCategory(asset.mime_type) : 'document')
   const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
@@ -438,6 +478,7 @@
   })
 
   function handleClose(e: MouseEvent) {
+    if (showDraftOverlay) return
     const src = e.target as HTMLElement
     if (src.classList.contains('asset-preview-full')) return
     if (src.classList.contains('asset-preview-toolbar')) return
@@ -547,17 +588,37 @@
       aria-label={m.close()}
     >
       <div class="relative grid min-h-0 flex-1 place-items-center p-40">
-        <SharedAsset
-          asset={{ ...asset, mime_type: previewMimeType }}
-          category={previewCategory}
-          thumbUrl={previewThumbUrl}
-          assetUrl={previewFileUrl}
-          bind:zoomIn
-          bind:zoomOut
-          bind:zoomReset
-          bind:onwheel={zoomWheel}
-          bind:rotateRight
-        />
+        {#if showDraftOverlay && draftAssetId}
+          <div
+            class="pointer-events-auto absolute inset-y-0 right-0 overflow-y-auto p-8"
+            style="left: calc(60px + 350px);"
+          >
+            <div class="flex min-h-full flex-col items-center justify-center">
+              <div class="w-full" style="max-width: 560px;">
+                <VariantDraftSession
+                  bind:this={draftSessionRef}
+                  assetId={draftAssetId}
+                  gridMode={true}
+                  onDone={handleDraftDone}
+                  onAddMore={handleDraftAddMore}
+                />
+              </div>
+            </div>
+          </div>
+        {:else}
+          <SharedAsset
+            asset={{ ...asset, mime_type: previewMimeType }}
+            category={previewCategory}
+            thumbUrl={previewThumbUrl}
+            assetUrl={previewFileUrl}
+            bind:zoomIn
+            bind:zoomOut
+            bind:zoomReset
+            bind:onwheel={zoomWheel}
+            bind:rotateRight
+          />
+        {/if}
+
         {#if viewportStore.isXl && visibleVariantTools.length > 0}
           <VariantToolSidebar
             {asset}
@@ -567,6 +628,7 @@
               selectedTool = tool
               createError = ''
               createSuccess = ''
+              showDraftOverlay = false
             }}
           />
         {/if}
@@ -579,21 +641,26 @@
             {handleCreate}
             onClose={() => {
               selectedTool = null
+              showDraftOverlay = false
             }}
+            onDraftStarted={handleDraftStarted}
+            sessionActive={showDraftOverlay}
           />
         {/if}
 
-        <div
-          class="pointer-events-auto absolute bottom-8 left-1/2 z-30 -translate-x-1/2"
-        >
-          <PreviewToolbar
-            {zoomIn}
-            {zoomOut}
-            {rotateRight}
-            fullscreenTarget={previewContainer}
-            bind:show={showToolbar}
-          />
-        </div>
+        {#if !showDraftOverlay}
+          <div
+            class="pointer-events-auto absolute bottom-8 left-1/2 z-30 -translate-x-1/2"
+          >
+            <PreviewToolbar
+              {zoomIn}
+              {zoomOut}
+              {rotateRight}
+              fullscreenTarget={previewContainer}
+              bind:show={showToolbar}
+            />
+          </div>
+        {/if}
       </div>
     </div>
   </Backdrop>
@@ -863,6 +930,10 @@
                 creating={creating || pendingVariantAssetId === asset.id}
                 tool={activeVariantTab}
                 {handleCreate}
+                onDone={async () => {
+                  activeVariantTab = 'all'
+                  await loadVariants()
+                }}
               />
             {/if}
           </div>

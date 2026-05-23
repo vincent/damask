@@ -8,16 +8,18 @@
     Pencil,
     X,
   } from '@lucide/svelte'
-  import { formatBytes, variantApi, type Variant } from '$lib/api'
+  import { formatBytes, mimeCategory, variantApi, type Variant } from '$lib/api'
   import AssetThumbnail from '$lib/components/AssetThumbnail.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
 
   interface Props {
     variant: Variant
     assetId: string
+    assetMimeType: string
     isSelected: boolean
     onSelect: () => void
     onVariantUpdated: (variant: Variant) => void
@@ -31,6 +33,7 @@
   let {
     variant,
     assetId,
+    assetMimeType,
     isSelected,
     onSelect,
     onVariantUpdated,
@@ -40,6 +43,9 @@
     onThumbnailUpdated,
     onRerun,
   }: Props = $props()
+
+  const category = $derived(mimeCategory(assetMimeType))
+  const thumbBg = $derived(ASSET_BACKGROUND_COLORS[category] ?? '')
 
   let thumbUrl = $state<string | null>(null)
   let thumbContentType = $state('image/jpeg')
@@ -189,7 +195,7 @@
   onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect()}
   aria-pressed={isSelected}
 >
-  <div class="thumb-area">
+  <div class="thumb-area {thumbBg}">
     {#if thumbUrl}
       <AssetThumbnail
         src={thumbUrl}
@@ -394,8 +400,7 @@
     height: 160px;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    background: var(--bg-app);
+    overflow: visible;
   }
   .thumb-placeholder {
     display: flex;

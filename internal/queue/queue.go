@@ -317,9 +317,13 @@ const (
 	// Stack merge jobs.
 	JobTypeStackMerge = "stack_merge"
 
+	// Variant draft jobs.
+	JobTypeCreateVariantDraft = "create_variant_draft"
+
 	// Maintenance jobs.
 	JobTypePurgeDeletedFields      = "purge_deleted_fields"
 	JobTypeEnforceVersionRetention = "enforce_version_retention"
 	JobTypePurgeVersionStorage     = "purge_version_storage"
 	JobTypePurgeAuditLog           = "purge_event_log"
+	JobTypePurgeScratchVariants    = "purge_scratch_variants"
 )

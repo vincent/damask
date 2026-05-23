@@ -1025,5 +1025,22 @@
   "make_all_private": "Tout rendre privé",
   "share_all": "Tout partager",
   "variant_automation_scope_asset": "Cet asset uniquement",
-  "variants_visibility": "Visibilité des variantes"
+  "variants_visibility": "Visibilité des variantes",
+  "variants_draft_preview_button": "Aperçu →",
+  "variants_draft_generating": "Génération en cours…",
+  "variants_draft_session_title": "Aperçus brouillons",
+  "variants_draft_expires_in": "Expire dans ~{hours}h",
+  "variants_draft_keep_one": "Garder celui-ci →",
+  "variants_draft_keep_all": "Tout garder ({n}) →",
+  "variants_draft_keeping": "Sauvegarde…",
+  "variants_draft_keeping_n": "Sauvegarde {current} sur {total}…",
+  "variants_draft_discard": "Supprimer",
+  "variants_draft_others_discarded": "{n} autre(s) brouillon(s) supprimé(s).",
+  "variants_draft_add_more": "+ Essayer d'autres paramètres pour générer plus de variantes",
+  "variants_draft_committed": "Variante enregistrée.",
+  "variants_draft_all_committed": "{n} variantes enregistrées.",
+  "variants_draft_commit_error": "Échec de l'enregistrement. Veuillez réessayer.",
+  "variants_draft_error_generating": "Échec de la génération : {error}",
+  "variants_draft_timed_out": "Délai de génération dépassé. Veuillez réessayer.",
+  "variants_draft_expired": "Ce brouillon a expiré. Veuillez générer un nouvel aperçu."
 }

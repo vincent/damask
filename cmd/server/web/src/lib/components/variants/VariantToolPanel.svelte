@@ -13,9 +13,23 @@
     creating: boolean
     handleCreate: (type: string, params: object) => void
     onClose: () => void
+    onDraftStarted?: (nonce: string) => void
+    sessionActive?: boolean
   }
 
-  let { tool, asset, creating, handleCreate, onClose }: Props = $props()
+  let {
+    tool,
+    asset,
+    creating,
+    handleCreate,
+    onClose,
+    onDraftStarted,
+    sessionActive,
+  }: Props = $props()
+
+  function handleDraftDone() {
+    onClose()
+  }
 
   const messages = m as unknown as Record<string, (() => string) | undefined>
   const msg = (key: string) => messages[key]?.() ?? key
@@ -52,7 +66,15 @@
   </header>
 
   <div class="panel-body">
-    <VariantsTool {tool} {asset} {creating} {handleCreate} />
+    <VariantsTool
+      {tool}
+      {asset}
+      {creating}
+      {handleCreate}
+      onDone={handleDraftDone}
+      {onDraftStarted}
+      {sessionActive}
+    />
   </div>
 </div>
 

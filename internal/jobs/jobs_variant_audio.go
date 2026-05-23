@@ -57,7 +57,7 @@ func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error 
 		return err
 	}
 
-	paramsHash := canonicalParamsHash(canonicalParams)
+	paramsHash := CanonicalParamsHash(canonicalParams)
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, job.Type, paramsHash, ext)
 
 	dstData, err := os.ReadFile(dstPath)

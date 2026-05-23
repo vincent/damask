@@ -95,6 +95,7 @@
 
   let wheelTimer: ReturnType<typeof setTimeout> | null = null
   function onWheel(e: WheelEvent) {
+    if (!container) return
     e.preventDefault()
     animated = false
     if (wheelTimer) clearTimeout(wheelTimer)

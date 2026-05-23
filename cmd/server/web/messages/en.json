@@ -1025,5 +1025,22 @@
   "variant_tool_audio_transcode": "Transcode Audio",
   "variant_tool_audio_transcode_sub": "Convert format",
   "variant_tool_audio_normalize": "Normalize",
-  "variant_tool_audio_normalize_sub": "EBU R128 loudness"
+  "variant_tool_audio_normalize_sub": "EBU R128 loudness",
+  "variants_draft_preview_button": "Preview →",
+  "variants_draft_generating": "Generating…",
+  "variants_draft_session_title": "Draft previews",
+  "variants_draft_expires_in": "Expires in ~{hours}h",
+  "variants_draft_keep_one": "Keep this one →",
+  "variants_draft_keep_all": "Keep all ({n}) →",
+  "variants_draft_keeping": "Keeping…",
+  "variants_draft_keeping_n": "Saving {current} of {total}…",
+  "variants_draft_discard": "Discard",
+  "variants_draft_others_discarded": "{n} other draft(s) discarded.",
+  "variants_draft_add_more": "+ Try different params for more previews",
+  "variants_draft_committed": "Variant saved.",
+  "variants_draft_all_committed": "{n} variants saved.",
+  "variants_draft_commit_error": "Failed to save. Please try again.",
+  "variants_draft_error_generating": "Generation failed: {error}",
+  "variants_draft_timed_out": "Generation timed out. Please try again.",
+  "variants_draft_expired": "This draft has expired. Please generate a new preview."
 }

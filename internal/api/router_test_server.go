@@ -148,6 +148,11 @@ func (s *Server) SetConfigForTest(cfg *config.Config) {
 	s.cfg = cfg
 }
 
+// StorageForTest exposes the server's storage backend for use in tests.
+func (s *Server) StorageForTest() storage.Storage {
+	return s.storage
+}
+
 // buildTestApp registers all routes on a fresh Fiber app using server s.
 // The route registrations must stay in sync with NewRouter in router.go.
 func buildTestApp(s *Server) *fiber.App {
@@ -393,6 +398,11 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Post("/assets/:id/variants", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateVariant)
 	api.Post("/assets/:id/variants/automate", auth.RequireRole(getRoleFn, auth.Editor), s.handleAutomateVariants)
 	api.Post("/assets/:id/variants/upload", auth.RequireRole(getRoleFn, auth.Editor), s.handleUploadManualVariant)
+	// Draft routes — before /:vid
+	api.Post("/assets/:id/variants/draft", auth.RequireRole(getRoleFn, auth.Editor), s.handleGenerateDraft)
+	api.Get("/assets/:id/variants/draft/:nonce/preview", s.handlePreviewDraft)
+	api.Post("/assets/:id/variants/draft/:nonce/commit", auth.RequireRole(getRoleFn, auth.Editor), s.handleCommitDraft)
+	api.Delete("/assets/:id/variants/draft/:nonce", auth.RequireRole(getRoleFn, auth.Editor), s.handleDiscardDraft)
 	api.Put("/assets/:id/variants/sharing", auth.RequireRole(getRoleFn, auth.Editor), s.handleUpdateVariantsSharing)
 	api.Patch("/assets/:id/variants/:vid", auth.RequireRole(getRoleFn, auth.Editor), s.handlePatchVariant)
 	api.Post("/assets/:id/variants/:vid/promote", auth.RequireRole(getRoleFn, auth.Editor), s.handlePromoteVariant)

@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
@@ -51,6 +52,13 @@ type FFmpegConfig struct {
 	HWAccel string
 }
 
+// ScratchConfig holds settings for the variant draft scratch storage.
+type ScratchConfig struct {
+	// PurgeTime is the wall-clock time (HH:MM, 24h, UTC) at which the daily
+	// scratch purge job runs. Defaults to "03:00".
+	PurgeTime string
+}
+
 type Config struct {
 	MailServerPort   string
 	MailServerHost   string
@@ -78,6 +86,7 @@ type Config struct {
 
 	ImageRouter ImageRouterConfig
 	FFmpeg      FFmpegConfig
+	Scratch     ScratchConfig
 
 	Telemetry TelemetryConfig
 }
@@ -182,6 +191,11 @@ func Load() (*Config, error) {
 			HWAccel: strings.ToLower(strings.TrimSpace(os.Getenv("FFMPEG_HW_ACCEL"))),
 		},
 	}
+	scratchPurgeTime := getEnv("SCRATCH_PURGE_TIME", "03:00")
+	cfg.Scratch = ScratchConfig{PurgeTime: scratchPurgeTime}
+	if _, _, ok := parsePurgeTime(scratchPurgeTime); !ok {
+		return nil, fmt.Errorf("SCRATCH_PURGE_TIME %q is invalid; expected HH:MM (24h UTC)", scratchPurgeTime)
+	}
 	cfg.Telemetry = TelemetryConfig{
 		Enabled:     getEnv("OTEL_ENABLED", "false") == "true",
 		Endpoint:    getEnv("OTEL_ENDPOINT", "http://localhost:8082/api/otel/v1"),
@@ -239,6 +253,31 @@ func getEnv(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+// parsePurgeTime parses "HH:MM" into (hour, minute, ok).
+func parsePurgeTime(s string) (int, int, bool) {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	h, errH := strconv.Atoi(parts[0])
+	m, errM := strconv.Atoi(parts[1])
+	if errH != nil || errM != nil || h < 0 || h > 23 || m < 0 || m > 59 {
+		return 0, 0, false
+	}
+	return h, m, true
+}
+
+// PurgeHourMinute parses PurgeTime ("HH:MM") into (hour, minute).
+// Panics if the value is invalid — Load() validates it at startup so this is safe.
+func (c ScratchConfig) PurgeHourMinute() (int, int) {
+	h, m, ok := parsePurgeTime(c.PurgeTime)
+	if !ok {
+		slog.Warn("SCRATCH_PURGE_TIME: invalid, using 03:00", "value", c.PurgeTime)
+		return 3, 0
+	}
+	return h, m
 }
 
 func getEnvInt(key string, defaultVal int) int {

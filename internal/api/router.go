@@ -496,6 +496,19 @@ func NewRouter(
 		auth.RequireRole(getRoleFn, auth.Editor),
 		s.handleUploadManualVariant,
 	)
+	// Draft routes — must be registered before /:vid to prevent "draft" being captured as a vid.
+	api.Post("/assets/:id/variants/draft", auth.RequireRole(getRoleFn, auth.Editor), s.handleGenerateDraft)
+	api.Get("/assets/:id/variants/draft/:nonce/preview", auth.RequireRole(getRoleFn, auth.Editor), s.handlePreviewDraft)
+	api.Post(
+		"/assets/:id/variants/draft/:nonce/commit",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleCommitDraft,
+	)
+	api.Delete(
+		"/assets/:id/variants/draft/:nonce",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDiscardDraft,
+	)
 	api.Put(
 		"/assets/:id/variants/sharing",
 		auth.RequireRole(getRoleFn, auth.Editor),

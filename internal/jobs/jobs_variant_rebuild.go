@@ -22,10 +22,7 @@ type RebuildVariantsPayload struct {
 	SourceVersionID string `json:"source_version_id"` // version whose variant params to copy
 }
 
-// canonicalParamsHash returns the first 8 hex chars of SHA-256 of the
-// canonical (sorted-key) JSON representation of the params string.
-// This ensures two logically identical param sets always produce the same hash.
-func canonicalParamsHash(paramsJSON string) string {
+func CanonicalParamsHash(paramsJSON string) string {
 	// Parse into a generic map so we can sort keys deterministically.
 	var m map[string]any
 	if err := json.Unmarshal([]byte(paramsJSON), &m); err != nil {
@@ -85,7 +82,7 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 		if spec.TransformParams != nil {
 			paramsStr = *spec.TransformParams
 		}
-		paramsHash := canonicalParamsHash(paramsStr)
+		paramsHash := CanonicalParamsHash(paramsStr)
 
 		// Idempotency guard: skip if already rebuilt.
 		canonicalParams := paramsStr

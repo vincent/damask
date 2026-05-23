@@ -126,6 +126,7 @@ type MockVariantService struct {
 	GetFn            func(ctx context.Context, workspaceID, id string) (*service.VariantDTO, error)
 	PrepareCreateFn  func(ctx context.Context, p service.PrepareCreateVariantParams) (service.PreparedCreateVariant, error)
 	CreateFn         func(ctx context.Context, p service.CreateVariantParams) (*service.VariantDTO, error)
+	CommitDraftFn    func(ctx context.Context, p service.CommitDraftParams) (*service.VariantDTO, error)
 	UpdateTitleFn    func(ctx context.Context, workspaceID, variantID, title string) error
 	UpdateSharingFn  func(ctx context.Context, p service.UpdateVariantsSharingParams) error
 	ListSharedFn     func(ctx context.Context, assetIDs []string) ([]service.SharedVariantDTO, error)
@@ -170,6 +171,13 @@ func (m *MockVariantService) Create(ctx context.Context, p service.CreateVariant
 		return m.CreateFn(ctx, p)
 	}
 	return nil, nil
+}
+
+func (m *MockVariantService) CommitDraft(ctx context.Context, p service.CommitDraftParams) (*service.VariantDTO, error) {
+	if m.CommitDraftFn != nil {
+		return m.CommitDraftFn(ctx, p)
+	}
+	return &service.VariantDTO{ID: "draft-committed", Type: p.VariantType, Status: "ready"}, nil
 }
 
 func (m *MockVariantService) UpdateTitle(ctx context.Context, workspaceID, variantID, title string) error {

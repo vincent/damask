@@ -129,7 +129,7 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		variantID = uuid.NewString()
 	}
 	paramsStr := string(p.Params)
-	paramsHash := canonicalParamsHash(paramsStr)
+	paramsHash := CanonicalParamsHash(paramsStr)
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, job.Type, paramsHash, ext)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
@@ -195,7 +195,7 @@ func (s *JobServer) jobImageBgRemove(ctx context.Context, job dbgen.Job) error {
 		variantID = uuid.NewString()
 	}
 	paramsStr := string(p.Params)
-	paramsHash := canonicalParamsHash(paramsStr)
+	paramsHash := CanonicalParamsHash(paramsStr)
 	storageKey := storage.VersionedVariantKey(
 		p.WorkspaceID,
 		p.AssetID,
@@ -263,7 +263,7 @@ func (s *JobServer) jobImageWithPrompt(ctx context.Context, job dbgen.Job) error
 		variantID = uuid.NewString()
 	}
 	paramsStr := string(p.Params)
-	paramsHash := canonicalParamsHash(paramsStr)
+	paramsHash := CanonicalParamsHash(paramsStr)
 	storageKey := storage.VersionedVariantKey(
 		p.WorkspaceID,
 		p.AssetID,

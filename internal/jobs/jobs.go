@@ -82,6 +82,15 @@ func NewJobServer(
 	}
 }
 
+// EnqueueForTest inserts a job directly into the queue. Intended for use in tests only.
+func (s *JobServer) EnqueueForTest(ctx context.Context, workspaceID, jobType, payload string) (string, error) {
+	job, err := s.queue.Enqueue(ctx, workspaceID, jobType, payload)
+	if err != nil {
+		return "", err
+	}
+	return job.ID, nil
+}
+
 // DrainForTest registers all handlers and synchronously processes every pending
 // job. Intended for use in tests only — not safe for concurrent use.
 func (s *JobServer) DrainForTest(ctx context.Context) {
@@ -142,11 +151,15 @@ func (s *JobServer) RegisterJobHandlers() {
 	// Stack merge jobs.
 	reg(queue.JobTypeStackMerge, s.jobStackMerge)
 
+	// Variant draft jobs.
+	reg(queue.JobTypeCreateVariantDraft, s.jobCreateVariantDraft)
+
 	// Maintenance jobs.
 	reg(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)
 	reg(queue.JobTypeEnforceVersionRetention, s.jobEnforceVersionRetention)
 	reg(queue.JobTypePurgeVersionStorage, s.jobPurgeVersionStorage)
 	reg(queue.JobTypePurgeAuditLog, s.jobPurgeAuditLog)
+	reg(queue.JobTypePurgeScratchVariants, s.jobPurgeScratchVariants)
 }
 
 // ---- OS helpers ----

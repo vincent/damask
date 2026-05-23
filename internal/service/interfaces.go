@@ -119,12 +119,26 @@ type WatermarkAssetDTO struct {
 	Scope        string  `json:"scope"`
 }
 
+// CommitDraftParams is the input for VariantService.CommitDraft.
+type CommitDraftParams struct {
+	WorkspaceID     string
+	AssetID         string
+	AssetVersionID  string
+	VariantType     string
+	StorageKey      string
+	TransformParams *string
+	ContentType     string
+	Title           *string
+}
+
 // VariantService handles business logic for asset variant records.
 type VariantService interface {
 	List(ctx context.Context, p ListVariantsParams) (*ListVariantsResult, error)
 	Get(ctx context.Context, workspaceID, id string) (*VariantDTO, error)
 	PrepareCreate(ctx context.Context, p PrepareCreateVariantParams) (PreparedCreateVariant, error)
 	Create(ctx context.Context, p CreateVariantParams) (*VariantDTO, error)
+	// CommitDraft persists a scratch-based draft as a permanent variant row.
+	CommitDraft(ctx context.Context, p CommitDraftParams) (*VariantDTO, error)
 	UpdateTitle(ctx context.Context, workspaceID, variantID, title string) error
 	UpdateSharing(ctx context.Context, p UpdateVariantsSharingParams) error
 	ListSharedByAssets(ctx context.Context, assetIDs []string) ([]SharedVariantDTO, error)
