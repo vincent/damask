@@ -26,7 +26,7 @@ func findExt(dir, ext string) (string, error) {
 
 // DocumentThumbnail converts the first page of an office document to PNG using LibreOffice.
 func (t *transformer) DocumentThumbnail(ctx context.Context, src io.Reader, mimeType string) ([]byte, error) {
-	ext := mimeToExt(mimeType)
+	ext := MimeToExt(mimeType)
 	tmpPath, cleanup, err := writeToTempFile(ctx, src, ext)
 	if err != nil {
 		return nil, err

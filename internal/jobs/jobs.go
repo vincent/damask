@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime"
 	"os"
 	"time"
 
@@ -195,13 +194,6 @@ func ParseSQLiteTime(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unrecognised time format: %q", s)
 }
 
-func MimeToExt(ct string) string {
-	ms, err := mime.ExtensionsByType(ct)
-	if err == nil && len(ms) > 0 {
-		return ms[0]
-	}
-	return ".bin"
-}
 
 // NextDaily returns the next occurrence of hour:min UTC on or after now.
 func NextDaily(hour, minute int) time.Time {

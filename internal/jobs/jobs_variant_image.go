@@ -123,7 +123,7 @@ func (s *JobServer) jobImageTransform(ctx context.Context, job dbgen.Job) error 
 		return fmt.Errorf("transform: %w", err)
 	}
 
-	ext := MimeToExt(contentType)
+	ext := transform.MimeToExt(contentType)
 	variantID := p.VariantID
 	if variantID == "" {
 		variantID = uuid.NewString()
@@ -367,7 +367,7 @@ func (s *JobServer) rebuildImageVariant(
 		return fmt.Errorf("transform: %w", err)
 	}
 
-	ext := MimeToExt(contentType)
+	ext := transform.MimeToExt(contentType)
 	storageKey := storage.VersionedVariantKey(
 		ver.WorkspaceID,
 		ver.AssetID,

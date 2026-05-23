@@ -1,12 +1,12 @@
 <script lang="ts">
   import { type Asset } from '$lib/api'
-  import VariantCreateResize from './VariantCreateImageResize.svelte'
-  import VariantCreateWatermark from './VariantCreateImageWatermark.svelte'
-  import VariantCreateConvert from './VariantCreateConvert.svelte'
-  import VariantCreateCrop from './VariantCreateCrop.svelte'
-  import VariantCreateRemoveBackground from './VariantCreateImageRemoveBackground.svelte'
+  import VariantCreateImageResize from './VariantCreateImageResize.svelte'
+  import VariantCreateImageWatermark from './VariantCreateImageWatermark.svelte'
+  import VariantCreateImageConvert from './VariantCreateImageConvert.svelte'
+  import VariantCreateImageCrop from './VariantCreateImageCrop.svelte'
+  import VariantCreateImageRemoveBackground from './VariantCreateImageRemoveBackground.svelte'
   import VariantCreateImageWithPrompt from './VariantCreateImageWithPrompt.svelte'
-  import VariantCreateSmartCrop from './VariantCreateImageSmartCrop.svelte'
+  import VariantCreateImageSmartCrop from './VariantCreateImageSmartCrop.svelte'
   import VariantCreateVideoThumbnail from './VariantCreateVideoThumbnail.svelte'
   import VariantCreateVideoTranscode from './VariantCreateVideoTranscode.svelte'
   import VariantCreateVideoWatermark from './VariantCreateVideoWatermark.svelte'
@@ -51,25 +51,21 @@
 </script>
 
 {#if tool === 'resize'}
-  <VariantCreateResize {asset} {creating} {handleCreate} />
+  <VariantCreateImageResize {asset} {creating} {handleCreate} />
 {:else if tool === 'watermark'}
-  <VariantCreateWatermark
+  <VariantCreateImageWatermark
     {asset}
-    {creating}
-    {handleCreate}
     {onDone}
     {onDraftStarted}
     {sessionActive}
   />
 {:else if tool === 'convert'}
-  <VariantCreateConvert {asset} {creating} {handleCreate} />
+  <VariantCreateImageConvert {asset} {creating} {handleCreate} />
 {:else if tool === 'crop'}
-  <VariantCreateCrop {asset} {creating} {handleCreate} />
+  <VariantCreateImageCrop {asset} {creating} {handleCreate} />
 {:else if tool === 'bg_remove'}
-  <VariantCreateRemoveBackground
+  <VariantCreateImageRemoveBackground
     {asset}
-    {creating}
-    {handleCreate}
     {onDone}
     {onDraftStarted}
     {sessionActive}
@@ -77,14 +73,12 @@
 {:else if tool === 'image_with_prompt'}
   <VariantCreateImageWithPrompt
     {asset}
-    {creating}
-    {handleCreate}
     {onDone}
     {onDraftStarted}
     {sessionActive}
   />
 {:else if tool === 'smart_crop'}
-  <VariantCreateSmartCrop {asset} {creating} {handleCreate} />
+  <VariantCreateImageSmartCrop {asset} {creating} {handleCreate} />
 {:else if tool === 'video_transcode'}
   <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
 {:else if tool === 'video_watermark'}

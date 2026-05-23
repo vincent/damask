@@ -1,5 +1,6 @@
 <script lang="ts">
   import { m } from '$lib/paraglide/messages'
+  import { isVideo } from '$lib/utils/mime'
 
   interface Props {
     src: string
@@ -21,7 +22,7 @@
 
   let videoEl = $state<HTMLVideoElement | undefined>()
 
-  const isVideo = $derived(contentType.startsWith('video/'))
+  const isVideoContent = $derived(isVideo(contentType))
 
   function onMouseEnter() {
     if (hoverPlay && videoEl) {
@@ -37,7 +38,7 @@
   }
 </script>
 
-{#if isVideo}
+{#if isVideoContent}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <video
     bind:this={videoEl}

@@ -3,6 +3,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import { m } from '$lib/paraglide/messages'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { extFromMime } from '$lib/utils/mime'
 
   interface Props {
     shareId: string
@@ -32,21 +33,6 @@
     onselect,
   }: Props = $props()
   let downloadingId = $state<string | null>(null)
-
-  const MIME_EXT: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'image/gif': '.gif',
-    'image/avif': '.avif',
-    'video/mp4': '.mp4',
-    'video/webm': '.webm',
-    'application/pdf': '.pdf',
-  }
-
-  function extFromMime(mime: string): string {
-    return MIME_EXT[mime.split(';')[0].trim()] ?? ''
-  }
 
   async function downloadVariant(variant: SharedVariant) {
     downloadingId = variant.id

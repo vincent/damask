@@ -18,7 +18,6 @@ import (
 	"image/png"
 	"log/slog"
 	"math/rand"
-	"mime"
 	"strings"
 	"time"
 
@@ -506,7 +505,7 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 	for i := range specs {
 		sp := &specs[i]
 		assetID := newID("ast")
-		ext := MimeToExt(sp.mime)
+		ext := transform.MimeToExt(sp.mime)
 
 		data, width, height, err := s.generateFile(sp, 0, rng)
 		if err != nil {
@@ -679,13 +678,6 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 	return nil
 }
 
-func MimeToExt(ct string) string {
-	ms, err := mime.ExtensionsByType(ct)
-	if err == nil && len(ms) > 0 {
-		return ms[0]
-	}
-	return "application/octet-stream"
-}
 
 func versionComments(filename string, versionNum int) string {
 	comments := map[string][]string{

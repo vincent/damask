@@ -17,6 +17,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
+	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -143,7 +144,7 @@ func (s *Server) handleCommitDraft(c fiber.Ctx) error {
 	}
 
 	paramsHash := draftParamsHash(meta.TransformParams)
-	ext := jobs.MimeToExt(meta.ContentType)
+	ext := transform.MimeToExt(meta.ContentType)
 	permanentKey := storage.VersionedVariantKey(
 		claims.WorkspaceID, assetID, currentVer.VersionNum,
 		meta.VariantType, paramsHash, ext,

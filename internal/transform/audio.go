@@ -54,7 +54,7 @@ var audioCodecs = map[string]audioCodec{
 }
 
 func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
-	ext := mimeToExt(mimeType)
+	ext := MimeToExt(mimeType)
 
 	tmpPath, cleanup, err := writeToTempFile(ctx, src, ext)
 	if err != nil {

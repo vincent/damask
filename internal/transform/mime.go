@@ -101,3 +101,13 @@ func IsDocumentMime(mime string) bool {
 	}
 	return false
 }
+
+// MimeToExt returns a file extension (with leading dot) for the given MIME type.
+// Returns ".bin" if no extension is known.
+func MimeToExt(ct string) string {
+	ms, err := mime.ExtensionsByType(ct)
+	if err == nil && len(ms) > 0 {
+		return ms[0]
+	}
+	return ".bin"
+}

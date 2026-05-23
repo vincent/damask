@@ -27,11 +27,12 @@
   import LightboxHistoryTab from './LightboxHistoryTab.svelte'
   import LightboxActionsTab from './LightboxActionsTab.svelte'
   import { type VariantTab } from './variants/VariantsTool.svelte'
-  import { deriveVariantMime } from '$lib/utils/variantMime'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
   import { useShortcuts } from '$lib/shortcuts'
   import {
+    deriveVariantMime,
     isAudio as mimeIsAudio,
+    isImage as mimeIsImage,
     isVideo as mimeIsVideo,
   } from '$lib/utils/mime'
   import { viewportStore } from '$lib/stores/viewport.svelte'
@@ -105,7 +106,7 @@
 
   // --- Asset-level derived values ---
   const category = $derived(asset ? mimeCategory(asset.mime_type) : 'document')
-  const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
+  const isImage = $derived(asset ? mimeIsImage(asset.mime_type) : false)
   const isVideo = $derived(asset ? mimeIsVideo(asset.mime_type) : false)
   const isAudio = $derived(asset ? mimeIsAudio(asset.mime_type) : false)
 

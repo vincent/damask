@@ -184,7 +184,7 @@ func (t *thumbnailer) ThumbnailFromVideo(
 	rc io.ReadCloser,
 	mimeType string,
 ) ([]byte, string, error) {
-	srcExt := mimeToExt(mimeType)
+	srcExt := MimeToExt(mimeType)
 	tmpPath, cleanup, err := writeToTempFile(ctx, rc, srcExt)
 	if err != nil {
 		return nil, "", err
@@ -238,5 +238,5 @@ func (t *thumbnailer) ThumbnailFromAudio(
 		slog.WarnContext(ctx, "thumbnail: empty waveform for audio", "mime_type", mimeType)
 		return nil, "", nil
 	}
-	return data, mimeToExt(contentType), nil
+	return data, MimeToExt(contentType), nil
 }

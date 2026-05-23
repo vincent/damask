@@ -3,6 +3,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import { variantApi, type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
+  import { isImage } from '$lib/utils/mime'
   import ResolutionOptions from '../ResolutionOptions.svelte'
 
   interface Props {
@@ -24,7 +25,7 @@
   let previewUrl = $state('')
   let previewTimeout: ReturnType<typeof setTimeout>
 
-  const isImage = $derived(asset?.mime_type?.startsWith('image/') ?? false)
+  const isImageAsset = $derived(asset ? isImage(asset.mime_type) : false)
 
   function useResolution(e: Event) {
     const o = (e.target as HTMLSelectElement)?.selectedOptions
@@ -38,7 +39,7 @@
 
   function updatePreview() {
     clearTimeout(previewTimeout)
-    if (!asset || !isImage) return
+    if (!asset || !isImageAsset) return
     previewTimeout = setTimeout(() => {
       if (!asset) return
       previewUrl = variantApi.previewUrl(asset.id, {

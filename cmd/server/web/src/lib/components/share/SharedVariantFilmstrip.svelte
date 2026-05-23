@@ -3,6 +3,7 @@
   import { type SharedVariant } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { extFromMime } from '$lib/utils/mime'
 
   interface Props {
     shareId: string
@@ -34,20 +35,6 @@
 
   let downloadingId = $state<string | null>(null)
 
-  const MIME_EXT: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'image/gif': '.gif',
-    'image/avif': '.avif',
-    'video/mp4': '.mp4',
-    'video/webm': '.webm',
-    'audio/mpeg': '.mp3',
-    'audio/mp4': '.m4a',
-    'audio/wav': '.wav',
-    'application/pdf': '.pdf',
-  }
-
   const selectedPosition = $derived(
     variants.length === 0 ? 0 : Math.min(selectedIndex + 1, variants.length)
   )
@@ -62,10 +49,6 @@
     if (!size) return ''
     if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
     return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`
-  }
-
-  function extFromMime(mime: string): string {
-    return MIME_EXT[mime.split(';')[0].trim()] ?? ''
   }
 
   function fallbackFilename(variant: SharedVariant): string {

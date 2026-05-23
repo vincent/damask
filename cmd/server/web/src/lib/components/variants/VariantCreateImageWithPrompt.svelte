@@ -10,24 +10,12 @@
 
   interface Props {
     asset: Asset
-    creating: boolean
-    handleCreate: (
-      kind: string,
-      params: Record<string, unknown>
-    ) => void | Promise<void>
     onDone?: () => void
     onDraftStarted?: (nonce: string) => void
     sessionActive?: boolean
   }
 
-  let {
-    asset,
-    creating,
-    handleCreate,
-    onDone,
-    onDraftStarted,
-    sessionActive = false,
-  }: Props = $props()
+  let { asset, onDone, onDraftStarted, sessionActive = false }: Props = $props()
 
   type Phase = 'form' | 'drafting'
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"mime"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +26,7 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) (d
 		slog.DebugContext(ctx, "magik.firstthumbnail completed", "error", err)
 	}()
 
-	ext := mimeToExt(mimeType)
+	ext := MimeToExt(mimeType)
 
 	tmpPath, cleanup, err := writeToTempFile(ctx, src, ext)
 	if err != nil {
@@ -220,10 +219,3 @@ func writeToTempFile(ctx context.Context, src io.Reader, ext string) (name strin
 	}, nil
 }
 
-func mimeToExt(ct string) string {
-	ms, err := mime.ExtensionsByType(ct)
-	if err == nil && len(ms) > 0 {
-		return ms[0]
-	}
-	return ".bin"
-}

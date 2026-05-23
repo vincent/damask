@@ -1,6 +1,7 @@
 <script lang="ts">
   import { textTrackApi, type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
+  import { isImage } from '$lib/utils/mime'
   import TextTrackCreateOCR from './TextTrackCreateOCR.svelte'
 
   interface Props {
@@ -12,7 +13,7 @@
 
   let selectedSource = $state<'ocr' | 'manual'>(
     // svelte-ignore state_referenced_locally
-    asset.mime_type.startsWith('image/') ? 'ocr' : 'manual'
+    isImage(asset.mime_type) ? 'ocr' : 'manual'
   )
   let creating = $state(false)
   let error = $state('')
@@ -56,7 +57,7 @@
 <div
   class="space-y-4 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4"
 >
-  {#if asset.mime_type.startsWith('image/')}
+  {#if isImage(asset.mime_type)}
     <label class="block space-y-2">
       <span class="text-sm font-medium text-[var(--text-primary)]">
         {m.text_tracks_source_label()}

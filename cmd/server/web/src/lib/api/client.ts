@@ -571,16 +571,4 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-/**
- * Maps a MIME type string to a broad asset category.
- * @param mimeType MIME type string (e.g., "image/jpeg")
- * @returns Category: 'image' | 'video' | 'audio' | 'document'
- */
-export function mimeCategory(
-  mimeType: string
-): 'image' | 'video' | 'audio' | 'document' {
-  if (mimeType.startsWith('image/')) return 'image'
-  if (mimeType.startsWith('video/')) return 'video'
-  if (mimeType.startsWith('audio/')) return 'audio'
-  return 'document'
-}
+export { mimeCategory, type MimeCategory } from '$lib/utils/mime'
