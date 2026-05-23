@@ -15,8 +15,8 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <span
   {onclick}
-  class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-sm
-    font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+  class="inline-flex cursor-pointer items-center gap-1 rounded-full bg-gray-100 px-3 py-1
+    text-sm font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200"
   style={color ? `background-color: ${color}20; color: ${color}` : ''}
 >
   {label}

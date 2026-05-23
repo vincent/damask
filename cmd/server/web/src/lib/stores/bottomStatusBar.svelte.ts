@@ -12,7 +12,13 @@ const ZOOM_CONFIG: Record<ZoomGridMode, ZoomConfig> = {
 }
 
 let showZoom = $state(false)
-let gridMode = $state<GridMode>('compact')
+
+const _storedGridMode = localStorage.getItem('library-grid-mode') as GridMode | null
+let gridMode = $state<GridMode>(
+  _storedGridMode && (['compact', 'spaced', 'table'] as GridMode[]).includes(_storedGridMode)
+    ? _storedGridMode
+    : 'compact'
+)
 let zoomByMode = $state<Record<ZoomGridMode, number>>({
   compact: ZOOM_CONFIG.compact.default,
   spaced: ZOOM_CONFIG.spaced.default,
@@ -68,6 +74,7 @@ export const statusBarStore = {
       )
     }
     gridMode = m
+    localStorage.setItem('library-grid-mode', m)
   },
 
   get maxZoom() {

@@ -16,8 +16,8 @@ let stale = $state(false)
 let query = $state('')
 let activeTags = $state<string[]>([])
 
-let sortKey = $state('date_created')
-let sortAsc = $state(false)
+let sortKey = $state(localStorage.getItem('library-sort-key') ?? 'created_at')
+let sortAsc = $state(localStorage.getItem('library-sort-asc') === 'true')
 let fieldFilters = $state<FieldFilter[]>([])
 let generation = 0
 let resetDone = $state(0)
@@ -233,9 +233,18 @@ export const assetsStore = {
 
   load,
 
+  get sortKey() {
+    return sortKey
+  },
+  get sortAsc() {
+    return sortAsc
+  },
+
   sort(key: string, asc: boolean) {
     sortKey = key
     sortAsc = asc
+    localStorage.setItem('library-sort-key', key)
+    localStorage.setItem('library-sort-asc', String(asc))
     load(true)
   },
 

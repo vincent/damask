@@ -444,7 +444,7 @@
 
   <!-- Tag taxonomy section — owner only -->
   {#if isOwner}
-    <div class="mx-auto w-full max-w-4xl px-6 pt-8">
+    <div class="mx-auto w-full max-w-4xl pt-8">
       <div
         class="space-y-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
       >
@@ -495,7 +495,7 @@
   <div class="mx-auto w-full max-w-4xl py-8">
     <!-- Toolbar -->
     <div
-      class="flex items-center gap-3 border-b border-gray-100 px-6 py-3 dark:border-gray-800"
+      class="flex items-center gap-3 border-b border-gray-100 py-3 dark:border-gray-800"
     >
       <div class="flex-1">
         <SearchInput bind:value={search} placeholder={m.tags_search()} />
