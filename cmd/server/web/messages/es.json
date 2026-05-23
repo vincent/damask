@@ -1021,26 +1021,42 @@
   "variant_tool_audio_normalize": "Normalizar",
   "variant_tool_audio_normalize_sub": "Normalización EBU R128",
   "add_workflow": "Añadir flujo de trabajo",
+  "auth": {
+    "forgot_password": {
+      "link": "¿Olvidó su contraseña?",
+      "title": "Restablecer contraseña",
+      "desc": "Introduce tu correo y te enviaremos un enlace de restablecimiento.",
+      "submit": "Enviar enlace de restablecimiento",
+      "sent": "Revisa tu correo para el enlace de restablecimiento."
+    },
+    "reset_password": {
+      "title": "Elige una nueva contraseña",
+      "submit": "Establecer nueva contraseña",
+      "success": "Contraseña actualizada. Ahora puedes iniciar sesión.",
+      "invalid_token": "Este enlace de restablecimiento no es válido o ha expirado."
+    },
+    "account_deleted": "Tu cuenta ha sido eliminada."
+  },
   "make_all_private": "Hacer todo privado",
   "share_all": "Compartir todo",
   "variant_automation_covered_scope_asset": "(este asset)",
   "variant_automation_scope_asset": "Solo este asset",
   "variants_visibility": "Visibilidad de variantes",
-  "variants_draft_preview_button": "Vista previa →",
+  "variants_draft_preview_button": "Previsualizar →",
   "variants_draft_generating": "Generando…",
-  "variants_draft_session_title": "Borradores",
+  "variants_draft_session_title": "Borradores de previsualización",
   "variants_draft_expires_in": "Expira en ~{hours}h",
-  "variants_draft_keep_one": "Guardar este →",
-  "variants_draft_keep_all": "Guardar todos ({n}) →",
+  "variants_draft_keep_one": "Mantener este →",
+  "variants_draft_keep_all": "Mantener todos ({n}) →",
   "variants_draft_keeping": "Guardando…",
   "variants_draft_keeping_n": "Guardando {current} de {total}…",
   "variants_draft_discard": "Descartar",
-  "variants_draft_others_discarded": "{n} otro(s) borrador(es) descartado(s).",
-  "variants_draft_add_more": "+ Probar parámetros distintos para este asset",
+  "variants_draft_add_more": "+ Probar parámetros diferentes",
   "variants_draft_committed": "Variante guardada.",
   "variants_draft_all_committed": "{n} variantes guardadas.",
-  "variants_draft_commit_error": "Error al guardar. Inténtalo de nuevo.",
+  "variants_draft_commit_error": "No se pudo guardar. Inténtalo de nuevo.",
   "variants_draft_error_generating": "Error de generación: {error}",
-  "variants_draft_timed_out": "Tiempo de espera agotado. Inténtalo de nuevo.",
-  "variants_draft_expired": "Este borrador ha expirado. Genera una nueva vista previa."
+  "variants_draft_timed_out": "La generación expiró. Inténtalo de nuevo.",
+  "variants_draft_expired": "Este borrador ha expirado. Genera una nueva previsualización.",
+  "thumbnail_regen": "Regenerar miniatura"
 }

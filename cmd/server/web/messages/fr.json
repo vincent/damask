@@ -218,6 +218,22 @@
   "address_copied": "Adresse d'ingestion copiée",
   "cannot_copy": "Impossible de copier",
   "folder_rename_failed": "Impossible de renommer le dossier",
+  "auth": {
+    "forgot_password": {
+      "link": "Mot de passe oublié ?",
+      "title": "Réinitialiser votre mot de passe",
+      "desc": "Saisissez votre e-mail et nous vous enverrons un lien de réinitialisation.",
+      "submit": "Envoyer le lien",
+      "sent": "Vérifiez votre e-mail pour le lien de réinitialisation."
+    },
+    "reset_password": {
+      "title": "Choisissez un nouveau mot de passe",
+      "submit": "Définir le nouveau mot de passe",
+      "success": "Mot de passe mis à jour. Vous pouvez maintenant vous connecter.",
+      "invalid_token": "Ce lien de réinitialisation est invalide ou expiré."
+    },
+    "account_deleted": "Votre compte a été supprimé."
+  },
   "folder_delete_failed": "Impossible de supprimer le dossier",
   "folder_create_failed": "Impossible de créer le dossier",
   "copy_address": "Copier l'adresse d'ingestion",
@@ -1027,20 +1043,20 @@
   "variant_automation_scope_asset": "Cet asset uniquement",
   "variants_visibility": "Visibilité des variantes",
   "variants_draft_preview_button": "Aperçu →",
-  "variants_draft_generating": "Génération en cours…",
-  "variants_draft_session_title": "Aperçus brouillons",
+  "variants_draft_generating": "Génération…",
+  "variants_draft_session_title": "Aperçus provisoires",
   "variants_draft_expires_in": "Expire dans ~{hours}h",
-  "variants_draft_keep_one": "Garder celui-ci →",
-  "variants_draft_keep_all": "Tout garder ({n}) →",
-  "variants_draft_keeping": "Sauvegarde…",
-  "variants_draft_keeping_n": "Sauvegarde {current} sur {total}…",
+  "variants_draft_keep_one": "Conserver celui-ci →",
+  "variants_draft_keep_all": "Tout conserver ({n}) →",
+  "variants_draft_keeping": "Enregistrement…",
+  "variants_draft_keeping_n": "Enregistrement {current} sur {total}…",
   "variants_draft_discard": "Supprimer",
-  "variants_draft_others_discarded": "{n} autre(s) brouillon(s) supprimé(s).",
-  "variants_draft_add_more": "+ Essayer d'autres paramètres pour générer plus de variantes",
+  "variants_draft_add_more": "+ Essayer d'autres paramètres",
   "variants_draft_committed": "Variante enregistrée.",
   "variants_draft_all_committed": "{n} variantes enregistrées.",
   "variants_draft_commit_error": "Échec de l'enregistrement. Veuillez réessayer.",
   "variants_draft_error_generating": "Échec de la génération : {error}",
-  "variants_draft_timed_out": "Délai de génération dépassé. Veuillez réessayer.",
-  "variants_draft_expired": "Ce brouillon a expiré. Veuillez générer un nouvel aperçu."
+  "variants_draft_timed_out": "La génération a expiré. Veuillez réessayer.",
+  "variants_draft_expired": "Ce brouillon a expiré. Veuillez générer un nouvel aperçu.",
+  "thumbnail_regen": "Régénérer la miniature"
 }

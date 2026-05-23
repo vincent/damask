@@ -218,6 +218,22 @@
   "address_copied": "Ingest address copied",
   "cannot_copy": "Could not copy",
   "folder_rename_failed": "Could not rename folder",
+  "auth": {
+    "forgot_password": {
+      "link": "Forgot password?",
+      "title": "Reset your password",
+      "desc": "Enter your email and we'll send you a reset link.",
+      "submit": "Send reset link",
+      "sent": "Check your email for a reset link."
+    },
+    "reset_password": {
+      "title": "Choose a new password",
+      "submit": "Set new password",
+      "success": "Password updated. You can now sign in.",
+      "invalid_token": "This reset link is invalid or has expired."
+    },
+    "account_deleted": "Your account has been deleted."
+  },
   "folder_delete_failed": "Could not delete folder",
   "folder_create_failed": "Could not create folder",
   "copy_address": "Copy ingest address",
@@ -1035,12 +1051,12 @@
   "variants_draft_keeping": "Keeping…",
   "variants_draft_keeping_n": "Saving {current} of {total}…",
   "variants_draft_discard": "Discard",
-  "variants_draft_others_discarded": "{n} other draft(s) discarded.",
-  "variants_draft_add_more": "+ Try different params for more previews",
+  "variants_draft_add_more": "+ Try different params",
   "variants_draft_committed": "Variant saved.",
   "variants_draft_all_committed": "{n} variants saved.",
   "variants_draft_commit_error": "Failed to save. Please try again.",
   "variants_draft_error_generating": "Generation failed: {error}",
   "variants_draft_timed_out": "Generation timed out. Please try again.",
-  "variants_draft_expired": "This draft has expired. Please generate a new preview."
+  "variants_draft_expired": "This draft has expired. Please generate a new preview.",
+  "thumbnail_regen": "Regenerate Thumbnail"
 }

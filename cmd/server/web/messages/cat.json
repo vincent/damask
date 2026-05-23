@@ -1021,6 +1021,22 @@
   "variant_tool_audio_normalize": "Normalitzar",
   "variant_tool_audio_normalize_sub": "Normalització EBU R128",
   "add_workflow": "Afegir flux de treball",
+  "auth": {
+    "forgot_password": {
+      "link": "Heu oblidat la contrasenya?",
+      "title": "Restabliu la contrasenya",
+      "desc": "Introduïu el vostre correu i us enviarem un enllaç per restablir-la.",
+      "submit": "Enviar l'enllaç de restabliment",
+      "sent": "Comproveu el vostre correu per l'enllaç de restabliment."
+    },
+    "reset_password": {
+      "title": "Trieu una nova contrasenya",
+      "submit": "Establir la nova contrasenya",
+      "success": "Contrasenya actualitzada. Ja podeu iniciar sessió.",
+      "invalid_token": "Aquest enllaç de restabliment no és vàlid o ha expirat."
+    },
+    "account_deleted": "El vostre compte ha estat eliminat."
+  },
   "make_all_private": "Fer-ho tot privat",
   "share_all": "Compartir tot",
   "variant_automation_covered_scope_asset": "(aquest asset)",
@@ -1028,19 +1044,19 @@
   "variants_visibility": "Visibilitat de les variants",
   "variants_draft_preview_button": "Previsualitzar →",
   "variants_draft_generating": "Generant…",
-  "variants_draft_session_title": "Esborranys",
+  "variants_draft_session_title": "Esborranys de previsualització",
   "variants_draft_expires_in": "Expira en ~{hours}h",
-  "variants_draft_keep_one": "Guardar aquest →",
-  "variants_draft_keep_all": "Guardar tots ({n}) →",
+  "variants_draft_keep_one": "Mantenir aquest →",
+  "variants_draft_keep_all": "Mantenir tots ({n}) →",
   "variants_draft_keeping": "Guardant…",
   "variants_draft_keeping_n": "Guardant {current} de {total}…",
   "variants_draft_discard": "Descartar",
-  "variants_draft_others_discarded": "{n} altre(s) esborrany(s) descartat(s).",
-  "variants_draft_add_more": "+ Provar paràmetres diferents per a aquest asset",
+  "variants_draft_add_more": "+ Provar paràmetres diferents",
   "variants_draft_committed": "Variant guardada.",
   "variants_draft_all_committed": "{n} variants guardades.",
-  "variants_draft_commit_error": "Error en guardar. Torna-ho a provar.",
+  "variants_draft_commit_error": "No s'ha pogut guardar. Torneu-ho a provar.",
   "variants_draft_error_generating": "Error de generació: {error}",
-  "variants_draft_timed_out": "Temps d'espera esgotat. Torna-ho a provar.",
-  "variants_draft_expired": "Aquest esborrany ha expirat. Genera una nova previsualització."
+  "variants_draft_timed_out": "La generació ha expirat. Torneu-ho a provar.",
+  "variants_draft_expired": "Aquest esborrany ha expirat. Genereu una nova previsualització.",
+  "thumbnail_regen": "Regenerar miniatura"
 }

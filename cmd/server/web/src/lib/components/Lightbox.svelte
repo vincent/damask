@@ -988,7 +988,7 @@
                   <RefreshCw
                     class="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
                   />
-                  {regenThumbLoading ? 'Queuing…' : 'Regenerate Thumbnail'}
+                  {regenThumbLoading ? m.queuing_() : m.thumbnail_regen()}
                 </button>
               {/if}
             </div>

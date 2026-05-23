@@ -70,7 +70,7 @@ admin-install:
 i18n:
 	npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 
-check-i18n:
+i18n-check:
 	cd cmd/server/web/messages && \
 	missing_found=false; \
 	for file in *.json; do \
