@@ -13,9 +13,12 @@ const ZOOM_CONFIG: Record<ZoomGridMode, ZoomConfig> = {
 
 let showZoom = $state(false)
 
-const _storedGridMode = localStorage.getItem('library-grid-mode') as GridMode | null
+const _storedGridMode = localStorage.getItem(
+  'library-grid-mode'
+) as GridMode | null
 let gridMode = $state<GridMode>(
-  _storedGridMode && (['compact', 'spaced', 'table'] as GridMode[]).includes(_storedGridMode)
+  _storedGridMode &&
+    (['compact', 'spaced', 'table'] as GridMode[]).includes(_storedGridMode)
     ? _storedGridMode
     : 'compact'
 )

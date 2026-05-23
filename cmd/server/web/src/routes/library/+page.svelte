@@ -57,7 +57,8 @@
   let draggingProjectCover = $state(false)
 
   let sort = $state<'mimetype' | 'created_at' | 'size' | 'taken_at'>(
-    (assetsStore.sortKey as 'mimetype' | 'created_at' | 'size' | 'taken_at') ?? 'created_at'
+    (assetsStore.sortKey as 'mimetype' | 'created_at' | 'size' | 'taken_at') ??
+      'created_at'
   )
   let asc = $state(assetsStore.sortAsc)
 
