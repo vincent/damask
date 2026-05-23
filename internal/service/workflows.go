@@ -293,9 +293,9 @@ func (s *workflowService) Templates() []WorkflowTemplateDTO {
 
 func (s *workflowService) FindCoveringWorkflow(
 	ctx context.Context,
-	workspaceID, assetProjectID, assetFolderID string,
+	workspaceID, assetID, assetProjectID, assetFolderID string,
 ) (*CoveringWorkflowDTO, error) {
-	return findCoveringWorkflowDTO(ctx, s.workflows, workspaceID, assetProjectID, assetFolderID)
+	return findCoveringWorkflowDTO(ctx, s.workflows, workspaceID, assetID, assetProjectID, assetFolderID)
 }
 
 func (s *workflowService) CreateFromVariants(
@@ -381,9 +381,9 @@ func (s *workflowService) enqueueRun(
 func findCoveringWorkflowDTO(
 	ctx context.Context,
 	workflows repository.WorkflowRepository,
-	workspaceID, assetProjectID, assetFolderID string,
+	workspaceID, assetID, assetProjectID, assetFolderID string,
 ) (*CoveringWorkflowDTO, error) {
-	wf, err := workflows.FindCoveringWorkflow(ctx, workspaceID, assetProjectID, assetFolderID)
+	wf, err := workflows.FindCoveringWorkflow(ctx, workspaceID, assetID, assetProjectID, assetFolderID)
 	if errors.Is(err, apperr.ErrNotFound) {
 		return nil, nil
 	}
@@ -550,8 +550,11 @@ func mimePrefix(mime string) string {
 
 func buildVariantAutomationTriggerConfig(scope AutomationScope, asset *AssetDTO) json.RawMessage {
 	switch scope {
-	case AutomationScopeWorkspace, AutomationScopeAsset:
+	case AutomationScopeWorkspace:
 		return json.RawMessage(`{}`)
+	case AutomationScopeAsset:
+		b, _ := json.Marshal(map[string]string{"asset_id": asset.ID})
+		return b
 	case AutomationScopeFolder:
 		if asset.FolderID != nil && *asset.FolderID != "" {
 			b, _ := json.Marshal(map[string]string{"folder_id": *asset.FolderID})

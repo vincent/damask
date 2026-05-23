@@ -279,7 +279,7 @@ type WorkflowService interface {
 	ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error)
 	FindCoveringWorkflow(
 		ctx context.Context,
-		workspaceID, assetProjectID, assetFolderID string,
+		workspaceID, assetID, assetProjectID, assetFolderID string,
 	) (*CoveringWorkflowDTO, error)
 	CreateFromVariants(ctx context.Context, workspaceID string, p CreateVariantAutomationParams) (*WorkflowDTO, error)
 	GetWebhookToken(ctx context.Context, workspaceID, id string) (string, error)

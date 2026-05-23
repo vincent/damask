@@ -120,7 +120,7 @@ func (r *workflowRepo) Update(ctx context.Context, p repository.UpdateWorkflowPa
 
 func (r *workflowRepo) FindCoveringWorkflow(
 	ctx context.Context,
-	workspaceID, assetProjectID, assetFolderID string,
+	workspaceID, assetID, assetProjectID, assetFolderID string,
 ) (*repository.CoveringWorkflow, error) {
 	const q = `
 		SELECT id, name, trigger_type, trigger_config, enabled
@@ -129,18 +129,22 @@ func (r *workflowRepo) FindCoveringWorkflow(
 		  AND trigger_type = 'trigger.version_uploaded'
 		  AND enabled = 1
 		  AND (
-			(JSON_EXTRACT(trigger_config, '$.project_id') IS NULL AND JSON_EXTRACT(trigger_config, '$.folder_id') IS NULL)
+			(JSON_EXTRACT(trigger_config, '$.project_id') IS NULL
+			 AND JSON_EXTRACT(trigger_config, '$.folder_id') IS NULL
+			 AND JSON_EXTRACT(trigger_config, '$.asset_id') IS NULL)
+			OR JSON_EXTRACT(trigger_config, '$.asset_id') = ?
 			OR JSON_EXTRACT(trigger_config, '$.project_id') = ?
 			OR JSON_EXTRACT(trigger_config, '$.folder_id') = ?
 		  )
 		ORDER BY
 		  CASE
-			WHEN JSON_EXTRACT(trigger_config, '$.folder_id') = ? THEN 0
-			WHEN JSON_EXTRACT(trigger_config, '$.project_id') = ? THEN 1
-			ELSE 2
+			WHEN JSON_EXTRACT(trigger_config, '$.asset_id') = ? THEN 0
+			WHEN JSON_EXTRACT(trigger_config, '$.folder_id') = ? THEN 1
+			WHEN JSON_EXTRACT(trigger_config, '$.project_id') = ? THEN 2
+			ELSE 3
 		  END
 		LIMIT 1`
-	row := r.sqlDB.QueryRowContext(ctx, q, workspaceID, assetProjectID, assetFolderID, assetFolderID, assetProjectID)
+	row := r.sqlDB.QueryRowContext(ctx, q, workspaceID, assetID, assetProjectID, assetFolderID, assetID, assetFolderID, assetProjectID)
 	var wf repository.CoveringWorkflow
 	var enabled int
 	if err := row.Scan(&wf.ID, &wf.Name, &wf.TriggerType, &wf.TriggerConfig, &enabled); err != nil {

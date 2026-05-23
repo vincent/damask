@@ -134,7 +134,7 @@ func (s *variantService) List(ctx context.Context, p ListVariantsParams) (*ListV
 	}
 	result := &ListVariantsResult{Variants: out}
 	if s.workflows != nil {
-		wf, err := findCoveringWorkflowDTO(ctx, s.workflows, p.WorkspaceID, p.AssetProjectID, p.AssetFolderID)
+		wf, err := findCoveringWorkflowDTO(ctx, s.workflows, p.WorkspaceID, p.AssetID, p.AssetProjectID, p.AssetFolderID)
 		if err != nil {
 			return nil, err
 		}

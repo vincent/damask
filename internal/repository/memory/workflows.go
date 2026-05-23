@@ -118,7 +118,7 @@ func (r *WorkflowMemoryRepo) Update(_ context.Context, p repository.UpdateWorkfl
 
 func (r *WorkflowMemoryRepo) FindCoveringWorkflow(
 	_ context.Context,
-	workspaceID, assetProjectID, assetFolderID string,
+	workspaceID, assetID, assetProjectID, assetFolderID string,
 ) (*repository.CoveringWorkflow, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -134,15 +134,18 @@ func (r *WorkflowMemoryRepo) FindCoveringWorkflow(
 		var cfg struct {
 			ProjectID string `json:"project_id"`
 			FolderID  string `json:"folder_id"`
+			AssetID   string `json:"asset_id"`
 		}
 		_ = json.Unmarshal([]byte(defaultTriggerConfig(wf.TriggerConfig)), &cfg)
 		switch {
-		case cfg.FolderID != "" && cfg.FolderID == assetFolderID:
+		case cfg.AssetID != "" && cfg.AssetID == assetID:
 			candidates = append(candidates, candidate{wf: wf, score: 0})
-		case cfg.ProjectID != "" && cfg.ProjectID == assetProjectID:
+		case cfg.FolderID != "" && cfg.FolderID == assetFolderID:
 			candidates = append(candidates, candidate{wf: wf, score: 1})
-		case cfg.FolderID == "" && cfg.ProjectID == "":
+		case cfg.ProjectID != "" && cfg.ProjectID == assetProjectID:
 			candidates = append(candidates, candidate{wf: wf, score: 2})
+		case cfg.AssetID == "" && cfg.FolderID == "" && cfg.ProjectID == "":
+			candidates = append(candidates, candidate{wf: wf, score: 3})
 		}
 	}
 	if len(candidates) == 0 {

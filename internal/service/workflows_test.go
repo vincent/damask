@@ -102,7 +102,7 @@ func TestWorkflowServiceFindCoveringWorkflowScope(t *testing.T) {
 		TriggerType:   "trigger.version_uploaded",
 		TriggerConfig: `{"folder_id":"fld_1"}`,
 	})
-	got, err := svc.FindCoveringWorkflow(context.Background(), "ws_1", "prj_1", "fld_1")
+	got, err := svc.FindCoveringWorkflow(context.Background(), "ws_1", "", "prj_1", "fld_1")
 	if err != nil {
 		t.Fatalf("FindCoveringWorkflow() unexpected error: %v", err)
 	}
@@ -151,5 +151,63 @@ func TestWorkflowServiceCreateFromVariantsCreatesDisabledWorkflow(t *testing.T) 
 	}
 	if got.Graph == "" || !strings.Contains(got.Graph, `"filter.mime"`) || strings.Contains(got.Graph, `"manual"`) {
 		t.Fatalf("unexpected graph: %s", got.Graph)
+	}
+}
+
+func TestWorkflowServiceCreateFromVariantsAssetScopeTriggerConfig(t *testing.T) {
+	workflows := memory.NewWorkflowRepo()
+	assets := memory.NewAssetRepo()
+	variants := memory.NewRealVariantRepo()
+	projectID := "prj_1"
+	assets.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", ProjectID: &projectID, MimeType: "image/jpeg"})
+	variants.Seed(repository.Variant{ID: "var_1", WorkspaceID: "ws_1", Type: "image_resize"})
+	svc := service.NewWorkflowServiceWithDeps(
+		workflows,
+		memory.NewWorkflowRunRepo(),
+		memory.NewWorkflowWebhookRepo(),
+		&workflowQueueStub{},
+		service.WorkflowServiceDeps{Assets: assets, Variants: variants},
+	)
+	got, err := svc.CreateFromVariants(context.Background(), "ws_1", service.CreateVariantAutomationParams{
+		AssetID:   "ast_1",
+		CreatedBy: "usr_1",
+		Scope:     service.AutomationScopeAsset,
+	})
+	if err != nil {
+		t.Fatalf("CreateFromVariants() unexpected error: %v", err)
+	}
+	row, err := workflows.GetByID(context.Background(), "ws_1", got.ID)
+	if err != nil {
+		t.Fatalf("created workflow not found: %v", err)
+	}
+	if row.TriggerConfig != `{"asset_id":"ast_1"}` {
+		t.Fatalf("trigger_config = %s, want {\"asset_id\":\"ast_1\"}", row.TriggerConfig)
+	}
+}
+
+func TestWorkflowServiceFindCoveringWorkflowAssetScope(t *testing.T) {
+	svc, repo, _, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{
+		ID:            "wf_asset",
+		WorkspaceID:   "ws_1",
+		Name:          "Asset automation",
+		Enabled:       true,
+		TriggerType:   "trigger.version_uploaded",
+		TriggerConfig: `{"asset_id":"ast_1"}`,
+	})
+	got, err := svc.FindCoveringWorkflow(context.Background(), "ws_1", "ast_1", "prj_1", "fld_1")
+	if err != nil {
+		t.Fatalf("FindCoveringWorkflow() unexpected error: %v", err)
+	}
+	if got == nil || got.ID != "wf_asset" || got.Scope != "asset" {
+		t.Fatalf("unexpected covering workflow: %#v", got)
+	}
+	// must not match a different asset
+	none, err := svc.FindCoveringWorkflow(context.Background(), "ws_1", "ast_2", "prj_1", "fld_1")
+	if err != nil {
+		t.Fatalf("FindCoveringWorkflow() unexpected error: %v", err)
+	}
+	if none != nil {
+		t.Fatalf("expected no workflow for different asset, got %#v", none)
 	}
 }

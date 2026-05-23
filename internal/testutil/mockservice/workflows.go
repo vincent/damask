@@ -17,7 +17,7 @@ type MockWorkflowService struct {
 	TriggerWebhookFn     func(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRunFn             func(ctx context.Context, workspaceID, runID string) (*service.WorkflowRunDTO, error)
 	ListRunsFn           func(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
-	FindCoveringFn       func(ctx context.Context, workspaceID, assetProjectID, assetFolderID string) (*service.CoveringWorkflowDTO, error)
+	FindCoveringFn       func(ctx context.Context, workspaceID, assetID, assetProjectID, assetFolderID string) (*service.CoveringWorkflowDTO, error)
 	CreateFromVariantsFn func(ctx context.Context, workspaceID string, p service.CreateVariantAutomationParams) (*service.WorkflowDTO, error)
 	GetWebhookTokenFn    func(ctx context.Context, workspaceID, id string) (string, error)
 	RegenerateTokenFn    func(ctx context.Context, workspaceID, id string) (string, error)
@@ -112,10 +112,10 @@ func (m *MockWorkflowService) ListRuns(
 
 func (m *MockWorkflowService) FindCoveringWorkflow(
 	ctx context.Context,
-	workspaceID, assetProjectID, assetFolderID string,
+	workspaceID, assetID, assetProjectID, assetFolderID string,
 ) (*service.CoveringWorkflowDTO, error) {
 	if m.FindCoveringFn != nil {
-		return m.FindCoveringFn(ctx, workspaceID, assetProjectID, assetFolderID)
+		return m.FindCoveringFn(ctx, workspaceID, assetID, assetProjectID, assetFolderID)
 	}
 	return nil, nil
 }

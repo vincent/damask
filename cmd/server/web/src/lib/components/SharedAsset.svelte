@@ -134,7 +134,7 @@
 
 <div
   bind:this={container}
-  class="asset-preview-full max-h-[80vh] max-w-3xl min-w-xl"
+  class="asset-preview-full flex max-h-[80vh] max-w-3xl min-w-xl items-center justify-center"
   style="transform: scale({scale}) rotate({rotation}deg); transform-origin: center; transition: {animated
     ? 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
     : 'none'}; cursor: {scale > 1 ? 'grab' : 'default'};"
@@ -219,6 +219,7 @@
 <style>
   .image-crossfade {
     position: relative;
+    display: inline-block;
     max-width: 100%;
     max-height: 80vh;
   }

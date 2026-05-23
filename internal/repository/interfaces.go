@@ -323,7 +323,7 @@ type WorkflowRepository interface {
 	Update(ctx context.Context, p UpdateWorkflowParams) (Workflow, error)
 	FindCoveringWorkflow(
 		ctx context.Context,
-		workspaceID, assetProjectID, assetFolderID string,
+		workspaceID, assetID, assetProjectID, assetFolderID string,
 	) (*CoveringWorkflow, error)
 	SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error
 	Delete(ctx context.Context, workspaceID, id string) error
