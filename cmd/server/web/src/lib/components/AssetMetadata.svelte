@@ -1,6 +1,7 @@
 <script lang="ts">
   import { type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
+  import Actor from './ui/Actor.svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
 
   interface Props {
@@ -9,11 +10,6 @@
   }
 
   let { asset, onOpenAsset }: Props = $props()
-
-  const API_BASE = import.meta.env.VITE_API_URL ?? ''
-  function avatarUrl(userId: string) {
-    return `${API_BASE}/api/v1/users/${userId}/avatar`
-  }
 </script>
 
 <div>
@@ -27,11 +23,7 @@
       </p>
       {#if asset.created_by}
         <div class="flex items-center gap-2">
-          <img
-            src={avatarUrl(asset.created_by.id)}
-            alt={asset.created_by.name}
-            class="h-5 w-5 rounded-full object-cover"
-          />
+          <Actor actor={asset.created_by} class="h-8 w-8" />
           <p class="text-md font-semibold text-gray-900 dark:text-gray-100">
             {asset.created_by.name || asset.created_by.id.split('-')[0]}
           </p>
@@ -70,12 +62,7 @@
         <div class="flex flex-wrap gap-2">
           {#each asset.authors as author (author.id)}
             <div class="flex items-center gap-1.5">
-              <img
-                src={avatarUrl(author.id)}
-                alt={author.name}
-                title={author.name || author.id.split('-')[0]}
-                class="h-6 w-6 rounded-full object-cover"
-              />
+              <Actor actor={author} class="h-6 w-6" />
               <span
                 class="text-sm font-medium text-gray-800 dark:text-gray-200"
               >

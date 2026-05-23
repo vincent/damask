@@ -57,7 +57,7 @@
     <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
       {#each events as event (event.id)}
         <li class="flex items-start gap-3 px-5 py-3">
-          <Actor type={event.actor.type} />
+          <Actor actor={event.actor} class="h-6 w-6" />
           <div class="min-w-0 flex-1">
             <p class="text-md text-zinc-800 dark:text-zinc-200">
               {#if event.actor.type === 'user' && event.actor.name}

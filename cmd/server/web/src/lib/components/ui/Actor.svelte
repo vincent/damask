@@ -1,17 +1,23 @@
 <script lang="ts">
-  import { Bot, User } from '@lucide/svelte'
-  let { type }: { type: 'system' | 'user' } = $props()
+  const API_BASE = import.meta.env.VITE_API_URL ?? ''
+  import { Bot } from '@lucide/svelte'
+  let {
+    actor = null,
+    class: extraClass,
+  }: {
+    actor: { id: string | null; name: string | null } | null
+    class?: string
+  } = $props()
 </script>
 
-<div
-  class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full
-    {type === 'system'
-    ? 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'
-    : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400'}"
->
-  {#if type === 'system'}
-    <Bot class="h-4 w-4" />
-  {:else}
-    <User class="h-4 w-4" />
-  {/if}
-</div>
+{#if actor?.id}
+  <img
+    src={`${API_BASE}/api/v1/users/${actor.id}/avatar`}
+    alt={actor.name || actor.id.split('-')[0]}
+    class="rounded-full object-cover {extraClass}"
+  />
+{:else}
+  <Bot
+    class="bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500 {extraClass}"
+  />
+{/if}
