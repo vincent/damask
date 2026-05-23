@@ -59,6 +59,9 @@ func TestRunMigrations_FieldDefinitionsOrphanedCreatedBy(t *testing.T) {
 		`CREATE INDEX idx_afv_number ON asset_field_values(field_id, value_number)`,
 		`CREATE INDEX idx_afv_date ON asset_field_values(field_id, value_date)`,
 		`CREATE INDEX idx_afv_boolean ON asset_field_values(field_id, value_boolean)`,
+		`CREATE TABLE asset_versions (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE variants (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, asset_version_id TEXT NOT NULL REFERENCES asset_versions(id) ON DELETE CASCADE, type TEXT NOT NULL, storage_key TEXT NOT NULL, transform_params TEXT, size INTEGER, created_at DATETIME NOT NULL DEFAULT (datetime('now')))`,
+		`CREATE TABLE jobs (id TEXT PRIMARY KEY, workspace_id TEXT, type TEXT NOT NULL, payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, error TEXT, created_at DATETIME NOT NULL DEFAULT (datetime('now')), updated_at DATETIME NOT NULL DEFAULT (datetime('now')))`,
 		`CREATE TABLE projects (id TEXT PRIMARY KEY)`,
 		`CREATE TABLE project_field_values (
 			id TEXT PRIMARY KEY,
@@ -133,6 +136,9 @@ func TestRunMigrations_DisableExistingWorkflows(t *testing.T) {
 		`INSERT INTO schema_migrations (version, dirty) VALUES (38, 0)`,
 		`CREATE TABLE workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL)`,
 		`CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL, password_hash TEXT NOT NULL, name TEXT NOT NULL)`,
+		`CREATE TABLE asset_versions (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE variants (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, asset_version_id TEXT NOT NULL REFERENCES asset_versions(id) ON DELETE CASCADE, type TEXT NOT NULL, storage_key TEXT NOT NULL, transform_params TEXT, size INTEGER, created_at DATETIME NOT NULL DEFAULT (datetime('now')))`,
+		`CREATE TABLE jobs (id TEXT PRIMARY KEY, workspace_id TEXT, type TEXT NOT NULL, payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, error TEXT, created_at DATETIME NOT NULL DEFAULT (datetime('now')), updated_at DATETIME NOT NULL DEFAULT (datetime('now')))`,
 		`CREATE TABLE workflows (
 			id                      TEXT PRIMARY KEY,
 			workspace_id            TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,

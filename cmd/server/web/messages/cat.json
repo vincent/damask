@@ -1057,6 +1057,7 @@
   "variants_draft_commit_error": "No s'ha pogut guardar. Torneu-ho a provar.",
   "variants_draft_error_generating": "Error de generació: {error}",
   "variants_draft_timed_out": "La generació ha expirat. Torneu-ho a provar.",
+  "variants_draft_others_discarded": "{n} esborrany/s descartat/s.",
   "variants_draft_expired": "Aquest esborrany ha expirat. Genereu una nova previsualització.",
   "thumbnail_regen": "Regenerar miniatura"
 }

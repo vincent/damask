@@ -14,7 +14,7 @@
 
   let { asset, creating, handleCreate }: Props = $props()
 
-  const kind = 'extract_audio'
+  const kind = 'video_extract'
   const formats = [
     { value: 'aac', label: 'AAC' },
     { value: 'mp3', label: 'MP3' },

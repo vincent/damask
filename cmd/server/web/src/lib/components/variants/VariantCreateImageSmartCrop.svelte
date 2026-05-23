@@ -13,7 +13,7 @@
 
   let { asset, creating, handleCreate }: Props = $props()
 
-  const kind = 'image_smartcrop'
+  const kind = 'image_smart_crop'
 
   let width = $state(400)
   let height = $state(400)

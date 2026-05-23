@@ -1042,6 +1042,7 @@
   "variant_tool_audio_transcode_sub": "Convert format",
   "variant_tool_audio_normalize": "Normalize",
   "variant_tool_audio_normalize_sub": "EBU R128 loudness",
+  "variants_draft_others_discarded": "{n} other draft(s) discarded.",
   "variants_draft_preview_button": "Preview →",
   "variants_draft_generating": "Generating…",
   "variants_draft_session_title": "Draft previews",

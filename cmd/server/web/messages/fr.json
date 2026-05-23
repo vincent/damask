@@ -1057,6 +1057,7 @@
   "variants_draft_commit_error": "Échec de l'enregistrement. Veuillez réessayer.",
   "variants_draft_error_generating": "Échec de la génération : {error}",
   "variants_draft_timed_out": "La génération a expiré. Veuillez réessayer.",
+  "variants_draft_others_discarded": "{n} brouillon(s) supprimé(s).",
   "variants_draft_expired": "Ce brouillon a expiré. Veuillez générer un nouvel aperçu.",
   "thumbnail_regen": "Régénérer la miniature"
 }

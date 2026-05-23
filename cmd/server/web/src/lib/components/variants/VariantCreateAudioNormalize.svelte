@@ -13,7 +13,7 @@
 
   let { asset, creating, handleCreate }: Props = $props()
 
-  const kind = 'normalize_audio'
+  const kind = 'audio_normalize'
   const formats = [
     { value: 'source', label: m.audio_format_source() },
     { value: 'mp3', label: 'MP3' },

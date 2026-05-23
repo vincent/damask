@@ -285,6 +285,7 @@ func (q *Queue) processNext(ctx context.Context) {
 const (
 	JobTypeVersionThumbnail = "version_thumbnail"
 	JobTypeVariantThumbnail = "generate_variant_thumbnail"
+	JobTypeOCRTextTrack     = "ocr_text_track"
 
 	// Variant jobs — user-triggered, each creates a variants row.
 	JobTypeVideoCaptureImage = "video_capture_image"
@@ -296,11 +297,10 @@ const (
 	JobTypeImageWatermark    = "image_watermark"
 	JobTypeImageBgRemove     = "image_bg_remove"
 	JobTypeImageWithPrompt   = "image_with_prompt"
-	JobTypeImageSmartCrop    = "image_smartcrop"
-	JobTypeOCRTextTrack      = "ocr_text_track"
-	JobTypeExtractAudio      = "extract_audio"
-	JobTypeTranscodeAudio    = "transcode_audio"
-	JobTypeNormalizeAudio    = "normalize_audio"
+	JobTypeImageSmartCrop    = "image_smart_crop"
+	JobTypeExtractAudio      = "video_extract"
+	JobTypeTranscodeAudio    = "audio_transcode"
+	JobTypeNormalizeAudio    = "audio_normalize"
 
 	// Ingress jobs.
 	JobTypeIngestPoll  = "ingest_poll"

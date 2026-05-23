@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
-  import { ALL_VARIANT_TOOLS } from './toolDefs'
-  import type { VariantToolDef } from './types'
+  import { ALL_VARIANT_TOOLS, type VariantToolDef } from './toolDefs'
   import type { VariantTab } from './VariantsTool.svelte'
 
   interface Props {

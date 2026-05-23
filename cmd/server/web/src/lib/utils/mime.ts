@@ -1,4 +1,4 @@
-import type { Variant } from "$lib/api"
+import type { Variant } from '$lib/api'
 
 export const isImage = (mime: string): boolean => mime.startsWith('image/')
 export const isVideo = (mime: string): boolean => mime.startsWith('video/')
@@ -51,7 +51,10 @@ export function extFromMime(mime: string): string {
   return MIME_EXT[mime.split(';')[0].trim()] ?? ''
 }
 
-export function deriveVariantMime(variant: Variant, fallbackMime: string): string {
+export function deriveVariantMime(
+  variant: Variant,
+  fallbackMime: string
+): string {
   const key = variant.storage_key ?? ''
   if (key.endsWith('.mp4') || key.endsWith('.m4v')) return 'video/mp4'
   if (key.endsWith('.webm')) return 'video/webm'

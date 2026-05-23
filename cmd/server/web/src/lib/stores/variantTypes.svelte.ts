@@ -61,7 +61,7 @@ export const variantTypes: VariantTypeDefinition[] = [
     paramsExample: { prompt: 'a photo of a cat on a white background' },
   },
   {
-    value: 'image_smartcrop',
+    value: 'image_smart_crop',
     label: 'Smart Crop',
     category: 'image',
     paramsExample: { width: 800, height: 800, format: 'jpeg', quality: 85 },
@@ -91,19 +91,19 @@ export const variantTypes: VariantTypeDefinition[] = [
     },
   },
   {
-    value: 'extract_audio',
+    value: 'video_extract',
     label: 'Extract Audio',
-    category: 'audio',
+    category: 'video',
     paramsExample: { format: 'aac', bitrate: '128k', mono: false },
   },
   {
-    value: 'transcode_audio',
+    value: 'audio_transcode',
     label: 'Transcode Audio',
     category: 'audio',
     paramsExample: { format: 'mp3', bitrate: '192k', mono: false },
   },
   {
-    value: 'normalize_audio',
+    value: 'audio_normalize',
     label: 'Normalize Audio',
     category: 'audio',
     paramsExample: { format: 'mp3', target_lufs: -14.0, mono: false },

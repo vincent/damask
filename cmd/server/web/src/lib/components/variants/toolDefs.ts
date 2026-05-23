@@ -1,3 +1,4 @@
+import { isAudio, isImage, isVideo } from '$lib/utils/mime'
 import {
   AudioLines,
   Camera,
@@ -12,8 +13,16 @@ import {
   Stamp,
   Video,
 } from '@lucide/svelte'
-import { isAudio, isImage, isVideo } from '$lib/utils/mime'
-import type { VariantToolDef } from './types'
+import type { Component } from 'svelte'
+import type { VariantTab } from './VariantsTool.svelte'
+
+export interface VariantToolDef {
+  key: VariantTab
+  label: string
+  sublabel: string
+  icon: Component
+  showFor: (mimeType: string) => boolean
+}
 
 export const ALL_VARIANT_TOOLS: VariantToolDef[] = [
   {
@@ -87,7 +96,7 @@ export const ALL_VARIANT_TOOLS: VariantToolDef[] = [
     showFor: isVideo,
   },
   {
-    key: 'audio_extract',
+    key: 'video_extract',
     label: 'variant_tool_audio_extract',
     sublabel: 'variant_tool_audio_extract_sub',
     icon: Music,

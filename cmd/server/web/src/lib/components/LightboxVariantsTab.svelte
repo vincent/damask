@@ -93,7 +93,7 @@
           { id: 'video_transcode' as VariantTab, label: m.transcode() },
           { id: 'video_watermark' as VariantTab, label: m.watermark() },
           { id: 'video_capture_image' as VariantTab, label: m.thumbnail() },
-          { id: 'audio_extract' as VariantTab, label: m.audio_extract_tab() },
+          { id: 'video_extract' as VariantTab, label: m.audio_extract_tab() },
         ]
       : []),
     ...(isAudio

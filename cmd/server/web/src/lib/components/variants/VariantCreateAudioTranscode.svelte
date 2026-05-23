@@ -15,7 +15,7 @@
 
   let { asset, creating, handleCreate }: Props = $props()
 
-  const kind = 'transcode_audio'
+  const kind = 'audio_transcode'
   const formats = [
     { value: 'mp3', label: 'MP3' },
     { value: 'aac', label: 'AAC' },

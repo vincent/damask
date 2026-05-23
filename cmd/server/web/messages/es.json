@@ -1057,6 +1057,7 @@
   "variants_draft_commit_error": "No se pudo guardar. Inténtalo de nuevo.",
   "variants_draft_error_generating": "Error de generación: {error}",
   "variants_draft_timed_out": "La generación expiró. Inténtalo de nuevo.",
+  "variants_draft_others_discarded": "{n} borrador(es) descartado(s).",
   "variants_draft_expired": "Este borrador ha expirado. Genera una nueva previsualización.",
   "thumbnail_regen": "Regenerar miniatura"
 }
