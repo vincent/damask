@@ -14,7 +14,7 @@
     CATEGORY_ORDER,
   } from '$lib/stores/shared'
   import { stackStore } from '$lib/stores/stack.svelte'
-  import { CloudUpload, Inbox, Loader } from '@lucide/svelte'
+  import { Check, CloudUpload, Inbox, Loader } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
@@ -204,7 +204,7 @@
 
   {#snippet assetTable(assets: Asset[])}
     <table
-      class="w-full border-separate border-spacing-0 pt-2 text-left text-sm"
+      class="asset-table w-full border-separate border-spacing-0 pt-2 text-left text-sm"
     >
       <thead>
         <tr
@@ -226,14 +226,14 @@
           <tr
             data-asset-id={asset.id}
             class="group cursor-pointer border-t border-[var(--border-subtle)] transition-colors {isSelected
-              ? 'bg-[var(--accent-soft)]'
+              ? 'selected-row bg-[var(--accent-soft)]'
               : 'even:bg-[var(--bg-stripe)] hover:bg-[var(--bg-hover)]'}"
             onclick={(e) =>
               onCardClick(asset, globalIndex, e as unknown as MouseEvent)}
           >
             <td class="w-8 py-2 pr-4 pl-1">
               <div
-                class="flex h-8 w-8 items-center justify-center overflow-hidden rounded {CATEGORY_ICON_BG[
+                class="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded {CATEGORY_ICON_BG[
                   category
                 ].light} {CATEGORY_ICON_BG[category].dark}"
               >
@@ -251,6 +251,13 @@
                   />
                 {:else}
                   <AssetIcon {category} class="h-4 w-4" />
+                {/if}
+                {#if isSelected}
+                  <div
+                    class="absolute inset-0 flex items-center justify-center rounded bg-indigo-600/80"
+                  >
+                    <Check class="h-3.5 w-3.5 text-white" />
+                  </div>
                 {/if}
               </div>
             </td>
@@ -400,3 +407,12 @@
     </div>
   {/if}
 </main>
+
+<style>
+  :global(tr.selected-row) {
+    box-shadow: inset 2px 0 0 #6366f1;
+  }
+  :global(table.asset-table) {
+    user-select: none;
+  }
+</style>
