@@ -4,7 +4,7 @@ A self-hosted Digital Asset Management (DAM) system. Single binary, local-first,
 
 ## Stack
 
-- **Backend:** Go + Fiber v2 + SQLite (CGO-free via modernc)
+- **Backend:** Go + Fiber v3 + SQLite (CGO-free via modernc)
 - **Frontend:** SvelteKit 5 (runes) + Tailwind CSS v4 + SPA mode
 - **Auth:** HMAC-SHA256 JWTs stored as httpOnly cookies (7-day expiry)
 - **Storage:** Local filesystem (`Storage` interface, swappable for S3)
@@ -15,27 +15,91 @@ A self-hosted Digital Asset Management (DAM) system. Single binary, local-first,
 
 > **Single-node only.** Damask currently uses SQLite and an in-process job queue: running multiple instances behind a load balancer is not supported and will cause data corruption.
 
+## Features
+
+**Asset management**
+
+- Upload, search, paginate, bulk tag, bulk move
+- Projects and folders for organisation
+- Tags with optional controlled vocabulary
+- EXIF metadata extraction from photos (camera, exposure, GPS opt-in, date)
+- Media tag extraction from audio/video (ID3, Vorbis, iTunes atoms, RIFF INFO)
+- Custom metadata fields on assets and projects (text, number, date, boolean, select, URL)
+- Asset versioning with non-destructive rollback and content-hash deduplication
+- Collections — workspace-scoped named sets that cross project boundaries
+- Append-only activity log (renames, retags, moves, field changes, version restores, shares)
+
+**Processing**
+
+- ImageMagick for image thumbnails and transforms
+- FFmpeg for video and audio transcoding
+- PDF thumbnail generation
+- OCR text extraction with full-text search
+- Background removal via ImageRouter
+
+**Variants**
+
+- Multiple output variants per asset: resize, crop, format conversion, background removal, AI prompt
+- Promote variant to main asset or set as thumbnail
+- Variant thumbnails and rerun support
+- Variant drafts — preview-and-pick before committing
+- Shared variants — per-variant public links with visitor name gate and ZIP export
+- Lightroom-style creation sidebar in the asset lightbox
+
+**Sharing**
+
+- Password-protected share links
+- Expiring share links
+- Client review mode — public commenting without an account
+
+**Ingress**
+
+- Sources: IMAP, SFTP, WebDAV, S3-compatible, Email API
+- Bundled SMTP server — email attachments ingested directly
+- Rule engine per source (filename patterns, MIME types, metadata)
+- Scheduled polling and manual trigger
+
+**Integrations**
+
+- OIDC login, Google OAuth, Canva OAuth
+- Google Drive and Canva ingress sources
+- ImageRouter AI model integration (workspace-scoped API key)
+
+**Workflows**
+
+- Visual trigger/action builder with async job execution
+
+**Mobile**
+
+- Responsive layout with bottom navigation, slide-in drawer, touch-friendly interactions
+
+**Observability**
+
+- OpenTelemetry tracing (plugs into any OTel-compatible backend)
+
 ## Getting Started with Docker
 
 ```yaml
 damask:
-    container_name: damask
-    image: ghcr.io/vincent/damask:latest
-    hostname: damask
-    restart: unless-stopped
-    environment:
-      APP_SECRET: change-me-to-a-long-random-secret
-      JWT_SECRET: change-me-to-a-long-random-secret
-      BASE_URL: https://your.own.damask.com
-    expose:
-      - 2525
-    ports:
-      - 80:8080 # web
-      - 25:2525 # to enable email ingress
-    volumes:
-      - /srv/damask/data:/data
+  container_name: damask
+  image: ghcr.io/vincent/damask:latest
+  hostname: damask
+  restart: unless-stopped
+  environment:
+    APP_SECRET: change-me-to-a-long-random-secret
+    JWT_SECRET: change-me-to-a-long-random-secret
+    BASE_URL: https://your.own.damask.com
+  expose:
+    - 2525
+  ports:
+    - 80:8080 # web
+    - 25:2525 # to enable email ingress
+  volumes:
+    - /srv/damask/data:/data
 ```
+
 or
+
 ```sh
 docker run --name damask -h damask --restart unless-stopped -e APP_SECRET=change-me-to-a-long-random-secret -e JWT_SECRET=change-me-to-a-long-random-secret -e BASE_URL=https://your.own.damask.com --expose 2525 -p 80:8080 -p 25:2525 -v /srv/damask/data:/data ghcr.io/vincent/damask:latest
 ```
@@ -48,6 +112,7 @@ docker run --name damask -h damask --restart unless-stopped -e APP_SECRET=change
 - Node.js 20+
 - ImageMagick 6 (for image processing)
 - FFmpeg (for video/audio processing)
+- Tesseract (optional, for OCR text extraction — install language packs e.g. `tesseract-ocr-eng`)
 
 ### Setup
 
@@ -74,32 +139,78 @@ Web: http://localhost:5173
 
 ### Environment variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8080` | API server port |
-| `MAIL_PORT` | `2525` | Bundled SMTP server port |
-| `DB_PATH` | `./damask.db` | SQLite database path |
-| `STORAGE_LOCAL_PATH` | `./storage` | Asset storage directory |
-| `BASE_URL` | `http://localhost:5173` | Public URL for share links and email webhooks |
-| `JWT_SECRET` | - | **Required.** HMAC key, >= 32 chars |
-| `APP_SECRET` | - | **Required.** AES-256-GCM key for ingress config encryption, >= 32 chars |
-| `APP_ENV` | `development` | `development` or `production` (controls secure cookies) |
-| `QUEUE_WORKERS` | `4` | Job worker pool size (transcode capped at 2) |
-| `FFMPEG_PATH` | - | Optional. Absolute or resolvable path to the `ffmpeg` binary; `ffprobe` is inferred from the same install when possible |
-| `FFMPEG_HW_ACCEL` | - | Optional. Video decode hw accel hint for ffmpeg. Supported: `videotoolbox`, `vaapi`, `qsv`, `cuda` |
-| `tesseract` | - | Optional runtime dependency for OCR text extraction. Install `tesseract-ocr` plus needed language packs such as `tesseract-ocr-eng` |
-| `REMOVEBG_API_KEY` | - | Optional. Enables background removal via remove.bg |
-| `ENABLE_SCHEDULER` | `true` | Enable automatic ingress polling |
+| Variable                               | Default                                  | Description                                                                          |
+| -------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| `PORT`                                 | `8080`                                   | API server port                                                                      |
+| `BASE_URL`                             | `http://localhost:5173`                  | Public URL for share links and email webhooks                                        |
+| `JWT_SECRET`                           | -                                        | **Required.** HMAC key, >= 32 chars                                                  |
+| `APP_SECRET`                           | -                                        | **Required.** AES-256-GCM key for ingress config encryption, >= 32 chars             |
+| `APP_ENV`                              | `development`                            | `development` or `production` (controls secure cookies)                              |
+| `DB_PATH`                              | `./damask.db`                            | SQLite database path                                                                 |
+| `QUEUE_WORKERS`                        | `4`                                      | Job worker pool size (transcode capped at 2)                                         |
+| `FRONTEND_PATH`                        | -                                        | Serve frontend from disk instead of the embedded build                               |
+| `STORAGE`                              | `local`                                  | Storage backend: `local`, `sftp`, or `s3`                                            |
+| `STORAGE_LOCAL_PATH`                   | `./storage`                              | Asset storage directory (local backend)                                              |
+| `STORAGE_SFTP_HOST`                    | -                                        | SFTP host                                                                            |
+| `STORAGE_SFTP_PORT`                    | `22`                                     | SFTP port                                                                            |
+| `STORAGE_SFTP_USER`                    | -                                        | SFTP username                                                                        |
+| `STORAGE_SFTP_AUTH_METHOD`             | `password`                               | `password` or `key`                                                                  |
+| `STORAGE_SFTP_PASSWORD`                | -                                        | SFTP password (auth method: password)                                                |
+| `STORAGE_SFTP_PRIVATE_KEY`             | -                                        | PEM private key (auth method: key)                                                   |
+| `STORAGE_SFTP_BASE_PATH`               | `/`                                      | Base path on the SFTP server                                                         |
+| `STORAGE_SFTP_INSECURE_HOST_KEY`       | `false`                                  | Skip host key verification (not recommended)                                         |
+| `STORAGE_S3_BUCKET`                    | -                                        | S3 bucket name                                                                       |
+| `STORAGE_S3_REGION`                    | -                                        | S3 region                                                                            |
+| `STORAGE_S3_ACCESSKEY`                 | -                                        | S3 access key                                                                        |
+| `STORAGE_S3_SECRETKEY`                 | -                                        | S3 secret key                                                                        |
+| `STORAGE_S3_BASE_PATH`                 | `/`                                      | Key prefix within the bucket                                                         |
+| `SMTP_HOST`                            | -                                        | Outbound SMTP relay host                                                             |
+| `SMTP_PORT`                            | `587`                                    | Outbound SMTP port                                                                   |
+| `SMTP_SENDER`                          | -                                        | From address for outbound email                                                      |
+| `SMTP_USER`                            | -                                        | SMTP auth username                                                                   |
+| `SMTP_PASS`                            | -                                        | SMTP auth password                                                                   |
+| `MAIL_PORT`                            | `2525`                                   | Bundled inbound SMTP server port                                                     |
+| `MAIL_HOST`                            | -                                        | Override hostname advertised by the inbound SMTP server                              |
+| `FFMPEG_PATH`                          | -                                        | Absolute or resolvable path to `ffmpeg`; `ffprobe` is inferred from the same install |
+| `FFMPEG_HW_ACCEL`                      | -                                        | Video decode hw accel hint. Supported: `videotoolbox`, `vaapi`, `qsv`, `cuda`        |
+| `SCRATCH_PURGE_TIME`                   | `03:00`                                  | Daily time (HH:MM) to purge variant draft scratch storage                            |
+| `ENABLE_SCHEDULER`                     | `true`                                   | Enable automatic ingress polling                                                     |
+| `IMAGEROUTER_API_KEY`                  | -                                        | Global fallback ImageRouter API key                                                  |
+| `IMAGEROUTER_DEFAULT_MODEL`            | `black-forest-labs/FLUX-2-klein-4b:free` | Default image generation model                                                       |
+| `IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL`  | `bria/remove-background:free`            | Default background removal model                                                     |
+| `IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT` | `false`                                  | Retry with a paid model when free tier is exhausted                                  |
+| `OIDC_ISSUER_URL`                      | -                                        | OIDC provider issuer URL                                                             |
+| `OIDC_CLIENT_ID`                       | -                                        | OIDC client ID                                                                       |
+| `OIDC_CLIENT_SECRET`                   | -                                        | OIDC client secret                                                                   |
+| `OIDC_LABEL`                           | `Sign in with SSO`                       | Login button label                                                                   |
+| `GOOGLE_CLIENT_ID`                     | -                                        | Google OAuth client ID                                                               |
+| `GOOGLE_CLIENT_SECRET`                 | -                                        | Google OAuth client secret                                                           |
+| `CANVA_CLIENT_ID`                      | -                                        | Canva OAuth client ID                                                                |
+| `CANVA_CLIENT_SECRET`                  | -                                        | Canva OAuth client secret                                                            |
+| `OTEL_ENABLED`                         | `false`                                  | Enable OpenTelemetry tracing                                                         |
+| `OTEL_ENDPOINT`                        | `http://localhost:8082/api/otel/v1`      | OTel collector endpoint                                                              |
+| `OTEL_TOKEN`                           | `dev-token`                              | Bearer token for the OTel endpoint                                                   |
+
+**Demo mode**
+
+| Variable                    | Default              | Description                                  |
+| --------------------------- | -------------------- | -------------------------------------------- |
+| `DEMO_MODE`                 | `false`              | Enable demo mode (auto-reset, public access) |
+| `DEMO_RESET_INTERVAL_HOURS` | -                    | Hours between demo resets                    |
+| `DEMO_USER_EMAIL`           | `demo@damask.studio` | Demo workspace owner email                   |
+| `DEMO_WORKSPACE_NAME`       | `Demo Agency`        | Demo workspace display name                  |
+| `DEMO_BANNER`               | `true`               | Show the demo banner in the UI               |
+| `DEMO_SIGNUP_URL`           | `/signup`            | URL the demo banner links to for sign-up     |
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `make dev` | Start Go server + SvelteKit dev server |
-| `make build` | Compile Go binary to `bin/server` |
-| `make test` | Run Go tests |
-| `make lint` | Run golangci-lint + ESLint |
-| `make generate` | Run sqlc code generation |
+| Command         | Description                            |
+| --------------- | -------------------------------------- |
+| `make dev`      | Start Go server + SvelteKit dev server |
+| `make build`    | Compile Go binary to `bin/server`      |
+| `make test`     | Run Go tests                           |
+| `make lint`     | Run golangci-lint + ESLint             |
+| `make generate` | Run sqlc code generation               |
 
 ## Structure
 
@@ -180,15 +291,15 @@ server {
 
 ### ImageMagick PDF/PS policies
 
-Remove these policies from `/etc/ImageMagick-6/policy.xml` to enable PDF thumbnail generation:
+Remove policies from `/etc/ImageMagick-6/policy.xml` to enable PDF thumbnail generation:
 
-```xml
-<policy domain="coder" rights="none" pattern="PS" />
-<policy domain="coder" rights="none" pattern="PS2" />
-<policy domain="coder" rights="none" pattern="PS3" />
-<policy domain="coder" rights="none" pattern="EPS" />
-<policy domain="coder" rights="none" pattern="PDF" />
-<policy domain="coder" rights="none" pattern="XPS" />
+```shell
+sed -i \
+    -e '/disable ghostscript format types/,+6d' \
+    -e '/name="width"/d' \
+    -e '/name="height"/d' \
+    -e '/domain="path"/d' \
+    /etc/ImageMagick-6/policy.xml
 ```
 
 ### Dirty DB migration

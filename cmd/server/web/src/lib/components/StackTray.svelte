@@ -4,6 +4,8 @@
   import { slide } from 'svelte/transition'
   import StackPanel from './StackPanel.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { mimeCategory } from '$lib/api'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
 
   const MAX_THUMBS = 5
 
@@ -31,7 +33,7 @@
     <div class="flex items-center -space-x-2">
       {#each stackStore.assets.slice(0, MAX_THUMBS) as asset (asset.id)}
         <div
-          class="h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 border-amber-100 dark:border-amber-900"
+          class="h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 border-amber-100 dark:border-amber-900 {ASSET_BACKGROUND_COLORS[mimeCategory(asset.mimeType)] ?? ''}"
           title={asset.name}
         >
           {#if asset.thumbnailUrl}

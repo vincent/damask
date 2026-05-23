@@ -80,7 +80,7 @@
 
 <style>
   .variant-tool-panel {
-    --tool-panel-width: 350px;
+    --tool-panel-width: 370px;
 
     position: absolute;
     top: 0;

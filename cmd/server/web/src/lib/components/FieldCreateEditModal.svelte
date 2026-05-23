@@ -157,6 +157,7 @@
       }
       onsaved(def)
       open = false
+      editing = null
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : m.field_save_failed()
     } finally {
@@ -165,7 +166,7 @@
   }
 </script>
 
-<Modal bind:open {onclose}>
+<Modal bind:open onclose={() => ((editing = null), onclose())}>
   <div class="p-6">
     <h2 class="mb-5 text-base font-semibold text-gray-900 dark:text-gray-100">
       {editing
