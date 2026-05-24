@@ -334,7 +334,9 @@
             </p>
             {#if authStore.role !== 'viewer' && (isImage || isVideo)}
               <p class="mt-1 text-sm text-[var(--text-muted)]">
-                {m.variant_use_tabs()}
+                {viewportStore.isXl
+                  ? m.variant_use_tool_bar()
+                  : m.variant_use_tabs()}
               </p>
             {/if}
           </div>

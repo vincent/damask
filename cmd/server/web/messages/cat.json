@@ -391,6 +391,7 @@
   "close": "Tancar",
   "no_variants_yet": "Encara no hi ha variants.",
   "variant_use_tabs": "Fes servir les pestanyes de dalt per crear una variant.",
+  "variant_use_tool_bar": "Fes servir la barra d'eines vertical de l'esquerra per crear una variant.",
   "variant_automation_button": "Crear automatització de variants",
   "variant_automation_modal_title": "Automatitzar aquestes variants",
   "variant_automation_preview_hint": "Crearem un flux que recrea aquestes variants quan es pugi una nova versió.",

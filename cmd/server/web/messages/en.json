@@ -407,6 +407,7 @@
   "close": "Close",
   "no_variants_yet": "No variants yet.",
   "variant_use_tabs": "Use the tabs above to create a variant.",
+  "variant_use_tool_bar": "Use the left vertical toolbar to create a variant.",
   "variant_automation_button": "Create variant automation",
   "variant_automation_modal_title": "Automate these variants",
   "variant_automation_preview_hint": "We'll create a workflow that recreates these variants whenever a new version is uploaded.",

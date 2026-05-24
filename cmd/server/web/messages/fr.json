@@ -407,6 +407,7 @@
   "close": "Fermer",
   "no_variants_yet": "Aucune variante pour l'instant.",
   "variant_use_tabs": "Utilisez les onglets ci-dessus pour créer une variante.",
+  "variant_use_tool_bar": "Utilisez la barre d'outils verticale gauche pour créer une variante.",
   "variant_automation_button": "Créer une automatisation de variantes",
   "variant_automation_modal_title": "Automatiser ces variantes",
   "variant_automation_preview_hint": "Nous créerons un workflow qui recrée ces variantes à chaque nouvelle version uploadée.",

@@ -391,6 +391,7 @@
   "close": "Cerrar",
   "no_variants_yet": "Aún no hay variantes.",
   "variant_use_tabs": "Usa las pestañas de arriba para crear una variante.",
+  "variant_use_tool_bar": "Usa la barra de herramientas vertical izquierda para crear una variante.",
   "variant_automation_button": "Crear automatización de variantes",
   "variant_automation_modal_title": "Automatizar estas variantes",
   "variant_automation_preview_hint": "Crearemos un flujo que recrea estas variantes cuando se suba una nueva versión.",
