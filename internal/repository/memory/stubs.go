@@ -399,4 +399,7 @@ func (r *OAuthRepo) Create(_ context.Context, _ repository.OAuthConnection) erro
 func (r *OAuthRepo) UpdateTokens(_ context.Context, _, _ string, _ *string, _ *string) error {
 	return nil
 }
+func (r *OAuthRepo) UpdateTokensAndScopes(_ context.Context, _, _ string, _ *string, _ *string, _ string) error {
+	return nil
+}
 func (r *OAuthRepo) Delete(_ context.Context, _, _ string) error { return nil }

@@ -32,5 +32,15 @@ UPDATE oauth_connections SET
 WHERE id = ?
 RETURNING *;
 
+-- name: UpdateOAuthConnectionTokensAndScopes :one
+UPDATE oauth_connections SET
+    access_token  = ?,
+    refresh_token = ?,
+    expires_at    = ?,
+    scopes        = ?,
+    updated_at    = datetime('now')
+WHERE id = ?
+RETURNING *;
+
 -- name: DeleteOAuthConnection :exec
 DELETE FROM oauth_connections WHERE id = ? AND workspace_id = ?;

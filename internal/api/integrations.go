@@ -71,7 +71,7 @@ func (s *Server) googleDriveOAuth2Config() oauth2.Config {
 		Endpoint:     google.Endpoint,
 		Scopes: []string{
 			"openid", "email", "profile",
-			"https://www.googleapis.com/auth/drive.readonly",
+			"https://www.googleapis.com/auth/drive.file",
 		},
 	}
 }

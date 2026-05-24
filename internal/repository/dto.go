@@ -542,3 +542,65 @@ type CreateWorkflowRunStepParams struct {
 	StartedAt   *time.Time
 	CompletedAt *time.Time
 }
+
+// ExportConfig is the domain representation of an export configuration.
+type ExportConfig struct {
+	ID              string
+	WorkspaceID     string
+	ProjectID       string
+	CreatedBy       string
+	Label           string
+	DestType        string
+	DestConfigEnc   string // encrypted JSON blob, never expose raw
+	Versions        string // "current" | "all"
+	IncludeVariants bool
+	ScheduleType    string // "manual" | "after_quiet"
+	QuietMinutes    *int
+	Enabled         bool
+	LastRunAt       *time.Time
+	LastRunStatus   *string
+	LastError       *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// ExportRun is the domain representation of a single export run.
+type ExportRun struct {
+	ID             string
+	ExportConfigID string
+	WorkspaceID    string
+	TriggeredBy    *string
+	Status         string
+	AssetsTotal    int
+	AssetsExported int
+	AssetsSkipped  int
+	BytesWritten   int64
+	Error          *string
+	StartedAt      *time.Time
+	CompletedAt    *time.Time
+	CreatedAt      time.Time
+}
+
+// ExportProgress holds incremental progress counters for UpdateProgress.
+type ExportProgress struct {
+	AssetsExported int
+	AssetsSkipped  int
+	BytesWritten   int64
+}
+
+// ExportFinish holds the final result values for Finish.
+type ExportFinish struct {
+	Status         string
+	AssetsTotal    int
+	AssetsExported int
+	AssetsSkipped  int
+	BytesWritten   int64
+	Error          *string
+}
+
+// ExportRunResult holds the last-run summary written back to export_configs.
+type ExportRunResult struct {
+	LastRunAt     time.Time
+	LastRunStatus string
+	LastError     *string
+}

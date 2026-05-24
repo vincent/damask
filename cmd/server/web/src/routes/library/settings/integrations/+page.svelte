@@ -73,6 +73,13 @@
         <div class="space-y-3">
           {#if connectionFor('google') !== undefined}
             {@const googleConn = connectionFor('google')!}
+            {@const googleNeedsReauth =
+              !googleConn.scopes.includes(
+                'https://www.googleapis.com/auth/drive.file'
+              ) &&
+              !googleConn.scopes.includes(
+                'https://www.googleapis.com/auth/drive'
+              )}
             <IntegrationCard
               provider="google"
               label={m.integrations_google_drive_label()}
@@ -81,6 +88,7 @@
               providerEmail={googleConn.provider_email}
               connectHref="/integrations/connect/google"
               setupSourceHref={`/settings/ingress/new?connection=${googleConn.id}&type=gdrive`}
+              needsReauth={googleNeedsReauth}
               onDisconnect={() => disconnect(googleConn.id)}
             />
           {:else}

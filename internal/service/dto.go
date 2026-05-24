@@ -267,3 +267,103 @@ func validateWorkflowFailureEmail(raw string) error {
 	}
 	return nil
 }
+
+// ---- Export DTOs ----
+
+// ExportConfigDTO is the outbound representation of an export config.
+// dest_config is never included — credentials stay server-side.
+type ExportConfigDTO struct {
+	ID              string     `json:"id"`
+	WorkspaceID     string     `json:"workspace_id"`
+	ProjectID       string     `json:"project_id"`
+	Label           string     `json:"label"`
+	DestType        string     `json:"dest_type"`
+	Versions        string     `json:"versions"`
+	IncludeVariants bool       `json:"include_variants"`
+	ScheduleType    string     `json:"schedule_type"`
+	QuietMinutes    *int       `json:"quiet_minutes,omitempty"`
+	Enabled         bool       `json:"enabled"`
+	LastRunAt       *time.Time `json:"last_run_at,omitempty"`
+	LastRunStatus   *string    `json:"last_run_status,omitempty"`
+	LastError       *string    `json:"last_error,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+// ExportRunDTO is the outbound representation of a single export run.
+type ExportRunDTO struct {
+	ID             string     `json:"id"`
+	ExportConfigID string     `json:"export_config_id"`
+	TriggeredBy    *string    `json:"triggered_by,omitempty"`
+	Status         string     `json:"status"`
+	AssetsTotal    int        `json:"assets_total"`
+	AssetsExported int        `json:"assets_exported"`
+	AssetsSkipped  int        `json:"assets_skipped"`
+	BytesWritten   int64      `json:"bytes_written"`
+	Error          *string    `json:"error,omitempty"`
+	StartedAt      *time.Time `json:"started_at,omitempty"`
+	CompletedAt    *time.Time `json:"completed_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+}
+
+// CreateExportConfigParams is the input for ExportService.Create.
+type CreateExportConfigParams struct {
+	ProjectID       string          `json:"project_id"`
+	Label           string          `json:"label"`
+	DestType        string          `json:"dest_type"`
+	DestConfig      json.RawMessage `json:"dest_config"`
+	Versions        string          `json:"versions"`
+	IncludeVariants bool            `json:"include_variants"`
+	ScheduleType    string          `json:"schedule_type"`
+	QuietMinutes    *int            `json:"quiet_minutes"`
+}
+
+func (p CreateExportConfigParams) Validate() error {
+	if len(p.Label) == 0 || len(p.Label) > 128 {
+		return fmt.Errorf("label must be 1-128 characters: %w", apperr.ErrInvalidInput)
+	}
+	if p.DestType != "sftp" && p.DestType != "gdrive" {
+		return fmt.Errorf("dest_type must be 'sftp' or 'gdrive': %w", apperr.ErrInvalidInput)
+	}
+	if p.Versions != "current" && p.Versions != "all" {
+		return fmt.Errorf("versions must be 'current' or 'all': %w", apperr.ErrInvalidInput)
+	}
+	if p.ScheduleType != "manual" && p.ScheduleType != "after_quiet" {
+		return fmt.Errorf("schedule_type must be 'manual' or 'after_quiet': %w", apperr.ErrInvalidInput)
+	}
+	if p.ScheduleType == "after_quiet" {
+		if p.QuietMinutes == nil {
+			return fmt.Errorf("quiet_minutes required when schedule_type is 'after_quiet': %w", apperr.ErrInvalidInput)
+		}
+		if *p.QuietMinutes < 1 || *p.QuietMinutes > 10080 {
+			return fmt.Errorf("quiet_minutes must be 1-10080: %w", apperr.ErrInvalidInput)
+		}
+	}
+	if len(p.DestConfig) == 0 {
+		return fmt.Errorf("dest_config is required: %w", apperr.ErrInvalidInput)
+	}
+	return nil
+}
+
+// UpdateExportConfigParams is the input for ExportService.Update.
+type UpdateExportConfigParams struct {
+	Label           string          `json:"label"`
+	DestType        string          `json:"dest_type"`
+	DestConfig      json.RawMessage `json:"dest_config"`
+	Versions        string          `json:"versions"`
+	IncludeVariants bool            `json:"include_variants"`
+	ScheduleType    string          `json:"schedule_type"`
+	QuietMinutes    *int            `json:"quiet_minutes"`
+	Enabled         bool            `json:"enabled"`
+}
+
+func (p UpdateExportConfigParams) Validate() error {
+	return CreateExportConfigParams{
+		Label:        p.Label,
+		DestType:     p.DestType,
+		DestConfig:   p.DestConfig,
+		Versions:     p.Versions,
+		ScheduleType: p.ScheduleType,
+		QuietMinutes: p.QuietMinutes,
+	}.Validate()
+}

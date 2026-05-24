@@ -561,3 +561,18 @@ type IngressService interface {
 	DeleteLogEntry(ctx context.Context, workspaceID, entryID string) error
 	RetryLogEntry(ctx context.Context, workspaceID, entryID string) (jobID string, err error)
 }
+
+// ExportService handles business logic for export configs and runs.
+type ExportService interface {
+	Create(ctx context.Context, workspaceID, userID string, p CreateExportConfigParams) (*ExportConfigDTO, error)
+	Get(ctx context.Context, workspaceID, id string) (*ExportConfigDTO, error)
+	List(ctx context.Context, workspaceID string) ([]*ExportConfigDTO, error)
+	ListByProject(ctx context.Context, workspaceID, projectID string) ([]*ExportConfigDTO, error)
+	Update(ctx context.Context, workspaceID, id string, p UpdateExportConfigParams) (*ExportConfigDTO, error)
+	Delete(ctx context.Context, workspaceID, id string) error
+	ValidateDestination(ctx context.Context, workspaceID, configID string) error
+	ValidateDestinationConfig(ctx context.Context, workspaceID, destType string, destConfig json.RawMessage) error
+	TriggerManual(ctx context.Context, workspaceID, userID, configID string) (*ExportRunDTO, error)
+	GetRun(ctx context.Context, workspaceID, runID string) (*ExportRunDTO, error)
+	ListRuns(ctx context.Context, workspaceID, configID string, limit, offset int) ([]*ExportRunDTO, error)
+}

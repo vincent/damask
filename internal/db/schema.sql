@@ -86,8 +86,11 @@ CREATE TABLE assets (
     current_version_id     TEXT,  -- FK added after asset_versions is created
     derived_from_asset_id  TEXT REFERENCES assets(id) ON DELETE SET NULL,
     created_at             DATETIME NOT NULL DEFAULT (datetime('now')),
-    updated_at             DATETIME NOT NULL DEFAULT (datetime('now'))
+    updated_at             DATETIME NOT NULL DEFAULT (datetime('now')),
+    touched_at             DATETIME NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX idx_assets_touched ON assets(touched_at DESC);
 
 CREATE TABLE asset_versions (
   id            TEXT PRIMARY KEY,
@@ -516,3 +519,51 @@ UPDATE workflows
 SET enabled = 0,
     updated_at = datetime('now')
 WHERE enabled = 1;
+
+-- Migration 042-044: export configs and runs
+CREATE TABLE export_configs (
+    id              TEXT PRIMARY KEY,
+    workspace_id    TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    label           TEXT NOT NULL,
+    dest_type       TEXT NOT NULL CHECK(dest_type IN ('sftp', 'gdrive')),
+    dest_config     TEXT NOT NULL DEFAULT '{}',
+    versions        TEXT NOT NULL DEFAULT 'current'
+                    CHECK(versions IN ('current', 'all')),
+    include_variants INTEGER NOT NULL DEFAULT 1,
+    schedule_type   TEXT NOT NULL DEFAULT 'manual'
+                    CHECK(schedule_type IN ('manual', 'after_quiet')),
+    quiet_minutes   INTEGER,
+    enabled         INTEGER NOT NULL DEFAULT 1,
+    last_run_at     DATETIME,
+    last_run_status TEXT,
+    last_error      TEXT,
+    created_at      DATETIME NOT NULL DEFAULT (datetime('now')),
+    updated_at      DATETIME NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_export_configs_workspace ON export_configs(workspace_id);
+CREATE INDEX idx_export_configs_project   ON export_configs(project_id);
+CREATE INDEX idx_export_configs_schedule  ON export_configs(schedule_type, enabled, last_run_at);
+
+CREATE TABLE export_runs (
+    id               TEXT PRIMARY KEY,
+    export_config_id TEXT NOT NULL REFERENCES export_configs(id) ON DELETE CASCADE,
+    workspace_id     TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    triggered_by     TEXT REFERENCES users(id),
+    status           TEXT NOT NULL DEFAULT 'pending'
+                     CHECK(status IN ('pending','running','done','failed')),
+    assets_total     INTEGER NOT NULL DEFAULT 0,
+    assets_exported  INTEGER NOT NULL DEFAULT 0,
+    assets_skipped   INTEGER NOT NULL DEFAULT 0,
+    bytes_written    INTEGER NOT NULL DEFAULT 0,
+    error            TEXT,
+    started_at       DATETIME,
+    completed_at     DATETIME,
+    created_at       DATETIME NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_export_runs_config    ON export_runs(export_config_id, created_at DESC);
+CREATE INDEX idx_export_runs_workspace ON export_runs(workspace_id, created_at DESC);
+CREATE INDEX idx_export_runs_status    ON export_runs(status);

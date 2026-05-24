@@ -94,6 +94,23 @@ func (r *oauthRepo) UpdateTokens(
 	return err
 }
 
+func (r *oauthRepo) UpdateTokensAndScopes(
+	ctx context.Context,
+	id, accessToken string,
+	refreshToken *string,
+	expiresAt *string,
+	scopes string,
+) error {
+	_, err := r.q.UpdateOAuthConnectionTokensAndScopes(ctx, dbgen.UpdateOAuthConnectionTokensAndScopesParams{
+		ID:           id,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresAt:    expiresAt,
+		Scopes:       scopes,
+	})
+	return err
+}
+
 func (r *oauthRepo) Delete(ctx context.Context, workspaceID, id string) error {
 	return r.q.DeleteOAuthConnection(ctx, dbgen.DeleteOAuthConnectionParams{
 		ID:          id,

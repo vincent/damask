@@ -58,3 +58,9 @@ SELECT * FROM share_comments WHERE asset_id = ? ORDER BY created_at ASC;
 
 -- name: ListImageAssetIDs :many
 SELECT id FROM assets WHERE workspace_id = ? AND mime_type LIKE 'image/%' ORDER BY created_at DESC;
+
+
+-- name: TouchAsset :exec
+UPDATE assets
+SET touched_at = datetime('now'), updated_at = datetime('now')
+WHERE id = ? AND workspace_id = ?;

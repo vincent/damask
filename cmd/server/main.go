@@ -38,6 +38,10 @@ import (
 	_ "damask/server/internal/ingress/sources/imap"
 	_ "damask/server/internal/ingress/sources/s3"
 	_ "damask/server/internal/ingress/sources/sftp"
+
+	// Side-effect imports to register export destination types.
+	exportgdrive "damask/server/internal/export/destinations/gdrive"
+	_ "damask/server/internal/export/destinations/sftp"
 	"damask/server/internal/oauth"
 
 	"github.com/gofiber/fiber/v3"
@@ -163,6 +167,9 @@ func main() {
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(queries, sqlDB)
 	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
 	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
+	exportConfigsRepo := reposqlc.NewExportConfigRepo(queries, sqlDB)
+	exportRunsRepo := reposqlc.NewExportRunRepo(queries, sqlDB)
+
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
 	})
@@ -211,6 +218,8 @@ func main() {
 		injestor,
 		resolveImageRouterKey,
 		workflowExec,
+		exportConfigsRepo,
+		exportRunsRepo,
 	)
 	js.RegisterJobHandlers()
 
@@ -240,7 +249,7 @@ func main() {
 			ClientSecret: cfg.Google.ClientSecret,
 			Endpoint:     google.Endpoint,
 			RedirectURL:  cfg.BaseURL.String() + "/integrations/callback/google",
-			Scopes:       []string{"openid", "email", "profile", "https://www.googleapis.com/auth/drive.readonly"},
+			Scopes:       []string{"openid", "email", "profile", "https://www.googleapis.com/auth/drive.file"},
 		})
 	}
 	if cfg.Canva.ClientID != "" {
@@ -258,6 +267,7 @@ func main() {
 	}
 	gdrive.SetRefresher(refresher)
 	canva.SetRefresher(refresher)
+	exportgdrive.SetRefresher(refresher)
 
 	/// start background services
 
@@ -272,6 +282,8 @@ func main() {
 		slog.Info("audit-log retention scheduler started")
 		jobs.NewScratchPurgeScheduler(q, cfg).Start(ctx)
 		slog.Info("scratch purge scheduler started")
+		jobs.NewExportScheduler(q, js).Start(ctx)
+		slog.Info("export scheduler started")
 	}
 
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)

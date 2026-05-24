@@ -10,7 +10,7 @@ import (
 )
 
 const findWatermarkAssetInFolder = `-- name: FindWatermarkAssetInFolder :one
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at FROM assets
+SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at, touched_at FROM assets
 WHERE workspace_id = ?
   AND folder_id = ?
   AND LOWER(original_filename) LIKE '%watermark%'
@@ -44,12 +44,13 @@ func (q *Queries) FindWatermarkAssetInFolder(ctx context.Context, arg FindWaterm
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }
 
 const findWatermarkAssetInProject = `-- name: FindWatermarkAssetInProject :one
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at FROM assets a
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at, a.touched_at FROM assets a
 JOIN folders f ON a.folder_id = f.id
 WHERE a.workspace_id = ?
   AND f.project_id = ?
@@ -84,12 +85,13 @@ func (q *Queries) FindWatermarkAssetInProject(ctx context.Context, arg FindWater
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }
 
 const findWatermarkAssetInWorkspace = `-- name: FindWatermarkAssetInWorkspace :one
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at FROM assets
+SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at, touched_at FROM assets
 WHERE workspace_id = ?
   AND LOWER(original_filename) LIKE '%watermark%'
 ORDER BY created_at ASC
@@ -117,6 +119,7 @@ func (q *Queries) FindWatermarkAssetInWorkspace(ctx context.Context, workspaceID
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }

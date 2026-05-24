@@ -320,6 +320,9 @@ const (
 	// Variant draft jobs.
 	JobTypeCreateVariantDraft = "create_variant_draft"
 
+	// Export jobs.
+	JobTypeExportRun = "export_run"
+
 	// Maintenance jobs.
 	JobTypePurgeDeletedFields      = "purge_deleted_fields"
 	JobTypeEnforceVersionRetention = "enforce_version_retention"

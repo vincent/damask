@@ -54,6 +54,7 @@ type TestServerConfig struct {
 	Workspace     service.WorkspaceService
 	Users         service.UserService
 	Ingress       service.IngressService
+	Exports       service.ExportService
 	Stack         service.StackService
 	Upload        service.UploadService
 	Workflows     service.WorkflowService
@@ -135,6 +136,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		workspace:     cfg.Workspace,
 		users:         cfg.Users,
 		ingress:       cfg.Ingress,
+		exports:       cfg.Exports,
 		stack:         cfg.Stack,
 		upload:        cfg.Upload,
 		workflows:     cfg.Workflows,
@@ -472,6 +474,17 @@ func buildTestApp(s *Server) *fiber.App {
 	)
 	ingressGroup.Put("/sources/:id/rules/:rid", auth.RequireRole(getRoleFn, auth.Editor), s.handleUpdateIngressRule)
 	ingressGroup.Delete("/sources/:id/rules/:rid", auth.RequireRole(getRoleFn, auth.Editor), s.handleDeleteIngressRule)
+
+	// Exports
+	api.Post("/exports", auth.RequireRole(getRoleFn, auth.Owner), s.handleCreateExportConfig)
+	api.Get("/exports", s.handleListExportConfigs)
+	api.Get("/exports/:id", s.handleGetExportConfig)
+	api.Put("/exports/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateExportConfig)
+	api.Delete("/exports/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteExportConfig)
+	api.Post("/exports/:id/validate-destination", s.handleValidateExportDestination)
+	api.Post("/exports/:id/trigger", s.handleTriggerExport)
+	api.Get("/exports/:id/runs", s.handleListExportRuns)
+	api.Get("/exports/:id/runs/:runID", s.handleGetExportRun)
 
 	// Shares (authenticated)
 	api.Post("/shares", s.handleCreateShare)

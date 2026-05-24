@@ -311,6 +311,7 @@ type OAuthConnectionRepository interface {
 	GetByProviderUserID(ctx context.Context, workspaceID, provider, providerUserID string) (OAuthConnection, error)
 	Create(ctx context.Context, c OAuthConnection) error
 	UpdateTokens(ctx context.Context, id, accessToken string, refreshToken *string, expiresAt *string) error
+	UpdateTokensAndScopes(ctx context.Context, id, accessToken string, refreshToken *string, expiresAt *string, scopes string) error
 	Delete(ctx context.Context, workspaceID, id string) error
 }
 
@@ -351,4 +352,26 @@ type WorkflowWebhookRepository interface {
 	GetTokenHash(ctx context.Context, workflowID string) (string, error)
 	Upsert(ctx context.Context, workflowID, tokenHash string) error
 	Delete(ctx context.Context, workflowID string) error
+}
+
+// ExportConfigRepository handles persistence for export_configs rows.
+type ExportConfigRepository interface {
+	Create(ctx context.Context, p ExportConfig) (ExportConfig, error)
+	Get(ctx context.Context, workspaceID, id string) (ExportConfig, error)
+	List(ctx context.Context, workspaceID string) ([]ExportConfig, error)
+	ListByProject(ctx context.Context, workspaceID, projectID string) ([]ExportConfig, error)
+	Update(ctx context.Context, p ExportConfig) (ExportConfig, error)
+	Delete(ctx context.Context, workspaceID, id string) error
+	SetLastRun(ctx context.Context, id string, p ExportRunResult) error
+	ListDue(ctx context.Context) ([]ExportConfig, error)
+}
+
+// ExportRunRepository handles persistence for export_runs rows.
+type ExportRunRepository interface {
+	Create(ctx context.Context, p ExportRun) (ExportRun, error)
+	Get(ctx context.Context, workspaceID, id string) (ExportRun, error)
+	List(ctx context.Context, configID string, limit, offset int) ([]ExportRun, error)
+	Start(ctx context.Context, id string) error
+	UpdateProgress(ctx context.Context, id string, p ExportProgress) error
+	Finish(ctx context.Context, id string, p ExportFinish) error
 }

@@ -81,7 +81,7 @@ func (s *integrationService) UpsertConnection(ctx context.Context, p UpsertConne
 
 	existing, err := s.oauth.GetByProviderUserID(ctx, p.WorkspaceID, p.Provider, p.ProviderUserID)
 	if err == nil {
-		return s.oauth.UpdateTokens(ctx, existing.ID, encAccess, encRefresh, expiresAt)
+		return s.oauth.UpdateTokensAndScopes(ctx, existing.ID, encAccess, encRefresh, expiresAt, string(scopesJSON))
 	}
 
 	providerUserID := p.ProviderUserID

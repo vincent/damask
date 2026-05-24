@@ -15,6 +15,7 @@ import (
 	"damask/server/internal/mail"
 	"damask/server/internal/media/contentmeta"
 	"damask/server/internal/queue"
+	repomemory "damask/server/internal/repository/memory"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 	"damask/server/internal/workflow"
@@ -51,6 +52,8 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 			return "", "", nil
 		}),
 		workflow.NewExecutor(workflow.Deps{}),
+		repomemory.NewExportConfigRepo(),
+		repomemory.NewExportRunRepo(),
 	)
 
 	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {

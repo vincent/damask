@@ -266,3 +266,48 @@ func (q *Queries) UpdateOAuthConnectionTokens(ctx context.Context, arg UpdateOAu
 	)
 	return i, err
 }
+
+const updateOAuthConnectionTokensAndScopes = `-- name: UpdateOAuthConnectionTokensAndScopes :one
+UPDATE oauth_connections SET
+    access_token  = ?,
+    refresh_token = ?,
+    expires_at    = ?,
+    scopes        = ?,
+    updated_at    = datetime('now')
+WHERE id = ?
+RETURNING id, workspace_id, created_by, provider, provider_user_id, provider_email, scopes, access_token, refresh_token, expires_at, created_at, updated_at
+`
+
+type UpdateOAuthConnectionTokensAndScopesParams struct {
+	AccessToken  string  `json:"access_token"`
+	RefreshToken *string `json:"refresh_token"`
+	ExpiresAt    *string `json:"expires_at"`
+	Scopes       string  `json:"scopes"`
+	ID           string  `json:"id"`
+}
+
+func (q *Queries) UpdateOAuthConnectionTokensAndScopes(ctx context.Context, arg UpdateOAuthConnectionTokensAndScopesParams) (OauthConnection, error) {
+	row := q.db.QueryRowContext(ctx, updateOAuthConnectionTokensAndScopes,
+		arg.AccessToken,
+		arg.RefreshToken,
+		arg.ExpiresAt,
+		arg.Scopes,
+		arg.ID,
+	)
+	var i OauthConnection
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.CreatedBy,
+		&i.Provider,
+		&i.ProviderUserID,
+		&i.ProviderEmail,
+		&i.Scopes,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

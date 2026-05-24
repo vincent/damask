@@ -62,6 +62,7 @@ type Server struct {
 	workspace     service.WorkspaceService
 	users         service.UserService
 	ingress       service.IngressService
+	exports       service.ExportService
 	stack         service.StackService
 	upload        service.UploadService
 	workflows     service.WorkflowService
@@ -127,6 +128,7 @@ func NewHTTPServer(
 		folders:       service.NewFolderService(folderRepo),
 		hub:           hub,
 		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
+		exports:       service.NewExportService(db, sqlDB, cfg.AppSecret, q),
 		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
 		mailer:        mailer,
 		media:         media,
@@ -634,6 +636,18 @@ func NewRouter(
 		auth.RequireRole(getRoleFn, auth.Editor),
 		s.handleDeleteIngressRule,
 	)
+
+	// Export configs
+	api.Post("/exports", auth.RequireRole(getRoleFn, auth.Owner), s.handleCreateExportConfig)
+	api.Get("/exports", s.handleListExportConfigs)
+	api.Post("/exports/validate-destination", s.handleValidateExportDestination)
+	api.Post("/exports/:id/trigger", s.handleTriggerExport)
+	api.Get("/exports/runs/:runID", s.handleGetExportRun)
+	api.Get("/exports/:id/runs/:runID", s.handleGetExportRun)
+	api.Get("/exports/:id/runs", s.handleListExportRuns)
+	api.Get("/exports/:id", s.handleGetExportConfig)
+	api.Put("/exports/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateExportConfig)
+	api.Delete("/exports/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteExportConfig)
 
 	// Shares — authenticated, workspace-scoped
 	api.Post("/shares", s.handleCreateShare)

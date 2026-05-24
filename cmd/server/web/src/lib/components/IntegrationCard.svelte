@@ -14,6 +14,7 @@
     connectHref: string
     onDisconnect?: () => void
     setupSourceHref?: string
+    needsReauth?: boolean
   }
   let {
     provider,
@@ -24,6 +25,7 @@
     connectHref,
     onDisconnect,
     setupSourceHref,
+    needsReauth = false,
   }: Props = $props()
 
   let confirming = $state(false)
@@ -63,6 +65,22 @@
     <p class="mt-1.5 truncate text-sm text-zinc-500 dark:text-zinc-400">
       {description}
     </p>
+
+    {#if connected && needsReauth}
+      <div
+        class="mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-300"
+      >
+        <span
+          >Reconnect to enable Google Drive exports (updated permissions
+          required).</span
+        >
+        <a
+          href={connectHref}
+          class="ml-auto shrink-0 font-medium underline hover:no-underline"
+          >Reconnect</a
+        >
+      </div>
+    {/if}
 
     {#if connected && (setupSourceHref || onDisconnect)}
       <div class="mt-4 flex flex-wrap items-center gap-3">

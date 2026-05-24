@@ -130,7 +130,7 @@ func (q *Queries) EnsureSystemTag(ctx context.Context, arg EnsureSystemTagParams
 }
 
 const findAssetBySystemTagInFolder = `-- name: FindAssetBySystemTagInFolder :one
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at, a.touched_at
 FROM assets a
   JOIN asset_tags at ON at.asset_id = a.id
   JOIN tags t ON t.id = at.tag_id
@@ -169,12 +169,13 @@ func (q *Queries) FindAssetBySystemTagInFolder(ctx context.Context, arg FindAsse
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }
 
 const findAssetBySystemTagInProject = `-- name: FindAssetBySystemTagInProject :one
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at, a.touched_at
 FROM assets a
 JOIN asset_tags at ON at.asset_id = a.id
 JOIN tags t ON t.id
@@ -214,12 +215,13 @@ func (q *Queries) FindAssetBySystemTagInProject(ctx context.Context, arg FindAss
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }
 
 const findAssetBySystemTagInWorkspace = `-- name: FindAssetBySystemTagInWorkspace :one
-SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.project_id, a.folder_id, a.original_filename, a.storage_key, a.mime_type, a.size, a.width, a.height, a.thumbnail_key, a.thumbnail_content_type, a.metadata, a.current_version_id, a.derived_from_asset_id, a.created_at, a.updated_at, a.touched_at
 FROM assets a
   JOIN asset_tags at ON at.asset_id = a.id
   JOIN tags t ON t.id = at.tag_id
@@ -256,6 +258,7 @@ func (q *Queries) FindAssetBySystemTagInWorkspace(ctx context.Context, arg FindA
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }

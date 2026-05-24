@@ -86,13 +86,15 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, rawDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
+	exportConfigsRepo := reposqlc.NewExportConfigRepo(queries, sqlDB)
+	exportRunsRepo := reposqlc.NewExportRunRepo(queries, sqlDB)
 
 	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb)
 	if err := seeder.EnsureWorkspace(t.Context()); err != nil {
 		t.Fatalf("ensure demo workspace: %v", err)
 	}
 
-	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey)
+	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey, nil, exportConfigsRepo, exportRunsRepo)
 	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil)
 
 	return &demoEnv{App: app, Maker: maker, SqlDB: rawDB, Seeder: seeder}

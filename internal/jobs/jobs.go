@@ -18,6 +18,7 @@ import (
 	"damask/server/internal/ingress"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
+	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 	"damask/server/internal/workflow"
@@ -41,6 +42,8 @@ type JobServer struct {
 	injestor       assetio.Injestor
 	imgKeyResolver imagerouter.KeyResolver
 	workflowExec   *workflow.Executor
+	exportConfigs  repository.ExportConfigRepository
+	exportRuns     repository.ExportRunRepository
 }
 
 func NewJobServer(
@@ -56,6 +59,8 @@ func NewJobServer(
 	injestor assetio.Injestor,
 	imgKeyResolver imagerouter.KeyResolver,
 	workflowExec *workflow.Executor,
+	exportConfigs repository.ExportConfigRepository,
+	exportRuns repository.ExportRunRepository,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
@@ -67,6 +72,8 @@ func NewJobServer(
 		audit:          audit.New(sqlDB),
 		cfg:            cfg,
 		db:             db,
+		exportConfigs:  exportConfigs,
+		exportRuns:     exportRuns,
 		handlers:       make(map[string]queue.HandlerFunc),
 		hub:            hub,
 		imgKeyResolver: imgKeyResolver,
@@ -152,6 +159,9 @@ func (s *JobServer) RegisterJobHandlers() {
 
 	// Variant draft jobs.
 	reg(queue.JobTypeCreateVariantDraft, s.jobCreateVariantDraft)
+
+	// Export jobs.
+	reg(queue.JobTypeExportRun, s.jobExportRun)
 
 	// Maintenance jobs.
 	reg(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)

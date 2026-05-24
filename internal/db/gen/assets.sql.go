@@ -27,7 +27,7 @@ INSERT INTO assets (
   thumbnail_key, thumbnail_content_type, metadata, derived_from_asset_id
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at
+RETURNING id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at, touched_at
 `
 
 type CreateAssetParams struct {
@@ -83,6 +83,7 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }
@@ -102,7 +103,7 @@ func (q *Queries) DeleteAsset(ctx context.Context, arg DeleteAssetParams) error 
 }
 
 const getAssetByID = `-- name: GetAssetByID :one
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at FROM assets WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at, touched_at FROM assets WHERE id = ? AND workspace_id = ?
 `
 
 type GetAssetByIDParams struct {
@@ -131,12 +132,13 @@ func (q *Queries) GetAssetByID(ctx context.Context, arg GetAssetByIDParams) (Ass
 		&i.DerivedFromAssetID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TouchedAt,
 	)
 	return i, err
 }
 
 const listAssets = `-- name: ListAssets :many
-SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at FROM assets
+SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key, mime_type, size, width, height, thumbnail_key, thumbnail_content_type, metadata, current_version_id, derived_from_asset_id, created_at, updated_at, touched_at FROM assets
 WHERE workspace_id = ?1
   AND (?2 IS NULL OR project_id = ?2)
   AND (?3 IS NULL OR mime_type LIKE ?3)
@@ -198,6 +200,7 @@ func (q *Queries) ListAssets(ctx context.Context, arg ListAssetsParams) ([]Asset
 			&i.DerivedFromAssetID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TouchedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -272,6 +275,22 @@ func (q *Queries) ListImageAssetIDs(ctx context.Context, workspaceID string) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const touchAsset = `-- name: TouchAsset :exec
+UPDATE assets
+SET touched_at = datetime('now'), updated_at = datetime('now')
+WHERE id = ? AND workspace_id = ?
+`
+
+type TouchAssetParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) TouchAsset(ctx context.Context, arg TouchAssetParams) error {
+	_, err := q.db.ExecContext(ctx, touchAsset, arg.ID, arg.WorkspaceID)
+	return err
 }
 
 const updateAssetCurrentVersion = `-- name: UpdateAssetCurrentVersion :exec

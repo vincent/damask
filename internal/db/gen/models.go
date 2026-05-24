@@ -26,6 +26,7 @@ type Asset struct {
 	DerivedFromAssetID   *string   `json:"derived_from_asset_id"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
+	TouchedAt            time.Time `json:"touched_at"`
 }
 
 type AssetEvent struct {
@@ -124,6 +125,42 @@ type CollectionAsset struct {
 	AssetID      string    `json:"asset_id"`
 	Position     int64     `json:"position"`
 	AddedAt      time.Time `json:"added_at"`
+}
+
+type ExportConfig struct {
+	ID              string     `json:"id"`
+	WorkspaceID     string     `json:"workspace_id"`
+	ProjectID       string     `json:"project_id"`
+	CreatedBy       string     `json:"created_by"`
+	Label           string     `json:"label"`
+	DestType        string     `json:"dest_type"`
+	DestConfig      string     `json:"dest_config"`
+	Versions        string     `json:"versions"`
+	IncludeVariants int64      `json:"include_variants"`
+	ScheduleType    string     `json:"schedule_type"`
+	QuietMinutes    *int64     `json:"quiet_minutes"`
+	Enabled         int64      `json:"enabled"`
+	LastRunAt       *time.Time `json:"last_run_at"`
+	LastRunStatus   *string    `json:"last_run_status"`
+	LastError       *string    `json:"last_error"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type ExportRun struct {
+	ID             string     `json:"id"`
+	ExportConfigID string     `json:"export_config_id"`
+	WorkspaceID    string     `json:"workspace_id"`
+	TriggeredBy    *string    `json:"triggered_by"`
+	Status         string     `json:"status"`
+	AssetsTotal    int64      `json:"assets_total"`
+	AssetsExported int64      `json:"assets_exported"`
+	AssetsSkipped  int64      `json:"assets_skipped"`
+	BytesWritten   int64      `json:"bytes_written"`
+	Error          *string    `json:"error"`
+	StartedAt      *time.Time `json:"started_at"`
+	CompletedAt    *time.Time `json:"completed_at"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 type FieldDefinition struct {

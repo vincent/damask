@@ -33,6 +33,7 @@ import (
 	"damask/server/internal/mail"
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
+	repomemory "damask/server/internal/repository/memory"
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
@@ -158,6 +159,8 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		injestor,
 		resolveImageRouterKey,
 		workflowExec,
+		repomemory.NewExportConfigRepo(),
+		repomemory.NewExportRunRepo(),
 	)
 	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
 	return &TestEnv{App: app, HTTPServer: h, JobServer: j, Maker: maker, Database: sqlDB, Storage: stor, Config: cfg}

@@ -28,6 +28,7 @@
     Plug,
     Settings2,
     Shield,
+    Upload,
     Tags,
     User,
     Users,
@@ -76,6 +77,12 @@
       label: () => m.tab_ingress(),
       path: '/library/settings/ingress',
       icon: Download,
+    },
+    {
+      id: 'exports',
+      label: () => 'Exports',
+      path: '/library/settings/exports',
+      icon: Upload,
     },
     {
       id: 'integrations',
