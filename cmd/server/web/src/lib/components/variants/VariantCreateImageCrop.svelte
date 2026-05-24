@@ -25,6 +25,9 @@
   let scaleY = $state(1)
 
   let dragging = $state(false)
+  let draggingHandle = $state<'tl' | 'tr' | 'bl' | 'br' | null>(null)
+  let draggingBox = $state(false)
+  let boxDragOrigin = $state<{ x: number; y: number; startX: number; startY: number; endX: number; endY: number } | null>(null)
   let startX = $state(0)
   let startY = $state(0)
   let endX = $state(0)
@@ -65,10 +68,10 @@
     imgLoaded = true
   }
 
-  function pos(e: MouseEvent | TouchEvent): { x: number; y: number } {
+  function pos(e: MouseEvent | TouchEvent | PointerEvent): { x: number; y: number } {
     if (!img) return { x: 0, y: 0 }
     const rect = img.getBoundingClientRect()
-    const client = 'touches' in e ? e.touches[0] : e
+    const client = 'touches' in e ? (e as TouchEvent).touches[0] : e
     return {
       x: Math.max(0, Math.min(client.clientX - rect.left, rect.width)),
       y: Math.max(0, Math.min(client.clientY - rect.top, rect.height)),
@@ -100,6 +103,65 @@
     e.preventDefault()
     dragging = false
   }
+
+  const handleCursors: Record<string, string> = {
+    tl: 'nwse-resize',
+    tr: 'nesw-resize',
+    bl: 'nesw-resize',
+    br: 'nwse-resize',
+  }
+
+  function onHandleDown(e: PointerEvent, handle: 'tl' | 'tr' | 'bl' | 'br') {
+    e.stopPropagation()
+    e.preventDefault()
+    draggingHandle = handle
+    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+  }
+
+  function onHandleMove(e: PointerEvent) {
+    if (!draggingHandle) return
+    e.preventDefault()
+    const p = pos(e)
+    if (draggingHandle === 'tl') { startX = p.x; startY = p.y }
+    else if (draggingHandle === 'tr') { endX = p.x; startY = p.y }
+    else if (draggingHandle === 'bl') { startX = p.x; endY = p.y }
+    else if (draggingHandle === 'br') { endX = p.x; endY = p.y }
+  }
+
+  function onHandleUp() {
+    draggingHandle = null
+  }
+
+  function onBoxDown(e: PointerEvent) {
+    if (!box) return
+    e.stopPropagation()
+    e.preventDefault()
+    draggingBox = true
+    const p = pos(e)
+    boxDragOrigin = { x: p.x, y: p.y, startX: box.x, startY: box.y, endX: box.x + box.w, endY: box.y + box.h }
+    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+  }
+
+  function onBoxMove(e: PointerEvent) {
+    if (!draggingBox || !boxDragOrigin) return
+    e.preventDefault()
+    const p = pos(e)
+    const dx = p.x - boxDragOrigin.x
+    const dy = p.y - boxDragOrigin.y
+    const w = boxDragOrigin.endX - boxDragOrigin.startX
+    const h = boxDragOrigin.endY - boxDragOrigin.startY
+    const nx = Math.max(0, Math.min(boxDragOrigin.startX + dx, dispW - w))
+    const ny = Math.max(0, Math.min(boxDragOrigin.startY + dy, dispH - h))
+    startX = nx
+    startY = ny
+    endX = nx + w
+    endY = ny + h
+  }
+
+  function onBoxUp() {
+    draggingBox = false
+    boxDragOrigin = null
+  }
 </script>
 
 <div class="space-y-5">
@@ -124,8 +186,10 @@
 
       {#if box && box.w > 2 && box.h > 2 && img}
         <svg
-          class="pointer-events-none absolute inset-0 rounded"
+          class="absolute inset-0 rounded"
           style="width:{dispW}px; height:{dispH}px;"
+          onpointermove={onHandleMove}
+          onpointerup={onHandleUp}
         >
           <defs>
             <mask id="crop-mask">
@@ -144,6 +208,7 @@
             height="100%"
             fill="rgba(0,0,0,0.45)"
             mask="url(#crop-mask)"
+            style="pointer-events:none"
           />
           <rect
             x={box.x}
@@ -153,6 +218,7 @@
             fill="none"
             stroke="white"
             stroke-width="1.5"
+            style="pointer-events:none"
           />
           {#each [1, 2] as t}
             <line
@@ -162,6 +228,7 @@
               y2={box.y + box.h}
               stroke="rgba(255,255,255,0.4)"
               stroke-width="1"
+              style="pointer-events:none"
             />
             <line
               x1={box.x}
@@ -170,16 +237,42 @@
               y2={box.y + (box.h * t) / 3}
               stroke="rgba(255,255,255,0.4)"
               stroke-width="1"
+              style="pointer-events:none"
             />
           {/each}
-          {#each [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]] as [cx, cy]}
+          <rect
+            x={box.x}
+            y={box.y}
+            width={box.w}
+            height={box.h}
+            fill="transparent"
+            style="cursor:move"
+            onpointerdown={onBoxDown}
+            onpointermove={onBoxMove}
+            onpointerup={onBoxUp}
+          />
+          {#each [['tl', box.x, box.y], ['tr', box.x + box.w, box.y], ['bl', box.x, box.y + box.h], ['br', box.x + box.w, box.y + box.h]] as [handle, cx, cy]}
+            <!-- invisible larger hit area -->
             <rect
-              x={cx - 4}
-              y={cy - 4}
+              x={+cx - 8}
+              y={+cy - 8}
+              width="16"
+              height="16"
+              fill="transparent"
+              style="cursor:{handleCursors[handle as string]}"
+              onpointerdown={(e) => onHandleDown(e, handle as 'tl' | 'tr' | 'bl' | 'br')}
+              onpointermove={onHandleMove}
+              onpointerup={onHandleUp}
+            />
+            <!-- visible indicator -->
+            <rect
+              x={+cx - 4}
+              y={+cy - 4}
               width="8"
               height="8"
               fill="white"
               rx="1"
+              style="pointer-events:none"
             />
           {/each}
         </svg>
