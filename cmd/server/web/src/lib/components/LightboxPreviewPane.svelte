@@ -109,7 +109,7 @@
           style="left: calc(60px + 350px);"
         >
           <div class="flex min-h-full flex-col items-center justify-center">
-            <div class="w-full" style="max-width: 560px;">
+            <div class="w-full" style="max-width: 700px;">
               <VariantDraftSession
                 bind:this={draftSessionRef}
                 assetId={draftAssetId}

@@ -101,19 +101,9 @@
     committingNonces = new Set([...committingNonces, nonce])
     try {
       await commitDraft(assetId, nonce)
-      const others = drafts.filter(
-        (d) => d.nonce !== nonce && d.phase === 'ready'
-      )
-      await Promise.allSettled(
-        others.map((d) => discardDraft(assetId, d.nonce))
-      )
+      drafts = drafts.filter((d) => d.nonce !== nonce)
       toastStore.show(m.variants_draft_committed(), 'success')
-      if (others.length > 0) {
-        toastStore.show(
-          m.variants_draft_others_discarded({ n: String(others.length) })
-        )
-      }
-      onDone()
+      if (drafts.length === 0) onAddMore()
     } catch {
       toastStore.show(m.variants_draft_commit_error(), 'error')
     } finally {
@@ -171,6 +161,7 @@
 
 <div class="draft-session" class:grid-mode={gridMode}>
   <p class="session-title">{m.variants_draft_session_title()}</p>
+  <p class="session-subtitle text-sm">{m.variants_draft_add_more()}</p>
 
   <div class="draft-list" class:single={drafts.length === 1}>
     {#each drafts as draft (draft.nonce)}
@@ -189,15 +180,6 @@
   </div>
 
   <div class="session-footer">
-    <button
-      type="button"
-      class="btn-add-more"
-      disabled={isBusy}
-      onclick={onAddMore}
-    >
-      {m.variants_draft_add_more()}
-    </button>
-
     {#if readyCount >= 2}
       <button
         type="button"
@@ -233,6 +215,13 @@
     letter-spacing: 0.04em;
   }
 
+  .session-subtitle {
+    font-size: 0.7125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.04em;
+  }
+
   .draft-list {
     display: flex;
     flex-direction: column;
@@ -252,7 +241,7 @@
   .session-footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: end;
     gap: 8px;
     padding-top: 4px;
   }
