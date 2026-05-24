@@ -285,7 +285,8 @@ func (t *transformer) ImagePreview(src io.Reader, p PreviewParams) ([]byte, stri
 		w, h := ensureDimensions(img, p.Width, p.Height)
 		result = imaging.Fill(img, w, h, imaging.Center, imaging.Lanczos)
 	default:
-		result = imaging.Fit(img, p.Width, p.Height, imaging.Lanczos)
+		w, h := ensureDimensions(img, p.Width, p.Height)
+		result = imaging.Fit(img, w, h, imaging.Lanczos)
 	}
 
 	if p.Format == "" {

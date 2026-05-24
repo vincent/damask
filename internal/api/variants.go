@@ -838,6 +838,7 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 	previewSpan.SetAttributes(attribute.Int("damask.preview.bytes", len(data)))
 	apptelemetry.EndSpan(previewSpan, err)
 	if err != nil {
+		slog.ErrorContext(c.Context(), "preview generation failed", "error", err)
 		return errRes(c, fiber.StatusInternalServerError, "preview generation failed")
 	}
 
