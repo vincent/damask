@@ -27,7 +27,14 @@
   let dragging = $state(false)
   let draggingHandle = $state<'tl' | 'tr' | 'bl' | 'br' | null>(null)
   let draggingBox = $state(false)
-  let boxDragOrigin = $state<{ x: number; y: number; startX: number; startY: number; endX: number; endY: number } | null>(null)
+  let boxDragOrigin = $state<{
+    x: number
+    y: number
+    startX: number
+    startY: number
+    endX: number
+    endY: number
+  } | null>(null)
   let startX = $state(0)
   let startY = $state(0)
   let endX = $state(0)
@@ -68,7 +75,10 @@
     imgLoaded = true
   }
 
-  function pos(e: MouseEvent | TouchEvent | PointerEvent): { x: number; y: number } {
+  function pos(e: MouseEvent | TouchEvent | PointerEvent): {
+    x: number
+    y: number
+  } {
     if (!img) return { x: 0, y: 0 }
     const rect = img.getBoundingClientRect()
     const client = 'touches' in e ? (e as TouchEvent).touches[0] : e
@@ -122,10 +132,19 @@
     if (!draggingHandle) return
     e.preventDefault()
     const p = pos(e)
-    if (draggingHandle === 'tl') { startX = p.x; startY = p.y }
-    else if (draggingHandle === 'tr') { endX = p.x; startY = p.y }
-    else if (draggingHandle === 'bl') { startX = p.x; endY = p.y }
-    else if (draggingHandle === 'br') { endX = p.x; endY = p.y }
+    if (draggingHandle === 'tl') {
+      startX = p.x
+      startY = p.y
+    } else if (draggingHandle === 'tr') {
+      endX = p.x
+      startY = p.y
+    } else if (draggingHandle === 'bl') {
+      startX = p.x
+      endY = p.y
+    } else if (draggingHandle === 'br') {
+      endX = p.x
+      endY = p.y
+    }
   }
 
   function onHandleUp() {
@@ -138,7 +157,14 @@
     e.preventDefault()
     draggingBox = true
     const p = pos(e)
-    boxDragOrigin = { x: p.x, y: p.y, startX: box.x, startY: box.y, endX: box.x + box.w, endY: box.y + box.h }
+    boxDragOrigin = {
+      x: p.x,
+      y: p.y,
+      startX: box.x,
+      startY: box.y,
+      endX: box.x + box.w,
+      endY: box.y + box.h,
+    }
     ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
   }
 
@@ -185,6 +211,7 @@
       />
 
       {#if box && box.w > 2 && box.h > 2 && img}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <svg
           class="absolute inset-0 rounded"
           style="width:{dispW}px; height:{dispH}px;"
@@ -260,7 +287,8 @@
               height="16"
               fill="transparent"
               style="cursor:{handleCursors[handle as string]}"
-              onpointerdown={(e) => onHandleDown(e, handle as 'tl' | 'tr' | 'bl' | 'br')}
+              onpointerdown={(e) =>
+                onHandleDown(e, handle as 'tl' | 'tr' | 'bl' | 'br')}
               onpointermove={onHandleMove}
               onpointerup={onHandleUp}
             />

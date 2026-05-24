@@ -246,21 +246,6 @@
     padding-top: 4px;
   }
 
-  .btn-add-more {
-    font-size: 0.8125rem;
-    color: var(--accent-cta);
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    transition: opacity 120ms ease;
-  }
-
-  .btn-add-more:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
   .btn-keep-all {
     padding: 5px 14px;
     border-radius: 6px;
