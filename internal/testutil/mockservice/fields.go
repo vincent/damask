@@ -95,6 +95,8 @@ func (m *MockFieldService) ListAssetsMissingExif(ctx context.Context, workspaceI
 	return nil, nil
 }
 
+func (m *MockFieldService) PurgeExpiredFields(_ context.Context) (int, error) { return 0, nil }
+
 // MockAssetFieldService is a no-op implementation of service.AssetFieldService.
 type MockAssetFieldService struct {
 	GetValuesFn     func(ctx context.Context, workspaceID, assetID string) ([]*service.FieldValueDTO, error)

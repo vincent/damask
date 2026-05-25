@@ -83,7 +83,7 @@ func NewHTTPServer(
 	auditWriter := audit.New(sqlDB)
 	assetRepo := reposqlc.NewAssetRepo(db, sqlDB)
 	tagRepo := reposqlc.NewTagRepo(db, sqlDB)
-	fieldRepo := reposqlc.NewFieldRepo(db)
+	fieldRepo := reposqlc.NewFieldRepo(db, sqlDB)
 	projectRepo := reposqlc.NewProjectRepo(db)
 	folderRepo := reposqlc.NewFolderRepo(db, sqlDB)
 	collectionRepo := reposqlc.NewCollectionRepo(db, sqlDB)

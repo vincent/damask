@@ -14,12 +14,13 @@ import (
 )
 
 type fieldRepo struct {
-	q *dbgen.Queries
+	q     *dbgen.Queries
+	sqlDB *sql.DB
 }
 
 // NewFieldRepo returns a repository.FieldRepository backed by sqlc-generated queries.
-func NewFieldRepo(q *dbgen.Queries) repository.FieldRepository {
-	return &fieldRepo{q: q}
+func NewFieldRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.FieldRepository {
+	return &fieldRepo{q: q, sqlDB: sqlDB}
 }
 
 func (r *fieldRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.FieldDefinition, error) {
@@ -332,6 +333,40 @@ func (r *projectFieldRepo) UpsertValue(ctx context.Context, projectID string, p 
 		CreatedBy:    p.CreatedBy,
 	})
 	return err
+}
+
+func (r *fieldRepo) PurgeExpired(ctx context.Context) (int, error) {
+	ids, err := r.q.HardDeleteExpiredFieldDefinitions(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	qtx := r.q.WithTx(tx)
+	for _, id := range ids {
+		if err := qtx.DeleteAssetFieldValuesByField(ctx, id); err != nil {
+			return 0, err
+		}
+		if err := qtx.DeleteProjectFieldValuesByField(ctx, id); err != nil {
+			return 0, err
+		}
+		if err := qtx.HardDeleteFieldDefinition(ctx, id); err != nil {
+			return 0, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return len(ids), nil
 }
 
 func toFieldValue(fieldID, fieldKey, fieldName, fieldType, fieldSource string, fieldOptions *string,

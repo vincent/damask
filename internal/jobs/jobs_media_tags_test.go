@@ -22,6 +22,10 @@ import (
 	"damask/server/internal/workflow"
 )
 
+type noopFieldsSvc struct{}
+
+func (noopFieldsSvc) PurgeExpiredFields(_ context.Context) (int, error) { return 0, nil }
+
 type noopExifSvc struct{}
 
 func (noopExifSvc) ExtractForAsset(_ context.Context, _, _, _ string) error { return nil }
@@ -82,6 +86,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		workflow.NewExecutor(workflow.Deps{}),
 		newMemExportSvc(repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo()),
 		noopExifSvc{},
+		noopFieldsSvc{},
 	)
 
 	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {

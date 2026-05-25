@@ -21,7 +21,7 @@ func newBulkFieldSvc(t *testing.T) (service.AssetFieldService, *dbgen.Queries) {
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	svc := service.NewAssetFieldService(
 		reposqlc.NewAssetRepo(queries, sqlDB),
-		reposqlc.NewFieldRepo(queries),
+		reposqlc.NewFieldRepo(queries, sqlDB),
 		reposqlc.NewAssetFieldRepo(queries, sqlDB),
 		audit.NopWriter{},
 	)

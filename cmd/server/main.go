@@ -160,7 +160,7 @@ func main() {
 	auditWriter := audit.New(sqlDB)
 	assetRepo := reposqlc.NewAssetRepo(queries, sqlDB)
 	tagRepo := reposqlc.NewTagRepo(queries, sqlDB)
-	fieldRepo := reposqlc.NewFieldRepo(queries)
+	fieldRepo := reposqlc.NewFieldRepo(queries, sqlDB)
 	userRepo := reposqlc.NewUserRepo(queries, sqlDB)
 	versionRepo := reposqlc.NewVersionRepo(queries, sqlDB)
 	variantRepo := reposqlc.NewVariantRepo(sqlDB)
@@ -182,6 +182,7 @@ func main() {
 			Storage: stor,
 		},
 	)
+	fieldSvc := service.NewFieldService(fieldRepo)
 	assetSvc := service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q)
 	assetFieldSvc := service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter)
 	shareSvc := service.NewShareService(reposqlc.NewShareRepo(queries, sqlDB), auditWriter)
@@ -220,6 +221,7 @@ func main() {
 		workflowExec,
 		exportSvc,
 		exifSvc,
+		fieldSvc,
 	)
 	js.RegisterJobHandlers()
 

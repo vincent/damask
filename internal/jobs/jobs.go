@@ -39,6 +39,10 @@ type exifService interface {
 	ExtractForAsset(ctx context.Context, workspaceID, assetID, userID string) error
 }
 
+type fieldPurgeService interface {
+	PurgeExpiredFields(ctx context.Context) (int, error)
+}
+
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
 	db             *dbgen.Queries
@@ -57,6 +61,7 @@ type JobServer struct {
 	workflowExec   *workflow.Executor
 	exportSvc      exportService
 	exifSvc        exifService
+	fieldSvc       fieldPurgeService
 }
 
 func NewJobServer(
@@ -74,6 +79,7 @@ func NewJobServer(
 	workflowExec *workflow.Executor,
 	exportSvc exportService,
 	exifSvc exifService,
+	fieldSvc fieldPurgeService,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
@@ -87,6 +93,7 @@ func NewJobServer(
 		db:             db,
 		exportSvc:      exportSvc,
 		exifSvc:        exifSvc,
+		fieldSvc:       fieldSvc,
 		handlers:       make(map[string]queue.HandlerFunc),
 		hub:            hub,
 		imgKeyResolver: imgKeyResolver,

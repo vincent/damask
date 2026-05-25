@@ -23,7 +23,7 @@ func newAssetFieldSvcSpy(t *testing.T) (service.AssetFieldService, *dbgen.Querie
 	spy := newSpy()
 	svc := service.NewAssetFieldService(
 		reposqlc.NewAssetRepo(queries, sqlDB),
-		reposqlc.NewFieldRepo(queries),
+		reposqlc.NewFieldRepo(queries, sqlDB),
 		reposqlc.NewAssetFieldRepo(queries, sqlDB),
 		spy,
 	)
@@ -41,7 +41,7 @@ func newProjectFieldSvcSpy(t *testing.T) (service.ProjectFieldService, *dbgen.Qu
 	spy := newSpy()
 	svc := service.NewProjectFieldService(
 		reposqlc.NewProjectRepo(queries),
-		reposqlc.NewFieldRepo(queries),
+		reposqlc.NewFieldRepo(queries, sqlDB),
 		reposqlc.NewProjectFieldRepo(queries),
 		spy,
 	)

@@ -226,6 +226,7 @@ func (r *FieldRepo) UpdatePosition(_ context.Context, _, _ string, _ int64) erro
 func (r *FieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error {
 	return nil
 }
+func (r *FieldRepo) PurgeExpired(_ context.Context) (int, error) { return 0, nil }
 
 // WorkspaceRepo ------------------------------------------------------------
 

@@ -296,6 +296,17 @@ func (s *fieldService) ListAssetsMissingExif(ctx context.Context, workspaceID st
 	return s.fields.ListMissingExifField(ctx, workspaceID, tombstone.ID, maxMissingExifAssets)
 }
 
+func (s *fieldService) PurgeExpiredFields(ctx context.Context) (int, error) {
+	n, err := s.fields.PurgeExpired(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if n > 0 {
+		slog.InfoContext(ctx, "field cleanup: purged expired field definitions", "count", n)
+	}
+	return n, nil
+}
+
 func toFieldDTO(f repository.FieldDefinition) *FieldDefinitionDTO {
 	return &FieldDefinitionDTO{
 		ID:                 f.ID,

@@ -303,6 +303,9 @@ type FieldService interface {
 	// ListAssetsMissingExif returns the asset IDs that need EXIF extraction jobs enqueued.
 	// The caller is responsible for enqueueing the jobs.
 	ListAssetsMissingExif(ctx context.Context, workspaceID string) ([]string, error)
+	// PurgeExpiredFields hard-deletes field definitions soft-deleted for more than 30 days.
+	// Returns the number of definitions deleted.
+	PurgeExpiredFields(ctx context.Context) (int, error)
 }
 
 // FieldStatsDTO holds usage counts for a field definition.

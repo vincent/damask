@@ -192,6 +192,9 @@ type FieldRepository interface {
 	ListImageAssetIDs(ctx context.Context, workspaceID string) ([]string, error)
 	// ListMissingExifField returns asset IDs that are image assets but lack a value for fieldID.
 	ListMissingExifField(ctx context.Context, workspaceID, fieldID string, limit int64) ([]string, error)
+	// PurgeExpired hard-deletes field definitions soft-deleted for more than 30 days,
+	// including their asset and project field values. Returns the number of definitions deleted.
+	PurgeExpired(ctx context.Context) (int, error)
 }
 
 // AssetFieldRepository handles persistence for asset field values.

@@ -148,6 +148,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	)
 	exportSvc := service.NewExportServiceWithRepos(queries, sqlDB, stor, cfg.AppSecret, q, repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo())
 	exifSvc := service.NewExifService(queries, stor)
+	fieldSvc := service.NewFieldService(reposqlc.NewFieldRepo(queries, sqlDB))
 	j := jobs.NewJobServer(
 		queries,
 		sqlDB,
@@ -163,6 +164,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		workflowExec,
 		exportSvc,
 		exifSvc,
+		fieldSvc,
 	)
 	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
 	return &TestEnv{App: app, HTTPServer: h, JobServer: j, Maker: maker, Database: sqlDB, Storage: stor, Config: cfg}
