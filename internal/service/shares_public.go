@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"damask/server/internal/apperr"
@@ -70,9 +71,32 @@ type CreateShareCommentParams struct {
 	Body        string
 }
 
+type variantMentionResolver interface {
+	GetSharedByVariantAndAsset(ctx context.Context, variantID, assetID string) (repository.Variant, error)
+}
+
+var variantMentionRe = regexp.MustCompile(`^@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) `)
+
+func resolveVariantMention(ctx context.Context, variants variantMentionResolver, body, assetID string) string {
+	m := variantMentionRe.FindStringSubmatch(body)
+	if m == nil {
+		return body
+	}
+	v, err := variants.GetSharedByVariantAndAsset(ctx, m[1], assetID)
+	if err != nil {
+		return body
+	}
+	title := m[1]
+	if v.Title != nil {
+		title = *v.Title
+	}
+	return "@" + title + " " + body[len(m[0]):]
+}
+
 type sharePublicService struct {
-	shares repository.ShareRepository
-	mailer interface {
+	shares   repository.ShareRepository
+	variants variantMentionResolver
+	mailer   interface {
 		SendCommentPosted(ctx context.Context, workspaceID, assetID, ownerEmail, authorName, shareLabel, body string) error
 	}
 	users repository.UserRepository
@@ -82,11 +106,12 @@ type sharePublicService struct {
 func NewSharePublicService(
 	shares repository.ShareRepository,
 	users repository.UserRepository,
+	variants variantMentionResolver,
 	mailer interface {
 		SendCommentPosted(ctx context.Context, workspaceID, assetID, ownerEmail, authorName, shareLabel, body string) error
 	},
 ) SharePublicService {
-	return &sharePublicService{shares: shares, users: users, mailer: mailer}
+	return &sharePublicService{shares: shares, users: users, variants: variants, mailer: mailer}
 }
 
 func (s *sharePublicService) GetActive(ctx context.Context, shareID string) (*ShareDTO, error) {
@@ -178,7 +203,8 @@ func (s *sharePublicService) CreateComment(ctx context.Context, p CreateShareCom
 	// Best-effort email notification.
 	if sh, err := s.shares.GetPublic(ctx, p.ShareID); err == nil {
 		if owner, err := s.users.GetByID(ctx, sh.CreatedBy); err == nil {
-			_ = s.mailer.SendCommentPosted(ctx, sh.WorkspaceID, asset.ID, owner.Email, p.AuthorName, asset.OriginalFilename, p.Body)
+			emailBody := resolveVariantMention(ctx, s.variants, p.Body, p.AssetID)
+			_ = s.mailer.SendCommentPosted(ctx, sh.WorkspaceID, asset.ID, owner.Email, p.AuthorName, asset.OriginalFilename, emailBody)
 		}
 	}
 

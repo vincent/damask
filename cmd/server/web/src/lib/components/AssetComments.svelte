@@ -1,11 +1,21 @@
 <script lang="ts">
   import { assetCommentsStore } from '$lib/stores/assetComments.svelte'
   import Spinner from './ui/Spinner.svelte'
-  import type { Asset } from '$lib/api'
+  import type { Asset, Variant } from '$lib/api'
   import { onMount } from 'svelte'
   import { m } from '$lib/paraglide/messages'
 
-  let { asset }: { asset: Asset } = $props()
+  let {
+    asset,
+    variants,
+    onVariantSelect,
+  }: {
+    asset: Asset
+    variants: Variant[]
+    onVariantSelect?: (variant: Variant) => void
+  } = $props()
+
+  const varRe = /^@([0-9a-f-]{36}) /
 
   function formatDateTime(iso: string) {
     return new Date(iso).toLocaleString('en-US', {
@@ -55,6 +65,10 @@
   {:else}
     <div class="flex flex-col gap-4 py-4">
       {#each assetCommentsStore.comments as comment}
+        {@const variantPrefix = comment.body.match(varRe)}
+        {@const variant = variantPrefix
+          ? variants?.find((v) => v.id === variantPrefix[1])
+          : null}
         <div class="flex gap-3">
           <div
             class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold {avatarColor(
@@ -72,10 +86,17 @@
                 >{formatDateTime(comment.created_at)}</span
               >
             </div>
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="text-md mt-1 rounded-xl rounded-tl-sm bg-gray-50 px-3 py-2 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              onclick={() => (variant ? onVariantSelect?.(variant) : undefined)}
             >
-              {comment.body}
+              {#if variant}
+                {comment.body.replaceAll(variant?.id, (_) => variant.title)}
+              {:else}
+                {comment.body}
+              {/if}
             </div>
           </div>
         </div>
@@ -83,3 +104,34 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .variant-mention {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: none;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    background: #e5e7eb;
+    color: #374151;
+    cursor: pointer;
+    vertical-align: baseline;
+    transition:
+      background 0.1s ease,
+      color 0.1s ease;
+  }
+  .variant-mention:hover {
+    background: #d1d5db;
+    color: #111827;
+  }
+  :global(.dark) .variant-mention {
+    background: #374151;
+    color: #d1d5db;
+  }
+  :global(.dark) .variant-mention:hover {
+    background: #4b5563;
+    color: #f9fafb;
+  }
+</style>

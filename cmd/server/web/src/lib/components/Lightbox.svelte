@@ -5,6 +5,7 @@
     mimeCategory,
     type Asset,
     type Variant,
+    type CoveringWorkflow,
   } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
@@ -39,6 +40,8 @@
   import { fly } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
   import { tick } from 'svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   /** /
   Lightbox (orchestrator, ~160 lines)
@@ -98,6 +101,9 @@
 
   // --- Variant relay state (written by LightboxVariantsTab, read by LightboxPreviewPane) ---
   let selectedVariant = $state<Variant | null>(null)
+  let variants = $state<Variant[]>([])
+  let coveringWorkflow = $state<CoveringWorkflow | null>(null)
+  let variantsLoading = $state(false)
   let selectedTool = $state<VariantTab | null>(null)
   let showDraftOverlay = $state(false)
   let variantsTabRef = $state<
@@ -137,8 +143,24 @@
     if (!asset) return
     try {
       assetDetail = await assetApi.get(asset.id)
+      loadVariants()
     } catch {
       // silently ignore — fall back to the prop
+    }
+  }
+
+  async function loadVariants() {
+    if (!asset) return
+    variants = []
+    variantsLoading = true
+    try {
+      const response = await variantApi.list(asset.id)
+      variants = response?.variants ?? []
+      coveringWorkflow = response?.covering_workflow ?? null
+    } catch {
+      toastStore.show(m.text_tracks_error_generic(), 'error')
+    } finally {
+      variantsLoading = false
     }
   }
 
@@ -213,6 +235,7 @@
     }
     selectedVariant = null
     selectedTool = null
+    variants = []
     loadAssetDetail()
   })
 </script>
@@ -303,20 +326,28 @@
         <LightboxVariantsTab
           bind:this={variantsTabRef}
           {asset}
+          {variants}
           {isImage}
           {isVideo}
           {isAudio}
+          {coveringWorkflow}
+          {variantsLoading}
           bind:selectedTool
           bind:selectedVariant
           bind:showDraftOverlay
           {onThumbnailUpdated}
           onNavigate={(tab) => (activeTab = tab)}
           {onDraftStarted}
+          {loadVariants}
         />
       {:else if activeTab === 'text'}
         <TextTrackPanel {asset} />
       {:else if activeTab === 'comments'}
-        <AssetComments {asset} />
+        <AssetComments
+          {asset}
+          {variants}
+          onVariantSelect={(v) => (selectedVariant = v)}
+        />
       {:else if activeTab === 'history'}
         <LightboxHistoryTab {asset} {onVersionChanged} />
       {:else if activeTab === 'activity'}

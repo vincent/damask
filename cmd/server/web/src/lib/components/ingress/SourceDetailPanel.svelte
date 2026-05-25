@@ -151,7 +151,6 @@
       ingressStore.loadRules(source.id)
     }
   })
-
 </script>
 
 <aside

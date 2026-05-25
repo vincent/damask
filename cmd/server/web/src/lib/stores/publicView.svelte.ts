@@ -202,7 +202,9 @@ function createPublicViewStore() {
           asset_id: selectedAsset?.id,
           author_name: visitorName.trim(),
           author_email: commentEmail.trim() || undefined,
-          body: commentBody.trim(),
+          body:
+            (selectedVariant ? `@${selectedVariant.id} ` : '') +
+            commentBody.trim(),
         }),
       })
       if (res.ok) {

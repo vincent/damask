@@ -136,7 +136,7 @@ func NewHTTPServer(
 		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
 		projects:      service.NewProjectService(projectRepo, auditWriter),
 		queue:         q,
-		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, mailer),
+		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, variantRepo, mailer),
 		shares:        service.NewShareService(shareRepo, auditWriter),
 		stack:         service.NewStackService(assetRepo, versionRepo, stor, q),
 		storage:       stor,

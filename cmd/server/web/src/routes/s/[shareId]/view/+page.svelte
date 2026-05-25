@@ -24,7 +24,7 @@
   import { viewportStore } from '$lib/stores/viewport.svelte'
 
   let shareId = $derived(page.params.shareId || '')
-  let selectedVariantIdx = $state(0)
+  let selectedVariantIdx = $state<number | null>(null)
   let selectedAssetId = $state<string | null>(null)
 
   const avatarColors = [
@@ -69,7 +69,7 @@
     const assetId = store.selectedAsset?.id ?? null
     if (assetId !== selectedAssetId) {
       selectedAssetId = assetId
-      selectedVariantIdx = 0
+      selectedVariantIdx = null
     }
   })
 
@@ -87,7 +87,7 @@
   <title>{store.share?.label || m.shared_gallery()} — Damask</title>
 </svelte:head>
 
-<div class="damask-texture relative flex min-h-screen flex-col">
+<div class="relative flex min-h-screen flex-col">
   <!-- Header -->
   <header
     class="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900"
@@ -228,7 +228,10 @@
           variants={sharedVariants}
           bind:selectedIndex={selectedVariantIdx}
           allowDownload={store.share?.allow_download ?? false}
-          onSelect={(index) => store.selectVariant(sharedVariants[index])}
+          onSelect={(index) =>
+            store.selectVariant(
+              index !== null ? sharedVariants[index] : store.selectedVariant!
+            )}
           getThumbUrl={store.variantThumbUrl}
           getDownloadUrl={store.variantFileUrl}
           authHeaders={() =>
@@ -345,6 +348,18 @@
           {:else}
             <div class="flex flex-col gap-4 pb-4">
               {#each store.comments as comment}
+                {@const variantPrefix =
+                  comment.body.match(/^@([0-9a-f-]{36}) /)}
+                {@const prefixVariant = variantPrefix
+                  ? store.selectedAsset?.shared_variants?.find(
+                      (v) => v.id === variantPrefix[1]
+                    )
+                  : null}
+                {@const prefixVariantIdx = prefixVariant
+                  ? (store.selectedAsset?.shared_variants?.findIndex(
+                      (v) => v.id === prefixVariant.id
+                    ) ?? -1)
+                  : -1}
                 <div class="flex gap-3">
                   <div
                     class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold {avatarColor(
@@ -365,7 +380,19 @@
                     <div
                       class="comment-bubble mt-1 rounded-lg px-3 py-2 text-sm"
                     >
-                      {comment.body}
+                      {#if prefixVariant}
+                        <button
+                          class="variant-badge variant-badge--btn"
+                          type="button"
+                          onclick={() => {
+                            if (prefixVariantIdx >= 0)
+                              selectedVariantIdx = prefixVariantIdx
+                            store.selectVariant(prefixVariant)
+                          }}>@{prefixVariant.title}</button
+                        >{' '}{comment.body.slice(variantPrefix![0].length)}
+                      {:else}
+                        {comment.body}
+                      {/if}
                     </div>
                   </div>
                 </div>
@@ -543,5 +570,28 @@
   .comment-textarea.error:focus {
     box-shadow: 0 0 0 2px
       color-mix(in srgb, var(--accent-danger) 18%, transparent);
+  }
+  .variant-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+  }
+  .variant-badge--btn {
+    cursor: pointer;
+    border: none;
+    font: inherit;
+    vertical-align: baseline;
+    transition:
+      background 0.1s ease,
+      color 0.1s ease;
+  }
+  .variant-badge--btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
   }
 </style>

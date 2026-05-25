@@ -9,7 +9,7 @@
     shareId: string
     assetId: string
     variants: SharedVariant[]
-    selectedIndex: number
+    selectedIndex: number | null
     allowDownload: boolean
     getThumbUrl: (shareId: string, assetId: string, variantId: string) => string
     getDownloadUrl: (
@@ -18,14 +18,14 @@
       variantId: string
     ) => string
     authHeaders: () => Record<string, string>
-    onSelect?: (index: number) => void
+    onSelect?: (index: number | null) => void
   }
 
   let {
     shareId,
     assetId,
     variants,
-    selectedIndex = $bindable(0),
+    selectedIndex = $bindable(null),
     allowDownload,
     getThumbUrl,
     getDownloadUrl,
@@ -36,7 +36,9 @@
   let downloadingId = $state<string | null>(null)
 
   const selectedPosition = $derived(
-    variants.length === 0 ? 0 : Math.min(selectedIndex + 1, variants.length)
+    selectedIndex === null || variants.length === 0
+      ? 0
+      : Math.min(selectedIndex + 1, variants.length)
   )
 
   function variantCountLabel(count: number) {
@@ -78,8 +80,8 @@
   }
 
   function selectVariant(index: number) {
-    selectedIndex = index
-    onSelect?.(index)
+    selectedIndex = selectedIndex === index ? null : index
+    onSelect?.(selectedIndex)
   }
 
   function handleCardKeydown(event: KeyboardEvent, index: number) {

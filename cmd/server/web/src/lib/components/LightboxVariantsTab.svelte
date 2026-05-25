@@ -25,9 +25,13 @@
 
   interface Props {
     asset: Asset
+    variants: Variant[]
+    coveringWorkflow: CoveringWorkflow | null
+    variantsLoading: boolean
     isImage: boolean
     isVideo: boolean
     isAudio: boolean
+    loadVariants: () => void
     onThumbnailUpdated: () => void
     onNavigate: (tab: PanelTab) => void
     onDraftStarted: (nonce: string) => void
@@ -39,11 +43,15 @@
 
   let {
     asset,
+    variants,
+    coveringWorkflow,
+    variantsLoading,
     isImage,
     isVideo,
     isAudio,
     onThumbnailUpdated,
     onNavigate,
+    loadVariants,
     onDraftStarted,
     selectedVariant = $bindable<Variant | null>(null),
     selectedTool = $bindable<VariantTab | null>(null),
@@ -51,9 +59,6 @@
   }: Props = $props()
 
   // --- Variant list state ---
-  let variants = $state<Variant[]>([])
-  let coveringWorkflow = $state<CoveringWorkflow | null>(null)
-  let variantsLoading = $state(false)
   let showAutomationModal = $state(false)
   let creating = $state(false)
   let pendingVariantAssetId = $state<string | null>(null)
@@ -161,19 +166,6 @@
       createError = ''
     }
   })
-
-  async function loadVariants() {
-    variantsLoading = true
-    try {
-      const response = await variantApi.list(asset.id)
-      variants = response?.variants ?? []
-      coveringWorkflow = response?.covering_workflow ?? null
-    } catch {
-      // silently ignore
-    } finally {
-      variantsLoading = false
-    }
-  }
 
   function replaceVariant(updatedVariant: Variant) {
     variants = variants.map((v) =>
