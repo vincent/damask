@@ -8,10 +8,28 @@ import (
 	"os"
 	"path/filepath"
 
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
+
+	"go.opentelemetry.io/otel/attribute"
 )
+
+// audioBuild is the variantBuildFn for all audio variant types.
+func (s *JobServer) audioBuild(jobType, sourceMime, _ string, params json.RawMessage) (variantTransformer, error) {
+	return s.audioTransformer(jobType, sourceMime, params)
+}
+
+// audioCanonical returns canonical JSON for audio params (post-normalization).
+func audioCanonical(jobType, sourceMime string, params json.RawMessage) (string, error) {
+	var p transform.AudioParams
+	if len(params) > 0 {
+		_ = json.Unmarshal(params, &p)
+	}
+	p = normalizeAudioJobParams(jobType, sourceMime, p)
+	b, err := json.Marshal(p)
+	return string(b), err
+}
 
 // audioTransformer returns a variantTransformer for the given audio job type.
 func (s *JobServer) audioTransformer(jobType, sourceMime string, params json.RawMessage) (variantTransformer, error) {
@@ -26,8 +44,13 @@ func (s *JobServer) audioTransformer(jobType, sourceMime string, params json.Raw
 	}
 	p = normalizeAudioJobParams(jobType, sourceMime, p)
 	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
+			attribute.String("damask.variant_type", jobType),
+		)
+
 		rc, err := s.storage.Get(sourceKey)
 		if err != nil {
+			telemetry.EndSpan(span, err)
 			return nil, "", err
 		}
 		defer rc.Close()
@@ -35,6 +58,7 @@ func (s *JobServer) audioTransformer(jobType, sourceMime string, params json.Raw
 		srcExt := filepath.Ext(sourceKey)
 		srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
 		if err != nil {
+			telemetry.EndSpan(span, err)
 			return nil, "", fmt.Errorf("write src temp: %w", err)
 		}
 		defer cleanSrc()
@@ -44,60 +68,20 @@ func (s *JobServer) audioTransformer(jobType, sourceMime string, params json.Raw
 		defer os.Remove(dstPath)
 
 		if _, err := s.runAudioVariant(ctx, jobType, srcPath, dstPath, p); err != nil {
+			telemetry.EndSpan(span, err)
 			return nil, "", err
 		}
 		data, err := os.ReadFile(dstPath)
 		if err != nil {
+			telemetry.EndSpan(span, err)
 			return nil, "", fmt.Errorf("read output: %w", err)
 		}
+		telemetry.EndSpan(span, nil)
 		return data, transform.AudioMimeType(p.OutputFormat), nil
 	}, nil
 }
 
-func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error {
-	var p VariantJobPayload
-	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
-		return fmt.Errorf("parse payload: %w", err)
-	}
-	trf, err := s.audioTransformer(job.Type, p.MimeType, p.Params)
-	if err != nil {
-		return err
-	}
-	data, contentType, err := trf(ctx, p.StorageKey)
-	if err != nil {
-		return err
-	}
-
-	// Audio uses the canonical params (post-normalization) for the storage key.
-	var canonicalParams transform.AudioParams
-	if len(p.Params) > 0 {
-		_ = json.Unmarshal(p.Params, &canonicalParams)
-	}
-	canonicalParams = normalizeAudioJobParams(job.Type, p.MimeType, canonicalParams)
-	canonicalJSON, _ := json.Marshal(canonicalParams)
-	cj := string(canonicalJSON)
-
-	return s.finalizeRebuildVariant(ctx, assetVersionFromPayload(p), job.Type, cj, CanonicalParamsHash(cj), data, contentType)
-}
-
-func (s *JobServer) rebuildAudioVariant(
-	ctx context.Context,
-	ver dbgen.AssetVersion,
-	variantType, paramsJSON, paramsHash string,
-) error {
-	trf, err := s.audioTransformer(variantType, ver.MimeType, json.RawMessage(paramsJSON))
-	if err != nil {
-		return err
-	}
-	data, contentType, err := trf(ctx, ver.StorageKey)
-	if err != nil {
-		return err
-	}
-	return s.finalizeRebuildVariant(ctx, ver, variantType, paramsJSON, paramsHash, data, contentType)
-}
-
-// runAudioVariant dispatches the ffmpeg audio operation for variantType and returns
-// the canonical JSON encoding of the resolved params.
+// runAudioVariant dispatches the ffmpeg audio operation for variantType.
 func (s *JobServer) runAudioVariant(
 	ctx context.Context,
 	variantType, srcPath, dstPath string,

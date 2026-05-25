@@ -143,20 +143,11 @@ func (s *JobServer) RegisterJobHandlers() {
 	reg(queue.JobTypeVersionThumbnail, s.jobVersionThumbnail)
 	reg(queue.JobTypeVariantThumbnail, s.jobVariantThumbnail)
 
-	// Variant jobs — user-triggered, each creates a variants row.
-	reg(queue.JobTypeVideoCaptureImage, s.wrapVariantJob(s.jobVideoCaptureImage))
-	reg(queue.JobTypeVideoTranscode, s.wrapVariantJob(s.jobVideoTranscode))
-	reg(queue.JobTypeVideoWatermark, s.wrapVariantJob(s.jobVideoWatermark))
-	reg(queue.JobTypeImageResize, s.wrapVariantJob(s.jobImageTransform))
-	reg(queue.JobTypeImageConvert, s.wrapVariantJob(s.jobImageTransform))
-	reg(queue.JobTypeImageCrop, s.wrapVariantJob(s.jobImageTransform))
-	reg(queue.JobTypeImageWatermark, s.wrapVariantJob(s.jobImageTransform))
-	reg(queue.JobTypeImageSmartCrop, s.wrapVariantJob(s.jobImageTransform))
-	reg(queue.JobTypeImageBgRemove, s.wrapVariantJob(s.jobImageBgRemove))
-	reg(queue.JobTypeImageWithPrompt, s.wrapVariantJob(s.jobImageWithPrompt))
-	reg(queue.JobTypeExtractAudio, s.wrapVariantJob(s.jobAudioTransform))
-	reg(queue.JobTypeTranscodeAudio, s.wrapVariantJob(s.jobAudioTransform))
-	reg(queue.JobTypeNormalizeAudio, s.wrapVariantJob(s.jobAudioTransform))
+	// Variant jobs — registered from the central registry.
+	variantHandler := s.wrapVariantJob(s.jobVariant)
+	for jobType := range s.variantRegistry() {
+		reg(jobType, variantHandler)
+	}
 	reg(queue.JobTypeOCRTextTrack, s.wrapSimpleJob(s.jobOCRTextTrack))
 
 	// Rebuild jobs — system-triggered on version upload.

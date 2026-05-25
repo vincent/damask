@@ -12,7 +12,6 @@ import (
 	"sort"
 
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/queue"
 )
 
 // RebuildVariantsPayload is the job payload for rebuild_variants.
@@ -109,7 +108,7 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 			continue
 		}
 
-		if err := s.rebuildOneVariant(ctx, newVer, spec.Type, paramsStr, paramsHash); err != nil {
+		if err := s.rebuildVariant(ctx, newVer, spec.Type, paramsStr, paramsHash); err != nil {
 			slog.ErrorContext(
 				ctx,
 				"rebuild-variants: variant failed",
@@ -125,39 +124,4 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 	}
 
 	return nil
-}
-
-// rebuildOneVariant runs the transform for a single variant spec and writes the result.
-func (s *JobServer) rebuildOneVariant(
-	ctx context.Context,
-	ver dbgen.AssetVersion,
-	variantType, paramsJSON, paramsHash string,
-) error {
-	switch variantType {
-	case queue.JobTypeImageResize, queue.JobTypeImageConvert,
-		queue.JobTypeImageCrop, queue.JobTypeImageWatermark,
-		queue.JobTypeImageSmartCrop:
-		return s.rebuildImageVariant(ctx, ver, variantType, paramsJSON, paramsHash)
-
-	case queue.JobTypeImageBgRemove:
-		return s.rebuildBgRemoveVariant(ctx, ver, paramsJSON, paramsHash)
-
-	case queue.JobTypeImageWithPrompt:
-		return s.rebuildImageWithPromptVariant(ctx, ver, paramsJSON, paramsHash)
-
-	case queue.JobTypeVideoCaptureImage:
-		return s.rebuildVideoCaptureVariant(ctx, ver, paramsJSON, paramsHash)
-
-	case queue.JobTypeVideoTranscode:
-		return s.rebuildVideoTranscodeVariant(ctx, ver, paramsJSON, paramsHash)
-
-	case queue.JobTypeVideoWatermark:
-		return s.rebuildVideoWatermarkVariant(ctx, ver, paramsJSON, paramsHash)
-
-	case queue.JobTypeExtractAudio, queue.JobTypeTranscodeAudio, queue.JobTypeNormalizeAudio:
-		return s.rebuildAudioVariant(ctx, ver, variantType, paramsJSON, paramsHash)
-
-	default:
-		return fmt.Errorf("unknown variant type for rebuild: %s", variantType)
-	}
 }
