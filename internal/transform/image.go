@@ -21,9 +21,6 @@ import (
 
 const (
 	maxPreviewSize = 800
-	mimeImageJPEG  = "image/jpeg"
-	mimeImagePNG   = "image/png"
-	mimeImageWebP  = "image/webp"
 )
 
 // WatermarkParams defines parameters for image watermark transforms.
@@ -42,7 +39,7 @@ func (p *WatermarkParams) normalize() {
 		p.Quality = 85
 	}
 	if p.Format == "" {
-		p.Format = formatJPEG
+		p.Format = FormatJPEG
 	}
 }
 
@@ -290,7 +287,7 @@ func (t *transformer) ImagePreview(src io.Reader, p PreviewParams) ([]byte, stri
 	}
 
 	if p.Format == "" {
-		p.Format = formatJPEG
+		p.Format = FormatJPEG
 	}
 	return encodeImage(result, p.Format, p.Quality)
 }
@@ -300,28 +297,28 @@ func encodeImage(img image.Image, format string, quality int) ([]byte, string, e
 	var buf bytes.Buffer
 	var contentType string
 	switch strings.ToLower(format) {
-	case formatPNG:
+	case FormatPNG:
 		if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
 			return nil, "", fmt.Errorf("encode png: %w", err)
 		}
-		contentType = mimeImagePNG
+		contentType = MimeImagePNG
 	case "tiff":
 		if err := imaging.Encode(&buf, img, imaging.TIFF); err != nil {
 			return nil, "", fmt.Errorf("encode tiff: %w", err)
 		}
 		contentType = "image/tiff"
-	case formatWebP:
+	case FormatWebP:
 		if err := nativewebp.Encode(&buf, img, &nativewebp.Options{
 			CompressionLevel: nativewebp.BestCompression,
 		}); err != nil {
 			return nil, "", fmt.Errorf("encode webp: %w", err)
 		}
-		contentType = mimeImageWebP
+		contentType = MimeImageWebP
 	default: // jpeg
 		if err := imaging.Encode(&buf, img, imaging.JPEG, imaging.JPEGQuality(quality)); err != nil {
 			return nil, "", fmt.Errorf("encode jpeg: %w", err)
 		}
-		contentType = mimeImageJPEG
+		contentType = MimeImageJPEG
 	}
 	return buf.Bytes(), contentType, nil
 }

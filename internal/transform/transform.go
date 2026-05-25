@@ -6,17 +6,8 @@ import (
 	"context"
 	"io"
 	"os/exec"
-	"strings"
 
 	"damask/server/internal/config"
-)
-
-const (
-	formatJPEG = "jpeg"
-	formatMP4  = "mp4"
-	formatPNG  = "png"
-	formatWebM = "webm"
-	formatWebP = "webp"
 )
 
 type Transformer interface {
@@ -100,22 +91,4 @@ func (t *transformer) CheckExternalDeps() []string {
 		}
 	}
 	return missing
-}
-
-// FormatExtension maps a format name to a file extension.
-func FormatExtension(format string) string {
-	switch strings.ToLower(format) {
-	case formatWebM:
-		return ".webm"
-	case formatMP4:
-		return ".mp4"
-	case formatPNG:
-		return thumbnailExtPNG
-	case formatWebP:
-		return ".webp"
-	case "tiff":
-		return ".tiff"
-	default:
-		return thumbnailExtJPG
-	}
 }

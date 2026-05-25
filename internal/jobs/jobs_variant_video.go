@@ -16,20 +16,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-const (
-	videoFormatMP4  = "mp4"
-	videoFormatWebM = "webm"
-	mimeVideoMP4    = "video/mp4"
-	mimeVideoWebM   = "video/webm"
-)
-
-func videoMimeType(format string) string {
-	if format == videoFormatWebM {
-		return mimeVideoWebM
-	}
-	return mimeVideoMP4
-}
-
 // videoCaptureBuild is the variantBuildFn for video frame capture.
 func (s *JobServer) videoCaptureBuild(_, _, _ string, params json.RawMessage) (variantTransformer, error) {
 	return s.videoCaptureTransformer(params)
@@ -108,7 +94,7 @@ func videoTranscodeCanonical(_, _ string, params json.RawMessage) (string, error
 	var p transform.TranscodeParams
 	_ = json.Unmarshal(params, &p)
 	if p.Format == "" {
-		p.Format = videoFormatMP4
+		p.Format = transform.FormatMP4
 	}
 	b, err := json.Marshal(p)
 	return string(b), err
@@ -126,7 +112,7 @@ func (s *JobServer) videoTranscodeTransformer(params json.RawMessage) (variantTr
 		}
 	}
 	if p.Format == "" {
-		p.Format = videoFormatMP4
+		p.Format = transform.FormatMP4
 	}
 	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
@@ -157,7 +143,7 @@ func (s *JobServer) videoTranscodeTransformer(params json.RawMessage) (variantTr
 			return nil, "", fmt.Errorf("read output: %w", err)
 		}
 		telemetry.EndSpan(span, nil)
-		return data, videoMimeType(p.Format), nil
+		return data, transform.FormatVideoMimeType(p.Format), nil
 	}, nil
 }
 
@@ -232,7 +218,7 @@ func (s *JobServer) videoWatermarkTransformer(workspaceID string, params json.Ra
 			return nil, "", fmt.Errorf("read output: %w", err)
 		}
 		telemetry.EndSpan(span, nil)
-		return data, videoMimeType(p.Format), nil
+		return data, transform.FormatVideoMimeType(p.Format), nil
 	}, nil
 }
 

@@ -65,7 +65,7 @@ func MagikFirstThumbnail(ctx context.Context, src io.Reader, mimeType string) (d
 		return nil, "", fmt.Errorf("read thumb: %w", err)
 	}
 
-	return thumbData, mimeImageJPEG, nil
+	return thumbData, MimeImageJPEG, nil
 }
 
 // PDFSlideshowThumbnail converts up to 6 PDF pages to JPEG frames via ImageMagick convert.
@@ -101,7 +101,7 @@ func (t *transformer) PDFSlideshowThumbnail(
 	cmd := exec.CommandContext(ctx, //nolint:gosec // validated args
 		"convert",
 		"-density", "72",
-		"-format", formatJPEG,
+		"-format", FormatJPEG,
 		tmpPDF+"[0-5]",
 		filepath.Join(dir, "page-%d.jpg"),
 	)
@@ -130,7 +130,7 @@ func (t *transformer) PDFSlideshowThumbnail(
 		if err != nil {
 			return nil, "", fmt.Errorf("read single page jpeg: %w", err)
 		}
-		return data, mimeImageJPEG, nil
+		return data, MimeImageJPEG, nil
 	}
 
 	outPath := filepath.Join(dir, "out.mp4")
@@ -218,4 +218,3 @@ func writeToTempFile(ctx context.Context, src io.Reader, ext string) (name strin
 		_ = os.Remove(f.Name())
 	}, nil
 }
-

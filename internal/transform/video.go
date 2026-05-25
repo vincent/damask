@@ -46,7 +46,7 @@ func (p *VideoWatermarkParams) normalize() {
 		p.Opacity = 0.5
 	}
 	if p.Format == "" {
-		p.Format = formatMP4
+		p.Format = FormatMP4
 	}
 }
 
@@ -261,7 +261,7 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 
 	// Video codec
 	switch p.Format {
-	case formatWebM:
+	case FormatWebM:
 		args = append(args, "-c:v", "libvpx-vp9")
 	default: // mp4
 		args = append(args, "-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast")
@@ -272,7 +272,7 @@ func (t *transformer) VideoTranscode(ctx context.Context, srcPath, dstPath strin
 		args = append(args, "-an")
 	} else {
 		switch p.Format {
-		case formatWebM:
+		case FormatWebM:
 			args = append(args, ffmpegArgAudioCodec, "libopus")
 		default:
 			args = append(args, ffmpegArgAudioCodec, "aac")
@@ -367,7 +367,7 @@ func (t *transformer) VideoWatermark(
 	}
 
 	switch p.Format {
-	case formatWebM:
+	case FormatWebM:
 		args = append(args, "-c:v", "libvpx-vp9")
 		if !p.StripAudio {
 			args = append(args, ffmpegArgAudioCodec, "libopus")
@@ -401,7 +401,7 @@ func ffmpegOutputFilters(format, resolution string) string {
 	}
 
 	switch strings.ToLower(strings.TrimSpace(format)) {
-	case "", formatMP4:
+	case "", FormatMP4:
 		// libx264 requires even dimensions; keep the output bounded by the source
 		// by trimming odd dimensions down to the nearest even pixel.
 		filters = append(filters, "scale=trunc(iw/2)*2:trunc(ih/2)*2")

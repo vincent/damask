@@ -10,6 +10,22 @@ import (
 
 const sniffFirstBytes = 512
 
+const (
+	FormatJPEG = "jpeg"
+	FormatMP4  = "mp4"
+	FormatPNG  = "png"
+	FormatWebM = "webm"
+	FormatWebP = "webp"
+)
+
+const (
+	MimeImageJPEG = "image/jpeg"
+	MimeImagePNG  = "image/png"
+	MimeImageWebP = "image/webp"
+	MimeVideoMP4  = "video/mp4"
+	MimeVideoWebM = "video/webm"
+)
+
 // DetectMimeType sniffs the MIME type of the file at filePath.
 // When content sniffing returns a generic type (zip, octet-stream, plain text),
 // it falls back to extension-based lookup to correctly identify OOXML/ODF formats
@@ -110,4 +126,29 @@ func MimeToExt(ct string) string {
 		return ms[0]
 	}
 	return ".bin"
+}
+
+// FormatExtension maps a format name to a file extension.
+func FormatExtension(format string) string {
+	switch strings.ToLower(format) {
+	case FormatWebM:
+		return ".webm"
+	case FormatMP4:
+		return ".mp4"
+	case FormatPNG:
+		return ".png"
+	case FormatWebP:
+		return ".webp"
+	case "tiff":
+		return ".tiff"
+	default:
+		return ".jpg"
+	}
+}
+
+func FormatVideoMimeType(format string) string {
+	if format == FormatWebM {
+		return MimeVideoWebM
+	}
+	return MimeVideoMP4
 }

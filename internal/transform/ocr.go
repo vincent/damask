@@ -29,10 +29,10 @@ func TesseractAvailable() bool {
 
 var SupportedOCRMIMEs = map[string]bool{
 	"image/bmp":   true,
-	mimeImageJPEG: true,
-	mimeImagePNG:  true,
+	MimeImageJPEG: true,
+	MimeImagePNG:  true,
 	"image/tiff":  true,
-	mimeImageWebP: true,
+	MimeImageWebP: true,
 }
 
 func RunOCR(ctx context.Context, imageData []byte, p OCRParams) (*OCRResult, error) {

@@ -11,11 +11,8 @@ import (
 )
 
 const (
-	defaultThumbnailImageQuality = 75
-	thumbnailSize                = 400
-	thumbnailExtJPG              = ".jpg"
-	thumbnailExtPNG              = ".png"
-	thumbnailExtMP4              = ".mp4"
+	defaultQuality = 75
+	thumbnailSize  = 400
 )
 
 type Thumbnailer interface {
@@ -135,13 +132,13 @@ func (t *thumbnailer) ThumbnailFromImage(rc io.ReadCloser) ([]byte, string, erro
 		Width:   thumbnailSize,
 		Height:  thumbnailSize,
 		Fit:     "contain",
-		Quality: defaultThumbnailImageQuality,
-		Format:  formatJPEG,
+		Quality: defaultQuality,
+		Format:  FormatJPEG,
 	})
 	if err != nil {
 		return nil, "", err
 	}
-	return data, thumbnailExtJPG, nil
+	return data, FormatExtension(FormatJPEG), nil
 }
 
 func (t *thumbnailer) ThumbnailFromText(
@@ -159,7 +156,7 @@ func (t *thumbnailer) ThumbnailFromText(
 	if err != nil {
 		return nil, "", err
 	}
-	return data, thumbnailExtPNG, nil
+	return data, FormatExtension(FormatPNG), nil
 }
 
 func (t *thumbnailer) ThumbnailFromFontFile(
@@ -176,7 +173,7 @@ func (t *thumbnailer) ThumbnailFromFontFile(
 	if err != nil {
 		return nil, "", err
 	}
-	return data, thumbnailExtPNG, nil
+	return data, FormatExtension(FormatPNG), nil
 }
 
 func (t *thumbnailer) ThumbnailFromVideo(
@@ -194,7 +191,7 @@ func (t *thumbnailer) ThumbnailFromVideo(
 	if err != nil {
 		return nil, "", err
 	}
-	return data, thumbnailExtMP4, nil
+	return data, FormatExtension(FormatMP4), nil
 }
 
 func (t *thumbnailer) ThumbnailFromPDF(ctx context.Context, rc io.ReadCloser, mimeType string) ([]byte, string, error) {
@@ -206,9 +203,9 @@ func (t *thumbnailer) ThumbnailFromPDF(ctx context.Context, rc io.ReadCloser, mi
 	if err != nil {
 		return nil, "", err
 	}
-	ext := thumbnailExtMP4
-	if ct == mimeImageJPEG {
-		ext = thumbnailExtJPG
+	ext := FormatExtension(FormatMP4)
+	if ct == MimeImageJPEG {
+		ext = FormatExtension(FormatJPEG)
 	}
 	return data, ext, nil
 }
@@ -222,7 +219,7 @@ func (t *thumbnailer) ThumbnailFromDocument(
 	if err != nil {
 		return nil, "", err
 	}
-	return data, thumbnailExtPNG, nil
+	return data, FormatExtension(FormatPNG), nil
 }
 
 func (t *thumbnailer) ThumbnailFromAudio(

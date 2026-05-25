@@ -96,7 +96,7 @@ func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType
 		return nil, "", fmt.Errorf("read thumb: %w", err)
 	}
 
-	return thumbData, mimeImagePNG, nil
+	return thumbData, MimeImagePNG, nil
 }
 
 // ExtractAudio strips video streams from srcPath and writes the audio stream to dstPath.
