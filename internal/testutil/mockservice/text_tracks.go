@@ -11,6 +11,7 @@ type MockTextTrackService struct {
 	GetFn    func(ctx context.Context, workspaceID, trackID string) (service.TextTrackDTO, error)
 	CreateFn func(ctx context.Context, p service.CreateTextTrackParams) (service.TextTrackDTO, error)
 	DeleteFn func(ctx context.Context, workspaceID, trackID string) error
+	RunOCRFn func(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
 }
 
 func NewTextTrackService() *MockTextTrackService { return &MockTextTrackService{} }
@@ -42,6 +43,13 @@ func (m *MockTextTrackService) Create(
 func (m *MockTextTrackService) Delete(ctx context.Context, workspaceID, trackID string) error {
 	if m.DeleteFn != nil {
 		return m.DeleteFn(ctx, workspaceID, trackID)
+	}
+	return nil
+}
+
+func (m *MockTextTrackService) RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error {
+	if m.RunOCRFn != nil {
+		return m.RunOCRFn(ctx, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat)
 	}
 	return nil
 }

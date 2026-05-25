@@ -206,6 +206,7 @@ func main() {
 
 	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
 	exifSvc := service.NewExifService(queries, stor)
+	textTrackSvc := service.NewTextTrackService(queries, q, stor)
 	js := jobs.NewJobServer(
 		queries,
 		sqlDB,
@@ -222,6 +223,7 @@ func main() {
 		exportSvc,
 		exifSvc,
 		fieldSvc,
+		textTrackSvc,
 	)
 	js.RegisterJobHandlers()
 

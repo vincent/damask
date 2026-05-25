@@ -30,6 +30,10 @@ type noopExifSvc struct{}
 
 func (noopExifSvc) ExtractForAsset(_ context.Context, _, _, _ string) error { return nil }
 
+type noopTextTrackSvc struct{}
+
+func (noopTextTrackSvc) RunOCR(_ context.Context, _, _, _, _, _, _, _, _ string) error { return nil }
+
 // memExportSvc wires two memory repos into the exportService interface for tests.
 type memExportSvc struct {
 	configs *repomemory.ExportConfigMemoryRepo
@@ -87,6 +91,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		newMemExportSvc(repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo()),
 		noopExifSvc{},
 		noopFieldsSvc{},
+		noopTextTrackSvc{},
 	)
 
 	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {

@@ -1,20 +1,22 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
-	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -211,7 +213,16 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	}
 
 	if p.Source == "ocr" {
-		payload, err := json.Marshal(jobs.OCRTextTrackPayload{
+		payload, err := json.Marshal(struct {
+			WorkspaceID    string `json:"workspace_id"`
+			AssetID        string `json:"asset_id"`
+			TrackID        string `json:"track_id"`
+			AssetVersionID string `json:"asset_version_id"`
+			StorageKey     string `json:"storage_key"`
+			MimeType       string `json:"mime_type"`
+			Lang           string `json:"lang"`
+			OutputFormat   string `json:"output_format"`
+		}{
 			WorkspaceID:    p.WorkspaceID,
 			AssetID:        p.AssetID,
 			TrackID:        row.ID,
@@ -352,4 +363,129 @@ func stringParam(params map[string]any, key, fallback string) string {
 		}
 	}
 	return fallback
+}
+
+func (s *textTrackService) RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) (err error) {
+	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.ocr",
+		attribute.String("damask.workspace_id", workspaceID),
+		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.text_track_id", trackID),
+		attribute.String("damask.text_track.lang", lang),
+		attribute.String("damask.text_track.output_format", outputFormat),
+	)
+	defer func() {
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(
+				ctx,
+				"text track OCR job failed",
+				"workspace_id", workspaceID,
+				"asset_id", assetID,
+				"track_id", trackID,
+				"error", err,
+			)
+		}
+	}()
+
+	_, readSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.read_source",
+		attribute.String("damask.storage_key", storageKey),
+	)
+	rc, err := s.storage.Get(storageKey)
+	apptelemetry.EndSpan(readSpan, err)
+	if err != nil {
+		return fmt.Errorf("RunOCR: read source: %w", err)
+	}
+	imageBytes, err := io.ReadAll(rc)
+	_ = rc.Close()
+	if err != nil {
+		return fmt.Errorf("RunOCR: read bytes: %w", err)
+	}
+	span.SetAttributes(attribute.Int("damask.source_bytes", len(imageBytes)))
+
+	ocrCtx, ocrSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.run")
+	result, err := transform.RunOCR(ocrCtx, imageBytes, transform.OCRParams{
+		Lang:         lang,
+		OutputFormat: outputFormat,
+	})
+	apptelemetry.EndSpan(ocrSpan, err)
+	if err != nil {
+		errMsg := err.Error()
+		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
+			ID:          trackID,
+			WorkspaceID: workspaceID,
+			Error:       &errMsg,
+		})
+		return fmt.Errorf("RunOCR: OCR: %w", err)
+	}
+
+	var resultStorageKey *string
+	var contentType *string
+	if outputFormat == "hocr" {
+		key := fmt.Sprintf("%s/%s/text-tracks/%s%s", workspaceID, assetID, trackID, result.Extension)
+		_, storeSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.store_companion",
+			attribute.String("damask.storage_key", key),
+		)
+		if err = s.storage.Put(key, bytes.NewReader(result.FileContent)); err != nil {
+			apptelemetry.EndSpan(storeSpan, err)
+			return fmt.Errorf("RunOCR: store companion file: %w", err)
+		}
+		apptelemetry.EndSpan(storeSpan, nil)
+		resultStorageKey = &key
+		ct := result.ContentType
+		contentType = &ct
+	}
+
+	plainText := readyTextContent(result.PlainText)
+	wordCount := len(strings.Fields(result.PlainText))
+	metaBytes, _ := json.Marshal(map[string]any{
+		"lang":          lang,
+		"model":         "tesseract",
+		"output_format": outputFormat,
+		"word_count":    wordCount,
+	})
+	meta := string(metaBytes)
+
+	writeCtx, writeSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.mark_ready")
+	if err = s.queries.SetTextTrackReady(writeCtx, dbgen.SetTextTrackReadyParams{
+		Content:     plainText,
+		StorageKey:  resultStorageKey,
+		ContentType: contentType,
+		Meta:        &meta,
+		ID:          trackID,
+		WorkspaceID: workspaceID,
+	}); err != nil {
+		apptelemetry.EndSpan(writeSpan, err)
+		return fmt.Errorf("RunOCR: update track: %w", err)
+	}
+	apptelemetry.EndSpan(writeSpan, nil)
+
+	ftsCtx, ftsSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.index_fts")
+	if err = s.queries.InsertTextFTS(ftsCtx, dbgen.InsertTextFTSParams{
+		TrackID:     trackID,
+		AssetID:     assetID,
+		WorkspaceID: workspaceID,
+		Source:      "ocr",
+		Lang:        lang,
+		Content:     plainText,
+	}); err != nil {
+		apptelemetry.EndSpan(ftsSpan, err)
+		slog.WarnContext(ctx, "text track FTS insert failed", "track_id", trackID, "error", err)
+	} else {
+		apptelemetry.EndSpan(ftsSpan, nil)
+	}
+	span.SetAttributes(
+		attribute.Int("damask.text_track.word_count", wordCount),
+		attribute.Bool("damask.text_track.has_file", resultStorageKey != nil),
+	)
+	slog.DebugContext(
+		ctx,
+		"text track OCR completed",
+		"workspace_id", workspaceID,
+		"asset_id", assetID,
+		"track_id", trackID,
+		"word_count", wordCount,
+		"output_format", outputFormat,
+	)
+
+	return nil
 }

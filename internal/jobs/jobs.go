@@ -43,6 +43,12 @@ type fieldPurgeService interface {
 	PurgeExpiredFields(ctx context.Context) (int, error)
 }
 
+// textTrackService is the subset of service.TextTrackService used by job handlers.
+// Defined here to avoid an import cycle (service imports jobs for queue payload types).
+type textTrackService interface {
+	RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
+}
+
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
 	queries        *dbgen.Queries
@@ -62,6 +68,7 @@ type JobServer struct {
 	exportSvc      exportService
 	exifSvc        exifService
 	fieldSvc       fieldPurgeService
+	textTrackSvc   textTrackService
 }
 
 func NewJobServer(
@@ -80,6 +87,7 @@ func NewJobServer(
 	exportSvc exportService,
 	exifSvc exifService,
 	fieldSvc fieldPurgeService,
+	textTrackSvc textTrackService,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
@@ -94,6 +102,7 @@ func NewJobServer(
 		exportSvc:      exportSvc,
 		exifSvc:        exifSvc,
 		fieldSvc:       fieldSvc,
+		textTrackSvc:   textTrackSvc,
 		handlers:       make(map[string]queue.HandlerFunc),
 		hub:            hub,
 		imgKeyResolver: imgKeyResolver,

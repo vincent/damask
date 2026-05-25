@@ -192,6 +192,7 @@ type TextTrackService interface {
 	Get(ctx context.Context, workspaceID, trackID string) (TextTrackDTO, error)
 	Create(ctx context.Context, p CreateTextTrackParams) (TextTrackDTO, error)
 	Delete(ctx context.Context, workspaceID, trackID string) error
+	RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
 }
 
 // WorkspaceService handles business logic for workspace settings, members, and invites.
