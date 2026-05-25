@@ -493,7 +493,7 @@ func (s *Server) handleCreateInvite(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	if err = s.mailer.SendInvite(c.Context(), inv.Email, inv.Role, inv.InviteToken); err != nil {
+	if err = s.mailer.SendInvite(c.Context(), claims.WorkspaceID, inv.Email, inv.Role, inv.InviteToken); err != nil {
 		slog.ErrorContext(c.Context(), "failed to send invitation mail", "error", err)
 	}
 
@@ -547,6 +547,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 	if inviter, err := s.users.GetByID(c.Context(), result.InviterID); err == nil {
 		if err := s.mailer.SendInviteAccepted(
 			c.Context(),
+			result.WorkspaceID,
 			inviter.Email,
 			result.UserName,
 			result.UserEmail,

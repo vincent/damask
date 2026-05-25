@@ -73,7 +73,7 @@ type CreateShareCommentParams struct {
 type sharePublicService struct {
 	shares repository.ShareRepository
 	mailer interface {
-		SendCommentPosted(ctx context.Context, ownerEmail, authorName, shareLabel, body string) error
+		SendCommentPosted(ctx context.Context, workspaceID, assetID, ownerEmail, authorName, shareLabel, body string) error
 	}
 	users repository.UserRepository
 }
@@ -83,7 +83,7 @@ func NewSharePublicService(
 	shares repository.ShareRepository,
 	users repository.UserRepository,
 	mailer interface {
-		SendCommentPosted(ctx context.Context, ownerEmail, authorName, shareLabel, body string) error
+		SendCommentPosted(ctx context.Context, workspaceID, assetID, ownerEmail, authorName, shareLabel, body string) error
 	},
 ) SharePublicService {
 	return &sharePublicService{shares: shares, users: users, mailer: mailer}
@@ -166,6 +166,10 @@ func (s *sharePublicService) CreateComment(ctx context.Context, p CreateShareCom
 		AuthorEmail: p.AuthorEmail,
 		Body:        p.Body,
 	}
+	asset, err := s.shares.GetPublicAsset(ctx, p.AssetID)
+	if err != nil {
+		return nil, err
+	}
 	created, err := s.shares.CreateComment(ctx, c)
 	if err != nil {
 		return nil, err
@@ -174,7 +178,7 @@ func (s *sharePublicService) CreateComment(ctx context.Context, p CreateShareCom
 	// Best-effort email notification.
 	if sh, err := s.shares.GetPublic(ctx, p.ShareID); err == nil {
 		if owner, err := s.users.GetByID(ctx, sh.CreatedBy); err == nil {
-			_ = s.mailer.SendCommentPosted(ctx, owner.Email, p.AuthorName, sh.Label, p.Body)
+			_ = s.mailer.SendCommentPosted(ctx, sh.WorkspaceID, asset.ID, owner.Email, p.AuthorName, asset.OriginalFilename, p.Body)
 		}
 	}
 

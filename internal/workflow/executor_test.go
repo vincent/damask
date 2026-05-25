@@ -43,9 +43,9 @@ type testMailer struct {
 	errMsg   string
 }
 
-func (m *testMailer) SendInvite(context.Context, string, string, string) error  { return nil }
+func (m *testMailer) SendInvite(context.Context, string, string, string, string) error  { return nil }
 func (m *testMailer) SendWelcome(context.Context, string, string, string) error { return nil }
-func (m *testMailer) SendInviteAccepted(context.Context, string, string, string, string) error {
+func (m *testMailer) SendInviteAccepted(context.Context, string, string, string, string, string) error {
 	return nil
 }
 func (m *testMailer) SendIngressSourceAdded(context.Context, string, string, string) error {
@@ -57,7 +57,7 @@ func (m *testMailer) SendIngressSourceFailed(context.Context, string, string, st
 func (m *testMailer) SendIngressSourceDisabled(context.Context, string, string, string, string) error {
 	return nil
 }
-func (m *testMailer) SendCommentPosted(context.Context, string, string, string, string) error {
+func (m *testMailer) SendCommentPosted(context.Context, string, string, string, string, string, string) error {
 	return nil
 }
 func (m *testMailer) SendPasswordReset(context.Context, string, string) error { return nil }

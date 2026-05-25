@@ -4,25 +4,19 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"fmt"
 	"html/template"
 	"log/slog"
+	"strings"
 
 	"damask/server/internal/telemetry"
 
-	"github.com/wneessen/go-mail"
+	gomail "github.com/wneessen/go-mail"
 	"go.opentelemetry.io/otel/codes"
 )
 
 //go:embed templates/*.html
-var templates embed.FS
-
-const (
-	mailTemplateTitle      = "Title"
-	mailTemplateText       = "Text"
-	mailTemplateActionText = "ActionText"
-	mailTemplateActionURL  = "ActionUrl"
-	mailActionViewSources  = "View sources"
-)
+var templatesFS embed.FS
 
 type Config struct {
 	Sender   string
@@ -34,13 +28,13 @@ type Config struct {
 }
 
 type Mailer interface {
-	SendInvite(ctx context.Context, to, role, token string) error
+	SendInvite(ctx context.Context, workspaceID, to, role, token string) error
 	SendWelcome(ctx context.Context, to, username, workspaceID string) error
-	SendInviteAccepted(ctx context.Context, to, newMemberName, newMemberEmail, role string) error
+	SendInviteAccepted(ctx context.Context, workspaceID, to, newMemberName, newMemberEmail, role string) error
 	SendIngressSourceAdded(ctx context.Context, to, sourceName, workspaceID string) error
 	SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg, workspaceID string) error
 	SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg, workspaceID string) error
-	SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error
+	SendCommentPosted(ctx context.Context, workspaceID, assetID, to, authorName, shareLabel, commentBody string) error
 	SendPasswordReset(ctx context.Context, to, token string) error
 	SendEmailChangeConfirmation(ctx context.Context, to, newEmail, token string) error
 	SendWorkflowRunFailed(ctx context.Context, to, workflowName, errMsg, workspaceID string) error
@@ -48,27 +42,24 @@ type Mailer interface {
 
 func NewMailer(config *Config) Mailer {
 	mailer := &MailerImpl{
-		config,
-		nil,
+		config:  config,
+		BaseURL: config.BaseURL,
 	}
 	if len(config.Host) > 0 {
-		client, err := mail.NewClient(
+		client, err := gomail.NewClient(
 			config.Host,
-			mail.WithPort(config.Port),
-			mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
-			mail.WithTLSPortPolicy(mail.TLSOpportunistic),
-			mail.WithUsername(config.User),
-			mail.WithPassword(config.Password),
+			gomail.WithPort(config.Port),
+			gomail.WithSMTPAuth(gomail.SMTPAuthAutoDiscover),
+			gomail.WithTLSPortPolicy(gomail.TLSOpportunistic),
+			gomail.WithUsername(config.User),
+			gomail.WithPassword(config.Password),
 		)
 		if err != nil {
 			slog.Error(
 				"mailer: failed to create new mail delivery client",
-				"error",
-				err,
-				"host",
-				config.Host,
-				"port",
-				config.Port,
+				"error", err,
+				"host", config.Host,
+				"port", config.Port,
 			)
 			panic("unrecoverable error: mailer config is not usable")
 		}
@@ -78,73 +69,40 @@ func NewMailer(config *Config) Mailer {
 }
 
 type MailerImpl struct {
-	config *Config
-	client *mail.Client
+	config  *Config
+	client  *gomail.Client
+	BaseURL string
 }
 
-func (m *MailerImpl) PrepareAndSendWithTemplate(
-	ctx context.Context,
-	templateName string,
-	to, subject string,
-	data map[string]string,
-) (err error) {
-	ctx, span := telemetry.StartSpan(ctx, "mail.prepare")
-	defer telemetry.EndSpan(span, err)
-
-	content, err := templates.ReadFile("templates/" + templateName + ".html")
+// renderTemplate parses base.html + the named child template into an isolated
+// set and executes it. Each call gets its own set so that block definitions
+// from different child templates never collide with each other.
+func (m *MailerImpl) renderTemplate(name string, data any) (string, error) {
+	tmpl, err := template.ParseFS(templatesFS, "templates/base.html", "templates/"+name+".html")
 	if err != nil {
-		slog.ErrorContext(ctx, "mailer: failed to load mail template", "error", err)
-		return err
+		return "", fmt.Errorf("mail: parse template %q: %w", name, err)
 	}
-
-	tpl, err := template.New("base").Parse(string(content))
-	if err != nil {
-		slog.ErrorContext(ctx, "mailer: failed to parse mail template", "error", err)
-		return err
-	}
-
-	data["BaseUrl"] = m.config.BaseURL
-	data["FooterText"] = "Lorem ipsum"
-	if len(data[mailTemplateActionURL]) > 0 {
-		data[mailTemplateActionURL] = m.config.BaseURL + data[mailTemplateActionURL]
-	}
-
 	var buf bytes.Buffer
-	if err := tpl.Execute(&buf, data); err != nil {
-		slog.ErrorContext(ctx, "mailer: failed to execute mail template", "error", err)
-		return err
+	if err := tmpl.ExecuteTemplate(&buf, name+".html", data); err != nil {
+		return "", fmt.Errorf("mail: execute template %q: %w", name, err)
 	}
-
-	msg, err := m.Prepare(to, subject, buf.String())
-	if err != nil {
-		slog.ErrorContext(ctx, "mailer: failed to prepare mail", "error", err)
-		return err
+	out := buf.String()
+	if strings.Contains(out, "{{") {
+		return "", fmt.Errorf("mail: template %q has unresolved actions in output", name)
 	}
-	slog.InfoContext(ctx, "mailer: send mail", "to", to)
-	err = m.Send(ctx, msg)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"mailer: failed to send mail",
-			"error",
-			err,
-			"host",
-			m.config.Host,
-			"port",
-			m.config.Port,
-		)
-		return err
-	}
-
-	return nil
+	return out, nil
 }
 
-func (m *MailerImpl) PrepareAndSend(ctx context.Context, to, subject string, data map[string]string) error {
-	return m.PrepareAndSendWithTemplate(ctx, "base", to, subject, data)
+func (m *MailerImpl) deliver(ctx context.Context, to, subject, htmlBody string) error {
+	msg, err := m.prepare(to, subject, htmlBody)
+	if err != nil {
+		return err
+	}
+	return m.send(ctx, msg)
 }
 
-func (m *MailerImpl) Prepare(to, subject, body string) (message *mail.Msg, err error) {
-	message = mail.NewMsg()
+func (m *MailerImpl) prepare(to, subject, body string) (message *gomail.Msg, err error) {
+	message = gomail.NewMsg()
 	if err := message.From(m.config.Sender); err != nil {
 		slog.Error("mailer: failed to set [from] address", "error", err)
 		return nil, err
@@ -154,12 +112,11 @@ func (m *MailerImpl) Prepare(to, subject, body string) (message *mail.Msg, err e
 		return nil, err
 	}
 	message.Subject(subject)
-	message.SetBodyString(mail.TypeTextHTML, body)
-	// TODO: handle text
+	message.SetBodyString(gomail.TypeTextHTML, body)
 	return message, nil
 }
 
-func (m *MailerImpl) Send(ctx context.Context, message *mail.Msg) (err error) {
+func (m *MailerImpl) send(ctx context.Context, message *gomail.Msg) (err error) {
 	ctx, span := telemetry.StartSpan(ctx, "mail.send")
 	defer telemetry.EndSpan(span, err)
 
@@ -176,142 +133,173 @@ func (m *MailerImpl) Send(ctx context.Context, message *mail.Msg) (err error) {
 	}
 
 	span.SetStatus(codes.Ok, "mail sent")
-
 	return err
 }
 
-func (m *MailerImpl) SendInvite(ctx context.Context, to, role, token string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"You've been invited to a Damask workspace",
-		map[string]string{
-			mailTemplateTitle:      "You're invited!",
-			mailTemplateText:       "Someone thinks you'd be a great fit! you've been invited to collaborate on a Damask workspace as " + role + ". Damask is a self-hosted digital asset manager: upload, organise, tag, and share your files with your team. Click below to create your account and join the workspace.",
-			mailTemplateActionText: "Accept invitation",
-			mailTemplateActionURL:  "/invite?token=" + token,
-		},
-	)
+func (m *MailerImpl) SendInvite(ctx context.Context, workspaceID, to, role, token string) error {
+	base := m.newBaseData(workspaceID, "INVITATION", "")
+	base.Preheader = "You've been invited to join a workspace on Damask."
+	inviteURL := m.BaseURL + "/invite?token=" + token
+	if workspaceID != "" {
+		inviteURL += "&ws=" + workspaceID
+	}
+	data := InviteData{
+		BaseData:  base,
+		Role:      role,
+		InviteURL: inviteURL,
+	}
+	html, err := m.renderTemplate("invite", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "You've been invited to Damask", html)
 }
 
 func (m *MailerImpl) SendWelcome(ctx context.Context, to, username, workspaceID string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"Welcome to Damask, "+username+"!",
-		map[string]string{
-			mailTemplateTitle:      "Your workspace is ready, " + username + "!",
-			mailTemplateText:       "Welcome to Damask, your home for digital assets. Upload images, videos, PDFs, and more; organise them with folders, projects, and tags; create shareable links with optional passwords and expiry; and set up ingress sources to pull files in automatically.",
-			mailTemplateActionText: "Explore your library",
-			mailTemplateActionURL:  "/library?ws=" + workspaceID,
-		},
-	)
+	base := m.newBaseData(workspaceID, "WELCOME", "")
+	base.Preheader = "Your Damask workspace is ready. Let's get started."
+	data := WelcomeData{
+		BaseData:   base,
+		Username:   username,
+		LibraryURL: m.BaseURL + "/library?ws=" + workspaceID,
+	}
+	html, err := m.renderTemplate("welcome", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "Welcome to Damask, "+username+"!", html)
 }
 
-func (m *MailerImpl) SendInviteAccepted(ctx context.Context, to, newMemberName, newMemberEmail, role string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"A new member joined your workspace",
-		map[string]string{
-			mailTemplateTitle: "A new member joined your workspace",
-			mailTemplateText:  newMemberName + " (" + newMemberEmail + ") accepted your invite and joined as " + role + ".",
-		},
-	)
+func (m *MailerImpl) SendInviteAccepted(ctx context.Context, workspaceID, to, newMemberName, newMemberEmail, role string) error {
+	base := m.newBaseData(workspaceID, "A NEW MEMBER", "")
+	base.Preheader = newMemberName + " accepted your invitation to the studio."
+	manageMembersURL := m.BaseURL + "/settings/members"
+	if workspaceID != "" {
+		manageMembersURL += "?ws=" + workspaceID
+	}
+	data := InviteAcceptedData{
+		BaseData:         base,
+		NewMemberName:    newMemberName,
+		NewMemberEmail:   newMemberEmail,
+		NewMemberInitial: InitialFromName(newMemberName),
+		Role:             role,
+		RoleDisplay:      strings.ToUpper(role),
+		RoleDescription:  RoleDescription(role),
+		ManageMembersURL: manageMembersURL,
+	}
+	html, err := m.renderTemplate("invite_accepted", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, newMemberName+" accepted your invitation", html)
 }
 
 func (m *MailerImpl) SendIngressSourceAdded(ctx context.Context, to, sourceName, workspaceID string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"Ingress source configured: "+sourceName,
-		map[string]string{
-			mailTemplateTitle:      "Ingress source configured",
-			mailTemplateText:       "Your ingress source \"" + sourceName + "\" is set up and will start polling shortly.",
-			mailTemplateActionText: mailActionViewSources,
-			mailTemplateActionURL:  "/library/ingress?ws=" + workspaceID,
-		},
-	)
+	base := m.newBaseData(workspaceID, "INGRESS", "")
+	base.Preheader = "Your ingress source “" + sourceName + "” is now active."
+	data := IngressSourceAddedData{
+		BaseData:   base,
+		SourceName: sourceName,
+		IngressURL: m.BaseURL + "/settings/ingress?ws=" + workspaceID,
+	}
+	html, err := m.renderTemplate("ingress_added", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "Ingress source connected: "+sourceName, html)
 }
 
 func (m *MailerImpl) SendIngressSourceFailed(ctx context.Context, to, sourceName, errMsg, workspaceID string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"Ingress source error: "+sourceName,
-		map[string]string{
-			mailTemplateTitle:      "Ingress source error",
-			mailTemplateText:       "The ingress source \"" + sourceName + "\" encountered an error: " + errMsg,
-			mailTemplateActionText: mailActionViewSources,
-			mailTemplateActionURL:  "/library/ingress?ws=" + workspaceID,
-		},
-	)
+	base := m.newBaseData(workspaceID, "INGRESS ERROR", "")
+	base.Preheader = "Your ingress source “" + sourceName + "” has encountered an error."
+	data := IngressSourceFailedData{
+		BaseData:   base,
+		SourceName: sourceName,
+		ErrMsg:     errMsg,
+		IngressURL: m.BaseURL + "/settings/ingress?ws=" + workspaceID,
+	}
+	html, err := m.renderTemplate("ingress_failed", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "Ingress source error: "+sourceName, html)
 }
 
 func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceName, errMsg, workspaceID string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"Ingress source disabled: "+sourceName,
-		map[string]string{
-			mailTemplateTitle:      "Ingress source disabled",
-			mailTemplateText:       "The ingress source \"" + sourceName + "\" has been disabled after too many consecutive errors. Last error: " + errMsg + "\n\nEdit the source to re-enable polling.",
-			mailTemplateActionText: mailActionViewSources,
-			mailTemplateActionURL:  "/library/ingress?ws=" + workspaceID,
-		},
-	)
+	base := m.newBaseData(workspaceID, "INGRESS DISABLED", "")
+	base.Preheader = "Your ingress source “" + sourceName + "” has been disabled."
+	data := IngressSourceDisabledData{
+		BaseData:   base,
+		SourceName: sourceName,
+		ErrMsg:     errMsg,
+		IngressURL: m.BaseURL + "/settings/ingress?ws=" + workspaceID,
+	}
+	html, err := m.renderTemplate("ingress_disabled", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "Ingress source disabled: "+sourceName, html)
+}
+
+func (m *MailerImpl) SendCommentPosted(ctx context.Context, workspaceID, assetID, to, authorName, shareLabel, commentBody string) error {
+	base := m.newBaseData(workspaceID, "NEW COMMENT", "")
+	base.Preheader = authorName + " commented on \"" + shareLabel + "\"."
+	shareURL := m.BaseURL + "/library?ws=" + workspaceID + "&asset=" + assetID
+	data := CommentData{
+		BaseData:    base,
+		AuthorName:  authorName,
+		ShareLabel:  shareLabel,
+		CommentBody: commentBody,
+		ShareURL:    shareURL,
+	}
+	html, err := m.renderTemplate("comment", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, authorName+" commented on "+shareLabel, html)
 }
 
 func (m *MailerImpl) SendPasswordReset(ctx context.Context, to, token string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"Reset your Damask password",
-		map[string]string{
-			mailTemplateTitle:      "Reset your password",
-			mailTemplateText:       "Someone requested a password reset for your Damask account. If this wasn't you, you can ignore this email. This link expires in 1 hour.",
-			mailTemplateActionText: "Reset password",
-			mailTemplateActionURL:  "/reset-password?token=" + token,
-		},
-	)
+	base := m.newBaseData("", "ACCOUNT SECURITY", "")
+	base.Preheader = "Reset your Damask password - this link expires in 1 hour."
+	data := PasswordResetData{
+		BaseData: base,
+		ResetURL: m.BaseURL + "/reset-password?token=" + token,
+	}
+	html, err := m.renderTemplate("password_reset", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "Reset your Damask password", html)
 }
 
 func (m *MailerImpl) SendEmailChangeConfirmation(ctx context.Context, to, newEmail, token string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"Confirm your email address change",
-		map[string]string{
-			mailTemplateTitle:      "Confirm your email change",
-			mailTemplateText:       "You requested to change your Damask account email to " + newEmail + ". If you didn't request this, your account is safe and no change has been made. This link expires in 24 hours.",
-			mailTemplateActionText: "Confirm email change",
-			mailTemplateActionURL:  "/auth/confirm-email-change?token=" + token,
-		},
-	)
+	base := m.newBaseData("", "EMAIL CHANGE", "")
+	base.Preheader = "Confirm your new email address for Damask."
+	data := EmailChangeData{
+		BaseData:   base,
+		NewEmail:   newEmail,
+		ConfirmURL: m.BaseURL + "/confirm-email?token=" + token,
+	}
+	html, err := m.renderTemplate("email_change", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "Confirm your new email address", html)
 }
 
 func (m *MailerImpl) SendWorkflowRunFailed(ctx context.Context, to, workflowName, errMsg, workspaceID string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"Workflow failed: "+workflowName,
-		map[string]string{
-			mailTemplateTitle:      "Workflow failed",
-			mailTemplateText:       "The workflow \"" + workflowName + "\" failed. Error: " + errMsg,
-			mailTemplateActionText: "Open workflows",
-			mailTemplateActionURL:  "/library/settings/workflows?ws=" + workspaceID,
-		},
-	)
-}
-
-func (m *MailerImpl) SendCommentPosted(ctx context.Context, to, authorName, shareLabel, commentBody string) error {
-	return m.PrepareAndSend(
-		ctx,
-		to,
-		"New comment on your share: "+shareLabel,
-		map[string]string{
-			mailTemplateTitle: "New comment on \"" + shareLabel + "\"",
-			mailTemplateText:  authorName + " wrote: " + commentBody,
-		},
-	)
+	base := m.newBaseData(workspaceID, "WORKFLOW ERROR", "")
+	base.Preheader = "Workflow “" + workflowName + "” failed to complete."
+	data := WorkflowFailedData{
+		BaseData:     base,
+		WorkflowName: workflowName,
+		ErrMsg:       errMsg,
+		WorkflowsURL: m.BaseURL + "/settings/workflows?ws=" + workspaceID,
+	}
+	html, err := m.renderTemplate("workflow_failed", data)
+	if err != nil {
+		return err
+	}
+	return m.deliver(ctx, to, "Workflow failed: "+workflowName, html)
 }
