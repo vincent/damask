@@ -13,13 +13,13 @@ import (
 // Scheduler queries for due ingress sources every 60 seconds
 // and enqueues ingest_poll jobs for each.
 type Scheduler struct {
-	db    *dbgen.Queries
-	queue queue.JobQueue
+	queries *dbgen.Queries
+	queue   queue.JobQueue
 }
 
 // NewScheduler creates a Scheduler.
-func NewScheduler(db *dbgen.Queries, qu queue.JobQueue) *Scheduler {
-	return &Scheduler{db: db, queue: qu}
+func NewScheduler(queries *dbgen.Queries, qu queue.JobQueue) *Scheduler {
+	return &Scheduler{queries: queries, queue: qu}
 }
 
 // Start launches the scheduler goroutine. Returns immediately.
@@ -42,7 +42,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 }
 
 func (s *Scheduler) tick(ctx context.Context) {
-	sources, err := s.db.ListDueIngressSources(ctx)
+	sources, err := s.queries.ListDueIngressSources(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "ingress scheduler: list due sources", "error", err)
 		return
@@ -59,7 +59,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 		}
 		// Mark last_polled_at immediately to prevent double-scheduling.
 		// error_count and last_error are untouched here; the poll worker updates them.
-		if err := s.db.MarkIngressSourceScheduled(ctx, src.ID); err != nil {
+		if err := s.queries.MarkIngressSourceScheduled(ctx, src.ID); err != nil {
 			slog.ErrorContext(ctx, "ingress scheduler: mark scheduled", "source_id", src.ID, "error", err)
 		}
 	}

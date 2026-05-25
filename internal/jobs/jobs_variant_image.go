@@ -111,7 +111,7 @@ func (s *JobServer) imageLocalTransformer(
 				telemetry.EndSpan(span, err)
 				return nil, "", err
 			}
-			wm, werr := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+			wm, werr := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 				ID:          p.WatermarkAssetID,
 				WorkspaceID: workspaceID,
 			})

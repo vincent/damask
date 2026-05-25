@@ -23,7 +23,7 @@ var ProviderTokenEndpoint = map[string]string{
 // TokenRefresher retrieves valid access tokens for oauth_connections,
 // refreshing when tokens are near expiry. Thread-safe per connection.
 type TokenRefresher struct {
-	db        *dbgen.Queries
+	queries   *dbgen.Queries
 	appSecret string
 
 	locks sync.Map // map[connID string]*sync.Mutex, one entry per connection, never evicted
@@ -32,9 +32,9 @@ type TokenRefresher struct {
 	configs map[string]*oauth2.Config // per-provider oauth2.Config
 }
 
-func NewTokenRefresher(db *dbgen.Queries, appSecret string) *TokenRefresher {
+func NewTokenRefresher(queries *dbgen.Queries, appSecret string) *TokenRefresher {
 	return &TokenRefresher{
-		db:        db,
+		queries:   queries,
 		appSecret: appSecret,
 		configs:   make(map[string]*oauth2.Config),
 	}
@@ -66,7 +66,7 @@ func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, conn
 	mu.Lock()
 	defer mu.Unlock()
 
-	conn, err := r.db.GetOAuthConnectionByID(ctx, dbgen.GetOAuthConnectionByIDParams{
+	conn, err := r.queries.GetOAuthConnectionByID(ctx, dbgen.GetOAuthConnectionByIDParams{
 		ID:          connID,
 		WorkspaceID: workspaceID,
 	})
@@ -144,7 +144,7 @@ func (r *TokenRefresher) EnsureFreshToken(ctx context.Context, workspaceID, conn
 		expiresAt = &s
 	}
 
-	_, err = r.db.UpdateOAuthConnectionTokens(ctx, dbgen.UpdateOAuthConnectionTokensParams{
+	_, err = r.queries.UpdateOAuthConnectionTokens(ctx, dbgen.UpdateOAuthConnectionTokensParams{
 		AccessToken:  encAccess,
 		RefreshToken: encRefresh,
 		ExpiresAt:    expiresAt,

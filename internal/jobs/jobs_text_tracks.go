@@ -82,7 +82,7 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) (err
 	telemetry.EndSpan(ocrSpan, err)
 	if err != nil {
 		errMsg := err.Error()
-		_ = s.db.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
+		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
 			ID:          p.TrackID,
 			WorkspaceID: p.WorkspaceID,
 			Error:       &errMsg,
@@ -118,7 +118,7 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) (err
 	meta := string(metaBytes)
 
 	writeCtx, writeSpan := telemetry.StartSpan(ctx, "jobs.text_tracks.ocr.mark_ready")
-	if err = s.db.SetTextTrackReady(writeCtx, dbgen.SetTextTrackReadyParams{
+	if err = s.queries.SetTextTrackReady(writeCtx, dbgen.SetTextTrackReadyParams{
 		Content:     plainText,
 		StorageKey:  storageKey,
 		ContentType: contentType,
@@ -132,7 +132,7 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) (err
 	telemetry.EndSpan(writeSpan, nil)
 
 	ftsCtx, ftsSpan := telemetry.StartSpan(ctx, "jobs.text_tracks.ocr.index_fts")
-	if err = s.db.InsertTextFTS(ftsCtx, dbgen.InsertTextFTSParams{
+	if err = s.queries.InsertTextFTS(ftsCtx, dbgen.InsertTextFTSParams{
 		TrackID:     p.TrackID,
 		AssetID:     p.AssetID,
 		WorkspaceID: p.WorkspaceID,

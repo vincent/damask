@@ -155,7 +155,7 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	}
 
 	q := queue.New(queries, 1)
-	session := &Session{db: queries, queue: q}
+	session := &Session{queries: queries, queue: q}
 
 	if err := session.Rcpt(token+"@ingress.damask.studio", nil); err != nil {
 		t.Fatalf("Rcpt: %v", err)
@@ -255,7 +255,7 @@ func TestSession_FolderRoutingViaSubaddress(t *testing.T) {
 	}
 
 	q := queue.New(queries, 1)
-	session := &Session{db: queries, queue: q}
+	session := &Session{queries: queries, queue: q}
 
 	recipient := "abc123+brand-assets@ingress.damask.studio"
 	if err := session.Rcpt(recipient, nil); err != nil {
@@ -288,7 +288,7 @@ func TestSession_FolderRouting_UnknownTagFallsBack(t *testing.T) {
 
 	// No folder inserted — tag won't match anything
 	q := queue.New(queries, 1)
-	session := &Session{db: queries, queue: q}
+	session := &Session{queries: queries, queue: q}
 
 	recipient := "abc123+nonexistent@ingress.damask.studio"
 	if err := session.Rcpt(recipient, nil); err != nil {

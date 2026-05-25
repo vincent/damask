@@ -48,16 +48,16 @@ var exifFields = []exifFieldDef{
 
 // ExifService extracts EXIF metadata from image assets and stores it as field values.
 type ExifService struct {
-	db      *dbgen.Queries
+	queries *dbgen.Queries
 	storage storage.Storage
 }
 
-func NewExifService(db *dbgen.Queries, stor storage.Storage) *ExifService {
-	return &ExifService{db: db, storage: stor}
+func NewExifService(queries *dbgen.Queries, stor storage.Storage) *ExifService {
+	return &ExifService{queries: queries, storage: stor}
 }
 
 func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID, userID string) error {
-	ws, err := s.db.GetWorkspaceByID(ctx, workspaceID)
+	ws, err := s.queries.GetWorkspaceByID(ctx, workspaceID)
 	if err != nil {
 		return fmt.Errorf("load workspace: %w", err)
 	}
@@ -65,7 +65,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		return nil
 	}
 
-	asset, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+	asset, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 		ID:          assetID,
 		WorkspaceID: workspaceID,
 	})
@@ -82,11 +82,11 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 	keepGPS := ws.ExifKeepGps == 1
 
 	// Tombstone check before ensureFields to avoid N inserts on already-processed assets.
-	if makeField, err := s.db.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
+	if makeField, err := s.queries.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
 		WorkspaceID: workspaceID,
 		Key:         "_exif_make",
 	}); err == nil {
-		_, tombErr := s.db.GetAssetFieldValueByAssetAndField(ctx, dbgen.GetAssetFieldValueByAssetAndFieldParams{
+		_, tombErr := s.queries.GetAssetFieldValueByAssetAndField(ctx, dbgen.GetAssetFieldValueByAssetAndFieldParams{
 			AssetID: assetID,
 			FieldID: makeField.ID,
 		})
@@ -121,7 +121,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 
 	if result == nil {
 		empty := ""
-		if _, uErr := s.db.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 			ID:        uuid.New().String(),
 			AssetID:   assetID,
 			FieldID:   makeFieldID,
@@ -157,7 +157,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		if !ok {
 			continue
 		}
-		if _, uErr := s.db.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 			ID:        uuid.New().String(),
 			AssetID:   assetID,
 			FieldID:   fid,
@@ -192,7 +192,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		if !ok {
 			continue
 		}
-		if _, uErr := s.db.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 			ID:          uuid.New().String(),
 			AssetID:     assetID,
 			FieldID:     fid,
@@ -207,7 +207,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		fid, ok := fieldIDs["_exif_taken_at"]
 		if ok {
 			v := result.TakenAt.Format("2006-01-02")
-			if _, uErr := s.db.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+			if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 				ID:        uuid.New().String(),
 				AssetID:   assetID,
 				FieldID:   fid,
@@ -233,7 +233,7 @@ func (s *ExifService) ensureFields(ctx context.Context, workspaceID, _ string, k
 		if fd.gpsOnly && !keepGPS {
 			continue
 		}
-		if err := s.db.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
+		if err := s.queries.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
 			ID:          uuid.NewString(),
 			WorkspaceID: workspaceID,
 			Source:      exifSource,
@@ -246,7 +246,7 @@ func (s *ExifService) ensureFields(ctx context.Context, workspaceID, _ string, k
 		}
 	}
 
-	fields, err := s.db.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
+	fields, err := s.queries.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
 		WorkspaceID: workspaceID,
 		Source:      exifSource,
 	})

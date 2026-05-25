@@ -18,7 +18,7 @@ const testAppSecret = "test-app-secret-for-tests!!"
 
 // ingressTestEnv holds a db + seeded workspace/user for ingress tests.
 type ingressTestEnv struct {
-	db          *dbgen.Queries
+	queries     *dbgen.Queries
 	svc         service.IngressService
 	workspaceID string
 	userID      string
@@ -51,7 +51,7 @@ func newIngressEnv(t *testing.T) *ingressTestEnv {
 
 	mailer := mail.NewMailer(&mail.Config{})
 	svc := service.NewIngressService(queries, testAppSecret, nil, mailer)
-	return &ingressTestEnv{db: queries, svc: svc, workspaceID: wsID, userID: userID}
+	return &ingressTestEnv{queries: queries, svc: svc, workspaceID: wsID, userID: userID}
 }
 
 // seedSource creates an ingress source via the service.
@@ -366,7 +366,7 @@ func TestIngressService_RetryLogEntry_InvalidStatus(t *testing.T) {
 	src := seedSource(t, env, "src")
 
 	// Insert a log entry (starts as "pending") then mark as "done".
-	entry, err := env.db.InsertIngressLogEntry(context.Background(), dbgen.InsertIngressLogEntryParams{
+	entry, err := env.queries.InsertIngressLogEntry(context.Background(), dbgen.InsertIngressLogEntryParams{
 		ID:       uuid.NewString(),
 		SourceID: src.ID,
 		RemoteID: "remote_1",
@@ -375,7 +375,7 @@ func TestIngressService_RetryLogEntry_InvalidStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert log entry: %v", err)
 	}
-	if err := env.db.UpdateIngressLogEntry(context.Background(), dbgen.UpdateIngressLogEntryParams{
+	if err := env.queries.UpdateIngressLogEntry(context.Background(), dbgen.UpdateIngressLogEntryParams{
 		Status: "imported",
 		ID:     entry.ID,
 	}); err != nil {

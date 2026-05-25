@@ -45,7 +45,7 @@ type fieldPurgeService interface {
 
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
-	db             *dbgen.Queries
+	queries        *dbgen.Queries
 	sqlDB          *sql.DB
 	storage        storage.Storage
 	queue          queue.JobQueue
@@ -65,7 +65,7 @@ type JobServer struct {
 }
 
 func NewJobServer(
-	db *dbgen.Queries,
+	queries *dbgen.Queries,
 	sqlDB *sql.DB,
 	stor storage.Storage,
 	hub events.EventHub,
@@ -90,7 +90,7 @@ func NewJobServer(
 	return &JobServer{
 		audit:          audit.New(sqlDB),
 		cfg:            cfg,
-		db:             db,
+		queries:        queries,
 		exportSvc:      exportSvc,
 		exifSvc:        exifSvc,
 		fieldSvc:       fieldSvc,
@@ -122,7 +122,7 @@ func (s *JobServer) EnqueueForTest(ctx context.Context, workspaceID, jobType, pa
 func (s *JobServer) DrainForTest(ctx context.Context) {
 	s.RegisterJobHandlers()
 	for {
-		job, err := s.db.ClaimNextJob(ctx)
+		job, err := s.queries.ClaimNextJob(ctx)
 		if err != nil {
 			return // queue empty
 		}
@@ -143,7 +143,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	}
 
 	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(s.db, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.injestor)
+	ingressWorker := ingress.NewWorker(s.queries, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.injestor)
 	reg(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	reg(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 

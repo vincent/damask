@@ -42,22 +42,22 @@ type versionThumbnailPayload struct {
 }
 
 type injestorImpl struct {
-	db    *dbgen.Queries
-	sqlDB *sql.DB
-	stor  storage.Storage
-	q     queue.JobQueue
-	media *ingest.Registry
+	queries *dbgen.Queries
+	sqlDB   *sql.DB
+	stor    storage.Storage
+	q       queue.JobQueue
+	media   *ingest.Registry
 }
 
 // NewAssetInjestor returns an AssetInjestor backed by the given dependencies.
 func NewAssetInjestor(
-	db *dbgen.Queries,
+	queries *dbgen.Queries,
 	sqlDB *sql.DB,
 	stor storage.Storage,
 	q queue.JobQueue,
 	media *ingest.Registry,
 ) AssetInjestor {
-	return &injestorImpl{db: db, sqlDB: sqlDB, stor: stor, q: q, media: media}
+	return &injestorImpl{queries: queries, sqlDB: sqlDB, stor: stor, q: q, media: media}
 }
 
 func (s *injestorImpl) IngestFile(
@@ -198,7 +198,7 @@ func (s *injestorImpl) ingest(
 	}
 
 	_, createSpan := apptelemetry.StartSpan(ctx, "service.injestor.create_asset")
-	asset, err = s.db.CreateAsset(ctx, dbgen.CreateAssetParams{
+	asset, err = s.queries.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
 		ProjectID:        opts.ProjectID,
@@ -231,7 +231,7 @@ func (s *injestorImpl) ingest(
 	}
 
 	if opts.FolderID != nil {
-		if err := s.db.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
+		if err := s.queries.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
 			FolderID:    opts.FolderID,
 			ID:          asset.ID,
 			WorkspaceID: workspaceID,
@@ -353,7 +353,7 @@ func (s *injestorImpl) createInitialVersion(
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 
-	qtx := s.db.WithTx(tx)
+	qtx := s.queries.WithTx(tx)
 
 	var createdByPtr *string
 	if userID != "" {

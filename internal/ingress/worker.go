@@ -35,7 +35,7 @@ const (
 
 // Worker handles ingest_poll and ingest_fetch jobs.
 type Worker struct {
-	db       *dbgen.Queries
+	queries  *dbgen.Queries
 	sqlDB    *sql.DB
 	storage  storage.Storage
 	queue    queue.JobQueue
@@ -47,7 +47,7 @@ type Worker struct {
 
 // NewWorker creates a Worker.
 func NewWorker(
-	db *dbgen.Queries,
+	queries *dbgen.Queries,
 	sqlDB *sql.DB,
 	stor storage.Storage,
 	qu queue.JobQueue,
@@ -57,7 +57,7 @@ func NewWorker(
 	injestor assetio.Injestor,
 ) *Worker {
 	return &Worker{
-		db:       db,
+		queries:  queries,
 		sqlDB:    sqlDB,
 		storage:  stor,
 		queue:    qu,
@@ -98,7 +98,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) (err error) {
 		return fmt.Errorf("ingest_poll: parse payload: %w", err)
 	}
 
-	src, err := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	src, err := w.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: p.SourceID, WorkspaceID: p.WorkspaceID,
 	})
 	if err != nil {
@@ -138,7 +138,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) (err error) {
 		)
 		defer itemSpan.End()
 
-		entry, err := w.db.InsertIngressLogEntry(ctx, dbgen.InsertIngressLogEntryParams{
+		entry, err := w.queries.InsertIngressLogEntry(ctx, dbgen.InsertIngressLogEntryParams{
 			ID:       entryID,
 			SourceID: src.ID,
 			RemoteID: item.RemoteID,
@@ -183,7 +183,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	span.SetAttributes(attribute.String("damask.ingest.workspace_id", p.WorkspaceID))
 	span.SetAttributes(attribute.String("damask.ingest.entry_id", p.LogEntryID))
 
-	entry, err := w.db.GetIngressLogEntry(ctx, p.LogEntryID)
+	entry, err := w.queries.GetIngressLogEntry(ctx, p.LogEntryID)
 	if err != nil {
 		return fmt.Errorf("ingest_fetch: get log entry %s: %w", p.LogEntryID, err)
 	}
@@ -196,7 +196,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 		return nil
 	}
 
-	src, err := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	src, err := w.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: p.SourceID, WorkspaceID: p.WorkspaceID,
 	})
 	if err != nil {
@@ -218,7 +218,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	}
 
 	// Evaluate rules
-	rules, err := w.db.ListIngressRules(ctx, src.ID)
+	rules, err := w.queries.ListIngressRules(ctx, src.ID)
 	if err != nil {
 		slog.WarnContext(ctx, "ingest_fetch: list rules (continuing without rules)", "source_id", src.ID, "error", err)
 	}
@@ -229,7 +229,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	span.SetAttributes(attribute.Bool("damask.ingest.entry_source_rules_pass", ruleResult.Allow))
 	if !ruleResult.Allow {
 		skipped := ingressStatusSkipped
-		_ = w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+		_ = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 			Status: ingressStatusSkipped, ID: entry.ID, Error: &skipped,
 		})
 		return nil
@@ -316,7 +316,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	slog.DebugContext(ctx, "update ingress log entry", "entry_id", entry.ID, "asset_id", &asset.ID)
 
 	assetID := asset.ID
-	if err := w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+	if err := w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status:  ingressStatusImported,
 		AssetID: &assetID,
 		ID:      entry.ID,
@@ -339,7 +339,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 		},
 	})
 
-	tag, err := w.db.GetOrCreateTag(ctx, dbgen.GetOrCreateTagParams{
+	tag, err := w.queries.GetOrCreateTag(ctx, dbgen.GetOrCreateTagParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: asset.WorkspaceID,
 		Name:        src.Label,
@@ -351,7 +351,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 
 	slog.DebugContext(ctx, "tag new entry", "tag", src.Label, "asset_id", &asset.ID)
 
-	_ = w.db.AddTagToAsset(ctx, dbgen.AddTagToAssetParams{
+	_ = w.queries.AddTagToAsset(ctx, dbgen.AddTagToAssetParams{
 		AssetID: assetID,
 		TagID:   tag.ID,
 	})
@@ -361,11 +361,11 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 
 func (w *Worker) failSource(ctx context.Context, src dbgen.IngressSource, err error) error {
 	msg := err.Error()
-	_ = w.db.MarkIngressSourceError(ctx, dbgen.MarkIngressSourceErrorParams{
+	_ = w.queries.MarkIngressSourceError(ctx, dbgen.MarkIngressSourceErrorParams{
 		ID: src.ID, LastError: &msg,
 	})
 	// Fetch updated error_count to decide which email to send.
-	updated, dbErr := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	updated, dbErr := w.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: src.ID, WorkspaceID: src.WorkspaceID,
 	})
 	disabled := dbErr == nil && updated.ErrorCount > ErrorCountCutoff
@@ -378,7 +378,7 @@ func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSourc
 	ctx, span := telemetry.StartSpan(ctx, "workers.ingest.notify_failure")
 	defer func() { telemetry.EndSpan(span, err) }()
 
-	members, dbErr := w.db.ListMembers(ctx, src.WorkspaceID)
+	members, dbErr := w.queries.ListMembers(ctx, src.WorkspaceID)
 	if dbErr != nil {
 		return
 	}
@@ -402,24 +402,24 @@ func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSourc
 }
 
 func (w *Worker) markPolledSuccess(ctx context.Context, sourceID string) error {
-	return w.db.MarkIngressSourceSuccess(ctx, sourceID)
+	return w.queries.MarkIngressSourceSuccess(ctx, sourceID)
 }
 
 func (w *Worker) markPolledError(ctx context.Context, sourceID, msg string) error {
-	return w.db.MarkIngressSourceError(ctx, dbgen.MarkIngressSourceErrorParams{
+	return w.queries.MarkIngressSourceError(ctx, dbgen.MarkIngressSourceErrorParams{
 		ID: sourceID, LastError: &msg,
 	})
 }
 
 func (w *Worker) failEntry(ctx context.Context, entryID string, src dbgen.IngressSource, err error) error {
 	msg := err.Error()
-	_ = w.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+	_ = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status: "error",
 		Error:  &msg,
 		ID:     entryID,
 	})
 	_ = w.markPolledError(ctx, src.ID, msg)
-	updated, dbErr := w.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	updated, dbErr := w.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: src.ID, WorkspaceID: src.WorkspaceID,
 	})
 	disabled := dbErr == nil && updated.ErrorCount > ErrorCountCutoff

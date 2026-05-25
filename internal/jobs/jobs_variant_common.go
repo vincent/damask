@@ -178,7 +178,7 @@ func (s *JobServer) finalizeVariant(
 	}
 
 	sz := int64(len(data))
-	_, err := s.db.CreateVariantFull(ctx, dbgen.CreateVariantFullParams{
+	_, err := s.queries.CreateVariantFull(ctx, dbgen.CreateVariantFullParams{
 		ID:              variantID,
 		WorkspaceID:     p.WorkspaceID,
 		AssetVersionID:  p.VersionID,
@@ -216,7 +216,7 @@ func (s *JobServer) finalizeRebuildVariant(
 
 	sz := int64(len(data))
 	vid := uuid.NewString()
-	_, err := s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+	_, err := s.queries.CreateVariant(ctx, dbgen.CreateVariantParams{
 		ID:              vid,
 		WorkspaceID:     ver.WorkspaceID,
 		AssetVersionID:  ver.ID,

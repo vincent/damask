@@ -116,19 +116,19 @@ type ReorderRuleEntry struct {
 }
 
 type ingressService struct {
-	db        *dbgen.Queries
+	queries   *dbgen.Queries
 	appSecret string
 	q         queue.JobQueue
 	mailer    mail.Mailer
 }
 
 // NewIngressService returns an IngressService.
-func NewIngressService(db *dbgen.Queries, appSecret string, q queue.JobQueue, mailer mail.Mailer) IngressService {
-	return &ingressService{db: db, appSecret: appSecret, q: q, mailer: mailer}
+func NewIngressService(queries *dbgen.Queries, appSecret string, q queue.JobQueue, mailer mail.Mailer) IngressService {
+	return &ingressService{queries: queries, appSecret: appSecret, q: q, mailer: mailer}
 }
 
 func (s *ingressService) ListSources(ctx context.Context, workspaceID string) ([]*IngressSourceDTO, error) {
-	rows, err := s.db.ListIngressSources(ctx, workspaceID)
+	rows, err := s.queries.ListIngressSources(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (s *ingressService) ListSources(ctx context.Context, workspaceID string) ([
 }
 
 func (s *ingressService) GetSource(ctx context.Context, workspaceID, id string) (*IngressSourceDTO, error) {
-	src, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	src, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -202,7 +202,7 @@ func (s *ingressService) CreateSource(
 		return nil, fmt.Errorf("could not generate public token: %w", err)
 	}
 
-	src, err := s.db.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+	src, err := s.queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
 		ID:              uuid.NewString(),
 		WorkspaceID:     workspaceID,
 		CreatedBy:       userID,
@@ -220,7 +220,7 @@ func (s *ingressService) CreateSource(
 	}
 
 	for _, rule := range p.Rules {
-		if _, err := s.db.CreateIngressRule(ctx, dbgen.CreateIngressRuleParams{
+		if _, err := s.queries.CreateIngressRule(ctx, dbgen.CreateIngressRuleParams{
 			ID:       uuid.NewString(),
 			SourceID: src.ID,
 			Position: rule.Position,
@@ -234,7 +234,7 @@ func (s *ingressService) CreateSource(
 	}
 
 	// Fire-and-forget welcome email. Failures are logged but do not abort creation.
-	if creator, err := s.db.GetUserByID(ctx, userID); err == nil {
+	if creator, err := s.queries.GetUserByID(ctx, userID); err == nil {
 		if err := s.mailer.SendIngressSourceAdded(ctx, creator.Email, src.Label, workspaceID); err != nil {
 			slog.ErrorContext(ctx, "failed to send ingress source added mail", "error", err)
 		}
@@ -248,7 +248,7 @@ func (s *ingressService) UpdateSource(
 	workspaceID, id string,
 	p UpdateIngressSourceParams,
 ) (*IngressSourceDTO, error) {
-	existing, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	existing, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -299,7 +299,7 @@ func (s *ingressService) UpdateSource(
 		destProject = p.DestProjectID
 	}
 
-	src, err := s.db.UpdateIngressSource(ctx, dbgen.UpdateIngressSourceParams{
+	src, err := s.queries.UpdateIngressSource(ctx, dbgen.UpdateIngressSourceParams{
 		Label:           label,
 		Config:          encryptedConfig,
 		DestFolderID:    destFolder,
@@ -316,7 +316,7 @@ func (s *ingressService) UpdateSource(
 }
 
 func (s *ingressService) DeleteSource(ctx context.Context, workspaceID, id string) error {
-	return s.db.DeleteIngressSource(ctx, dbgen.DeleteIngressSourceParams{
+	return s.queries.DeleteIngressSource(ctx, dbgen.DeleteIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
 }
@@ -342,7 +342,7 @@ func (s *ingressService) TestSource(ctx context.Context, workspaceID, id string)
 		}
 	}()
 
-	src, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	src, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -395,7 +395,7 @@ func (s *ingressService) TriggerPoll(ctx context.Context, workspaceID, id string
 		}
 	}()
 
-	src, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	src, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: id, WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -419,7 +419,7 @@ func (s *ingressService) TriggerPoll(ctx context.Context, workspaceID, id string
 // -- Rules --
 
 func (s *ingressService) ListRules(ctx context.Context, workspaceID, sourceID string) ([]*IngressRuleDTO, error) {
-	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("source %q: %w", sourceID, apperr.ErrNotFound)
@@ -427,7 +427,7 @@ func (s *ingressService) ListRules(ctx context.Context, workspaceID, sourceID st
 		return nil, err
 	}
 
-	rows, err := s.db.ListIngressRules(ctx, sourceID)
+	rows, err := s.queries.ListIngressRules(ctx, sourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +443,7 @@ func (s *ingressService) CreateRule(
 	workspaceID, sourceID string,
 	p CreateIngressRuleParams,
 ) (*IngressRuleDTO, error) {
-	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("source %q: %w", sourceID, apperr.ErrNotFound)
@@ -451,7 +451,7 @@ func (s *ingressService) CreateRule(
 		return nil, err
 	}
 
-	r, err := s.db.CreateIngressRule(ctx, dbgen.CreateIngressRuleParams{
+	r, err := s.queries.CreateIngressRule(ctx, dbgen.CreateIngressRuleParams{
 		ID:       uuid.NewString(),
 		SourceID: sourceID,
 		Position: p.Position,
@@ -471,7 +471,7 @@ func (s *ingressService) UpdateRule(
 	workspaceID, sourceID, ruleID string,
 	p UpdateIngressRuleParams,
 ) (*IngressRuleDTO, error) {
-	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("source %q: %w", sourceID, apperr.ErrNotFound)
@@ -479,7 +479,7 @@ func (s *ingressService) UpdateRule(
 		return nil, err
 	}
 
-	existing, err := s.db.GetIngressRule(ctx, ruleID)
+	existing, err := s.queries.GetIngressRule(ctx, ruleID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("rule %q: %w", ruleID, apperr.ErrNotFound)
 	}
@@ -507,7 +507,7 @@ func (s *ingressService) UpdateRule(
 		action = existing.Action
 	}
 
-	r, err := s.db.UpdateIngressRule(ctx, dbgen.UpdateIngressRuleParams{
+	r, err := s.queries.UpdateIngressRule(ctx, dbgen.UpdateIngressRuleParams{
 		Position: p.Position,
 		Field:    field,
 		Operator: operator,
@@ -522,7 +522,7 @@ func (s *ingressService) UpdateRule(
 }
 
 func (s *ingressService) DeleteRule(ctx context.Context, workspaceID, sourceID, ruleID string) error {
-	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("source %q: %w", sourceID, apperr.ErrNotFound)
@@ -530,7 +530,7 @@ func (s *ingressService) DeleteRule(ctx context.Context, workspaceID, sourceID, 
 		return err
 	}
 
-	existing, err := s.db.GetIngressRule(ctx, ruleID)
+	existing, err := s.queries.GetIngressRule(ctx, ruleID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("rule %q: %w", ruleID, apperr.ErrNotFound)
 	}
@@ -540,7 +540,7 @@ func (s *ingressService) DeleteRule(ctx context.Context, workspaceID, sourceID, 
 	if existing.SourceID != sourceID {
 		return fmt.Errorf("rule %q: %w", ruleID, apperr.ErrNotFound)
 	}
-	return s.db.DeleteIngressRule(ctx, ruleID)
+	return s.queries.DeleteIngressRule(ctx, ruleID)
 }
 
 func (s *ingressService) ReorderRules(
@@ -548,7 +548,7 @@ func (s *ingressService) ReorderRules(
 	workspaceID, sourceID string,
 	entries []ReorderRuleEntry,
 ) ([]*IngressRuleDTO, error) {
-	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("source %q: %w", sourceID, apperr.ErrNotFound)
@@ -557,7 +557,7 @@ func (s *ingressService) ReorderRules(
 	}
 
 	for _, e := range entries {
-		existing, err := s.db.GetIngressRule(ctx, e.ID)
+		existing, err := s.queries.GetIngressRule(ctx, e.ID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("rule %q: %w", e.ID, apperr.ErrNotFound)
 		}
@@ -567,7 +567,7 @@ func (s *ingressService) ReorderRules(
 		if existing.SourceID != sourceID {
 			return nil, fmt.Errorf("rule %q: %w", e.ID, apperr.ErrNotFound)
 		}
-		if _, err := s.db.UpdateIngressRule(ctx, dbgen.UpdateIngressRuleParams{
+		if _, err := s.queries.UpdateIngressRule(ctx, dbgen.UpdateIngressRuleParams{
 			Position: e.Position,
 			Field:    existing.Field,
 			Operator: existing.Operator,
@@ -579,7 +579,7 @@ func (s *ingressService) ReorderRules(
 		}
 	}
 
-	rows, err := s.db.ListIngressRules(ctx, sourceID)
+	rows, err := s.queries.ListIngressRules(ctx, sourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +602,7 @@ func (s *ingressService) ListLog(
 	if statusFilter != "" {
 		statusArg = statusFilter
 	}
-	entries, err := s.db.ListWorkspaceIngressLog(ctx, dbgen.ListWorkspaceIngressLogParams{
+	entries, err := s.queries.ListWorkspaceIngressLog(ctx, dbgen.ListWorkspaceIngressLogParams{
 		WorkspaceID: workspaceID,
 		Status:      statusArg,
 		Limit:       limit,
@@ -623,7 +623,7 @@ func (s *ingressService) ListSourceLog(
 	workspaceID, sourceID string,
 	limit, offset int64,
 ) ([]*IngressLogEntryDTO, error) {
-	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: sourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("source %q: %w", sourceID, apperr.ErrNotFound)
@@ -631,7 +631,7 @@ func (s *ingressService) ListSourceLog(
 		return nil, err
 	}
 
-	entries, err := s.db.ListIngressSourceLog(ctx, dbgen.ListIngressSourceLogParams{
+	entries, err := s.queries.ListIngressSourceLog(ctx, dbgen.ListIngressSourceLogParams{
 		SourceID: sourceID,
 		Limit:    limit,
 		Offset:   offset,
@@ -647,7 +647,7 @@ func (s *ingressService) ListSourceLog(
 }
 
 func (s *ingressService) DeleteLogEntry(ctx context.Context, workspaceID, entryID string) error {
-	entry, err := s.db.GetIngressLogEntry(ctx, entryID)
+	entry, err := s.queries.GetIngressLogEntry(ctx, entryID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("log entry %q: %w", entryID, apperr.ErrNotFound)
 	}
@@ -655,7 +655,7 @@ func (s *ingressService) DeleteLogEntry(ctx context.Context, workspaceID, entryI
 		return err
 	}
 
-	if _, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: entry.SourceID, WorkspaceID: workspaceID,
 	}); errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("log entry %q: %w", entryID, apperr.ErrForbidden)
@@ -663,7 +663,7 @@ func (s *ingressService) DeleteLogEntry(ctx context.Context, workspaceID, entryI
 		return err
 	}
 
-	return s.db.DeleteIngressLogEntry(ctx, entryID)
+	return s.queries.DeleteIngressLogEntry(ctx, entryID)
 }
 
 func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID string) (jobID string, err error) {
@@ -690,7 +690,7 @@ func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID
 		}
 	}()
 
-	entry, err := s.db.GetIngressLogEntry(ctx, entryID)
+	entry, err := s.queries.GetIngressLogEntry(ctx, entryID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("log entry %q: %w", entryID, apperr.ErrNotFound)
 	}
@@ -698,7 +698,7 @@ func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID
 		return "", err
 	}
 
-	src, err := s.db.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	src, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: entry.SourceID, WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -712,7 +712,7 @@ func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID
 		return "", fmt.Errorf("only error or skipped entries can be retried: %w", apperr.ErrInvalidInput)
 	}
 
-	if err := s.db.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+	if err := s.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status: WorkflowRunStatusPending,
 		ID:     entryID,
 	}); err != nil {

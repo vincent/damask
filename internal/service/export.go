@@ -21,7 +21,7 @@ import (
 )
 
 type exportService struct {
-	db         *dbgen.Queries
+	queries    *dbgen.Queries
 	sqlDB      *sql.DB
 	storage    storage.Storage
 	appSecret  string
@@ -31,21 +31,21 @@ type exportService struct {
 }
 
 // NewExportService creates a production ExportService with sqlc-backed repos.
-func NewExportService(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, appSecret string, q queue.JobQueue) ExportService {
+func NewExportService(queries *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, appSecret string, q queue.JobQueue) ExportService {
 	return &exportService{
-		db:         db,
+		queries:    queries,
 		sqlDB:      sqlDB,
 		storage:    stor,
 		appSecret:  appSecret,
 		q:          q,
-		configRepo: reposqlc.NewExportConfigRepo(db, sqlDB),
-		runRepo:    reposqlc.NewExportRunRepo(db, sqlDB),
+		configRepo: reposqlc.NewExportConfigRepo(queries, sqlDB),
+		runRepo:    reposqlc.NewExportRunRepo(queries, sqlDB),
 	}
 }
 
 // NewExportServiceWithRepos creates an ExportService with explicit repos (for tests).
 func NewExportServiceWithRepos(
-	db *dbgen.Queries,
+	queries *dbgen.Queries,
 	sqlDB *sql.DB,
 	stor storage.Storage,
 	appSecret string,
@@ -54,7 +54,7 @@ func NewExportServiceWithRepos(
 	runRepo repository.ExportRunRepository,
 ) ExportService {
 	return &exportService{
-		db:         db,
+		queries:    queries,
 		sqlDB:      sqlDB,
 		storage:    stor,
 		appSecret:  appSecret,
@@ -291,7 +291,7 @@ func (s *exportService) ExecuteRun(ctx context.Context, workspaceID, configID, r
 		slog.WarnContext(ctx, "export: mark run started", "error", err)
 	}
 
-	project, err := s.db.GetProjectByID(ctx, dbgen.GetProjectByIDParams{
+	project, err := s.queries.GetProjectByID(ctx, dbgen.GetProjectByIDParams{
 		WorkspaceID: cfg.WorkspaceID,
 		ID:          cfg.ProjectID,
 	})
@@ -305,7 +305,7 @@ func (s *exportService) ExecuteRun(ctx context.Context, workspaceID, configID, r
 		Run:     run,
 		Dest:    dest,
 		Storage: s.storage,
-		Queries: s.db,
+		Queries: s.queries,
 		SQLite:  s.sqlDB,
 		Project: project,
 		OnProgress: func(prog export.BuildProgress) {

@@ -15,14 +15,14 @@ type MailServer interface {
 }
 
 type Impl struct {
-	srv   *smtp.Server
-	hooks []Hook
-	db    *dbgen.Queries
-	queue queue.JobQueue
+	srv     *smtp.Server
+	hooks   []Hook
+	queries *dbgen.Queries
+	queue   queue.JobQueue
 }
 
-func NewMailServer(addr, domain string, db *dbgen.Queries, q queue.JobQueue) MailServer {
-	backend := &Impl{db: db, queue: q}
+func NewMailServer(addr, domain string, queries *dbgen.Queries, q queue.JobQueue) MailServer {
+	backend := &Impl{queries: queries, queue: q}
 	backend.srv = smtp.NewServer(backend)
 
 	backend.srv.Addr = addr
@@ -40,9 +40,9 @@ func (backend *Impl) Start() error {
 // NewSession is called after client greeting (EHLO, HELO).
 func (backend *Impl) NewSession(_ *smtp.Conn) (smtp.Session, error) {
 	return &Session{
-		hooks: backend.hooks,
-		db:    backend.db,
-		queue: backend.queue,
+		hooks:   backend.hooks,
+		queries: backend.queries,
+		queue:   backend.queue,
 	}, nil
 }
 

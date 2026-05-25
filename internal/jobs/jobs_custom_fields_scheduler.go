@@ -16,13 +16,13 @@ const (
 
 // FieldCleanupScheduler enqueues a purge_deleted_fields job once per day at 03:00 UTC.
 type FieldCleanupScheduler struct {
-	db    *dbgen.Queries
-	queue queue.JobQueue
+	queries *dbgen.Queries
+	queue   queue.JobQueue
 }
 
 // NewFieldCleanupScheduler creates a FieldCleanupScheduler.
-func NewFieldCleanupScheduler(db *dbgen.Queries, q queue.JobQueue) *FieldCleanupScheduler {
-	return &FieldCleanupScheduler{db: db, queue: q}
+func NewFieldCleanupScheduler(queries *dbgen.Queries, q queue.JobQueue) *FieldCleanupScheduler {
+	return &FieldCleanupScheduler{queries: queries, queue: q}
 }
 
 // Start launches the scheduler goroutine. Returns immediately; exits when ctx is cancelled.

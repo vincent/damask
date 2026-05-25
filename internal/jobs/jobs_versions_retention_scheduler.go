@@ -20,7 +20,7 @@ type purgeVersionStoragePayload struct {
 // jobEnforceVersionRetention runs the retention policy for all workspaces
 // that have version_retention_count > 0.
 func (s *JobServer) jobEnforceVersionRetention(ctx context.Context, _ dbgen.Job) error {
-	workspaces, err := s.db.ListWorkspacesWithRetention(ctx)
+	workspaces, err := s.queries.ListWorkspacesWithRetention(ctx)
 	if err != nil {
 		return fmt.Errorf("list workspaces: %w", err)
 	}
@@ -37,7 +37,7 @@ func (s *JobServer) jobEnforceVersionRetention(ctx context.Context, _ dbgen.Job)
 }
 
 func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.Workspace) error {
-	assetIDs, err := s.db.ListAssetsWithVersions(ctx, ws.ID)
+	assetIDs, err := s.queries.ListAssetsWithVersions(ctx, ws.ID)
 	if err != nil {
 		return fmt.Errorf("list assets: %w", err)
 	}
@@ -45,7 +45,7 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 	keep := ws.VersionRetentionCount
 
 	for _, assetID := range assetIDs {
-		count, err := s.db.CountActiveVersions(ctx, assetID)
+		count, err := s.queries.CountActiveVersions(ctx, assetID)
 		if err != nil {
 			slog.ErrorContext(ctx, "retention: count versions", "asset_id", assetID, "error", err)
 			continue
@@ -56,7 +56,7 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 
 		// The query returns non-current versions ordered by version_num DESC,
 		// skipping the `keep` most recent, so what comes back should be deleted.
-		beyond, err := s.db.ListVersionsBeyondRetention(ctx, dbgen.ListVersionsBeyondRetentionParams{
+		beyond, err := s.queries.ListVersionsBeyondRetention(ctx, dbgen.ListVersionsBeyondRetentionParams{
 			AssetID: assetID,
 			Offset:  keep, // skip the `keep` most recent non-current versions
 		})
@@ -71,14 +71,14 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 				continue
 			}
 			// Safety: skip versions referenced as a project cover or workspace icon.
-			if refs, err := s.db.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
+			if refs, err := s.queries.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
 				CoverVersionID: &v.ID,
 				IconVersionID:  &v.ID,
 			}); err == nil && refs > 0 {
 				slog.DebugContext(ctx, "retention: skipping version in use as cover/icon", "version_id", v.ID)
 				continue
 			}
-			if err := s.db.SoftDeleteVersion(ctx, v.ID); err != nil {
+			if err := s.queries.SoftDeleteVersion(ctx, v.ID); err != nil {
 				slog.ErrorContext(ctx, "retention: soft-delete version", "version_id", v.ID, "error", err)
 				continue
 			}
@@ -103,7 +103,7 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
-	ver, err := s.db.GetVersionByIDUnchecked(ctx, p.VersionID)
+	ver, err := s.queries.GetVersionByIDUnchecked(ctx, p.VersionID)
 	if err != nil {
 		return nil //nolint:nilerr // already hard-deleted; nothing to do.
 	}
@@ -146,7 +146,7 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 
 	// Delete variant storage files for this version (VV-3.3).
 	// DB rows are cleaned up by ON DELETE CASCADE when the version row is hard-deleted.
-	variants, varErr := s.db.ListVariantsByVersion(ctx, p.VersionID)
+	variants, varErr := s.queries.ListVariantsByVersion(ctx, p.VersionID)
 	if varErr != nil {
 		slog.ErrorContext(ctx, "purge-version-storage: list variants", "version_id", p.VersionID, "error", varErr)
 	}
@@ -193,5 +193,5 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 	}
 
 	// Hard-delete the row (ON DELETE CASCADE removes variant DB rows automatically).
-	return s.db.HardDeleteVersion(ctx, p.VersionID)
+	return s.queries.HardDeleteVersion(ctx, p.VersionID)
 }

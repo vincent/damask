@@ -108,7 +108,7 @@ func (s *JobServer) jobExtractMediaTags(ctx context.Context, job dbgen.Job) (err
 		telemetry.EndSpan(span, err)
 	}()
 
-	asset, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+	asset, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 		ID:          p.AssetID,
 		WorkspaceID: p.WorkspaceID,
 	})
@@ -177,7 +177,7 @@ func (s *JobServer) jobExtractMediaTags(ctx context.Context, job dbgen.Job) (err
 }
 
 func (s *JobServer) ensureMediaTagFields(ctx context.Context, workspaceID string) (map[string]string, error) {
-	fields, err := s.db.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
+	fields, err := s.queries.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
 		WorkspaceID: workspaceID,
 		Source:      mediaTagsSource,
 	})
@@ -190,7 +190,7 @@ func (s *JobServer) ensureMediaTagFields(ctx context.Context, workspaceID string
 			return nil, err
 		}
 		defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-		qtx := s.db.WithTx(tx)
+		qtx := s.queries.WithTx(tx)
 		for _, fd := range mediaTagFields {
 			if err := qtx.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
 				ID:          uuid.NewString(),
@@ -207,7 +207,7 @@ func (s *JobServer) ensureMediaTagFields(ctx context.Context, workspaceID string
 		if err := tx.Commit(); err != nil {
 			return nil, err
 		}
-		fields, err = s.db.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
+		fields, err = s.queries.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
 			WorkspaceID: workspaceID,
 			Source:      mediaTagsSource,
 		})
@@ -274,7 +274,7 @@ func (s *JobServer) writeMediaTagValues(
 		params.ID = uuid.NewString()
 		params.AssetID = assetID
 		params.FieldID = fieldID
-		_, err := s.db.UpsertAssetFieldValue(ctx, params)
+		_, err := s.queries.UpsertAssetFieldValue(ctx, params)
 		if err == nil {
 			written++
 		}

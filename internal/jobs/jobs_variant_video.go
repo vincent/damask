@@ -47,11 +47,11 @@ func videoCaptureCanonical(_, _ string, params json.RawMessage) (string, error) 
 
 // videoCapturePostHook updates the asset thumbnail if none exists yet.
 func (s *JobServer) videoCapturePostHook(ctx context.Context, p VariantJobPayload, _, storageKey, _ string) {
-	asset, _ := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
+	asset, _ := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
 	if asset.ThumbnailKey != nil {
 		return
 	}
-	if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+	if err := s.queries.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 		ThumbnailKey: &storageKey,
 		ID:           p.AssetID,
 	}); err == nil {
@@ -190,7 +190,7 @@ func (s *JobServer) videoWatermarkTransformer(workspaceID string, params json.Ra
 	if p.WatermarkAssetID == "" {
 		return nil, errors.New("watermark asset id is required")
 	}
-	wm, err := s.db.GetAssetByID(context.Background(), dbgen.GetAssetByIDParams{
+	wm, err := s.queries.GetAssetByID(context.Background(), dbgen.GetAssetByIDParams{
 		ID:          p.WatermarkAssetID,
 		WorkspaceID: workspaceID,
 	})
@@ -248,4 +248,3 @@ func assetVersionFromPayload(p VariantJobPayload) dbgen.AssetVersion {
 		MimeType:    p.MimeType,
 	}
 }
-

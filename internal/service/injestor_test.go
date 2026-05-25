@@ -22,9 +22,9 @@ func newTestInjestorImpl(t *testing.T) (*injestorImpl, *sql.DB) {
 		t.Fatalf("open db: %v", err)
 	}
 	impl := &injestorImpl{
-		db:    queries,
-		sqlDB: sqlDB,
-		media: ingest.NewRegistry(transform.NewTransformer()),
+		queries: queries,
+		sqlDB:   sqlDB,
+		media:   ingest.NewRegistry(transform.NewTransformer()),
 	}
 	return impl, sqlDB
 }

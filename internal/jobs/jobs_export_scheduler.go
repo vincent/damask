@@ -51,7 +51,7 @@ func (s *ExportScheduler) tick(ctx context.Context) {
 	}
 	for _, cfg := range due {
 		run := repository.ExportRun{
-			ID:             newExportID(),
+			ID:             uuid.NewString(),
 			ExportConfigID: cfg.ID,
 			WorkspaceID:    cfg.WorkspaceID,
 			Status:         "pending",
@@ -74,8 +74,4 @@ func (s *ExportScheduler) tick(ctx context.Context) {
 			LastRunStatus: pending,
 		})
 	}
-}
-
-func newExportID() string {
-	return uuid.NewString()
 }

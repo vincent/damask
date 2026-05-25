@@ -62,13 +62,13 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 	}
 
 	// Load the new version to get storage key, mime, workspace, version num.
-	newVer, err := s.db.GetVersionByIDUnchecked(ctx, p.NewVersionID)
+	newVer, err := s.queries.GetVersionByIDUnchecked(ctx, p.NewVersionID)
 	if err != nil {
 		return fmt.Errorf("load new version: %w", err)
 	}
 
 	// Copy variant params from the source version (manual excluded by query).
-	specs, err := s.db.CopyVariantParamsByVersion(ctx, p.SourceVersionID)
+	specs, err := s.queries.CopyVariantParamsByVersion(ctx, p.SourceVersionID)
 	if err != nil {
 		return fmt.Errorf("copy variant params: %w", err)
 	}
@@ -85,7 +85,7 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 
 		// Idempotency guard: skip if already rebuilt.
 		canonicalParams := paramsStr
-		_, lookupErr := s.db.GetVariantByTypeAndParams(ctx, dbgen.GetVariantByTypeAndParamsParams{
+		_, lookupErr := s.queries.GetVariantByTypeAndParams(ctx, dbgen.GetVariantByTypeAndParamsParams{
 			AssetVersionID:  p.NewVersionID,
 			Type:            spec.Type,
 			TransformParams: &canonicalParams,

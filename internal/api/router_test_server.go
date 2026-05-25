@@ -109,7 +109,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 	}
 
 	s := &Server{
-		db:            cfg.DB,
+		queries:       cfg.DB,
 		auth:          cfg.TokenMaker,
 		storage:       stor,
 		queue:         q,

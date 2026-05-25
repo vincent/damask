@@ -33,7 +33,7 @@ const defaultBodyLimitBytes = 100 * 1024 * 1024 // 100 MB
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
-	db            *dbgen.Queries
+	queries       *dbgen.Queries
 	auth          *auth.Maker
 	storage       storage.Storage
 	queue         queue.JobQueue
@@ -69,7 +69,7 @@ type Server struct {
 }
 
 func NewHTTPServer(
-	db *dbgen.Queries,
+	queries *dbgen.Queries,
 	sqlDB *sql.DB,
 	tokenMaker *auth.Maker,
 	stor storage.Storage,
@@ -81,22 +81,22 @@ func NewHTTPServer(
 	demoSeeder DemoSeeder,
 ) *Server {
 	auditWriter := audit.New(sqlDB)
-	assetRepo := reposqlc.NewAssetRepo(db, sqlDB)
-	tagRepo := reposqlc.NewTagRepo(db, sqlDB)
-	fieldRepo := reposqlc.NewFieldRepo(db, sqlDB)
-	projectRepo := reposqlc.NewProjectRepo(db)
-	folderRepo := reposqlc.NewFolderRepo(db, sqlDB)
-	collectionRepo := reposqlc.NewCollectionRepo(db, sqlDB)
-	shareRepo := reposqlc.NewShareRepo(db, sqlDB)
-	userRepo := reposqlc.NewUserRepo(db, sqlDB)
-	workspaceRepo := reposqlc.NewWorkspaceRepo(db, sqlDB)
-	versionRepo := reposqlc.NewVersionRepo(db, sqlDB)
+	assetRepo := reposqlc.NewAssetRepo(queries, sqlDB)
+	tagRepo := reposqlc.NewTagRepo(queries, sqlDB)
+	fieldRepo := reposqlc.NewFieldRepo(queries, sqlDB)
+	projectRepo := reposqlc.NewProjectRepo(queries)
+	folderRepo := reposqlc.NewFolderRepo(queries, sqlDB)
+	collectionRepo := reposqlc.NewCollectionRepo(queries, sqlDB)
+	shareRepo := reposqlc.NewShareRepo(queries, sqlDB)
+	userRepo := reposqlc.NewUserRepo(queries, sqlDB)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
+	versionRepo := reposqlc.NewVersionRepo(queries, sqlDB)
 	variantRepo := reposqlc.NewVariantRepo(sqlDB)
-	workflowRepo := reposqlc.NewWorkflowRepo(db, sqlDB)
-	workflowRunRepo := reposqlc.NewWorkflowRunRepo(db, sqlDB)
-	workflowWebhookRepo := reposqlc.NewWorkflowWebhookRepo(db, sqlDB)
-	assetFieldRepo := reposqlc.NewAssetFieldRepo(db, sqlDB)
-	projectFieldRepo := reposqlc.NewProjectFieldRepo(db)
+	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
+	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
+	workflowWebhookRepo := reposqlc.NewWorkflowWebhookRepo(queries, sqlDB)
+	assetFieldRepo := reposqlc.NewAssetFieldRepo(queries, sqlDB)
+	projectFieldRepo := reposqlc.NewProjectFieldRepo(queries)
 	media := ingest.NewRegistry(trf)
 	triggerDispatcher := workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
@@ -116,10 +116,10 @@ func NewHTTPServer(
 		},
 	)
 	return &Server{
-		db:            db,
+		queries:       queries,
 		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
 		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
-		auditLog:      service.NewAuditLogService(db),
+		auditLog:      service.NewAuditLogService(queries),
 		auth:          tokenMaker,
 		cfg:           cfg,
 		collections:   service.NewCollectionService(collectionRepo, assetRepo),
@@ -127,9 +127,9 @@ func NewHTTPServer(
 		fields:        service.NewFieldService(fieldRepo),
 		folders:       service.NewFolderService(folderRepo),
 		hub:           hub,
-		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
-		exports:       service.NewExportService(db, sqlDB, stor, cfg.AppSecret, q),
-		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
+		ingress:       service.NewIngressService(queries, cfg.AppSecret, q, mailer),
+		exports:       service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q),
+		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(queries)),
 		mailer:        mailer,
 		media:         media,
 		previewCache:  NewLRUPreviewCache(100), //nolint:mnd // arbitrary cache size
@@ -142,9 +142,9 @@ func NewHTTPServer(
 		storage:       stor,
 		tags:          tagSvc,
 		trf:           trf,
-		textTracks:    service.NewTextTrackService(db, q, stor),
+		textTracks:    service.NewTextTrackService(queries, q, stor),
 		upload: service.NewUploadService(
-			service.NewAssetInjestor(db, sqlDB, stor, q, media),
+			service.NewAssetInjestor(queries, sqlDB, stor, q, media),
 			auditWriter,
 			triggerDispatcher,
 		),
@@ -184,7 +184,7 @@ func NewHTTPServer(
 // @BasePath /
 // @schemes http.
 func NewRouter(
-	db *dbgen.Queries,
+	queries *dbgen.Queries,
 	sqlDB *sql.DB,
 	tokenMaker *auth.Maker,
 	stor storage.Storage,
@@ -196,7 +196,7 @@ func NewRouter(
 	demoSeeder DemoSeeder,
 	uiFS fs.FS,
 ) *fiber.App {
-	s := NewHTTPServer(db, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder)
+	s := NewHTTPServer(queries, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder)
 
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {

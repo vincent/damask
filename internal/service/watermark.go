@@ -16,17 +16,17 @@ var ErrNoWatermarkAsset = errors.New(
 )
 
 type watermarkService struct {
-	db     *dbgen.Queries
-	assets repository.AssetRepository
+	queries *dbgen.Queries
+	assets  repository.AssetRepository
 }
 
 func NewWatermarkService(
-	db *dbgen.Queries,
+	queries *dbgen.Queries,
 	assets repository.AssetRepository,
 	folders repository.FolderRepository,
 ) WatermarkService {
 	_ = folders
-	return &watermarkService{db: db, assets: assets}
+	return &watermarkService{queries: queries, assets: assets}
 }
 
 func (s *watermarkService) ResolveWatermarkAsset(
@@ -39,7 +39,7 @@ func (s *watermarkService) ResolveWatermarkAsset(
 	}
 
 	if asset.FolderID != nil {
-		row, err := s.db.FindWatermarkAssetInFolder(ctx, dbgen.FindWatermarkAssetInFolderParams{
+		row, err := s.queries.FindWatermarkAssetInFolder(ctx, dbgen.FindWatermarkAssetInFolderParams{
 			WorkspaceID: workspaceID,
 			FolderID:    asset.FolderID,
 		})
@@ -52,7 +52,7 @@ func (s *watermarkService) ResolveWatermarkAsset(
 	}
 
 	if asset.ProjectID != nil {
-		row, err := s.db.FindWatermarkAssetInProject(ctx, dbgen.FindWatermarkAssetInProjectParams{
+		row, err := s.queries.FindWatermarkAssetInProject(ctx, dbgen.FindWatermarkAssetInProjectParams{
 			WorkspaceID: workspaceID,
 			ProjectID:   *asset.ProjectID,
 		})
@@ -64,7 +64,7 @@ func (s *watermarkService) ResolveWatermarkAsset(
 		}
 	}
 
-	row, err := s.db.FindWatermarkAssetInWorkspace(ctx, workspaceID)
+	row, err := s.queries.FindWatermarkAssetInWorkspace(ctx, workspaceID)
 	if err == nil {
 		return toWatermarkAssetDTO(row, "workspace"), nil
 	}

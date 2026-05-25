@@ -22,11 +22,11 @@ import (
 
 // A Session is returned after successful login.
 type Session struct {
-	hooks []Hook
-	from  string
-	to    string
-	db    *dbgen.Queries
-	queue queue.JobQueue
+	hooks   []Hook
+	from    string
+	to      string
+	queries *dbgen.Queries
+	queue   queue.JobQueue
 }
 
 // AuthPlain implements authentication using SASL PLAIN.
@@ -66,10 +66,10 @@ func (s *Session) Data(r io.Reader) error {
 	}
 	localPart := parts[0]
 
-	if s.db != nil && s.queue != nil && localPart != s.to {
+	if s.queries != nil && s.queue != nil && localPart != s.to {
 		ctx := context.Background()
 		token, tag := slug.ParseSubaddress(localPart)
-		src, err := s.db.GetIngressSourceByPublicToken(ctx, token)
+		src, err := s.queries.GetIngressSourceByPublicToken(ctx, token)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				slog.ErrorContext(
@@ -91,7 +91,7 @@ func (s *Session) Data(r io.Reader) error {
 		// Resolve folder from +tag subaddress if present
 		var overrideFolderID string
 		if tag != "" {
-			if folder, err := s.db.GetFolderBySlug(ctx, dbgen.GetFolderBySlugParams{
+			if folder, err := s.queries.GetFolderBySlug(ctx, dbgen.GetFolderBySlugParams{
 				WorkspaceID: src.WorkspaceID,
 				Slug:        &tag,
 			}); err == nil {
@@ -158,7 +158,7 @@ func (s *Session) ingestAttachment(
 	}
 
 	entryID := uuid.NewString()
-	entry, err := s.db.InsertIngressLogEntry(ctx, dbgen.InsertIngressLogEntryParams{
+	entry, err := s.queries.InsertIngressLogEntry(ctx, dbgen.InsertIngressLogEntryParams{
 		ID:       entryID,
 		SourceID: src.ID,
 		RemoteID: tmpPath,

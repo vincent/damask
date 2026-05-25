@@ -66,7 +66,7 @@ func (s *JobServer) jobVariantThumbnail(ctx context.Context, job dbgen.Job) erro
 		thumbContentType = "image/jpeg"
 	}
 
-	if err := s.db.SetVariantThumbnail(ctx, dbgen.SetVariantThumbnailParams{
+	if err := s.queries.SetVariantThumbnail(ctx, dbgen.SetVariantThumbnailParams{
 		ThumbnailKey:         &thumbKey,
 		ThumbnailContentType: thumbContentType,
 		ID:                   p.VariantID,

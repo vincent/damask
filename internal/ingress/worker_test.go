@@ -25,7 +25,7 @@ const testAppSecret = "test-app-secret-for-tests!!"
 
 // stubInjestor satisfies assetio.Injestor for tests that exercise HandleFetch.
 // It inserts a minimal asset row so FK constraints on asset_id pass.
-type stubInjestor struct{ db *dbgen.Queries }
+type stubInjestor struct{ queries *dbgen.Queries }
 
 func (s stubInjestor) IngestFile(
 	ctx context.Context,
@@ -33,7 +33,7 @@ func (s stubInjestor) IngestFile(
 	_ assetio.IngestFileOpts,
 ) (assetio.AssetSummary, error) {
 	id := uuid.NewString()
-	if _, err := s.db.CreateAsset(ctx, dbgen.CreateAssetParams{
+	if _, err := s.queries.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               id,
 		WorkspaceID:      workspaceID,
 		OriginalFilename: "stub.txt",
@@ -89,7 +89,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 		cfg,
 		audit.New(sqlDB),
 		mail.NewMailer(&mail.Config{}),
-		stubInjestor{db: queries},
+		stubInjestor{queries: queries},
 	)
 	return w, queries
 }

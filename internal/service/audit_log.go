@@ -99,12 +99,12 @@ type ExportActivityParams struct {
 }
 
 type auditLogService struct {
-	db *dbgen.Queries
+	queries *dbgen.Queries
 }
 
 // NewAuditLogService returns an AuditLogService.
-func NewAuditLogService(db *dbgen.Queries) AuditLogService {
-	return &auditLogService{db: db}
+func NewAuditLogService(queries *dbgen.Queries) AuditLogService {
+	return &auditLogService{queries: queries}
 }
 
 //nolint:dupl // Asset and project event listing differ only by sqlc-generated row and param types.
@@ -117,7 +117,7 @@ func (s *auditLogService) ListAssetEvents(ctx context.Context, p ListAssetEvents
 		cursorArg = p.Cursor
 	}
 
-	rows, err := s.db.ListAssetEvents(ctx, dbgen.ListAssetEventsParams{
+	rows, err := s.queries.ListAssetEvents(ctx, dbgen.ListAssetEventsParams{
 		AssetID:     p.AssetID,
 		WorkspaceID: p.WorkspaceID,
 		Cursor:      cursorArg,
@@ -148,7 +148,7 @@ func (s *auditLogService) ListProjectEvents(
 		cursorArg = p.Cursor
 	}
 
-	rows, err := s.db.ListProjectEvents(ctx, dbgen.ListProjectEventsParams{
+	rows, err := s.queries.ListProjectEvents(ctx, dbgen.ListProjectEventsParams{
 		ProjectID:   p.ProjectID,
 		WorkspaceID: p.WorkspaceID,
 		Cursor:      cursorArg,
@@ -216,7 +216,7 @@ func (s *auditLogService) ListWorkspaceActivity(
 		userIDArg = p.UserID
 	}
 
-	assetRows, err := s.db.ListWorkspaceAssetEvents(ctx, dbgen.ListWorkspaceAssetEventsParams{
+	assetRows, err := s.queries.ListWorkspaceAssetEvents(ctx, dbgen.ListWorkspaceAssetEventsParams{
 		WorkspaceID: p.WorkspaceID,
 		Cursor:      cursorArg,
 		UserID:      userIDArg,
@@ -227,7 +227,7 @@ func (s *auditLogService) ListWorkspaceActivity(
 		return nil, err
 	}
 
-	projectRows, err := s.db.ListWorkspaceProjectEvents(ctx, dbgen.ListWorkspaceProjectEventsParams{
+	projectRows, err := s.queries.ListWorkspaceProjectEvents(ctx, dbgen.ListWorkspaceProjectEventsParams{
 		WorkspaceID: p.WorkspaceID,
 		Cursor:      cursorArg,
 		UserID:      userIDArg,
@@ -316,7 +316,7 @@ func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityPa
 	}
 
 	const maxRows = 10000
-	assetRows, err := s.db.ListWorkspaceAssetEvents(ctx, dbgen.ListWorkspaceAssetEventsParams{
+	assetRows, err := s.queries.ListWorkspaceAssetEvents(ctx, dbgen.ListWorkspaceAssetEventsParams{
 		WorkspaceID: p.WorkspaceID,
 		Cursor:      cursorArg,
 		Limit:       maxRows,
@@ -324,7 +324,7 @@ func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityPa
 	if err != nil {
 		return "", err
 	}
-	projectRows, err := s.db.ListWorkspaceProjectEvents(ctx, dbgen.ListWorkspaceProjectEventsParams{
+	projectRows, err := s.queries.ListWorkspaceProjectEvents(ctx, dbgen.ListWorkspaceProjectEventsParams{
 		WorkspaceID: p.WorkspaceID,
 		Cursor:      cursorArg,
 		Limit:       maxRows,

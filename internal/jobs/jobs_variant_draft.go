@@ -71,7 +71,7 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 		})
 	}
 
-	ver, err := s.db.GetCurrentVersion(ctx, p.AssetID)
+	ver, err := s.queries.GetCurrentVersion(ctx, p.AssetID)
 	if err != nil {
 		publishErr("asset not found")
 		return nil
@@ -149,7 +149,7 @@ func (s *JobServer) draftTransformer(
 		if p.WatermarkAssetID == "" {
 			return nil, fmt.Errorf("watermark asset id is required")
 		}
-		wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+		wm, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 			ID:          p.WatermarkAssetID,
 			WorkspaceID: workspaceID,
 		})

@@ -39,7 +39,7 @@ type JobQueue interface {
 
 // Queue is an in-process job queue backed by SQLite with a configurable worker pool.
 type Queue struct {
-	db       *dbgen.Queries
+	queries  *dbgen.Queries
 	workers  int
 	handlers map[string]HandlerFunc
 
@@ -54,12 +54,12 @@ type Queue struct {
 }
 
 // New creates a new Queue. Call Start() to begin processing.
-func New(db *dbgen.Queries, workers int) *Queue {
+func New(queries *dbgen.Queries, workers int) *Queue {
 	if workers <= 0 {
 		workers = 4
 	}
 	return &Queue{
-		db:           db,
+		queries:      queries,
 		workers:      workers,
 		handlers:     make(map[string]HandlerFunc),
 		notify:       make(chan struct{}, workers),
@@ -77,7 +77,7 @@ func (q *Queue) Register(jobType string, h HandlerFunc) {
 // Start re-queues any stalled jobs and launches worker goroutines.
 func (q *Queue) Start(ctx context.Context) {
 	// Re-queue jobs that were 'processing' when the server last crashed.
-	if err := q.db.RequeueStalledJobs(ctx); err != nil {
+	if err := q.queries.RequeueStalledJobs(ctx); err != nil {
 		slog.ErrorContext(ctx, "queue: requeue stalled", "error", err)
 	}
 
@@ -101,7 +101,7 @@ func (q *Queue) Enqueue(ctx context.Context, workspaceID, jobType, payload strin
 	)
 	defer telemetry.EndSpan(span, err)
 
-	job, err = q.db.CreateJob(ctx, dbgen.CreateJobParams{
+	job, err = q.queries.CreateJob(ctx, dbgen.CreateJobParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: workspaceID,
 		Type:        jobType,
@@ -150,7 +150,7 @@ func (q *Queue) processNext(ctx context.Context) {
 	ctx, span := telemetry.StartSpan(ctx, "service.queue.next")
 	defer telemetry.EndSpan(span, err)
 
-	job, err := q.db.ClaimNextJob(ctx)
+	job, err := q.queries.ClaimNextJob(ctx)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			span.SetStatus(codes.Error, err.Error())
@@ -193,7 +193,7 @@ func (q *Queue) processNext(ctx context.Context) {
 		slog.ErrorContext(ctx, "queue: no handler for job type", "job_type", job.Type, "job_id", job.ID)
 		span.SetStatus(codes.Error, "queue: no handler registered")
 		errMsg := "no handler registered"
-		_ = q.db.FailJob(ctx, dbgen.FailJobParams{
+		_ = q.queries.FailJob(ctx, dbgen.FailJobParams{
 			Error: &errMsg,
 			ID:    job.ID,
 		})
@@ -242,7 +242,7 @@ func (q *Queue) processNext(ctx context.Context) {
 					string(debug.Stack()),
 				)
 				errMsg := panicErr.Error()
-				_ = q.db.FailJob(ctx, dbgen.FailJobParams{
+				_ = q.queries.FailJob(ctx, dbgen.FailJobParams{
 					Error: &errMsg,
 					ID:    job.ID,
 				})
@@ -255,7 +255,7 @@ func (q *Queue) processNext(ctx context.Context) {
 			telemetry.RecordError(jobSpan, err)
 			slog.ErrorContext(ctx, "queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)
 			errMsg := err.Error()
-			_ = q.db.FailJob(ctx, dbgen.FailJobParams{
+			_ = q.queries.FailJob(ctx, dbgen.FailJobParams{
 				Error: &errMsg,
 				ID:    job.ID,
 			})
@@ -270,7 +270,7 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	span.SetStatus(codes.Ok, "")
 
-	if err := q.db.CompleteJob(ctx, job.ID); err != nil {
+	if err := q.queries.CompleteJob(ctx, job.ID); err != nil {
 		slog.ErrorContext(ctx, "queue: complete job", "job_id", job.ID, "error", err)
 	}
 

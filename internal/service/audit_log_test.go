@@ -13,7 +13,7 @@ import (
 func newAuditSvc(t *testing.T) service.AuditLogService {
 	t.Helper()
 	env := newIngressEnv(t) // reuse: opens in-memory SQLite with migrations + seeded workspace/user
-	return service.NewAuditLogService(env.db)
+	return service.NewAuditLogService(env.queries)
 }
 
 // -- ListAssetEvents --

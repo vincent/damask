@@ -21,7 +21,7 @@ const (
 //  2. Deletes all other events older than event_log_retention_days.
 //  3. Deletes project events older than event_log_retention_days.
 func (s *JobServer) jobPurgeAuditLog(ctx context.Context, _ dbgen.Job) error {
-	workspaces, err := s.db.ListWorkspacesForEventRetention(ctx)
+	workspaces, err := s.queries.ListWorkspacesForEventRetention(ctx)
 	if err != nil {
 		return fmt.Errorf("list workspaces: %w", err)
 	}
@@ -40,7 +40,7 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.List
 	// Purge download events on their shorter retention cycle.
 	if ws.DownloadLogRetentionDays > 0 {
 		cutoff := now.AddDate(0, 0, -int(ws.DownloadLogRetentionDays)).Format("2006-01-02 15:04:05")
-		if err := s.db.DeleteDownloadEventsOlderThan(ctx, dbgen.DeleteDownloadEventsOlderThanParams{
+		if err := s.queries.DeleteDownloadEventsOlderThan(ctx, dbgen.DeleteDownloadEventsOlderThanParams{
 			WorkspaceID: ws.ID,
 			Cutoff:      cutoff,
 		}); err != nil {
@@ -60,7 +60,7 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.List
 	// Purge all asset events beyond the general retention window.
 	if ws.EventLogRetentionDays > 0 {
 		cutoff := now.AddDate(0, 0, -int(ws.EventLogRetentionDays)).Format("2006-01-02 15:04:05")
-		if err := s.db.DeleteAssetEventsOlderThan(ctx, dbgen.DeleteAssetEventsOlderThanParams{
+		if err := s.queries.DeleteAssetEventsOlderThan(ctx, dbgen.DeleteAssetEventsOlderThanParams{
 			WorkspaceID: ws.ID,
 			Cutoff:      cutoff,
 		}); err != nil {
@@ -68,7 +68,7 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.List
 		} else {
 			slog.InfoContext(ctx, "audit-log retention: purged asset events", "workspace_id", ws.ID, "cutoff", cutoff)
 		}
-		if err := s.db.DeleteProjectEventsOlderThan(ctx, dbgen.DeleteProjectEventsOlderThanParams{
+		if err := s.queries.DeleteProjectEventsOlderThan(ctx, dbgen.DeleteProjectEventsOlderThanParams{
 			WorkspaceID: ws.ID,
 			Cutoff:      cutoff,
 		}); err != nil {

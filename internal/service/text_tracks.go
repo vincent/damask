@@ -25,13 +25,13 @@ const textTrackSourceManual = "manual"
 var ErrUnsupportedTextTrackSource = errors.New("unsupported text track source")
 
 type textTrackService struct {
-	db      *dbgen.Queries
+	queries *dbgen.Queries
 	queue   queue.JobQueue
 	storage storage.Storage
 }
 
-func NewTextTrackService(db *dbgen.Queries, q queue.JobQueue, stor storage.Storage) TextTrackService {
-	return &textTrackService{db: db, queue: q, storage: stor}
+func NewTextTrackService(queries *dbgen.Queries, q queue.JobQueue, stor storage.Storage) TextTrackService {
+	return &textTrackService{queries: queries, queue: q, storage: stor}
 }
 
 func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string) (out []TextTrackDTO, err error) {
@@ -58,7 +58,7 @@ func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string
 		}
 	}()
 
-	rows, err := s.db.ListTextTracksByAsset(ctx, dbgen.ListTextTracksByAssetParams{
+	rows, err := s.queries.ListTextTracksByAsset(ctx, dbgen.ListTextTracksByAssetParams{
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,
 	})
@@ -100,7 +100,7 @@ func (s *textTrackService) Get(ctx context.Context, workspaceID, trackID string)
 		}
 	}()
 
-	row, err := s.db.GetTextTrack(ctx, dbgen.GetTextTrackParams{
+	row, err := s.queries.GetTextTrack(ctx, dbgen.GetTextTrackParams{
 		ID:          trackID,
 		WorkspaceID: workspaceID,
 	})
@@ -174,7 +174,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	}
 	createdBy := &p.CreatedBy
 
-	row, err := s.db.CreateTextTrack(ctx, dbgen.CreateTextTrackParams{
+	row, err := s.queries.CreateTextTrack(ctx, dbgen.CreateTextTrackParams{
 		ID:             uuid.NewString(),
 		WorkspaceID:    p.WorkspaceID,
 		AssetID:        p.AssetID,
@@ -192,7 +192,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 
 	dto = toTextTrackDTO(row)
 	if p.Source == textTrackSourceManual {
-		if err := s.db.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
+		if err := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
 			TrackID:     row.ID,
 			AssetID:     row.AssetID,
 			WorkspaceID: row.WorkspaceID,
@@ -291,10 +291,10 @@ func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID stri
 			)
 		}
 	}
-	if err := s.db.DeleteTextFTS(ctx, trackID); err != nil {
+	if err := s.queries.DeleteTextFTS(ctx, trackID); err != nil {
 		return err
 	}
-	if err := s.db.DeleteTextTrack(ctx, dbgen.DeleteTextTrackParams{
+	if err := s.queries.DeleteTextTrack(ctx, dbgen.DeleteTextTrackParams{
 		ID:          trackID,
 		WorkspaceID: workspaceID,
 	}); err != nil {

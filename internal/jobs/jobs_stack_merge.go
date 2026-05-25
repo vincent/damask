@@ -48,7 +48,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	type entry struct{ storageKey, ext string }
 	var entries []entry
 	for _, assetID := range p.AssetIDs {
-		ver, err := s.db.GetCurrentVersion(ctx, assetID)
+		ver, err := s.queries.GetCurrentVersion(ctx, assetID)
 		if err != nil {
 			slog.WarnContext(ctx, "stack_merge: skip asset (no current version)", "asset_id", assetID)
 			continue
@@ -123,7 +123,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 
 	resultBytes, _ := json.Marshal(map[string]string{"asset_id": asset.ID})
 	resultStr := string(resultBytes)
-	if err := s.db.CompleteJobWithResult(ctx, dbgen.CompleteJobWithResultParams{
+	if err := s.queries.CompleteJobWithResult(ctx, dbgen.CompleteJobWithResultParams{
 		Result: &resultStr,
 		ID:     job.ID,
 	}); err != nil {

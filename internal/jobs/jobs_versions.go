@@ -86,7 +86,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		thumbContentType = "image/jpeg"
 	}
 
-	if err := s.db.SetVersionThumbnail(ctx, dbgen.SetVersionThumbnailParams{
+	if err := s.queries.SetVersionThumbnail(ctx, dbgen.SetVersionThumbnailParams{
 		ThumbnailKey:         &thumbKey,
 		ThumbnailContentType: thumbContentType,
 		ID:                   p.VersionID,
@@ -95,7 +95,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 	}
 
 	// If this version is still current, sync the asset thumbnail too.
-	ver, err := s.db.GetVersionByIDUnchecked(ctx, p.VersionID)
+	ver, err := s.queries.GetVersionByIDUnchecked(ctx, p.VersionID)
 	if err == nil && ver.IsCurrent == 1 {
 		slog.DebugContext(
 			ctx,
@@ -105,7 +105,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 			"thumbKey",
 			thumbKey,
 		)
-		if err := s.db.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+		if err := s.queries.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 			ThumbnailKey:         &thumbKey,
 			ThumbnailContentType: thumbContentType,
 			ID:                   p.AssetID,
