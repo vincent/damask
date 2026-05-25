@@ -19,7 +19,18 @@ import (
 	"damask/server/internal/telemetry"
 )
 
-const mediaTagsSource = "media_tags"
+const (
+	customFieldTypeText   = "text"
+	customFieldTypeNumber = "number"
+	mediaTagsSource       = "media_tags"
+)
+
+func ptrStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
 
 type ExtractMediaTagsPayload struct {
 	AssetID     string `json:"asset_id"`

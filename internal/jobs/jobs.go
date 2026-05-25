@@ -35,6 +35,10 @@ type exportService interface {
 	SetConfigLastRun(ctx context.Context, configID string, p repository.ExportRunResult) error
 }
 
+type exifService interface {
+	ExtractForAsset(ctx context.Context, workspaceID, assetID, userID string) error
+}
+
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
 	db             *dbgen.Queries
@@ -52,6 +56,7 @@ type JobServer struct {
 	imgKeyResolver imagerouter.KeyResolver
 	workflowExec   *workflow.Executor
 	exportSvc      exportService
+	exifSvc        exifService
 }
 
 func NewJobServer(
@@ -68,6 +73,7 @@ func NewJobServer(
 	imgKeyResolver imagerouter.KeyResolver,
 	workflowExec *workflow.Executor,
 	exportSvc exportService,
+	exifSvc exifService,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
@@ -80,6 +86,7 @@ func NewJobServer(
 		cfg:            cfg,
 		db:             db,
 		exportSvc:      exportSvc,
+		exifSvc:        exifSvc,
 		handlers:       make(map[string]queue.HandlerFunc),
 		hub:            hub,
 		imgKeyResolver: imgKeyResolver,

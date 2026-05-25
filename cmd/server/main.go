@@ -204,6 +204,7 @@ func main() {
 	})
 
 	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
+	exifSvc := service.NewExifService(queries, stor)
 	js := jobs.NewJobServer(
 		queries,
 		sqlDB,
@@ -218,6 +219,7 @@ func main() {
 		resolveImageRouterKey,
 		workflowExec,
 		exportSvc,
+		exifSvc,
 	)
 	js.RegisterJobHandlers()
 
