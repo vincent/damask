@@ -26,6 +26,15 @@ import (
 
 const schedulerCronInterval = 24 * time.Hour
 
+// exportService is the subset of service.ExportService used by job handlers and the scheduler.
+// Defined here to avoid an import cycle (service imports jobs for payload types and enqueue helpers).
+type exportService interface {
+	ExecuteRun(ctx context.Context, workspaceID, configID, runID string) error
+	ListDueConfigs(ctx context.Context) ([]repository.ExportConfig, error)
+	CreateRun(ctx context.Context, run repository.ExportRun) (repository.ExportRun, error)
+	SetConfigLastRun(ctx context.Context, configID string, p repository.ExportRunResult) error
+}
+
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
 	db             *dbgen.Queries
@@ -42,8 +51,7 @@ type JobServer struct {
 	injestor       assetio.Injestor
 	imgKeyResolver imagerouter.KeyResolver
 	workflowExec   *workflow.Executor
-	exportConfigs  repository.ExportConfigRepository
-	exportRuns     repository.ExportRunRepository
+	exportSvc      exportService
 }
 
 func NewJobServer(
@@ -59,8 +67,7 @@ func NewJobServer(
 	injestor assetio.Injestor,
 	imgKeyResolver imagerouter.KeyResolver,
 	workflowExec *workflow.Executor,
-	exportConfigs repository.ExportConfigRepository,
-	exportRuns repository.ExportRunRepository,
+	exportSvc exportService,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
@@ -72,8 +79,7 @@ func NewJobServer(
 		audit:          audit.New(sqlDB),
 		cfg:            cfg,
 		db:             db,
-		exportConfigs:  exportConfigs,
-		exportRuns:     exportRuns,
+		exportSvc:      exportSvc,
 		handlers:       make(map[string]queue.HandlerFunc),
 		hub:            hub,
 		imgKeyResolver: imgKeyResolver,
@@ -203,7 +209,6 @@ func ParseSQLiteTime(s string) (time.Time, error) {
 	}
 	return time.Time{}, fmt.Errorf("unrecognised time format: %q", s)
 }
-
 
 // NextDaily returns the next occurrence of hour:min UTC on or after now.
 func NextDaily(hour, minute int) time.Time {

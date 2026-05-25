@@ -15,12 +15,15 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	reposqlc "damask/server/internal/repository/sqlc"
+	"damask/server/internal/storage"
 
 	"github.com/google/uuid"
 )
 
 type exportService struct {
 	db         *dbgen.Queries
+	sqlDB      *sql.DB
+	storage    storage.Storage
 	appSecret  string
 	q          queue.JobQueue
 	configRepo repository.ExportConfigRepository
@@ -28,9 +31,11 @@ type exportService struct {
 }
 
 // NewExportService creates a production ExportService with sqlc-backed repos.
-func NewExportService(db *dbgen.Queries, sqlDB *sql.DB, appSecret string, q queue.JobQueue) ExportService {
+func NewExportService(db *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, appSecret string, q queue.JobQueue) ExportService {
 	return &exportService{
 		db:         db,
+		sqlDB:      sqlDB,
+		storage:    stor,
 		appSecret:  appSecret,
 		q:          q,
 		configRepo: reposqlc.NewExportConfigRepo(db, sqlDB),
@@ -41,6 +46,8 @@ func NewExportService(db *dbgen.Queries, sqlDB *sql.DB, appSecret string, q queu
 // NewExportServiceWithRepos creates an ExportService with explicit repos (for tests).
 func NewExportServiceWithRepos(
 	db *dbgen.Queries,
+	sqlDB *sql.DB,
+	stor storage.Storage,
 	appSecret string,
 	q queue.JobQueue,
 	configRepo repository.ExportConfigRepository,
@@ -48,6 +55,8 @@ func NewExportServiceWithRepos(
 ) ExportService {
 	return &exportService{
 		db:         db,
+		sqlDB:      sqlDB,
+		storage:    stor,
 		appSecret:  appSecret,
 		q:          q,
 		configRepo: configRepo,
@@ -253,6 +262,115 @@ func (s *exportService) ListRuns(ctx context.Context, workspaceID, configID stri
 		out[i] = exportRunToDTO(r)
 	}
 	return out, nil
+}
+
+// ExecuteRun carries out the full lifecycle of an export run: load config & run,
+// build the destination, stream progress, and record the final result.
+func (s *exportService) ExecuteRun(ctx context.Context, workspaceID, configID, runID string) error {
+	cfg, err := s.configRepo.Get(ctx, workspaceID, configID)
+	if err != nil {
+		return fmt.Errorf("export: load config %s: %w", configID, err)
+	}
+
+	configJSON, err := ingress.DecryptConfig(s.appSecret, cfg.DestConfigEnc)
+	if err != nil {
+		return fmt.Errorf("export: decrypt config: %w", err)
+	}
+
+	dest, err := export.NewDestination(cfg.DestType, configJSON)
+	if err != nil {
+		return fmt.Errorf("export: build destination: %w", err)
+	}
+
+	run, err := s.runRepo.Get(ctx, workspaceID, runID)
+	if err != nil {
+		return fmt.Errorf("export: load run %s: %w", runID, err)
+	}
+
+	if err := s.runRepo.Start(ctx, run.ID); err != nil {
+		slog.WarnContext(ctx, "export: mark run started", "error", err)
+	}
+
+	project, err := s.db.GetProjectByID(ctx, dbgen.GetProjectByIDParams{
+		WorkspaceID: cfg.WorkspaceID,
+		ID:          cfg.ProjectID,
+	})
+	if err != nil {
+		s.failRun(ctx, run.ID, cfg.ID, fmt.Sprintf("load project: %s", err))
+		return fmt.Errorf("export: load project: %w", err)
+	}
+
+	result, buildErr := export.Build(ctx, export.BuildParams{
+		Config:  cfg,
+		Run:     run,
+		Dest:    dest,
+		Storage: s.storage,
+		Queries: s.db,
+		SQLite:  s.sqlDB,
+		Project: project,
+		OnProgress: func(prog export.BuildProgress) {
+			_ = s.runRepo.UpdateProgress(ctx, run.ID, repository.ExportProgress{
+				AssetsExported: prog.AssetsExported,
+				AssetsSkipped:  prog.AssetsSkipped,
+				BytesWritten:   prog.BytesWritten,
+			})
+		},
+	})
+
+	if buildErr != nil {
+		s.failRun(ctx, run.ID, cfg.ID, buildErr.Error())
+		return fmt.Errorf("export: build: %w", buildErr)
+	}
+
+	configStatus := "ok"
+	if result.AssetsExported > 0 && result.AssetsSkipped > 0 {
+		configStatus = "partial"
+	}
+
+	if err := s.runRepo.Finish(ctx, run.ID, repository.ExportFinish{
+		Status:         "done",
+		AssetsTotal:    result.AssetsTotal,
+		AssetsExported: result.AssetsExported,
+		AssetsSkipped:  result.AssetsSkipped,
+		BytesWritten:   result.BytesWritten,
+	}); err != nil {
+		slog.WarnContext(ctx, "export: finish run", "error", err)
+	}
+
+	if err := s.configRepo.SetLastRun(ctx, cfg.ID, repository.ExportRunResult{
+		LastRunAt:     time.Now(),
+		LastRunStatus: configStatus,
+	}); err != nil {
+		slog.WarnContext(ctx, "export: set last run", "error", err)
+	}
+
+	return nil
+}
+
+func (s *exportService) failRun(ctx context.Context, runID, configID, errMsg string) {
+	_ = s.runRepo.Finish(ctx, runID, repository.ExportFinish{
+		Status: "failed",
+		Error:  &errMsg,
+	})
+	_ = s.configRepo.SetLastRun(ctx, configID, repository.ExportRunResult{
+		LastRunAt:     time.Now(),
+		LastRunStatus: "failed",
+		LastError:     &errMsg,
+	})
+}
+
+// Scheduler-facing methods used via the local exportService interface in the jobs package.
+
+func (s *exportService) ListDueConfigs(ctx context.Context) ([]repository.ExportConfig, error) {
+	return s.configRepo.ListDue(ctx)
+}
+
+func (s *exportService) CreateRun(ctx context.Context, run repository.ExportRun) (repository.ExportRun, error) {
+	return s.runRepo.Create(ctx, run)
+}
+
+func (s *exportService) SetConfigLastRun(ctx context.Context, configID string, p repository.ExportRunResult) error {
+	return s.configRepo.SetLastRun(ctx, configID, p)
 }
 
 func exportConfigToDTO(c repository.ExportConfig) *ExportConfigDTO {

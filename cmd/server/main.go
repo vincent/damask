@@ -167,8 +167,6 @@ func main() {
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(queries, sqlDB)
 	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
 	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
-	exportConfigsRepo := reposqlc.NewExportConfigRepo(queries, sqlDB)
-	exportRunsRepo := reposqlc.NewExportRunRepo(queries, sqlDB)
 
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
@@ -205,6 +203,7 @@ func main() {
 		Config:      cfg,
 	})
 
+	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
 	js := jobs.NewJobServer(
 		queries,
 		sqlDB,
@@ -218,8 +217,7 @@ func main() {
 		injestor,
 		resolveImageRouterKey,
 		workflowExec,
-		exportConfigsRepo,
-		exportRunsRepo,
+		exportSvc,
 	)
 	js.RegisterJobHandlers()
 

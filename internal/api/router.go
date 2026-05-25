@@ -128,7 +128,7 @@ func NewHTTPServer(
 		folders:       service.NewFolderService(folderRepo),
 		hub:           hub,
 		ingress:       service.NewIngressService(db, cfg.AppSecret, q, mailer),
-		exports:       service.NewExportService(db, sqlDB, cfg.AppSecret, q),
+		exports:       service.NewExportService(db, sqlDB, stor, cfg.AppSecret, q),
 		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(db)),
 		mailer:        mailer,
 		media:         media,

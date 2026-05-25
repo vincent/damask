@@ -27,23 +27,25 @@
   let activeTab = $state<Tab>('config')
 
   // --- Config tab ---
-  let label = $state(source.label)
-  let destProjectId = $state(source.dest_project_id ?? '')
-  let pollIntervalMin = $state(source.poll_interval_min)
+  // svelte-ignore state_referenced_locally
+  let src = $state(source)
+  let label = $state(src.label)
+  let destProjectId = $state(src.dest_project_id ?? '')
+  let pollIntervalMin = $state(src.poll_interval_min)
   let sourceConfig = $state<Record<string, unknown>>({
-    ...(source.config as Record<string, unknown>),
+    ...(src.config as Record<string, unknown>),
   })
   let saving = $state(false)
 
   onMount(() => {
-    if (source.type === 'email_api' && source.dest_project_id) {
-      foldersStore.loadForProject(source.dest_project_id)
+    if (src.type === 'email_api' && src.dest_project_id) {
+      foldersStore.loadForProject(src.dest_project_id)
     }
   })
 
   const emailApiFolders = $derived(
-    source.type === 'email_api' && source.dest_project_id
-      ? (foldersStore.foldersByProject[source.dest_project_id] ?? [])
+    src.type === 'email_api' && src.dest_project_id
+      ? (foldersStore.foldersByProject[src.dest_project_id] ?? [])
       : []
   )
 
@@ -57,8 +59,8 @@
 
   async function saveConfig() {
     saving = true
-    const updated = await ingressStore.updateSource(source.id, {
-      label: label.trim() || source.label,
+    const updated = await ingressStore.updateSource(src.id, {
+      label: label.trim() || src.label,
       config: sourceConfig,
       dest_project_id: destProjectId || null,
       poll_interval_min: pollIntervalMin,
@@ -123,7 +125,7 @@
   async function handleAddRule() {
     if (!newRule.value.trim()) return
     savingRule = true
-    const rule = await ingressStore.createRule(source.id, {
+    const rule = await ingressStore.createRule(src.id, {
       position: ingressStore.rules.length,
       field: newRule.field,
       operator: newRule.operator,
@@ -144,11 +146,11 @@
 
   // Load log + rules when switching tabs
   $effect(() => {
-    if (activeTab === 'log' && ingressStore.logSourceId !== source.id) {
-      ingressStore.loadLog(source.id)
+    if (activeTab === 'log' && ingressStore.logSourceId !== src.id) {
+      ingressStore.loadLog(src.id)
     }
-    if (activeTab === 'rules' && ingressStore.rulesSourceId !== source.id) {
-      ingressStore.loadRules(source.id)
+    if (activeTab === 'rules' && ingressStore.rulesSourceId !== src.id) {
+      ingressStore.loadRules(src.id)
     }
   })
 </script>
@@ -166,9 +168,9 @@
       <h2
         class="text-md truncate font-semibold text-gray-900 dark:text-gray-50"
       >
-        {source.label}
+        {src.label}
       </h2>
-      <Hint class="text-sm capitalize">{source.type.replace('_', ' ')}</Hint>
+      <Hint class="text-sm capitalize">{src.type.replace('_', ' ')}</Hint>
     </div>
     <button
       type="button"
@@ -179,7 +181,7 @@
     </button>
   </div>
 
-  <Feedback class="bg-transparent" error={source.last_error} />
+  <Feedback class="bg-transparent" error={src.last_error} />
 
   <!-- Tabs -->
   <div class="flex border-b border-gray-100 dark:border-gray-800">
@@ -203,7 +205,7 @@
   <div class="flex-1 overflow-y-auto">
     <!-- CONFIG TAB -->
     {#if activeTab === 'config'}
-      {#if source.type === 'email_api'}
+      {#if src.type === 'email_api'}
         <div class="p-5">
           <EmailApiPanel {source} folders={emailApiFolders} />
         </div>
@@ -268,7 +270,7 @@
             >
               Connection settings
             </p>
-            <SourceConfigForm type={source.type} bind:config={sourceConfig} />
+            <SourceConfigForm type={src.type} bind:config={sourceConfig} />
           </div>
         </div>
 
@@ -326,7 +328,7 @@
                 </div>
                 <ButtonDelete
                   title={m.delete_rule()}
-                  onclick={() => ingressStore.deleteRule(source.id, rule.id)}
+                  onclick={() => ingressStore.deleteRule(src.id, rule.id)}
                 />
               </div>
             {/each}
@@ -429,8 +431,7 @@
           <button
             type="button"
             class="ml-auto text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-            onclick={() =>
-              ingressStore.loadLog(source.id, logFilter || undefined)}
+            onclick={() => ingressStore.loadLog(src.id, logFilter || undefined)}
             title="Refresh"
           >
             <RefreshCw class="h-3.5 w-3.5" />

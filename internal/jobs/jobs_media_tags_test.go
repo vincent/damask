@@ -15,11 +15,35 @@ import (
 	"damask/server/internal/mail"
 	"damask/server/internal/media/contentmeta"
 	"damask/server/internal/queue"
+	"damask/server/internal/repository"
 	repomemory "damask/server/internal/repository/memory"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 	"damask/server/internal/workflow"
 )
+
+// memExportSvc wires two memory repos into the exportService interface for tests.
+type memExportSvc struct {
+	configs *repomemory.ExportConfigMemoryRepo
+	runs    *repomemory.ExportRunMemoryRepo
+}
+
+func newMemExportSvc(c *repomemory.ExportConfigMemoryRepo, r *repomemory.ExportRunMemoryRepo) exportService {
+	return &memExportSvc{configs: c, runs: r}
+}
+
+func (s *memExportSvc) ExecuteRun(_ context.Context, _, _, _ string) error {
+	panic("memExportSvc.ExecuteRun not implemented")
+}
+func (s *memExportSvc) ListDueConfigs(ctx context.Context) ([]repository.ExportConfig, error) {
+	return s.configs.ListDue(ctx)
+}
+func (s *memExportSvc) CreateRun(ctx context.Context, run repository.ExportRun) (repository.ExportRun, error) {
+	return s.runs.Create(ctx, run)
+}
+func (s *memExportSvc) SetConfigLastRun(ctx context.Context, configID string, p repository.ExportRunResult) error {
+	return s.configs.SetLastRun(ctx, configID, p)
+}
 
 func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, queue.JobQueue, storage.Storage) {
 	t.Helper()
@@ -52,8 +76,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 			return "", "", nil
 		}),
 		workflow.NewExecutor(workflow.Deps{}),
-		repomemory.NewExportConfigRepo(),
-		repomemory.NewExportRunRepo(),
+		newMemExportSvc(repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo()),
 	)
 
 	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {

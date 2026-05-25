@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"damask/server/internal/imagerouter"
+	"damask/server/internal/repository"
 )
 
 // AssetCommentDTO is a comment posted on an asset via a public share.
@@ -575,4 +576,8 @@ type ExportService interface {
 	TriggerManual(ctx context.Context, workspaceID, userID, configID string) (*ExportRunDTO, error)
 	GetRun(ctx context.Context, workspaceID, runID string) (*ExportRunDTO, error)
 	ListRuns(ctx context.Context, workspaceID, configID string, limit, offset int) ([]*ExportRunDTO, error)
+	ExecuteRun(ctx context.Context, workspaceID, configID, runID string) error
+	ListDueConfigs(ctx context.Context) ([]repository.ExportConfig, error)
+	CreateRun(ctx context.Context, run repository.ExportRun) (repository.ExportRun, error)
+	SetConfigLastRun(ctx context.Context, configID string, p repository.ExportRunResult) error
 }
