@@ -15,7 +15,6 @@
   import { m } from '$lib/paraglide/messages'
 
   let showAddModal = $state(false)
-  let editingSource = $state<IngressSource | null>(null)
   let detailSource = $state<IngressSource | null>(null)
   let pendingDeleteSource = $state<IngressSource | null>(null)
   let showDeleteConfirm = $state(false)
@@ -26,12 +25,7 @@
   })
 
   function handleEdit(source: IngressSource) {
-    editingSource = null
-    detailSource = null
-    setTimeout(() => {
-      editingSource = source
-      detailSource = source
-    }, 300)
+    detailSource = source
   }
 
   function handleDelete(source: IngressSource) {
@@ -118,15 +112,17 @@
 
     <!-- Detail panel (right side) -->
     {#if detailSource}
-      <SourceDetailPanel
-        source={detailSource}
-        onclose={() => {
-          detailSource = null
-        }}
-        onupdated={(s) => {
-          detailSource = s
-        }}
-      />
+      {#key detailSource.id}
+        <SourceDetailPanel
+          source={detailSource}
+          onclose={() => {
+            detailSource = null
+          }}
+          onupdated={(s) => {
+            detailSource = s
+          }}
+        />
+      {/key}
     {/if}
   </div>
 </div>
