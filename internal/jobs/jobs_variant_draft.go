@@ -12,7 +12,6 @@ import (
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
-	"damask/server/internal/imagerouter"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
@@ -78,109 +77,15 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 		return nil
 	}
 
-	var outputBytes []byte
-	var contentType string
+	trf, buildErr := s.draftTransformer(ctx, p.WorkspaceID, p.Type, p.Params)
+	if buildErr != nil {
+		publishErr(buildErr.Error())
+		return nil
+	}
 
-	switch p.Type {
-	case queue.JobTypeImageBgRemove:
-		var params struct {
-			Model  string `json:"model"`
-			Prompt string `json:"prompt"`
-		}
-		if err = json.Unmarshal(p.Params, &params); err != nil {
-			publishErr("invalid params")
-			return nil
-		}
-		result, callErr := s.runImageRouterJob(
-			ctx,
-			p.WorkspaceID,
-			ver.StorageKey,
-			func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-				return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{
-					Model:  params.Model,
-					Prompt: params.Prompt,
-				})
-			},
-		)
-		if callErr != nil {
-			if strings.Contains(callErr.Error(), "Prompt must be a string") {
-				publishErr("the selected model is not available for background removal. please choose another model and try again")
-			} else {
-				publishErr(callErr.Error())
-			}
-			return nil
-		}
-		outputBytes = result
-		contentType = "image/png"
-
-	case queue.JobTypeImageWithPrompt:
-		var params struct {
-			Prompt string `json:"prompt"`
-			Model  string `json:"model"`
-		}
-		if err = json.Unmarshal(p.Params, &params); err != nil {
-			publishErr("invalid params")
-			return nil
-		}
-		result, callErr := s.runImageRouterJob(
-			ctx,
-			p.WorkspaceID,
-			ver.StorageKey,
-			func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-				return client.Transform(ctx, imageData, imagerouter.PromptParams{
-					Prompt: params.Prompt,
-					Model:  params.Model,
-				})
-			},
-		)
-		if callErr != nil {
-			publishErr(callErr.Error())
-			return nil
-		}
-		outputBytes = result
-		contentType = "image/png"
-
-	case queue.JobTypeImageWatermark:
-		var params transform.WatermarkParams
-		if err = json.Unmarshal(p.Params, &params); err != nil {
-			publishErr("invalid params")
-			return nil
-		}
-		if params.WatermarkAssetID == "" {
-			publishErr("watermark asset id is required")
-			return nil
-		}
-		wm, wmErr := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
-			ID:          params.WatermarkAssetID,
-			WorkspaceID: p.WorkspaceID,
-		})
-		if wmErr != nil {
-			publishErr("watermark asset not found")
-			return nil
-		}
-		wmRC, wmErr := s.storage.Get(wm.StorageKey)
-		if wmErr != nil {
-			publishErr("failed to load watermark file")
-			return nil
-		}
-		srcRC, srcErr := s.storage.Get(ver.StorageKey)
-		if srcErr != nil {
-			_ = wmRC.Close()
-			publishErr("failed to load asset file")
-			return nil
-		}
-		var wmBytes []byte
-		wmBytes, contentType, err = s.trf.ImageWatermark(srcRC, wmRC, params)
-		_ = srcRC.Close()
-		_ = wmRC.Close()
-		if err != nil {
-			publishErr(err.Error())
-			return nil
-		}
-		outputBytes = wmBytes
-
-	default:
-		publishErr(fmt.Sprintf("unsupported draft type: %s", p.Type))
+	outputBytes, contentType, callErr := trf(ctx, ver.StorageKey)
+	if callErr != nil {
+		publishErr(callErr.Error())
 		return nil
 	}
 
@@ -219,6 +124,60 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 		ExpiresAt:  expiresAt.Format(time.RFC3339),
 	})
 	return nil
+}
+
+// draftTransformer returns a variantTransformer for the given draft type.
+// The draft watermark case needs a version storage key loaded ahead of time,
+// so ctx and ver.StorageKey are not used — the transformer fetches the source itself.
+func (s *JobServer) draftTransformer(
+	ctx context.Context,
+	workspaceID, variantType string,
+	params json.RawMessage,
+) (variantTransformer, error) {
+	switch variantType {
+	case queue.JobTypeImageBgRemove:
+		return s.imageBgRemoveTransformer(workspaceID, params)
+
+	case queue.JobTypeImageWithPrompt:
+		return s.imageWithPromptTransformer(workspaceID, params)
+
+	case queue.JobTypeImageWatermark:
+		var p transform.WatermarkParams
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("invalid params")
+		}
+		if p.WatermarkAssetID == "" {
+			return nil, fmt.Errorf("watermark asset id is required")
+		}
+		wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+			ID:          p.WatermarkAssetID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("watermark asset not found")
+		}
+		return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+			wmRC, err := s.storage.Get(wm.StorageKey)
+			if err != nil {
+				return nil, "", fmt.Errorf("failed to load watermark file")
+			}
+			srcRC, err := s.storage.Get(sourceKey)
+			if err != nil {
+				_ = wmRC.Close()
+				return nil, "", fmt.Errorf("failed to load asset file")
+			}
+			data, contentType, err := s.trf.ImageWatermark(srcRC, wmRC, p)
+			_ = srcRC.Close()
+			_ = wmRC.Close()
+			if err != nil {
+				return nil, "", err
+			}
+			return data, contentType, nil
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported draft type: %s", variantType)
+	}
 }
 
 // nextPurgeTime returns today's purge time if it hasn't passed yet, otherwise tomorrow's.

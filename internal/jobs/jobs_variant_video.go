@@ -15,7 +15,6 @@ import (
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 
-	"github.com/google/uuid"
 )
 
 const (
@@ -25,61 +24,179 @@ const (
 	mimeVideoWebM   = "video/webm"
 )
 
-func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) error {
-	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
+func videoMimeType(format string) string {
+	if format == videoFormatWebM {
+		return mimeVideoWebM
 	}
+	return mimeVideoMP4
+}
 
+// videoCaptureTransformer returns a variantTransformer for video frame capture.
+func (s *JobServer) videoCaptureTransformer(params json.RawMessage) (variantTransformer, error) {
+	if !s.trf.FFmpegAvailable() {
+		return nil, errors.New("ffmpeg not found in PATH")
+	}
+	var p transform.VideoThumbnailParams
+	if len(params) > 0 {
+		_ = json.Unmarshal(params, &p)
+	}
+	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+		rc, err := s.storage.Get(sourceKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		tmpPath, cleanup, err := writeToTempFile(ctx, rc, filepath.Ext(sourceKey))
+		if err != nil {
+			return nil, "", fmt.Errorf("write temp: %w", err)
+		}
+		defer cleanup()
+		data, err := s.trf.VideoExtractThumbnail(ctx, tmpPath, p)
+		if err != nil {
+			return nil, "", fmt.Errorf("extract thumbnail: %w", err)
+		}
+		return data, "image/jpeg", nil
+	}, nil
+}
+
+// videoTranscodeTransformer returns a variantTransformer for video transcoding.
+func (s *JobServer) videoTranscodeTransformer(params json.RawMessage) (variantTransformer, error) {
+	if !s.trf.FFmpegAvailable() {
+		return nil, errors.New("ffmpeg not found in PATH")
+	}
+	var p transform.TranscodeParams
+	if len(params) > 0 {
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("parse transcode params: %w", err)
+		}
+	}
+	if p.Format == "" {
+		p.Format = videoFormatMP4
+	}
+	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+		rc, err := s.storage.Get(sourceKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		srcPath, cleanSrc, err := writeToTempFile(ctx, rc, filepath.Ext(sourceKey))
+		if err != nil {
+			return nil, "", fmt.Errorf("write src temp: %w", err)
+		}
+		defer cleanSrc()
+		ext := transform.FormatExtension(p.Format)
+		dstPath := srcPath + "_out" + ext
+		defer os.Remove(dstPath)
+		if err := s.trf.VideoTranscode(ctx, srcPath, dstPath, p); err != nil {
+			return nil, "", fmt.Errorf("transcode: %w", err)
+		}
+		data, err := os.ReadFile(dstPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("read output: %w", err)
+		}
+		return data, videoMimeType(p.Format), nil
+	}, nil
+}
+
+// videoWatermarkTransformer returns a variantTransformer for video watermarking.
+func (s *JobServer) videoWatermarkTransformer(workspaceID string, params json.RawMessage) (variantTransformer, error) {
+	if !s.trf.FFmpegAvailable() {
+		return nil, errors.New("ffmpeg not found in PATH")
+	}
+	var p transform.VideoWatermarkParams
+	if len(params) > 0 {
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("parse watermark params: %w", err)
+		}
+	}
+	p.Normalize()
+	if p.WatermarkAssetID == "" {
+		return nil, errors.New("watermark asset id is required")
+	}
+	wm, err := s.db.GetAssetByID(context.Background(), dbgen.GetAssetByIDParams{
+		ID:          p.WatermarkAssetID,
+		WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get watermark asset: %w", err)
+	}
+	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+		rc, err := s.storage.Get(sourceKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
+		srcPath, cleanSrc, err := writeToTempFile(ctx, rc, filepath.Ext(sourceKey))
+		if err != nil {
+			return nil, "", fmt.Errorf("write src temp: %w", err)
+		}
+		defer cleanSrc()
+		wmRC, err := s.storage.Get(wm.StorageKey)
+		if err != nil {
+			return nil, "", fmt.Errorf("get watermark file: %w", err)
+		}
+		defer wmRC.Close()
+		ext := transform.FormatExtension(p.Format)
+		dstPath := srcPath + "_wm" + ext
+		defer os.Remove(dstPath)
+		if err := s.trf.VideoWatermark(ctx, srcPath, dstPath, wmRC, p); err != nil {
+			return nil, "", fmt.Errorf("watermark: %w", err)
+		}
+		data, err := os.ReadFile(dstPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("read output: %w", err)
+		}
+		return data, videoMimeType(p.Format), nil
+	}, nil
+}
+
+func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) error {
 	var p VariantJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}
-
 	if len(p.StorageKey) == 0 {
 		return fmt.Errorf("storage key is empty: %s", job.ID)
 	}
-
-	var params transform.VideoThumbnailParams
-	if len(p.Params) > 0 {
-		_ = json.Unmarshal(p.Params, &params)
-	}
-
-	rc, err := s.storage.Get(p.StorageKey)
+	trf, err := s.videoCaptureTransformer(p.Params)
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(p.StorageKey)
-	tmpPath, cleanup, err := writeToTempFile(ctx, rc, srcExt)
+	data, contentType, err := trf(ctx, p.StorageKey)
 	if err != nil {
-		return fmt.Errorf("write temp: %w", err)
-	}
-	defer cleanup()
-
-	data, err := s.trf.VideoExtractThumbnail(ctx, tmpPath, params)
-	if err != nil {
-		return fmt.Errorf("extract thumbnail: %w", err)
+		return err
 	}
 
-	variantID := p.VariantID
-	if variantID == "" {
-		variantID = uuid.NewString()
+	// Normalise params so the storage key is stable (same as the transformer parsed).
+	var captureParams transform.VideoThumbnailParams
+	if len(p.Params) > 0 {
+		_ = json.Unmarshal(p.Params, &captureParams)
 	}
-	paramsJSON, _ := json.Marshal(params)
-	paramsHash := CanonicalParamsHash(string(paramsJSON))
-	storageKey := storage.VersionedVariantKey(
-		p.WorkspaceID,
-		p.AssetID,
-		p.VersionNum,
-		queue.JobTypeVideoCaptureImage,
-		paramsHash,
-		".jpg",
-	)
+	paramsJSON, _ := json.Marshal(captureParams)
+	pj := string(paramsJSON)
+	paramsHash := CanonicalParamsHash(pj)
+	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, queue.JobTypeVideoCaptureImage, paramsHash, ".jpg")
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
+
+	variantID := resolveVariantID(p)
+	sz := int64(len(data))
+	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
+		ID:              variantID,
+		WorkspaceID:     p.WorkspaceID,
+		AssetVersionID:  p.VersionID,
+		Type:            queue.JobTypeVideoCaptureImage,
+		StorageKey:      storageKey,
+		TransformParams: &pj,
+		Size:            &sz,
+	})
+	if err != nil {
+		return err
+	}
+	s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
+	s.enqueueVariantThumb(ctx, p, variantID, storageKey, contentType)
 
 	// Set as asset thumbnail if none yet.
 	asset, _ := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
@@ -95,211 +212,53 @@ func (s *JobServer) jobVideoCaptureImage(ctx context.Context, job dbgen.Job) err
 			})
 		}
 	}
-
-	pj := string(paramsJSON)
-	sz := int64(len(data))
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              variantID,
-		WorkspaceID:     p.WorkspaceID,
-		AssetVersionID:  p.VersionID,
-		Type:            queue.JobTypeVideoCaptureImage,
-		StorageKey:      storageKey,
-		TransformParams: &pj,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
-		s.enqueueVariantThumb(ctx, p, variantID, storageKey, "image/jpeg")
-	}
-	return err
+	return nil
 }
 
 func (s *JobServer) jobVideoTranscode(ctx context.Context, job dbgen.Job) error {
-	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
-	}
-
 	var p VariantJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}
-
-	var params transform.TranscodeParams
-	if len(p.Params) > 0 {
-		if err := json.Unmarshal(p.Params, &params); err != nil {
-			return fmt.Errorf("parse transcode params: %w", err)
-		}
+	trf, err := s.videoTranscodeTransformer(p.Params)
+	if err != nil {
+		return err
 	}
+	data, contentType, err := trf(ctx, p.StorageKey)
+	if err != nil {
+		return err
+	}
+	// Use normalised params for the storage key (matches original behaviour).
+	var params transform.TranscodeParams
+	_ = json.Unmarshal(p.Params, &params)
 	if params.Format == "" {
 		params.Format = videoFormatMP4
 	}
-
-	rc, err := s.storage.Get(p.StorageKey)
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(p.StorageKey)
-	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
-	if err != nil {
-		return fmt.Errorf("write src temp: %w", err)
-	}
-	defer cleanSrc()
-
-	ext := transform.FormatExtension(params.Format)
-	dstPath := srcPath + "_out" + ext
-	defer os.Remove(dstPath)
-
-	if err := s.trf.VideoTranscode(ctx, srcPath, dstPath, params); err != nil {
-		return fmt.Errorf("transcode: %w", err)
-	}
-
-	dstData, err := os.ReadFile(dstPath)
-	if err != nil {
-		return fmt.Errorf("read output: %w", err)
-	}
-
-	variantID := p.VariantID
-	if variantID == "" {
-		variantID = uuid.NewString()
-	}
-	paramsJSON, _ := json.Marshal(params)
-	pj := string(paramsJSON)
-	paramsHash := CanonicalParamsHash(pj)
-	storageKey := storage.VersionedVariantKey(
-		p.WorkspaceID,
-		p.AssetID,
-		p.VersionNum,
-		queue.JobTypeVideoTranscode,
-		paramsHash,
-		ext,
-	)
-
-	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
-		return fmt.Errorf("store variant: %w", err)
-	}
-
-	sz := int64(len(dstData))
-	outputMime := mimeVideoMP4
-	if params.Format == videoFormatWebM {
-		outputMime = mimeVideoWebM
-	}
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              variantID,
-		WorkspaceID:     p.WorkspaceID,
-		AssetVersionID:  p.VersionID,
-		Type:            queue.JobTypeVideoTranscode,
-		StorageKey:      storageKey,
-		TransformParams: &pj,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
-		s.enqueueVariantThumb(ctx, p, variantID, storageKey, outputMime)
-	}
-	return err
+	pj, _ := json.Marshal(params)
+	cj := string(pj)
+	return s.finalizeRebuildVariant(ctx, assetVersionFromPayload(p), job.Type, cj, CanonicalParamsHash(cj), data, contentType)
 }
 
 func (s *JobServer) jobVideoWatermark(ctx context.Context, job dbgen.Job) error {
-	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
-	}
-
 	var p VariantJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}
-
-	var params transform.VideoWatermarkParams
-	if len(p.Params) > 0 {
-		if err := json.Unmarshal(p.Params, &params); err != nil {
-			return fmt.Errorf("parse watermark params: %w", err)
-		}
-	}
-	params.Normalize()
-	if params.WatermarkAssetID == "" {
-		return errors.New("watermark asset id is required")
-	}
-
-	rc, err := s.storage.Get(p.StorageKey)
+	trf, err := s.videoWatermarkTransformer(p.WorkspaceID, p.Params)
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(p.StorageKey)
-	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
+	data, contentType, err := trf(ctx, p.StorageKey)
 	if err != nil {
-		return fmt.Errorf("write src temp: %w", err)
+		return err
 	}
-	defer cleanSrc()
-
-	wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
-		ID:          params.WatermarkAssetID,
-		WorkspaceID: p.WorkspaceID,
-	})
-	if err != nil {
-		return fmt.Errorf("get watermark asset: %w", err)
-	}
-	wmRC, err := s.storage.Get(wm.StorageKey)
-	if err != nil {
-		return fmt.Errorf("get watermark file: %w", err)
-	}
-	defer wmRC.Close()
-
-	ext := transform.FormatExtension(params.Format)
-	dstPath := srcPath + "_wm" + ext
-	defer os.Remove(dstPath)
-
-	if err := s.trf.VideoWatermark(ctx, srcPath, dstPath, wmRC, params); err != nil {
-		return fmt.Errorf("watermark: %w", err)
-	}
-
-	dstData, err := os.ReadFile(dstPath)
-	if err != nil {
-		return fmt.Errorf("read output: %w", err)
-	}
-
-	variantID := p.VariantID
-	if variantID == "" {
-		variantID = uuid.NewString()
-	}
-	paramsJSON, _ := json.Marshal(params)
-	pj := string(paramsJSON)
-	paramsHash := CanonicalParamsHash(pj)
-	storageKey := storage.VersionedVariantKey(
-		p.WorkspaceID,
-		p.AssetID,
-		p.VersionNum,
-		queue.JobTypeVideoWatermark,
-		paramsHash,
-		ext,
-	)
-
-	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
-		return fmt.Errorf("store variant: %w", err)
-	}
-
-	sz := int64(len(dstData))
-	outputMime := mimeVideoMP4
-	if params.Format == videoFormatWebM {
-		outputMime = mimeVideoWebM
-	}
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              variantID,
-		WorkspaceID:     p.WorkspaceID,
-		AssetVersionID:  p.VersionID,
-		Type:            queue.JobTypeVideoWatermark,
-		StorageKey:      storageKey,
-		TransformParams: &pj,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
-		s.enqueueVariantThumb(ctx, p, variantID, storageKey, outputMime)
-	}
-	return err
+	// Use normalised params for the storage key (matches original behaviour).
+	var params transform.VideoWatermarkParams
+	_ = json.Unmarshal(p.Params, &params)
+	params.Normalize()
+	pj, _ := json.Marshal(params)
+	cj := string(pj)
+	return s.finalizeRebuildVariant(ctx, assetVersionFromPayload(p), job.Type, cj, CanonicalParamsHash(cj), data, contentType)
 }
 
 func (s *JobServer) rebuildVideoCaptureVariant(
@@ -307,61 +266,15 @@ func (s *JobServer) rebuildVideoCaptureVariant(
 	ver dbgen.AssetVersion,
 	paramsJSON, paramsHash string,
 ) error {
-	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
-	}
-
-	var params transform.VideoThumbnailParams
-	if paramsJSON != "" && paramsJSON != "{}" {
-		_ = json.Unmarshal([]byte(paramsJSON), &params)
-	}
-
-	rc, err := s.storage.Get(ver.StorageKey)
+	trf, err := s.videoCaptureTransformer(json.RawMessage(paramsJSON))
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(ver.StorageKey)
-	tmpPath, cleanup, err := writeToTempFile(ctx, rc, srcExt)
+	data, contentType, err := trf(ctx, ver.StorageKey)
 	if err != nil {
-		return fmt.Errorf("write temp: %w", err)
+		return err
 	}
-	defer cleanup()
-
-	data, err := s.trf.VideoExtractThumbnail(ctx, tmpPath, params)
-	if err != nil {
-		return fmt.Errorf("extract thumbnail: %w", err)
-	}
-
-	storageKey := storage.VersionedVariantKey(
-		ver.WorkspaceID,
-		ver.AssetID,
-		ver.VersionNum,
-		queue.JobTypeVideoCaptureImage,
-		paramsHash,
-		".jpg",
-	)
-	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
-		return fmt.Errorf("store variant: %w", err)
-	}
-
-	sz := int64(len(data))
-	vid := uuid.NewString()
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              vid,
-		WorkspaceID:     ver.WorkspaceID,
-		AssetVersionID:  ver.ID,
-		Type:            queue.JobTypeVideoCaptureImage,
-		StorageKey:      storageKey,
-		TransformParams: &paramsJSON,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
-		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, "image/jpeg")
-	}
-	return err
+	return s.finalizeRebuildVariant(ctx, ver, queue.JobTypeVideoCaptureImage, paramsJSON, paramsHash, data, contentType)
 }
 
 func (s *JobServer) rebuildVideoTranscodeVariant(
@@ -369,78 +282,15 @@ func (s *JobServer) rebuildVideoTranscodeVariant(
 	ver dbgen.AssetVersion,
 	paramsJSON, paramsHash string,
 ) error {
-	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
-	}
-
-	var params transform.TranscodeParams
-	if paramsJSON != "" && paramsJSON != "{}" {
-		if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
-			return fmt.Errorf("parse transcode params: %w", err)
-		}
-	}
-	if params.Format == "" {
-		params.Format = videoFormatMP4
-	}
-
-	rc, err := s.storage.Get(ver.StorageKey)
+	trf, err := s.videoTranscodeTransformer(json.RawMessage(paramsJSON))
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(ver.StorageKey)
-	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
+	data, contentType, err := trf(ctx, ver.StorageKey)
 	if err != nil {
-		return fmt.Errorf("write src temp: %w", err)
+		return err
 	}
-	defer cleanSrc()
-
-	ext := transform.FormatExtension(params.Format)
-	dstPath := srcPath + "_out" + ext
-	defer os.Remove(dstPath)
-
-	if err := s.trf.VideoTranscode(ctx, srcPath, dstPath, params); err != nil {
-		return fmt.Errorf("transcode: %w", err)
-	}
-
-	dstData, err := os.ReadFile(dstPath)
-	if err != nil {
-		return fmt.Errorf("read output: %w", err)
-	}
-
-	storageKey := storage.VersionedVariantKey(
-		ver.WorkspaceID,
-		ver.AssetID,
-		ver.VersionNum,
-		queue.JobTypeVideoTranscode,
-		paramsHash,
-		ext,
-	)
-	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
-		return fmt.Errorf("store variant: %w", err)
-	}
-
-	outputMime := mimeVideoMP4
-	if params.Format == videoFormatWebM {
-		outputMime = mimeVideoWebM
-	}
-	sz := int64(len(dstData))
-	vid := uuid.NewString()
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              vid,
-		WorkspaceID:     ver.WorkspaceID,
-		AssetVersionID:  ver.ID,
-		Type:            queue.JobTypeVideoTranscode,
-		StorageKey:      storageKey,
-		TransformParams: &paramsJSON,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
-		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, outputMime)
-	}
-	return err
+	return s.finalizeRebuildVariant(ctx, ver, queue.JobTypeVideoTranscode, paramsJSON, paramsHash, data, contentType)
 }
 
 func (s *JobServer) rebuildVideoWatermarkVariant(
@@ -448,90 +298,29 @@ func (s *JobServer) rebuildVideoWatermarkVariant(
 	ver dbgen.AssetVersion,
 	paramsJSON, paramsHash string,
 ) error {
-	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
-	}
-
-	var params transform.VideoWatermarkParams
-	if paramsJSON != "" && paramsJSON != "{}" {
-		if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
-			return fmt.Errorf("parse watermark params: %w", err)
-		}
-	}
-	params.Normalize()
-	if params.WatermarkAssetID == "" {
-		return errors.New("watermark asset id is required")
-	}
-
-	rc, err := s.storage.Get(ver.StorageKey)
+	trf, err := s.videoWatermarkTransformer(ver.WorkspaceID, json.RawMessage(paramsJSON))
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(ver.StorageKey)
-	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
+	data, contentType, err := trf(ctx, ver.StorageKey)
 	if err != nil {
-		return fmt.Errorf("write src temp: %w", err)
+		return err
 	}
-	defer cleanSrc()
-
-	wm, err := s.db.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
-		ID:          params.WatermarkAssetID,
-		WorkspaceID: ver.WorkspaceID,
-	})
-	if err != nil {
-		return fmt.Errorf("get watermark asset: %w", err)
-	}
-	wmRC, err := s.storage.Get(wm.StorageKey)
-	if err != nil {
-		return fmt.Errorf("get watermark file: %w", err)
-	}
-	defer wmRC.Close()
-
-	ext := transform.FormatExtension(params.Format)
-	dstPath := srcPath + "_wm" + ext
-	defer os.Remove(dstPath)
-
-	if err := s.trf.VideoWatermark(ctx, srcPath, dstPath, wmRC, params); err != nil {
-		return fmt.Errorf("watermark: %w", err)
-	}
-
-	dstData, err := os.ReadFile(dstPath)
-	if err != nil {
-		return fmt.Errorf("read output: %w", err)
-	}
-
-	storageKey := storage.VersionedVariantKey(
-		ver.WorkspaceID,
-		ver.AssetID,
-		ver.VersionNum,
-		queue.JobTypeVideoWatermark,
-		paramsHash,
-		ext,
-	)
-	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
-		return fmt.Errorf("store variant: %w", err)
-	}
-
-	sz := int64(len(dstData))
-	vid := uuid.NewString()
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              vid,
-		WorkspaceID:     ver.WorkspaceID,
-		AssetVersionID:  ver.ID,
-		Type:            queue.JobTypeVideoWatermark,
-		StorageKey:      storageKey,
-		TransformParams: &paramsJSON,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
-		outputMime := mimeVideoMP4
-		if params.Format == videoFormatWebM {
-			outputMime = mimeVideoWebM
-		}
-		s.enqueueVariantThumbRaw(ctx, ver.WorkspaceID, ver.AssetID, vid, storageKey, outputMime)
-	}
-	return err
+	return s.finalizeRebuildVariant(ctx, ver, queue.JobTypeVideoWatermark, paramsJSON, paramsHash, data, contentType)
 }
+
+// assetVersionFromPayload constructs a minimal AssetVersion from a VariantJobPayload,
+// so user-triggered video/audio jobs can reuse finalizeRebuildVariant (which uses
+// CreateVariant, matching the original behaviour for these job types).
+func assetVersionFromPayload(p VariantJobPayload) dbgen.AssetVersion {
+	return dbgen.AssetVersion{
+		ID:          p.VersionID,
+		WorkspaceID: p.WorkspaceID,
+		AssetID:     p.AssetID,
+		VersionNum:  p.VersionNum,
+		StorageKey:  p.StorageKey,
+		MimeType:    p.MimeType,
+	}
+}
+
+

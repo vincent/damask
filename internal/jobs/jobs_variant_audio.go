@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,82 +10,90 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
-	"damask/server/internal/storage"
 	"damask/server/internal/transform"
-
-	"github.com/google/uuid"
 )
 
-func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error {
+// audioTransformer returns a variantTransformer for the given audio job type.
+func (s *JobServer) audioTransformer(jobType, sourceMime string, params json.RawMessage) (variantTransformer, error) {
 	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
+		return nil, errors.New("ffmpeg not found in PATH")
 	}
+	var p transform.AudioParams
+	if len(params) > 0 {
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, fmt.Errorf("parse audio params: %w", err)
+		}
+	}
+	p = normalizeAudioJobParams(jobType, sourceMime, p)
+	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+		rc, err := s.storage.Get(sourceKey)
+		if err != nil {
+			return nil, "", err
+		}
+		defer rc.Close()
 
+		srcExt := filepath.Ext(sourceKey)
+		srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
+		if err != nil {
+			return nil, "", fmt.Errorf("write src temp: %w", err)
+		}
+		defer cleanSrc()
+
+		ext := transform.AudioExtension(p.OutputFormat)
+		dstPath := srcPath + "_out" + ext
+		defer os.Remove(dstPath)
+
+		if _, err := s.runAudioVariant(ctx, jobType, srcPath, dstPath, p); err != nil {
+			return nil, "", err
+		}
+		data, err := os.ReadFile(dstPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("read output: %w", err)
+		}
+		return data, transform.AudioMimeType(p.OutputFormat), nil
+	}, nil
+}
+
+func (s *JobServer) jobAudioTransform(ctx context.Context, job dbgen.Job) error {
 	var p VariantJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}
+	trf, err := s.audioTransformer(job.Type, p.MimeType, p.Params)
+	if err != nil {
+		return err
+	}
+	data, contentType, err := trf(ctx, p.StorageKey)
+	if err != nil {
+		return err
+	}
 
-	var params transform.AudioParams
+	// Audio uses the canonical params (post-normalization) for the storage key.
+	var canonicalParams transform.AudioParams
 	if len(p.Params) > 0 {
-		if err := json.Unmarshal(p.Params, &params); err != nil {
-			return fmt.Errorf("parse audio params: %w", err)
-		}
+		_ = json.Unmarshal(p.Params, &canonicalParams)
 	}
-	params = normalizeAudioJobParams(job.Type, p.MimeType, params)
+	canonicalParams = normalizeAudioJobParams(job.Type, p.MimeType, canonicalParams)
+	canonicalJSON, _ := json.Marshal(canonicalParams)
+	cj := string(canonicalJSON)
 
-	rc, err := s.storage.Get(p.StorageKey)
+	return s.finalizeRebuildVariant(ctx, assetVersionFromPayload(p), job.Type, cj, CanonicalParamsHash(cj), data, contentType)
+}
+
+func (s *JobServer) rebuildAudioVariant(
+	ctx context.Context,
+	ver dbgen.AssetVersion,
+	variantType, paramsJSON, paramsHash string,
+) error {
+	trf, err := s.audioTransformer(variantType, ver.MimeType, json.RawMessage(paramsJSON))
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(p.StorageKey)
-	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
-	if err != nil {
-		return fmt.Errorf("write src temp: %w", err)
-	}
-	defer cleanSrc()
-
-	ext := transform.AudioExtension(params.OutputFormat)
-	dstPath := srcPath + "_out" + ext
-	defer os.Remove(dstPath)
-
-	canonicalParams, err := s.runAudioVariant(ctx, job.Type, srcPath, dstPath, params)
+	data, contentType, err := trf(ctx, ver.StorageKey)
 	if err != nil {
 		return err
 	}
-
-	paramsHash := CanonicalParamsHash(canonicalParams)
-	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, job.Type, paramsHash, ext)
-
-	dstData, err := os.ReadFile(dstPath)
-	if err != nil {
-		return fmt.Errorf("read output: %w", err)
-	}
-	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
-		return fmt.Errorf("store variant: %w", err)
-	}
-
-	sz := int64(len(dstData))
-	variantID := p.VariantID
-	if variantID == "" {
-		variantID = uuid.NewString()
-	}
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              variantID,
-		WorkspaceID:     p.WorkspaceID,
-		AssetVersionID:  p.VersionID,
-		Type:            job.Type,
-		StorageKey:      storageKey,
-		TransformParams: &canonicalParams,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
-		s.enqueueVariantThumb(ctx, p, variantID, storageKey, transform.AudioMimeType(params.OutputFormat))
-	}
-	return err
+	return s.finalizeRebuildVariant(ctx, ver, variantType, paramsJSON, paramsHash, data, contentType)
 }
 
 // runAudioVariant dispatches the ffmpeg audio operation for variantType and returns
@@ -138,85 +145,4 @@ func normalizeAudioJobParams(jobType, sourceMime string, p transform.AudioParams
 		p.TargetLUFS = transform.DefaultLUFS
 	}
 	return p
-}
-
-func (s *JobServer) rebuildAudioVariant(
-	ctx context.Context,
-	ver dbgen.AssetVersion,
-	variantType, paramsJSON, paramsHash string,
-) error {
-	if !s.trf.FFmpegAvailable() {
-		return errors.New("ffmpeg not found in PATH")
-	}
-
-	var params transform.AudioParams
-	if paramsJSON != "" && paramsJSON != "{}" {
-		if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
-			return fmt.Errorf("parse audio params: %w", err)
-		}
-	}
-	params = normalizeAudioJobParams(variantType, ver.MimeType, params)
-
-	rc, err := s.storage.Get(ver.StorageKey)
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-
-	srcExt := filepath.Ext(ver.StorageKey)
-	srcPath, cleanSrc, err := writeToTempFile(ctx, rc, srcExt)
-	if err != nil {
-		return fmt.Errorf("write src temp: %w", err)
-	}
-	defer cleanSrc()
-
-	ext := transform.AudioExtension(params.OutputFormat)
-	dstPath := srcPath + "_out" + ext
-	defer os.Remove(dstPath)
-
-	canonicalParams, err := s.runAudioVariant(ctx, variantType, srcPath, dstPath, params)
-	if err != nil {
-		return err
-	}
-
-	dstData, err := os.ReadFile(dstPath)
-	if err != nil {
-		return fmt.Errorf("read output: %w", err)
-	}
-
-	storageKey := storage.VersionedVariantKey(
-		ver.WorkspaceID,
-		ver.AssetID,
-		ver.VersionNum,
-		variantType,
-		paramsHash,
-		ext,
-	)
-	if err := s.storage.Put(storageKey, bytes.NewReader(dstData)); err != nil {
-		return fmt.Errorf("store variant: %w", err)
-	}
-
-	sz := int64(len(dstData))
-	vid := uuid.NewString()
-	_, err = s.db.CreateVariant(ctx, dbgen.CreateVariantParams{
-		ID:              vid,
-		WorkspaceID:     ver.WorkspaceID,
-		AssetVersionID:  ver.ID,
-		Type:            variantType,
-		StorageKey:      storageKey,
-		TransformParams: &canonicalParams,
-		Size:            &sz,
-	})
-	if err == nil {
-		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)
-		s.enqueueVariantThumbRaw(
-			ctx,
-			ver.WorkspaceID,
-			ver.AssetID,
-			vid,
-			storageKey,
-			transform.AudioMimeType(params.OutputFormat),
-		)
-	}
-	return err
 }
