@@ -117,28 +117,30 @@
     flex: 1;
     min-width: 0;
     overflow-y: auto;
-    padding: 2rem 2rem 4rem;
+    padding: 2.5rem 3rem 5rem;
+    scroll-padding-top: 4rem;
   }
 
   .docs-breadcrumb {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
+    gap: 0.3125rem;
     font-size: 0.8125rem;
     color: var(--text-muted);
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
   }
 
   .docs-breadcrumb a {
     color: var(--text-secondary);
     text-decoration: none;
+    transition: color 0.12s ease;
   }
 
   .docs-breadcrumb a:hover {
-    color: var(--accent-cta);
+    color: var(--text-primary);
   }
 
   .docs-breadcrumb-sep {
-    opacity: 0.5;
+    color: var(--border);
   }
 </style>

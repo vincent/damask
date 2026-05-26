@@ -135,7 +135,7 @@
 }
 .prose h1 {
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0 0 1rem;
   color: var(--text-primary);
   letter-spacing: -0.02em;
@@ -217,12 +217,12 @@
   vertical-align: top;
 }
 .prose blockquote {
-  border-left: 3px solid var(--accent-cta);
+  border: 1px solid var(--border);
   margin: 1rem 0;
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 1rem;
   color: var(--text-secondary);
   background: var(--bg-elevated);
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
 }
 .prose hr {
   border: none;

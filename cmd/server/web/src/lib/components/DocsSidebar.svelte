@@ -100,22 +100,27 @@
     flex-direction: column;
   }
 
+  .docs-sidebar-section + .docs-sidebar-section {
+    margin-top: 0.5rem;
+  }
+
   .docs-sidebar-section-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.375rem;
     width: 100%;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.75rem;
+    padding: 0.3125rem 0.5rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     background: none;
     border: none;
     cursor: pointer;
     border-radius: 6px;
     text-align: left;
+    transition: color 0.1s ease, background 0.1s ease;
   }
 
   .docs-sidebar-section-header:hover {
@@ -136,7 +141,7 @@
   .docs-sidebar-list {
     list-style: none;
     margin: 0;
-    padding: 0 0 0.5rem;
+    padding: 0 0 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -150,6 +155,7 @@
     text-decoration: none;
     border-radius: 6px;
     line-height: 1.4;
+    transition: background 0.1s ease, color 0.1s ease;
   }
 
   .docs-sidebar-link:hover {
@@ -159,7 +165,7 @@
 
   .docs-sidebar-link.active {
     background: var(--accent-soft);
-    color: var(--accent-cta);
+    color: var(--accent);
     font-weight: 500;
   }
 </style>

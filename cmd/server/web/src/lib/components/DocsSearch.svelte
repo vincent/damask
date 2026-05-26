@@ -156,6 +156,11 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 0.3125rem 0.5rem;
+    transition: border-color 0.12s ease;
+  }
+
+  .docs-search-input-wrap:focus-within {
+    border-color: var(--accent);
   }
 
   .docs-search-icon {

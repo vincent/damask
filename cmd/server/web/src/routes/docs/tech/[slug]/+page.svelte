@@ -26,8 +26,8 @@
 <style>
   .docs-page {
     display: flex;
-    gap: 2rem;
-    max-width: 1000px;
+    gap: 3rem;
+    max-width: 1080px;
   }
 
   .docs-content {
@@ -36,7 +36,8 @@
   }
 
   .docs-toc-aside {
-    width: 200px;
+    width: 188px;
     flex-shrink: 0;
+    padding-top: 0.125rem;
   }
 </style>
