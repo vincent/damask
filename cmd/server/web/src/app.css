@@ -128,3 +128,104 @@
   height: 100%;
   pointer-events: none;
 }
+
+/* ── Docs prose ────────────────────────────────────────────────────────────── */
+.prose {
+  max-width: 72ch;
+}
+.prose h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+.prose h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 2rem 0 0.75rem;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.prose h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+  color: var(--text-primary);
+}
+.prose p {
+  line-height: 1.7;
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+}
+.prose code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  background: var(--bg-elevated);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+.prose pre {
+  background: var(--bg-elevated);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid var(--border-subtle);
+}
+.prose pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.8125rem;
+}
+.prose a {
+  color: var(--accent-cta);
+  text-decoration: none;
+}
+.prose a:hover {
+  text-decoration: underline;
+}
+.prose ul,
+.prose ol {
+  padding-left: 1.5rem;
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+}
+.prose li {
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+}
+.prose th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.prose td {
+  padding: 0.5rem 0.75rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+.prose blockquote {
+  border-left: 3px solid var(--accent-cta);
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border-radius: 0 6px 6px 0;
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 2rem 0;
+}

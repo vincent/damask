@@ -4,6 +4,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { sveltekit } from '@sveltejs/kit/vite'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
+import { docsSearchIndexPlugin } from './vite-plugin-docs-index'
 
 export default defineConfig({
   resolve: {
@@ -16,6 +17,7 @@ export default defineConfig({
       project: './project.inlang',
       outdir: './src/lib/paraglide',
     }),
+    docsSearchIndexPlugin(),
   ],
   server: {
     host: '0.0.0.0',

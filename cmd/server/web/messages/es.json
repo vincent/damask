@@ -1059,5 +1059,15 @@
   "variants_draft_timed_out": "La generación expiró. Inténtalo de nuevo.",
   "variants_draft_others_discarded": "{n} borrador(es) descartado(s).",
   "variants_draft_expired": "Este borrador ha expirado. Genera una nueva previsualización.",
-  "thumbnail_regen": "Regenerar miniatura"
+  "thumbnail_regen": "Regenerar miniatura",
+  "docs_search_placeholder": "Search docs…",
+  "docs_search_no_results": "No results for \"{query}\"",
+  "docs_search_shortcut_hint": "Press {key} to search",
+  "docs_section_help": "User guide",
+  "docs_section_tech": "Self-hosting",
+  "docs_toc_heading": "On this page",
+  "docs_edit_page": "Edit this page",
+  "docs_not_found_title": "Page not found",
+  "docs_not_found_body": "This documentation page doesn't exist.",
+  "docs_not_found_back": "Back to docs"
 }

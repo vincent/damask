@@ -1060,5 +1060,15 @@
   "variants_draft_error_generating": "Generation failed: {error}",
   "variants_draft_timed_out": "Generation timed out. Please try again.",
   "variants_draft_expired": "This draft has expired. Please generate a new preview.",
-  "thumbnail_regen": "Regenerate Thumbnail"
+  "thumbnail_regen": "Regenerate Thumbnail",
+  "docs_search_placeholder": "Search docs…",
+  "docs_search_no_results": "No results for \"{query}\"",
+  "docs_search_shortcut_hint": "Press {key} to search",
+  "docs_section_help": "User guide",
+  "docs_section_tech": "Self-hosting",
+  "docs_toc_heading": "On this page",
+  "docs_edit_page": "Edit this page",
+  "docs_not_found_title": "Page not found",
+  "docs_not_found_body": "This documentation page doesn't exist.",
+  "docs_not_found_back": "Back to docs"
 }

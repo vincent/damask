@@ -24,3 +24,6 @@ vite.config.ts.timestamp-*
 # Paraglide
 src/lib/paraglide
 project.inlang/cache/
+
+# Docs search index (generated at build time)
+static/docs-search-index.json

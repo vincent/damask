@@ -39,7 +39,7 @@ export const uploadsStore = {
       ])
     }
     if (items.every((i) => i.status === 'done')) {
-      timer = setTimeout(() => uploadsStore.clear(), 10_000)
+      timer = +setTimeout(() => uploadsStore.clear(), 10_000)
     }
   },
 
