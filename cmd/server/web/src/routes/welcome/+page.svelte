@@ -72,12 +72,7 @@
       <span class="hp-wordmark-d">d</span>amask
     </a>
     <div class="hp-nav-actions">
-      <a
-        href="https://docs.damask.studio/"
-        class="hp-nav-link"
-        target="_blank"
-        rel="noopener"
-      >
+      <a href="/docs/" class="hp-nav-link" target="_blank" rel="noopener">
         {m.hp_nav_docs()}
       </a>
       {#if authStore.isAuthenticated}
@@ -86,7 +81,7 @@
         </a>
       {:else}
         <a
-          href="https://docs.damask.studio/getting-started"
+          href="/docs/help/getting-started"
           class="hp-btn-primary"
           target="_blank"
           rel="noopener"
@@ -113,7 +108,7 @@
       <a
         href={authStore.isAuthenticated
           ? '/library'
-          : 'https://docs.damask.studio/getting-started'}
+          : '/docs/help/getting-started'}
         class="hp-hero-btn-primary"
         target={authStore.isAuthenticated ? undefined : '_blank'}
         rel={authStore.isAuthenticated ? undefined : 'noopener'}
@@ -312,12 +307,7 @@
       <p class="hp-tech-body">
         {m.hp_tech_body()}
       </p>
-      <a
-        href="https://docs.damask.studio/"
-        class="hp-tech-link"
-        target="_blank"
-        rel="noopener"
-      >
+      <a href="/docs/" class="hp-tech-link" target="_blank" rel="noopener">
         {m.hp_tech_link()}
         <svg
           width="14"
@@ -402,7 +392,7 @@
     </div>
     <div class="hp-selfhost-ctas reveal">
       <a
-        href="https://docs.damask.studio/local-first-remote-optional.html"
+        href="/docs/tech"
         class="hp-selfhost-btn"
         target="_blank"
         rel="noopener"

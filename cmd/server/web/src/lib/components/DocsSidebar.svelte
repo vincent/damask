@@ -120,7 +120,9 @@
     cursor: pointer;
     border-radius: 6px;
     text-align: left;
-    transition: color 0.1s ease, background 0.1s ease;
+    transition:
+      color 0.1s ease,
+      background 0.1s ease;
   }
 
   .docs-sidebar-section-header:hover {
@@ -155,7 +157,9 @@
     text-decoration: none;
     border-radius: 6px;
     line-height: 1.4;
-    transition: background 0.1s ease, color 0.1s ease;
+    transition:
+      background 0.1s ease,
+      color 0.1s ease;
   }
 
   .docs-sidebar-link:hover {

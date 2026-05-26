@@ -4,12 +4,12 @@ Everything you need to run Damask on your own infrastructure.
 
 ## Sections
 
-- [Installation](installation) - Docker, binary, reverse proxy setup
-- [Configuration](configuration) - All environment variables and their defaults
-- [Storage](storage) - Local disk, S3-compatible, SFTP backends
-- [Upgrading](upgrade) - Safe upgrade procedure and migration notes
-- [OIDC / SSO](oidc) - Single sign-on with Keycloak, Authelia, Authentik
-- [Ingress sources](ingress) - Automated ingest from email, SFTP, S3, Google Drive, Canva
+- [Installation](tech/installation) - Docker, binary, reverse proxy setup
+- [Configuration](tech/configuration) - All environment variables and their defaults
+- [Storage](tech/storage) - Local disk, S3-compatible, SFTP backends
+- [Upgrading](tech/upgrade) - Safe upgrade procedure and migration notes
+- [OIDC / SSO](tech/oidc) - Single sign-on with Keycloak, Authelia, Authentik
+- [Ingress sources](tech/ingress) - Automated ingest from email, SFTP, S3, Google Drive, Canva
 
 ## Requirements
 

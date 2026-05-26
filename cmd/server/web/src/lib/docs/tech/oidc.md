@@ -5,7 +5,7 @@ Damask supports single sign-on via any OpenID Connect provider.
 ## Configuration
 
 ```
-OIDC_ISSUER=https://auth.example.com/realms/myrealm
+OIDC_ISSUER_URL=https://auth.example.com/realms/myrealm
 OIDC_CLIENT_ID=damask
 OIDC_CLIENT_SECRET=your-client-secret
 ```
@@ -21,7 +21,7 @@ https://dam.example.com/auth/oidc/callback
 1. Create a new client in Keycloak with client type **OpenID Connect**
 2. Set **Valid redirect URIs** to `https://dam.example.com/auth/oidc/callback`
 3. Copy the client secret from the **Credentials** tab
-4. Set `OIDC_ISSUER` to `https://keycloak.example.com/realms/<realm>`
+4. Set `OIDC_ISSUER_URL` to `https://keycloak.example.com/realms/<realm>`
 
 ## Authelia
 

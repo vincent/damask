@@ -4,25 +4,55 @@ Share assets with clients or collaborators without requiring them to have a Dama
 
 ## Create a share link
 
-1. Select assets in the grid
-2. Click **Share** in the top bar (or press `Ctrl+Shift+S`)
-3. Configure the share:
-   - **Name** - a label for your own reference
-   - **Password** - optional; visitors must enter it before viewing
-   - **Expiry** - optional; link stops working after this date
-4. Click **Create** - copy the link to share it
+Share links can be created from two places:
+
+- **From the sidebar**, hover over a project name and click the share icon, or open the project detail page and click **Share project**
+- **From selected assets**, select one or more assets in the grid, then click **Share** in the top bar or press `Ctrl+Shift+S`
+
+Both open the same share creation panel.
+
+Configure the share:
+
+| Setting            | Description                                                      |
+| ------------------ | ---------------------------------------------------------------- |
+| **Name**           | A label for your own reference (e.g. "Nike Q3, Client Delivery") |
+| **Password**       | Optional. Visitors must enter this before viewing                |
+| **Expiry**         | Optional. The link stops working after this date                 |
+| **Allow comments** | Whether visitors can leave comments on individual assets         |
+| **Allow download** | Whether visitors can download the original files                 |
+
+After saving, click the copy button to grab the generated link.
+
+![New share creation panel](/docs/screenshot_share_new.png)
 
 ## Share page
 
-Visitors open the link in any browser. If password-protected, they enter the password once and get a session token good for the duration of their browser session.
+Visitors open the link in any browser. If password-protected, they enter the password once, a session is valid for 24 hours on that device. If the link has expired, they see a clear message rather than a broken page.
+
+The gallery shows a grid of asset thumbnails. Clicking an asset opens a review panel with the full preview, a download button (if enabled), and the comment thread for that asset.
+
+![Shared gallery view](/docs/screenshot_shared_gallery.png)
 
 ## Comments
 
-Visitors can leave comments on shared assets. Comments appear in real time for you and other viewers. You can delete any comment as the share owner.
+When **Allow comments** is enabled, visitors can leave feedback directly on individual assets inside the gallery. They provide a name and optional email, no account required.
+
+![Visitor leaving a comment on a shared asset](/docs/screenshot_shared_asset_comment.png)
+
+Comments appear on the share page in real time. As the share owner, you can see all comments:
+
+1. **In the asset detail panel**, the Activity tab shows all comments received via share links
+2. **In Settings → Shares**, click any share, then open the **Comments** tab to see all comments grouped by asset and delete any of them
 
 ## Managing shares
 
-Go to **Library → Shares** to see all active shares. You can edit settings, revoke a link, or download a ZIP of the shared assets.
+Go to **Settings → Shares** to see all active and revoked share links. Each entry shows the label, target, status, view count, and comment count. From here you can edit settings, copy the link, or revoke it.
+
+Revoking a share link stops it from working immediately. The share record is retained in history so that clients who open an old link see a clear "This link has been revoked" message rather than a 404 error.
+
+## View tracking
+
+Every time someone successfully accesses a share link (past the password gate), the view count increments. Individual download events are also logged in the asset's activity log.
 
 ## Exporting
 

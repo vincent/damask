@@ -396,7 +396,7 @@
         <span>{m.help_feedback()}</span>
       </a>
       <a
-        href="https://docs.damask.studio"
+        href="/docs/"
         target="_blank"
         class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]"
         onclick={handleAnchorNavigate}

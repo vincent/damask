@@ -2,10 +2,17 @@
   import DocsSidebar from '$lib/components/DocsSidebar.svelte'
   import DocsSearch from '$lib/components/DocsSearch.svelte'
   import DiamondIcon from '$lib/components/DiamondIcon.svelte'
+  import { afterNavigate } from '$app/navigation'
   import { page } from '$app/state'
   import { navForSection, type DocSection } from '$lib/docs/nav'
 
   let { children } = $props()
+
+  let mainEl: HTMLElement
+
+  afterNavigate(() => {
+    mainEl?.scrollTo({ top: 0 })
+  })
 
   const segments = $derived(page.url.pathname.split('/').filter(Boolean))
   const section = $derived((segments[1] as DocSection) || 'help')
@@ -35,7 +42,7 @@
     <DocsSidebar />
   </aside>
 
-  <main class="docs-main">
+  <main class="docs-main" bind:this={mainEl}>
     {#if segments.length >= 2}
       <nav class="docs-breadcrumb" aria-label="Breadcrumb">
         <a href="/docs/help">Docs</a>

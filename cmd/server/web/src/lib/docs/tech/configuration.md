@@ -4,34 +4,83 @@ Damask is configured via environment variables. All variables are optional unles
 
 ## Core
 
-| Variable     | Default        | Description                                                    |
-| ------------ | -------------- | -------------------------------------------------------------- |
-| `DATA_DIR`   | `./data`       | Directory for the SQLite database and local file storage       |
-| `BASE_URL`   | **required**   | Public URL of your instance (e.g. `https://dam.example.com`)   |
-| `PORT`       | `8080`         | HTTP listen port                                               |
-| `JWT_SECRET` | auto-generated | HMAC secret for JWT signing - set a stable value in production |
+| Variable     | Default                 | Description                                                                                   |
+| ------------ | ----------------------- | --------------------------------------------------------------------------------------------- |
+| `BASE_URL`   | `http://localhost:5173` | Public URL of your instance (e.g. `https://dam.example.com`). Used in share links and emails. |
+| `PORT`       | `8080`                  | HTTP listen port                                                                              |
+| `APP_ENV`    | `development`           | Set to `production` to enable secure cookies and stricter settings                            |
+| `JWT_SECRET` | **required**            | HMAC secret for JWT signing, minimum 32 characters. Generate with `openssl rand -hex 32`      |
+| `APP_SECRET` | **required**            | AES-256-GCM key for encrypting ingress credentials at rest, minimum 32 characters             |
 
-## Registration
+## Database & storage
 
-| Variable             | Default | Description                             |
-| -------------------- | ------- | --------------------------------------- |
-| `ALLOW_REGISTRATION` | `true`  | Allow new users to self-register        |
-| `INVITE_ONLY`        | `false` | Require an invitation token to register |
-
-## Email (SMTP)
-
-| Variable        | Default | Description                    |
-| --------------- | ------- | ------------------------------ |
-| `SMTP_HOST`     | -       | SMTP server hostname           |
-| `SMTP_PORT`     | `587`   | SMTP port                      |
-| `SMTP_USER`     | -       | SMTP username                  |
-| `SMTP_PASSWORD` | -       | SMTP password                  |
-| `SMTP_FROM`     | -       | From address for outgoing mail |
-
-## Storage
+| Variable             | Default       | Description                                        |
+| -------------------- | ------------- | -------------------------------------------------- |
+| `DB_PATH`            | `./damask.db` | Path to the SQLite database file                   |
+| `STORAGE_LOCAL_PATH` | `./storage`   | Directory for local file storage (default backend) |
 
 See the [Storage guide](storage) for S3 and SFTP options.
 
+## Email (SMTP)
+
+Required to send invite emails, password reset links, and ingress failure notifications.
+
+| Variable      | Default | Description                                                          |
+| ------------- | ------- | -------------------------------------------------------------------- |
+| `SMTP_HOST`   | -       | SMTP server hostname                                                 |
+| `SMTP_PORT`   | `25`    | SMTP port                                                            |
+| `SMTP_USER`   | -       | SMTP username                                                        |
+| `SMTP_PASS`   | -       | SMTP password                                                        |
+| `SMTP_SENDER` | -       | From address for outgoing mail (e.g. `Damask <noreply@example.com>`) |
+
+## Ingress mail server
+
+Damask includes a built-in SMTP server that receives inbound email for the [email ingress](ingress) feature.
+
+| Variable    | Default                   | Description                                  |
+| ----------- | ------------------------- | -------------------------------------------- |
+| `MAIL_PORT` | `2525`                    | Port for the built-in inbound SMTP server    |
+| `MAIL_HOST` | `ingress.<BASE_URL host>` | Hostname the built-in SMTP server listens on |
+
+## Background jobs
+
+| Variable        | Default | Description                      |
+| --------------- | ------- | -------------------------------- |
+| `QUEUE_WORKERS` | `4`     | Number of background job workers |
+
+## Media processing
+
+| Variable          | Default | Description                                                                    |
+| ----------------- | ------- | ------------------------------------------------------------------------------ |
+| `FFMPEG_PATH`     | -       | Path to the `ffmpeg` binary. If unset, Damask looks for it in `$PATH`          |
+| `FFMPEG_HW_ACCEL` | -       | Hardware acceleration backend. Options: `videotoolbox`, `vaapi`, `qsv`, `cuda` |
+
 ## Telemetry
 
-Damask collects anonymous usage statistics by default. Set `TELEMETRY=false` to opt out.
+Damask supports OpenTelemetry for observability. Disabled by default.
+
+| Variable        | Default                             | Description                                  |
+| --------------- | ----------------------------------- | -------------------------------------------- |
+| `OTEL_ENABLED`  | `false`                             | Set to `true` to enable OpenTelemetry export |
+| `OTEL_ENDPOINT` | `http://localhost:8082/api/otel/v1` | OTLP HTTP endpoint                           |
+| `OTEL_TOKEN`    | -                                   | Bearer token for the OTLP endpoint           |
+
+## OIDC / SSO
+
+See the [OIDC guide](oidc) for full setup instructions.
+
+| Variable             | Default            | Description                          |
+| -------------------- | ------------------ | ------------------------------------ |
+| `OIDC_ISSUER_URL`    | -                  | OIDC provider issuer URL             |
+| `OIDC_CLIENT_ID`     | -                  | OIDC client ID                       |
+| `OIDC_CLIENT_SECRET` | -                  | OIDC client secret                   |
+| `OIDC_LABEL`         | `Sign in with SSO` | Button label shown on the login page |
+
+## Google & Canva OAuth
+
+| Variable               | Default | Description            |
+| ---------------------- | ------- | ---------------------- |
+| `GOOGLE_CLIENT_ID`     | -       | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | -       | Google OAuth secret    |
+| `CANVA_CLIENT_ID`      | -       | Canva OAuth client ID  |
+| `CANVA_CLIENT_SECRET`  | -       | Canva OAuth secret     |
