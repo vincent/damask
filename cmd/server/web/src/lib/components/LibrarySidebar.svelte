@@ -1,7 +1,13 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
+  import { onMount } from 'svelte'
   import CollectionsSidebar from '$lib/components/CollectionsSidebar.svelte'
+  import StorageBar from '$lib/components/storage/StorageBar.svelte'
+  import {
+    fetchWorkspaceStorage,
+    type WorkspaceStorageUsage,
+  } from '$lib/api/storage'
   import ProjectSidebar from '$lib/components/ProjectSidebar.svelte'
   import WorkspaceSwitcher from '$lib/components/WorkspaceSwitcher.svelte'
   import { BulkAssignAssetToFolder } from '$lib/commands/BulkAssignAssetToFolder'
@@ -20,6 +26,7 @@
     Activity,
     ArrowLeft,
     Download,
+    HardDrive,
     History,
     Info,
     LibraryBig,
@@ -32,7 +39,6 @@
     Tags,
     User,
     Users,
-    GitBranch,
     Waypoints,
   } from '@lucide/svelte'
 
@@ -43,6 +49,17 @@
   let { onNavigate = () => {} }: Props = $props()
 
   let sidebarCreating = $state(false)
+  let storageUsage = $state<WorkspaceStorageUsage | null>(null)
+
+  async function loadStorageUsage() {
+    storageUsage = await fetchWorkspaceStorage().catch(() => null)
+  }
+
+  onMount(() => {
+    loadStorageUsage()
+    const interval = setInterval(loadStorageUsage, 60_000)
+    return () => clearInterval(interval)
+  })
 
   const profileSections = [
     {
@@ -101,6 +118,12 @@
       label: () => m.tab_history(),
       path: '/library/settings/versioning',
       icon: History,
+    },
+    {
+      id: 'storage',
+      label: () => m.storage_breakdown_title(),
+      path: '/library/settings/storage',
+      icon: HardDrive,
     },
   ]
 
@@ -383,6 +406,18 @@
         </div>
         <CollectionsSidebar onSelect={handleCollectionSelect} />
       </div>
+    {/if}
+
+    {#if storageUsage}
+      <a href="/library/settings/storage">
+        <div class="border-t border-[var(--border-subtle)] px-4 py-2">
+          <StorageBar
+            used={storageUsage.total_bytes}
+            limit={storageUsage.limit_bytes}
+            compact
+          />
+        </div>
+      </a>
     {/if}
 
     <div class="mt-auto border-t border-[var(--border-subtle)] px-3 py-2">

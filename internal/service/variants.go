@@ -75,14 +75,15 @@ type SharedVariantDTO struct {
 }
 
 type variantService struct {
-	variants  repository.VariantRepository
-	assets    repository.AssetRepository
-	workflows repository.WorkflowRepository
-	tags      TagService
-	audit     audit.Writer
-	actions   VariantActionsStore
-	queue     queue.JobQueue
-	storage   storage.Storage
+	variants   repository.VariantRepository
+	assets     repository.AssetRepository
+	workflows  repository.WorkflowRepository
+	tags       TagService
+	audit      audit.Writer
+	actions    VariantActionsStore
+	queue      queue.JobQueue
+	storage    storage.Storage
+	invalidate StorageInvalidator
 }
 
 // NewVariantService returns a VariantService.
@@ -96,10 +97,11 @@ func NewVariantService(
 }
 
 type VariantServiceDeps struct {
-	Actions   VariantActionsStore
-	Queue     queue.JobQueue
-	Storage   storage.Storage
-	Workflows repository.WorkflowRepository
+	Actions    VariantActionsStore
+	Queue      queue.JobQueue
+	Storage    storage.Storage
+	Workflows  repository.WorkflowRepository
+	Invalidate StorageInvalidator
 }
 
 // NewVariantServiceWithDeps returns a VariantService with the extra dependencies
@@ -112,14 +114,15 @@ func NewVariantServiceWithDeps(
 	deps VariantServiceDeps,
 ) VariantService {
 	return &variantService{
-		variants:  variants,
-		assets:    assets,
-		workflows: deps.Workflows,
-		tags:      tags,
-		audit:     aw,
-		actions:   deps.Actions,
-		queue:     deps.Queue,
-		storage:   deps.Storage,
+		variants:   variants,
+		assets:     assets,
+		workflows:  deps.Workflows,
+		tags:       tags,
+		audit:      aw,
+		actions:    deps.Actions,
+		queue:      deps.Queue,
+		storage:    deps.Storage,
+		invalidate: deps.Invalidate,
 	}
 }
 
@@ -354,6 +357,9 @@ func (s *variantService) Create(ctx context.Context, p CreateVariantParams) (dto
 			Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: dto.Type},
 		})
 	}
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(p.WorkspaceID)
+	}
 	return dto, nil
 }
 
@@ -389,6 +395,9 @@ func (s *variantService) CommitDraft(ctx context.Context, p CommitDraftParams) (
 		EventType:   audit.EventAssetVariantCreated,
 		Payload:     audit.AssetVariantCreatedPayload{V: 1, Type: dto.Type},
 	})
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(p.WorkspaceID)
+	}
 	return dto, nil
 }
 
@@ -750,6 +759,9 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 		EventType:   audit.EventAssetVariantDeleted,
 		Payload:     audit.AssetVariantDeletedPayload{V: 1, VariantID: variantID, Type: v.Type},
 	})
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(workspaceID)
+	}
 	return nil
 }
 

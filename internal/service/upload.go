@@ -29,17 +29,20 @@ type UploadMeta struct {
 }
 
 type uploadServiceImpl struct {
-	injestor AssetInjestor
-	audit    audit.Writer
-	triggers WorkflowTriggerPublisher
+	injestor   AssetInjestor
+	audit      audit.Writer
+	triggers   WorkflowTriggerPublisher
+	invalidate StorageInvalidator
 }
 
-// NewUploadService returns an UploadService.
-func NewUploadService(injestor AssetInjestor, aw audit.Writer, triggers ...WorkflowTriggerPublisher) UploadService {
+// NewUploadService returns an UploadService. Pass a non-nil inv to invalidate
+// the storage usage cache after each successful ingest; pass nil to skip.
+func NewUploadService(injestor AssetInjestor, aw audit.Writer, inv StorageInvalidator, triggers ...WorkflowTriggerPublisher) UploadService {
 	return &uploadServiceImpl{
-		injestor: injestor,
-		audit:    aw,
-		triggers: workflowTriggerPublisherOrNop(triggers...),
+		injestor:   injestor,
+		audit:      aw,
+		triggers:   workflowTriggerPublisherOrNop(triggers...),
+		invalidate: inv,
 	}
 }
 
@@ -132,5 +135,8 @@ func (s *uploadServiceImpl) Ingest(
 		"version_id":        asset.CurrentVersionID,
 		"storage_key":       asset.StorageKey,
 	})
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(workspaceID)
+	}
 	return asset, nil
 }

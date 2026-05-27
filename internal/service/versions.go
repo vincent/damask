@@ -53,21 +53,23 @@ type VersionDTO struct {
 }
 
 type versionService struct {
-	versions repository.VersionRepository
-	assets   repository.AssetRepository
-	storage  storage.Storage
-	queue    queue.JobQueue
-	media    *ingest.Registry
-	audit    audit.Writer
-	triggers WorkflowTriggerPublisher
+	versions   repository.VersionRepository
+	assets     repository.AssetRepository
+	storage    storage.Storage
+	queue      queue.JobQueue
+	media      *ingest.Registry
+	audit      audit.Writer
+	triggers   WorkflowTriggerPublisher
+	invalidate StorageInvalidator
 }
 
 type VersionServiceDeps struct {
-	Assets   repository.AssetRepository
-	Storage  storage.Storage
-	Queue    queue.JobQueue
-	Media    *ingest.Registry
-	Triggers WorkflowTriggerPublisher
+	Assets     repository.AssetRepository
+	Storage    storage.Storage
+	Queue      queue.JobQueue
+	Media      *ingest.Registry
+	Triggers   WorkflowTriggerPublisher
+	Invalidate StorageInvalidator
 }
 
 // NewVersionService returns a VersionService.
@@ -81,13 +83,14 @@ func NewVersionService(
 		cfg = deps[0]
 	}
 	return &versionService{
-		versions: versions,
-		assets:   cfg.Assets,
-		storage:  cfg.Storage,
-		queue:    cfg.Queue,
-		media:    cfg.Media,
-		audit:    aw,
-		triggers: workflowTriggerPublisherOrNop(cfg.Triggers),
+		versions:   versions,
+		assets:     cfg.Assets,
+		storage:    cfg.Storage,
+		queue:      cfg.Queue,
+		media:      cfg.Media,
+		audit:      aw,
+		triggers:   workflowTriggerPublisherOrNop(cfg.Triggers),
+		invalidate: cfg.Invalidate,
 	}
 }
 
@@ -437,6 +440,9 @@ func (s *versionService) UploadNewVersion(
 		"storage_key":       newVersion.StorageKey,
 	})
 
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(p.WorkspaceID)
+	}
 	return &UploadAssetVersionResult{
 		Asset:   toAssetDTO(updatedAsset),
 		Version: newVersion,
@@ -545,6 +551,9 @@ func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versi
 		EventType:   audit.EventAssetVersionDeleted,
 		Payload:     audit.AssetVersionDeletedPayload{V: 1, VersionNum: v.VersionNum},
 	})
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(workspaceID)
+	}
 	return nil
 }
 

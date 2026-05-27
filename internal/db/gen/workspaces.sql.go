@@ -34,7 +34,7 @@ func (q *Queries) CountWorkspaceAssets(ctx context.Context, workspaceID string) 
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (id, name, created_at, updated_at)
 VALUES (?, ?, datetime('now'), datetime('now'))
-RETURNING id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at
+RETURNING id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at
 `
 
 type CreateWorkspaceParams struct {
@@ -58,14 +58,143 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.ExifKeep,
 		&i.ExifKeepGps,
 		&i.LockedTaxonomy,
+		&i.StorageLimitBytes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const getStorageByFolder = `-- name: GetStorageByFolder :many
+SELECT
+  a.folder_id,
+  COALESCE(f.name, '')                                   AS folder_name,
+  COALESCE(SUM(av.size), 0)                              AS versions_bytes,
+  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
+FROM asset_versions av
+JOIN assets a ON a.id = av.asset_id
+LEFT JOIN folders f ON f.id = a.folder_id
+LEFT JOIN (
+  SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
+  FROM variants vv
+  WHERE vv.workspace_id = ? AND vv.size IS NOT NULL
+  GROUP BY vv.asset_version_id
+) vs ON vs.asset_version_id = av.id
+WHERE av.workspace_id = ? AND a.project_id = ? AND av.deleted_at IS NULL
+GROUP BY a.folder_id
+`
+
+type GetStorageByFolderParams struct {
+	WorkspaceID   string  `json:"workspace_id"`
+	WorkspaceID_2 string  `json:"workspace_id_2"`
+	ProjectID     *string `json:"project_id"`
+}
+
+type GetStorageByFolderRow struct {
+	FolderID      *string     `json:"folder_id"`
+	FolderName    string      `json:"folder_name"`
+	VersionsBytes interface{} `json:"versions_bytes"`
+	VariantsBytes interface{} `json:"variants_bytes"`
+}
+
+func (q *Queries) GetStorageByFolder(ctx context.Context, arg GetStorageByFolderParams) ([]GetStorageByFolderRow, error) {
+	rows, err := q.db.QueryContext(ctx, getStorageByFolder, arg.WorkspaceID, arg.WorkspaceID_2, arg.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetStorageByFolderRow{}
+	for rows.Next() {
+		var i GetStorageByFolderRow
+		if err := rows.Scan(
+			&i.FolderID,
+			&i.FolderName,
+			&i.VersionsBytes,
+			&i.VariantsBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getStorageByProjectAndType = `-- name: GetStorageByProjectAndType :many
+SELECT
+  a.project_id,
+  COALESCE(p.name, '') AS project_name,
+  CASE
+    WHEN a.mime_type LIKE 'image/%'                                   THEN 'image'
+    WHEN a.mime_type LIKE 'video/%'                                   THEN 'video'
+    WHEN a.mime_type LIKE 'audio/%'                                   THEN 'audio'
+    WHEN a.mime_type = 'application/pdf' OR a.mime_type LIKE 'text/%' THEN 'document'
+    ELSE                                                                   'other'
+  END AS asset_type,
+  COALESCE(SUM(av.size), 0)                              AS versions_bytes,
+  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
+FROM asset_versions av
+JOIN assets a ON a.id = av.asset_id
+LEFT JOIN projects p ON p.id = a.project_id
+LEFT JOIN (
+  SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
+  FROM variants vv
+  WHERE vv.workspace_id = ? AND vv.size IS NOT NULL
+  GROUP BY vv.asset_version_id
+) vs ON vs.asset_version_id = av.id
+WHERE av.workspace_id = ? AND av.deleted_at IS NULL
+GROUP BY a.project_id, asset_type
+`
+
+type GetStorageByProjectAndTypeParams struct {
+	WorkspaceID   string `json:"workspace_id"`
+	WorkspaceID_2 string `json:"workspace_id_2"`
+}
+
+type GetStorageByProjectAndTypeRow struct {
+	ProjectID     *string     `json:"project_id"`
+	ProjectName   string      `json:"project_name"`
+	AssetType     string      `json:"asset_type"`
+	VersionsBytes interface{} `json:"versions_bytes"`
+	VariantsBytes interface{} `json:"variants_bytes"`
+}
+
+func (q *Queries) GetStorageByProjectAndType(ctx context.Context, arg GetStorageByProjectAndTypeParams) ([]GetStorageByProjectAndTypeRow, error) {
+	rows, err := q.db.QueryContext(ctx, getStorageByProjectAndType, arg.WorkspaceID, arg.WorkspaceID_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetStorageByProjectAndTypeRow{}
+	for rows.Next() {
+		var i GetStorageByProjectAndTypeRow
+		if err := rows.Scan(
+			&i.ProjectID,
+			&i.ProjectName,
+			&i.AssetType,
+			&i.VersionsBytes,
+			&i.VariantsBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
+SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
@@ -84,6 +213,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 		&i.ExifKeep,
 		&i.ExifKeepGps,
 		&i.LockedTaxonomy,
+		&i.StorageLimitBytes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -91,7 +221,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 }
 
 const getWorkspaceByIconAsset = `-- name: GetWorkspaceByIconAsset :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1
+SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1
 `
 
 type GetWorkspaceByIconAssetParams struct {
@@ -115,6 +245,7 @@ func (q *Queries) GetWorkspaceByIconAsset(ctx context.Context, arg GetWorkspaceB
 		&i.ExifKeep,
 		&i.ExifKeepGps,
 		&i.LockedTaxonomy,
+		&i.StorageLimitBytes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -135,8 +266,45 @@ func (q *Queries) GetWorkspaceImageRouterKey(ctx context.Context, id string) (*s
 	return imagerouter_api_key_enc, err
 }
 
+const getWorkspaceStorageLimitBytes = `-- name: GetWorkspaceStorageLimitBytes :one
+SELECT storage_limit_bytes FROM workspaces WHERE id = ?
+`
+
+func (q *Queries) GetWorkspaceStorageLimitBytes(ctx context.Context, id string) (*int64, error) {
+	row := q.db.QueryRowContext(ctx, getWorkspaceStorageLimitBytes, id)
+	var storage_limit_bytes *int64
+	err := row.Scan(&storage_limit_bytes)
+	return storage_limit_bytes, err
+}
+
+const getWorkspaceStorageVariantsBytes = `-- name: GetWorkspaceStorageVariantsBytes :one
+SELECT COALESCE(SUM(size), 0) AS total
+FROM variants
+WHERE workspace_id = ? AND size IS NOT NULL
+`
+
+func (q *Queries) GetWorkspaceStorageVariantsBytes(ctx context.Context, workspaceID string) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getWorkspaceStorageVariantsBytes, workspaceID)
+	var total interface{}
+	err := row.Scan(&total)
+	return total, err
+}
+
+const getWorkspaceStorageVersionsBytes = `-- name: GetWorkspaceStorageVersionsBytes :one
+SELECT COALESCE(SUM(av.size), 0) AS total
+FROM asset_versions av
+WHERE av.workspace_id = ? AND av.deleted_at IS NULL
+`
+
+func (q *Queries) GetWorkspaceStorageVersionsBytes(ctx context.Context, workspaceID string) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getWorkspaceStorageVersionsBytes, workspaceID)
+	var total interface{}
+	err := row.Scan(&total)
+	return total, err
+}
+
 const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
-SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
+SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
 `
 
 func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace, error) {
@@ -161,6 +329,7 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 			&i.ExifKeep,
 			&i.ExifKeepGps,
 			&i.LockedTaxonomy,
+			&i.StorageLimitBytes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

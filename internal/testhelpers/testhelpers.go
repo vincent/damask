@@ -137,7 +137,8 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
-	h := api.NewHTTPServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil)
+	storageSvc := service.NewStorageService(queries)
+	h := api.NewHTTPServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, storageSvc)
 	workflowExec := workflow.NewExecutor(
 		workflow.Deps{
 			Workflows: reposqlc.NewWorkflowRepo(queries, sqlDB),
@@ -167,8 +168,9 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		exifSvc,
 		fieldSvc,
 		textTrackSvc,
+		storageSvc,
 	)
-	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil)
+	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil, storageSvc)
 	return &TestEnv{App: app, HTTPServer: h, JobServer: j, Maker: maker, Database: sqlDB, Storage: stor, Config: cfg}
 }
 

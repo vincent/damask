@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/base64"
+	"errors"
 	"log/slog"
 	"mime"
 	"strconv"
@@ -177,6 +178,16 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 	fh, err := c.FormFile("file")
 	if err != nil {
 		return errRes(c, fiber.StatusBadRequest, "file field is required")
+	}
+
+	if err := s.storageSvc.CheckLimit(c.Context(), claims.WorkspaceID, fh.Size); err != nil {
+		if errors.Is(err, service.ErrStorageLimitReached) {
+			return c.Status(fiber.StatusInsufficientStorage).JSON(fiber.Map{
+				"error":   "storage_limit_reached",
+				"message": "Workspace storage limit reached. Delete assets or contact your administrator.",
+			})
+		}
+		return ErrorStatusResponse(c, err)
 	}
 
 	f, err := fh.Open()

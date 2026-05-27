@@ -69,6 +69,7 @@ type JobServer struct {
 	exifSvc        exifService
 	fieldSvc       fieldPurgeService
 	textTrackSvc   textTrackService
+	storageSvc     ingress.StorageLimitChecker
 }
 
 func NewJobServer(
@@ -88,6 +89,7 @@ func NewJobServer(
 	exifSvc exifService,
 	fieldSvc fieldPurgeService,
 	textTrackSvc textTrackService,
+	storageSvc ingress.StorageLimitChecker,
 ) *JobServer {
 	if imgKeyResolver == nil {
 		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
@@ -111,6 +113,7 @@ func NewJobServer(
 		queue:          q,
 		sqlDB:          sqlDB,
 		storage:        stor,
+		storageSvc:     storageSvc,
 		tmb:            tmb,
 		trf:            trf,
 		workflowExec:   workflowExec,
@@ -152,7 +155,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	}
 
 	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(s.queries, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.injestor)
+	ingressWorker := ingress.NewWorker(s.queries, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.injestor, s.storageSvc)
 	reg(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	reg(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 

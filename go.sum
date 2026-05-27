@@ -146,6 +146,8 @@ github.com/go-openapi/testify/enable/yaml/v2 v2.4.0 h1:7SgOMTvJkM8yWrQlU8Jm18VeD
 github.com/go-openapi/testify/enable/yaml/v2 v2.4.0/go.mod h1:14iV8jyyQlinc9StD7w1xVPW3CO3q1Gj04Jy//Kw4VM=
 github.com/go-openapi/testify/v2 v2.4.0 h1:8nsPrHVCWkQ4p8h1EsRVymA2XABB4OT40gcvAu+voFM=
 github.com/go-openapi/testify/v2 v2.4.0/go.mod h1:HCPmvFFnheKK2BuwSA0TbbdxJ3I16pjwMkYkP4Ywn54=
+github.com/go-pkgz/expirable-cache/v3 v3.1.0 h1:s05P851/O6QJ6Mc+7o2bh9aGtD3romB1SxDTXifdoqc=
+github.com/go-pkgz/expirable-cache/v3 v3.1.0/go.mod h1:6pVgNleydKPj0J2/mzrI02/RDo4ivKx5v2XlNmIjhjo=
 github.com/gofiber/contrib/v3/otel v1.1.0 h1:ffHQgiJYphZ6ZsQ6XmzUzNrRSa6U8eLoQtJkidUKLn8=
 github.com/gofiber/contrib/v3/otel v1.1.0/go.mod h1:Y7NzWRFWq/fIg3oxOsCnjeoQPr/WfZ7sDN00jQDSX1U=
 github.com/gofiber/contrib/v3/swaggo v1.0.1 h1:b1pj5CcZhXkj9k2vcO1AnwQ/zE7nva070lV/Pv28WdI=

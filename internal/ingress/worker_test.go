@@ -90,6 +90,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 		audit.New(sqlDB),
 		mail.NewMailer(&mail.Config{}),
 		stubInjestor{queries: queries},
+		nil,
 	)
 	return w, queries
 }

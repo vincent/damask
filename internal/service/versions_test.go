@@ -210,6 +210,7 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 	uploadSvc := service.NewUploadService(
 		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
 		audit.NopWriter{},
+		nil,
 	)
 	asset, err := uploadSvc.Ingest(ctx, wsID, strings.NewReader("first-version"), service.UploadMeta{
 		OriginalFilename: "photo.jpg",
@@ -286,6 +287,7 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 	uploadSvc := service.NewUploadService(
 		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
 		audit.NopWriter{},
+		nil,
 	)
 	asset, err := uploadSvc.Ingest(ctx, wsID, strings.NewReader("first-version"), service.UploadMeta{
 		OriginalFilename: "photo.jpg",

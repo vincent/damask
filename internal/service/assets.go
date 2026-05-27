@@ -21,13 +21,14 @@ import (
 )
 
 type assetService struct {
-	assets   repository.AssetRepository
-	versions repository.VersionRepository
-	tags     repository.TagRepository
-	fields   repository.FieldRepository
-	stor     storage.Storage
-	audit    audit.Writer
-	q        queue.JobQueue
+	assets     repository.AssetRepository
+	versions   repository.VersionRepository
+	tags       repository.TagRepository
+	fields     repository.FieldRepository
+	stor       storage.Storage
+	audit      audit.Writer
+	q          queue.JobQueue
+	invalidate StorageInvalidator
 }
 
 // NewAssetService returns an AssetService backed by the given repository.
@@ -39,8 +40,13 @@ func NewAssetService(
 	stor storage.Storage,
 	aw audit.Writer,
 	q queue.JobQueue,
+	inv ...StorageInvalidator,
 ) AssetService {
-	return &assetService{assets: assets, versions: versions, tags: tags, fields: fields, stor: stor, audit: aw, q: q}
+	var si StorageInvalidator
+	if len(inv) > 0 {
+		si = inv[0]
+	}
+	return &assetService{assets: assets, versions: versions, tags: tags, fields: fields, stor: stor, audit: aw, q: q, invalidate: si}
 }
 
 func (s *assetService) Get(ctx context.Context, workspaceID, assetID string) (*AssetDTO, error) {
@@ -317,6 +323,9 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 		EventType:   audit.EventAssetDeleted,
 		Payload:     audit.AssetDeletedPayload{V: 1},
 	})
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(workspaceID)
+	}
 	return nil
 }
 
@@ -358,6 +367,9 @@ func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, a
 			return err
 		}
 		s.deleteStorageKeys(p.keys)
+	}
+	if s.invalidate != nil {
+		s.invalidate.Invalidate(workspaceID)
 	}
 	return nil
 }

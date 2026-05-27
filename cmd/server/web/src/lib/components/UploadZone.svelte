@@ -1,7 +1,9 @@
 <script lang="ts">
   import { assetApi, type Asset } from '$lib/api'
+  import { ApiError } from '$lib/api/client'
   import { m } from '$lib/paraglide/messages'
   import { uploadsStore } from '$lib/stores/uploads.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
   import { Upload } from '@lucide/svelte'
 
   interface Props {
@@ -59,7 +61,18 @@
           pollUntilReady(id, asset.id)
         })
         .catch((err: Error) => {
-          uploadsStore.update(id, { status: 'error', error: err.message })
+          if (err instanceof ApiError && err.status === 507) {
+            uploadsStore.update(id, {
+              status: 'error',
+              error: m.storage_error_limit_reached(),
+            })
+            toastStore.show(m.storage_error_limit_reached(), 'error')
+          } else {
+            uploadsStore.update(id, {
+              status: 'error',
+              error: (err as Error).message,
+            })
+          }
         })
     }
   }

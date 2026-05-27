@@ -38,6 +38,9 @@
   --accent-cta-hover: #4338ca;
   --accent-cta-active: #3730a3;
   --accent-danger: #e54646;
+  --accent-error: #ef4444;
+  --accent-warning: #f59e0b;
+  --accent-success: #22c55e;
   --tag-bg: #ebf0f7;
   --tag-text: #4a6b8a;
   --selection-bar-bg: #1a2744;

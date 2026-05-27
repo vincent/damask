@@ -429,6 +429,7 @@ type Workspace struct {
 	ExifKeep                 int64     `json:"exif_keep"`
 	ExifKeepGps              int64     `json:"exif_keep_gps"`
 	LockedTaxonomy           int64     `json:"locked_taxonomy"`
+	StorageLimitBytes        *int64    `json:"storage_limit_bytes"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }

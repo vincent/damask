@@ -33,16 +33,28 @@ const (
 	ErrorCountCutoff = 5
 )
 
+// ErrStorageLimitReached is the sentinel returned by StorageLimitChecker.CheckLimit.
+// service.ErrStorageLimitReached equals this value.
+var ErrStorageLimitReached = errors.New("storage limit reached")
+
+// StorageLimitChecker is implemented by service.StorageService. Defined here
+// to avoid an import cycle between the ingress and service packages.
+type StorageLimitChecker interface {
+	CheckLimit(ctx context.Context, workspaceID string, incomingBytes int64) error
+	Invalidate(workspaceID string)
+}
+
 // Worker handles ingest_poll and ingest_fetch jobs.
 type Worker struct {
-	queries  *dbgen.Queries
-	sqlDB    *sql.DB
-	storage  storage.Storage
-	queue    queue.JobQueue
-	cfg      *config.Config
-	audit    *audit.EventWriter
-	mailer   mail.Mailer
-	injestor assetio.Injestor
+	queries    *dbgen.Queries
+	sqlDB      *sql.DB
+	storage    storage.Storage
+	queue      queue.JobQueue
+	cfg        *config.Config
+	audit      *audit.EventWriter
+	mailer     mail.Mailer
+	injestor   assetio.Injestor
+	storageSvc StorageLimitChecker // may be nil when not configured
 }
 
 // NewWorker creates a Worker.
@@ -55,16 +67,18 @@ func NewWorker(
 	au *audit.EventWriter,
 	mailer mail.Mailer,
 	injestor assetio.Injestor,
+	storageSvc StorageLimitChecker,
 ) *Worker {
 	return &Worker{
-		queries:  queries,
-		sqlDB:    sqlDB,
-		storage:  stor,
-		queue:    qu,
-		cfg:      cfg,
-		audit:    au,
-		mailer:   mailer,
-		injestor: injestor,
+		queries:    queries,
+		sqlDB:      sqlDB,
+		storage:    stor,
+		queue:      qu,
+		cfg:        cfg,
+		audit:      au,
+		mailer:     mailer,
+		injestor:   injestor,
+		storageSvc: storageSvc,
 	}
 }
 
@@ -235,6 +249,23 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 		return nil
 	}
 
+	// Storage limit pre-check before fetching any bytes. incomingBytes=0 because
+	// the file hasn't been downloaded yet; this blocks workspaces already over
+	// their limit (total > limit) but allows workspaces at exactly 100% to
+	// receive one more file before being cut off — acceptable for ingress.
+	if w.storageSvc != nil {
+		if err := w.storageSvc.CheckLimit(ctx, p.WorkspaceID, 0); err != nil {
+			if errors.Is(err, ErrStorageLimitReached) {
+				skipped := "storage limit reached"
+				_ = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+					Status: ingressStatusSkipped, ID: entry.ID, Error: &skipped,
+				})
+				return nil
+			}
+			return err
+		}
+	}
+
 	// Determine destination: rules > email subaddress override > source defaults
 	projectID := src.DestProjectID
 	folderID := src.DestFolderID
@@ -316,6 +347,10 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	slog.DebugContext(ctx, "update ingress log entry", "entry_id", entry.ID, "asset_id", &asset.ID)
 
 	assetID := asset.ID
+	if w.storageSvc != nil {
+		w.storageSvc.Invalidate(src.WorkspaceID)
+	}
+
 	if err := w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status:  ingressStatusImported,
 		AssetID: &assetID,

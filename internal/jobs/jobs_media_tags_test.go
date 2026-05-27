@@ -92,6 +92,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		noopExifSvc{},
 		noopFieldsSvc{},
 		noopTextTrackSvc{},
+		nil,
 	)
 
 	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {

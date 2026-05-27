@@ -82,6 +82,8 @@ func main() {
 	}
 	defer sqlDB.Close()
 
+	service.VerifySizeColumns(context.Background(), sqlDB, slog.Default())
+
 	tokenMaker, err := auth.NewMaker(cfg.JWTSecret)
 	if err != nil {
 		slog.Error("auth", "error", err)
@@ -207,6 +209,7 @@ func main() {
 	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
 	exifSvc := service.NewExifService(queries, stor)
 	textTrackSvc := service.NewTextTrackService(queries, q, stor)
+	storageSvc := service.NewStorageService(queries)
 	js := jobs.NewJobServer(
 		queries,
 		sqlDB,
@@ -224,6 +227,7 @@ func main() {
 		exifSvc,
 		fieldSvc,
 		textTrackSvc,
+		storageSvc,
 	)
 	js.RegisterJobHandlers()
 
@@ -231,7 +235,7 @@ func main() {
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
 	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor, trf, tmb)
 
-	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS)
+	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS, storageSvc)
 
 	mail := mailserver.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
 	slog.Info("mail server starting", "port", cfg.MailServerPort)

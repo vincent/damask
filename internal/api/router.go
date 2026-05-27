@@ -66,6 +66,7 @@ type Server struct {
 	stack         service.StackService
 	upload        service.UploadService
 	workflows     service.WorkflowService
+	storageSvc    service.StorageService
 }
 
 func NewHTTPServer(
@@ -79,6 +80,7 @@ func NewHTTPServer(
 	trf transform.Transformer,
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
+	storageSvc service.StorageService,
 ) *Server {
 	auditWriter := audit.New(sqlDB)
 	assetRepo := reposqlc.NewAssetRepo(queries, sqlDB)
@@ -109,16 +111,17 @@ func NewHTTPServer(
 		tagSvc,
 		auditWriter,
 		service.VariantServiceDeps{
-			Actions:   service.NewSQLVariantActionsStore(sqlDB),
-			Queue:     q,
-			Storage:   stor,
-			Workflows: workflowRepo,
+			Actions:    service.NewSQLVariantActionsStore(sqlDB),
+			Queue:      q,
+			Storage:    stor,
+			Workflows:  workflowRepo,
+			Invalidate: storageSvc,
 		},
 	)
 	return &Server{
 		queries:       queries,
 		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
-		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q),
+		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q, storageSvc),
 		auditLog:      service.NewAuditLogService(queries),
 		auth:          tokenMaker,
 		cfg:           cfg,
@@ -146,19 +149,22 @@ func NewHTTPServer(
 		upload: service.NewUploadService(
 			service.NewAssetInjestor(queries, sqlDB, stor, q, media),
 			auditWriter,
+			storageSvc,
 			triggerDispatcher,
 		),
 		users:    service.NewUserService(userRepo, workspaceRepo, stor),
 		variants: variantsSvc,
 		versions: service.NewVersionService(versionRepo, auditWriter, service.VersionServiceDeps{
-			Assets:   assetRepo,
-			Storage:  stor,
-			Queue:    q,
-			Media:    media,
-			Triggers: triggerDispatcher,
+			Assets:     assetRepo,
+			Storage:    stor,
+			Queue:      q,
+			Media:      media,
+			Triggers:   triggerDispatcher,
+			Invalidate: storageSvc,
 		}),
-		workspace: service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
-		workflows: service.NewWorkflowServiceWithDeps(
+		storageSvc: storageSvc,
+		workspace:  service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
+		workflows:  service.NewWorkflowServiceWithDeps(
 			workflowRepo,
 			workflowRunRepo,
 			workflowWebhookRepo,
@@ -195,8 +201,9 @@ func NewRouter(
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
 	uiFS fs.FS,
+	storageSvc service.StorageService,
 ) *fiber.App {
-	s := NewHTTPServer(queries, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder)
+	s := NewHTTPServer(queries, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder, storageSvc)
 
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {
@@ -312,6 +319,9 @@ func NewRouter(
 	api.Get("/workspace/members", auth.RequireRole(getRoleFn, auth.Owner), s.handleListMembers)
 	api.Delete("/workspace/members/:userId", auth.RequireRole(getRoleFn, auth.Owner), s.handleRemoveMember)
 	api.Put("/workspace/members/:userId", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateMemberRole)
+
+	api.Get("/workspace/storage", s.handleGetWorkspaceStorage)
+	api.Get("/workspace/storage/projects/:project_id/folders", s.handleGetProjectFolderStorage)
 
 	// Invite acceptance is public — the caller has no account yet
 	authGroup.Post("/invite/accept", s.handleAcceptInvite)

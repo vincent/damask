@@ -39,3 +39,59 @@ WHERE id = ?;
 
 -- name: CountWorkspaceAssets :one
 SELECT COUNT(*) FROM assets WHERE workspace_id = ?;
+
+-- name: GetWorkspaceStorageLimitBytes :one
+SELECT storage_limit_bytes FROM workspaces WHERE id = ?;
+
+-- name: GetWorkspaceStorageVersionsBytes :one
+SELECT COALESCE(SUM(av.size), 0) AS total
+FROM asset_versions av
+WHERE av.workspace_id = ? AND av.deleted_at IS NULL;
+
+-- name: GetWorkspaceStorageVariantsBytes :one
+SELECT COALESCE(SUM(size), 0) AS total
+FROM variants
+WHERE workspace_id = ? AND size IS NOT NULL;
+
+-- name: GetStorageByProjectAndType :many
+SELECT
+  a.project_id,
+  COALESCE(p.name, '') AS project_name,
+  CASE
+    WHEN a.mime_type LIKE 'image/%'                                   THEN 'image'
+    WHEN a.mime_type LIKE 'video/%'                                   THEN 'video'
+    WHEN a.mime_type LIKE 'audio/%'                                   THEN 'audio'
+    WHEN a.mime_type = 'application/pdf' OR a.mime_type LIKE 'text/%' THEN 'document'
+    ELSE                                                                   'other'
+  END AS asset_type,
+  COALESCE(SUM(av.size), 0)                              AS versions_bytes,
+  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
+FROM asset_versions av
+JOIN assets a ON a.id = av.asset_id
+LEFT JOIN projects p ON p.id = a.project_id
+LEFT JOIN (
+  SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
+  FROM variants vv
+  WHERE vv.workspace_id = ? AND vv.size IS NOT NULL
+  GROUP BY vv.asset_version_id
+) vs ON vs.asset_version_id = av.id
+WHERE av.workspace_id = ? AND av.deleted_at IS NULL
+GROUP BY a.project_id, asset_type;
+
+-- name: GetStorageByFolder :many
+SELECT
+  a.folder_id,
+  COALESCE(f.name, '')                                   AS folder_name,
+  COALESCE(SUM(av.size), 0)                              AS versions_bytes,
+  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
+FROM asset_versions av
+JOIN assets a ON a.id = av.asset_id
+LEFT JOIN folders f ON f.id = a.folder_id
+LEFT JOIN (
+  SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
+  FROM variants vv
+  WHERE vv.workspace_id = ? AND vv.size IS NOT NULL
+  GROUP BY vv.asset_version_id
+) vs ON vs.asset_version_id = av.id
+WHERE av.workspace_id = ? AND a.project_id = ? AND av.deleted_at IS NULL
+GROUP BY a.folder_id;

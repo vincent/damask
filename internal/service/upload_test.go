@@ -29,7 +29,7 @@ func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 	spy := newSpy()
 	q := queue.New(queries, 1)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()))
-	return service.NewUploadService(injestor, spy), spy
+	return service.NewUploadService(injestor, spy, nil), spy
 }
 
 func newUploadSvc(t *testing.T) service.UploadService {
@@ -46,7 +46,7 @@ func newUploadSvc(t *testing.T) service.UploadService {
 	}
 	q := queue.New(queries, 1)
 	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()))
-	return service.NewUploadService(injestor, audit.NopWriter{})
+	return service.NewUploadService(injestor, audit.NopWriter{}, nil)
 }
 
 func waitForTriggerCount(t *testing.T, spy *triggerSpy, want int) {
@@ -110,6 +110,7 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	svc := service.NewUploadService(
 		service.NewAssetInjestor(queries, sqlDB, stor, q2, ingest.NewRegistry(transform.NewTransformer())),
 		audit.NopWriter{},
+		nil,
 	)
 
 	dto, err := svc.Ingest(ctx, wsID, strings.NewReader("fake image bytes"), service.UploadMeta{
@@ -161,6 +162,7 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	svc = service.NewUploadService(
 		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
 		spy,
+		nil,
 	)
 
 	_, err = svc.Ingest(ctx, wsID, strings.NewReader("bytes"), service.UploadMeta{
@@ -205,6 +207,7 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 	svc := service.NewUploadService(
 		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
 		audit.NopWriter{},
+		nil,
 		triggers,
 	)
 

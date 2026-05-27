@@ -78,15 +78,18 @@
     <div class="label-row">
       <label class="field-label" for="imagerouter-model">Model</label>
       {#if allowMulti}
-        <button
-          type="button"
-          class="multi-toggle"
-          class:active={multiMode}
-          title={multiMode ? 'Single model' : 'Select multiple models'}
-          onclick={toggleMulti}
-        >
-          <Layers size={13} strokeWidth={1.75} />
-        </button>
+        <div class="flex items-center justify-between">
+          <span class="field-label mx-2">multi</span>
+          <button
+            type="button"
+            class="multi-toggle"
+            class:active={multiMode}
+            title={multiMode ? 'Single model' : 'Select multiple models'}
+            onclick={toggleMulti}
+          >
+            <Layers size={13} strokeWidth={1.75} />
+          </button>
+        </div>
       {/if}
     </div>
     {#if multiMode}
