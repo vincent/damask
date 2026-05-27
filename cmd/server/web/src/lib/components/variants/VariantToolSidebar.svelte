@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
+  import { fly } from 'svelte/transition'
   import { ALL_VARIANT_TOOLS, type VariantToolDef } from './toolDefs'
   import type { VariantTab } from './VariantsTool.svelte'
+  import { cubicOut } from 'svelte/easing'
 
   interface Props {
     asset: Asset
@@ -48,6 +50,11 @@
 </script>
 
 <div
+  transition:fly={{
+    x: -420,
+    duration: 380,
+    easing: cubicOut,
+  }}
   class="tool-sidebar pointer-events-auto"
   role="toolbar"
   aria-label={msg('variant_tools_label')}

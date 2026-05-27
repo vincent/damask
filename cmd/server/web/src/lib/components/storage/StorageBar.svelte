@@ -42,15 +42,14 @@
       style="width: {pct != null ? pct : 5}%; background-color: {color};"
     ></div>
   </div>
-  {#if !compact}
-    <span class="bar-label">{label}</span>
-  {/if}
+  <span class="bar-label">{label}</span>
 </div>
 
 <style>
   .storage-bar {
     display: flex;
     flex-direction: column;
+    text-align: end;
     gap: 4px;
   }
   .bar-track {

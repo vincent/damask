@@ -78,15 +78,22 @@ LEFT JOIN (
 WHERE av.workspace_id = ? AND av.deleted_at IS NULL
 GROUP BY a.project_id, asset_type;
 
+-- name: GetFolderCountsByProject :many
+SELECT a.project_id, COUNT(DISTINCT a.folder_id) AS folder_count
+FROM assets a
+JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
+WHERE a.workspace_id = ?
+GROUP BY a.project_id;
+
 -- name: GetStorageByFolder :many
 SELECT
-  a.folder_id,
-  COALESCE(f.name, '')                                   AS folder_name,
-  COALESCE(SUM(av.size), 0)                              AS versions_bytes,
-  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
+  CASE WHEN f.id IS NOT NULL THEN a.folder_id ELSE NULL END AS folder_id,
+  COALESCE(f.name, '')                                      AS folder_name,
+  COALESCE(SUM(av.size), 0)                                 AS versions_bytes,
+  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)           AS variants_bytes
 FROM asset_versions av
 JOIN assets a ON a.id = av.asset_id
-LEFT JOIN folders f ON f.id = a.folder_id
+LEFT JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
 LEFT JOIN (
   SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
   FROM variants vv
@@ -94,4 +101,4 @@ LEFT JOIN (
   GROUP BY vv.asset_version_id
 ) vs ON vs.asset_version_id = av.id
 WHERE av.workspace_id = ? AND a.project_id = ? AND av.deleted_at IS NULL
-GROUP BY a.folder_id;
+GROUP BY CASE WHEN f.id IS NOT NULL THEN a.folder_id ELSE NULL END;

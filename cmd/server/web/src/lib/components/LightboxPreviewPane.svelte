@@ -10,6 +10,7 @@
   import Backdrop from './ui/Backdrop.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { onMount } from 'svelte'
 
   interface Props {
     asset: Asset
@@ -51,6 +52,11 @@
     zoomOut = $bindable(undefined),
     zoomReset = $bindable(undefined),
   }: Props = $props()
+
+  let mounted = $state(false)
+  onMount(() => {
+    mounted = true
+  })
 
   let previewContainer = $state<HTMLElement | null>(null)
   let showToolbar = $state<(() => void) | undefined>(undefined)
@@ -134,7 +140,7 @@
         />
       {/if}
 
-      {#if viewportStore.isXl && visibleVariantTools.length > 0}
+      {#if mounted && viewportStore.isXl && visibleVariantTools.length > 0}
         <VariantToolSidebar
           {asset}
           activeTool={selectedTool}
@@ -145,7 +151,7 @@
         />
       {/if}
 
-      {#if viewportStore.isXl && selectedTool !== null}
+      {#if mounted && viewportStore.isXl && selectedTool !== null}
         <VariantToolPanel
           tool={selectedTool}
           {asset}

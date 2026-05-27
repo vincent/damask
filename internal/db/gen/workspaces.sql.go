@@ -65,15 +65,51 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 	return i, err
 }
 
+const getFolderCountsByProject = `-- name: GetFolderCountsByProject :many
+SELECT a.project_id, COUNT(DISTINCT a.folder_id) AS folder_count
+FROM assets a
+JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
+WHERE a.workspace_id = ?
+GROUP BY a.project_id
+`
+
+type GetFolderCountsByProjectRow struct {
+	ProjectID   *string `json:"project_id"`
+	FolderCount int64   `json:"folder_count"`
+}
+
+func (q *Queries) GetFolderCountsByProject(ctx context.Context, workspaceID string) ([]GetFolderCountsByProjectRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFolderCountsByProject, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetFolderCountsByProjectRow{}
+	for rows.Next() {
+		var i GetFolderCountsByProjectRow
+		if err := rows.Scan(&i.ProjectID, &i.FolderCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getStorageByFolder = `-- name: GetStorageByFolder :many
 SELECT
-  a.folder_id,
-  COALESCE(f.name, '')                                   AS folder_name,
-  COALESCE(SUM(av.size), 0)                              AS versions_bytes,
-  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
+  CASE WHEN f.id IS NOT NULL THEN a.folder_id ELSE NULL END AS folder_id,
+  COALESCE(f.name, '')                                      AS folder_name,
+  COALESCE(SUM(av.size), 0)                                 AS versions_bytes,
+  COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)           AS variants_bytes
 FROM asset_versions av
 JOIN assets a ON a.id = av.asset_id
-LEFT JOIN folders f ON f.id = a.folder_id
+LEFT JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
 LEFT JOIN (
   SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
   FROM variants vv
@@ -81,7 +117,7 @@ LEFT JOIN (
   GROUP BY vv.asset_version_id
 ) vs ON vs.asset_version_id = av.id
 WHERE av.workspace_id = ? AND a.project_id = ? AND av.deleted_at IS NULL
-GROUP BY a.folder_id
+GROUP BY CASE WHEN f.id IS NOT NULL THEN a.folder_id ELSE NULL END
 `
 
 type GetStorageByFolderParams struct {
@@ -91,7 +127,7 @@ type GetStorageByFolderParams struct {
 }
 
 type GetStorageByFolderRow struct {
-	FolderID      *string     `json:"folder_id"`
+	FolderID      interface{} `json:"folder_id"`
 	FolderName    string      `json:"folder_name"`
 	VersionsBytes interface{} `json:"versions_bytes"`
 	VariantsBytes interface{} `json:"variants_bytes"`

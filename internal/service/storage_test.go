@@ -53,7 +53,7 @@ func TestBuildUsage_TypeBucketing(t *testing.T) {
 		{AssetType: "document", VersionsBytes: int64(30), VariantsBytes: int64(0)},
 		{AssetType: "other", VersionsBytes: int64(10), VariantsBytes: int64(5)},
 	}
-	u := buildUsage(rows, nil)
+	u := buildUsage(rows, nil, nil)
 
 	if u.ByType.Image != 120 {
 		t.Errorf("image: want 120 got %d", u.ByType.Image)
@@ -79,7 +79,7 @@ func TestBuildUsage_NullProject(t *testing.T) {
 	rows := []dbgen.GetStorageByProjectAndTypeRow{
 		{ProjectID: nil, AssetType: "image", VersionsBytes: int64(100)},
 	}
-	u := buildUsage(rows, nil)
+	u := buildUsage(rows, nil, nil)
 	if len(u.ByProject) != 1 {
 		t.Fatalf("want 1 project row, got %d", len(u.ByProject))
 	}

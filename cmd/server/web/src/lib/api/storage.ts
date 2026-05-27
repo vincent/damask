@@ -14,6 +14,7 @@ export interface ProjectStorageUsage {
   versions_bytes: number
   variants_bytes: number
   total_bytes: number
+  folder_count: number
   by_type: AssetTypeBucket
 }
 

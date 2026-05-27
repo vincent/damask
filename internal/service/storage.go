@@ -30,6 +30,7 @@ type ProjectStorageUsage struct {
 	VersionsBytes int64           `json:"versions_bytes"`
 	VariantsBytes int64           `json:"variants_bytes"`
 	TotalBytes    int64           `json:"total_bytes"`
+	FolderCount   int64           `json:"folder_count"`
 	ByType        AssetTypeBucket `json:"by_type"`
 }
 
@@ -93,12 +94,17 @@ func (s *storageService) GetUsage(ctx context.Context, workspaceID string) (*Wor
 		return nil, err
 	}
 
+	folderCounts, err := s.db.GetFolderCountsByProject(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+
 	limitBytes, err := s.db.GetWorkspaceStorageLimitBytes(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
 
-	usage := buildUsage(rows, limitBytes)
+	usage := buildUsage(rows, folderCounts, limitBytes)
 	usage.ComputedAt = time.Now()
 	s.usageCache.Add(workspaceID, usage)
 	return usage, nil
@@ -119,7 +125,7 @@ func (s *storageService) GetFolderUsage(ctx context.Context, workspaceID, projec
 		vb := toInt64(r.VersionsBytes)
 		varb := toInt64(r.VariantsBytes)
 		result = append(result, FolderStorageUsage{
-			FolderID:      r.FolderID,
+			FolderID:      toStringPtr(r.FolderID),
 			FolderName:    r.FolderName,
 			VersionsBytes: vb,
 			VariantsBytes: varb,
@@ -149,7 +155,14 @@ func (s *storageService) Invalidate(workspaceID string) {
 
 // buildUsage aggregates flat DB rows into a WorkspaceStorageUsage.
 // Pure function — no DB access — easy to unit-test.
-func buildUsage(rows []dbgen.GetStorageByProjectAndTypeRow, limitBytes *int64) *WorkspaceStorageUsage {
+func buildUsage(rows []dbgen.GetStorageByProjectAndTypeRow, folderCounts []dbgen.GetFolderCountsByProjectRow, limitBytes *int64) *WorkspaceStorageUsage {
+	fcMap := make(map[string]int64, len(folderCounts))
+	for _, fc := range folderCounts {
+		if fc.ProjectID != nil {
+			fcMap[*fc.ProjectID] = fc.FolderCount
+		}
+	}
+
 	// projectID (string or "nil") → *ProjectStorageUsage
 	byProject := map[string]*ProjectStorageUsage{}
 	var projectOrder []string
@@ -162,9 +175,14 @@ func buildUsage(rows []dbgen.GetStorageByProjectAndTypeRow, limitBytes *int64) *
 
 		p, ok := byProject[key]
 		if !ok {
+			fc := int64(0)
+			if r.ProjectID != nil {
+				fc = fcMap[*r.ProjectID]
+			}
 			p = &ProjectStorageUsage{
 				ProjectID:   r.ProjectID,
 				ProjectName: r.ProjectName,
+				FolderCount: fc,
 			}
 			byProject[key] = p
 			projectOrder = append(projectOrder, key)
@@ -211,6 +229,17 @@ func buildUsage(rows []dbgen.GetStorageByProjectAndTypeRow, limitBytes *int64) *
 
 	usage.TotalBytes = usage.VersionsBytes + usage.VariantsBytes
 	return usage
+}
+
+// toStringPtr converts a SQLite CASE expression interface{} result to *string.
+func toStringPtr(v interface{}) *string {
+	if v == nil {
+		return nil
+	}
+	if s, ok := v.(string); ok {
+		return &s
+	}
+	return nil
 }
 
 // toInt64 converts SQLite COALESCE/SUM interface{} results to int64.

@@ -159,10 +159,10 @@
                     >{formatBytes(project.total_bytes)}</td
                   >
                   <td class="px-4 py-3 text-center">
-                    {#if project.project_id}
+                    {#if project.project_id && project.folder_count > 0}
                       <button
                         class="text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
-                        onclick={() => toggleProject(project.project_id)}
+                        onclick={() => project.folder_count > 0 && toggleProject(project.project_id)}
                         aria-label="Toggle folder breakdown"
                       >
                         {#if expandedProjects[project.project_id!] !== undefined}
