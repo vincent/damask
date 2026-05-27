@@ -1,7 +1,12 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import { assetApi, variantApi, type Asset, type WatermarkAsset } from '$lib/api'
+  import {
+    assetApi,
+    variantApi,
+    type Asset,
+    type WatermarkAsset,
+  } from '$lib/api'
   import { generateDraft } from '$lib/api/drafts'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
