@@ -1,7 +1,7 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import { variantApi, type Asset, type WatermarkAsset } from '$lib/api'
+  import { assetApi, variantApi, type Asset, type WatermarkAsset } from '$lib/api'
   import { generateDraft } from '$lib/api/drafts'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
@@ -28,6 +28,11 @@
   let submitting = $state(false)
   let sessionRef = $state<ReturnType<typeof VariantDraftSession> | undefined>(
     undefined
+  )
+  let watermarkTileWidth = $state<number | null>(null)
+  let watermarkTileHeight = $state<number | null>(null)
+  let previewFrameStyle = $derived(
+    `aspect-ratio: ${asset.width && asset.height ? `${asset.width} / ${asset.height}` : '1 / 1'}; max-width: min(100%, ${220 * (asset.width && asset.height ? asset.width / asset.height : 1)}px);`
   )
 
   $effect(() => {
@@ -56,6 +61,26 @@
 
   $effect(() => {
     if (!sessionActive) phase = 'form'
+  })
+
+  $effect(() => {
+    const currentWatermark = watermarkAsset
+    const assetWidth = asset.width
+    const assetHeight = asset.height
+    watermarkTileWidth = null
+    watermarkTileHeight = null
+
+    if (!currentWatermark || !assetWidth || !assetHeight) return
+    if (typeof Image === 'undefined') return
+
+    const image = new Image()
+    image.src = assetApi.fileUrl(currentWatermark.id)
+    image.onload = () => {
+      if (currentWatermark !== watermarkAsset) return
+      if (!image.naturalWidth || !image.naturalHeight) return
+      watermarkTileWidth = (image.naturalWidth / assetWidth) * 100
+      watermarkTileHeight = (image.naturalHeight / assetHeight) * 100
+    }
   })
 
   async function handlePreview() {
@@ -93,20 +118,39 @@
 
 {#if phase === 'form' || onDraftStarted}
   <div class="space-y-5">
-    {#if resolving}
-      <div class="notice">{m.loading()}</div>
-    {:else if resolveError || !watermarkAsset}
-      <div class="notice notice--error">
-        {resolveError || m.watermark_missing()}
-      </div>
-    {:else}
-      <div class="notice">
-        <p class="notice-title">{watermarkAsset.name}</p>
-        <p class="notice-body">
-          {m.watermark_scope_label()}: {watermarkAsset.scope}
-        </p>
-      </div>
-    {/if}
+    <div class="preview-card">
+      {#if watermarkAsset}
+        <div class="preview-head">
+          <div>
+            <div class="preview-title">{watermarkAsset.name}</div>
+            <div class="preview-scope">
+              {m.watermark_scope_label()}: {watermarkAsset.scope}
+            </div>
+          </div>
+          <span class="scope-pill">{watermarkAsset.scope}</span>
+        </div>
+        <div class="preview-stage">
+          <div class="preview-frame" style={previewFrameStyle}>
+            <img
+              class="preview-img"
+              src={assetApi.thumbUrl(asset.id, asset.thumbnail_key)}
+              alt={asset.original_filename}
+            />
+            <div
+              aria-hidden="true"
+              class="watermark-overlay"
+              style={`opacity: ${opacity / 100}; background-image: url('${assetApi.fileUrl(watermarkAsset.id)}'); ${watermarkTileWidth && watermarkTileHeight ? `background-size: ${watermarkTileWidth}% ${watermarkTileHeight}%;` : ''}`}
+            ></div>
+          </div>
+        </div>
+      {:else if resolving}
+        <div class="preview-empty">{m.loading()}</div>
+      {:else}
+        <div class="preview-empty error-text">
+          {resolveError || m.watermark_missing()}
+        </div>
+      {/if}
+    </div>
 
     <div>
       <label for="variant-{kind}-opacity" class="field-label">
@@ -140,32 +184,80 @@
 {/if}
 
 <style>
-  .notice {
-    border-radius: 8px;
+  .preview-card {
     border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
     background: var(--bg-surface);
-    padding: 12px 14px;
   }
-  .notice--error {
-    border-color: oklch(75% 0.12 25 / 0.5);
-    background: oklch(97% 0.03 25);
-    color: var(--danger, #b42318);
-    font-size: 0.875rem;
+  .preview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
   }
-  :global(.dark) .notice--error {
-    background: oklch(25% 0.05 25 / 0.2);
-    color: oklch(75% 0.12 25);
-  }
-  .notice-title {
-    font-size: 0.875rem;
+  .preview-title {
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 4px;
   }
-  .notice-body {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
+  .preview-scope {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
     text-transform: capitalize;
+  }
+  .scope-pill {
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: var(--bg-subtle);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    text-transform: capitalize;
+  }
+  .preview-stage {
+    display: flex;
+    justify-content: center;
+    padding: 8px;
+    background: var(--bg-base);
+    border-radius: 8px;
+  }
+  .preview-frame {
+    position: relative;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    max-height: 220px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #000;
+  }
+  .preview-img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .watermark-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background-position: top left;
+    background-repeat: repeat;
+    pointer-events: none;
+  }
+  .preview-empty {
+    display: grid;
+    place-items: center;
+    min-height: 120px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+  .error-text {
+    color: var(--danger, #b42318);
   }
   .field-label {
     display: block;
