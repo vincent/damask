@@ -28,6 +28,7 @@ Damask automatically generates thumbnails and extracts metadata.
 
 ## Next steps
 
+- [Edit your user profile](help/account)
 - [Organize assets into projects](projects)
 - [Tag and add custom fields to assets](assets)
 - [Share assets with clients](sharing)

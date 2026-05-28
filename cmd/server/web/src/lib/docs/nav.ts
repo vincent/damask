@@ -16,11 +16,13 @@ export const DOC_NAV: DocEntry[] = [
     title: 'Getting started',
     order: 1,
   },
+  { section: 'help', slug: 'account', title: 'Account settings', order: 1 },
   { section: 'help', slug: 'projects', title: 'Projects & folders', order: 2 },
   { section: 'help', slug: 'assets', title: 'Assets', order: 3 },
   { section: 'help', slug: 'variants', title: 'Variants', order: 4 },
   { section: 'help', slug: 'sharing', title: 'Sharing', order: 5 },
   { section: 'help', slug: 'search', title: 'Search & filters', order: 6 },
+  { section: 'help', slug: 'exports', title: 'Exporting', order: 7 },
   // Tech
   { section: 'tech', slug: 'index', title: 'Overview', order: 0 },
   { section: 'tech', slug: 'installation', title: 'Installation', order: 1 },
@@ -29,6 +31,7 @@ export const DOC_NAV: DocEntry[] = [
   { section: 'tech', slug: 'upgrade', title: 'Upgrading', order: 4 },
   { section: 'tech', slug: 'oidc', title: 'OIDC / SSO', order: 5 },
   { section: 'tech', slug: 'ingress', title: 'Ingress sources', order: 6 },
+  { section: 'tech', slug: 'exports', title: 'Exports', order: 7 },
 ]
 
 export function navForSection(section: DocSection): DocEntry[] {

@@ -76,6 +76,7 @@ type Config struct {
 	QueueWorkers     int
 	FrontendPath     string
 	EnableScheduler  bool
+	EnableSignup     bool
 	Demo             DemoConfig
 	// BodyLimit overrides the default 100 MB upload limit. Zero means use the default.
 	BodyLimit int
@@ -172,6 +173,7 @@ func Load() (*Config, error) {
 		QueueWorkers:    workers,
 		FrontendPath:    os.Getenv("FRONTEND_PATH"),
 		EnableScheduler: getEnv("ENABLE_SCHEDULER", "true") != "false",
+		EnableSignup:    getEnv("ENABLE_SIGNUP", "true") != "false",
 		Demo: DemoConfig{
 			DemoMode:           demoMode,
 			ResetIntervalHours: demoResetHours,

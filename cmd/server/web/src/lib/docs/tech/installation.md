@@ -23,6 +23,7 @@ services:
       APP_SECRET: change-me-to-a-long-random-secret
       DB_PATH: /data/damask.db
       STORAGE_LOCAL_PATH: /data/storage
+      ENABLE_SIGNUP: true
 ```
 
 ```bash
@@ -69,8 +70,13 @@ journalctl -u damask -f
 
 ## Reverse proxy (Caddy)
 
+> Set the upload limit generously : assets can be large video/audio files.
+
 ```caddyfile
 dam.example.com {
+    request_body {
+        max_size 300MB
+    }
     reverse_proxy localhost:8080
 }
 ```
@@ -83,6 +89,7 @@ Caddy handles TLS automatically via Let's Encrypt.
 server {
     listen 443 ssl;
     server_name dam.example.com;
+    client_max_body_size 300m;
 
     location / {
         proxy_pass http://localhost:8080;
@@ -95,7 +102,7 @@ server {
 
 ## First run
 
-On first start Damask runs all migrations and creates the database. Visit `BASE_URL` and register the first account, this account automatically becomes the workspace owner.
+On first start Damask runs all migrations and creates the database. Visit `BASE_URL` and register the first account, this account automatically becomes the owner of your first workspace.
 
 ## Email ingress DNS setup
 
@@ -108,3 +115,7 @@ To receive assets via email (see [Ingress sources](ingress)), you need to point 
 | TXT  | `mail` | `v=spf1 mx ~all`       |
 
 Then set `MAIL_HOST=mail.dam.example.com` and expose port `25` (or `2525` with port forwarding) on your host.
+
+## Next steps
+
+- [Review your Damask configuration](configuration)

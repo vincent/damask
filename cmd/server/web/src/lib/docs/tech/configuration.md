@@ -21,7 +21,7 @@ Damask is configured via environment variables. All variables are optional unles
 
 See the [Storage guide](storage) for S3 and SFTP options.
 
-## Email (SMTP)
+## Outgoing emails (SMTP)
 
 Required to send invite emails, password reset links, and ingress failure notifications.
 
@@ -35,7 +35,7 @@ Required to send invite emails, password reset links, and ingress failure notifi
 
 ## Ingress mail server
 
-Damask includes a built-in SMTP server that receives inbound email for the [email ingress](ingress) feature.
+Damask includes a built-in SMTP server that receives inbound emails for the [email ingress](ingress) feature.
 
 | Variable    | Default                   | Description                                  |
 | ----------- | ------------------------- | -------------------------------------------- |
@@ -84,3 +84,7 @@ See the [OIDC guide](oidc) for full setup instructions.
 | `GOOGLE_CLIENT_SECRET` | -       | Google OAuth secret    |
 | `CANVA_CLIENT_ID`      | -       | Canva OAuth client ID  |
 | `CANVA_CLIENT_SECRET`  | -       | Canva OAuth secret     |
+
+## Next steps
+
+- [Review Damask storage & backups](storage)

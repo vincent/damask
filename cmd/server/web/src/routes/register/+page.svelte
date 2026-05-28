@@ -7,12 +7,24 @@
   import Input from '$lib/components/ui/Input.svelte'
   import Title from '$lib/components/ui/Title.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { onMount } from 'svelte'
 
   let name = $state('')
   let email = $state('')
   let password = $state('')
   let error = $state('')
   let loading = $state(false)
+
+  onMount(() => {
+    fetch('/config/auth')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.signup_enabled) goto('/login')
+      })
+      .catch(() => {
+        // silent
+      })
+  })
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault()

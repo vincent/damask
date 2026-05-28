@@ -56,4 +56,6 @@ Every time someone successfully accesses a share link (past the password gate), 
 
 ## Exporting
 
-Visitors (and you) can download a ZIP of all assets in the share from the share page footer.
+When **Allow download** is enabled on a share, visitors (and you) can download a ZIP of all assets in the share from the share page footer.
+
+For bulk downloads of assets you own (outside of a share link), or for automated scheduled exports to SFTP or Google Drive, see [Exporting](help/exports).

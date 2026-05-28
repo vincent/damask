@@ -59,6 +59,7 @@ func (s *Server) handleAuthConfig(c fiber.Ctx) error {
 	googleRT := config.GetGoogleRuntime()
 	return c.JSON(fiber.Map{
 		"password_auth":  true,
+		"signup_enabled": s.cfg.EnableSignup,
 		"oidc_enabled":   oidcRT != nil,
 		"oidc_label":     s.cfg.OIDC.Label,
 		"google_enabled": googleRT != nil,

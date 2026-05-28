@@ -2,7 +2,7 @@
 
 Assets are the files at the heart of Damask - images, videos, PDFs, audio, documents, and more.
 
-![Asset detail panel](/docs/screenshot_asset_open.png)
+![Asset detail panel](/docs/screenshot_asset_open.dark.png)
 
 ## Uploading
 
@@ -39,11 +39,11 @@ Custom fields let you attach structured metadata to assets (e.g. photographer, l
 
 1. Go to **Settings → Custom fields** to define field types (text, number, date, yes/no, select, URL)
 
-![Custom fields settings](/docs/screenshot_custom_fields.png)
+![Custom fields settings](/docs/screenshot_custom_fields.dark.png)
 
 2. Open any asset and fill in values in the **Fields** panel
 
-![Tags and custom fields on an asset](/docs/screenshot_asset_tags_fields.png)
+![Tags and custom fields on an asset](/docs/screenshot_asset_tags_fields.dark.png)
 
 Fields can also be scoped to **projects**, useful for fields like `client` or `campaign` that are the same for every asset in a project. Set a value once on the project and new assets inherit it automatically.
 
@@ -52,6 +52,8 @@ To fill in a field across many assets at once, select them and use **Set field**
 ## Downloading
 
 Click the **Download** button on an asset detail page, or press `Ctrl+D` when an asset is selected.
+
+For automated or scheduled exports to SFTP or Google Drive, see [Exporting](help/exports).
 
 ## Deleting
 
@@ -67,7 +69,7 @@ Open the asset detail panel and click **Upload new version**. You can add an opt
 
 ### View and restore versions
 
-![Version history tab](/docs/screenshot_asset_versions.png)
+![Version history tab](/docs/screenshot_asset_versions.dark.png)
 
 Open the **Versions** tab in the asset detail panel. Each version shows its thumbnail, file size, uploader, and upload comment. Click **Restore** on any older version to make it the current one, the version you restore from stays in the history and can be restored again at any time.
 
@@ -83,11 +85,11 @@ By default all versions are kept indefinitely. Configure a cap (keep last N vers
 
 The **Activity** tab on every asset shows a complete history of what changed: renames, tag additions and removals, field value updates, share link creation, downloads, and version changes. Events are newest-first.
 
-![Asset activity log](/docs/screenshot_asset_activity.png)
+![Asset activity log](/docs/screenshot_asset_activity.dark.png)
 
-A workspace-wide recent activity feed is also available on the main dashboard.
+A workspace-wide recent activity feed is also available from the settings sidebar.
 
-![Workspace-wide activity feed](/docs/screenshot_ws_activity.png)
+![Workspace-wide activity feed](/docs/screenshot_ws_activity.dark.png)
 
 ## Keyboard shortcuts
 

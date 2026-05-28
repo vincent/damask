@@ -91,10 +91,11 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	t.Helper()
 	u, _ := url.Parse("http://localhost")
 	cfg := &config.Config{
-		JWTSecret: "test-app-secret-for-tests!!",
-		AppSecret: "test-app-secret-for-tests!!",
-		AppEnv:    "development",
-		BaseURL:   u,
+		JWTSecret:    "test-app-secret-for-tests!!",
+		AppSecret:    "test-app-secret-for-tests!!",
+		AppEnv:       "development",
+		BaseURL:      u,
+		EnableSignup: true,
 		ImageRouter: config.ImageRouterConfig{
 			DefaultModel:         "black-forest-labs/FLUX.1-fill-dev",
 			DefaultBgRemoveModel: "bria/remove-background",

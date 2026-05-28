@@ -16,7 +16,7 @@ Each project has a **color dot** shown in the sidebar and breadcrumbs, making it
 
 ### Project settings
 
-Open the project info panel (click the `i` icon) to rename the project, change its color, add a description, set a cover image, or delete it.
+Open the project info panel (click the `⋮` icon) to rename the project, change its color, add a description, set a cover image, or delete it.
 
 Deleting a project does **not** delete its assets, they are moved to the workspace root (no project).
 
@@ -44,7 +44,7 @@ Right-click a project in the sidebar and choose **New folder**, or open the proj
 
 Drag assets from the grid and drop them onto a folder in the sidebar. You can also select multiple assets and use **Move to folder** from the bulk action bar.
 
-![Projects, folders, and tags in the sidebar](/docs/screenshot_projects_folders_tags.png)
+![Projects, folders, and tags in the sidebar](/docs/screenshot_asset_folders_drop.png)
 
 ## Moving assets between projects
 
@@ -68,7 +68,7 @@ Open an asset and click the `×` on any tag chip. For multiple assets, use bulk 
 
 ### Tag management
 
-![Tag management in Settings](/docs/screenshot_tags_management.png)
+![Tag management in Settings](/docs/screenshot_tags_management_dark.png)
 
 Go to **Settings → Tags** to see all workspace tags with their asset counts. From here you can:
 

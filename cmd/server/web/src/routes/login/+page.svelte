@@ -13,6 +13,7 @@
 
   interface AuthConfig {
     password_auth: boolean
+    signup_enabled: boolean
     oidc_enabled: boolean
     oidc_label: string
     google_enabled: boolean
@@ -21,6 +22,7 @@
 
   let authConfig = $state<AuthConfig>({
     password_auth: true,
+    signup_enabled: true,
     oidc_enabled: false,
     oidc_label: 'Sign in with SSO',
     google_enabled: false,
@@ -109,12 +111,14 @@
   >
     <div>
       <Title>{m.signin()}</Title>
-      <Hint>
-        {m.no_account_question()}
-        <a href="/register" class="text-blue-600 hover:underline"
-          >{m.register()}</a
-        >
-      </Hint>
+      {#if authConfig.signup_enabled}
+        <Hint>
+          {m.no_account_question()}
+          <a href="/register" class="text-blue-600 hover:underline"
+            >{m.register()}</a
+          >
+        </Hint>
+      {/if}
     </div>
 
     {#if ssoError}

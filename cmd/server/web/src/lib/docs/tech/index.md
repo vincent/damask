@@ -10,6 +10,7 @@ Everything you need to run Damask on your own infrastructure.
 - [Upgrading](tech/upgrade) - Safe upgrade procedure and migration notes
 - [OIDC / SSO](tech/oidc) - Single sign-on with Keycloak, Authelia, Authentik
 - [Ingress sources](tech/ingress) - Automated ingest from email, SFTP, S3, Google Drive, Canva
+- [Exports](tech/exports) - Automated export configs, SFTP and Google Drive destinations, scheduling and run history
 
 ## Requirements
 

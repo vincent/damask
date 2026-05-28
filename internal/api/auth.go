@@ -53,6 +53,10 @@ type AuthResponse struct {
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
 // @Router /auth/register [post].
 func (s *Server) handleRegister(c fiber.Ctx) error {
+	if !s.cfg.EnableSignup {
+		return fiber.ErrForbidden
+	}
+
 	req, ok := decodeAndValidate(c, &RegisterRequest{})
 	if !ok {
 		return nil

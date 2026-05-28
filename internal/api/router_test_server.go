@@ -75,10 +75,11 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 	if cfg.Cfg == nil {
 		u, _ := url.Parse("http://localhost")
 		cfg.Cfg = &config.Config{
-			JWTSecret: "test-secret-key-must-be-32chars!!",
-			AppSecret: "test-secret-key-must-be-32chars!!",
-			AppEnv:    appEnvDevelopment,
-			BaseURL:   u,
+			JWTSecret:    "test-secret-key-must-be-32chars!!",
+			AppSecret:    "test-secret-key-must-be-32chars!!",
+			AppEnv:       appEnvDevelopment,
+			BaseURL:      u,
+			EnableSignup: true,
 			Telemetry: config.TelemetryConfig{
 				ServiceName: "damask",
 				Env:         appEnvDevelopment,
