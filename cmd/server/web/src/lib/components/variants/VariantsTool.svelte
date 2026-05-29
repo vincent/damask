@@ -29,6 +29,7 @@
     | 'video_extract'
     | 'audio_transcode'
     | 'audio_normalize'
+    | 'trigger_workflow'
 
   interface Props {
     asset: Asset

@@ -9,6 +9,9 @@
   import VariantDraftSession from './variants/VariantDraftSession.svelte'
   import Backdrop from './ui/Backdrop.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
+  import { authStore } from '$lib/stores/auth.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
+  import { goto } from '$app/navigation'
   import { m } from '$lib/paraglide/messages'
   import { onMount } from 'svelte'
 
@@ -71,7 +74,11 @@
 
   const visibleVariantTools = $derived.by(() => {
     const mimeType = asset.mime_type
-    return ALL_VARIANT_TOOLS.filter((tool) => tool.showFor(mimeType))
+    return ALL_VARIANT_TOOLS.filter(
+      (tool) =>
+        tool.showFor(mimeType) &&
+        !(tool.key === 'trigger_workflow' && authStore.role === 'viewer')
+    )
   })
 
   function handleDraftStarted(nonce: string) {
@@ -162,6 +169,22 @@
           }}
           onDraftStarted={handleDraftStarted}
           sessionActive={showDraftOverlay}
+          onApplied={(results) => {
+            onToolSelect(null)
+            for (const { workflowId, workflowName, runIds } of results) {
+              toastStore.show(
+                m.workflows_library_run_started({
+                  name: workflowName,
+                  count: runIds.length,
+                }),
+                'success',
+                {
+                  label: m.workflows_library_view_runs(),
+                  onClick: () => void goto(`/library/settings/workflows/runs`),
+                }
+              )
+            }
+          }}
         />
       {/if}
 

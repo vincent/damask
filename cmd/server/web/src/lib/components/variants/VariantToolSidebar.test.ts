@@ -1,6 +1,6 @@
 import type { Asset } from '$lib/api'
 import { fireEvent, render, screen } from '@testing-library/svelte'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { VariantTab } from './VariantsTool.svelte'
 import VariantToolSidebar from './VariantToolSidebar.svelte'
 
@@ -28,6 +28,24 @@ const baseAsset: Asset = {
   authors: [],
 }
 
+beforeAll(() => {
+  const elementPrototype = Element.prototype as unknown as {
+    animate?: typeof Element.prototype.animate
+  }
+  if (elementPrototype.animate) return
+  elementPrototype.animate = vi.fn(() => {
+    const animation = {
+      cancel: vi.fn(),
+      commitStyles: vi.fn(),
+      finished: Promise.resolve(),
+      onfinish: null as ((event: AnimationPlaybackEvent) => void) | null,
+      play: vi.fn(),
+    }
+    setTimeout(() => animation.onfinish?.({} as AnimationPlaybackEvent), 0)
+    return animation as unknown as Animation
+  })
+})
+
 function assetWithMime(mimeType: string): Asset {
   return { ...baseAsset, mime_type: mimeType }
 }
@@ -52,12 +70,14 @@ function renderSidebar(
 describe('VariantToolSidebar', () => {
   it('renders one button per image tool for image MIME', () => {
     renderSidebar()
-    expect(screen.getAllByRole('button')).toHaveLength(7)
+    // 7 image tools + trigger_workflow (showFor: all)
+    expect(screen.getAllByRole('button')).toHaveLength(8)
   })
 
   it('renders fewer buttons for audio MIME', () => {
     renderSidebar({ asset: assetWithMime('audio/mpeg') })
-    expect(screen.getAllByRole('button')).toHaveLength(2)
+    // 2 audio tools + trigger_workflow
+    expect(screen.getAllByRole('button')).toHaveLength(3)
     expect(
       screen.getByRole('button', { name: 'Transcode Audio' })
     ).toBeInTheDocument()
@@ -66,9 +86,13 @@ describe('VariantToolSidebar', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders no buttons when no tools match', () => {
+  it('renders only trigger_workflow button for non-media MIME', () => {
     renderSidebar({ asset: assetWithMime('application/pdf') })
-    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    // trigger_workflow shows for all MIME types
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(
+      screen.getByRole('button', { name: 'Run workflow' })
+    ).toBeInTheDocument()
   })
 
   it('has role="toolbar"', () => {

@@ -1043,6 +1043,8 @@
   "variant_tool_audio_transcode_sub": "Convert format",
   "variant_tool_audio_normalize": "Normalize",
   "variant_tool_audio_normalize_sub": "EBU R128 loudness",
+  "variant_tool_trigger_workflow": "Run workflow",
+  "variant_tool_trigger_workflow_sub": "Trigger a manual workflow on this asset",
   "variants_draft_others_discarded": "{n} other draft(s) discarded.",
   "variants_draft_preview_button": "Preview →",
   "variants_draft_generating": "Generating…",

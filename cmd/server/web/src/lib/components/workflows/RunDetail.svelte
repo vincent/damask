@@ -140,7 +140,7 @@
                         : 'border-[var(--border-default)] bg-[var(--bg-elevated)]'}"
                 ></div>
                 <summary
-                  class="cursor-pointer list-none rounded-xl py-2 pr-2 transition-colors hover:bg-[var(--bg-hover)]"
+                  class="cursor-pointer list-none rounded-xl p-2 transition-colors hover:bg-[var(--bg-hover)]"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">

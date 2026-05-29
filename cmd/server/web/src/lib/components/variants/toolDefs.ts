@@ -12,6 +12,7 @@ import {
   Sparkles,
   Stamp,
   Video,
+  Workflow,
 } from '@lucide/svelte'
 import type { Component } from 'svelte'
 import type { VariantTab } from './VariantsTool.svelte'
@@ -115,5 +116,12 @@ export const ALL_VARIANT_TOOLS: VariantToolDef[] = [
     sublabel: 'variant_tool_audio_normalize_sub',
     icon: AudioLines,
     showFor: isAudio,
+  },
+  {
+    key: 'trigger_workflow',
+    label: 'variant_tool_trigger_workflow',
+    sublabel: 'variant_tool_trigger_workflow_sub',
+    icon: Workflow,
+    showFor: () => true,
   },
 ]

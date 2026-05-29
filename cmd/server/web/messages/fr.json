@@ -1038,6 +1038,8 @@
   "variant_tool_audio_transcode_sub": "Convertir le format",
   "variant_tool_audio_normalize": "Normaliser",
   "variant_tool_audio_normalize_sub": "Normalisation EBU R128",
+  "variant_tool_trigger_workflow": "Lancer un workflow",
+  "variant_tool_trigger_workflow_sub": "Déclencher un workflow manuel sur cet élément",
   "add_workflow": "Ajouter un flux de travail",
   "make_all_private": "Tout rendre privé",
   "share_all": "Tout partager",

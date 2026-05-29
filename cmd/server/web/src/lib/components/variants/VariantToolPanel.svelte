@@ -6,6 +6,14 @@
   import { ALL_VARIANT_TOOLS } from './toolDefs'
   import VariantsTool from './VariantsTool.svelte'
   import type { VariantTab } from './VariantsTool.svelte'
+  import ApplyWorkflowPicker from '$lib/components/workflows/ApplyWorkflowPicker.svelte'
+
+  interface AppliedWorkflow {
+    workflowId: string
+    workflowName: string
+    runIds: string[]
+    partialError: string | undefined
+  }
 
   interface Props {
     tool: VariantTab
@@ -15,6 +23,7 @@
     onClose: () => void
     onDraftStarted?: (nonce: string) => void
     sessionActive?: boolean
+    onApplied?: (results: AppliedWorkflow[]) => void
   }
 
   let {
@@ -25,6 +34,7 @@
     onClose,
     onDraftStarted,
     sessionActive,
+    onApplied,
   }: Props = $props()
 
   function handleDraftDone() {
@@ -66,15 +76,19 @@
   </header>
 
   <div class="panel-body">
-    <VariantsTool
-      {tool}
-      {asset}
-      {creating}
-      {handleCreate}
-      onDone={handleDraftDone}
-      {onDraftStarted}
-      {sessionActive}
-    />
+    {#if tool === 'trigger_workflow'}
+      <ApplyWorkflowPicker assetIds={[asset.id]} {onApplied} />
+    {:else}
+      <VariantsTool
+        {tool}
+        {asset}
+        {creating}
+        {handleCreate}
+        onDone={handleDraftDone}
+        {onDraftStarted}
+        {sessionActive}
+      />
+    {/if}
   </div>
 </div>
 

@@ -1021,6 +1021,8 @@
   "variant_tool_audio_transcode_sub": "Convertir formato",
   "variant_tool_audio_normalize": "Normalizar",
   "variant_tool_audio_normalize_sub": "Normalización EBU R128",
+  "variant_tool_trigger_workflow": "Ejecutar flujo",
+  "variant_tool_trigger_workflow_sub": "Desencadenar un flujo manual en este elemento",
   "add_workflow": "Añadir flujo de trabajo",
   "auth": {
     "forgot_password": {
