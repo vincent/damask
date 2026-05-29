@@ -1109,7 +1109,8 @@
   "workflows_runs_empty_description": "Els fluxos de treball encara no s'han executat.",
   "workflows_runs_page_description": "Execucions recents de tots els fluxos de treball.",
   "retry": "Reintentar",
-  "run": "Executar",
+  "workflow_run": "Executar",
+  "workflow_run_entity": "Run",
   "started": "Iniciat",
   "completed": "Completat",
   "pause": "Pausar",
@@ -1128,5 +1129,10 @@
   "workflow_add_help": "Utilitza «Afegir flux de treball» per crear la teva primera automatització.",
   "workflows": "Fluxos de treball",
   "workflows_empty": "Cap flux de treball encara",
-  "variants_draft_add_more": "Canvia els paràmetres per generar-ne més"
+  "variants_draft_add_more": "Canvia els paràmetres per generar-ne més",
+  "in_progress": "En curs",
+  "unsaved_changes": "Canvis no desats",
+  "workflow_choose_template": "Tria una plantilla de flux de treball",
+  "workflow_saved": "Flux de treball \"{name}\" desat.",
+  "workflow_triggered": "Flux de treball \"{name}\" activat."
 }

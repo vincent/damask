@@ -1110,7 +1110,8 @@
   "workflows_runs_empty_description": "Les workflows n'ont pas encore été exécutés.",
   "workflows_runs_page_description": "Exécutions récentes sur tous les workflows.",
   "retry": "Réessayer",
-  "run": "Exécuter",
+  "workflow_run": "Exécuter",
+  "workflow_run_entity": "Run",
   "started": "Démarré",
   "completed": "Terminé",
   "pause": "Mettre en pause",
@@ -1128,5 +1129,10 @@
   "workflow_subtitle": "Automatisez les actions du DAM avec des graphes de déclencheur, filtre, action et flux de contrôle.",
   "workflow_add_help": "Utilisez « Ajouter un workflow » pour créer votre première automatisation.",
   "workflows": "Workflows",
-  "workflows_empty": "Aucun workflow pour l'instant"
+  "workflows_empty": "Aucun workflow pour l'instant",
+  "in_progress": "En cours",
+  "unsaved_changes": "Modifications non sauvegardées",
+  "workflow_choose_template": "Choisir un modèle de workflow",
+  "workflow_saved": "Workflow \"{name}\" sauvegardé.",
+  "workflow_triggered": "Workflow \"{name}\" déclenché."
 }

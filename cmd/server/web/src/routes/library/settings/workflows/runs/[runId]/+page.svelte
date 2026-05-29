@@ -78,12 +78,12 @@
 </svelte:head>
 
 <div class="flex flex-1 flex-col overflow-hidden">
-  <PageHeader title="Inspect run">
+  <PageHeader title={m.workflow_run_inspect()}>
     {#snippet meta()}
       {#if run}
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span class="font-mono text-[11px] text-[var(--text-muted)]"
-            >{m.run()} {run.id.slice(0, 8)}</span
+            >{m.workflow_run_entity()} {run.id.slice(0, 8)}</span
           >
           <span
             class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase {run.status ===

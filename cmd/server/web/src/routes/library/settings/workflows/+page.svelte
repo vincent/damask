@@ -200,7 +200,7 @@
       workflowsStore.upsert(workflow)
       selectedWorkflow = workflow
       setEditorState(workflow)
-      toastStore.show(`Workflow "${workflow.name}" saved.`)
+      toastStore.show(m.workflow_saved(workflow))
     } catch (e) {
       toastStore.show(
         e instanceof Error ? e.message : m.workflow_save_failed(),
@@ -235,7 +235,7 @@
   async function runWorkflow(workflow: Workflow) {
     try {
       await workflowsApi.triggerManual(workflow.id)
-      toastStore.show(`Workflow "${workflow.name}" triggered.`)
+      toastStore.show(m.workflow_triggered(workflow))
       if (panelWorkflow?.id === workflow.id) {
         panelWorkflow = { ...panelWorkflow }
       }
@@ -308,7 +308,7 @@
           disabled={creating}
           class="wf-add-chevron"
           onclick={() => (addMenuOpen = !addMenuOpen)}
-          aria-label="Choose workflow template"
+          aria-label={m.workflow_choose_template()}
           aria-haspopup="menu"
           aria-expanded={addMenuOpen}
         >
@@ -407,7 +407,7 @@
           >
             <span class="h-1.5 w-1.5 rounded-full {dirty ? 'bg-amber-400' : ''}"
             ></span>
-            {dirty ? 'Unsaved changes' : '·'}
+            {dirty ? m.unsaved_changes() : '·'}
           </div>
         {/if}
       {/snippet}

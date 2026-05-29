@@ -1109,7 +1109,8 @@
   "workflows_runs_empty_description": "Los flujos de trabajo aún no se han ejecutado.",
   "workflows_runs_page_description": "Ejecuciones recientes de todos los flujos de trabajo.",
   "retry": "Reintentar",
-  "run": "Ejecutar",
+  "workflow_run": "Ejecutar",
+  "workflow_run_entity": "Run",
   "started": "Iniciado",
   "completed": "Completado",
   "pause": "Pausar",
@@ -1128,5 +1129,10 @@
   "workflow_add_help": "Usa «Añadir flujo de trabajo» para crear tu primera automatización.",
   "workflows": "Flujos de trabajo",
   "workflows_empty": "Sin flujos de trabajo aún",
-  "variants_draft_add_more": "Cambia los parámetros para generar más"
+  "variants_draft_add_more": "Cambia los parámetros para generar más",
+  "in_progress": "En progreso",
+  "unsaved_changes": "Cambios sin guardar",
+  "workflow_choose_template": "Elegir plantilla de flujo de trabajo",
+  "workflow_saved": "Flujo de trabajo \"{name}\" guardado.",
+  "workflow_triggered": "Flujo de trabajo \"{name}\" activado."
 }

@@ -81,7 +81,7 @@
   }
 
   function duration(run: WorkflowRun) {
-    if (!run.started_at || !run.completed_at) return 'In progress'
+    if (!run.started_at || !run.completed_at) return m.in_progress()
     const ms = Math.max(
       0,
       new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()

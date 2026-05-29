@@ -1110,7 +1110,8 @@
   "workflows_runs_empty_description": "Workflows haven't executed yet.",
   "workflows_runs_page_description": "Recent executions across all workflows.",
   "retry": "Retry",
-  "run": "Run",
+  "workflow_run": "workflow_run",
+  "workflow_run_entity": "Run",
   "started": "Started",
   "completed": "Completed",
   "workflow_edit": "Edit workflow",
@@ -1126,7 +1127,12 @@
   "workflow_add_help": "Use \"Add workflow\" to create your first automation.",
   "pause": "Pause",
   "workflow_delete": "Delete workflow",
+  "workflow_saved": "Workflow \"{name}\" saved.",
+  "workflow_triggered": "Workflow \"{name}\" triggered.",
   "workflow_delete_help": "This workflow and all its run history will be permanently deleted.",
   "description": "Description",
-  "workflow_edit_help": "Edit workflow graph and settings."
+  "workflow_edit_help": "Edit workflow graph and settings.",
+  "in_progress": "In progress",
+  "workflow_choose_template": "Choose workflow template",
+  "unsaved_changes": "Unsaved changes"
 }
