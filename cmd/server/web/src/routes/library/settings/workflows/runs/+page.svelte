@@ -52,7 +52,10 @@
   }
 
   function isDeleted(run: WorkflowRun): boolean {
-    return workflowNames.has(run.workflow_id) && workflowNames.get(run.workflow_id) === null
+    return (
+      workflowNames.has(run.workflow_id) &&
+      workflowNames.get(run.workflow_id) === null
+    )
   }
 
   function statusDot(status: string) {
@@ -89,7 +92,9 @@
 
   function handleRowClick(run: WorkflowRun) {
     if (isDeleted(run)) return
-    void goto(`/library/settings/workflows/${run.workflow_id}/runs`)
+    void goto(
+      `/library/settings/workflows/runs/${run.id}?workflow=${run.workflow_id}`
+    )
   }
 </script>
 

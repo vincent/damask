@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X, Search, RefreshCw } from '@lucide/svelte'
   import { fly } from 'svelte/transition'
+  import { goto } from '$app/navigation'
   import {
     workflowsApi,
     type Workflow,
@@ -14,10 +15,9 @@
   interface Props {
     workflow: Workflow
     onclose: () => void
-    oninspect: (run: WorkflowRun) => void
   }
 
-  let { workflow, onclose, oninspect }: Props = $props()
+  let { workflow, onclose }: Props = $props()
 
   let runs = $state<WorkflowRun[]>([])
   let loading = $state(false)
@@ -137,7 +137,10 @@
                 <Button
                   size="sm"
                   variant="ghost"
-                  onclick={() => oninspect(run)}
+                  onclick={() =>
+                    goto(
+                      `/library/settings/workflows/runs/${run.id}?workflow=${workflow.id}`
+                    )}
                 >
                   {#snippet icon()}<Search class="h-3 w-3" />{/snippet}
                   Inspect

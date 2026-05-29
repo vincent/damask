@@ -11,7 +11,6 @@
     Play,
     Trash2,
     Zap,
-    SquarePen,
     Activity,
   } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -29,14 +28,12 @@
     type WorkflowGraph,
     type WorkflowTemplate,
     type WorkflowNodeSchema,
-    type WorkflowRun,
   } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { workflowsStore } from '$lib/stores/workflows.svelte'
-  import RunDetail from '$lib/components/workflows/RunDetail.svelte'
   import { m } from '$lib/paraglide/messages'
 
-  type View = 'list' | 'editor' | 'inspect'
+  type View = 'list' | 'editor'
 
   let view = $state<View>('list')
   let loading = $state(true)
@@ -65,7 +62,6 @@
 
   let selectedWorkflow = $state<Workflow | null>(null)
   let panelWorkflow = $state<Workflow | null>(null)
-  let inspectRun = $state<WorkflowRun | null>(null)
 
   let pendingDeleteWorkflow = $state<Workflow | null>(null)
   let showDeleteConfirm = $state(false)
@@ -113,7 +109,7 @@
       }
     } catch (e) {
       toastStore.show(
-        e instanceof Error ? e.message : 'Failed to load workflows.',
+        e instanceof Error ? e.message : m.load_page_failed(),
         'error'
       )
     } finally {
@@ -155,29 +151,11 @@
     selectedWorkflow = workflow
     workflowsStore.selectedId = workflow.id
     setEditorState(workflow)
-    inspectRun = null
     view = 'editor'
-  }
-
-  async function openInspect(workflow: Workflow, run: WorkflowRun) {
-    selectedWorkflow = workflow
-    workflowsStore.selectedId = workflow.id
-    setEditorState(workflow)
-    inspectRun = run
-    view = 'inspect'
-    try {
-      inspectRun = await workflowsApi.getRun(workflow.id, run.id)
-    } catch (e) {
-      toastStore.show(
-        e instanceof Error ? e.message : 'Failed to load run details.',
-        'error'
-      )
-    }
   }
 
   function goToList() {
     view = 'list'
-    inspectRun = null
   }
 
   function handleCardClick(workflow: Workflow) {
@@ -201,7 +179,7 @@
       panelWorkflow = workflow
     } catch (e) {
       toastStore.show(
-        e instanceof Error ? e.message : 'Failed to create workflow.',
+        e instanceof Error ? e.message : m.workflow_create_failed(),
         'error'
       )
     } finally {
@@ -225,7 +203,7 @@
       toastStore.show(`Workflow "${workflow.name}" saved.`)
     } catch (e) {
       toastStore.show(
-        e instanceof Error ? e.message : 'Failed to save workflow.',
+        e instanceof Error ? e.message : m.workflow_save_failed(),
         'error'
       )
     } finally {
@@ -246,7 +224,7 @@
       }
     } catch (e) {
       toastStore.show(
-        e instanceof Error ? e.message : 'Failed to update workflow.',
+        e instanceof Error ? e.message : m.workflow_update_failed(),
         'error'
       )
     } finally {
@@ -263,7 +241,7 @@
       }
     } catch (e) {
       toastStore.show(
-        e instanceof Error ? e.message : 'Failed to trigger workflow.',
+        e instanceof Error ? e.message : m.workflow_trigger_failed(),
         'error'
       )
     }
@@ -289,7 +267,7 @@
       }
     } catch (e) {
       toastStore.show(
-        e instanceof Error ? e.message : 'Failed to delete workflow.',
+        e instanceof Error ? e.message : m.workflow_delete_failed(),
         'error'
       )
     } finally {
@@ -299,16 +277,13 @@
 </script>
 
 <svelte:head>
-  <title>Workflows — Damask</title>
+  <title>{m.workflows()} — Damask</title>
 </svelte:head>
 
 <div class="flex flex-1 flex-col overflow-hidden">
   {#if view === 'list'}
     <!-- ── LIST VIEW ─────────────────────────────────────────── -->
-    <PageHeader
-      title="Workflows"
-      description="Automate DAM actions with trigger, filter, action, and control-flow graphs."
-    >
+    <PageHeader title={m.workflows()} description={m.workflow_subtitle()}>
       <a
         href="/library/settings/workflows/runs"
         class="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
@@ -385,8 +360,8 @@
           <GridSkeleton lines={3} />
         {:else if workflowsStore.workflows.length === 0}
           <EmptyState
-            title="No workflows yet"
-            description={`Use "Add workflow" to create your first automation.`}
+            title={m.workflows_empty()}
+            description={m.workflow_add_help()}
           >
             {#snippet icon()}
               <Zap class="h-10 w-10" />
@@ -414,57 +389,17 @@
         <WorkflowRunsPanel
           workflow={panelWorkflow}
           onclose={() => (panelWorkflow = null)}
-          oninspect={(run) => {
-            if (panelWorkflow) void openInspect(panelWorkflow, run)
-          }}
         />
       {/if}
     </div>
   {:else}
-    <!-- ── EDITOR / INSPECT VIEW ──────────────────────────────── -->
+    <!-- ── EDITOR VIEW ───────────────────────────────────────── -->
     <PageHeader
-      title={view === 'inspect'
-        ? 'Inspect run'
-        : (selectedWorkflow?.name ?? 'Editor')}
-      description={view === 'inspect'
-        ? undefined
-        : 'Edit workflow graph and settings.'}
+      title={selectedWorkflow?.name ?? m.editor()}
+      description={m.workflow_edit_help()}
     >
       {#snippet meta()}
-        {#if view === 'inspect' && inspectRun}
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span class="font-mono text-[11px] text-[var(--text-muted)]"
-              >Run {inspectRun.id.slice(0, 8)}</span
-            >
-            <span
-              class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase {inspectRun.status ===
-              'completed'
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                : inspectRun.status === 'failed'
-                  ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
-                  : inspectRun.status === 'running'
-                    ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
-                    : 'bg-slate-500/10 text-slate-700 dark:text-slate-300'}"
-            >
-              {inspectRun.status}
-            </span>
-            {#if inspectRun.started_at}
-              <span class="text-[11px] text-[var(--text-muted)]">
-                Started <span class="text-[var(--text-secondary)]"
-                  >{new Date(inspectRun.started_at).toLocaleString()}</span
-                >
-              </span>
-            {/if}
-            {#if inspectRun.completed_at}
-              <span class="text-[11px] text-[var(--text-muted)]">
-                Completed <span class="text-[var(--text-secondary)]"
-                  >{new Date(inspectRun.completed_at).toLocaleString()}</span
-                >
-              </span>
-            {/if}
-          </div>
-        {/if}
-        {#if view === 'editor' && dirty !== undefined}
+        {#if dirty !== undefined}
           <div
             class="mt-0.5 inline-flex items-center gap-1.5 text-[11px] {dirty
               ? 'text-amber-500'
@@ -482,17 +417,7 @@
           {m.back()}
         </Button>
 
-        {#if view === 'inspect' && selectedWorkflow}
-          <Button
-            variant="ghost"
-            onclick={() => selectedWorkflow && openEditor(selectedWorkflow)}
-          >
-            {#snippet icon()}<SquarePen class="h-4 w-4" />{/snippet}
-            Edit workflow
-          </Button>
-        {/if}
-
-        {#if view === 'editor' && selectedWorkflow}
+        {#if selectedWorkflow}
           <Button
             variant="ghost"
             disabled={toggling}
@@ -501,7 +426,7 @@
           >
             {#if selectedWorkflow.enabled}
               <Pause class="h-4 w-4" />
-              Pause
+              {m.pause()}
             {:else}
               <Play class="h-4 w-4" />
               {m.enable()}
@@ -527,25 +452,15 @@
       </div>
     </PageHeader>
 
-    {#if view === 'inspect' && inspectRun && selectedWorkflow}
-      <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6">
-        <!-- Inspect: readonly canvas + run detail -->
-        <RunDetail
-          run={inspectRun}
-          graph={parseGraph(selectedWorkflow.graph)}
-          schemas={nodeSchemas}
-        />
-      </div>
-    {/if}
-    {#if view === 'editor' && selectedWorkflow}
+    {#if selectedWorkflow}
       <div class="flex min-h-0 flex-1 flex-col gap-6">
         <!-- Editor: name/desc/email + canvas -->
         <div
           class="border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 pt-0"
         >
           <div class="grid gap-4 lg:grid-cols-3">
-            <Input label="Name" bind:value={draftName} />
-            <Input label="Description" bind:value={draftDescription} />
+            <Input label={m.name()} bind:value={draftName} />
+            <Input label={m.description()} bind:value={draftDescription} />
             <Input
               label="Failure Email"
               bind:value={draftNotifyEmail}
@@ -564,9 +479,9 @@
 
 <ConfirmModal
   bind:open={showDeleteConfirm}
-  title="Delete workflow"
+  title={m.workflow_delete()}
   items={pendingDeleteWorkflow ? [pendingDeleteWorkflow.name] : []}
-  message="This workflow and all its run history will be permanently deleted."
+  message={m.workflow_delete_help()}
   onConfirm={confirmDelete}
   onCancel={() => {
     showDeleteConfirm = false
