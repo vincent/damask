@@ -164,12 +164,12 @@ func NewHTTPServer(
 		}),
 		storageSvc: storageSvc,
 		workspace:  service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
-		workflows:  service.NewWorkflowServiceWithDeps(
+		workflows: service.NewWorkflowServiceWithDeps(
 			workflowRepo,
 			workflowRunRepo,
 			workflowWebhookRepo,
 			q,
-			service.WorkflowServiceDeps{Assets: assetRepo, Variants: variantRepo},
+			service.WorkflowServiceDeps{Assets: assetRepo, Variants: variantRepo, Versions: versionRepo},
 		),
 	}
 }
@@ -406,10 +406,12 @@ func NewRouter(
 	api.Post("/workflows", auth.RequireRole(getRoleFn, auth.Owner), s.handleCreateWorkflow)
 	api.Get("/workflows/node-schemas", s.handleGetWorkflowNodeSchemas)
 	api.Get("/workflows/templates", s.handleGetWorkflowTemplates)
+	api.Get("/workflows/runs", s.handleListAllWorkflowRuns)
 	api.Get("/workflows/:id", s.handleGetWorkflow)
 	api.Put("/workflows/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateWorkflow)
 	api.Patch("/workflows/:id/enabled", auth.RequireRole(getRoleFn, auth.Owner), s.handleToggleWorkflow)
 	api.Delete("/workflows/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteWorkflow)
+	api.Post("/workflows/:id/runs/bulk", auth.RequireRole(getRoleFn, auth.Editor), s.handleBulkManualWorkflowRun)
 	api.Post("/workflows/:id/runs", auth.RequireRole(getRoleFn, auth.Owner), s.handleManualWorkflowRun)
 	api.Get("/workflows/:id/runs", s.handleListWorkflowRuns)
 	api.Get("/workflows/:id/runs/:rid", s.handleGetWorkflowRun)

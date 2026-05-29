@@ -323,6 +323,9 @@ type WorkflowRepository interface {
 	GetByID(ctx context.Context, workspaceID, id string) (Workflow, error)
 	List(ctx context.Context, workspaceID string) ([]Workflow, error)
 	ListByTrigger(ctx context.Context, triggerType string) ([]Workflow, error)
+	// ListEnabledByTrigger returns all enabled workflows in a workspace with the
+	// given trigger_type, ordered by name ASC.
+	ListEnabledByTrigger(ctx context.Context, workspaceID, triggerType string) ([]Workflow, error)
 	Create(ctx context.Context, p CreateWorkflowParams) (Workflow, error)
 	Update(ctx context.Context, p UpdateWorkflowParams) (Workflow, error)
 	FindCoveringWorkflow(
@@ -339,6 +342,7 @@ type WorkflowRepository interface {
 type WorkflowRunRepository interface {
 	GetByID(ctx context.Context, id string) (WorkflowRun, error)
 	List(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRun, error)
+	ListByWorkspace(ctx context.Context, workspaceID string, limit int, cursor string) ([]WorkflowRun, error)
 	Create(ctx context.Context, p CreateWorkflowRunParams) (WorkflowRun, error)
 	SetStatus(ctx context.Context, id, status string) error
 	SetFinal(ctx context.Context, p SetWorkflowRunFinalParams) error

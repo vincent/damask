@@ -3,15 +3,22 @@ package api_test
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
+	"damask/server/internal/apperr"
+	"damask/server/internal/auth"
 	"damask/server/internal/service"
 	"damask/server/internal/testutil"
 )
 
 func TestListWorkflowsOK(t *testing.T) {
 	env := testutil.NewTestEnv(t)
-	env.Workflows.ListFn = func(_ context.Context, workspaceID string) ([]service.WorkflowDTO, error) {
+	env.Workflows.ListFn = func(
+		_ context.Context,
+		workspaceID string,
+		_ service.ListWorkflowsParams,
+	) ([]service.WorkflowDTO, error) {
 		return []service.WorkflowDTO{{ID: "wf_1", WorkspaceID: workspaceID, Name: "Auto Resize"}}, nil
 	}
 	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows", nil, env.MintToken(t, "usr_1", "ws_1"))
@@ -25,7 +32,11 @@ func TestListWorkflowsOK(t *testing.T) {
 func TestListWorkflowsEmptyWorkspaceReturnsPersistedRowsOnly(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	createCalls := 0
-	env.Workflows.ListFn = func(_ context.Context, workspaceID string) ([]service.WorkflowDTO, error) {
+	env.Workflows.ListFn = func(
+		_ context.Context,
+		workspaceID string,
+		_ service.ListWorkflowsParams,
+	) ([]service.WorkflowDTO, error) {
 		if workspaceID != "ws_1" {
 			t.Fatalf("workspaceID = %q, want ws_1", workspaceID)
 		}
@@ -50,6 +61,109 @@ func TestListWorkflowsEmptyWorkspaceReturnsPersistedRowsOnly(t *testing.T) {
 	}
 	if createCalls != 0 {
 		t.Fatalf("Create() called %d times during list, want 0", createCalls)
+	}
+}
+
+func TestListWorkflowsFilterByTriggerType(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	var got service.ListWorkflowsParams
+	env.Workflows.ListFn = func(
+		_ context.Context,
+		workspaceID string,
+		params service.ListWorkflowsParams,
+	) ([]service.WorkflowDTO, error) {
+		if workspaceID != "ws_1" {
+			t.Fatalf("workspaceID = %q, want ws_1", workspaceID)
+		}
+		got = params
+		return []service.WorkflowDTO{{ID: "wf_1", WorkspaceID: workspaceID, Name: "Manual", Enabled: true}}, nil
+	}
+	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows?trigger_type=trigger.manual&enabled_only=true", nil, env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+	if got.TriggerType == nil || *got.TriggerType != "trigger.manual" || !got.EnabledOnly {
+		t.Fatalf("params = %#v", got)
+	}
+	var body []map[string]any
+	testutil.DecodeJSON(t, resp, &body)
+	if len(body) != 1 || body[0]["id"] != "wf_1" {
+		t.Fatalf("unexpected body: %#v", body)
+	}
+}
+
+func TestBulkManualRunOKReturns202(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	env.Workflows.TriggerManualBulkFn = func(_ context.Context, workspaceID, workflowID string, assetIDs []string) ([]string, error) {
+		if workspaceID != "ws_1" || workflowID != "wf_1" || len(assetIDs) != 3 {
+			t.Fatalf("unexpected call: workspace=%q workflow=%q assets=%v", workspaceID, workflowID, assetIDs)
+		}
+		return []string{"r1", "r2", "r3"}, nil
+	}
+	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":["a1","a2","a3"]}`), env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusAccepted)
+	var body map[string]any
+	testutil.DecodeJSON(t, resp, &body)
+	if body["count"].(float64) != 3 {
+		t.Fatalf("body = %#v", body)
+	}
+}
+
+func TestBulkManualRunUnauthenticatedReturns401(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":["a1"]}`), "")
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
+}
+
+func TestBulkManualRunViewerReturns403(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	env.Workspace.GetMemberFn = func(_ context.Context, _, userID string) (*service.MemberDTO, error) {
+		return &service.MemberDTO{UserID: userID, Role: string(auth.Viewer)}, nil
+	}
+	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":["a1"]}`), env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusForbidden)
+}
+
+func TestBulkManualRunDisabledWorkflowReturns409(t *testing.T) {
+	assertBulkManualRunError(t, apperr.ErrConflict, http.StatusConflict)
+}
+
+func TestBulkManualRunEmptyAssetIDsReturns422(t *testing.T) {
+	assertBulkManualRunError(t, apperr.ErrInvalidInput, http.StatusUnprocessableEntity)
+}
+
+func TestBulkManualRunWorkflowNotFoundReturns404(t *testing.T) {
+	assertBulkManualRunError(t, apperr.ErrNotFound, http.StatusNotFound)
+}
+
+func assertBulkManualRunError(t *testing.T, svcErr error, wantStatus int) {
+	t.Helper()
+	env := testutil.NewTestEnv(t)
+	env.Workflows.TriggerManualBulkFn = func(_ context.Context, _, _ string, _ []string) ([]string, error) {
+		return nil, svcErr
+	}
+	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":[]}`), env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, wantStatus)
+	if svcErr == nil {
+		t.Fatal("test helper requires an error")
 	}
 }
 

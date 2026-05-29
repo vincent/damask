@@ -56,6 +56,23 @@ func (r *workflowRepo) ListByTrigger(ctx context.Context, triggerType string) ([
 	return scanWorkflowRows(rows)
 }
 
+func (r *workflowRepo) ListEnabledByTrigger(
+	ctx context.Context,
+	workspaceID, triggerType string,
+) ([]repository.Workflow, error) {
+	rows, err := r.sqlDB.QueryContext(
+		ctx,
+		`SELECT id, workspace_id, name, description, enabled, trigger_type, trigger_config, graph, notify_on_failure_email, last_run_at, created_by, created_at, updated_at FROM workflows WHERE workspace_id = ? AND trigger_type = ? AND enabled = 1 ORDER BY name ASC`,
+		workspaceID,
+		triggerType,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanWorkflowRows(rows)
+}
+
 func (r *workflowRepo) Create(ctx context.Context, p repository.CreateWorkflowParams) (repository.Workflow, error) {
 	_, err := r.sqlDB.ExecContext(
 		ctx,
@@ -227,6 +244,28 @@ func (r *workflowRunRepo) List(
 ) ([]repository.WorkflowRun, error) {
 	query := `SELECT id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at, created_at FROM workflow_runs WHERE workflow_id = ?`
 	args := []any{workflowID}
+	if cursor != "" {
+		query += ` AND (created_at || '|' || id) < ?`
+		args = append(args, cursor)
+	}
+	query += ` ORDER BY created_at DESC, id DESC LIMIT ?`
+	args = append(args, limit)
+	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanWorkflowRunRows(rows)
+}
+
+func (r *workflowRunRepo) ListByWorkspace(
+	ctx context.Context,
+	workspaceID string,
+	limit int,
+	cursor string,
+) ([]repository.WorkflowRun, error) {
+	query := `SELECT id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at, created_at FROM workflow_runs WHERE workspace_id = ?`
+	args := []any{workspaceID}
 	if cursor != "" {
 		query += ` AND (created_at || '|' || id) < ?`
 		args = append(args, cursor)

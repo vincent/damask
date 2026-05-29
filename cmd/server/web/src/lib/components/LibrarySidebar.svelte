@@ -39,7 +39,7 @@
     Tags,
     User,
     Users,
-    Waypoints,
+    Workflow,
   } from '@lucide/svelte'
 
   interface Props {
@@ -111,7 +111,7 @@
       id: 'workflows',
       label: () => 'Workflows',
       path: '/library/settings/workflows',
-      icon: Waypoints,
+      icon: Workflow,
     },
     {
       id: 'versioning',

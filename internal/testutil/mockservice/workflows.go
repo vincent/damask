@@ -7,16 +7,18 @@ import (
 )
 
 type MockWorkflowService struct {
-	ListFn               func(ctx context.Context, workspaceID string) ([]service.WorkflowDTO, error)
+	ListFn               func(ctx context.Context, workspaceID string, params service.ListWorkflowsParams) ([]service.WorkflowDTO, error)
 	GetFn                func(ctx context.Context, workspaceID, id string) (*service.WorkflowDTO, error)
 	CreateFn             func(ctx context.Context, workspaceID, createdBy string, p service.CreateWorkflowParams) (*service.WorkflowDTO, error)
 	UpdateFn             func(ctx context.Context, workspaceID, id string, p service.UpdateWorkflowParams) (*service.WorkflowDTO, error)
 	SetEnabledFn         func(ctx context.Context, workspaceID, id string, enabled bool) error
 	DeleteFn             func(ctx context.Context, workspaceID, id string) error
 	TriggerManualFn      func(ctx context.Context, workspaceID, id string) (string, error)
+	TriggerManualBulkFn  func(ctx context.Context, workspaceID, workflowID string, assetIDs []string) ([]string, error)
 	TriggerWebhookFn     func(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRunFn             func(ctx context.Context, workspaceID, runID string) (*service.WorkflowRunDTO, error)
 	ListRunsFn           func(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
+	ListAllRunsFn        func(ctx context.Context, workspaceID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
 	FindCoveringFn       func(ctx context.Context, workspaceID, assetID, assetProjectID, assetFolderID string) (*service.CoveringWorkflowDTO, error)
 	CreateFromVariantsFn func(ctx context.Context, workspaceID string, p service.CreateVariantAutomationParams) (*service.WorkflowDTO, error)
 	GetWebhookTokenFn    func(ctx context.Context, workspaceID, id string) (string, error)
@@ -27,9 +29,13 @@ type MockWorkflowService struct {
 
 func NewWorkflowService() *MockWorkflowService { return &MockWorkflowService{} }
 
-func (m *MockWorkflowService) List(ctx context.Context, workspaceID string) ([]service.WorkflowDTO, error) {
+func (m *MockWorkflowService) List(
+	ctx context.Context,
+	workspaceID string,
+	params service.ListWorkflowsParams,
+) ([]service.WorkflowDTO, error) {
 	if m.ListFn != nil {
-		return m.ListFn(ctx, workspaceID)
+		return m.ListFn(ctx, workspaceID, params)
 	}
 	return nil, nil
 }
@@ -84,6 +90,17 @@ func (m *MockWorkflowService) TriggerManual(ctx context.Context, workspaceID, id
 	return "", nil
 }
 
+func (m *MockWorkflowService) TriggerManualBulk(
+	ctx context.Context,
+	workspaceID, workflowID string,
+	assetIDs []string,
+) ([]string, error) {
+	if m.TriggerManualBulkFn != nil {
+		return m.TriggerManualBulkFn(ctx, workspaceID, workflowID, assetIDs)
+	}
+	return nil, nil
+}
+
 func (m *MockWorkflowService) TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error) {
 	if m.TriggerWebhookFn != nil {
 		return m.TriggerWebhookFn(ctx, id, token, body)
@@ -106,6 +123,18 @@ func (m *MockWorkflowService) ListRuns(
 ) ([]service.WorkflowRunDTO, error) {
 	if m.ListRunsFn != nil {
 		return m.ListRunsFn(ctx, workflowID, limit, cursor)
+	}
+	return nil, nil
+}
+
+func (m *MockWorkflowService) ListAllRuns(
+	ctx context.Context,
+	workspaceID string,
+	limit int,
+	cursor string,
+) ([]service.WorkflowRunDTO, error) {
+	if m.ListAllRunsFn != nil {
+		return m.ListAllRunsFn(ctx, workspaceID, limit, cursor)
 	}
 	return nil, nil
 }

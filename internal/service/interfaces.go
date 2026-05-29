@@ -269,16 +269,18 @@ type WorkflowTriggerPublisher interface {
 
 // WorkflowService handles workflow CRUD and execution orchestration.
 type WorkflowService interface {
-	List(ctx context.Context, workspaceID string) ([]WorkflowDTO, error)
+	List(ctx context.Context, workspaceID string, params ListWorkflowsParams) ([]WorkflowDTO, error)
 	Get(ctx context.Context, workspaceID, id string) (*WorkflowDTO, error)
 	Create(ctx context.Context, workspaceID, createdBy string, p CreateWorkflowParams) (*WorkflowDTO, error)
 	Update(ctx context.Context, workspaceID, id string, p UpdateWorkflowParams) (*WorkflowDTO, error)
 	SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error
 	Delete(ctx context.Context, workspaceID, id string) error
 	TriggerManual(ctx context.Context, workspaceID, id string) (string, error)
+	TriggerManualBulk(ctx context.Context, workspaceID, workflowID string, assetIDs []string) ([]string, error)
 	TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRun(ctx context.Context, workspaceID, runID string) (*WorkflowRunDTO, error)
 	ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error)
+	ListAllRuns(ctx context.Context, workspaceID string, limit int, cursor string) ([]WorkflowRunDTO, error)
 	FindCoveringWorkflow(
 		ctx context.Context,
 		workspaceID, assetID, assetProjectID, assetFolderID string,

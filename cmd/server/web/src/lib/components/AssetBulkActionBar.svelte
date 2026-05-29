@@ -1,17 +1,26 @@
 <script lang="ts">
   import { assetApi, type Project } from '$lib/api'
+  import { goto } from '$app/navigation'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { BulkTagAsset } from '$lib/commands/BulkTagAsset'
   import { BulkAssignAssetToProject } from '$lib/commands/BulkAssignAssetToProject'
-  import { Layers, Settings2, SquareArrowRightExit, Tag } from '@lucide/svelte'
+  import {
+    Layers,
+    Settings2,
+    SquareArrowRightExit,
+    Tag,
+    Workflow,
+  } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import ButtonDelete from './ui/ButtonDelete.svelte'
   import ConfirmModal from './ui/ConfirmModal.svelte'
   import BulkMetadataModal from './BulkMetadataModal.svelte'
+  import ApplyWorkflowModal from '$lib/components/workflows/ApplyWorkflowModal.svelte'
   import { m } from '$lib/paraglide/messages'
   import { stackStore, assetToStack } from '$lib/stores/stack.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
 
   interface Props {
     selectedIds: Set<string>
@@ -43,6 +52,7 @@
   let activePanel = $state<'tags' | 'projects' | null>(null)
   let showDeleteConfirm = $state(false)
   let showBulkMetadata = $state(false)
+  let showApplyWorkflow = $state(false)
 
   async function bulkTag() {
     const name = tagInput.trim().toLowerCase()
@@ -106,6 +116,28 @@
       busy = false
     }
   }
+
+  function handleWorkflowsApplied(
+    results: Array<{
+      workflowId: string
+      workflowName: string
+      runIds: string[]
+    }>
+  ) {
+    for (const { workflowId, workflowName, runIds } of results) {
+      toastStore.show(
+        m.workflows_library_run_started({
+          name: workflowName,
+          count: runIds.length,
+        }),
+        'success',
+        {
+          label: m.workflows_library_view_runs(),
+          onClick: () => void goto(`/library/settings/workflows/runs`),
+        }
+      )
+    }
+  }
 </script>
 
 {#if selectedIds.size > 0}
@@ -164,6 +196,19 @@
         >
           {#snippet icon()}<Settings2 class="h-4 w-4" />{/snippet}
           {m.bulk_action_edit_fields()}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy}
+          onclick={() => {
+            activePanel = null
+            showApplyWorkflow = true
+          }}
+        >
+          {#snippet icon()}<Workflow class="h-4 w-4" />{/snippet}
+          {m.workflows_library_apply_workflow()}
         </Button>
       {/if}
 
@@ -242,6 +287,14 @@
       showBulkMetadata = false
       ondone()
     }}
+  />
+{/if}
+
+{#if showApplyWorkflow}
+  <ApplyWorkflowModal
+    assetIds={[...selectedIds]}
+    onClose={() => (showApplyWorkflow = false)}
+    onApplied={handleWorkflowsApplied}
   />
 {/if}
 

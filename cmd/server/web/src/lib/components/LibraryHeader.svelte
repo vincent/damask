@@ -20,8 +20,7 @@
     Upload,
     Download,
     Settings2,
-    GitBranch,
-    Waypoints,
+    Workflow,
   } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'
   import UndoRedo from './UndoRedo.svelte'
@@ -287,7 +286,7 @@
                 addMenuOpen = false
               }}
             >
-              <Waypoints class="add-dropdown-icon" />
+              <Workflow class="add-dropdown-icon" />
               {m.add_workflow()}
             </a>
 

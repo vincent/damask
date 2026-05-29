@@ -336,6 +336,7 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Put("/workflows/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateWorkflow)
 	api.Patch("/workflows/:id/enabled", auth.RequireRole(getRoleFn, auth.Owner), s.handleToggleWorkflow)
 	api.Delete("/workflows/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleDeleteWorkflow)
+	api.Post("/workflows/:id/runs/bulk", auth.RequireRole(getRoleFn, auth.Editor), s.handleBulkManualWorkflowRun)
 	api.Post("/workflows/:id/runs", auth.RequireRole(getRoleFn, auth.Owner), s.handleManualWorkflowRun)
 	api.Get("/workflows/:id/runs", s.handleListWorkflowRuns)
 	api.Get("/workflows/:id/runs/:rid", s.handleGetWorkflowRun)

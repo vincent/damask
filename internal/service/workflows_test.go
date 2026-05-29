@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -14,14 +15,18 @@ import (
 	"damask/server/internal/service"
 )
 
-type workflowQueueStub struct{ enqueued int }
+type workflowQueueStub struct {
+	enqueued int
+	types    []string
+}
 
 func (q *workflowQueueStub) Register(string, queue.HandlerFunc) {}
 func (q *workflowQueueStub) Start(context.Context)              {}
 func (q *workflowQueueStub) Stop()                              {}
 
-func (q *workflowQueueStub) Enqueue(_ context.Context, _, _, _ string) (dbgen.Job, error) {
+func (q *workflowQueueStub) Enqueue(_ context.Context, _, jobType, _ string) (dbgen.Job, error) {
 	q.enqueued++
+	q.types = append(q.types, jobType)
 	return dbgen.Job{ID: "job_1"}, nil
 }
 
@@ -78,6 +83,212 @@ func TestWorkflowServiceTriggerManualEnqueuesRun(t *testing.T) {
 	}
 	if runID == "" || queue.enqueued != 1 {
 		t.Fatalf("expected run to be created and enqueued, run_id=%q enqueued=%d", runID, queue.enqueued)
+	}
+}
+
+func TestWorkflowServiceListFilterManualEnabled(t *testing.T) {
+	svc, repo, _, _ := newWorkflowSvc(t)
+	repo.Seed(
+		repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Name: "Manual", Enabled: true, TriggerType: "trigger.manual"},
+		repository.Workflow{ID: "wf_2", WorkspaceID: "ws_1", Name: "Disabled", Enabled: false, TriggerType: "trigger.manual"},
+		repository.Workflow{ID: "wf_3", WorkspaceID: "ws_1", Name: "Asset", Enabled: true, TriggerType: "trigger.asset_created"},
+		repository.Workflow{ID: "wf_4", WorkspaceID: "ws_2", Name: "Other workspace", Enabled: true, TriggerType: "trigger.manual"},
+	)
+	triggerType := "trigger.manual"
+	got, err := svc.List(context.Background(), "ws_1", service.ListWorkflowsParams{
+		TriggerType: &triggerType,
+		EnabledOnly: true,
+	})
+	if err != nil {
+		t.Fatalf("List() unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "wf_1" {
+		t.Fatalf("unexpected workflows: %#v", got)
+	}
+}
+
+func newWorkflowSvcWithAssets(t *testing.T) (
+	service.WorkflowService,
+	*memory.WorkflowMemoryRepo,
+	*memory.WorkflowRunMemoryRepo,
+	*memory.AssetRepo,
+	*memory.RealVersionRepo,
+	*workflowQueueStub,
+) {
+	t.Helper()
+	workflows := memory.NewWorkflowRepo()
+	runs := memory.NewWorkflowRunRepo()
+	assets := memory.NewAssetRepo()
+	versions := memory.NewRealVersionRepo()
+	q := &workflowQueueStub{}
+	svc := service.NewWorkflowServiceWithDeps(
+		workflows, runs, memory.NewWorkflowWebhookRepo(), q,
+		service.WorkflowServiceDeps{Assets: assets, Versions: versions},
+	)
+	return svc, workflows, runs, assets, versions, q
+}
+
+func TestWorkflowServiceTriggerManualBulkOK(t *testing.T) {
+	svc, repo, runs, assets, versions, q := newWorkflowSvcWithAssets(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.manual"})
+	assets.Seed(
+		repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", OriginalFilename: "foo.jpg", MimeType: "image/jpeg", Size: 1024},
+		repository.Asset{ID: "ast_2", WorkspaceID: "ws_1", OriginalFilename: "bar.png", MimeType: "image/png", Size: 2048},
+		repository.Asset{ID: "ast_3", WorkspaceID: "ws_1", OriginalFilename: "baz.mp4", MimeType: "video/mp4", Size: 4096},
+	)
+	versions.Seed(
+		repository.AssetVersion{ID: "ver_1", AssetID: "ast_1", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "ws_1/ast_1/v1.jpg", IsCurrent: true},
+		repository.AssetVersion{ID: "ver_2", AssetID: "ast_2", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "ws_1/ast_2/v1.png", IsCurrent: true},
+		repository.AssetVersion{ID: "ver_3", AssetID: "ast_3", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "ws_1/ast_3/v1.mp4", IsCurrent: true},
+	)
+	runIDs, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_1", "ast_2", "ast_3"})
+	if err != nil {
+		t.Fatalf("TriggerManualBulk() unexpected error: %v", err)
+	}
+	if len(runIDs) != 3 || q.enqueued != 3 {
+		t.Fatalf("expected 3 runs and jobs, runIDs=%v enqueued=%d", runIDs, q.enqueued)
+	}
+	for _, typ := range q.types {
+		if typ != queue.JobTypeRunWorkflow {
+			t.Fatalf("unexpected job type %q", typ)
+		}
+	}
+	type expectation struct {
+		assetID    string
+		mimeType   string
+		filename   string
+		size       float64
+		versionID  string
+		versionNum float64
+		storageKey string
+	}
+	expectations := []expectation{
+		{"ast_1", "image/jpeg", "foo.jpg", 1024, "ver_1", 1, "ws_1/ast_1/v1.jpg"},
+		{"ast_2", "image/png", "bar.png", 2048, "ver_2", 1, "ws_1/ast_2/v1.png"},
+		{"ast_3", "video/mp4", "baz.mp4", 4096, "ver_3", 1, "ws_1/ast_3/v1.mp4"},
+	}
+	for i, runID := range runIDs {
+		run, err := runs.GetByID(context.Background(), runID)
+		if err != nil {
+			t.Fatalf("run %q not persisted: %v", runID, err)
+		}
+		var td map[string]any
+		if err := json.Unmarshal([]byte(run.TriggerData), &td); err != nil {
+			t.Fatalf("run %d trigger_data invalid JSON: %v", i, err)
+		}
+		ex := expectations[i]
+		// strings.Contains still used to keep "strings" import valid
+		if !strings.Contains(run.TriggerData, ex.assetID) {
+			t.Fatalf("run %d trigger_data missing asset_id %q: %s", i, ex.assetID, run.TriggerData)
+		}
+		checks := map[string]any{
+			"asset_id":          ex.assetID,
+			"workspace_id":      "ws_1",
+			"mime_type":         ex.mimeType,
+			"original_filename": ex.filename,
+			"filename":          ex.filename,
+			"size":              ex.size,
+			"version_id":        ex.versionID,
+			"version_num":       ex.versionNum,
+			"storage_key":       ex.storageKey,
+		}
+		for key, want := range checks {
+			got, ok := td[key]
+			if !ok {
+				t.Errorf("run %d: trigger_data missing key %q", i, key)
+				continue
+			}
+			if got != want {
+				t.Errorf("run %d: trigger_data[%q] = %v (%T), want %v (%T)", i, key, got, got, want, want)
+			}
+		}
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkAssetNotFound(t *testing.T) {
+	svc, repo, _, assets, _, q := newWorkflowSvcWithAssets(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.manual"})
+	assets.Seed(repository.Asset{ID: "ast_alien", WorkspaceID: "ws_other", OriginalFilename: "x.jpg"})
+	runIDs, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_alien"})
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+	if len(runIDs) != 0 || q.enqueued != 0 {
+		t.Fatalf("expected no runs, got runIDs=%v enqueued=%d", runIDs, q.enqueued)
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkNoCurrentVersion(t *testing.T) {
+	svc, repo, _, assets, _, q := newWorkflowSvcWithAssets(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.manual"})
+	assets.Seed(repository.Asset{ID: "ast_noversion", WorkspaceID: "ws_1", OriginalFilename: "ghost.jpg", MimeType: "image/jpeg"})
+	runIDs, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_noversion"})
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+	if len(runIDs) != 0 || q.enqueued != 0 {
+		t.Fatalf("expected no runs, got runIDs=%v enqueued=%d", runIDs, q.enqueued)
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkPartialSuccess(t *testing.T) {
+	svc, repo, _, assets, versions, q := newWorkflowSvcWithAssets(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.manual"})
+	assets.Seed(
+		repository.Asset{ID: "ast_ok", WorkspaceID: "ws_1", OriginalFilename: "ok.jpg", MimeType: "image/jpeg"},
+		repository.Asset{ID: "ast_bad", WorkspaceID: "ws_1", OriginalFilename: "bad.jpg", MimeType: "image/jpeg"},
+	)
+	versions.Seed(repository.AssetVersion{ID: "ver_ok", AssetID: "ast_ok", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "k/ok.jpg", IsCurrent: true})
+	runIDs, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_ok", "ast_bad"})
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+	if len(runIDs) != 1 || q.enqueued != 1 {
+		t.Fatalf("expected 1 partial run, got runIDs=%v enqueued=%d", runIDs, q.enqueued)
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkDisabledWorkflow(t *testing.T) {
+	svc, repo, _, queue := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: false, TriggerType: "trigger.manual"})
+	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_1"})
+	if !errors.Is(err, apperr.ErrConflict) || queue.enqueued != 0 {
+		t.Fatalf("expected ErrConflict and empty queue, err=%v enqueued=%d", err, queue.enqueued)
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkWrongTriggerType(t *testing.T) {
+	svc, repo, _, queue := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.asset_created"})
+	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_1"})
+	if !errors.Is(err, apperr.ErrConflict) || queue.enqueued != 0 {
+		t.Fatalf("expected ErrConflict and empty queue, err=%v enqueued=%d", err, queue.enqueued)
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkEmptyAssetIDs(t *testing.T) {
+	svc, _, _, _ := newWorkflowSvc(t)
+	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", nil)
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkTooManyAssets(t *testing.T) {
+	svc, _, _, _ := newWorkflowSvc(t)
+	assetIDs := make([]string, 501)
+	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", assetIDs)
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestWorkflowServiceTriggerManualBulkWorkspaceIsolation(t *testing.T) {
+	svc, repo, _, queue := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_a", Enabled: true, TriggerType: "trigger.manual"})
+	_, err := svc.TriggerManualBulk(context.Background(), "ws_b", "wf_1", []string{"ast_1"})
+	if !errors.Is(err, apperr.ErrNotFound) || queue.enqueued != 0 {
+		t.Fatalf("expected ErrNotFound and empty queue, err=%v enqueued=%d", err, queue.enqueued)
 	}
 }
 

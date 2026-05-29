@@ -12,6 +12,7 @@
     Trash2,
     Zap,
     SquarePen,
+    Activity,
   } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
@@ -33,6 +34,7 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { workflowsStore } from '$lib/stores/workflows.svelte'
   import RunDetail from '$lib/components/workflows/RunDetail.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   type View = 'list' | 'editor' | 'inspect'
 
@@ -307,6 +309,13 @@
       title="Workflows"
       description="Automate DAM actions with trigger, filter, action, and control-flow graphs."
     >
+      <a
+        href="/library/settings/workflows/runs"
+        class="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+      >
+        <Activity class="h-3.5 w-3.5" />
+        {m.workflows_runs_all()}
+      </a>
       <div class="wf-add-group relative flex" bind:this={addMenuEl}>
         <button
           type="button"
@@ -317,7 +326,7 @@
           aria-expanded={addMenuOpen}
         >
           <Plus class="h-4 w-4" />
-          Add workflow
+          {m.add_workflow()}
         </button>
         <button
           type="button"
@@ -470,7 +479,7 @@
       <div class="flex items-center gap-2">
         <Button variant="ghost" onclick={goToList}>
           {#snippet icon()}<ArrowLeft class="h-4 w-4" />{/snippet}
-          Back
+          {m.back()}
         </Button>
 
         {#if view === 'inspect' && selectedWorkflow}
@@ -495,7 +504,7 @@
               Pause
             {:else}
               <Play class="h-4 w-4" />
-              Enable
+              {m.enable()}
             {/if}
           </Button>
           <Button
@@ -505,14 +514,14 @@
             class="text-red-500 hover:text-red-600"
           >
             <Trash2 class="h-4 w-4" />
-            Delete
+            {m.delete()}
           </Button>
           <Button
             disabled={!dirty || saving}
             onclick={() => void saveWorkflow()}
           >
             <Save class="h-4 w-4" />
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? m.saving() : m.save()}
           </Button>
         {/if}
       </div>

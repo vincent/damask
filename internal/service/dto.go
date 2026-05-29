@@ -164,6 +164,11 @@ type WorkflowDTO struct {
 	UpdatedAt            time.Time
 }
 
+type ListWorkflowsParams struct {
+	TriggerType *string
+	EnabledOnly bool
+}
+
 type AutomationScope string
 
 const (

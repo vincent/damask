@@ -32,6 +32,7 @@ type workflowService struct {
 	webhooks  repository.WorkflowWebhookRepository
 	assets    repository.AssetRepository
 	variants  repository.VariantRepository
+	versions  repository.VersionRepository
 	queue     queue.JobQueue
 }
 
@@ -47,6 +48,7 @@ func NewWorkflowService(
 type WorkflowServiceDeps struct {
 	Assets   repository.AssetRepository
 	Variants repository.VariantRepository
+	Versions repository.VersionRepository
 }
 
 func NewWorkflowServiceWithDeps(
@@ -62,18 +64,34 @@ func NewWorkflowServiceWithDeps(
 		webhooks:  webhooks,
 		assets:    deps.Assets,
 		variants:  deps.Variants,
+		versions:  deps.Versions,
 		queue:     queue,
 	}
 }
 
-func (s *workflowService) List(ctx context.Context, workspaceID string) ([]WorkflowDTO, error) {
-	rows, err := s.workflows.List(ctx, workspaceID)
+func (s *workflowService) List(
+	ctx context.Context,
+	workspaceID string,
+	params ListWorkflowsParams,
+) ([]WorkflowDTO, error) {
+	var (
+		rows []repository.Workflow
+		err  error
+	)
+	if params.TriggerType != nil && params.EnabledOnly {
+		rows, err = s.workflows.ListEnabledByTrigger(ctx, workspaceID, *params.TriggerType)
+	} else {
+		rows, err = s.workflows.List(ctx, workspaceID)
+	}
 	if err != nil {
 		return nil, err
 	}
-	out := make([]WorkflowDTO, len(rows))
-	for i, row := range rows {
-		out[i] = toWorkflowDTO(row)
+	out := make([]WorkflowDTO, 0, len(rows))
+	for _, row := range rows {
+		if params.TriggerType != nil && !params.EnabledOnly && row.TriggerType != *params.TriggerType {
+			continue
+		}
+		out = append(out, toWorkflowDTO(row))
 	}
 	return out, nil
 }
@@ -168,6 +186,42 @@ func (s *workflowService) TriggerManual(ctx context.Context, workspaceID, id str
 	return s.enqueueRun(ctx, wf, map[string]any{"trigger": "manual"})
 }
 
+func (s *workflowService) TriggerManualBulk(
+	ctx context.Context,
+	workspaceID, workflowID string,
+	assetIDs []string,
+) ([]string, error) {
+	if len(assetIDs) == 0 {
+		return nil, fmt.Errorf("asset_ids must not be empty: %w", apperr.ErrInvalidInput)
+	}
+	if len(assetIDs) > 500 {
+		return nil, fmt.Errorf("asset_ids exceeds maximum of 500: %w", apperr.ErrInvalidInput)
+	}
+	wf, err := s.workflows.GetByID(ctx, workspaceID, workflowID)
+	if err != nil {
+		return nil, err
+	}
+	if !wf.Enabled {
+		return nil, fmt.Errorf("workflow is disabled: %w", apperr.ErrConflict)
+	}
+	if wf.TriggerType != "trigger.manual" {
+		return nil, fmt.Errorf("workflow is not manually triggered: %w", apperr.ErrConflict)
+	}
+	runIDs := make([]string, 0, len(assetIDs))
+	for _, assetID := range assetIDs {
+		triggerData, err := s.manualAssetTriggerData(ctx, workspaceID, assetID)
+		if err != nil {
+			return runIDs, err
+		}
+		runID, err := s.enqueueRun(ctx, wf, triggerData)
+		if err != nil {
+			return runIDs, err
+		}
+		runIDs = append(runIDs, runID)
+	}
+	return runIDs, nil
+}
+
 func (s *workflowService) TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error) {
 	wfs, err := s.workflows.ListByTrigger(ctx, "trigger.webhook")
 	if err != nil {
@@ -223,6 +277,23 @@ func (s *workflowService) ListRuns(
 	cursor string,
 ) ([]WorkflowRunDTO, error) {
 	rows, err := s.runs.List(ctx, workflowID, limit, cursor)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]WorkflowRunDTO, len(rows))
+	for i, row := range rows {
+		out[i] = toWorkflowRunDTO(row, nil)
+	}
+	return out, nil
+}
+
+func (s *workflowService) ListAllRuns(
+	ctx context.Context,
+	workspaceID string,
+	limit int,
+	cursor string,
+) ([]WorkflowRunDTO, error) {
+	rows, err := s.runs.ListByWorkspace(ctx, workspaceID, limit, cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -376,6 +447,47 @@ func (s *workflowService) enqueueRun(
 		return "", err
 	}
 	return runID, nil
+}
+
+func (s *workflowService) manualAssetTriggerData(
+	ctx context.Context,
+	workspaceID, assetID string,
+) (map[string]any, error) {
+	if s.assets == nil || s.versions == nil {
+		panic("workflowService: Assets and Versions deps are required for TriggerManualBulk")
+	}
+	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
+	if err != nil {
+		return nil, err
+	}
+	ver, err := s.versions.GetCurrentByAsset(ctx, assetID)
+	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, fmt.Errorf("asset %q has no current version: %w", assetID, apperr.ErrInvalidInput)
+		}
+		return nil, err
+	}
+	projectID := ""
+	if asset.ProjectID != nil {
+		projectID = *asset.ProjectID
+	}
+	folderID := ""
+	if asset.FolderID != nil {
+		folderID = *asset.FolderID
+	}
+	return map[string]any{
+		"asset_id":          asset.ID,
+		"workspace_id":      asset.WorkspaceID,
+		"project_id":        projectID,
+		"folder_id":         folderID,
+		"mime_type":         asset.MimeType,
+		"size":              asset.Size,
+		"original_filename": asset.OriginalFilename,
+		"filename":          asset.OriginalFilename,
+		"version_id":        ver.ID,
+		"version_num":       ver.VersionNum,
+		"storage_key":       ver.StorageKey,
+	}, nil
 }
 
 func findCoveringWorkflowDTO(

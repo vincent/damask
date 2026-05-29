@@ -124,6 +124,10 @@ export interface WorkflowEvent {
 
 export const workflowsApi = {
   list: () => apiFetch<Workflow[]>('/api/v1/workflows'),
+  listManual: () =>
+    apiFetch<Workflow[]>(
+      '/api/v1/workflows?trigger_type=trigger.manual&enabled_only=true'
+    ),
   get: (id: string) => apiFetch<Workflow>(`/api/v1/workflows/${id}`),
   create: (body: CreateWorkflowBody) =>
     apiFetch<Workflow>('/api/v1/workflows', {
@@ -150,6 +154,18 @@ export const workflowsApi = {
       {
         method: 'POST',
       }
+    ),
+  triggerBulk: (id: string, assetIds: string[]) =>
+    apiFetch<{ run_ids: string[]; count: number; error?: string }>(
+      `/api/v1/workflows/${id}/runs/bulk`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ asset_ids: assetIds }),
+      }
+    ),
+  listAllRuns: (cursor?: string) =>
+    apiFetch<{ runs: WorkflowRun[]; next_cursor: string }>(
+      `/api/v1/workflows/runs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`
     ),
   listRuns: (id: string, cursor?: string) =>
     apiFetch<WorkflowRun[]>(

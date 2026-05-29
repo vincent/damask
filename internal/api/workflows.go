@@ -25,6 +25,16 @@ type toggleWorkflowRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
+type bulkManualRunRequest struct {
+	AssetIDs []string `json:"asset_ids"`
+}
+
+type bulkManualRunResponse struct {
+	RunIDs []string `json:"run_ids"`
+	Count  int      `json:"count"`
+	Error  string   `json:"error,omitempty"`
+}
+
 func workflowToResponse(dto service.WorkflowDTO) fiber.Map {
 	return fiber.Map{
 		"id":                      dto.ID,
@@ -72,7 +82,12 @@ func workflowRunToResponse(dto service.WorkflowRunDTO) fiber.Map {
 func (s *Server) handleListWorkflows(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	apptelemetry.EnrichSpan(c, claims.WorkspaceID, claims.UserID)
-	rows, err := s.workflows.List(c.Context(), claims.WorkspaceID)
+	params := service.ListWorkflowsParams{}
+	if triggerType := c.Query("trigger_type"); triggerType != "" {
+		params.TriggerType = &triggerType
+	}
+	params.EnabledOnly = c.Query("enabled_only") == "true"
+	rows, err := s.workflows.List(c.Context(), claims.WorkspaceID, params)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
@@ -164,6 +179,45 @@ func (s *Server) handleManualWorkflowRun(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"run_id": runID, apiStatusKey: apiStatusPending})
+}
+
+func (s *Server) handleBulkManualWorkflowRun(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	var req bulkManualRunRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return errRes(c, fiber.StatusBadRequest, "invalid request body")
+	}
+	runIDs, err := s.workflows.TriggerManualBulk(c.Context(), claims.WorkspaceID, c.Params("id"), req.AssetIDs)
+	if err != nil && len(runIDs) == 0 {
+		return ErrorStatusResponse(c, err)
+	}
+	resp := bulkManualRunResponse{
+		RunIDs: runIDs,
+		Count:  len(runIDs),
+	}
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	return c.Status(fiber.StatusAccepted).JSON(resp)
+}
+
+func (s *Server) handleListAllWorkflowRuns(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	apptelemetry.EnrichSpan(c, claims.WorkspaceID, claims.UserID)
+	rows, err := s.workflows.ListAllRuns(c.Context(), claims.WorkspaceID, maxRunPageSize, c.Query("cursor"))
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	out := make([]fiber.Map, len(rows))
+	for i, row := range rows {
+		out[i] = workflowRunToResponse(row)
+	}
+	var nextCursor string
+	if len(rows) == maxRunPageSize {
+		last := rows[len(rows)-1]
+		nextCursor = last.CreatedAt.UTC().Format("2006-01-02T15:04:05.999999999Z") + "|" + last.ID
+	}
+	return c.JSON(fiber.Map{"runs": out, "next_cursor": nextCursor})
 }
 
 func (s *Server) handleListWorkflowRuns(c fiber.Ctx) error {

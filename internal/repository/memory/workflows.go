@@ -63,6 +63,22 @@ func (r *WorkflowMemoryRepo) ListByTrigger(_ context.Context, triggerType string
 	return out, nil
 }
 
+func (r *WorkflowMemoryRepo) ListEnabledByTrigger(
+	_ context.Context,
+	workspaceID, triggerType string,
+) ([]repository.Workflow, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := []repository.Workflow{}
+	for _, wf := range r.workflows {
+		if wf.WorkspaceID == workspaceID && wf.Enabled && wf.TriggerType == triggerType {
+			out = append(out, wf)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
 func (r *WorkflowMemoryRepo) Create(_ context.Context, p repository.CreateWorkflowParams) (repository.Workflow, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -245,6 +261,36 @@ func (r *WorkflowRunMemoryRepo) List(
 	out := []repository.WorkflowRun{}
 	for _, run := range r.runs {
 		if run.WorkflowID != workflowID {
+			continue
+		}
+		if cursor != "" && run.CreatedAt.Format(time.RFC3339Nano)+"|"+run.ID >= cursor {
+			continue
+		}
+		out = append(out, run)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].ID > out[j].ID
+		}
+		return out[i].CreatedAt.After(out[j].CreatedAt)
+	})
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (r *WorkflowRunMemoryRepo) ListByWorkspace(
+	_ context.Context,
+	workspaceID string,
+	limit int,
+	cursor string,
+) ([]repository.WorkflowRun, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := []repository.WorkflowRun{}
+	for _, run := range r.runs {
+		if run.WorkspaceID != workspaceID {
 			continue
 		}
 		if cursor != "" && run.CreatedAt.Format(time.RFC3339Nano)+"|"+run.ID >= cursor {
