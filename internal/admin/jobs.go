@@ -242,7 +242,7 @@ func renderJobHealthTable(rows []JobRow, width int, _ bool) string {
 	return strings.Join(lines, "\n")
 }
 
-func (m JobsModel) rebuildFailedCols() {
+func (m *JobsModel) rebuildFailedCols() {
 	errW := clamp(m.width-70, 20, 50)
 	cols := []table.Column{
 		{Title: "ID", Width: 14},
@@ -255,7 +255,7 @@ func (m JobsModel) rebuildFailedCols() {
 	m.failedTable.SetHeight(clamp(m.height/3, 5, 12))
 }
 
-func (m JobsModel) rebuildFailedTable() {
+func (m *JobsModel) rebuildFailedTable() {
 	m.rebuildFailedCols()
 	errW := clamp(m.width-70, 20, 50)
 	var rows []table.Row
