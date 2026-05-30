@@ -363,6 +363,8 @@
   "text_tracks_source_label": "Source",
   "text_tracks_source_ocr": "OCR",
   "text_tracks_source_manual": "Manual",
+  "text_tracks_source_extract": "Auto-extract",
+  "text_tracks_extract_submit": "Extract text",
   "text_tracks_status_pending": "Extracting…",
   "text_tracks_status_failed": "Failed",
   "text_tracks_ocr_description": "Extract text from this image using Tesseract OCR. The result is indexed for search and optionally saved as an hOCR companion file.",

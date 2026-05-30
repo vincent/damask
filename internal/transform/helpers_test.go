@@ -106,6 +106,13 @@ func (t *mockTransformer) NormalizeAudio(_ context.Context, _, _ string, _ trans
 	return nil
 }
 
+func (t *mockTransformer) PDFExtractResolution(
+	_ context.Context,
+	_ string,
+) (*transform.VideoResolution, error) {
+	return &transform.VideoResolution{Width: 1, Height: 1}, nil
+}
+
 func (t *mockTransformer) VideoExtractResolution(
 	_ context.Context,
 	_ string,

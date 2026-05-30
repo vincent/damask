@@ -47,6 +47,9 @@ type fieldPurgeService interface {
 // Defined here to avoid an import cycle (service imports jobs for queue payload types).
 type textTrackService interface {
 	RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
+	RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
+	RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
+	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
 }
 
 // JobServer holds shared dependencies injected at startup.
@@ -168,6 +171,9 @@ func (s *JobServer) RegisterJobHandlers() {
 		reg(jobType, variantHandler)
 	}
 	reg(queue.JobTypeOCRTextTrack, s.wrapSimpleJob(s.jobOCRTextTrack))
+	reg(queue.JobTypeExtractPDFTextTrack, s.jobExtractPDFTextTrack)
+	reg(queue.JobTypeExtractPlainTextTrack, s.jobExtractPlainTextTrack)
+	reg(queue.JobTypeExtractDocumentTextTrack, s.jobExtractDocumentTextTrack)
 
 	// Rebuild jobs — system-triggered on version upload.
 	reg(queue.JobTypeRebuildVariants, s.jobRebuildVariants)

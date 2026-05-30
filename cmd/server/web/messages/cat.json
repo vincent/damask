@@ -347,6 +347,8 @@
   "text_tracks_source_label": "Font",
   "text_tracks_source_ocr": "OCR",
   "text_tracks_source_manual": "Manual",
+  "text_tracks_source_extract": "Auto-extract",
+  "text_tracks_extract_submit": "Extract text",
   "text_tracks_status_pending": "Extraient…",
   "text_tracks_status_failed": "Error",
   "text_tracks_ocr_description": "Extreu text d'aquesta imatge amb Tesseract OCR. El resultat s'indexa per a la cerca i es pot desar com a fitxer hOCR.",

@@ -42,6 +42,9 @@
   // Progressive image load: show thumb immediately, crossfade to full once loaded
   let fullLoaded = $state(false)
   let fullSrc = $state('')
+  let splashAlone = $derived(
+    !(isPdf || category === 'video' || category === 'audio' || !thumbUrl)
+  )
 
   $effect(() => {
     // Reset on asset change
@@ -166,9 +169,9 @@
       src={thumbUrl}
       alt={asset.original_filename}
       data-asset-dynamic-resource={asset.id}
-      class="asset-splash min-w-xl object-cover {category === 'audio'
-        ? 'invert'
-        : ''}"
+      class="{!splashAlone
+        ? 'asset-splash'
+        : ''} min-w-xl object-cover {category === 'audio' ? 'invert' : ''}"
       style={category === 'audio' ? `--progress: ${audioProgress}` : undefined}
       loading="lazy"
       onerror={(e) => {

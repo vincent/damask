@@ -333,6 +333,43 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 			return errRes(c, fiber.StatusUnprocessableEntity, "content is required")
 		}
 		createParams.InitialContent = content
+	case "extract_pdf":
+		if !transform.IsPdfMime(asset.MimeType) {
+			return errRes(c, fiber.StatusUnprocessableEntity, "asset is not a PDF")
+		}
+		if asset.CurrentVersionID == nil {
+			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
+		}
+		currentVersion, versionErr := s.versions.GetCurrentByAsset(ctx, assetID)
+		if versionErr != nil {
+			return ErrorStatusResponse(c, versionErr)
+		}
+		params["storage_key"] = currentVersion.StorageKey
+	case "extract_plain":
+		if !transform.IsTextMime(asset.MimeType) {
+			return errRes(c, fiber.StatusUnprocessableEntity, "asset is not a plain text file")
+		}
+		if asset.CurrentVersionID == nil {
+			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
+		}
+		currentVersion, versionErr := s.versions.GetCurrentByAsset(ctx, assetID)
+		if versionErr != nil {
+			return ErrorStatusResponse(c, versionErr)
+		}
+		params["storage_key"] = currentVersion.StorageKey
+	case "extract_document":
+		if !transform.IsDocumentMime(asset.MimeType) {
+			return errRes(c, fiber.StatusUnprocessableEntity, "asset is not a supported document type")
+		}
+		if asset.CurrentVersionID == nil {
+			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
+		}
+		currentVersion, versionErr := s.versions.GetCurrentByAsset(ctx, assetID)
+		if versionErr != nil {
+			return ErrorStatusResponse(c, versionErr)
+		}
+		params["storage_key"] = currentVersion.StorageKey
+		params["mime_type"] = currentVersion.MimeType
 	default:
 		return errRes(c, fiber.StatusUnprocessableEntity, "unsupported_source")
 	}

@@ -19,9 +19,22 @@ RUN CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/damask-ad
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM debian:bookworm-slim
+
+ARG LO_VERSION=26.2.3
+ARG LO_URL=https://download.documentfoundation.org/libreoffice/stable/${LO_VERSION}/deb/x86_64/LibreOffice_${LO_VERSION}_Linux_x86-64_deb.tar.gz
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates ffmpeg ghostscript imagemagick libreoffice-nogui \
-    tesseract-ocr tesseract-ocr-eng && rm -rf /var/lib/apt/lists/*
+    ca-certificates poppler-utils ffmpeg ghostscript imagemagick \
+    tesseract-ocr tesseract-ocr-eng \
+    libcairo2 libcups2 libdbus-1-3 libfontconfig1 libgl1 libglib2.0-0 \
+    libice6 libsm6 libx11-6 libxext6 libxinerama1 libxrender1 \
+    wget && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q "${LO_URL}" -O /tmp/lo.tar.gz \
+    && tar -xf /tmp/lo.tar.gz -C /tmp \
+    && dpkg -i /tmp/LibreOffice_${LO_VERSION}_Linux_x86-64_deb/DEBS/*.deb \
+    && rm -rf /tmp/lo.tar.gz /tmp/LibreOffice_* \
+    && apt-get purge -y wget && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 # remove some policies from imagemagick config
 RUN sed -i \

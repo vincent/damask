@@ -43,6 +43,7 @@ func NewRegistry(trf transform.Transformer) *Registry {
 		handlers: []MediaHandler{
 			ImageHandler{},
 			NewVideoHandler(trf),
+			NewPDFHandler(trf),
 			NewDefaultHandler([]string{
 				"application/msword",
 				"application/vnd",
@@ -51,7 +52,6 @@ func NewRegistry(trf transform.Transformer) *Registry {
 				"text/csv",
 				"audio/",
 				"font/",
-				"/pdf",
 			}),
 		},
 	}

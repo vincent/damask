@@ -34,6 +34,8 @@ type Transformer interface {
 	TranscodeAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error
 	NormalizeAudio(ctx context.Context, srcPath, dstPath string, p AudioParams) error
 
+	PDFExtractResolution(ctx context.Context, srcPath string) (*VideoResolution, error)
+
 	VideoExtractResolution(ctx context.Context, srcPath string) (*VideoResolution, error)
 	VideoExtractThumbnail(ctx context.Context, srcPath string, p VideoThumbnailParams) ([]byte, error)
 	VideoClipThumbnail(ctx context.Context, srcPath string, p VideoClipParams) ([]byte, error)
@@ -85,7 +87,7 @@ func (t *transformer) CheckExternalDeps() []string {
 	if !t.ffmpeg.available() {
 		missing = append(missing, "ffmpeg")
 	}
-	for _, bin := range []string{"convert", "soffice"} {
+	for _, bin := range []string{"convert", "soffice", "pdftotext"} {
 		if _, err := exec.LookPath(bin); err != nil {
 			missing = append(missing, bin)
 		}

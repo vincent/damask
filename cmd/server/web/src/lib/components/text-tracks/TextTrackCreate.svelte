@@ -1,7 +1,7 @@
 <script lang="ts">
   import { textTrackApi, type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
-  import { isImage } from '$lib/utils/mime'
+  import { isImage, isPdf, isDocument } from '$lib/utils/mime'
   import TextTrackCreateOCR from './TextTrackCreateOCR.svelte'
 
   interface Props {
@@ -11,9 +11,19 @@
 
   let { asset, onCreated }: Props = $props()
 
-  let selectedSource = $state<'ocr' | 'manual'>(
+  const extractSource = $derived(
+    isPdf(asset.mime_type)
+      ? 'extract_pdf'
+      : isDocument(asset.mime_type)
+        ? 'extract_document'
+        : asset.mime_type.startsWith('text/')
+          ? 'extract_plain'
+          : null
+  )
+
+  let selectedSource = $state<'ocr' | 'manual' | 'extract'>(
     // svelte-ignore state_referenced_locally
-    isImage(asset.mime_type) ? 'ocr' : 'manual'
+    isImage(asset.mime_type) ? 'ocr' : extractSource ? 'extract' : 'manual'
   )
   let creating = $state(false)
   let error = $state('')
@@ -52,12 +62,26 @@
       creating = false
     }
   }
+
+  async function createExtract() {
+    if (!extractSource) return
+    creating = true
+    error = ''
+    try {
+      await textTrackApi.create(asset.id, { source: extractSource })
+      await onCreated()
+    } catch (e) {
+      error = e instanceof Error ? e.message : m.text_tracks_error_generic()
+    } finally {
+      creating = false
+    }
+  }
 </script>
 
 <div
   class="space-y-4 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4"
 >
-  {#if isImage(asset.mime_type)}
+  {#if isImage(asset.mime_type) || extractSource}
     <label class="block space-y-2">
       <span class="text-sm font-medium text-[var(--text-primary)]">
         {m.text_tracks_source_label()}
@@ -66,7 +90,12 @@
         bind:value={selectedSource}
         class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]"
       >
-        <option value="ocr">{m.text_tracks_source_ocr()}</option>
+        {#if isImage(asset.mime_type)}
+          <option value="ocr">{m.text_tracks_source_ocr()}</option>
+        {/if}
+        {#if extractSource}
+          <option value="extract">{m.text_tracks_source_extract()}</option>
+        {/if}
         <option value="manual">{m.text_tracks_source_manual()}</option>
       </select>
     </label>
@@ -74,6 +103,15 @@
 
   {#if selectedSource === 'ocr'}
     <TextTrackCreateOCR {creating} onCreate={createOCR} />
+  {:else if selectedSource === 'extract'}
+    <button
+      type="button"
+      class="w-full rounded-lg bg-[var(--accent-cta)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-cta-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={creating}
+      onclick={createExtract}
+    >
+      {creating ? m.queuing_() : m.text_tracks_extract_submit()}
+    </button>
   {:else}
     <label class="block space-y-2">
       <span class="text-sm font-medium text-[var(--text-primary)]">

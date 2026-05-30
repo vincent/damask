@@ -103,7 +103,12 @@ func (t *thumbnailer) GenerateThumbnailData(
 			slog.DebugContext(ctx, "thumbnail: soffice not available, skipping document", "storage_key", storageKey)
 			return nil, "", nil
 		}
-		return t.ThumbnailFromDocument(ctx, rc, mimeType)
+		data, ext, err := t.ThumbnailFromDocument(ctx, rc, mimeType)
+		if err != nil {
+			slog.WarnContext(ctx, "thumbnail: soffice document conversion failed, skipping", "storage_key", storageKey, "error", err)
+			return nil, "", nil
+		}
+		return data, ext, nil
 
 	case IsTextMime(mimeType):
 		rc, err := storage.Get(storageKey)

@@ -347,6 +347,8 @@
   "text_tracks_source_label": "Origen",
   "text_tracks_source_ocr": "OCR",
   "text_tracks_source_manual": "Manual",
+  "text_tracks_source_extract": "Auto-extract",
+  "text_tracks_extract_submit": "Extract text",
   "text_tracks_status_pending": "Extrayendo…",
   "text_tracks_status_failed": "Error",
   "text_tracks_ocr_description": "Extrae texto de esta imagen usando Tesseract OCR. El resultado se indexa para búsqueda y puede guardarse como archivo hOCR.",

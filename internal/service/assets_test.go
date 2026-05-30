@@ -348,3 +348,50 @@ func TestAssetService_HardDelete_EmitsAuditEvent(t *testing.T) {
 		t.Errorf("AssetID: got %q, want %q", e.AssetID, "a1")
 	}
 }
+
+// hookWriter wraps spyWriter and fires OnWriteAsset before recording the event,
+// allowing tests to assert repository state at the moment the audit write occurs.
+type hookWriter struct {
+	spyWriter
+	OnWriteAsset func(audit.AssetEvent)
+}
+
+func (h *hookWriter) WriteAsset(ctx context.Context, e audit.AssetEvent) {
+	if h.OnWriteAsset != nil {
+		h.OnWriteAsset(e)
+	}
+	h.spyWriter.WriteAsset(ctx, e)
+}
+
+// TestAssetService_HardDelete_AuditBeforeDelete verifies that the audit event is
+// written before the asset row is removed, preventing a FK constraint failure in
+// the real DB (asset_events.asset_id REFERENCES assets.id).
+func TestAssetService_HardDelete_AuditBeforeDelete(t *testing.T) {
+	t.Parallel()
+	repo := memory.NewAssetRepo()
+	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1"})
+	stor, _ := storage.NewAferoMemoryStorage()
+
+	hw := &hookWriter{}
+	hw.OnWriteAsset = func(e audit.AssetEvent) {
+		if _, err := repo.GetByID(context.Background(), "ws_1", "a1"); err != nil {
+			t.Errorf("audit event fired after asset was deleted: %v", err)
+		}
+	}
+
+	svc := service.NewAssetService(
+		repo,
+		memory.NewVersionRepo(),
+		memory.NewTagRepo(),
+		memory.NewRealFieldRepo(),
+		stor,
+		hw,
+		nil,
+	)
+	if err := svc.HardDelete(context.Background(), "ws_1", "a1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hw.assetCount() == 0 {
+		t.Error("expected audit event to be emitted")
+	}
+}

@@ -32,9 +32,10 @@ func publishWorkflowTriggerAsync(
 	payload := make(map[string]any, len(data))
 	maps.Copy(payload, data)
 
+	bgCtx := context.WithoutCancel(ctx)
 	go func() {
-		if err := publisher.Dispatch(ctx, eventType, payload); err != nil {
-			slog.WarnContext(ctx, "workflow trigger dispatch failed", "trigger_type", eventType, "error", err)
+		if err := publisher.Dispatch(bgCtx, eventType, payload); err != nil {
+			slog.WarnContext(bgCtx, "workflow trigger dispatch failed", "trigger_type", eventType, "error", err)
 		}
 	}()
 }

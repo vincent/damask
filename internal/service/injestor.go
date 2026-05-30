@@ -266,6 +266,8 @@ func (s *injestorImpl) ingest(
 		s.media.Supports(mimeType),
 	)
 
+	// once created, we can enqueue specialized jobs for this asset
+
 	if s.media.Supports(mimeType) && initialVersionID != "" {
 		payload, _ := json.Marshal(versionThumbnailPayload{
 			AssetID:     asset.ID,
@@ -315,6 +317,58 @@ func (s *injestorImpl) ingest(
 		apptelemetry.EndSpan(enqueueSpan, err)
 		if err != nil {
 			slog.ErrorContext(ctx, "enqueue extract_media_tags", "asset_id", asset.ID, "error", err)
+		}
+	}
+
+	if transform.IsPdfMime(mimeType) {
+		payload, _ := json.Marshal(map[string]string{
+			"asset_id":     asset.ID,
+			"workspace_id": workspaceID,
+			"storage_key":  asset.StorageKey,
+		})
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_extract_text",
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.job.type", string(queue.JobTypeExtractPDFTextTrack)),
+		)
+		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPDFTextTrack, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", err)
+		}
+	}
+
+	if transform.IsTextMime(mimeType) {
+		payload, _ := json.Marshal(map[string]string{
+			"asset_id":     asset.ID,
+			"workspace_id": workspaceID,
+			"storage_key":  asset.StorageKey,
+		})
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_extract_text",
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.job.type", string(queue.JobTypeExtractPlainTextTrack)),
+		)
+		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPlainTextTrack, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", err)
+		}
+	}
+
+	if transform.IsDocumentMime(mimeType) {
+		payload, _ := json.Marshal(map[string]string{
+			"asset_id":     asset.ID,
+			"workspace_id": workspaceID,
+			"storage_key":  asset.StorageKey,
+			"mime_type":    mimeType,
+		})
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_extract_text",
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.job.type", string(queue.JobTypeExtractDocumentTextTrack)),
+		)
+		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractDocumentTextTrack, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, err)
+		if err != nil {
+			slog.ErrorContext(ctx, "enqueue extract_document_text", "asset_id", asset.ID, "error", err)
 		}
 	}
 

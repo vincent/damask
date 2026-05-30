@@ -50,6 +50,7 @@
 
   $effect(() => {
     asset.id
+    showCreate = false
     void load()
     return () => {
       if (pollTimer) {
@@ -78,7 +79,7 @@
     </div>
     <button
       type="button"
-      class="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
+      class="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium whitespace-nowrap text-[var(--text-primary)] transition hover:bg-[var(--bg-hover)]"
       onclick={() => (showCreate = !showCreate)}
     >
       {showCreate ? m.cancel() : m.text_tracks_add()}

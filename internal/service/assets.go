@@ -310,10 +310,6 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 	if err != nil {
 		return err
 	}
-	if err := s.assets.HardDelete(ctx, workspaceID, assetID); err != nil {
-		return err
-	}
-	s.deleteStorageKeys(keys)
 	actor := auth.ActorFromCtx(ctx)
 	s.audit.WriteAsset(ctx, audit.AssetEvent{
 		WorkspaceID: workspaceID,
@@ -323,6 +319,10 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 		EventType:   audit.EventAssetDeleted,
 		Payload:     audit.AssetDeletedPayload{V: 1},
 	})
+	if err := s.assets.HardDelete(ctx, workspaceID, assetID); err != nil {
+		return err
+	}
+	s.deleteStorageKeys(keys)
 	if s.invalidate != nil {
 		s.invalidate.Invalidate(workspaceID)
 	}
