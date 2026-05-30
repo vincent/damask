@@ -1,7 +1,7 @@
 import { browser } from '$app/environment'
 import { replaceState } from '$app/navigation'
 import type { User, Workspace } from '$lib/api'
-import { workspaceApi } from '$lib/api'
+import { ApiError, workspaceApi } from '$lib/api'
 import { redirect } from '@sveltejs/kit'
 import type { LayoutLoad } from './$types'
 
@@ -51,8 +51,11 @@ export const load: LayoutLoad = async ({
       role: me.role,
       totalAssetCount: me.total_asset_count,
     }
-  } catch {
-    redirect(303, '/login')
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) {
+      redirect(303, '/login')
+    }
+    throw e
   }
 
   const wsParam = url.searchParams.get('ws')
