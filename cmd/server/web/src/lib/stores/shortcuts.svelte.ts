@@ -2,7 +2,6 @@ import { browser } from '$app/environment'
 import { initDispatcher } from '$lib/shortcuts/dispatcher'
 import { DEFAULT_KEYMAP } from '$lib/shortcuts/registry'
 import type { KeyMap, ShortcutAction } from '$lib/shortcuts/types'
-import { writable } from 'svelte/store'
 
 const STORAGE_KEY = 'damask:keymap'
 
@@ -18,12 +17,13 @@ function loadKeymap(): KeyMap {
   }
 }
 
-export const keymap = writable<KeyMap>(loadKeymap())
+const keymapState = $state({ current: loadKeymap() })
 
-keymap.subscribe((map) => {
-  if (browser) {
+$effect.root(() => {
+  $effect(() => {
+    if (!browser) return
     const overrides: Partial<KeyMap> = {}
-    for (const [action, combos] of Object.entries(map)) {
+    for (const [action, combos] of Object.entries(keymapState.current)) {
       const key = action as ShortcutAction
       if (JSON.stringify(combos) !== JSON.stringify(DEFAULT_KEYMAP[key])) {
         overrides[key] = combos
@@ -34,18 +34,27 @@ keymap.subscribe((map) => {
     } else {
       localStorage.removeItem(STORAGE_KEY)
     }
-    initDispatcher(map)
-  }
+    initDispatcher(keymapState.current)
+  })
 })
 
+export const keymap = {
+  get current(): KeyMap {
+    return keymapState.current
+  },
+}
+
 export function resetShortcut(action: ShortcutAction): void {
-  keymap.update((map) => ({ ...map, [action]: DEFAULT_KEYMAP[action] }))
+  keymapState.current = {
+    ...keymapState.current,
+    [action]: DEFAULT_KEYMAP[action],
+  }
 }
 
 export function resetAllShortcuts(): void {
-  keymap.set({ ...DEFAULT_KEYMAP })
+  keymapState.current = { ...DEFAULT_KEYMAP }
 }
 
 export function setShortcut(action: ShortcutAction, combos: string[]): void {
-  keymap.update((map) => ({ ...map, [action]: combos }))
+  keymapState.current = { ...keymapState.current, [action]: combos }
 }

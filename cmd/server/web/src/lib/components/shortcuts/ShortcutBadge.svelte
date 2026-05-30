@@ -1,7 +1,7 @@
 <script lang="ts">
   import { formatKey } from '$lib/shortcuts'
   import { DEFAULT_KEYMAP } from '$lib/shortcuts'
-  import { keymap } from '$lib/stores/shortcuts'
+  import { keymap } from '$lib/stores/shortcuts.svelte'
   import type { ShortcutAction } from '$lib/shortcuts'
 
   interface Props {
@@ -11,7 +11,9 @@
 
   let { action, index = 0 }: Props = $props()
 
-  const combos = $derived($keymap[action] ?? DEFAULT_KEYMAP[action] ?? [])
+  const combos = $derived(
+    keymap.current[action] ?? DEFAULT_KEYMAP[action] ?? []
+  )
   const combo = $derived(combos[index] ?? '')
   const keys = $derived(combo.split('+').map(formatKey))
 </script>

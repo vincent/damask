@@ -5,7 +5,7 @@
   import Toast from '$lib/components/ui/Toast.svelte'
   import ShortcutHelp from '$lib/components/shortcuts/ShortcutHelp.svelte'
   import ActionSheet from '$lib/components/ActionSheet.svelte'
-  import { keymap } from '$lib/stores/shortcuts'
+  import { keymap } from '$lib/stores/shortcuts.svelte'
   import { useShortcuts } from '$lib/shortcuts/context'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { themeStore } from '$lib/stores/theme.svelte'
@@ -13,8 +13,8 @@
 
   let { children, data }: { children: any; data: LayoutData } = $props()
 
-  // Referencing the store ensures the module loads and initDispatcher fires on first value.
-  $keymap
+  // Referencing the store ensures the module loads and $effect.root fires on first render.
+  keymap.current
 
   useShortcuts({
     'history.undo': () => {

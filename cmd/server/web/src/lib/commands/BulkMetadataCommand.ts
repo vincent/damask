@@ -39,9 +39,11 @@ export class BulkMetadataCommand implements Command {
       this.tagEdits.map((te) => tagApi.bulkTag(this.assetIds, te.tag, te.mode))
     )
     for (const te of this.tagEdits) {
-      this.assetIds.forEach(id => te.mode === 'add'
-        ? assetsStore.addTag(id, te.tag)
-        : assetsStore.removeTag(id, te.tag))
+      this.assetIds.forEach((id) =>
+        te.mode === 'add'
+          ? assetsStore.addTag(id, te.tag)
+          : assetsStore.removeTag(id, te.tag)
+      )
     }
 
     if (this.fieldEdits.length) {
@@ -70,9 +72,11 @@ export class BulkMetadataCommand implements Command {
     )
     for (const te of this.tagEdits) {
       const inverse: 'add' | 'remove' = te.mode === 'add' ? 'remove' : 'add'
-      this.assetIds.forEach(id => inverse === 'add'
-        ? assetsStore.addTag(id, te.tag)
-        : assetsStore.removeTag(id, te.tag))
+      this.assetIds.forEach((id) =>
+        inverse === 'add'
+          ? assetsStore.addTag(id, te.tag)
+          : assetsStore.removeTag(id, te.tag)
+      )
     }
 
     // Best-effort: clear fields that were actually changed (full per-asset restore not available)
@@ -99,7 +103,8 @@ export class BulkMetadataCommand implements Command {
   rollback() {
     for (const te of this.tagEdits) {
       const inverse: 'add' | 'remove' = te.mode === 'add' ? 'remove' : 'add'
-      this.assetIds.forEach(id => inverse === 'add'
+      this.assetIds.forEach((id) =>
+        inverse === 'add'
           ? assetsStore.addTag(id, te.tag)
           : assetsStore.removeTag(id, te.tag)
       )
@@ -110,10 +115,12 @@ export class BulkMetadataCommand implements Command {
         editedFieldIds.has(f.field_id)
       )
       if (fieldsToRevert.length) {
-        this.assetIds.forEach(id => assetsStore.patchFieldValues(
-          id,
-          fieldsToRevert.map((f) => ({ fieldId: f.field_id, value: null }))
-        ))
+        this.assetIds.forEach((id) =>
+          assetsStore.patchFieldValues(
+            id,
+            fieldsToRevert.map((f) => ({ fieldId: f.field_id, value: null }))
+          )
+        )
       }
     }
   }
