@@ -21,7 +21,28 @@ import (
 
 const (
 	maxPreviewSize = 800
+	avatarSize     = 256
 )
+
+// ProcessAvatar decodes image data, fits it into a square canvas, and returns WebP-encoded bytes.
+func ProcessAvatar(data []byte) ([]byte, error) {
+	img, err := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
+	if err != nil {
+		return nil, fmt.Errorf("decode avatar: %w", err)
+	}
+
+	fitted := imaging.Fit(img, avatarSize, avatarSize, imaging.Lanczos)
+	canvas := imaging.New(avatarSize, avatarSize, color.NRGBA{0, 0, 0, 0})
+	avatar := imaging.PasteCenter(canvas, fitted)
+
+	var out bytes.Buffer
+	if err := nativewebp.Encode(&out, avatar, &nativewebp.Options{
+		CompressionLevel: nativewebp.BestCompression,
+	}); err != nil {
+		return nil, fmt.Errorf("encode avatar: %w", err)
+	}
+	return out.Bytes(), nil
+}
 
 // WatermarkParams defines parameters for image watermark transforms.
 type WatermarkParams struct {

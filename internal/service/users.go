@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -18,9 +17,8 @@ import (
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/transform"
 
-	"github.com/HugoSmits86/nativewebp"
-	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/crypto/bcrypt"
@@ -97,8 +95,6 @@ type LoginUserResult struct {
 
 var ErrUnsupportedAvatarType = errors.New("unsupported avatar type")
 var ErrAvatarStorage = errors.New("avatar storage failure")
-
-const avatarSize = 256
 
 type userService struct {
 	users      repository.UserRepository
@@ -249,40 +245,11 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 		return nil, err
 	}
 
-	decodeCtx, decodeSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_decode")
-	img, decodeErr := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
-	apptelemetry.EndSpan(decodeSpan, decodeErr)
-	if decodeErr != nil {
-		slog.ErrorContext(
-			decodeCtx,
-			"avatar decode failed",
-			"user_id",
-			userID,
-			"content_type",
-			contentType,
-			"error",
-			decodeErr,
-		)
-		err = fmt.Errorf("%w: decode failed", ErrUnsupportedAvatarType)
-		return nil, err
-	}
-
-	fitted := imaging.Fit(img, avatarSize, avatarSize, imaging.Lanczos)
-	canvas := imaging.New(avatarSize, avatarSize, color.NRGBA{0, 0, 0, 0})
-	avatar := imaging.PasteCenter(canvas, fitted)
-
-	encodeCtx, encodeSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_encode")
-	var out bytes.Buffer
-	encodeErr := nativewebp.Encode(&out, avatar, &nativewebp.Options{
-		CompressionLevel: nativewebp.BestCompression,
-	})
-	if encodeErr == nil {
-		encodeSpan.SetAttributes(attribute.Int("avatar.output_bytes", out.Len()))
-	}
-	apptelemetry.EndSpan(encodeSpan, encodeErr)
-	if encodeErr != nil {
-		slog.ErrorContext(encodeCtx, "avatar encode failed", "user_id", userID, "error", encodeErr)
-		err = fmt.Errorf("could not encode avatar: %w", encodeErr)
+	_, processSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_process")
+	processed, processErr := transform.ProcessAvatar(data)
+	apptelemetry.EndSpan(processSpan, processErr)
+	if processErr != nil {
+		err = fmt.Errorf("%w: %w", ErrUnsupportedAvatarType, processErr)
 		return nil, err
 	}
 
@@ -292,7 +259,7 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 	_, putSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_storage_put",
 		attribute.String("avatar.storage_key", storageKey),
 	)
-	putErr := s.stor.Put(storageKey, bytes.NewReader(out.Bytes()))
+	putErr := s.stor.Put(storageKey, bytes.NewReader(processed))
 	apptelemetry.EndSpan(putSpan, putErr)
 	if putErr != nil {
 		err = fmt.Errorf("%w: could not store avatar: %w", ErrAvatarStorage, putErr)
@@ -322,7 +289,7 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 		"storage_key",
 		storageKey,
 		"output_bytes",
-		out.Len(),
+		len(processed),
 	)
 	return dto, nil
 }
