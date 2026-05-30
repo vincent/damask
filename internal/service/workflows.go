@@ -36,22 +36,13 @@ type workflowService struct {
 	queue     queue.JobQueue
 }
 
-func NewWorkflowService(
-	workflows repository.WorkflowRepository,
-	runs repository.WorkflowRunRepository,
-	webhooks repository.WorkflowWebhookRepository,
-	queue queue.JobQueue,
-) WorkflowService {
-	return &workflowService{workflows: workflows, runs: runs, webhooks: webhooks, queue: queue}
-}
-
 type WorkflowServiceDeps struct {
 	Assets   repository.AssetRepository
 	Variants repository.VariantRepository
 	Versions repository.VersionRepository
 }
 
-func NewWorkflowServiceWithDeps(
+func NewWorkflowService(
 	workflows repository.WorkflowRepository,
 	runs repository.WorkflowRunRepository,
 	webhooks repository.WorkflowWebhookRepository,
@@ -461,7 +452,7 @@ func (s *workflowService) manualAssetTriggerData(
 	workspaceID, assetID string,
 ) (map[string]any, error) {
 	if s.assets == nil || s.versions == nil {
-		panic("workflowService: Assets and Versions deps are required for manual trigger with asset context")
+		return nil, fmt.Errorf("workflowService: Assets and Versions deps required for manual trigger: %w", apperr.ErrInternal)
 	}
 	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 	if err != nil {

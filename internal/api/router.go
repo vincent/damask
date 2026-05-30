@@ -164,7 +164,7 @@ func NewHTTPServer(
 		}),
 		storageSvc: storageSvc,
 		workspace:  service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
-		workflows: service.NewWorkflowServiceWithDeps(
+		workflows: service.NewWorkflowService(
 			workflowRepo,
 			workflowRunRepo,
 			workflowWebhookRepo,

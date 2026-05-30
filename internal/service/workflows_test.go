@@ -37,7 +37,7 @@ func newWorkflowSvc(
 	workflows := memory.NewWorkflowRepo()
 	runs := memory.NewWorkflowRunRepo()
 	queue := &workflowQueueStub{}
-	svc := service.NewWorkflowService(workflows, runs, memory.NewWorkflowWebhookRepo(), queue)
+	svc := service.NewWorkflowService(workflows, runs, memory.NewWorkflowWebhookRepo(), queue, service.WorkflowServiceDeps{})
 	return svc, workflows, runs, queue
 }
 
@@ -223,7 +223,7 @@ func newWorkflowSvcWithAssets(t *testing.T) (
 	assets := memory.NewAssetRepo()
 	versions := memory.NewRealVersionRepo()
 	q := &workflowQueueStub{}
-	svc := service.NewWorkflowServiceWithDeps(
+	svc := service.NewWorkflowService(
 		workflows, runs, memory.NewWorkflowWebhookRepo(), q,
 		service.WorkflowServiceDeps{Assets: assets, Versions: versions},
 	)
@@ -437,7 +437,7 @@ func TestWorkflowServiceCreateFromVariantsCreatesDisabledWorkflow(t *testing.T) 
 		repository.Variant{ID: "var_1", WorkspaceID: "ws_1", Type: "manual"},
 		repository.Variant{ID: "var_2", WorkspaceID: "ws_1", Type: "image_resize", TransformParams: &params},
 	)
-	svc := service.NewWorkflowServiceWithDeps(
+	svc := service.NewWorkflowService(
 		workflows,
 		runs,
 		memory.NewWorkflowWebhookRepo(),
@@ -474,7 +474,7 @@ func TestWorkflowServiceCreateFromVariantsAssetScopeTriggerConfig(t *testing.T) 
 	projectID := "prj_1"
 	assets.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", ProjectID: &projectID, MimeType: "image/jpeg"})
 	variants.Seed(repository.Variant{ID: "var_1", WorkspaceID: "ws_1", Type: "image_resize"})
-	svc := service.NewWorkflowServiceWithDeps(
+	svc := service.NewWorkflowService(
 		workflows,
 		memory.NewWorkflowRunRepo(),
 		memory.NewWorkflowWebhookRepo(),
