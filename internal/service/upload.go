@@ -126,8 +126,8 @@ func (s *uploadServiceImpl) Ingest(
 	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.asset_created", map[string]any{
 		"asset_id":          asset.ID,
 		"workspace_id":      asset.WorkspaceID,
-		"project_id":        asset.ProjectID,
-		"folder_id":         asset.FolderID,
+		"project_id":        ptrStr(asset.ProjectID),
+		"folder_id":         ptrStr(asset.FolderID),
 		"mime_type":         asset.MimeType,
 		"size":              asset.Size,
 		"original_filename": asset.OriginalFilename,

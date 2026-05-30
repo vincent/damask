@@ -174,7 +174,11 @@ func (s *Server) handleDeleteWorkflow(c fiber.Ctx) error {
 
 func (s *Server) handleManualWorkflowRun(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
-	runID, err := s.workflows.TriggerManual(c.Context(), claims.WorkspaceID, c.Params("id"))
+	var req struct {
+		AssetID string `json:"asset_id"`
+	}
+	_ = c.Bind().JSON(&req)
+	runID, err := s.workflows.TriggerManual(c.Context(), claims.WorkspaceID, c.Params("id"), req.AssetID)
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}

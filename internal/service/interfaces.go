@@ -278,7 +278,7 @@ type WorkflowService interface {
 	Update(ctx context.Context, workspaceID, id string, p UpdateWorkflowParams) (*WorkflowDTO, error)
 	SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error
 	Delete(ctx context.Context, workspaceID, id string) error
-	TriggerManual(ctx context.Context, workspaceID, id string) (string, error)
+	TriggerManual(ctx context.Context, workspaceID, id, assetID string) (string, error)
 	TriggerManualBulk(ctx context.Context, workspaceID, workflowID string, assetIDs []string) ([]string, error)
 	TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRun(ctx context.Context, workspaceID, runID string) (*WorkflowRunDTO, error)

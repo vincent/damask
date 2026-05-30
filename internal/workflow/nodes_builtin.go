@@ -97,7 +97,7 @@ func init() {
 		"Tag Added",
 		"Starts when a tag is added to an asset.",
 		mustConfigSchema(
-			`{"type":"object","properties":{"name":{"type":"string","title":"Tag Name","format":"tag"}},"required":["name"],"additionalProperties":false}`,
+			`{"type":"object","properties":{"tag":{"type":"string","title":"Tag Name","format":"tag"}},"required":["tag"],"additionalProperties":false}`,
 		),
 	)
 	registerPassThroughTrigger(

@@ -231,3 +231,49 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 		t.Fatalf("original_filename: got %v", got)
 	}
 }
+
+func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
+	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_nil_proj.db?_foreign_keys=ON")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	ctx := context.Background()
+	wsID := "ws_nil_proj"
+	userID := "usr_nil_proj"
+	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "np@t.com", PasswordHash: "x", Name: "t"}); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	stor, _ := storage.NewAferoMemoryStorage()
+	q := queue.New(queries, 1)
+	triggers := &triggerSpy{}
+	svc := service.NewUploadService(
+		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		audit.NopWriter{},
+		nil,
+		triggers,
+	)
+
+	// Upload with no project/folder — ProjectID and FolderID will be nil on the asset.
+	_, err = svc.Ingest(ctx, wsID, strings.NewReader("bytes"), service.UploadMeta{
+		OriginalFilename: "nilproj.jpg",
+		UserID:           userID,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	waitForTriggerCount(t, triggers, 1)
+	call := triggers.last()
+	if got, ok := call.data["project_id"]; !ok || got != "" {
+		t.Fatalf("project_id: got %v (ok=%v), want empty string", got, ok)
+	}
+	if got, ok := call.data["folder_id"]; !ok || got != "" {
+		t.Fatalf("folder_id: got %v (ok=%v), want empty string", got, ok)
+	}
+}

@@ -167,6 +167,43 @@ func assertBulkManualRunError(t *testing.T, svcErr error, wantStatus int) {
 	}
 }
 
+func TestManualWorkflowRun_NoBody_CallsWithEmptyAssetID(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	var capturedAssetID string
+	env.Workflows.TriggerManualFn = func(_ context.Context, _, _ string, assetID string) (string, error) {
+		capturedAssetID = assetID
+		return "run_1", nil
+	}
+	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs", nil, env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusAccepted)
+	if capturedAssetID != "" {
+		t.Fatalf("assetID: got %q, want empty", capturedAssetID)
+	}
+}
+
+func TestManualWorkflowRun_WithAssetID_ForwardsAssetID(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	var capturedAssetID string
+	env.Workflows.TriggerManualFn = func(_ context.Context, _, _ string, assetID string) (string, error) {
+		capturedAssetID = assetID
+		return "run_1", nil
+	}
+	body := strings.NewReader(`{"asset_id":"ast_1"}`)
+	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs", body, env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusAccepted)
+	if capturedAssetID != "ast_1" {
+		t.Fatalf("assetID: got %q, want ast_1", capturedAssetID)
+	}
+}
+
 func TestGetWorkflowTemplatesOK(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	env.Workflows.TemplatesFn = func() []service.WorkflowTemplateDTO {

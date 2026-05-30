@@ -429,8 +429,8 @@ func (s *versionService) UploadNewVersion(
 	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.version_uploaded", map[string]any{
 		"asset_id":          updatedAsset.ID,
 		"workspace_id":      updatedAsset.WorkspaceID,
-		"project_id":        updatedAsset.ProjectID,
-		"folder_id":         updatedAsset.FolderID,
+		"project_id":        ptrStr(updatedAsset.ProjectID),
+		"folder_id":         ptrStr(updatedAsset.FolderID),
 		"mime_type":         newVersion.MimeType,
 		"size":              newVersion.Size,
 		"original_filename": updatedAsset.OriginalFilename,

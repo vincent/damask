@@ -13,7 +13,7 @@ type MockWorkflowService struct {
 	UpdateFn             func(ctx context.Context, workspaceID, id string, p service.UpdateWorkflowParams) (*service.WorkflowDTO, error)
 	SetEnabledFn         func(ctx context.Context, workspaceID, id string, enabled bool) error
 	DeleteFn             func(ctx context.Context, workspaceID, id string) error
-	TriggerManualFn      func(ctx context.Context, workspaceID, id string) (string, error)
+	TriggerManualFn      func(ctx context.Context, workspaceID, id, assetID string) (string, error)
 	TriggerManualBulkFn  func(ctx context.Context, workspaceID, workflowID string, assetIDs []string) ([]string, error)
 	TriggerWebhookFn     func(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRunFn             func(ctx context.Context, workspaceID, runID string) (*service.WorkflowRunDTO, error)
@@ -83,9 +83,9 @@ func (m *MockWorkflowService) Delete(ctx context.Context, workspaceID, id string
 	return nil
 }
 
-func (m *MockWorkflowService) TriggerManual(ctx context.Context, workspaceID, id string) (string, error) {
+func (m *MockWorkflowService) TriggerManual(ctx context.Context, workspaceID, id, assetID string) (string, error) {
 	if m.TriggerManualFn != nil {
-		return m.TriggerManualFn(ctx, workspaceID, id)
+		return m.TriggerManualFn(ctx, workspaceID, id, assetID)
 	}
 	return "", nil
 }

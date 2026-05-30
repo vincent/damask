@@ -175,7 +175,7 @@ func (s *workflowService) Delete(ctx context.Context, workspaceID, id string) er
 	return s.workflows.Delete(ctx, workspaceID, id)
 }
 
-func (s *workflowService) TriggerManual(ctx context.Context, workspaceID, id string) (string, error) {
+func (s *workflowService) TriggerManual(ctx context.Context, workspaceID, id, assetID string) (string, error) {
 	wf, err := s.workflows.GetByID(ctx, workspaceID, id)
 	if err != nil {
 		return "", err
@@ -183,7 +183,14 @@ func (s *workflowService) TriggerManual(ctx context.Context, workspaceID, id str
 	if !wf.Enabled {
 		return "", fmt.Errorf("workflow is disabled: %w", apperr.ErrConflict)
 	}
-	return s.enqueueRun(ctx, wf, map[string]any{"trigger": "manual"})
+	triggerData := map[string]any{"trigger": "manual"}
+	if assetID != "" {
+		triggerData, err = s.manualAssetTriggerData(ctx, workspaceID, assetID)
+		if err != nil {
+			return "", err
+		}
+	}
+	return s.enqueueRun(ctx, wf, triggerData)
 }
 
 func (s *workflowService) TriggerManualBulk(
@@ -454,7 +461,7 @@ func (s *workflowService) manualAssetTriggerData(
 	workspaceID, assetID string,
 ) (map[string]any, error) {
 	if s.assets == nil || s.versions == nil {
-		panic("workflowService: Assets and Versions deps are required for TriggerManualBulk")
+		panic("workflowService: Assets and Versions deps are required for manual trigger with asset context")
 	}
 	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 	if err != nil {

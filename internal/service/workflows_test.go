@@ -77,12 +77,114 @@ func TestWorkflowServiceTriggerManualEnqueuesRun(t *testing.T) {
 		TriggerType: "trigger.manual",
 		Graph:       `{"nodes":[{"id":"n1","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
 	})
-	runID, err := svc.TriggerManual(context.Background(), "ws_1", "wf_1")
+	runID, err := svc.TriggerManual(context.Background(), "ws_1", "wf_1", "")
 	if err != nil {
 		t.Fatalf("TriggerManual() unexpected error: %v", err)
 	}
 	if runID == "" || queue.enqueued != 1 {
 		t.Fatalf("expected run to be created and enqueued, run_id=%q enqueued=%d", runID, queue.enqueued)
+	}
+}
+
+func TestWorkflowServiceTriggerManual_NoAsset_TriggerDataIsManualOnly(t *testing.T) {
+	svc, repo, runs, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{
+		ID:          "wf_1",
+		WorkspaceID: "ws_1",
+		Enabled:     true,
+		TriggerType: "trigger.manual",
+		Graph:       `{"nodes":[{"id":"n1","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
+	})
+	runID, err := svc.TriggerManual(context.Background(), "ws_1", "wf_1", "")
+	if err != nil {
+		t.Fatalf("TriggerManual() unexpected error: %v", err)
+	}
+	run, err := runs.GetByID(context.Background(), runID)
+	if err != nil {
+		t.Fatalf("run not found: %v", err)
+	}
+	var td map[string]any
+	if err := json.Unmarshal([]byte(run.TriggerData), &td); err != nil {
+		t.Fatalf("invalid trigger_data JSON: %v", err)
+	}
+	if td["trigger"] != "manual" {
+		t.Fatalf("trigger: got %v, want manual", td["trigger"])
+	}
+	if _, ok := td["asset_id"]; ok {
+		t.Fatal("expected no asset_id in trigger_data when assetID is empty")
+	}
+}
+
+func TestWorkflowServiceTriggerManual_WithAsset_TriggerDataHasAssetContext(t *testing.T) {
+	svc, repo, runs, assets, versions, _ := newWorkflowSvcWithAssets(t)
+	repo.Seed(repository.Workflow{
+		ID:          "wf_1",
+		WorkspaceID: "ws_1",
+		Enabled:     true,
+		TriggerType: "trigger.manual",
+		Graph:       `{"nodes":[{"id":"n1","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
+	})
+	assets.Seed(repository.Asset{
+		ID:               "ast_1",
+		WorkspaceID:      "ws_1",
+		OriginalFilename: "photo.jpg",
+		MimeType:         "image/jpeg",
+		Size:             512,
+	})
+	versions.Seed(repository.AssetVersion{
+		ID:         "ver_1",
+		AssetID:    "ast_1",
+		WorkspaceID: "ws_1",
+		VersionNum: 1,
+		StorageKey: "ws_1/ast_1/v1.jpg",
+		IsCurrent:  true,
+	})
+
+	runID, err := svc.TriggerManual(context.Background(), "ws_1", "wf_1", "ast_1")
+	if err != nil {
+		t.Fatalf("TriggerManual() unexpected error: %v", err)
+	}
+	run, err := runs.GetByID(context.Background(), runID)
+	if err != nil {
+		t.Fatalf("run not found: %v", err)
+	}
+	var td map[string]any
+	if err := json.Unmarshal([]byte(run.TriggerData), &td); err != nil {
+		t.Fatalf("invalid trigger_data JSON: %v", err)
+	}
+	checks := map[string]any{
+		"asset_id":    "ast_1",
+		"version_id":  "ver_1",
+		"mime_type":   "image/jpeg",
+		"project_id":  "",
+		"folder_id":   "",
+	}
+	for key, want := range checks {
+		got, ok := td[key]
+		if !ok {
+			t.Errorf("trigger_data missing key %q", key)
+			continue
+		}
+		if got != want {
+			t.Errorf("trigger_data[%q] = %v, want %v", key, got, want)
+		}
+	}
+}
+
+func TestWorkflowServiceTriggerManual_UnknownAsset_ReturnsNotFound(t *testing.T) {
+	svc, repo, _, assets, _, _ := newWorkflowSvcWithAssets(t)
+	repo.Seed(repository.Workflow{
+		ID:          "wf_1",
+		WorkspaceID: "ws_1",
+		Enabled:     true,
+		TriggerType: "trigger.manual",
+		Graph:       `{"nodes":[{"id":"n1","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
+	})
+	// asset exists in a different workspace
+	assets.Seed(repository.Asset{ID: "ast_other", WorkspaceID: "ws_other", OriginalFilename: "x.jpg"})
+	_, err := svc.TriggerManual(context.Background(), "ws_1", "wf_1", "ast_other")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
 

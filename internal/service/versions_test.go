@@ -262,6 +262,77 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 	}
 }
 
+func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *testing.T) {
+	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/version_nil_proj.db?_foreign_keys=ON")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	ctx := context.Background()
+	wsID := "ws_ver_nil"
+	userID := "usr_ver_nil"
+	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "vn@example.com", PasswordHash: "x", Name: "vn"}); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	stor, _ := storage.NewAferoMemoryStorage()
+	q := queue.New(queries, 1)
+	// Upload asset without project/folder → both will be nil.
+	uploadSvc := service.NewUploadService(
+		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		audit.NopWriter{},
+		nil,
+	)
+	asset, err := uploadSvc.Ingest(ctx, wsID, strings.NewReader("v1"), service.UploadMeta{
+		OriginalFilename: "doc.pdf",
+		UserID:           userID,
+	})
+	if err != nil {
+		t.Fatalf("seed upload: %v", err)
+	}
+
+	triggers := &triggerSpy{}
+	versionSvc := service.NewVersionService(
+		reposqlc.NewVersionRepo(queries, sqlDB),
+		audit.NopWriter{},
+		service.VersionServiceDeps{
+			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Storage:  stor,
+			Queue:    q,
+			Media:    ingest.NewRegistry(transform.NewTransformer()),
+			Triggers: triggers,
+		},
+	)
+
+	_, err = versionSvc.UploadNewVersion(ctx, service.UploadAssetVersionParams{
+		WorkspaceID: wsID,
+		AssetID:     asset.ID,
+		Filename:    "doc-v2.pdf",
+		ContentType: "application/pdf",
+		UserID:      userID,
+		Reader:      strings.NewReader("v2"),
+	})
+	if err != nil {
+		t.Fatalf("UploadNewVersion: %v", err)
+	}
+
+	waitForTriggerCount(t, triggers, 1)
+	call := triggers.last()
+	if call.eventType != "trigger.version_uploaded" {
+		t.Fatalf("eventType: got %q", call.eventType)
+	}
+	if got, ok := call.data["project_id"]; !ok || got != "" {
+		t.Fatalf("project_id: got %v (ok=%v), want empty string", got, ok)
+	}
+	if got, ok := call.data["folder_id"]; !ok || got != "" {
+		t.Fatalf("folder_id: got %v (ok=%v), want empty string", got, ok)
+	}
+}
+
 func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/version_upload_dispatch_err.db?_foreign_keys=ON")
 	if err != nil {

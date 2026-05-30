@@ -165,9 +165,6 @@ func TestTagService_AddToAsset_DispatchesWorkflowTrigger(t *testing.T) {
 	if call.eventType != "trigger.tag_added" {
 		t.Fatalf("eventType: got %q", call.eventType)
 	}
-	if got := call.data["tag_name"]; got != tag.Name {
-		t.Fatalf("tag_name: got %v want %s", got, tag.Name)
-	}
 	if got := call.data["tag"]; got != tag.Name {
 		t.Fatalf("tag: got %v want %s", got, tag.Name)
 	}

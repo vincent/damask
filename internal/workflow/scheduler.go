@@ -8,6 +8,7 @@ import (
 	"damask/server/internal/repository"
 	"damask/server/internal/telemetry"
 
+	"github.com/robfig/cron/v3"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -50,7 +51,7 @@ func (s *CronScheduler) tick(ctx context.Context) {
 	}
 	fired := 0
 	for _, wf := range due {
-		if !s.isDue(wf) {
+		if !s.IsDue(wf) {
 			continue
 		}
 		_ = s.dispatcher.Dispatch(ctx, "trigger.schedule", map[string]any{
@@ -62,7 +63,7 @@ func (s *CronScheduler) tick(ctx context.Context) {
 	span.SetAttributes(attribute.Int("workflow.scheduler.fired", fired))
 }
 
-func (s *CronScheduler) isDue(wf repository.Workflow) bool {
+func (s *CronScheduler) IsDue(wf repository.Workflow) bool {
 	var graph Graph
 	if err := json.Unmarshal([]byte(wf.Graph), &graph); err != nil {
 		return false
@@ -72,16 +73,18 @@ func (s *CronScheduler) isDue(wf repository.Workflow) bool {
 		return false
 	}
 	var cfg struct {
-		IntervalMinutes int `json:"interval_minutes"`
+		Cron string `json:"cron"`
 	}
-	if err := json.Unmarshal(trigger.Config, &cfg); err != nil {
-		return wf.LastRunAt == nil
+	if err := json.Unmarshal(trigger.Config, &cfg); err != nil || cfg.Cron == "" {
+		return false
 	}
-	if cfg.IntervalMinutes <= 0 {
-		cfg.IntervalMinutes = 60
+	sched, err := cron.ParseStandard(cfg.Cron)
+	if err != nil {
+		return false
 	}
-	if wf.LastRunAt == nil {
-		return true
+	last := time.Time{}
+	if wf.LastRunAt != nil {
+		last = *wf.LastRunAt
 	}
-	return time.Since(*wf.LastRunAt) >= time.Duration(cfg.IntervalMinutes)*time.Minute
+	return !time.Now().Before(sched.Next(last))
 }

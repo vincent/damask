@@ -434,14 +434,13 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 		publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.tag_added", map[string]any{
 			"asset_id":          assetID,
 			"workspace_id":      workspaceID,
-			"project_id":        asset.ProjectID,
-			"folder_id":         asset.FolderID,
+			"project_id":        ptrStr(asset.ProjectID),
+			"folder_id":         ptrStr(asset.FolderID),
 			"mime_type":         asset.MimeType,
 			"original_filename": asset.OriginalFilename,
 			"filename":          asset.OriginalFilename,
-			"version_id":        asset.CurrentVersionID,
+			"version_id":        ptrStr(asset.CurrentVersionID),
 			"storage_key":       asset.StorageKey,
-			"tag_name":          dto.Name,
 			"tag":               dto.Name,
 		})
 	}
