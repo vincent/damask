@@ -152,14 +152,13 @@ func main() {
 	q.Start(ctx)
 	defer q.Stop()
 
+	// --- transform ---
 	trf := transform.NewTransformer(cfg.FFmpeg)
 	tmb := transform.NewThumbnailer(trf)
-
 	media := ingest.NewRegistry(trf)
-	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
+
+	// --- repositories ---
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
-	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
-	auditWriter := audit.New(sqlDB)
 	assetRepo := reposqlc.NewAssetRepo(queries, sqlDB)
 	tagRepo := reposqlc.NewTagRepo(queries, sqlDB)
 	fieldRepo := reposqlc.NewFieldRepo(queries, sqlDB)
@@ -170,6 +169,10 @@ func main() {
 	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
 	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
 
+	// --- services ---
+	auditWriter := audit.New(sqlDB)
+	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
 	})
@@ -189,6 +192,12 @@ func main() {
 	assetFieldSvc := service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter)
 	shareSvc := service.NewShareService(reposqlc.NewShareRepo(queries, sqlDB), auditWriter)
 	workspaceSvc := service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
+	exifSvc := service.NewExifService(queries, stor)
+	textTrackSvc := service.NewTextTrackService(queries, q, stor)
+	storageSvc := service.NewStorageService(queries)
+
+	// --- workflow executor ---
 	workflowExec := workflow.NewExecutor(workflow.Deps{
 		Workflows:   workflowRepo,
 		Runs:        workflowRunRepo,
@@ -206,10 +215,7 @@ func main() {
 		Config:      cfg,
 	})
 
-	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
-	exifSvc := service.NewExifService(queries, stor)
-	textTrackSvc := service.NewTextTrackService(queries, q, stor)
-	storageSvc := service.NewStorageService(queries)
+	// --- job server ---
 	js := jobs.NewJobServer(
 		queries,
 		sqlDB,
@@ -231,6 +237,7 @@ func main() {
 	)
 	js.RegisterJobHandlers()
 
+	// --- http ---
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
 	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor, trf, tmb)
