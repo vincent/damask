@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
-  import { Download, MessageSquare, Send } from '@lucide/svelte'
+  import { ChevronLeft, Download, MessageSquare, Send } from '@lucide/svelte'
   import { formatBytes, mimeCategory } from '$lib/api'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
@@ -26,6 +26,7 @@
   let shareId = $derived(page.params.shareId || '')
   let selectedVariantIdx = $state<number | null>(null)
   let selectedAssetId = $state<string | null>(null)
+  let commentFormOpen = $state(false)
 
   const avatarColors = [
     'bg-violet-200 text-violet-700 dark:bg-violet-800 dark:text-violet-200',
@@ -70,6 +71,7 @@
     if (assetId !== selectedAssetId) {
       selectedAssetId = assetId
       selectedVariantIdx = null
+      commentFormOpen = false
     }
   })
 
@@ -251,7 +253,14 @@
     aria-label="Asset review"
   >
     <!-- Panel header -->
-    <div class="panel-header flex items-center gap-3 px-4 py-3">
+    <div class="panel-header flex flex-shrink-0 items-center gap-3 px-4 py-3">
+      <button
+        class="panel-back-btn md:hidden flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+        onclick={store.closePanel}
+        aria-label="Back to gallery"
+      >
+        <ChevronLeft class="h-5 w-5" />
+      </button>
       <AssetIcon {category} />
       <div class="min-w-0 flex-1">
         <p
@@ -276,13 +285,15 @@
           </a>
         {/if}
 
-        <Close close={store.closePanel} />
+        <span class="hidden md:flex">
+          <Close close={store.closePanel} />
+        </span>
       </div>
     </div>
 
     <!-- Mobile Preview area -->
     <div
-      class="block flex-shrink-0 md:hidden {TYPES_BACKGROUNDS[category]}"
+      class="block flex-shrink-0 overflow-hidden md:hidden {TYPES_BACKGROUNDS[category]}"
       style="height: 220px"
     >
       <div class="flex h-full items-center justify-center">
@@ -403,7 +414,21 @@
 
         <!-- Comment form -->
         <div class="comment-form-wrap px-4 py-4">
-          <p class="comment-form-label mb-3 text-sm font-medium">
+          <!-- Mobile: collapsible toggle -->
+          <button
+            class="comment-form-toggle md:hidden mb-3 flex w-full items-center justify-between text-sm font-medium"
+            type="button"
+            onclick={() => (commentFormOpen = !commentFormOpen)}
+            aria-expanded={commentFormOpen}
+          >
+            <span class="comment-form-label">{m.add_comment()}</span>
+            <svg
+              class="comment-form-chevron h-4 w-4 transition-transform {commentFormOpen ? 'rotate-180' : ''}"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <!-- Desktop: always-visible label -->
+          <p class="comment-form-label mb-3 hidden text-sm font-medium md:block">
             {m.add_comment()}
           </p>
 
@@ -411,7 +436,7 @@
             <div class="comment-posted rounded-lg px-3 py-2 text-sm">
               {m.comment_posted()}
             </div>
-          {:else}
+          {:else if commentFormOpen || !viewportStore.isMobile}
             <form
               onsubmit={(e) => {
                 e.preventDefault()
@@ -493,6 +518,13 @@
     color: var(--text-muted);
     margin-top: 1px;
   }
+  .panel-back-btn {
+    color: var(--text-muted);
+  }
+  .panel-back-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
   .panel-icon-btn {
     color: var(--text-muted);
   }
@@ -543,6 +575,19 @@
   }
   .comment-form-label {
     color: var(--text-secondary);
+  }
+  .comment-form-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .comment-form-toggle:hover {
+    color: var(--text-primary);
+  }
+  .comment-form-chevron {
+    color: var(--text-muted);
   }
   .comment-posted {
     background: color-mix(in srgb, #10b981 10%, transparent);

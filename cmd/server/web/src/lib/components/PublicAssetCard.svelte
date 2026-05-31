@@ -73,7 +73,7 @@
     <!-- Info -->
     <div class="flex flex-col gap-1 bg-[var(--bg-surface)] px-3 py-2.5">
       <p
-        class="truncate text-sm font-medium text-gray-900 dark:text-gray-100"
+        class="truncate text-xs font-medium text-gray-900 md:text-sm dark:text-gray-100"
         title={asset.original_filename}
       >
         {asset.original_filename}
