@@ -9,6 +9,7 @@
   import Input from '$lib/components/ui/Input.svelte'
   import { onMount } from 'svelte'
   import Divider from '$lib/components/ui/Divider.svelte'
+  import { m } from '$lib/paraglide/messages'
 
   let password = $state('')
   let confirm = $state('')
@@ -46,7 +47,7 @@
 </script>
 
 <svelte:head>
-  <title>Choose a new password — Damask</title>
+  <title>{m.choose_new_password()} — Damask</title>
 </svelte:head>
 
 <div class="auth-root">
@@ -54,11 +55,9 @@
 
   <div class="auth-content w-full md:max-w-lg">
     <div class="auth-card">
-      <Divider />
-
-      <h1 class="auth-heading">Choose a new password</h1>
+      <h1 class="auth-heading">{m.choose_new_password()}</h1>
       <p class="auth-body">
-        Pick something strong — you won't need to change it again.
+        Pick something strong, you won't need to change it again.
       </p>
 
       <form onsubmit={submit} class="rp-form">
@@ -99,28 +98,20 @@
     display: block;
     text-align: center;
     font-size: 0.75rem;
-    color: #4a3a2a;
+    color: var(--color-gray-500);
     text-decoration: none;
     transition: color 0.15s ease;
   }
   .rp-back-link:hover {
-    color: #b8936a;
+    color: #d5d1cd;
   }
   .rp-back-link:focus-visible {
-    outline: 2px solid #b8936a;
+    outline: 2px solid #d5d1cd;
     outline-offset: 2px;
     border-radius: 2px;
   }
 
   /* Input + button palette overrides for the dark card */
-  :global(.auth-card label) {
-    color: #7a6a55;
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
   :global(
     .auth-card input[type='email'],
     .auth-card input[type='password'],
@@ -128,29 +119,16 @@
   ) {
     background: #1a1730;
     border-color: #2a2240;
-    color: #e8dcc8;
-    caret-color: #b8936a;
+    color: var(--color-gray-300);
+    caret-color: #d5d1cd;
   }
   :global(.auth-card input::placeholder) {
-    color: #4a3a2a;
+    color: var(--color-gray-500);
   }
   :global(.auth-card input:focus) {
-    border-color: #b8936a55;
-    box-shadow: 0 0 0 2px #b8936a22;
+    border-color: #d5d1cd55;
+    box-shadow: 0 0 0 2px #d5d1cd22;
     outline: none;
-  }
-
-  :global(.auth-card button[type='submit']) {
-    background: #b8936a;
-    color: #0f0c08;
-    border: none;
-  }
-  :global(.auth-card button[type='submit']:hover:not(:disabled)) {
-    background: #c9a87c;
-  }
-  :global(.auth-card button[type='submit']:focus-visible) {
-    outline: 2px solid #b8936a;
-    outline-offset: 2px;
   }
 
   @media (prefers-reduced-motion: no-preference) {

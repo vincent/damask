@@ -34,6 +34,7 @@
   import SortButtons from '$lib/components/SortButtons.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
+  import GeometricBackground from '$lib/components/ui/GeometricBackground.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import '../auth-page.css'
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
   import { authApi, ApiError } from '$lib/api'
@@ -10,6 +11,7 @@
   import Title from '$lib/components/ui/Title.svelte'
   import OAuthButton from '$lib/components/OAuthButton.svelte'
   import { m } from '$lib/paraglide/messages'
+  import GeometricBackground from '$lib/components/ui/GeometricBackground.svelte'
 
   interface AuthConfig {
     password_auth: boolean
@@ -104,10 +106,12 @@
 </svelte:head>
 
 <div
-  class="damask-texture-strong relative flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950"
+  class="relative flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950"
 >
+  <GeometricBackground withStar />
+
   <div
-    class="z-1 w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow dark:bg-gray-900"
+    class="auth-card z-1 w-full space-y-8 rounded-xl bg-white p-8 shadow md:max-w-lg dark:bg-gray-900"
   >
     <div>
       <Title>{m.signin()}</Title>
@@ -190,7 +194,8 @@
           <div class="text-right">
             <a
               href="/forgot-password"
-              class="text-sm text-blue-600 hover:underline">Forgot password?</a
+              class="text-sm text-blue-600 hover:underline dark:text-gray-50"
+              >Forgot password?</a
             >
           </div>
         {/if}

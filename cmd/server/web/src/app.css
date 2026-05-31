@@ -117,10 +117,10 @@
 .auth-divider-line {
   width: 40px;
   height: 1px;
-  background: linear-gradient(to right, transparent, #b8936a55);
+  background: linear-gradient(to right, transparent, #d5d1cd55);
 }
 .auth-divider-line:last-child {
-  background: linear-gradient(to left, transparent, #b8936a55);
+  background: linear-gradient(to left, transparent, #d5d1cd55);
 }
 
 /* Full-bleed SVG background */

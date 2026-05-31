@@ -129,7 +129,7 @@
 
 <div class="flex flex-col gap-0.5">
   {#each projectsStore.projects as project (project.id)}
-    <div class="group relative">
+    <div class="group relative m-[1px]">
       {#if editingId === project.id}
         <div class="px-2 py-1">
           <InlineEditForm

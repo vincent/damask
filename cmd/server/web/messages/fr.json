@@ -363,8 +363,6 @@
   "text_tracks_source_label": "Source",
   "text_tracks_source_ocr": "OCR",
   "text_tracks_source_manual": "Manuel",
-  "text_tracks_source_extract": "Auto-extract",
-  "text_tracks_extract_submit": "Extract text",
   "text_tracks_status_pending": "Extraction…",
   "text_tracks_status_failed": "Échec",
   "text_tracks_ocr_description": "Extrayez le texte de cette image avec Tesseract OCR. Le résultat est indexé pour la recherche et peut être enregistré comme fichier hOCR.",
@@ -1138,5 +1136,7 @@
   "unsaved_changes": "Modifications non sauvegardées",
   "workflow_choose_template": "Choisir un modèle de workflow",
   "workflow_saved": "Workflow \"{name}\" sauvegardé.",
-  "workflow_triggered": "Workflow \"{name}\" déclenché."
+  "workflow_triggered": "Workflow \"{name}\" déclenché.",
+  "text_tracks_source_extract": "Auto-extract",
+  "text_tracks_extract_submit": "Extract text"
 }

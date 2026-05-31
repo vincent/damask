@@ -22,6 +22,7 @@
   import AssetStateStackable from '$lib/components/asset/AssetStateStackable.svelte'
   import { scale } from 'svelte/transition'
   import AssetThumbnail from '$lib/components/asset/AssetThumbnail.svelte'
+  import GeometricBackground from '../ui/GeometricBackground.svelte'
 
   const fmt = new Intl.DateTimeFormat(undefined, {
     month: 'long',
@@ -158,6 +159,8 @@
   ondrop={onDrop}
   onmousedown={onMouseDown}
 >
+  <GeometricBackground />
+
   {#snippet assetCardGrid(assets: Asset[])}
     <div
       class="grid pt-2 {gridMode == 'compact'

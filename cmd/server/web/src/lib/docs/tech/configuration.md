@@ -4,13 +4,14 @@ Damask is configured via environment variables. All variables are optional unles
 
 ## Core
 
-| Variable     | Default                 | Description                                                                                   |
-| ------------ | ----------------------- | --------------------------------------------------------------------------------------------- |
-| `BASE_URL`   | `http://localhost:5173` | Public URL of your instance (e.g. `https://dam.example.com`). Used in share links and emails. |
-| `PORT`       | `8080`                  | HTTP listen port                                                                              |
-| `APP_ENV`    | `development`           | Set to `production` to enable secure cookies and stricter settings                            |
-| `JWT_SECRET` | **required**            | HMAC secret for JWT signing, minimum 32 characters. Generate with `openssl rand -hex 32`      |
-| `APP_SECRET` | **required**            | AES-256-GCM key for encrypting ingress credentials at rest, minimum 32 characters             |
+| Variable        | Default                 | Description                                                                                   |
+| --------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
+| `BASE_URL`      | `http://localhost:5173` | Public URL of your instance (e.g. `https://dam.example.com`). Used in share links and emails. |
+| `PORT`          | `8080`                  | HTTP listen port                                                                              |
+| `APP_ENV`       | `development`           | Set to `production` to enable secure cookies and stricter settings                            |
+| `ENABLE_SIGNUP` | `true`                  | Set to `false` to disable registrations (invitations still work)                              |
+| `JWT_SECRET`    | **required**            | HMAC secret for JWT signing, minimum 32 characters. Generate with `openssl rand -hex 32`      |
+| `APP_SECRET`    | **required**            | AES-256-GCM key for encrypting ingress credentials at rest, minimum 32 characters             |
 
 ## Database & storage
 
@@ -44,9 +45,11 @@ Damask includes a built-in SMTP server that receives inbound emails for the [ema
 
 ## Background jobs
 
-| Variable        | Default | Description                      |
-| --------------- | ------- | -------------------------------- |
-| `QUEUE_WORKERS` | `4`     | Number of background job workers |
+| Variable            | Default | Description                                                                                          |
+| ------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
+| `QUEUE_WORKERS`     | `4`     | Number of background job workers                                                                     |
+| `ENABLE_SCHEDULER`  | `true`  | Set to `false` to disable the background scheduler (thumbnail generation, ingress polling, purges)   |
+| `SCRATCH_PURGE_TIME`| `03:00` | Daily time (HH:MM, 24h UTC) to purge temporary scratch files left by failed or cancelled jobs        |
 
 ## Media processing
 

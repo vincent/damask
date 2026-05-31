@@ -38,8 +38,6 @@
 
   <div class="auth-content w-full md:max-w-lg">
     <div class="auth-card">
-      <Divider />
-
       <h1 class="auth-heading">Reset your password</h1>
 
       {#if sent}
@@ -90,72 +88,31 @@
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
-    color: #b8936a;
+    color: #d5d1cd;
     font-size: 0.8125rem;
     font-weight: 500;
   }
 
   :global(.fp-sent-icon) {
     flex-shrink: 0;
-    color: #b8936a;
+    color: #d5d1cd;
   }
 
   .fp-back-link {
     display: block;
     text-align: center;
     font-size: 0.75rem;
-    color: #4a3a2a;
+    color: var(--color-gray-500);
     text-decoration: none;
     transition: color 0.15s ease;
   }
   .fp-back-link:hover {
-    color: #b8936a;
+    color: #d5d1cd;
   }
   .fp-back-link:focus-visible {
-    outline: 2px solid #b8936a;
+    outline: 2px solid #d5d1cd;
     outline-offset: 2px;
     border-radius: 2px;
-  }
-
-  /* Input + button palette overrides for the dark card */
-  :global(.auth-card label) {
-    color: #7a6a55;
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  :global(
-    .auth-card input[type='email'],
-    .auth-card input[type='password'],
-    .auth-card input[type='text']
-  ) {
-    background: #1a1730;
-    border-color: #2a2240;
-    color: #e8dcc8;
-    caret-color: #b8936a;
-  }
-  :global(.auth-card input::placeholder) {
-    color: #4a3a2a;
-  }
-  :global(.auth-card input:focus) {
-    border-color: #b8936a55;
-    box-shadow: 0 0 0 2px #b8936a22;
-    outline: none;
-  }
-
-  :global(.auth-card button[type='submit']) {
-    background: #b8936a;
-    color: #0f0c08;
-    border: none;
-  }
-  :global(.auth-card button[type='submit']:hover:not(:disabled)) {
-    background: #c9a87c;
-  }
-  :global(.auth-card button[type='submit']:focus-visible) {
-    outline: 2px solid #b8936a;
-    outline-offset: 2px;
   }
 
   @media (prefers-reduced-motion: no-preference) {

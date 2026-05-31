@@ -229,7 +229,7 @@
 </script>
 
 <aside
-  class="damask-texture relative flex h-full w-full shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)] md:w-64"
+  class="relative flex h-full w-full shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)] md:w-64"
 >
   {#if isSettings}
     <WorkspaceSwitcher class="px-3 py-3" />
