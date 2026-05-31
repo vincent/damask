@@ -1,4 +1,4 @@
-package workflowadapter
+package main
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 type assetAdapter struct{ svc service.AssetService }
 
-func NewAssetManager(svc service.AssetService) workflow.AssetManager {
+func newAssetManager(svc service.AssetService) workflow.AssetManager {
 	return assetAdapter{svc: svc}
 }
 
@@ -52,7 +52,7 @@ func (a assetAdapter) Move(
 
 type variantAdapter struct{ svc service.VariantService }
 
-func NewVariantManager(svc service.VariantService) workflow.VariantManager {
+func newVariantManager(svc service.VariantService) workflow.VariantManager {
 	return variantAdapter{svc: svc}
 }
 
@@ -85,7 +85,7 @@ func (a variantAdapter) PrepareCreate(
 
 type shareAdapter struct{ svc service.ShareService }
 
-func NewShareManager(svc service.ShareService) workflow.ShareManager {
+func newShareManager(svc service.ShareService) workflow.ShareManager {
 	return shareAdapter{svc: svc}
 }
 
@@ -107,7 +107,7 @@ func (a shareAdapter) Create(ctx context.Context, workspaceID string, p workflow
 
 type tagAdapter struct{ svc service.TagService }
 
-func NewTagManager(svc service.TagService) workflow.TagManager {
+func newTagManager(svc service.TagService) workflow.TagManager {
 	return tagAdapter{svc: svc}
 }
 
@@ -121,7 +121,7 @@ func (a tagAdapter) AddToAsset(ctx context.Context, workspaceID, assetID, tagNam
 
 type assetFieldAdapter struct{ svc service.AssetFieldService }
 
-func NewAssetFieldManager(svc service.AssetFieldService) workflow.AssetFieldManager {
+func newAssetFieldManager(svc service.AssetFieldService) workflow.AssetFieldManager {
 	return assetFieldAdapter{svc: svc}
 }
 
@@ -140,7 +140,7 @@ func (a assetFieldAdapter) SetValues(
 
 type workspaceAdapter struct{ svc service.WorkspaceService }
 
-func NewWorkspaceManager(svc service.WorkspaceService) workflow.WorkspaceManager {
+func newWorkspaceManager(svc service.WorkspaceService) workflow.WorkspaceManager {
 	return workspaceAdapter{svc: svc}
 }
 

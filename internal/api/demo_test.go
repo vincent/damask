@@ -82,7 +82,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
 	media := ingest.NewRegistry(trf)
-	injestor := service.NewAssetInjestor(queries, rawDB, stor, q, media)
+	ingester := service.NewAssetIngester(queries, rawDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, rawDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
@@ -94,7 +94,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 		t.Fatalf("ensure demo workspace: %v", err)
 	}
 
-	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, injestor, resolveImageRouterKey, nil, exportConfigsRepo, exportRunsRepo)
+	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, ingester, resolveImageRouterKey, nil, exportConfigsRepo, exportRunsRepo)
 	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil)
 
 	return &demoEnv{App: app, Maker: maker, SqlDB: rawDB, Seeder: seeder}

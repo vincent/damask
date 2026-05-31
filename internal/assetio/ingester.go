@@ -5,7 +5,7 @@ import "context"
 // FieldInheritanceFunc is called after asset creation to copy project field values.
 type FieldInheritanceFunc func(ctx context.Context, workspaceID, assetID, projectID, userID string)
 
-// IngestFileOpts holds optional destination fields for Injestor.IngestFile.
+// IngestFileOpts holds optional destination fields for Ingester.IngestFile.
 type IngestFileOpts struct {
 	ProjectID     *string
 	FolderID      *string
@@ -15,7 +15,7 @@ type IngestFileOpts struct {
 	OriginalName string
 }
 
-// AssetSummary is the minimal asset data returned by Injestor.IngestFile.
+// AssetSummary is the minimal asset data returned by Ingester.IngestFile.
 type AssetSummary struct {
 	ID               string
 	WorkspaceID      string
@@ -24,7 +24,7 @@ type AssetSummary struct {
 	OriginalFilename string
 }
 
-// Injestor handles low-level asset creation from a file path.
-type Injestor interface {
+// Ingester handles low-level asset creation from a file path.
+type Ingester interface {
 	IngestFile(ctx context.Context, workspaceID, filePath string, opts IngestFileOpts) (AssetSummary, error)
 }

@@ -29,7 +29,7 @@ type UploadMeta struct {
 }
 
 type uploadServiceImpl struct {
-	injestor   AssetInjestor
+	ingester   AssetIngester
 	audit      audit.Writer
 	triggers   WorkflowTriggerPublisher
 	invalidate StorageInvalidator
@@ -37,16 +37,16 @@ type uploadServiceImpl struct {
 
 // NewUploadService returns an UploadService. Pass a non-nil inv to invalidate
 // the storage usage cache after each successful ingest; pass nil to skip.
-func NewUploadService(injestor AssetInjestor, aw audit.Writer, inv StorageInvalidator, triggers ...WorkflowTriggerPublisher) UploadService {
+func NewUploadService(ingester AssetIngester, aw audit.Writer, inv StorageInvalidator, triggers ...WorkflowTriggerPublisher) UploadService {
 	return &uploadServiceImpl{
-		injestor:   injestor,
+		ingester:   ingester,
 		audit:      aw,
 		triggers:   workflowTriggerPublisherOrNop(triggers...),
 		invalidate: inv,
 	}
 }
 
-// Ingest writes r to a temp file, calls AssetInjestor.IngestFileFull, then removes the temp file.
+// Ingest writes r to a temp file, calls AssetIngester.IngestFileFull, then removes the temp file.
 // Queue enqueue failures are logged but do not fail the upload (fire-and-forget).
 func (s *uploadServiceImpl) Ingest(
 	ctx context.Context,
@@ -103,7 +103,7 @@ func (s *uploadServiceImpl) Ingest(
 	}
 	_ = tmpF.Close()
 
-	asset, err = s.injestor.IngestFileWithDetails(ctx, workspaceID, tmpPath, assetio.IngestFileOpts{
+	asset, err = s.ingester.IngestFileWithDetails(ctx, workspaceID, tmpPath, assetio.IngestFileOpts{
 		ProjectID:     meta.ProjectID,
 		FolderID:      meta.FolderID,
 		UserID:        meta.UserID,

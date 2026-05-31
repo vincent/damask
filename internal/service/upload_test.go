@@ -28,8 +28,8 @@ func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 	stor, _ := storage.NewAferoMemoryStorage()
 	spy := newSpy()
 	q := queue.New(queries, 1)
-	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()))
-	return service.NewUploadService(injestor, spy, nil), spy
+	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()))
+	return service.NewUploadService(ingester, spy, nil), spy
 }
 
 func newUploadSvc(t *testing.T) service.UploadService {
@@ -45,8 +45,8 @@ func newUploadSvc(t *testing.T) service.UploadService {
 		t.Fatalf("storage: %v", err)
 	}
 	q := queue.New(queries, 1)
-	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()))
-	return service.NewUploadService(injestor, audit.NopWriter{}, nil)
+	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()))
+	return service.NewUploadService(ingester, audit.NopWriter{}, nil)
 }
 
 func waitForTriggerCount(t *testing.T, spy *triggerSpy, want int) {
@@ -108,7 +108,7 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 
 	q2 := queue.New(queries, 1)
 	svc := service.NewUploadService(
-		service.NewAssetInjestor(queries, sqlDB, stor, q2, ingest.NewRegistry(transform.NewTransformer())),
+		service.NewAssetIngester(queries, sqlDB, stor, q2, ingest.NewRegistry(transform.NewTransformer())),
 		audit.NopWriter{},
 		nil,
 	)
@@ -160,7 +160,7 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	stor, _ := storage.NewAferoMemoryStorage()
 	q := queue.New(queries, 1)
 	svc = service.NewUploadService(
-		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
 		spy,
 		nil,
 	)
@@ -205,7 +205,7 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 	q := queue.New(queries, 1)
 	triggers := &triggerSpy{}
 	svc := service.NewUploadService(
-		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
 		audit.NopWriter{},
 		nil,
 		triggers,
@@ -253,7 +253,7 @@ func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
 	q := queue.New(queries, 1)
 	triggers := &triggerSpy{}
 	svc := service.NewUploadService(
-		service.NewAssetInjestor(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
 		audit.NopWriter{},
 		nil,
 		triggers,

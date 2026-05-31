@@ -113,7 +113,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 		filename = "stack-merge"
 	}
 
-	asset, err := s.injestor.IngestFile(ctx, p.WorkspaceID, outPath, assetio.IngestFileOpts{
+	asset, err := s.ingester.IngestFile(ctx, p.WorkspaceID, outPath, assetio.IngestFileOpts{
 		UserID:       p.CreatedBy,
 		OriginalName: filename + outExt,
 	})

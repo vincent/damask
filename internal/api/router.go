@@ -147,7 +147,7 @@ func NewHTTPServer(
 		trf:           trf,
 		textTracks:    service.NewTextTrackService(queries, q, stor),
 		upload: service.NewUploadService(
-			service.NewAssetInjestor(queries, sqlDB, stor, q, media),
+			service.NewAssetIngester(queries, sqlDB, stor, q, media),
 			auditWriter,
 			storageSvc,
 			triggerDispatcher,

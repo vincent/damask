@@ -65,7 +65,7 @@ type JobServer struct {
 	handlers       map[string]queue.HandlerFunc
 	trf            transform.Transformer
 	tmb            transform.Thumbnailer
-	injestor       assetio.Injestor
+	ingester       assetio.Ingester
 	imgKeyResolver imagerouter.KeyResolver
 	workflowExec   *workflow.Executor
 	exportSvc      exportService
@@ -85,7 +85,7 @@ func NewJobServer(
 	trf transform.Transformer,
 	tmb transform.Thumbnailer,
 	cfg *config.Config,
-	injestor assetio.Injestor,
+	ingester assetio.Ingester,
 	imgKeyResolver imagerouter.KeyResolver,
 	workflowExec *workflow.Executor,
 	exportSvc exportService,
@@ -111,7 +111,7 @@ func NewJobServer(
 		handlers:       make(map[string]queue.HandlerFunc),
 		hub:            hub,
 		imgKeyResolver: imgKeyResolver,
-		injestor:       injestor,
+		ingester:       ingester,
 		mailer:         mailer,
 		queue:          q,
 		sqlDB:          sqlDB,
@@ -158,7 +158,7 @@ func (s *JobServer) RegisterJobHandlers() {
 	}
 
 	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(s.queries, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.injestor, s.storageSvc)
+	ingressWorker := ingress.NewWorker(s.queries, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.ingester, s.storageSvc)
 	reg(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	reg(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 

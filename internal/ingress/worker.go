@@ -53,7 +53,7 @@ type Worker struct {
 	cfg        *config.Config
 	audit      *audit.EventWriter
 	mailer     mail.Mailer
-	injestor   assetio.Injestor
+	ingester   assetio.Ingester
 	storageSvc StorageLimitChecker // may be nil when not configured
 }
 
@@ -66,7 +66,7 @@ func NewWorker(
 	cfg *config.Config,
 	au *audit.EventWriter,
 	mailer mail.Mailer,
-	injestor assetio.Injestor,
+	ingester assetio.Ingester,
 	storageSvc StorageLimitChecker,
 ) *Worker {
 	return &Worker{
@@ -77,7 +77,7 @@ func NewWorker(
 		cfg:        cfg,
 		audit:      au,
 		mailer:     mailer,
-		injestor:   injestor,
+		ingester:   ingester,
 		storageSvc: storageSvc,
 	}
 }
@@ -334,7 +334,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 
 	slog.DebugContext(ctx, "ingest file", "path", namedTmp)
 
-	asset, err := w.injestor.IngestFile(ctx, src.WorkspaceID, namedTmp, assetio.IngestFileOpts{
+	asset, err := w.ingester.IngestFile(ctx, src.WorkspaceID, namedTmp, assetio.IngestFileOpts{
 		ProjectID: projectID,
 		FolderID:  folderID,
 		UserID:    src.CreatedBy,

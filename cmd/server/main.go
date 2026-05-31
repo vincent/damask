@@ -28,7 +28,6 @@ import (
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 	"damask/server/internal/workflow"
-	"damask/server/internal/workflowadapter"
 
 	// Side-effect imports to register ingress source types.
 	"damask/server/internal/ingress/sources/canva"
@@ -172,7 +171,7 @@ func main() {
 	// --- services ---
 	auditWriter := audit.New(sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
-	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
+	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
 	})
@@ -206,12 +205,12 @@ func main() {
 		Mailer:      mailer,
 		Hub:         eventsHub,
 		Audit:       auditWriter,
-		Assets:      workflowadapter.NewAssetManager(assetSvc),
-		Variants:    workflowadapter.NewVariantManager(variantSvc),
-		Shares:      workflowadapter.NewShareManager(shareSvc),
-		Tags:        workflowadapter.NewTagManager(tagSvc),
-		AssetFields: workflowadapter.NewAssetFieldManager(assetFieldSvc),
-		Workspace:   workflowadapter.NewWorkspaceManager(workspaceSvc),
+		Assets:      newAssetManager(assetSvc),
+		Variants:    newVariantManager(variantSvc),
+		Shares:      newShareManager(shareSvc),
+		Tags:        newTagManager(tagSvc),
+		AssetFields: newAssetFieldManager(assetFieldSvc),
+		Workspace:   newWorkspaceManager(workspaceSvc),
 		Config:      cfg,
 	})
 
@@ -226,7 +225,7 @@ func main() {
 		trf,
 		tmb,
 		cfg,
-		injestor,
+		ingester,
 		resolveImageRouterKey,
 		workflowExec,
 		exportSvc,

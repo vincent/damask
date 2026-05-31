@@ -135,7 +135,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
 	media := ingest.NewRegistry(trf)
-	injestor := service.NewAssetInjestor(queries, sqlDB, stor, q, media)
+	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
 	storageSvc := service.NewStorageService(queries)
@@ -162,7 +162,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		trf,
 		tmb,
 		cfg,
-		injestor,
+		ingester,
 		resolveImageRouterKey,
 		workflowExec,
 		exportSvc,

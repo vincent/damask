@@ -23,9 +23,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-// AssetInjestor extends assetio.Injestor with a richer return used within the service layer.
-type AssetInjestor interface {
-	assetio.Injestor
+// AssetIngester extends assetio.Ingester with a richer return used within the service layer.
+type AssetIngester interface {
+	assetio.Ingester
 	IngestFileWithDetails(
 		ctx context.Context,
 		workspaceID, filePath string,
@@ -41,7 +41,7 @@ type versionThumbnailPayload struct {
 	MimeType    string `json:"mime_type"`
 }
 
-type injestorImpl struct {
+type ingesterImpl struct {
 	queries *dbgen.Queries
 	sqlDB   *sql.DB
 	stor    storage.Storage
@@ -49,18 +49,18 @@ type injestorImpl struct {
 	media   *ingest.Registry
 }
 
-// NewAssetInjestor returns an AssetInjestor backed by the given dependencies.
-func NewAssetInjestor(
+// NewAssetIngester returns an AssetIngester backed by the given dependencies.
+func NewAssetIngester(
 	queries *dbgen.Queries,
 	sqlDB *sql.DB,
 	stor storage.Storage,
 	q queue.JobQueue,
 	media *ingest.Registry,
-) AssetInjestor {
-	return &injestorImpl{queries: queries, sqlDB: sqlDB, stor: stor, q: q, media: media}
+) AssetIngester {
+	return &ingesterImpl{queries: queries, sqlDB: sqlDB, stor: stor, q: q, media: media}
 }
 
-func (s *injestorImpl) IngestFile(
+func (s *ingesterImpl) IngestFile(
 	ctx context.Context,
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
@@ -78,7 +78,7 @@ func (s *injestorImpl) IngestFile(
 	}, nil
 }
 
-func (s *injestorImpl) IngestFileWithDetails(
+func (s *ingesterImpl) IngestFileWithDetails(
 	ctx context.Context,
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
@@ -107,12 +107,12 @@ func (s *injestorImpl) IngestFileWithDetails(
 }
 
 // ingest is the shared implementation called by IngestFile and IngestFileFull.
-func (s *injestorImpl) ingest(
+func (s *ingesterImpl) ingest(
 	ctx context.Context,
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
 ) (asset dbgen.Asset, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.injestor.ingest",
+	ctx, span := apptelemetry.StartSpan(ctx, "service.ingester.ingest",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Bool("damask.upload.has_project", opts.ProjectID != nil),
 		attribute.Bool("damask.upload.has_folder", opts.FolderID != nil),
@@ -166,7 +166,7 @@ func (s *injestorImpl) ingest(
 		return dbgen.Asset{}, fmt.Errorf("could not open file: %w", err)
 	}
 	defer f.Close()
-	_, storeSpan := apptelemetry.StartSpan(ctx, "service.injestor.storage_put",
+	_, storeSpan := apptelemetry.StartSpan(ctx, "service.ingester.storage_put",
 		attribute.String("damask.storage.key", storageKey),
 		attribute.Int64("damask.upload.bytes", stat.Size()),
 	)
@@ -178,7 +178,7 @@ func (s *injestorImpl) ingest(
 
 	meta := ingest.FileMeta{}
 	if s.media.Supports(mimeType) {
-		metaCtx, metaSpan := apptelemetry.StartSpan(ctx, "service.injestor.extract_metadata",
+		metaCtx, metaSpan := apptelemetry.StartSpan(ctx, "service.ingester.extract_metadata",
 			attribute.String("damask.mime_type", mimeType),
 		)
 		if m, merr := s.media.ExtractMeta(ctx, filePath, mimeType); merr == nil {
@@ -197,7 +197,7 @@ func (s *injestorImpl) ingest(
 		)
 	}
 
-	_, createSpan := apptelemetry.StartSpan(ctx, "service.injestor.create_asset")
+	_, createSpan := apptelemetry.StartSpan(ctx, "service.ingester.create_asset")
 	asset, err = s.queries.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
@@ -243,7 +243,7 @@ func (s *injestorImpl) ingest(
 	}
 
 	if opts.InheritFields != nil && opts.ProjectID != nil && opts.UserID != "" {
-		inheritCtx, inheritSpan := apptelemetry.StartSpan(ctx, "service.injestor.inherit_project_fields",
+		inheritCtx, inheritSpan := apptelemetry.StartSpan(ctx, "service.ingester.inherit_project_fields",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.project_id", *opts.ProjectID),
 		)
@@ -276,7 +276,7 @@ func (s *injestorImpl) ingest(
 			StorageKey:  asset.StorageKey,
 			MimeType:    asset.MimeType,
 		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_thumbnail",
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_thumbnail",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeVersionThumbnail)),
 		)
@@ -293,7 +293,7 @@ func (s *injestorImpl) ingest(
 			"workspace_id": workspaceID,
 			"user_id":      opts.UserID,
 		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_exif",
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_exif",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractExif)),
 		)
@@ -309,7 +309,7 @@ func (s *injestorImpl) ingest(
 			"asset_id":     asset.ID,
 			"workspace_id": workspaceID,
 		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_media_tags",
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_media_tags",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractMediaTags)),
 		)
@@ -326,7 +326,7 @@ func (s *injestorImpl) ingest(
 			"workspace_id": workspaceID,
 			"storage_key":  asset.StorageKey,
 		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_extract_text",
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_extract_text",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractPDFTextTrack)),
 		)
@@ -343,7 +343,7 @@ func (s *injestorImpl) ingest(
 			"workspace_id": workspaceID,
 			"storage_key":  asset.StorageKey,
 		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_extract_text",
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_extract_text",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractPlainTextTrack)),
 		)
@@ -361,7 +361,7 @@ func (s *injestorImpl) ingest(
 			"storage_key":  asset.StorageKey,
 			"mime_type":    mimeType,
 		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.injestor.enqueue_extract_text",
+		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_extract_text",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractDocumentTextTrack)),
 		)
@@ -375,14 +375,14 @@ func (s *injestorImpl) ingest(
 	return asset, nil
 }
 
-func (s *injestorImpl) createInitialVersion(
+func (s *ingesterImpl) createInitialVersion(
 	ctx context.Context,
 	asset dbgen.Asset,
 	filePath, storageKey, mimeType string,
 	meta ingest.FileMeta,
 	userID string,
 ) (versionID string, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.injestor.create_initial_version",
+	ctx, span := apptelemetry.StartSpan(ctx, "service.ingester.create_initial_version",
 		attribute.String("damask.workspace_id", asset.WorkspaceID),
 		attribute.String("damask.asset_id", asset.ID),
 		attribute.Int64("damask.asset.size", asset.Size),

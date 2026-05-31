@@ -15,13 +15,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func newTestInjestorImpl(t *testing.T) (*injestorImpl, *sql.DB) {
+func newTestIngesterImpl(t *testing.T) (*ingesterImpl, *sql.DB) {
 	t.Helper()
 	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	impl := &injestorImpl{
+	impl := &ingesterImpl{
 		queries: queries,
 		sqlDB:   sqlDB,
 		media:   ingest.NewRegistry(transform.NewTransformer()),
@@ -33,7 +33,7 @@ func newTestInjestorImpl(t *testing.T) (*injestorImpl, *sql.DB) {
 // is called without a userID, the created_by field is NULL in the database
 // (representing a system action, e.g., ingress-created asset).
 func TestCreateInitialVersionWithNoUser(t *testing.T) {
-	impl, sqlDB := newTestInjestorImpl(t)
+	impl, sqlDB := newTestIngesterImpl(t)
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	ctx := context.Background()
@@ -96,7 +96,7 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 // TestCreateInitialVersionWithUser verifies that when createInitialVersion
 // is called with a userID, it correctly stores that user's ID as created_by.
 func TestCreateInitialVersionWithUser(t *testing.T) {
-	impl, sqlDB := newTestInjestorImpl(t)
+	impl, sqlDB := newTestIngesterImpl(t)
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	ctx := context.Background()
