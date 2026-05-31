@@ -273,7 +273,9 @@
       a.click()
     },
     'view.toggle-layout': () => {
-      /* stub — layout toggle not yet implemented */
+      const modes = ['spaced', 'compact', 'table'] as const
+      const next = modes[(modes.indexOf(statusBarStore.gridMode) + 1) % modes.length]
+      statusBarStore.gridMode = next
     },
     'view.zoom-in': () => {
       statusBarStore.zoomIncrease()
