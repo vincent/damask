@@ -50,6 +50,13 @@ export const CATEGORY_ICON_BG: Record<
   },
 }
 
+export const DOWNLOAD_BUTTON_COLORS: Record<string, string> = {
+  image: 'bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-500',
+  video: 'bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-500',
+  audio: 'bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500',
+  document: 'bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500',
+}
+
 export const CATEGORY_BORDER: Record<CategoryKey, string> = {
   image: `border-sky-200 dark:border-sky-700`,
   video: `border-red-200 dark:border-red-700`,

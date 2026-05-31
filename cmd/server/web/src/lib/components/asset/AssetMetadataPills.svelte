@@ -2,6 +2,7 @@
   import { assetApi, formatBytes, type Asset } from '$lib/api'
   import { Download } from '@lucide/svelte'
   import Badge from '$lib/components/ui/Badge.svelte'
+  import { DOWNLOAD_BUTTON_COLORS } from '$lib/stores/assetView'
 
   const typeLabel: Record<string, string> = {
     image: 'IMAGE',
@@ -63,7 +64,7 @@
   <a
     href={assetApi.fileUrl(asset.id)}
     download={asset.original_filename}
-    class="flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 p-2.5 text-white transition-colors hover:bg-indigo-700"
+    class="flex shrink-0 items-center justify-center rounded-xl p-2.5 text-white transition-colors {DOWNLOAD_BUTTON_COLORS[category] ?? 'bg-indigo-600 hover:bg-indigo-700'}"
     aria-label="Download original"
   >
     <Download class="h-4 w-4" />
