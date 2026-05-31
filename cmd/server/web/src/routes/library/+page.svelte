@@ -34,6 +34,7 @@
   import SortButtons from '$lib/components/SortButtons.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
+  import { configStore } from '$lib/stores/config.svelte'
   import GeometricBackground from '$lib/components/ui/GeometricBackground.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
@@ -419,7 +420,7 @@
         created_at: m.sort_date(),
         mimetype: m.sort_mimetype(),
         size: m.sort_weight(),
-        taken_at: m.sort_date_taken(),
+        ...(configStore.state.exif_keep ? { taken_at: m.sort_date_taken() } : {}),
       }}
     />
     <div class="h-4 w-px bg-[var(--border-default)]"></div>

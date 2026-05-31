@@ -47,8 +47,11 @@ func (s *Server) handleConfig(c fiber.Ctx) error {
 	out := fiber.Map{
 		"demo": s.cfg.Demo.DemoMode,
 	}
-	if auth.GetClaims(c) != nil {
+	if claims := auth.GetClaims(c); claims != nil {
 		out["mailHost"] = s.cfg.MailServerHost
+		if ws, err := s.workspace.Get(c.Context(), claims.WorkspaceID); err == nil {
+			out["exif_keep"] = ws.ExifKeep
+		}
 	}
 	return c.JSON(out)
 }

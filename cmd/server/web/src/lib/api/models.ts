@@ -1,6 +1,7 @@
 export interface Config {
   demo: boolean
   mailHost: string
+  exif_keep?: boolean
 }
 
 export interface MenuItem {
