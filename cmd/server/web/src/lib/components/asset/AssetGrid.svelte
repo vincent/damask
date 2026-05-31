@@ -159,7 +159,9 @@
   ondrop={onDrop}
   onmousedown={onMouseDown}
 >
-  <GeometricBackground />
+  {#if gridMode !== 'table'}
+    <GeometricBackground />
+  {/if}
 
   {#snippet assetCardGrid(assets: Asset[])}
     <div
