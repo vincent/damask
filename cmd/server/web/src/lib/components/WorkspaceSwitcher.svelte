@@ -14,7 +14,7 @@
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
-  import DiamondIcon from './DiamondIcon.svelte'
+  import DiamondIcon from '$lib/components/ui/DiamondIcon.svelte'
 
   // Deterministic color pair from workspace name
   const PALETTES: [string, string][] = [

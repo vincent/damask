@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/assetView'
   import { File, Image, Music, Play } from '@lucide/svelte'
 
   type Props = {

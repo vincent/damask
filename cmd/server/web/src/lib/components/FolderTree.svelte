@@ -10,7 +10,7 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { configStore } from '$lib/stores/config.svelte'
   import { m } from '$lib/paraglide/messages'
-  import { getProjectColor } from '$lib/stores/shared'
+  import { getProjectColor } from '$lib/stores/assetView'
   import { projectsStore } from '$lib/stores/projects.svelte'
 
   interface Props {

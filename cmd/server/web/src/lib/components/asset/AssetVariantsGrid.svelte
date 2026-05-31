@@ -1,6 +1,6 @@
 <script lang="ts">
   import { type Asset, type Variant } from '$lib/api'
-  import VariantCard from './variants/VariantCard.svelte'
+  import VariantCard from '$lib/components/variants/VariantCard.svelte'
 
   interface Props {
     asset: Asset

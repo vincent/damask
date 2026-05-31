@@ -1,8 +1,8 @@
 <script lang="ts">
   import { type Asset } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
-  import Actor from './ui/Actor.svelte'
-  import SubSectionTitle from './ui/SubSectionTitle.svelte'
+  import Actor from '$lib/components/ui/Actor.svelte'
+  import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
 
   interface Props {
     asset: Asset

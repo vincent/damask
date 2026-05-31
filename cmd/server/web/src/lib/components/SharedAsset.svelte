@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Asset, PublicAsset } from '$lib/api'
-  import AssetIcon from './AssetIcon.svelte'
+  import AssetIcon from '$lib/components/asset/AssetIcon.svelte'
 
   type Props = {
     asset: Asset | PublicAsset

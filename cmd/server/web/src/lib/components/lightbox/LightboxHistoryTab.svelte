@@ -2,8 +2,8 @@
   import { type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { Upload } from '@lucide/svelte'
-  import VersionHistory from './VersionHistory.svelte'
-  import UploadVersionModal from './UploadVersionModal.svelte'
+  import VersionHistory from '$lib/components/VersionHistory.svelte'
+  import UploadVersionModal from '$lib/components/UploadVersionModal.svelte'
   import { m } from '$lib/paraglide/messages'
 
   interface Props {

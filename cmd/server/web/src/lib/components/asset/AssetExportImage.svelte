@@ -1,7 +1,7 @@
 <script lang="ts">
   import { assetApi, type Asset } from '$lib/api'
   import { Download } from '@lucide/svelte'
-  import SubSectionTitle from './ui/SubSectionTitle.svelte'
+  import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
   import { m } from '$lib/paraglide/messages'
 
   type Props = {

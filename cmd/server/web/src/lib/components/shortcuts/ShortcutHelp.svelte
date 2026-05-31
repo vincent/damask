@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useShortcut, SHORTCUT_GROUPS, formatKey } from '$lib/shortcuts'
-  import { keymap } from '$lib/stores/shortcuts.svelte'
+  import { keymap } from '$lib/shortcuts/store.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
   import { m } from '$lib/paraglide/messages'
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { formatKey } from '$lib/shortcuts'
   import { DEFAULT_KEYMAP } from '$lib/shortcuts'
-  import { keymap } from '$lib/stores/shortcuts.svelte'
+  import { keymap } from '$lib/shortcuts/store.svelte'
   import type { ShortcutAction } from '$lib/shortcuts'
 
   interface Props {

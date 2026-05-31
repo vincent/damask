@@ -1,7 +1,7 @@
 <script lang="ts">
-  import DocsSidebar from '$lib/components/DocsSidebar.svelte'
-  import DocsSearch from '$lib/components/DocsSearch.svelte'
-  import DiamondIcon from '$lib/components/DiamondIcon.svelte'
+  import DocsSidebar from '$lib/components/docs/DocsSidebar.svelte'
+  import DocsSearch from '$lib/components/docs/DocsSearch.svelte'
+  import DiamondIcon from '$lib/components/ui/DiamondIcon.svelte'
   import { afterNavigate } from '$app/navigation'
   import { page } from '$app/state'
   import { navForSection, type DocSection } from '$lib/docs/nav'

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { activityApi, type Asset, type AuditEvent } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
-  import ActivityList from './ActivityList.svelte'
+  import ActivityList from '$lib/components/ActivityList.svelte'
 
   interface Props {
     asset: Asset

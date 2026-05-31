@@ -3,7 +3,7 @@
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { RenameAsset } from '$lib/commands/RenameAsset'
-  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/assetView'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import { X } from '@lucide/svelte'
 

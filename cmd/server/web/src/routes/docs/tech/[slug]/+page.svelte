@@ -1,6 +1,6 @@
 <script lang="ts">
   import { marked } from 'marked'
-  import DocsTableOfContents from '$lib/components/DocsTableOfContents.svelte'
+  import DocsTableOfContents from '$lib/components/docs/DocsTableOfContents.svelte'
   import type { PageData } from './$types'
 
   let { data }: { data: PageData } = $props()

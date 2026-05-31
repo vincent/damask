@@ -2,10 +2,10 @@
   import { assetApi, type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { RefreshCw, Share } from '@lucide/svelte'
-  import SubSectionTitle from './ui/SubSectionTitle.svelte'
-  import AssetExportImage from './AssetExportImage.svelte'
-  import AssetDeleteButton from './AssetDeleteButton.svelte'
-  import ShareModal from './ShareModal.svelte'
+  import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
+  import AssetExportImage from '$lib/components/asset/AssetExportImage.svelte'
+  import AssetDeleteButton from '$lib/components/asset/AssetDeleteButton.svelte'
+  import ShareModal from '$lib/components/ShareModal.svelte'
   import { m } from '$lib/paraglide/messages'
 
   interface Props {

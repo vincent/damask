@@ -5,7 +5,7 @@
   import StackPanel from './StackPanel.svelte'
   import { m } from '$lib/paraglide/messages'
   import { mimeCategory } from '$lib/api'
-  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/assetView'
 
   const MAX_THUMBS = 5
 

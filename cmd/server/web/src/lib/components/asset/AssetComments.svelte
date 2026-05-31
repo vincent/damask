@@ -1,6 +1,6 @@
 <script lang="ts">
   import { assetCommentsStore } from '$lib/stores/assetComments.svelte'
-  import Spinner from './ui/Spinner.svelte'
+  import Spinner from '$lib/components/ui/Spinner.svelte'
   import type { Asset, Variant } from '$lib/api'
   import { onMount } from 'svelte'
   import { m } from '$lib/paraglide/messages'

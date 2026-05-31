@@ -9,12 +9,12 @@
     X,
   } from '@lucide/svelte'
   import { formatBytes, mimeCategory, variantApi, type Variant } from '$lib/api'
-  import AssetThumbnail from '$lib/components/AssetThumbnail.svelte'
+  import AssetThumbnail from '$lib/components/asset/AssetThumbnail.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
-  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/assetView'
 
   interface Props {
     variant: Variant

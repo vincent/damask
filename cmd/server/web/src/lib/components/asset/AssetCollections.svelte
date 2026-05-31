@@ -3,7 +3,7 @@
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { LibraryBig, X } from '@lucide/svelte'
-  import SubSectionTitle from './ui/SubSectionTitle.svelte'
+  import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
   import { goto } from '$app/navigation'
   import { m } from '$lib/paraglide/messages'
   import { undoStore } from '$lib/stores/undo.svelte'

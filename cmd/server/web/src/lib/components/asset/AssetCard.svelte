@@ -4,11 +4,11 @@
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
   import { Check, File, Loader, Play, TriangleAlert } from '@lucide/svelte'
-  import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/shared'
+  import { ASSET_BACKGROUND_COLORS, DOT_COLORS } from '$lib/stores/assetView'
   import { m } from '$lib/paraglide/messages'
   import { mount, unmount } from 'svelte'
-  import DragGhost from './DragGhost.svelte'
-  import AssetThumbnail from './AssetThumbnail.svelte'
+  import DragGhost from '$lib/components/DragGhost.svelte'
+  import AssetThumbnail from '$lib/components/asset/AssetThumbnail.svelte'
 
   interface Props {
     asset: Asset

@@ -3,25 +3,25 @@
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { selectionStore } from '$lib/stores/selection.svelte'
   import { uploadsStore } from '$lib/stores/uploads.svelte'
-  import AssetCard from '$lib/components/AssetCard.svelte'
+  import AssetCard from '$lib/components/asset/AssetCard.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
-  import AssetIcon from '$lib/components/AssetIcon.svelte'
+  import AssetIcon from '$lib/components/asset/AssetIcon.svelte'
   import OnboardingScreen from '$lib/components/OnboardingScreen.svelte'
   import {
     CATEGORY_ICON_BG,
     CATEGORY_LABELS,
     CATEGORY_ORDER,
-  } from '$lib/stores/shared'
+  } from '$lib/stores/assetView'
   import { stackStore } from '$lib/stores/stack.svelte'
   import { Check, CloudUpload, Inbox, Loader } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { statusBarStore } from '$lib/stores/bottomStatusBar.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
   import { onDestroy, onMount } from 'svelte'
-  import AssetStateStackable from './AssetStateStackable.svelte'
+  import AssetStateStackable from '$lib/components/asset/AssetStateStackable.svelte'
   import { scale } from 'svelte/transition'
-  import AssetThumbnail from './AssetThumbnail.svelte'
+  import AssetThumbnail from '$lib/components/asset/AssetThumbnail.svelte'
 
   const fmt = new Intl.DateTimeFormat(undefined, {
     month: 'long',

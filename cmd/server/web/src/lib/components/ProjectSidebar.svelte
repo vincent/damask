@@ -4,7 +4,7 @@
   import { foldersStore } from '$lib/stores/folders.svelte'
   import { navigationStore } from '$lib/stores/navigation.svelte'
   import { ingressStore } from '$lib/stores/ingress.svelte'
-  import { getProjectColor } from '$lib/stores/shared'
+  import { getProjectColor } from '$lib/stores/assetView'
   import FolderTree from './FolderTree.svelte'
   import { Box, EllipsisVertical, Plus } from '@lucide/svelte'
   import Button from '$lib/components/ui/Button.svelte'

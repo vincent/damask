@@ -8,7 +8,7 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import StorageBar from '$lib/components/storage/StorageBar.svelte'
-  import { DOT_COLORS } from '$lib/stores/shared'
+  import { DOT_COLORS } from '$lib/stores/assetView'
   import {
     fetchWorkspaceStorage,
     fetchProjectFolderStorage,

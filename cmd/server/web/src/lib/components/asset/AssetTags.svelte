@@ -2,7 +2,7 @@
   import { tagApi, type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
-  import SubSectionTitle from './ui/SubSectionTitle.svelte'
+  import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
   import { m } from '$lib/paraglide/messages'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { TagAsset } from '$lib/commands/TagAsset'

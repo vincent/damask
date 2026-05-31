@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import HomepageDiagram from '$lib/components/HomepageDiagram.svelte'
+  import HomepageDiagram from '$lib/components/docs/HomepageDiagram.svelte'
   import { m } from '$lib/paraglide/messages'
   import { authStore } from '$lib/stores/auth.svelte'
   import { workspaceApi } from '$lib/api'

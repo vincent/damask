@@ -7,7 +7,7 @@
     projectApi,
     mimeCategory,
   } from '$lib/api'
-  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/shared'
+  import { ASSET_BACKGROUND_COLORS } from '$lib/stores/assetView'
   import { sseEvents } from '$lib/stores/assets.svelte'
   import type { Project } from '$lib/api'
   import {

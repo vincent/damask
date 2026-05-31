@@ -5,7 +5,7 @@
   import Toast from '$lib/components/ui/Toast.svelte'
   import ShortcutHelp from '$lib/components/shortcuts/ShortcutHelp.svelte'
   import ActionSheet from '$lib/components/ActionSheet.svelte'
-  import { keymap } from '$lib/stores/shortcuts.svelte'
+  import { keymap } from '$lib/shortcuts/store.svelte'
   import { useShortcuts } from '$lib/shortcuts/context'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { themeStore } from '$lib/stores/theme.svelte'

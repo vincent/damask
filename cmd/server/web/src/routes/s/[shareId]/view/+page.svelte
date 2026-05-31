@@ -14,7 +14,7 @@
   } from '$lib/stores/publicView.svelte'
   import PublicAssetCard from '$lib/components/PublicAssetCard.svelte'
   import PublicFooter from '$lib/components/PublicFooter.svelte'
-  import AssetIcon from '$lib/components/AssetIcon.svelte'
+  import AssetIcon from '$lib/components/asset/AssetIcon.svelte'
   import SharedVariantFilmstrip from '$lib/components/share/SharedVariantFilmstrip.svelte'
   import SharedVariantList from '$lib/components/share/SharedVariantList.svelte'
   import Close from '$lib/components/ui/Close.svelte'

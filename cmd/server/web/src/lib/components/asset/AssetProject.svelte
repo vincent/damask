@@ -2,7 +2,7 @@
   import { type Asset, type Project } from '$lib/api'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
-  import ColorDot from './ui/ColorDot.svelte'
+  import ColorDot from '$lib/components/ui/ColorDot.svelte'
   import { m } from '$lib/paraglide/messages'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { AssignAssetToProject } from '$lib/commands/AssignAssetToProject'

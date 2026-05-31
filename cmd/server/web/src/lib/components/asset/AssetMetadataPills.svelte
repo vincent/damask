@@ -1,7 +1,7 @@
 <script lang="ts">
   import { assetApi, formatBytes, type Asset } from '$lib/api'
   import { Download } from '@lucide/svelte'
-  import Badge from './ui/Badge.svelte'
+  import Badge from '$lib/components/ui/Badge.svelte'
 
   const typeLabel: Record<string, string> = {
     image: 'IMAGE',
