@@ -406,14 +406,18 @@
   </div>
 {/if}
 
-<div
-  class="flex flex-wrap items-center gap-1.5 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 sm:px-6"
->
-  <TagFilterBar
-    activeTags={assetsStore.activeTags}
-    onchange={(tags) => assetsStore.setActiveTags(tags)}
-  />
-  <div class="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
+<div class="flex items-center border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+  <div class="tags-scroll min-w-0 flex-1 overflow-x-auto px-3 sm:px-6">
+    <div class="flex items-center gap-1.5 py-2">
+      <TagFilterBar
+        activeTags={assetsStore.activeTags}
+        onchange={(tags) => assetsStore.setActiveTags(tags)}
+      />
+    </div>
+  </div>
+  <div
+    class="flex shrink-0 items-center gap-2 border-l border-[var(--border-subtle)] px-3 py-2"
+  >
     <SortButtons
       sort={(key, a) => assetsStore.sort(key, a)}
       bind:value={sort}
@@ -526,3 +530,13 @@
     pendingDeleteIds = []
   }}
 />
+
+
+<style>
+  .tags-scroll {
+    scrollbar-width: none;
+  }
+  .tags-scroll::-webkit-scrollbar {
+    display: none;
+  }
+</style>
