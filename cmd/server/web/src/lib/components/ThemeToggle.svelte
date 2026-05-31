@@ -7,13 +7,13 @@
 <button
   onclick={() => themeStore.toggle()}
   aria-label={themeStore.dark ? m.theme_switch_light() : m.theme_switch_dark()}
-  class="flex items-center gap-2 rounded-lg text-sm text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+  class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] sm:px-2.5"
 >
   {#if themeStore.dark}
-    <span>{m.theme_light()}</span>
-    <Sun class="h-3.5 w-3.5" />
+    <Sun class="h-3.5 w-3.5 shrink-0" />
+    <span class="hidden sm:inline">{m.theme_light()}</span>
   {:else}
-    <span>{m.theme_dark()}</span>
-    <Moon class="h-3.5 w-3.5" />
+    <Moon class="h-3.5 w-3.5 shrink-0" />
+    <span class="hidden sm:inline">{m.theme_dark()}</span>
   {/if}
 </button>

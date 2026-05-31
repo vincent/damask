@@ -22,6 +22,8 @@
   import Feedback from '$lib/components/ui/Feedback.svelte'
   import { m } from '$lib/paraglide/messages'
   import { viewportStore } from '$lib/stores/viewport.svelte'
+  import { fly, fade } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
 
   let shareId = $derived(page.params.shareId || '')
   let selectedVariantIdx = $state<number | null>(null)
@@ -92,16 +94,18 @@
 <div class="relative flex min-h-screen flex-col">
   <!-- Header -->
   <header
-    class="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900"
+    class="border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 sm:px-6 sm:py-4"
   >
-    <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div
+      class="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
+    >
       <div>
         {#if store.share}
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 class="text-lg font-semibold text-[var(--text-primary)]">
             {store.share.label}
           </h1>
           <div
-            class="text-md mt-0.5 flex items-center gap-2 text-gray-500 dark:text-gray-400"
+            class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs font-medium text-[var(--text-muted)]"
           >
             <span
               >{store.assets.length} asset{store.assets.length === 1
@@ -109,11 +113,11 @@
                 : 's'}</span
             >
             {#if store.visitorName}
-              <span class="text-gray-300 dark:text-gray-600">•</span>
+              <span class="text-[var(--border)]">•</span>
               <span>Viewing as {store.visitorName}</span>
             {/if}
             {#if store.expiryWarning}
-              <span class="text-gray-300 dark:text-gray-600">•</span>
+              <span class="text-[var(--border)]">•</span>
               <span
                 class="flex items-center gap-1 text-amber-500 dark:text-amber-400"
               >
@@ -135,25 +139,26 @@
           </div>
         {:else if store.loadingGallery}
           <div
-            class="h-5 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+            class="h-5 w-48 animate-pulse rounded bg-[var(--bg-elevated)]"
           ></div>
           <div
-            class="mt-1 h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+            class="mt-1 h-4 w-32 animate-pulse rounded bg-[var(--bg-elevated)]"
           ></div>
         {/if}
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center justify-end gap-2 sm:justify-start">
         {#if store.share?.allow_download && store.assets.length > 0}
           <Button
             variant="secondary"
             onclick={() => store.downloadAll(shareId)}
             size="md"
+            title={m.download_all()}
           >
             {#snippet icon()}
               <Download class="h-4 w-4" />
             {/snippet}
-            {m.download_all()}
+            <span class="hidden sm:inline">{m.download_all()}</span>
           </Button>
         {/if}
 
@@ -197,6 +202,7 @@
   {@const category = mimeCategory(store.previewMimeType)}
   <!-- Desktop preview area -->
   <div
+    transition:fade={{ duration: 180 }}
     class="preview-stage fixed inset-y-0 left-0 z-40 hidden flex-col bg-black/40 backdrop-blur-sm md:flex md:w-[75%]"
     role="button"
     tabindex="-1"
@@ -248,6 +254,7 @@
   <!-- Panel -->
   <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
   <aside
+    transition:fly={{ x: '100%', duration: 220, easing: cubicOut }}
     class="panel-aside fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col md:w-[25%] md:max-w-2xl"
     role="dialog"
     aria-label="Asset review"
