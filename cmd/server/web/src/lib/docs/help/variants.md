@@ -34,12 +34,23 @@ Variants never replace the original. You can always download the source file reg
 | **Crop**               | Export a selected region, optionally locked to an aspect ratio                                                     |
 | **Background removal** | Remove the image background, producing a transparent PNG                                                           |
 | **Video thumbnail**    | Extract a frame from a video as an image                                                                           |
+| **AI editing**         | Create new images from an asset, given an LLM prompt and one or more models                                        |
+| **Workflow**           | Trigger a manual workflow                                                                                          |
 
-## Auto-variants (Image Router)
+## About AI variants
 
-Your admin can configure automatic variant rules via **Settings → Image Router**. These run automatically on upload for matching asset types, for example, automatically generating a WebP resize of every uploaded image.
+Some variants allow you to preview results before committing the newly created variant.
+The AI variant is one of them. Use the AI variant tool to edit as an asset, and preview the result. This tool allow multiple models selection so you can try different generative models at once.
 
-Background removal and other AI-powered transforms in the Image Router use the configured AI model and may require an API key set by your admin.
+![AI variant preview](/docs/screenshot_asset_variant_ai_previews.png)
+
+Generated previews can then be discarded or kept, one by one or all at once.
+
+## Automating variants with workflows
+
+Variants can be created automatically using **Workflows**. A workflow triggered on asset upload (or any other event) can include a **Create Variant** action that queues a variant job for every matching asset, for example, generating a WebP resize of every uploaded image in a given project.
+
+See [Workflows](workflows) for a full reference.
 
 ## Promoting a variant
 

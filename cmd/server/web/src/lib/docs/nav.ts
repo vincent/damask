@@ -23,6 +23,7 @@ export const DOC_NAV: DocEntry[] = [
   { section: 'help', slug: 'sharing', title: 'Sharing', order: 5 },
   { section: 'help', slug: 'search', title: 'Search & filters', order: 6 },
   { section: 'help', slug: 'exports', title: 'Exporting', order: 7 },
+  { section: 'help', slug: 'workflows', title: 'Workflows', order: 8 },
   // Tech
   { section: 'tech', slug: 'index', title: 'Overview', order: 0 },
   { section: 'tech', slug: 'installation', title: 'Installation', order: 1 },

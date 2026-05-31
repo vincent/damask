@@ -13,7 +13,7 @@ Your **avatar** appears next to your name throughout the app. To upload one:
 1. Click **Upload avatar** and pick an image file (max 5 MB, any common image format)
 2. The new photo takes effect immediately
 
-To remove a manually uploaded avatar, click **Remove** below the upload button. If your avatar comes from a linked Google or SSO account, removal is not available here — unlink the provider instead.
+To remove a manually uploaded avatar, click **Remove** below the upload button. If your avatar comes from a linked Google or SSO account, removal is not available here, unlink the provider instead.
 
 ## Email address
 
@@ -39,17 +39,17 @@ The **Authentication** section shows all sign-in methods attached to your accoun
 
 Connect or disconnect external sign-in providers:
 
-| Provider | How to connect                                                |
-| -------- | ------------------------------------------------------------- |
-| Google   | Click **Connect** — you are redirected to Google to authorize |
-| SSO      | Click **Connect** — you are redirected to your OIDC provider  |
-| Canva    | Click **Connect** — you are redirected to Canva to authorize  |
+| Provider | How to connect                                               |
+| -------- | ------------------------------------------------------------ |
+| Google   | Click **Connect**, you are redirected to Google to authorize |
+| SSO      | Click **Connect**, you are redirected to your OIDC provider  |
+| Canva    | Click **Connect**, you are redirected to Canva to authorize  |
 
 To disconnect a provider, click **Disconnect** next to it. This is only allowed when another sign-in method remains connected.
 
 ## Delete account
 
-The **Danger zone** section lets you permanently delete your account. This cannot be undone — all your content remains in the workspace but your user record and login credentials are erased.
+The **Danger zone** section lets you permanently delete your account. This cannot be undone, all your content remains in the workspace but your user record and login credentials are erased.
 
 1. Click **Delete account**
 2. If your account has a password, confirm it in the dialog

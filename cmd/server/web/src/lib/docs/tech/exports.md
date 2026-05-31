@@ -61,4 +61,4 @@ Requires an active Google OAuth connection. Connect an account at **Settings →
 
 The export writes a ZIP file and a sidecar manifest (`<project-slug>__manifest.json`) into the target folder. On subsequent runs only changed or new files are re-uploaded; unchanged files (same content hash) are skipped.
 
-> The Google OAuth token is refreshed automatically. If the connection is revoked in Google's security settings, the next run will fail with an auth error — reconnect the integration and re-enable the config.
+> The Google OAuth token is refreshed automatically. If the connection is revoked in Google's security settings, the next run will fail with an auth error, reconnect the integration and re-enable the config.

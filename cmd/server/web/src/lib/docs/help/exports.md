@@ -19,16 +19,16 @@ Go to **Settings → Exports** to manage configs.
 ![Create an automated export](/docs/screenshot_export_create1.png)
 ![Create an automated export](/docs/screenshot_export_create2.png)
 
-| Field                | Description                                                                                                                                                                |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Label**            | A name for your own reference                                                                                                                                              |
-| **Project**          | The project whose assets are exported                                                                                                                                      |
-| **Destination type** | `sftp` or `gdrive` (Google Drive)                                                                                                                                          |
-| **Destination**      | Connection details for the chosen type (see below)                                                                                                                         |
-| **Versions**         | `current` — only the latest version of each asset; `all` — every version                                                                                                   |
-| **Include variants** | Whether to bundle variant files alongside the originals                                                                                                                    |
-| **Schedule**         | `manual` — only runs when you click Trigger; `after quiet period` — runs automatically after no changes have been made to the project for the configured number of minutes |
-| **Quiet period**     | Required when schedule is `after quiet period`. Minutes of inactivity before a run is triggered (1–10 080, i.e. up to one week)                                            |
+| Field                | Description                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Label**            | A name for your own reference                                                                                                                                            |
+| **Project**          | The project whose assets are exported                                                                                                                                    |
+| **Destination type** | `sftp` or `gdrive` (Google Drive)                                                                                                                                        |
+| **Destination**      | Connection details for the chosen type (see below)                                                                                                                       |
+| **Versions**         | `current`, only the latest version of each asset; `all`, every version                                                                                                   |
+| **Include variants** | Whether to bundle variant files alongside the originals                                                                                                                  |
+| **Schedule**         | `manual`, only runs when you click Trigger; `after quiet period`, runs automatically after no changes have been made to the project for the configured number of minutes |
+| **Quiet period**     | Required when schedule is `after quiet period`. Minutes of inactivity before a run is triggered (1–10 080, i.e. up to one week)                                          |
 
 ### SFTP destination
 
