@@ -257,6 +257,7 @@
     {handleCreate}
     {onToolSelect}
     {onDraftDone}
+    onVariantCommitted={loadVariants}
     {onClose}
     bind:zoomIn
     bind:zoomOut

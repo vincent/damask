@@ -17,11 +17,12 @@
     assetId: string
     onDone: () => void
     onAddMore: () => void
+    onVariantCommitted?: () => void
     onRestoreSession?: () => void
     gridMode?: boolean
   }
 
-  let { assetId, onDone, onAddMore, onRestoreSession, gridMode = false }: Props = $props()
+  let { assetId, onDone, onAddMore, onVariantCommitted, onRestoreSession, gridMode = false }: Props = $props()
 
   interface DraftEntry {
     nonce: string
@@ -105,6 +106,7 @@
       await commitDraft(assetId, nonce)
       drafts = drafts.filter((d) => d.nonce !== nonce)
       toastStore.show(m.variants_draft_committed(), 'success')
+      onVariantCommitted?.()
       if (drafts.length === 0) onAddMore()
     } catch {
       toastStore.show(m.variants_draft_commit_error(), 'error')
@@ -125,6 +127,7 @@
       try {
         await commitDraft(assetId, draft.nonce)
         committed.push(draft.nonce)
+        onVariantCommitted?.()
       } catch (e) {
         toastStore.show(m.variants_draft_commit_error(), 'error')
         keepAllProgress = null

@@ -359,7 +359,7 @@
     </div>
 
     <div
-      class="flex flex-1 flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3"
+      class="mb-4 flex flex-col overflow-hidden border-t border-[var(--border-subtle)] px-3 pt-3"
     >
       <div class="mb-2 flex items-center justify-between px-2">
         <span
@@ -409,7 +409,7 @@
     {/if}
 
     {#if storageUsage}
-      <a href="/library/settings/storage">
+      <a class="mt-auto" href="/library/settings/storage">
         <div class="border-t border-[var(--border-subtle)] px-4 py-2">
           <StorageBar
             used={storageUsage.total_bytes}
@@ -420,7 +420,7 @@
       </a>
     {/if}
 
-    <div class="mt-auto border-t border-[var(--border-subtle)] px-3 py-2">
+    <div class="border-t border-[var(--border-subtle)] px-3 py-2">
       <a
         href="https://github.com/vincent/damask/discussions"
         target="_blank"

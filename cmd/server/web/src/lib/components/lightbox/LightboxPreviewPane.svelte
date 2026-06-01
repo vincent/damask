@@ -30,6 +30,7 @@
     handleCreate: (type: string, params: object) => Promise<void>
     onDraftStarted: (nonce: string) => void
     onDraftDone: () => void
+    onVariantCommitted: () => void
     // Zoom refs exposed upward for keyboard shortcut wiring
     zoomIn?: (() => void) | undefined
     zoomOut?: (() => void) | undefined
@@ -51,6 +52,7 @@
     handleCreate,
     onDraftStarted,
     onDraftDone,
+    onVariantCommitted,
     zoomIn = $bindable(undefined),
     zoomOut = $bindable(undefined),
     zoomReset = $bindable(undefined),
@@ -129,6 +131,7 @@
                 gridMode={true}
                 onDone={handleDraftDone}
                 onAddMore={() => {}}
+                {onVariantCommitted}
               />
             </div>
           </div>
