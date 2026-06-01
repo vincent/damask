@@ -25,7 +25,7 @@ ARG LO_URL=https://download.documentfoundation.org/libreoffice/stable/${LO_VERSI
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates poppler-utils ffmpeg ghostscript imagemagick \
-    tesseract-ocr tesseract-ocr-eng \
+    tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra tesseract-ocr-spa tesseract-ocr-cat \
     libcairo2 libcups2 libdbus-1-3 libfontconfig1 libgl1 libglib2.0-0 \
     libice6 libsm6 libx11-6 libxext6 libxinerama1 libxrender1 \
     wget && rm -rf /var/lib/apt/lists/*
