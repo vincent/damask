@@ -314,7 +314,7 @@
       {#if activeTab === 'details'}
         <div class="space-y-6 px-5 py-5">
           <AssetMetadata asset={assetDetail ?? asset} {onOpenAsset} />
-          <AssetTags {asset} />
+          <AssetTags asset={assetDetail ?? asset} />
           <AssetCollections {asset} />
           {#if authStore.role !== 'viewer' || activeProject}
             <AssetProject {asset} {activeProject} />
