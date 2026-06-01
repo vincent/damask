@@ -25,7 +25,7 @@
 /* Card surface */
 .auth-card {
   width: 100%;
-  background: rgba(12, 11, 23, .75);
+  background: rgba(12, 11, 23, 0.75);
   border: 1px solid #2a2240;
   border-radius: 12px;
   padding: 2.5rem;

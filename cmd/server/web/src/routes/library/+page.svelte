@@ -274,7 +274,8 @@
     },
     'view.toggle-layout': () => {
       const modes = ['spaced', 'compact', 'table'] as const
-      const next = modes[(modes.indexOf(statusBarStore.gridMode) + 1) % modes.length]
+      const next =
+        modes[(modes.indexOf(statusBarStore.gridMode) + 1) % modes.length]
       statusBarStore.gridMode = next
     },
     'view.zoom-in': () => {
@@ -406,7 +407,9 @@
   </div>
 {/if}
 
-<div class="flex items-center border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+<div
+  class="flex items-center border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+>
   <div class="tags-scroll min-w-0 flex-1 overflow-x-auto px-3 sm:px-6">
     <div class="flex items-center gap-1.5 py-2">
       <TagFilterBar
@@ -426,7 +429,9 @@
         created_at: m.sort_date(),
         mimetype: m.sort_mimetype(),
         size: m.sort_weight(),
-        ...(configStore.state.exif_keep ? { taken_at: m.sort_date_taken() } : {}),
+        ...(configStore.state.exif_keep
+          ? { taken_at: m.sort_date_taken() }
+          : {}),
       }}
     />
     <div class="h-4 w-px bg-[var(--border-default)]"></div>
@@ -530,7 +535,6 @@
     pendingDeleteIds = []
   }}
 />
-
 
 <style>
   .tags-scroll {

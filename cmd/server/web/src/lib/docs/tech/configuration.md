@@ -45,11 +45,11 @@ Damask includes a built-in SMTP server that receives inbound emails for the [ema
 
 ## Background jobs
 
-| Variable            | Default | Description                                                                                          |
-| ------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
-| `QUEUE_WORKERS`     | `4`     | Number of background job workers                                                                     |
-| `ENABLE_SCHEDULER`  | `true`  | Set to `false` to disable the background scheduler (thumbnail generation, ingress polling, purges)   |
-| `SCRATCH_PURGE_TIME`| `03:00` | Daily time (HH:MM, 24h UTC) to purge temporary scratch files left by failed or cancelled jobs        |
+| Variable             | Default | Description                                                                                        |
+| -------------------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `QUEUE_WORKERS`      | `4`     | Number of background job workers                                                                   |
+| `ENABLE_SCHEDULER`   | `true`  | Set to `false` to disable the background scheduler (thumbnail generation, ingress polling, purges) |
+| `SCRATCH_PURGE_TIME` | `03:00` | Daily time (HH:MM, 24h UTC) to purge temporary scratch files left by failed or cancelled jobs      |
 
 ## Media processing
 

@@ -22,7 +22,14 @@
     gridMode?: boolean
   }
 
-  let { assetId, onDone, onAddMore, onVariantCommitted, onRestoreSession, gridMode = false }: Props = $props()
+  let {
+    assetId,
+    onDone,
+    onAddMore,
+    onVariantCommitted,
+    onRestoreSession,
+    gridMode = false,
+  }: Props = $props()
 
   interface DraftEntry {
     nonce: string
@@ -166,7 +173,7 @@
           )
           drafts = [...drafts, { ...entry, sub: freshSub }]
         }
-      },
+      }
     )
 
     undoStore.execute(cmd)

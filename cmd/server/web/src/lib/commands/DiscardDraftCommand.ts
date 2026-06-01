@@ -1,10 +1,10 @@
-import type { Command } from './types'
 import { m } from '$lib/paraglide/messages'
+import type { Command } from './types'
 
 export class DiscardDraftCommand implements Command {
   constructor(
     private onApply: () => void,
-    private onRevert: () => void,
+    private onRevert: () => void
   ) {}
 
   label() {

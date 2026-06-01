@@ -262,7 +262,7 @@
     <!-- Panel header -->
     <div class="panel-header flex flex-shrink-0 items-center gap-3 px-4 py-3">
       <button
-        class="panel-back-btn md:hidden flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+        class="panel-back-btn flex h-8 w-8 items-center justify-center rounded-lg transition-colors md:hidden"
         onclick={store.closePanel}
         aria-label="Back to gallery"
       >
@@ -300,7 +300,9 @@
 
     <!-- Mobile Preview area -->
     <div
-      class="block flex-shrink-0 overflow-hidden md:hidden {TYPES_BACKGROUNDS[category]}"
+      class="block flex-shrink-0 overflow-hidden md:hidden {TYPES_BACKGROUNDS[
+        category
+      ]}"
       style="height: 220px"
     >
       <div class="flex h-full items-center justify-center">
@@ -423,19 +425,31 @@
         <div class="comment-form-wrap px-4 py-4">
           <!-- Mobile: collapsible toggle -->
           <button
-            class="comment-form-toggle md:hidden mb-3 flex w-full items-center justify-between text-sm font-medium"
+            class="comment-form-toggle mb-3 flex w-full items-center justify-between text-sm font-medium md:hidden"
             type="button"
             onclick={() => (commentFormOpen = !commentFormOpen)}
             aria-expanded={commentFormOpen}
           >
             <span class="comment-form-label">{m.add_comment()}</span>
             <svg
-              class="comment-form-chevron h-4 w-4 transition-transform {commentFormOpen ? 'rotate-180' : ''}"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            ><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              class="comment-form-chevron h-4 w-4 transition-transform {commentFormOpen
+                ? 'rotate-180'
+                : ''}"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              ><path
+                d="M6 9l6 6 6-6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /></svg
+            >
           </button>
           <!-- Desktop: always-visible label -->
-          <p class="comment-form-label mb-3 hidden text-sm font-medium md:block">
+          <p
+            class="comment-form-label mb-3 hidden text-sm font-medium md:block"
+          >
             {m.add_comment()}
           </p>
 

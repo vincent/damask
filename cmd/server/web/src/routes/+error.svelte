@@ -75,15 +75,6 @@
     background: #0e0b1f;
   }
 
-  /* Full-bleed SVG background */
-  .err-bg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-  }
-
   /* Center the star group at viewport midpoint */
   :global(.err-star-group) {
     transform: translate(50%, 50%);
