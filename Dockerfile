@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN wget -q "${LO_URL}" -O /tmp/lo.tar.gz \
     && tar -xf /tmp/lo.tar.gz -C /tmp \
-    && dpkg -i /tmp/LibreOffice_${LO_VERSION}_Linux_x86-64_deb/DEBS/*.deb \
+    && dpkg -i /tmp/LibreOffice_*/DEBS/*.deb \
     && rm -rf /tmp/lo.tar.gz /tmp/LibreOffice_* \
     && apt-get purge -y wget && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
