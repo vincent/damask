@@ -2,13 +2,14 @@
   import { onDestroy } from 'svelte'
   import {
     commitDraft,
-    discardDraft,
     createDraftSubscription,
     checkDraftEvent,
     type DraftSubscription,
   } from '$lib/api/drafts'
   import { sseEvents } from '$lib/stores/assets.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { undoStore } from '$lib/stores/undo.svelte'
+  import { DiscardDraftCommand } from '$lib/commands/DiscardDraftCommand'
   import { m } from '$lib/paraglide/messages'
   import VariantDraftCard from './VariantDraftCard.svelte'
 
@@ -16,10 +17,11 @@
     assetId: string
     onDone: () => void
     onAddMore: () => void
+    onRestoreSession?: () => void
     gridMode?: boolean
   }
 
-  let { assetId, onDone, onAddMore, gridMode = false }: Props = $props()
+  let { assetId, onDone, onAddMore, onRestoreSession, gridMode = false }: Props = $props()
 
   interface DraftEntry {
     nonce: string
@@ -116,18 +118,20 @@
   async function handleKeepAll() {
     const ready = drafts.filter((d) => d.phase === 'ready')
     keepAllProgress = { current: 0, total: ready.length }
+    const committed: string[] = []
     for (const [i, draft] of ready.entries()) {
       committingNonces = new Set([...committingNonces, draft.nonce])
       keepAllProgress = { current: i + 1, total: ready.length }
       try {
         await commitDraft(assetId, draft.nonce)
+        committed.push(draft.nonce)
       } catch (e) {
-        console.error('Failed to commit draft', draft.nonce, e)
         toastStore.show(m.variants_draft_commit_error(), 'error')
         keepAllProgress = null
         committingNonces = new Set(
           [...committingNonces].filter((n) => n !== draft.nonce)
         )
+        drafts = drafts.filter((d) => !committed.includes(d.nonce))
         return
       }
       committingNonces = new Set(
@@ -143,9 +147,26 @@
   }
 
   function handleDiscard(nonce: string) {
-    discardDraft(assetId, nonce).catch(() => {})
-    drafts = drafts.filter((d) => d.nonce !== nonce)
-    if (drafts.length === 0) onAddMore()
+    const entry = drafts.find((d) => d.nonce === nonce)
+    if (!entry) return
+
+    const cmd = new DiscardDraftCommand(
+      () => {
+        drafts = drafts.filter((d) => d.nonce !== nonce)
+        if (drafts.length === 0) onAddMore()
+      },
+      () => {
+        onRestoreSession?.()
+        if (!drafts.find((d) => d.nonce === nonce)) {
+          const freshSub = createDraftSubscription(entry.nonce, (e) =>
+            handleDraftEvent(entry.nonce, e)
+          )
+          drafts = [...drafts, { ...entry, sub: freshSub }]
+        }
+      },
+    )
+
+    undoStore.execute(cmd)
   }
 
   const readyCount = $derived(drafts.filter((d) => d.phase === 'ready').length)

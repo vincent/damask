@@ -79,9 +79,10 @@
     if (typeof Image === 'undefined') return
 
     const image = new Image()
-    image.src = assetApi.fileUrl(currentWatermark.id)
+    const expectedSrc = assetApi.fileUrl(currentWatermark.id)
+    image.src = expectedSrc
     image.onload = () => {
-      if (currentWatermark !== watermarkAsset) return
+      if (image.src !== expectedSrc) return
       if (!image.naturalWidth || !image.naturalHeight) return
       watermarkTileWidth = (image.naturalWidth / assetWidth) * 100
       watermarkTileHeight = (image.naturalHeight / assetHeight) * 100
@@ -89,11 +90,12 @@
   })
 
   async function handlePreview() {
+    if (!watermarkAsset) return
     submitting = true
     try {
       const res = await generateDraft(asset.id, kind, {
         opacity: opacity / 100,
-        watermark_asset_id: watermarkAsset?.id ?? '',
+        watermark_asset_id: watermarkAsset.id,
       })
       if (onDraftStarted) {
         onDraftStarted(res.draft_key)
@@ -185,6 +187,7 @@
     assetId={asset.id}
     onDone={handleDone}
     onAddMore={handleAddMore}
+    onRestoreSession={() => { phase = 'drafting' }}
   />
 {/if}
 

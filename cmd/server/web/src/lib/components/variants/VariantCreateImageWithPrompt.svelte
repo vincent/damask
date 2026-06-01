@@ -129,6 +129,7 @@
     assetId={asset.id}
     onDone={handleDone}
     onAddMore={handleAddMore}
+    onRestoreSession={() => { phase = 'drafting' }}
   />
 {/if}
 
