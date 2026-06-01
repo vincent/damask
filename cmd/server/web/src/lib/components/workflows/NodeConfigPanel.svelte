@@ -16,6 +16,7 @@
     schema: WorkflowNodeSchema | null
     onUpdate?: (config: Record<string, unknown>) => void
     onDelete?: () => void
+    onDuplicate?: () => void
     readonly?: boolean
   }
 
@@ -24,6 +25,7 @@
     schema,
     onUpdate = () => {},
     onDelete = () => {},
+    onDuplicate = () => {},
     readonly = false,
   }: Props = $props()
 
@@ -163,13 +165,22 @@
     </div>
 
     {#if node && !readonly}
-      <button
-        type="button"
-        class="shrink-0 rounded-lg border border-rose-500/25 px-2.5 py-1 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-500/8 dark:text-rose-400"
-        onclick={() => onDelete()}
-      >
-        Delete
-      </button>
+      <div class="flex shrink-0 gap-1.5">
+        <button
+          type="button"
+          class="rounded-lg border border-[var(--border-default)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)]"
+          onclick={() => onDuplicate()}
+        >
+          Duplicate
+        </button>
+        <button
+          type="button"
+          class="rounded-lg border border-rose-500/25 px-2.5 py-1 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-500/8 dark:text-rose-400"
+          onclick={() => onDelete()}
+        >
+          Delete
+        </button>
+      </div>
     {/if}
   </div>
 

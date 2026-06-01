@@ -58,7 +58,10 @@ export const variantTypes: VariantTypeDefinition[] = [
     value: 'image_with_prompt',
     label: 'Image With Prompt',
     category: 'image',
-    paramsExample: { prompt: 'a photo of a cat on a white background' },
+    paramsExample: {
+      prompt: 'a photo of a cat on a white background',
+      model: 'google/nano-banana-2:free',
+    },
   },
   {
     value: 'image_smart_crop',

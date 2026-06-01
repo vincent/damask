@@ -396,6 +396,7 @@ func (s *tagService) BatchTagsForAssets(ctx context.Context, assetIDs []string) 
 
 func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagName string) (*TagDTO, error) {
 	tagName = strings.ToLower(strings.TrimSpace(tagName))
+	slog.DebugContext(ctx, "tags: AddToAsset called", "workspace_id", workspaceID, "asset_id", assetID, "tag_name", tagName)
 	if tagName == "" {
 		return nil, fmt.Errorf("tag name is required: %w", apperr.ErrInvalidInput)
 	}
@@ -416,10 +417,12 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 	if err != nil {
 		return nil, err
 	}
+	slog.DebugContext(ctx, "tags: upserted tag", "tag_id", tag.ID, "tag_name", tag.Name)
 	// AddToAsset is idempotent: duplicate links are silently ignored at the repo level.
 	if err := s.tags.AddToAsset(ctx, assetID, tag.ID); err != nil {
 		return nil, err
 	}
+	slog.DebugContext(ctx, "tags: linked tag to asset", "asset_id", assetID, "tag_id", tag.ID)
 	dto := toTagDTO(tag)
 	actor := auth.ActorFromCtx(ctx)
 	s.audit.WriteAsset(ctx, audit.AssetEvent{

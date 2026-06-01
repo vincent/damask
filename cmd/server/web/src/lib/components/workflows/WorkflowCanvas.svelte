@@ -143,6 +143,19 @@
     }
   }
 
+  function duplicateNode(nodeId: string) {
+    const node = graph.nodes.find((n) => n.id === nodeId)
+    if (!node) return
+    const newId = `node_${Math.random().toString(36).slice(2, 8)}`
+    const newNode = {
+      ...node,
+      id: newId,
+      position: { x: node.position.x + 32, y: node.position.y + 32 },
+    }
+    graph = { ...graph, nodes: [...graph.nodes, newNode] }
+    selectedNodeId = newId
+  }
+
   function handleZoom(event: WheelEvent) {
     if (!event.shiftKey) return
     event.preventDefault()
@@ -216,7 +229,10 @@
         edge.to_node === nodeId &&
         edge.to_port === portId
     )
-    if (!duplicate) {
+    const inputOccupied = graph.edges.some(
+      (edge) => edge.to_node === nodeId && edge.to_port === portId
+    )
+    if (!duplicate && !inputOccupied) {
       graph = {
         ...graph,
         edges: [
@@ -370,6 +386,9 @@
       }}
       onDelete={() => {
         if (selectedNode) deleteNode(selectedNode.id)
+      }}
+      onDuplicate={() => {
+        if (selectedNode) duplicateNode(selectedNode.id)
       }}
     />
   {/if}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
@@ -664,10 +665,18 @@ func (n tagAssetNode) Execute(
 	if err := json.Unmarshal(cfg, &nodeCfg); err != nil {
 		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
+	slog.DebugContext(ctx, "action.tag: applying tag",
+		"workspace_id", workspaceID,
+		"asset_id", assetID,
+		"tag_name", nodeCfg.Name,
+	)
 	tagName, err := n.deps.Tags.AddToAsset(ctx, workspaceID, assetID, nodeCfg.Name)
 	if err != nil {
+		slog.ErrorContext(ctx, "action.tag: failed to apply tag", "err", err,
+			"workspace_id", workspaceID, "asset_id", assetID, "tag_name", nodeCfg.Name)
 		return "", nil, err
 	}
+	slog.DebugContext(ctx, "action.tag: tag applied", "tag_name", tagName)
 	return portOut, map[string]any{"tag_name": tagName}, nil
 }
 
