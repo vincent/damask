@@ -28,12 +28,14 @@ type OIDCConfig struct {
 
 // GoogleOIDCConfig holds config for Google OIDC login.
 type GoogleOIDCConfig struct {
+	Auth         bool
 	ClientID     string
 	ClientSecret string
 }
 
 // CanvaConfig holds config for Canva OAuth login and import.
 type CanvaConfig struct {
+	Auth         bool
 	ClientID     string
 	ClientSecret string
 }
@@ -137,6 +139,9 @@ func Load() (*Config, error) {
 		}
 	}
 
+	GOOGLE_CLIENT_ID := os.Getenv("GOOGLE_CLIENT_ID")
+	CANVA_CLIENT_ID := os.Getenv("CANVA_CLIENT_ID")
+
 	cfg := &Config{
 		Port:           getEnv("PORT", "8080"),
 		MailServerPort: getEnv("MAIL_PORT", "2525"),
@@ -212,11 +217,13 @@ func Load() (*Config, error) {
 		Label:        getEnv("OIDC_LABEL", "Sign in with SSO"),
 	}
 	cfg.Google = GoogleOIDCConfig{
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		Auth:         GOOGLE_CLIENT_ID != "" && getEnv("GOOGLE_SIGNIN", "false") == "true",
+		ClientID:     GOOGLE_CLIENT_ID,
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	}
 	cfg.Canva = CanvaConfig{
-		ClientID:     os.Getenv("CANVA_CLIENT_ID"),
+		Auth:         CANVA_CLIENT_ID != "" && getEnv("CANVA_SIGNIN", "false") == "true",
+		ClientID:     CANVA_CLIENT_ID,
 		ClientSecret: os.Getenv("CANVA_CLIENT_SECRET"),
 	}
 

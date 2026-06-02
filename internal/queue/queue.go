@@ -204,6 +204,7 @@ func (q *Queue) processNext(ctx context.Context) {
 	jobCtx, jobSpan := telemetry.StartBackgroundSpan(jobCtx, "service.queue.job."+job.Type,
 		attribute.String("job.id", job.ID),
 		attribute.String("job.type", job.Type),
+		attribute.String("job.params", job.Payload),
 		attribute.Int64("job.attempt", job.Attempts),
 		attribute.String("damask.workspace_id", job.WorkspaceID),
 	)
@@ -283,9 +284,9 @@ func (q *Queue) processNext(ctx context.Context) {
 
 // Job type constants used throughout the application.
 const (
-	JobTypeVersionThumbnail       = "version_thumbnail"
-	JobTypeVariantThumbnail       = "generate_variant_thumbnail"
-	JobTypeOCRTextTrack           = "ocr_text_track"
+	JobTypeVersionThumbnail         = "version_thumbnail"
+	JobTypeVariantThumbnail         = "generate_variant_thumbnail"
+	JobTypeOCRTextTrack             = "ocr_text_track"
 	JobTypeExtractPDFTextTrack      = "document_pdf_extract_text_track"
 	JobTypeExtractPlainTextTrack    = "document_plain_extract_text_track"
 	JobTypeExtractDocumentTextTrack = "document_office_extract_text_track"

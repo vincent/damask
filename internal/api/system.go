@@ -65,7 +65,7 @@ func (s *Server) handleAuthConfig(c fiber.Ctx) error {
 		"signup_enabled": s.cfg.EnableSignup,
 		"oidc_enabled":   oidcRT != nil,
 		"oidc_label":     s.cfg.OIDC.Label,
-		"google_enabled": googleRT != nil,
-		"canva_enabled":  s.cfg.Canva.ClientID != "",
+		"google_enabled": googleRT != nil && s.cfg.Google.Auth,
+		"canva_enabled":  s.cfg.Canva.ClientID != "" && s.cfg.Canva.Auth,
 	})
 }
