@@ -163,7 +163,7 @@
     <GeometricBackground />
   {/if}
 
-  {#snippet assetCardGrid(assets: Asset[])}
+  {#snippet assetCardGrid(assets: Asset[], withSentinel = false)}
     <div
       class="grid pt-2 {gridMode == 'compact'
         ? viewportStore.isMobile
@@ -204,10 +204,13 @@
           {/if}
         </div>
       {/each}
+      {#if withSentinel}
+        <div class="grid-sentinel opacity-0" bind:this={sentinel}>&nbsp;</div>
+      {/if}
     </div>
   {/snippet}
 
-  {#snippet assetTable(assets: Asset[])}
+  {#snippet assetTable(assets: Asset[], withSentinel = false)}
     <table
       class="asset-table w-full border-separate border-spacing-0 pt-2 text-left text-sm"
     >
@@ -290,6 +293,11 @@
             </td>
           </tr>
         {/each}
+        {#if withSentinel}
+          <tr class="grid-sentinel opacity-0" bind:this={sentinel}
+            ><td>&nbsp;</td></tr
+          >
+        {/if}
       </tbody>
     </table>
   {/snippet}
@@ -325,14 +333,14 @@
       </EmptyState>
     {/if}
   {:else if gridMode === 'table'}
-    {@render assetTable(assetsStore.assets)}
-    <div bind:this={sentinel} class="flex justify-center py-6">
+    {@render assetTable(assetsStore.assets, true)}
+    <div class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
       {/if}
     </div>
   {:else if sort === 'mimetype'}
-    {#each CATEGORY_ORDER as cat}
+    {#each CATEGORY_ORDER as cat, catIndex}
       {@const group = assetsStore.assetsByCategory[cat]}
       {#if group.length > 0}
         <div class="mb-10">
@@ -352,24 +360,24 @@
               >{group.length}</span
             >
           </div>
-          {@render assetCardGrid(group)}
+          {@render assetCardGrid(group, catIndex >= CATEGORY_ORDER.length - 1)}
         </div>
       {/if}
     {/each}
-    <div bind:this={sentinel} class="flex justify-center py-6">
+    <div class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
       {/if}
     </div>
   {:else if sort === 'taken_at'}
-    {@render assetCardGrid(assetsStore.assets)}
-    <div bind:this={sentinel} class="flex justify-center py-6">
+    {@render assetCardGrid(assetsStore.assets, true)}
+    <div class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
       {/if}
     </div>
   {:else if sort === 'created_at'}
-    {#each assetsByMonth as group}
+    {#each assetsByMonth as group, groupIndex}
       <div class="mb-10">
         <div
           class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-asset-grid)] py-2"
@@ -381,16 +389,19 @@
             >{group.assets.length}</span
           >
         </div>
-        {@render assetCardGrid(group.assets)}
+        {@render assetCardGrid(
+          group.assets,
+          groupIndex >= assetsByMonth.length - 1
+        )}
       </div>
     {/each}
-    <div bind:this={sentinel} class="flex justify-center py-6">
+    <div class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
       {/if}
     </div>
   {:else}
-    {#each assetsBySize as group}
+    {#each assetsBySize as group, groupIndex}
       <div class="mb-10">
         <div
           class="sticky top-[-25px] z-10 flex items-center gap-2 bg-[var(--bg-asset-grid)] py-2"
@@ -402,10 +413,13 @@
             >{group.assets.length}</span
           >
         </div>
-        {@render assetCardGrid(group.assets)}
+        {@render assetCardGrid(
+          group.assets,
+          groupIndex >= assetsBySize.length - 1
+        )}
       </div>
     {/each}
-    <div bind:this={sentinel} class="flex justify-center py-6">
+    <div class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
       {/if}
