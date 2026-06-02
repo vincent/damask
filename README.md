@@ -2,18 +2,9 @@
 
 A self-hosted Digital Asset Management (DAM) system. Single binary, local-first, multi-tenant.
 
-## Stack
-
-- **Backend:** Go + Fiber v3 + SQLite (CGO-free via modernc)
-- **Frontend:** SvelteKit 5 (runes) + Tailwind CSS v4 + SPA mode
-- **Auth:** HMAC-SHA256 JWTs stored as httpOnly cookies (7-day expiry)
-- **Storage:** Local filesystem (`Storage` interface, swappable for S3)
-- **Jobs:** In-process SQLite-backed job queue (thumbnails, variants, ingress)
-- **Ingress:** IMAP, SFTP, WebDAV, S3, Email API sources with rule engine
-- **Mail server:** Bundled SMTP server (port 2525) forward emails directly into asset ingress
-- **Real-time:** SSE event stream for live thumbnail updates
-
-> **Single-node only.** Damask currently uses SQLite and an in-process job queue: running multiple instances behind a load balancer is not supported and will cause data corruption.
+![Assets grid & folders](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_folders_drop.png)
+![Open asset](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_open.dark.png)
+![Workflow editor](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_workflows_editor.png)
 
 ## Features
 
@@ -76,6 +67,19 @@ A self-hosted Digital Asset Management (DAM) system. Single binary, local-first,
 **Observability**
 
 - OpenTelemetry tracing (plugs into any OTel-compatible backend)
+
+## Stack
+
+- **Backend:** Go + Fiber v3 + SQLite (CGO-free via modernc)
+- **Frontend:** SvelteKit 5 (runes) + Tailwind CSS v4 + SPA mode
+- **Auth:** HMAC-SHA256 JWTs stored as httpOnly cookies (7-day expiry)
+- **Storage:** Local filesystem (`Storage` interface, swappable for S3)
+- **Jobs:** In-process SQLite-backed job queue (thumbnails, variants, ingress)
+- **Ingress:** IMAP, SFTP, WebDAV, S3, Email API sources with rule engine
+- **Mail server:** Bundled SMTP server (port 2525) forward emails directly into asset ingress
+- **Real-time:** SSE event stream for live thumbnail updates
+
+> **Single-node only.** Damask currently uses SQLite and an in-process job queue: running multiple instances behind a load balancer is not supported and will cause data corruption.
 
 ## Getting Started with Docker
 
@@ -262,7 +266,7 @@ your.domain.com {
 }
 ```
 
-### nginx
+### Nginx
 
 ```nginx
 server {
