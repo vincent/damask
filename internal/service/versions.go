@@ -279,11 +279,6 @@ func (s *versionService) UploadNewVersion(
 		return nil, fmt.Errorf("could not hash file: %w", err)
 	}
 
-	var prevVersionID string
-	if asset.CurrentVersionID != nil {
-		prevVersionID = *asset.CurrentVersionID
-	}
-
 	existing, hashErr := s.versions.GetByHash(ctx, p.AssetID, hash)
 	if hashErr == nil && existing.IsCurrent {
 		return nil, fmt.Errorf("this file is identical to the current version: %w", apperr.ErrConflict)
@@ -397,27 +392,6 @@ func (s *versionService) UploadNewVersion(
 				err,
 			)
 		}
-	}
-
-	// todo: remove me ?
-	if err := jobs.EnqueueRebuildVariantsJob(
-		ctx,
-		s.queue,
-		p.WorkspaceID,
-		p.AssetID,
-		newVersion.ID,
-		prevVersionID,
-	); err != nil {
-		slog.ErrorContext(
-			ctx,
-			"enqueue rebuild variants",
-			"asset_id",
-			p.AssetID,
-			"version_id",
-			newVersion.ID,
-			"error",
-			err,
-		)
 	}
 
 	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
