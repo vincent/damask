@@ -1,6 +1,6 @@
 # Damask
 
-A self-hosted Digital Asset Management (DAM) system. Single binary, local-first, multi-tenant.
+A self-hosted Digital Asset Management (DAM) system. Single binary, local-first, multi-tenant. [Try the demo](https://staging.damask.studio/login)
 
 ![Assets grid & folders](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_folders_drop.png)
 ![Open asset](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_open.dark.png)
@@ -81,7 +81,7 @@ A self-hosted Digital Asset Management (DAM) system. Single binary, local-first,
 
 > **Single-node only.** Damask currently uses SQLite and an in-process job queue: running multiple instances behind a load balancer is not supported and will cause data corruption.
 
-## Getting Started with Docker
+## Getting Started with Docker (recommended)
 
 ```yaml
 damask:
@@ -99,13 +99,21 @@ damask:
     - 80:8080 # web
     - 25:2525 # to enable email ingress
   volumes:
-    - /srv/damask/data:/data
+    - damask_data:/data
 ```
 
 or
 
 ```sh
-docker run --name damask -h damask --restart unless-stopped -e APP_SECRET=change-me-to-a-long-random-secret -e JWT_SECRET=change-me-to-a-long-random-secret -e BASE_URL=https://your.own.damask.com --expose 2525 -p 80:8080 -p 25:2525 -v /srv/damask/data:/data ghcr.io/vincent/damask:latest
+docker run --name damask -h damask \
+           --restart unless-stopped \
+           -e APP_SECRET=change-me-to-a-long-random-secret \
+           -e JWT_SECRET=change-me-to-a-long-random-secret \
+           -e BASE_URL=https://your.own.damask.com \
+           --expose 2525 \
+           -p 80:8080 -p 25:2525 \ 
+           -v /srv/damask/data:/data \
+           ghcr.io/vincent/damask:latest
 ```
 
 ## Getting Started with local install
@@ -115,7 +123,8 @@ docker run --name damask -h damask --restart unless-stopped -e APP_SECRET=change
 - Go 1.22+
 - Node.js 20+
 - ImageMagick 6 (for image processing)
-- FFmpeg (for video/audio processing)
+- FFmpeg (optional, for video/audio processing)
+- LibreOffice (optional, for document processing)
 - Tesseract (optional, for OCR text extraction — install language packs e.g. `tesseract-ocr-eng`)
 
 ### Setup
