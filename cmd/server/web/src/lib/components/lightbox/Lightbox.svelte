@@ -63,7 +63,7 @@
           ├── [comments] AssetComments
           ├── [history]  LightboxHistoryTab   → onVersionChanged → asset = updated
           ├── [activity] AssetActivity
-          └── [actions]  LightboxActionsTab   → ondeleted
+          └── [actions]  LightboxActionsTab   → ondeleted, onOpenGridView
   /**/
 
   interface Props {
@@ -71,6 +71,7 @@
     onClose: () => void
     onDeleted: (id: string) => void
     onAssetUpdated?: (updated: Asset) => void
+    onOpenGridView?: (assetId: string) => void
   }
 
   let {
@@ -78,6 +79,7 @@
     onClose,
     onDeleted,
     onAssetUpdated,
+    onOpenGridView,
   }: Props = $props()
 
   // --- Zoom refs for keyboard shortcuts ---
@@ -354,7 +356,13 @@
       {:else if activeTab === 'activity'}
         <AssetActivity {asset} />
       {:else if activeTab === 'actions'}
-        <LightboxActionsTab {asset} {onDeleted} onAssetSelected={onOpenAsset} />
+        <LightboxActionsTab
+          {asset}
+          {onDeleted}
+          {onClose}
+          {onOpenAsset}
+          {onOpenGridView}
+        />
       {/if}
     </div>
   </div>

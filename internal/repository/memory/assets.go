@@ -43,9 +43,30 @@ func (r *AssetRepo) GetByID(_ context.Context, workspaceID, id string) (reposito
 func (r *AssetRepo) List(_ context.Context, params repository.ListAssetsParams) ([]repository.Asset, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	var similarAllow map[string]struct{}
+	if params.SimilarToIDs != nil {
+		similarAllow = make(map[string]struct{}, len(params.SimilarToIDs))
+		for _, id := range params.SimilarToIDs {
+			similarAllow[id] = struct{}{}
+		}
+	}
 	var out []repository.Asset
 	for _, a := range r.assets {
 		if a.WorkspaceID != params.WorkspaceID {
+			continue
+		}
+		if similarAllow != nil {
+			if _, ok := similarAllow[a.ID]; !ok {
+				continue
+			}
+		}
+		if params.FolderID != nil && (a.FolderID == nil || *a.FolderID != *params.FolderID) {
+			continue
+		}
+		if params.FolderIsRoot && a.FolderID != nil {
+			continue
+		}
+		if params.ProjectID != nil && (a.ProjectID == nil || *a.ProjectID != *params.ProjectID) {
 			continue
 		}
 		out = append(out, a)

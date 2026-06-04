@@ -1149,5 +1149,11 @@
   "no_similar_results": "No similar images found",
   "results_title": "Similar images",
   "result_count": "{count} similar images found",
-  "not_indexed": "Similarity index not available for this asset"
+  "not_indexed": "Similarity index not available for this asset",
+  "similarity_open_grid_view": "Open grid view",
+  "similarity_banner_label": "Similar to:",
+  "similarity_result_count": "{count} matches",
+  "similarity_source_badge": "Source",
+  "similarity_empty_in_context": "No similar images in this folder.",
+  "similarity_search_workspace": "Search entire workspace →"
 }

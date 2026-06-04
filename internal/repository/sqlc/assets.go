@@ -68,8 +68,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	}
 
 	if len(p.TagNames) > 0 {
-		placeholders := strings.Repeat("?,", len(p.TagNames))
-		placeholders = placeholders[:len(placeholders)-1]
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(p.TagNames)), ",")
 		where = append(where, fmt.Sprintf(
 			"a.id IN (SELECT at.asset_id FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE t.workspace_id = ? AND t.name IN (%s) GROUP BY at.asset_id HAVING COUNT(DISTINCT t.id) = ?)",
 			placeholders,
@@ -92,6 +91,18 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	if p.MimePrefix != nil {
 		where = append(where, "a.mime_type LIKE ?")
 		args = append(args, *p.MimePrefix+"%")
+	}
+
+	if p.SimilarToIDs != nil {
+		if len(p.SimilarToIDs) == 0 {
+			where = append(where, "1 = 0")
+		} else {
+			placeholders := strings.TrimSuffix(strings.Repeat("?,", len(p.SimilarToIDs)), ",")
+			where = append(where, fmt.Sprintf("a.id IN (%s)", placeholders))
+			for _, id := range p.SimilarToIDs {
+				args = append(args, id)
+			}
+		}
 	}
 
 	// Cursor

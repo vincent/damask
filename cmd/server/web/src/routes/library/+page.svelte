@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte'
+  import { page } from '$app/state'
   import { assetApi, type Asset, type MenuItem } from '$lib/api'
   import {
     APPSHELL_KEY,
@@ -23,8 +24,9 @@
   import ProjectInfoPanel from '$lib/components/ProjectInfoPanel.svelte'
   import TagFilterBar from '$lib/components/TagFilterBar.svelte'
   import CustomFieldFilters from '$lib/components/CustomFieldFilters.svelte'
+  import SimilarityBanner from '$lib/components/SimilarityBanner.svelte'
   import UploadsTray from '$lib/components/UploadsTray.svelte'
-  import { goto } from '$app/navigation'
+  import { goto, pushState, replaceState } from '$app/navigation'
   import { Book, Box, LibraryBig, Menu, X } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
   import { collectionsStore } from '$lib/stores/collections.svelte'
@@ -57,6 +59,8 @@
     null
   )
   let draggingProjectCover = $state(false)
+  let lastSimilarToParam = $state<string | null>(null)
+  let lastSyncedUrl = $state('')
 
   let sort = $state<'mimetype' | 'created_at' | 'size' | 'taken_at'>(
     (assetsStore.sortKey as 'mimetype' | 'created_at' | 'size' | 'taken_at') ??
@@ -96,9 +100,12 @@
   const rb = createRubberBand(() => mainEl)
 
   function handleCardClick(asset: Asset, index: number, event: MouseEvent) {
+    const isSimilaritySource =
+      assetsStore.similarity?.anchor_asset_id === asset.id
     // In stack mode, shift-click selection is disabled — plain click falls through to lightbox
     const handled =
       !stackStore.active &&
+      !isSimilaritySource &&
       selectionStore.handleCardClick(
         asset,
         index,
@@ -151,6 +158,45 @@
   function handleBulkDone() {
     selectionStore.clear()
     assetsStore.invalidate()
+  }
+
+  function libraryUrlWithSimilarity(assetId: string | null) {
+    const url = new URL(page.url)
+    if (assetId) {
+      url.searchParams.set('similar_to', assetId)
+    } else {
+      url.searchParams.delete('similar_to')
+    }
+    return url.pathname + url.search
+  }
+
+  function syncSimilarityUrl(assetId: string | null, mode: 'push' | 'replace') {
+    const next = libraryUrlWithSimilarity(assetId)
+    if (next === lastSyncedUrl) return
+    lastSyncedUrl = next
+    if (mode === 'push') {
+      pushState(next, {})
+    } else {
+      replaceState(next, {})
+    }
+  }
+
+  function clearSimilarity() {
+    assetsStore.clearSimilarity()
+    syncSimilarityUrl(null, 'replace')
+  }
+
+  function navigateToSimilarity(assetId: string) {
+    assetsStore.setSimilarTo(assetId, { load: false })
+    syncSimilarityUrl(assetId, 'push')
+    assetsStore.load(true)
+  }
+
+  function searchEntireWorkspace() {
+    navigationStore.selectProject(null)
+    assetsStore.setActiveTags([], { load: false })
+    syncSimilarityUrl(assetsStore.similarTo, 'push')
+    assetsStore.load(true)
   }
 
   async function confirmDeleteAssets() {
@@ -217,6 +263,16 @@
 
   $effect(() => {
     setShortcutContext(selectedAsset ? 'lightbox' : 'grid')
+  })
+
+  $effect(() => {
+    const param = page.url.searchParams.get('similar_to')
+    if (param === lastSimilarToParam) return
+    lastSimilarToParam = param
+    if (assetsStore.similarTo !== param) {
+      assetsStore.setSimilarTo(param, { load: false })
+    }
+    lastSyncedUrl = page.url.pathname + page.url.search
   })
 
   function moveSelection(delta: number) {
@@ -407,6 +463,19 @@
   </div>
 {/if}
 
+{#if assetsStore.similarTo && assetsStore.similarity}
+  <SimilarityBanner
+    anchorFilename={assetsStore.similarity.anchor_filename}
+    anchorAssetId={assetsStore.similarity.anchor_asset_id}
+    resultCount={assetsStore.similarity.result_count}
+    onClear={clearSimilarity}
+    onOpenAnchor={async () => {
+      if (!assetsStore.similarity) return
+      selectedAsset = await assetApi.get(assetsStore.similarity.anchor_asset_id)
+    }}
+  />
+{/if}
+
 <div
   class="flex items-center border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]"
 >
@@ -472,6 +541,7 @@
   onDragLeave={handleMainDragLeave}
   onDrop={handleMainDrop}
   onMouseDown={(e) => rb.onMouseDown(e)}
+  onSearchEntireWorkspace={searchEntireWorkspace}
 />
 
 {#if rb.band && rb.band.w > 2 && rb.band.h > 2}
@@ -490,6 +560,10 @@
     selectedAsset = updated
     assetsStore.patchAsset(updated.id, updated)
     assetsStore.reloadAssetResources(updated.id)
+  }}
+  onOpenGridView={(id) => {
+    selectedAsset = null
+    navigateToSimilarity(id)
   }}
 />
 

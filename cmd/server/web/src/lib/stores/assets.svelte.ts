@@ -3,6 +3,7 @@ import {
   mimeCategory,
   openThumbnailEvents,
   type Asset,
+  type AssetListResponse,
 } from '$lib/api'
 import type { FieldFilter } from '$lib/api/models'
 import { navigationStore } from './navigation.svelte'
@@ -15,6 +16,10 @@ let initialLoad = $state(true)
 let stale = $state(false)
 let query = $state('')
 let activeTags = $state<string[]>([])
+let similarTo = $state<string | null>(null)
+let similarity = $state<AssetListResponse['similarity'] | null>(null)
+let similarToNotIndexed = $state(false)
+let similarToNoMatches = $state(false)
 
 let sortKey = $state(localStorage.getItem('library-sort-key') ?? 'created_at')
 let sortAsc = $state(localStorage.getItem('library-sort-asc') === 'true')
@@ -177,12 +182,16 @@ async function load(reset = false) {
       tags: activeTags.length > 0 ? activeTags : undefined,
       folder_id: navigationStore.activeFolderId ?? undefined,
       collection_id: navigationStore.activeCollectionId ?? undefined,
+      similar_to: similarTo ?? undefined,
       fieldFilters: fieldFilters.length > 0 ? fieldFilters : undefined,
       limit: 20,
     })
     if (myGen !== generation) return
     assets = reset ? result.assets : [...assets, ...result.assets]
     nextCursor = result.next_cursor
+    similarity = result.similarity ?? null
+    similarToNotIndexed = !!result.similar_to_not_indexed
+    similarToNoMatches = !!result.similar_to_no_matches
     if (reset) resetDone++
   } catch {
     // 401 redirect handled by api client
@@ -216,6 +225,18 @@ export const assetsStore = {
   },
   get activeTags() {
     return activeTags
+  },
+  get similarTo() {
+    return similarTo
+  },
+  get similarity() {
+    return similarity
+  },
+  get similarToNotIndexed() {
+    return similarToNotIndexed
+  },
+  get similarToNoMatches() {
+    return similarToNoMatches
   },
   get fieldFilters() {
     return fieldFilters
@@ -257,10 +278,23 @@ export const assetsStore = {
     }, 300)
   },
 
-  setActiveTags(tags: string[]) {
+  setActiveTags(tags: string[], options: { load?: boolean } = {}) {
     activeTags = tags
     nextCursor = null
-    load(true)
+    if (options.load !== false) load(true)
+  },
+
+  setSimilarTo(assetId: string | null, options: { load?: boolean } = {}) {
+    similarTo = assetId
+    similarity = null
+    similarToNotIndexed = false
+    similarToNoMatches = false
+    nextCursor = null
+    if (options.load !== false) load(true)
+  },
+
+  clearSimilarity(options: { load?: boolean } = {}) {
+    assetsStore.setSimilarTo(null, options)
   },
 
   setFieldFilters(filters: FieldFilter[]) {

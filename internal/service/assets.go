@@ -93,6 +93,7 @@ func (s *assetService) List(ctx context.Context, params ListAssetsParams) (out [
 		TagNames:     params.TagNames,
 		SearchQuery:  params.SearchQuery,
 		MimePrefix:   params.MimePrefix,
+		SimilarToIDs: params.SimilarToIDs,
 		SortField:    params.SortField,
 		SortDesc:     params.SortDesc,
 		CursorField:  params.CursorField,

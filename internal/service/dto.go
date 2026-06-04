@@ -25,6 +25,8 @@ type ListAssetsParams struct {
 	TagNames     []string
 	SearchQuery  string
 	MimePrefix   *string
+	// SimilarToIDs, when non-nil, restricts results to these asset IDs.
+	SimilarToIDs []string
 	// Sort: "created_at" (default), "size", "id", "taken_at"
 	SortField string
 	SortDesc  bool

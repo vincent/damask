@@ -372,6 +372,8 @@ type ListAssetsParams struct {
 	SearchQuery string
 	// MIME prefix filter
 	MimePrefix *string
+	// SimilarToIDs, when non-nil, restricts results to these asset IDs.
+	SimilarToIDs []string
 	// Sort: "created_at" (default), "size", "id", "taken_at"
 	SortField string
 	SortDesc  bool // for taken_at: true = DESC (NULLs last always)

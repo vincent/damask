@@ -73,18 +73,20 @@
 </PageContainer>
 
 <Modal bind:open={showConfirm} onclose={() => (showConfirm = false)}>
-  <h2 class="mb-3 text-lg font-semibold text-[var(--text-primary)]">
-    {m.visual_similarity_backfill()}?
-  </h2>
-  <p class="text-md text-[var(--text-secondary)]">
-    {m.visual_similarity_backfill_description()}
-  </p>
-  <div class="mt-6 flex justify-end gap-3">
-    <Button variant="secondary" onclick={() => (showConfirm = false)}>
-      {m.cancel()}
-    </Button>
-    <Button variant="primary" onclick={triggerBackfill}>
-      {m.visual_similarity_backfill_run()}
-    </Button>
+  <div class="p-6">
+    <h2 class="mb-3 text-lg font-semibold text-[var(--text-primary)]">
+      {m.visual_similarity_backfill()}?
+    </h2>
+    <p class="text-md text-[var(--text-secondary)]">
+      {m.visual_similarity_backfill_description()}
+    </p>
+    <div class="mt-6 flex justify-end gap-3">
+      <Button variant="secondary" onclick={() => (showConfirm = false)}>
+        {m.cancel()}
+      </Button>
+      <Button variant="primary" onclick={triggerBackfill}>
+        {m.visual_similarity_backfill_run()}
+      </Button>
+    </div>
   </div>
 </Modal>

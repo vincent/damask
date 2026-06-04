@@ -13,7 +13,7 @@ import (
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
-	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/telemetry"
 
 	"github.com/gofiber/fiber/v3"
 	"go.opentelemetry.io/otel/attribute"
@@ -60,8 +60,18 @@ type AssetResponse struct {
 }
 
 type AssetListResponse struct {
-	Assets     []AssetResponse `json:"assets"`
-	NextCursor *string         `json:"next_cursor"`
+	Assets              []AssetResponse      `json:"assets"`
+	NextCursor          *string              `json:"next_cursor"`
+	Total               *int                 `json:"total,omitempty"`
+	Similarity          *AssetSimilarityMeta `json:"similarity,omitempty"`
+	SimilarToNotIndexed bool                 `json:"similar_to_not_indexed,omitempty"`
+	SimilarToNoMatches  bool                 `json:"similar_to_no_matches,omitempty"`
+}
+
+type AssetSimilarityMeta struct {
+	AnchorAssetID  string `json:"anchor_asset_id"`
+	AnchorFilename string `json:"anchor_filename"`
+	ResultCount    int    `json:"result_count"`
 }
 
 func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
@@ -150,11 +160,11 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	var asset *service.AssetDTO
 
-	ctx, rootSpan := apptelemetry.StartSpan(c.Context(), "api.assets.upload",
+	ctx, rootSpan := telemetry.StartSpan(c.Context(), "api.assets.upload",
 		attribute.String("damask.workspace_id", claims.WorkspaceID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(rootSpan, err)
+		telemetry.EndSpan(rootSpan, err)
 		if err != nil {
 			rootSpan.SetStatus(codes.Error, err.Error())
 			slog.ErrorContext(
@@ -244,7 +254,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 func (s *Server) handleListAssets(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
-	_, span := apptelemetry.StartSpan(c.Context(), "parse.args")
+	_, span := telemetry.StartSpan(c.Context(), "parse.args")
 	limit := maxPageSize
 	if l := c.Query("limit"); l != "" {
 		if n, err := strconv.ParseInt(l, 10, 64); err == nil && n > 0 && n <= 100 {
@@ -298,6 +308,49 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		lp.MimePrefix = &mime
 	}
 
+	var similarityMeta *AssetSimilarityMeta
+	var anchor *service.AssetDTO
+	similarToNotIndexed := false
+	similarToNoMatches := false
+	if similarTo := c.Query("similar_to"); similarTo != "" {
+		anchorDTO, err := s.assets.Get(c.Context(), claims.WorkspaceID, similarTo)
+		if err != nil {
+			return ErrorStatusResponse(c, err)
+		}
+		if !strings.HasPrefix(anchorDTO.MimeType, "image/") {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "not_an_image"})
+		}
+
+		anchor = anchorDTO
+		similarityMeta = &AssetSimilarityMeta{
+			AnchorAssetID:  anchor.ID,
+			AnchorFilename: anchor.OriginalFilename,
+		}
+
+		if anchorDTO.CurrentVersionID == nil || s.visualSimilaritySvc == nil {
+			lp.SimilarToIDs = []string{}
+			similarToNotIndexed = true
+		} else {
+			similar, err := s.visualSimilaritySvc.FindSimilarEnriched(c.Context(), claims.WorkspaceID, *anchorDTO.CurrentVersionID)
+			if err != nil {
+				return errRes(c, fiber.StatusInternalServerError, "could not find similar assets")
+			}
+			seen := map[string]struct{}{anchor.ID: {}}
+			lp.SimilarToIDs = make([]string, 0, len(similar))
+			for _, item := range similar {
+				if _, ok := seen[item.AssetID]; ok {
+					continue
+				}
+				seen[item.AssetID] = struct{}{}
+				lp.SimilarToIDs = append(lp.SimilarToIDs, item.AssetID)
+			}
+			if len(lp.SimilarToIDs) == 0 {
+				similarToNotIndexed = false
+				similarToNoMatches = true
+			}
+		}
+	}
+
 	// Sort
 	sort := c.Query("sort")
 	switch sort {
@@ -336,15 +389,32 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 	span.End()
 
-	ctx, span := apptelemetry.StartSpan(c.Context(), "fetch")
+	ctx, span := telemetry.StartSpan(c.Context(), "fetch")
 	assets, err := s.assets.List(c.Context(), lp)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not list assets", apiErrorKey, err)
 		return errRes(c, fiber.StatusInternalServerError, "could not list assets")
 	}
-	apptelemetry.EndSpan(span, err)
+	telemetry.EndSpan(span, err)
 
-	_, span = apptelemetry.StartSpan(c.Context(), "batch.counts")
+	similarAssets := assets
+	resultCount := len(assets)
+	if similarityMeta != nil {
+		similarityMeta.ResultCount = resultCount
+		if anchor != nil && lp.CursorID == "" {
+			deduped := make([]*service.AssetDTO, 0, len(assets)+1)
+			deduped = append(deduped, anchor)
+			for _, a := range assets {
+				if a.ID == anchor.ID {
+					continue
+				}
+				deduped = append(deduped, a)
+			}
+			assets = deduped
+		}
+	}
+
+	_, span = telemetry.StartSpan(c.Context(), "batch.counts")
 	ids := make([]string, len(assets))
 	for i, a := range assets {
 		ids[i] = a.ID
@@ -354,9 +424,16 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	tagsByAsset, _ := s.tags.BatchTagsForAssets(c.Context(), ids)
 	span.End()
 
-	return c.JSON(
-		buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts, tagsByAsset),
-	)
+	response := buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts, tagsByAsset)
+	if similarityMeta != nil {
+		total := resultCount
+		response.NextCursor = nextCursorFor(similarAssets, limit, lp.SortField)
+		response.Total = &total
+		response.Similarity = similarityMeta
+		response.SimilarToNotIndexed = similarToNotIndexed
+		response.SimilarToNoMatches = similarToNoMatches
+	}
+	return c.JSON(response)
 }
 
 // buildAssetListResponseFromDTOs builds an AssetListResponse from service.AssetDTO slice.
@@ -400,26 +477,29 @@ func buildAssetListResponseFromDTOs(
 			VariantCount:         nVariants,
 		}
 	}
-	var nextCursor *string
-	if int64(len(assets)) == limit && len(assets) > 0 {
-		last := assets[len(assets)-1]
-		var cv cursorVal
-		cv.ID = last.ID
-		switch sortField {
-		case sortFieldSize:
-			cv.Field = sortFieldSize
-			cv.Value = strconv.FormatInt(last.Size, 10)
-		case "id":
-			cv.Field = "id"
-			cv.Value = last.ID
-		default:
-			cv.Field = "created_at"
-			cv.Value = last.CreatedAt.UTC().Format("2006-01-02 15:04:05")
-		}
-		encoded := encodeCursor(cv)
-		nextCursor = &encoded
+	return AssetListResponse{Assets: items, NextCursor: nextCursorFor(assets, limit, sortField)}
+}
+
+func nextCursorFor(assets []*service.AssetDTO, limit int64, sortField string) *string {
+	if int64(len(assets)) != limit || len(assets) == 0 {
+		return nil
 	}
-	return AssetListResponse{Assets: items, NextCursor: nextCursor}
+	last := assets[len(assets)-1]
+	var cv cursorVal
+	cv.ID = last.ID
+	switch sortField {
+	case sortFieldSize:
+		cv.Field = sortFieldSize
+		cv.Value = strconv.FormatInt(last.Size, 10)
+	case "id":
+		cv.Field = "id"
+		cv.Value = last.ID
+	default:
+		cv.Field = "created_at"
+		cv.Value = last.CreatedAt.UTC().Format("2006-01-02 15:04:05")
+	}
+	encoded := encodeCursor(cv)
+	return &encoded
 }
 
 type cursorVal struct {
@@ -590,12 +670,12 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		return nil
 	}
 
-	_, storageSpan := apptelemetry.StartSpan(c.Context(), "api.assets.storage_get",
+	_, storageSpan := telemetry.StartSpan(c.Context(), "api.assets.storage_get",
 		attribute.String("damask.asset_id", id),
 		attribute.String("damask.storage.key", version.StorageKey),
 	)
 	rc, err := s.storage.Get(version.StorageKey)
-	apptelemetry.EndSpan(storageSpan, err)
+	telemetry.EndSpan(storageSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
@@ -645,12 +725,12 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 		return nil
 	}
 
-	_, storageSpan := apptelemetry.StartSpan(c.Context(), "api.assets.thumbnail_storage_get",
+	_, storageSpan := telemetry.StartSpan(c.Context(), "api.assets.thumbnail_storage_get",
 		attribute.String("damask.asset_id", id),
 		attribute.String("damask.storage.key", *dto.ThumbnailKey),
 	)
 	rc, err := s.storage.Get(*dto.ThumbnailKey)
-	apptelemetry.EndSpan(storageSpan, err)
+	telemetry.EndSpan(storageSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}

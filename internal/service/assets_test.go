@@ -137,6 +137,70 @@ func TestAssetService_List_WorkspaceIsolation(t *testing.T) {
 	}
 }
 
+func TestAssetService_List_SimilarToIDsRestrictsResults(t *testing.T) {
+	t.Parallel()
+	svc, repo := newAssetSvc(t)
+	folderID := "folder_1"
+	otherFolderID := "folder_2"
+	repo.Seed(
+		repository.Asset{ID: "a1", WorkspaceID: "ws_1", FolderID: &folderID, OriginalFilename: "a.jpg"},
+		repository.Asset{ID: "a2", WorkspaceID: "ws_1", FolderID: &folderID, OriginalFilename: "b.jpg"},
+		repository.Asset{ID: "a3", WorkspaceID: "ws_1", FolderID: &otherFolderID, OriginalFilename: "c.jpg"},
+		repository.Asset{ID: "a4", WorkspaceID: "ws_1", FolderID: &folderID, OriginalFilename: "d.jpg"},
+	)
+
+	out, err := svc.List(context.Background(), service.ListAssetsParams{
+		WorkspaceID:  "ws_1",
+		FolderID:     &folderID,
+		SimilarToIDs: []string{"a1", "a3"},
+		Limit:        50,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 1 || out[0].ID != "a1" {
+		t.Fatalf("expected only a1 after allowlist and folder intersection, got %#v", out)
+	}
+}
+
+func TestAssetService_List_SimilarToIDsEmptyReturnsNoRows(t *testing.T) {
+	t.Parallel()
+	svc, repo := newAssetSvc(t)
+	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "a.jpg"})
+
+	out, err := svc.List(context.Background(), service.ListAssetsParams{
+		WorkspaceID:  "ws_1",
+		SimilarToIDs: []string{},
+		Limit:        50,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 0 {
+		t.Fatalf("expected empty allowlist to return no rows, got %d", len(out))
+	}
+}
+
+func TestAssetService_List_SimilarToIDsNilAppliesNoRestriction(t *testing.T) {
+	t.Parallel()
+	svc, repo := newAssetSvc(t)
+	repo.Seed(
+		repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "a.jpg"},
+		repository.Asset{ID: "a2", WorkspaceID: "ws_1", OriginalFilename: "b.jpg"},
+	)
+
+	out, err := svc.List(context.Background(), service.ListAssetsParams{
+		WorkspaceID: "ws_1",
+		Limit:       50,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("expected nil allowlist to apply no restriction, got %d", len(out))
+	}
+}
+
 // --- Rename ---
 
 func TestAssetService_Rename_EmptyStem(t *testing.T) {

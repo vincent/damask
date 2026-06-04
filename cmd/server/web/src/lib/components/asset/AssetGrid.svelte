@@ -38,36 +38,6 @@
     { label: '< 1 MB', min: 0 },
   ]
 
-  const assetsBySize = $derived.by(() => {
-    if (sort !== 'size') return []
-    const groups: { label: string; assets: Asset[] }[] = []
-    for (let i = 0; i < SIZE_BUCKETS.length; i++) {
-      const { label, min } = SIZE_BUCKETS[i]
-      const max = i === 0 ? Infinity : SIZE_BUCKETS[i - 1].min
-      const assets = assetsStore.assets.filter(
-        (a) => a.size >= min && a.size < max
-      )
-      if (assets.length > 0) groups.push({ label, assets })
-    }
-    return groups
-  })
-
-  const assetsByMonth = $derived.by(() => {
-    if (sort === 'created_at') {
-      const groups: { label: string; assets: Asset[] }[] = []
-      for (const asset of assetsStore.assets) {
-        const label = fmt.format(new Date(asset.created_at))
-        if (groups.length === 0 || groups[groups.length - 1].label !== label) {
-          groups.push({ label, assets: [asset] })
-        } else {
-          groups[groups.length - 1].assets.push(asset)
-        }
-      }
-      return groups
-    }
-    return []
-  })
-
   type Props = {
     seenSplashScreen: boolean
     sort: 'mimetype' | 'created_at' | 'size' | 'taken_at'
@@ -80,6 +50,7 @@
     onDragLeave: (e: DragEvent) => void
     onDrop: (e: DragEvent) => void
     onMouseDown: (e: MouseEvent) => void
+    onSearchEntireWorkspace: () => void
   }
 
   let {
@@ -94,12 +65,64 @@
     onDragLeave,
     onDrop,
     onMouseDown,
+    onSearchEntireWorkspace,
   }: Props = $props()
 
   let sentinel = $state<HTMLDivElement | undefined>(undefined)
 
   let zoom = $derived(statusBarStore.zoom)
   let maxZoom = $derived(statusBarStore.maxZoom)
+  const sourceAsset = $derived.by(() => {
+    const meta = assetsStore.similarity
+    if (!meta) return null
+    return (
+      assetsStore.assets.find((asset) => asset.id === meta.anchor_asset_id) ??
+      null
+    )
+  })
+  const displayAssets = $derived.by(() =>
+    sourceAsset
+      ? assetsStore.assets.filter((asset) => asset.id !== sourceAsset.id)
+      : assetsStore.assets
+  )
+
+  const assetsByCategory = $derived.by(() => {
+    if (sort !== 'mimetype') return {} as Record<string, Asset[]>
+    const result: Record<string, Asset[]> = {}
+    for (const asset of displayAssets) {
+      const cat = mimeCategory(asset.mime_type)
+      ;(result[cat] ??= []).push(asset)
+    }
+    return result
+  })
+
+  const assetsBySize = $derived.by(() => {
+    if (sort !== 'size') return []
+    const groups: { label: string; assets: Asset[] }[] = []
+    for (let i = 0; i < SIZE_BUCKETS.length; i++) {
+      const { label, min } = SIZE_BUCKETS[i]
+      const max = i === 0 ? Infinity : SIZE_BUCKETS[i - 1].min
+      const assets = displayAssets.filter((a) => a.size >= min && a.size < max)
+      if (assets.length > 0) groups.push({ label, assets })
+    }
+    return groups
+  })
+
+  const assetsByMonth = $derived.by(() => {
+    if (sort === 'created_at') {
+      const groups: { label: string; assets: Asset[] }[] = []
+      for (const asset of displayAssets) {
+        const label = fmt.format(new Date(asset.created_at))
+        if (groups.length === 0 || groups[groups.length - 1].label !== label) {
+          groups.push({ label, assets: [asset] })
+        } else {
+          groups[groups.length - 1].assets.push(asset)
+        }
+      }
+      return groups
+    }
+    return []
+  })
 
   $effect(() => {
     void assetsStore.resetDone // re-create observer after each reset so it fires immediately if sentinel is already visible
@@ -171,7 +194,7 @@
           : 'gap-4'
         : viewportStore.isMobile
           ? 'gap-6'
-          : 'gap-30'}"
+          : 'gap-8'}"
       style="grid-template-columns: repeat({viewportStore.isMobile
         ? Math.min(1 + maxZoom - Math.floor(zoom), 2)
         : 1 + maxZoom - Math.floor(zoom)}, minmax(0, 1fr))"
@@ -195,7 +218,9 @@
             requiresFields={uploadsStore.recentlyUploadedIds.has(asset.id)}
             isSelected={selectionStore.selectedIds.has(asset.id)}
             onclick={(e) => onCardClick(asset, globalIndex, e)}
-            onLongPress={() => selectionStore.toggle(asset, globalIndex)}
+            onLongPress={() => {
+              selectionStore.toggle(asset, globalIndex)
+            }}
           />
 
           <!-- Stack indicator -->
@@ -332,8 +357,21 @@
         {#snippet icon()}<Inbox class="h-16 w-16" />{/snippet}
       </EmptyState>
     {/if}
+  {:else if sourceAsset && displayAssets.length === 0}
+    <div class="mt-8 flex flex-col items-center gap-3 text-center">
+      <p class="text-sm font-medium text-[var(--text-secondary)]">
+        {m.similarity_empty_in_context()}
+      </p>
+      <button
+        type="button"
+        class="rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+        onclick={onSearchEntireWorkspace}
+      >
+        {m.similarity_search_workspace()}
+      </button>
+    </div>
   {:else if gridMode === 'table'}
-    {@render assetTable(assetsStore.assets, true)}
+    {@render assetTable(displayAssets, true)}
     <div class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
@@ -341,7 +379,7 @@
     </div>
   {:else if sort === 'mimetype'}
     {#each CATEGORY_ORDER as cat, catIndex}
-      {@const group = assetsStore.assetsByCategory[cat]}
+      {@const group = assetsByCategory[cat] ?? []}
       {#if group.length > 0}
         <div class="mb-10">
           <div
@@ -370,7 +408,7 @@
       {/if}
     </div>
   {:else if sort === 'taken_at'}
-    {@render assetCardGrid(assetsStore.assets, true)}
+    {@render assetCardGrid(displayAssets, true)}
     <div class="flex justify-center py-6">
       {#if assetsStore.loading && assetsStore.nextCursor}
         <Loader class="h-6 w-6 animate-spin text-gray-400" />
@@ -424,9 +462,6 @@
 </main>
 
 <style>
-  :global(tr.selected-row) {
-    box-shadow: inset 2px 0 0 #6366f1;
-  }
   :global(table.asset-table) {
     user-select: none;
   }

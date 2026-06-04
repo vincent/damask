@@ -12,6 +12,14 @@ const API_BASE = import.meta.env.VITE_API_URL ?? ''
 export interface AssetListResponse {
   assets: Asset[]
   next_cursor: string | null
+  total?: number
+  similar_to_not_indexed?: boolean
+  similar_to_no_matches?: boolean
+  similarity?: {
+    anchor_asset_id: string
+    anchor_filename: string
+    result_count: number
+  }
 }
 
 let imageRouterModelsCache: ImageRouterModelsResponse | null = null
@@ -102,6 +110,7 @@ export const assetApi = {
       tags?: string[]
       folder_id?: string
       collection_id?: string
+      similar_to?: string
       fieldFilters?: FieldFilter[]
     } = {}
   ): Promise<AssetListResponse> {
@@ -117,6 +126,7 @@ export const assetApi = {
       qs.set('tags', params.tags.join(','))
     if (params.folder_id) qs.set('folder_id', params.folder_id)
     if (params.collection_id) qs.set('collection_id', params.collection_id)
+    if (params.similar_to) qs.set('similar_to', params.similar_to)
     if (params.fieldFilters) {
       for (const f of params.fieldFilters) {
         const paramKey =

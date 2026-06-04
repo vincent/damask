@@ -17,7 +17,8 @@ A self-hosted Digital Asset Management (DAM) system. Single binary, local-first,
 - Media tag extraction from audio/video (ID3, Vorbis, iTunes atoms, RIFF INFO)
 - Custom metadata fields on assets and projects (text, number, date, boolean, select, URL)
 - Asset versioning with non-destructive rollback and content-hash deduplication
-- Collections — workspace-scoped named sets that cross project boundaries
+- Collections: workspace-scoped named sets that cross project boundaries
+- Visual similarity search: find visually similar images using perceptual hashing; backfill existing library from workspace settings
 - Append-only activity log (renames, retags, moves, field changes, version restores, shares)
 
 **Processing**

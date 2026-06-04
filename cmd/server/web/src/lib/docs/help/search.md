@@ -52,5 +52,21 @@ Search and filters work together. You can search for `hero` while also filtering
 Use the sort controls in the top bar to order results by:
 
 - Date uploaded (newest first by default)
-- Name (A–Z)
+- Name (A-Z)
 - File size
+
+## Visual similarity
+
+Click **Find Similar** on any image in the lightbox to find visually similar images across the library.
+
+Two ways to use it:
+
+- **Lightbox drawer**: the results appear inline in the lightbox sidebar
+- **Grid view**: click "Open in grid view" to apply the similarity filter to the full library; a banner shows the anchor image name and result count, dismiss it with the X to clear the filter
+
+Notes:
+
+- Images only; the button is hidden for videos, PDFs, and other file types
+- Images uploaded before this feature was enabled may not be indexed yet; run the backfill from **Workspace Settings > Content**
+- The similarity filter combines with other active filters (tags, project, file type, etc.)
+- The URL updates to `?similar_to=<id>` so the filtered view is shareable and bookmarkable
