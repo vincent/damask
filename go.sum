@@ -260,6 +260,12 @@ github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6Kllzaw
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.69.0 h1:fNLLESD2SooWeh2cidsuFtOcrEi4uB4m1mPrkJMZyVI=
 github.com/valyala/fasthttp v1.69.0/go.mod h1:4wA4PfAraPlAsJ5jMSqCE2ug5tqUPwKXxVj8oNECGcw=
+github.com/vitali-fedulov/hyper v1.0.5 h1:FfPr1kXt6MrXh/G5fBYravG99ScaE0kQ6g/G3/fXiVc=
+github.com/vitali-fedulov/hyper v1.0.5/go.mod h1:nQqkBaCL7ETNg7c90cbfFeJWoKchMrPejZYr+kiuSQI=
+github.com/vitali-fedulov/imagehash2 v1.0.3 h1:gPdIrtENUeAF6NXd+UNffcORmmBhbMGanSXn0j1COE0=
+github.com/vitali-fedulov/imagehash2 v1.0.3/go.mod h1:U419BIhcb9tV4WFTvCweg4sZOC61vLBQ0dTW83kP2Dc=
+github.com/vitali-fedulov/images4 v1.3.1 h1:r8q2iDD3Gq63rE1IxRvpa3KsUUtdGNYFg4RoTtkmwYA=
+github.com/vitali-fedulov/images4 v1.3.1/go.mod h1:/VAKZBeMLWZfC2rjWgOb0Q6e6gUzArPAR4l0pKubYAk=
 github.com/wneessen/go-mail v0.7.2 h1:xxPnhZ6IZLSgxShebmZ6DPKh1b6OJcoHfzy7UjOkzS8=
 github.com/wneessen/go-mail v0.7.2/go.mod h1:+TkW6QP3EVkgTEqHtVmnAE/1MRhmzb8Y9/W3pweuS+k=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=

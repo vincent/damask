@@ -11,6 +11,7 @@
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
+  import { isImage } from '$lib/utils/mime'
 
   let me = $state<MeResponse | null>(null)
   let loading = $state(true)
@@ -112,7 +113,7 @@
       input.value = ''
       return
     }
-    if (!file.type.startsWith('image/')) {
+    if (!isImage(file.type)) {
       toastStore.show(m.settings_account_avatar_file_type_error(), 'error')
       input.value = ''
       return

@@ -354,7 +354,7 @@
       {:else if activeTab === 'activity'}
         <AssetActivity {asset} />
       {:else if activeTab === 'actions'}
-        <LightboxActionsTab {asset} {onDeleted} />
+        <LightboxActionsTab {asset} {onDeleted} onAssetSelected={onOpenAsset} />
       {/if}
     </div>
   </div>

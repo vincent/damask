@@ -117,6 +117,11 @@
   "extract_exif_again_description": "This will queue a background job for every image asset that hasn't had EXIF extracted yet.\n      The process runs in the background and may take a few minutes for large libraries.",
   "reextract": "Re-extract",
   "extract_exif_first": "Enable EXIF extraction first",
+  "settings_content_title": "Content",
+  "settings_content_description": "Manage content analysis and indexing for your library.",
+  "visual_similarity_backfill": "Index visual similarity",
+  "visual_similarity_backfill_description": "Build a perceptual hash index for all images. Enables finding visually similar assets. Runs in the background and may take several minutes for large libraries.",
+  "visual_similarity_backfill_run": "Run backfill",
   "saving": "Saving…",
   "add_rule": "Add rule",
   "continue": "Continue",
@@ -1139,5 +1144,10 @@
   "unsaved_changes": "Unsaved changes",
   "text_tracks_source_extract": "Auto-extract",
   "text_tracks_extract_submit": "Extract text",
-  "choose_new_password": "Choose a new password"
+  "choose_new_password": "Choose a new password",
+  "find_similar": "Find similar",
+  "no_similar_results": "No similar images found",
+  "results_title": "Similar images",
+  "result_count": "{count} similar images found",
+  "not_indexed": "Similarity index not available for this asset"
 }

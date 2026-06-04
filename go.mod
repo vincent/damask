@@ -104,6 +104,9 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/vitali-fedulov/hyper v1.0.5 // indirect
+	github.com/vitali-fedulov/imagehash2 v1.0.3 // indirect
+	github.com/vitali-fedulov/images4 v1.3.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib v1.40.0 // indirect

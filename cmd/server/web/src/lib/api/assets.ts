@@ -4,6 +4,7 @@ import type {
   FieldFilter,
   ImageRouterModelsResponse,
   ShareComment,
+  VisualSimilarResult,
 } from './models'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
@@ -198,4 +199,10 @@ export const assetApi = {
 
   /** GET /api/v1/imagerouter/models — list image-to-image models via the authenticated backend proxy. */
   fetchImageRouterModels: () => fetchImageRouterModelsCached(),
+
+  /** GET /api/v1/assets/:id/similar — find visually similar image assets. */
+  findSimilar: (id: string) =>
+    apiFetch<{ results: VisualSimilarResult[] }>(
+      `/api/v1/assets/${id}/similar`
+    ),
 }

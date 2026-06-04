@@ -17,6 +17,7 @@ import (
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
+	"damask/server/internal/visualsimilarity"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
@@ -55,9 +56,10 @@ type TestServerConfig struct {
 	Users         service.UserService
 	Ingress       service.IngressService
 	Exports       service.ExportService
-	Stack         service.StackService
-	Upload        service.UploadService
-	Workflows     service.WorkflowService
+	Stack               service.StackService
+	Upload              service.UploadService
+	Workflows           service.WorkflowService
+	VisualSimilarity    *visualsimilarity.Service
 }
 
 // NewTestServer constructs a Server from explicit service interfaces and returns
@@ -138,9 +140,10 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		users:         cfg.Users,
 		ingress:       cfg.Ingress,
 		exports:       cfg.Exports,
-		stack:         cfg.Stack,
-		upload:        cfg.Upload,
-		workflows:     cfg.Workflows,
+		stack:               cfg.Stack,
+		upload:              cfg.Upload,
+		workflows:           cfg.Workflows,
+		visualSimilaritySvc: cfg.VisualSimilarity,
 	}
 
 	app := buildTestApp(s)

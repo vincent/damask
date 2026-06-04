@@ -1137,6 +1137,17 @@
   "workflow_choose_template": "Choisir un modèle de workflow",
   "workflow_saved": "Workflow \"{name}\" sauvegardé.",
   "workflow_triggered": "Workflow \"{name}\" déclenché.",
-  "text_tracks_source_extract": "Auto-extract",
-  "text_tracks_extract_submit": "Extract text"
+  "text_tracks_source_extract": "Auto-extraction",
+  "text_tracks_extract_submit": "Extraire le texte",
+  "choose_new_password": "Choisir un nouveau mot de passe",
+  "find_similar": "Trouver des similaires",
+  "no_similar_results": "Aucune image similaire trouvée",
+  "results_title": "Images similaires",
+  "result_count": "{count} image(s) similaire(s) trouvée(s)",
+  "not_indexed": "Index de similarité non disponible pour cette ressource",
+  "settings_content_title": "Contenu",
+  "settings_content_description": "Gérez l'analyse de contenu et l'indexation de votre bibliothèque.",
+  "visual_similarity_backfill": "Indexer la similarité visuelle",
+  "visual_similarity_backfill_description": "Construit un index de hachage perceptuel pour toutes les images. Permet de trouver des ressources visuellement similaires. S'exécute en arrière-plan et peut prendre plusieurs minutes pour les grandes bibliothèques.",
+  "visual_similarity_backfill_run": "Lancer le remplissage"
 }

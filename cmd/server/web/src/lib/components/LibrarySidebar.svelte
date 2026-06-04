@@ -33,6 +33,7 @@
     Megaphone,
     Plus,
     Plug,
+    ScanSearch,
     Settings2,
     Shield,
     Upload,
@@ -112,6 +113,12 @@
       label: () => 'Workflows',
       path: '/library/settings/workflows',
       icon: Workflow,
+    },
+    {
+      id: 'content',
+      label: () => m.settings_content_title(),
+      path: '/library/settings/content',
+      icon: ScanSearch,
     },
     {
       id: 'versioning',

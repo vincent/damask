@@ -624,3 +624,13 @@ export interface Collection {
   created_at: string
   updated_at: string
 }
+
+export interface VisualSimilarResult {
+  asset_id: string
+  asset_version_id: string
+  original_filename: string
+  thumbnail_url: string | null
+  mime_type: string
+  width: number | null
+  height: number | null
+}

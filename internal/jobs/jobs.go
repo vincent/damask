@@ -21,6 +21,7 @@ import (
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
+	"damask/server/internal/visualsimilarity"
 	"damask/server/internal/workflow"
 )
 
@@ -54,25 +55,26 @@ type textTrackService interface {
 
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
-	queries        *dbgen.Queries
-	sqlDB          *sql.DB
-	storage        storage.Storage
-	queue          queue.JobQueue
-	mailer         mail.Mailer
-	hub            events.EventHub
-	cfg            *config.Config
-	audit          *audit.EventWriter
-	handlers       map[string]queue.HandlerFunc
-	trf            transform.Transformer
-	tmb            transform.Thumbnailer
-	ingester       assetio.Ingester
-	imgKeyResolver imagerouter.KeyResolver
-	workflowExec   *workflow.Executor
-	exportSvc      exportService
-	exifSvc        exifService
-	fieldSvc       fieldPurgeService
-	textTrackSvc   textTrackService
-	storageSvc     ingress.StorageLimitChecker
+	queries          *dbgen.Queries
+	sqlDB            *sql.DB
+	storage          storage.Storage
+	queue            queue.JobQueue
+	mailer           mail.Mailer
+	hub              events.EventHub
+	cfg              *config.Config
+	audit            *audit.EventWriter
+	handlers         map[string]queue.HandlerFunc
+	trf              transform.Transformer
+	tmb              transform.Thumbnailer
+	ingester         assetio.Ingester
+	imgKeyResolver   imagerouter.KeyResolver
+	workflowExec     *workflow.Executor
+	exportSvc        exportService
+	exifSvc          exifService
+	fieldSvc         fieldPurgeService
+	textTrackSvc     textTrackService
+	storageSvc       ingress.StorageLimitChecker
+	visualSimilarity *visualsimilarity.Service
 }
 
 func NewJobServer(
@@ -101,25 +103,26 @@ func NewJobServer(
 		panic("jobs: NewJobServer requires a non-nil workflow executor")
 	}
 	return &JobServer{
-		audit:          audit.New(sqlDB),
-		cfg:            cfg,
-		queries:        queries,
-		exportSvc:      exportSvc,
-		exifSvc:        exifSvc,
-		fieldSvc:       fieldSvc,
-		textTrackSvc:   textTrackSvc,
-		handlers:       make(map[string]queue.HandlerFunc),
-		hub:            hub,
-		imgKeyResolver: imgKeyResolver,
-		ingester:       ingester,
-		mailer:         mailer,
-		queue:          q,
-		sqlDB:          sqlDB,
-		storage:        stor,
-		storageSvc:     storageSvc,
-		tmb:            tmb,
-		trf:            trf,
-		workflowExec:   workflowExec,
+		audit:            audit.New(sqlDB),
+		cfg:              cfg,
+		queries:          queries,
+		exportSvc:        exportSvc,
+		exifSvc:          exifSvc,
+		fieldSvc:         fieldSvc,
+		textTrackSvc:     textTrackSvc,
+		handlers:         make(map[string]queue.HandlerFunc),
+		hub:              hub,
+		imgKeyResolver:   imgKeyResolver,
+		ingester:         ingester,
+		mailer:           mailer,
+		queue:            q,
+		sqlDB:            sqlDB,
+		storage:          stor,
+		storageSvc:       storageSvc,
+		tmb:              tmb,
+		trf:              trf,
+		workflowExec:     workflowExec,
+		visualSimilarity: visualsimilarity.NewService(queries, sqlDB),
 	}
 }
 
@@ -191,6 +194,9 @@ func (s *JobServer) RegisterJobHandlers() {
 
 	// Export jobs.
 	reg(queue.JobTypeExportRun, s.jobExportRun)
+
+	// Visual similarity.
+	reg(queue.JobTypeVisualSimilarityBackfill, s.jobVisualSimilarityBackfill)
 
 	// Maintenance jobs.
 	reg(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)

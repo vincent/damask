@@ -333,4 +333,7 @@ const (
 	JobTypePurgeVersionStorage     = "purge_version_storage"
 	JobTypePurgeAuditLog           = "purge_event_log"
 	JobTypePurgeScratchVariants    = "purge_scratch_variants"
+
+	// Visual similarity.
+	JobTypeVisualSimilarityBackfill = "visual_similarity_backfill"
 )

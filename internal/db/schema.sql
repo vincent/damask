@@ -568,3 +568,15 @@ CREATE TABLE export_runs (
 CREATE INDEX idx_export_runs_config    ON export_runs(export_config_id, created_at DESC);
 CREATE INDEX idx_export_runs_workspace ON export_runs(workspace_id, created_at DESC);
 CREATE INDEX idx_export_runs_status    ON export_runs(status);
+
+CREATE TABLE asset_visual_similarity_hashes (
+    asset_version_id  TEXT PRIMARY KEY
+                      REFERENCES asset_versions(id) ON DELETE CASCADE,
+    workspace_id      TEXT NOT NULL REFERENCES workspaces(id),
+    central_hash      INTEGER NOT NULL,
+    hash_set          TEXT NOT NULL,
+    created_at        DATETIME NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_visual_similarity_hashes_workspace_hash
+    ON asset_visual_similarity_hashes(workspace_id, central_hash);

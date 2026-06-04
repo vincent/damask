@@ -1136,5 +1136,18 @@
   "unsaved_changes": "Canvis no desats",
   "workflow_choose_template": "Tria una plantilla de flux de treball",
   "workflow_saved": "Flux de treball \"{name}\" desat.",
-  "workflow_triggered": "Flux de treball \"{name}\" activat."
+  "workflow_triggered": "Flux de treball \"{name}\" activat.",
+  "text_tracks_source_extract": "Auto-extracció",
+  "text_tracks_extract_submit": "Extreure text",
+  "choose_new_password": "Trieu una nova contrasenya",
+  "find_similar": "Cerca similars",
+  "no_similar_results": "No s'han trobat imatges similars",
+  "results_title": "Imatges similars",
+  "result_count": "S'han trobat {count} imatges similars",
+  "not_indexed": "Índex de similitud no disponible per a aquest recurs",
+  "settings_content_title": "Contingut",
+  "settings_content_description": "Gestioneu l'anàlisi de contingut i la indexació de la vostra biblioteca.",
+  "visual_similarity_backfill": "Indexa la similitud visual",
+  "visual_similarity_backfill_description": "Construeix un índex de hash perceptiu per a totes les imatges. Permet trobar recursos visualment similars. S'executa en segon pla i pot trigar uns minuts per a biblioteques grans.",
+  "visual_similarity_backfill_run": "Executa el reompliment"
 }

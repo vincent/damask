@@ -20,6 +20,7 @@ import (
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
+	"damask/server/internal/visualsimilarity"
 	"damask/server/internal/workflow"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
@@ -66,7 +67,8 @@ type Server struct {
 	stack         service.StackService
 	upload        service.UploadService
 	workflows     service.WorkflowService
-	storageSvc    service.StorageService
+	storageSvc          service.StorageService
+	visualSimilaritySvc *visualsimilarity.Service
 }
 
 func NewHTTPServer(
@@ -162,8 +164,9 @@ func NewHTTPServer(
 			Triggers:   triggerDispatcher,
 			Invalidate: storageSvc,
 		}),
-		storageSvc: storageSvc,
-		workspace:  service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
+		storageSvc:          storageSvc,
+		visualSimilaritySvc: visualsimilarity.NewService(queries, sqlDB),
+		workspace:           service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
 		workflows: service.NewWorkflowService(
 			workflowRepo,
 			workflowRunRepo,
@@ -574,6 +577,9 @@ func NewRouter(
 		auth.RequireRole(getRoleFn, auth.Owner),
 		s.handleDeleteAssetVersion,
 	)
+
+	// Visual similarity search
+	api.Get("/assets/:id/similar", s.handleGetSimilarAssets)
 
 	// Transform preview (in-memory, no storage write)
 	api.Get("/assets/:id/preview", s.handlePreviewTransform)

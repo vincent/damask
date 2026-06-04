@@ -1136,5 +1136,18 @@
   "unsaved_changes": "Cambios sin guardar",
   "workflow_choose_template": "Elegir plantilla de flujo de trabajo",
   "workflow_saved": "Flujo de trabajo \"{name}\" guardado.",
-  "workflow_triggered": "Flujo de trabajo \"{name}\" activado."
+  "workflow_triggered": "Flujo de trabajo \"{name}\" activado.",
+  "text_tracks_source_extract": "Auto-extracción",
+  "text_tracks_extract_submit": "Extraer texto",
+  "choose_new_password": "Elige una nueva contraseña",
+  "find_similar": "Buscar similares",
+  "no_similar_results": "No se encontraron imágenes similares",
+  "results_title": "Imágenes similares",
+  "result_count": "Se encontraron {count} imágenes similares",
+  "not_indexed": "Índice de similitud no disponible para este recurso",
+  "settings_content_title": "Contenido",
+  "settings_content_description": "Gestiona el análisis de contenido y la indexación de tu biblioteca.",
+  "visual_similarity_backfill": "Indexar similitud visual",
+  "visual_similarity_backfill_description": "Construye un índice de hash perceptivo para todas las imágenes. Permite encontrar recursos visualmente similares. Se ejecuta en segundo plano y puede tardar varios minutos para bibliotecas grandes.",
+  "visual_similarity_backfill_run": "Ejecutar relleno"
 }

@@ -8,9 +8,11 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
+	"damask/server/internal/telemetry"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // WorkspaceResponse is the public representation of a workspace.
@@ -243,7 +245,8 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 // triggerableJobs is the allowlist of job types that can be triggered via the
 // generic POST /workspace/jobs/:type/trigger endpoint.
 var triggerableJobs = map[string]string{
-	"extract_exif": queue.JobTypeExtractExif,
+	"extract_exif":               queue.JobTypeExtractExif,
+	"visual-similarity-backfill": queue.JobTypeVisualSimilarityBackfill,
 }
 
 // handleTriggerWorkspaceJob enqueues a workspace-wide background job.
@@ -270,6 +273,8 @@ func (s *Server) handleTriggerWorkspaceJob(c fiber.Ctx) error {
 	switch jobType {
 	case queue.JobTypeExtractExif:
 		return s.triggerExtractExifBackfill(c, claims.WorkspaceID, claims.UserID)
+	case queue.JobTypeVisualSimilarityBackfill:
+		return s.triggerVisualSimilarityBackfill(c, claims.WorkspaceID)
 	default:
 		return errRes(c, fiber.StatusBadRequest, "unknown job type")
 	}
@@ -297,6 +302,19 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 	}
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": len(pendingIDs)})
+}
+
+func (s *Server) triggerVisualSimilarityBackfill(c fiber.Ctx, workspaceID string) error {
+	_, span := telemetry.StartSpan(c.Context(), "api.workspace.trigger_visual_similarity_backfill",
+		attribute.String("damask.workspace_id", workspaceID),
+	)
+	payload, _ := json.Marshal(map[string]string{"workspace_id": workspaceID})
+	_, err := s.queue.Enqueue(c.Context(), workspaceID, queue.JobTypeVisualSimilarityBackfill, string(payload))
+	telemetry.EndSpan(span, err)
+	if err != nil {
+		return errRes(c, fiber.StatusInternalServerError, "could not enqueue job")
+	}
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": true})
 }
 
 type MemberResponse struct {

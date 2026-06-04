@@ -22,12 +22,15 @@ export const ssr = false
 export const load: LayoutLoad = async ({
   url,
   fetch,
+  depends,
 }): Promise<{
   user?: User
   workspace?: Workspace
   role?: string
   totalAssetCount?: number
 }> => {
+  depends('app:workspace')
+
   let result: {
     user?: User
     workspace?: Workspace

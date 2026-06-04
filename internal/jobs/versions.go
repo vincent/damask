@@ -11,6 +11,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
 	"damask/server/internal/queue"
+	"damask/server/internal/transform"
 )
 
 // VersionThumbnailJobPayload is the payload for version-specific thumbnail generation.
@@ -92,6 +93,11 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		ID:                   p.VersionID,
 	}); err != nil {
 		return fmt.Errorf("set version thumbnail: %w", err)
+	}
+
+	// Compute perceptual hash for image assets (non-fatal).
+	if transform.IsImageMime(p.MimeType) {
+		s.computeAndStoreVisualSimilarity(ctx, p.WorkspaceID, p.VersionID, p.StorageKey)
 	}
 
 	// If this version is still current, sync the asset thumbnail too.

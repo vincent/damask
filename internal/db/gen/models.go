@@ -97,6 +97,14 @@ type AssetVersion struct {
 	DeletedAt            *string  `json:"deleted_at"`
 }
 
+type AssetVisualSimilarityHash struct {
+	AssetVersionID string    `json:"asset_version_id"`
+	WorkspaceID    string    `json:"workspace_id"`
+	CentralHash    int64     `json:"central_hash"`
+	HashSet        string    `json:"hash_set"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type AssetsFt struct {
 	OriginalFilename string `json:"original_filename"`
 }
