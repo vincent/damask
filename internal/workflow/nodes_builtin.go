@@ -441,7 +441,7 @@ func (n setNewVersionNode) Execute(
 		return "", nil, errors.New("workflow set_new_version dependencies not configured")
 	}
 
-	variant, err := n.deps.Versions.GetVariantByID(ctx, workspaceID, variantID)
+	variant, err := n.deps.Variants.GetVariantByID(ctx, workspaceID, variantID)
 	if err != nil {
 		return "", nil, fmt.Errorf("get variant: %w", err)
 	}

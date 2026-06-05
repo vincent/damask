@@ -57,6 +57,19 @@ func newVariantManager(svc service.VariantService) workflow.VariantManager {
 	return variantAdapter{svc: svc}
 }
 
+func (a variantAdapter) GetVariantByID(ctx context.Context, workspaceID, id string) (repository.Variant, error) {
+	dto, err := a.svc.Get(ctx, workspaceID, id)
+	if err != nil {
+		return repository.Variant{}, err
+	}
+	return repository.Variant{
+		ID:         dto.ID,
+		StorageKey: dto.StorageKey,
+		Size:       dto.Size,
+		Status:     dto.Status,
+	}, nil
+}
+
 func (a variantAdapter) PrepareCreate(
 	ctx context.Context,
 	p workflow.VariantPrepareRequest,
@@ -155,19 +168,14 @@ func (a workspaceAdapter) GetImageRouterKeyStatus(ctx context.Context, workspace
 
 type versionManagerAdapter struct {
 	versions repository.VersionRepository
-	variants repository.VariantRepository
 }
 
-func newVersionManager(versions repository.VersionRepository, variants repository.VariantRepository) workflow.VersionManager {
-	return versionManagerAdapter{versions: versions, variants: variants}
+func newVersionManager(versions repository.VersionRepository) workflow.VersionManager {
+	return versionManagerAdapter{versions: versions}
 }
 
 func (a versionManagerAdapter) GetByID(ctx context.Context, id string) (repository.AssetVersion, error) {
 	return a.versions.GetByID(ctx, id)
-}
-
-func (a versionManagerAdapter) GetVariantByID(ctx context.Context, workspaceID, id string) (repository.Variant, error) {
-	return a.variants.GetByID(ctx, workspaceID, id)
 }
 
 func (a versionManagerAdapter) NextVersionNum(ctx context.Context, assetID string) (int64, error) {

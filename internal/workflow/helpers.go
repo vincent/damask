@@ -100,11 +100,11 @@ type VariantJobPayload struct {
 
 type VariantManager interface {
 	PrepareCreate(ctx context.Context, p VariantPrepareRequest) (VariantPrepareResult, error)
+	GetVariantByID(ctx context.Context, workspaceID, id string) (repository.Variant, error)
 }
 
 type VersionManager interface {
 	GetByID(ctx context.Context, id string) (repository.AssetVersion, error)
-	GetVariantByID(ctx context.Context, workspaceID, id string) (repository.Variant, error)
 	NextVersionNum(ctx context.Context, assetID string) (int64, error)
 	Create(ctx context.Context, v repository.AssetVersion) (repository.AssetVersion, error)
 	SetCurrent(ctx context.Context, assetID, versionID string) error

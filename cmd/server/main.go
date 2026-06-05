@@ -14,6 +14,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	"damask/server/internal/db"
+	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
 	"damask/server/internal/imagerouter"
 	"damask/server/internal/ingress"
@@ -81,8 +82,6 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	service.VerifySizeColumns(context.Background(), sqlDB, slog.Default())
-
 	tokenMaker, err := auth.NewMaker(cfg.JWTSecret)
 	if err != nil {
 		slog.Error("auth", "error", err)
@@ -93,25 +92,13 @@ func main() {
 
 	mailer := mail.NewMailer(&cfg.MailSenderConfig)
 
-	var stor storage.Storage
-	switch cfg.StorageType {
-	case "memory":
-		slog.Info("storage", "using", cfg.StorageType)
-		stor, err = storage.NewAferoMemoryStorage()
-	case "s3":
-		slog.Info("storage", "using", cfg.StorageType, "bucket", cfg.StorageS3.Bucket)
-		stor, err = storage.NewAferoS3Storage(cfg.StorageS3)
-	case "sftp":
-		slog.Info("storage", "using", cfg.StorageType, "host", cfg.StorageSFTP.Host)
-		stor, err = storage.NewSFTPStorage(cfg.StorageSFTP)
-	default: // "local" and anything unrecognized
-		slog.Info("storage", "using", cfg.StorageType, "host", cfg.StoragePath)
-		stor, err = storage.NewLocalStorage(cfg.StoragePath)
-	}
+	stor, err := initStorageFromConfig(cfg)
 	if err != nil {
 		slog.Error("storage", "error", err)
 		os.Exit(1)
 	}
+
+	service.VerifySizeColumns(context.Background(), sqlDB, slog.Default())
 
 	q := queue.New(queries, cfg.QueueWorkers)
 
@@ -198,21 +185,21 @@ func main() {
 
 	// --- workflow executor ---
 	workflowExec := workflow.NewExecutor(workflow.Deps{
-		Workflows:     workflowRepo,
-		Runs:          workflowRunRepo,
-		Queue:         q,
-		Storage:       stor,
-		Mailer:        mailer,
-		Hub:           eventsHub,
-		Audit:         auditWriter,
-		Assets:        newAssetManager(assetSvc),
-		Variants:      newVariantManager(variantSvc),
-		Versions: newVersionManager(versionRepo, variantRepo),
-		Shares:        newShareManager(shareSvc),
-		Tags:          newTagManager(tagSvc),
-		AssetFields:   newAssetFieldManager(assetFieldSvc),
-		Workspace:     newWorkspaceManager(workspaceSvc),
-		Config:        cfg,
+		Workflows:   workflowRepo,
+		Runs:        workflowRunRepo,
+		Queue:       q,
+		Storage:     stor,
+		Mailer:      mailer,
+		Hub:         eventsHub,
+		Audit:       auditWriter,
+		Assets:      newAssetManager(assetSvc),
+		Variants:    newVariantManager(variantSvc),
+		Versions:    newVersionManager(versionRepo),
+		Shares:      newShareManager(shareSvc),
+		Tags:        newTagManager(tagSvc),
+		AssetFields: newAssetFieldManager(assetFieldSvc),
+		Workspace:   newWorkspaceManager(workspaceSvc),
+		Config:      cfg,
 	})
 
 	// --- job server ---
@@ -244,14 +231,7 @@ func main() {
 
 	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS, storageSvc)
 
-	mail := mailserver.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
-	slog.Info("mail server starting", "port", cfg.MailServerPort)
-	mailErr := make(chan error, 1)
-	go func() {
-		if err := mail.Start(); err != nil {
-			mailErr <- err
-		}
-	}()
+	mailErr := initMailServer(cfg, queries, q)
 
 	config.InitOIDCProviders(cfg)
 
@@ -287,18 +267,7 @@ func main() {
 	/// start background services
 
 	if cfg.EnableScheduler {
-		ingress.NewScheduler(queries, q).Start(ctx)
-		slog.Info("ingress scheduler started")
-		jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)
-		slog.Info("field cleanup scheduler started")
-		jobs.NewRetentionScheduler(q).Start(ctx)
-		slog.Info("retention scheduler started")
-		jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
-		slog.Info("audit-log retention scheduler started")
-		jobs.NewScratchPurgeScheduler(q, cfg).Start(ctx)
-		slog.Info("scratch purge scheduler started")
-		jobs.NewExportScheduler(q, js).Start(ctx)
-		slog.Info("export scheduler started")
+		initScheduler(ctx, cfg, q, queries, js)
 	}
 
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)
@@ -320,4 +289,51 @@ func main() {
 		os.Exit(1)
 	case <-ctx.Done():
 	}
+}
+
+func initMailServer(cfg *config.Config, queries *dbgen.Queries, q *queue.Queue) chan error {
+	mail := mailserver.NewMailServer("0.0.0.0:"+cfg.MailServerPort, cfg.BaseURL.Host, queries, q)
+	slog.Info("mail server starting", "port", cfg.MailServerPort)
+	mailErr := make(chan error, 1)
+	go func() {
+		if err := mail.Start(); err != nil {
+			mailErr <- err
+		}
+	}()
+	return mailErr
+}
+
+func initScheduler(ctx context.Context, cfg *config.Config, q *queue.Queue, queries *dbgen.Queries, js *jobs.JobServer) {
+	ingress.NewScheduler(queries, q).Start(ctx)
+	slog.Info("ingress scheduler started")
+	jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)
+	slog.Info("field cleanup scheduler started")
+	jobs.NewRetentionScheduler(q).Start(ctx)
+	slog.Info("retention scheduler started")
+	jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
+	slog.Info("audit-log retention scheduler started")
+	jobs.NewScratchPurgeScheduler(q, cfg).Start(ctx)
+	slog.Info("scratch purge scheduler started")
+	jobs.NewExportScheduler(q, js).Start(ctx)
+	slog.Info("export scheduler started")
+}
+
+func initStorageFromConfig(cfg *config.Config) (storage.Storage, error) {
+	var err error
+	var stor storage.Storage
+	switch cfg.StorageType {
+	case "memory":
+		slog.Info("storage", "using", cfg.StorageType)
+		stor, err = storage.NewAferoMemoryStorage()
+	case "s3":
+		slog.Info("storage", "using", cfg.StorageType, "bucket", cfg.StorageS3.Bucket)
+		stor, err = storage.NewAferoS3Storage(cfg.StorageS3)
+	case "sftp":
+		slog.Info("storage", "using", cfg.StorageType, "host", cfg.StorageSFTP.Host)
+		stor, err = storage.NewSFTPStorage(cfg.StorageSFTP)
+	default: // "local" and anything unrecognized
+		slog.Info("storage", "using", cfg.StorageType, "host", cfg.StoragePath)
+		stor, err = storage.NewLocalStorage(cfg.StoragePath)
+	}
+	return stor, err
 }
