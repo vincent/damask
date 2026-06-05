@@ -38,44 +38,52 @@ func QueryOverviewStats(ctx context.Context, db *sql.DB) (OverviewStats, error) 
 
 	var s OverviewStats
 
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&s.TotalUsers); err != nil {
+	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&s.TotalUsers)
+	if err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now')`).
-		Scan(&s.NewUsersToday); err != nil {
+	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now')`).
+		Scan(&s.NewUsersToday)
+	if err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now', '-7 days')`).
-		Scan(&s.NewUsersThisWeek); err != nil {
+	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= date('now', '-7 days')`).
+		Scan(&s.NewUsersThisWeek)
+	if err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspaces`).Scan(&s.TotalWorkspaces); err != nil {
+	err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspaces`).Scan(&s.TotalWorkspaces)
+	if err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		SELECT COUNT(DISTINCT w.id)
 		FROM workspaces w
 		JOIN assets a ON a.workspace_id = w.id
-		WHERE a.created_at >= datetime('now', '-30 days')`).Scan(&s.ActiveWorkspaces); err != nil {
+		WHERE a.created_at >= datetime('now', '-30 days')`).Scan(&s.ActiveWorkspaces)
+	if err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		SELECT COUNT(*), COALESCE(ROUND(SUM(av.size) / 1048576.0, 1), 0)
 		FROM assets a
 		JOIN asset_versions av ON av.id = a.current_version_id
-		`).Scan(&s.TotalAssets, &s.TotalStorageMB); err != nil {
+		`).Scan(&s.TotalAssets, &s.TotalStorageMB)
+	if err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM assets
-		WHERE created_at >= date('now')`).Scan(&s.AssetsToday); err != nil {
+		WHERE created_at >= date('now')`).Scan(&s.AssetsToday)
+	if err != nil {
 		return s, err
 	}
-	if err := tx.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		SELECT
 		  SUM(CASE WHEN status = 'failed'     THEN 1 ELSE 0 END),
 		  SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END)
-		FROM jobs`).Scan(&s.JobsFailed, &s.JobsProcessing); err != nil {
+		FROM jobs`).Scan(&s.JobsFailed, &s.JobsProcessing)
+	if err != nil {
 		return s, err
 	}
 
@@ -100,7 +108,8 @@ func QuerySignupsByDay(ctx context.Context, db *sql.DB) ([]DayCount, error) {
 	var result []DayCount
 	for rows.Next() {
 		var d DayCount
-		if err := rows.Scan(&d.Day, &d.Count); err != nil {
+		err = rows.Scan(&d.Day, &d.Count)
+		if err != nil {
 			return nil, err
 		}
 		result = append(result, d)
@@ -126,7 +135,8 @@ func QueryUploadsByDay(ctx context.Context, db *sql.DB) ([]DayCount, error) {
 	var result []DayCount
 	for rows.Next() {
 		var d DayCount
-		if err := rows.Scan(&d.Day, &d.Count); err != nil {
+		err = rows.Scan(&d.Day, &d.Count)
+		if err != nil {
 			return nil, err
 		}
 		result = append(result, d)
@@ -227,7 +237,7 @@ func QueryUsers(
 		var r UserRow
 		var lastUpload *string
 		var createdAtStr string
-		if err := rows.Scan(
+		err = rows.Scan(
 			&r.ID,
 			&r.Email,
 			&r.WorkspaceName,
@@ -235,7 +245,8 @@ func QueryUsers(
 			&r.AssetCount,
 			&lastUpload,
 			&createdAtStr,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, 0, err
 		}
 		if lastUpload != nil {
@@ -297,7 +308,7 @@ func QueryRecentActivity(ctx context.Context, db *sql.DB, limit int, eventFilter
 	for rows.Next() {
 		var r ActivityRow
 		var createdAtStr string
-		if err := rows.Scan(
+		err = rows.Scan(
 			&r.EventType,
 			&r.AssetName,
 			&r.ActorEmail,
@@ -305,7 +316,8 @@ func QueryRecentActivity(ctx context.Context, db *sql.DB, limit int, eventFilter
 			&r.WorkspaceName,
 			&r.Payload,
 			&createdAtStr,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, err
 		}
 		r.CreatedAt, _ = time.Parse("2006-01-02T15:04:05Z", createdAtStr)
@@ -360,14 +372,15 @@ func QueryStorageBreakdown(ctx context.Context, db *sql.DB) ([]StorageRow, error
 	for rows.Next() {
 		var r StorageRow
 		var oldest, newest *string
-		if err := rows.Scan(
+		err = rows.Scan(
 			&r.WorkspaceName,
 			&r.AssetCount,
 			&r.VersionCount,
 			&r.TotalMB,
 			&oldest,
 			&newest,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, err
 		}
 		if oldest != nil {
@@ -454,7 +467,8 @@ func QueryJobHealth(ctx context.Context, db *sql.DB) ([]JobRow, error) {
 	var result []JobRow
 	for rows.Next() {
 		var r JobRow
-		if err := rows.Scan(&r.Type, &r.Status, &r.Count, &r.OldestSec, &r.LastError); err != nil {
+		err = rows.Scan(&r.Type, &r.Status, &r.Count, &r.OldestSec, &r.LastError)
+		if err != nil {
 			return nil, err
 		}
 		result = append(result, r)
@@ -481,7 +495,7 @@ func QueryFailedJobs(ctx context.Context, db *sql.DB, limit int) ([]JobDetailRow
 	for rows.Next() {
 		var r JobDetailRow
 		var createdStr, updatedStr string
-		if err := rows.Scan(
+		err = rows.Scan(
 			&r.ID,
 			&r.Type,
 			&r.Status,
@@ -490,7 +504,8 @@ func QueryFailedJobs(ctx context.Context, db *sql.DB, limit int) ([]JobDetailRow
 			&r.Error,
 			&createdStr,
 			&updatedStr,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, err
 		}
 		r.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)

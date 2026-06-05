@@ -67,11 +67,11 @@ func (s *Server) handleCreateCollection(c fiber.Ctx) error {
 	}
 
 	if len(body.AssetIDs) > 0 {
-		ok, err := s.allAssetsInWorkspace(c.Context(), claims.WorkspaceID, body.AssetIDs)
+		allFound, err := s.allAssetsInWorkspace(c.Context(), claims.WorkspaceID, body.AssetIDs)
 		if err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not verify assets")
 		}
-		if !ok {
+		if !allFound {
 			return errRes(c, fiber.StatusForbidden, "one or more assets not found in workspace")
 		}
 	}

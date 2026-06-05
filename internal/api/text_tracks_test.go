@@ -54,8 +54,8 @@ func TestListTextTracksReturnsTracks(t *testing.T) {
 	testutil.AssertStatus(t, resp, http.StatusOK)
 
 	var body api.ListTextTracksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("decode response: %v", err)
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&body); decodeErr != nil {
+		t.Fatalf("decode response: %v", decodeErr)
 	}
 	if len(body.TextTracks) != 1 {
 		t.Fatalf("expected 1 track, got %d", len(body.TextTracks))

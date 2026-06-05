@@ -105,11 +105,13 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 		return BuildResult{}, err
 	}
 
-	if err := b.queryTagsAndFields(ctx); err != nil {
+	err = b.queryTagsAndFields(ctx)
+	if err != nil {
 		return BuildResult{}, err
 	}
 
-	if err := b.queryVariants(ctx, collectVersionIDs(avRows)); err != nil {
+	err = b.queryVariants(ctx, collectVersionIDs(avRows))
+	if err != nil {
 		return BuildResult{}, err
 	}
 
@@ -160,7 +162,8 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 		return BuildResult{}, err
 	}
 
-	if err := b.writeToDestination(ctx, f, manifestJSON); err != nil {
+	err = b.writeToDestination(ctx, f, manifestJSON)
+	if err != nil {
 		return BuildResult{}, err
 	}
 
@@ -492,19 +495,19 @@ func (b *buildCtx) writeManifestToZip(zw *zip.Writer) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("export: zip manifest entry: %w", err)
 	}
-	if _, err := mw.Write(manifestJSON); err != nil {
-		return nil, fmt.Errorf("export: write manifest to zip: %w", err)
+	if _, writeErr := mw.Write(manifestJSON); writeErr != nil {
+		return nil, fmt.Errorf("export: write manifest to zip: %w", writeErr)
 	}
-	if err := zw.Close(); err != nil {
-		return nil, fmt.Errorf("export: close zip: %w", err)
+	if closeErr := zw.Close(); closeErr != nil {
+		return nil, fmt.Errorf("export: close zip: %w", closeErr)
 	}
 	return manifestJSON, nil
 }
 
 // writeToDestination uploads the ZIP and sidecar manifest to the destination.
 func (b *buildCtx) writeToDestination(ctx context.Context, f *os.File, manifestJSON []byte) error {
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("export: seek temp file: %w", err)
+	if _, seekErr := f.Seek(0, io.SeekStart); seekErr != nil {
+		return fmt.Errorf("export: seek temp file: %w", seekErr)
 	}
 	fi, err := f.Stat()
 	if err != nil {
@@ -512,12 +515,14 @@ func (b *buildCtx) writeToDestination(ctx context.Context, f *os.File, manifestJ
 	}
 
 	zipRemotePath := slugify(b.p.Project.Name) + "__export.zip"
-	if err := b.p.Dest.Write(ctx, zipRemotePath, f, fi.Size(), ""); err != nil {
+	err = b.p.Dest.Write(ctx, zipRemotePath, f, fi.Size(), "")
+	if err != nil {
 		return fmt.Errorf("export: write zip to destination: %w", err)
 	}
 
 	sidecarPath := slugify(b.p.Project.Name) + "__manifest.json"
-	if err := b.p.Dest.WriteManifest(ctx, sidecarPath, manifestJSON); err != nil {
+	err = b.p.Dest.WriteManifest(ctx, sidecarPath, manifestJSON)
+	if err != nil {
 		return fmt.Errorf("export: write manifest to destination: %w", err)
 	}
 	return nil
@@ -579,7 +584,7 @@ func queryVariantsForVersionIDs(
 	var variants []dbgen.Variant
 	for rows.Next() {
 		var v dbgen.Variant
-		if err := rows.Scan(
+		err = rows.Scan(
 			&v.ID,
 			&v.WorkspaceID,
 			&v.AssetVersionID,
@@ -593,7 +598,8 @@ func queryVariantsForVersionIDs(
 			&v.Title,
 			&v.IsShared,
 			&v.CreatedAt,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, err
 		}
 		variants = append(variants, v)

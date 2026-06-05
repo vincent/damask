@@ -150,7 +150,7 @@ func (s *Server) handleCallbackGoogle(c fiber.Ctx) error {
 	encryptFn := func(plain string) (string, error) {
 		return oauthpkg.EncryptToken(s.cfg.AppSecret, plain)
 	}
-	if err := s.integrations.UpsertConnection(c.Context(), service.UpsertConnectionParams{
+	err = s.integrations.UpsertConnection(c.Context(), service.UpsertConnectionParams{
 		WorkspaceID:    st.WorkspaceID,
 		UserID:         st.UserID,
 		Provider:       "google",
@@ -159,7 +159,8 @@ func (s *Server) handleCallbackGoogle(c fiber.Ctx) error {
 		Token:          token,
 		Scopes:         cfg.Scopes,
 		EncryptToken:   encryptFn,
-	}); err != nil {
+	})
+	if err != nil {
 		return c.Redirect().To("/library/settings/integrations?error=save_failed")
 	}
 
@@ -237,7 +238,7 @@ func (s *Server) handleCallbackCanva(c fiber.Ctx) error {
 	encryptFn := func(plain string) (string, error) {
 		return oauthpkg.EncryptToken(s.cfg.AppSecret, plain)
 	}
-	if err := s.integrations.UpsertConnection(c.Context(), service.UpsertConnectionParams{
+	err = s.integrations.UpsertConnection(c.Context(), service.UpsertConnectionParams{
 		WorkspaceID:    st.WorkspaceID,
 		UserID:         st.UserID,
 		Provider:       "canva",
@@ -246,7 +247,8 @@ func (s *Server) handleCallbackCanva(c fiber.Ctx) error {
 		Token:          token,
 		Scopes:         cfg.Scopes,
 		EncryptToken:   encryptFn,
-	}); err != nil {
+	})
+	if err != nil {
 		return c.Redirect().To("/library/settings/integrations?error=save_failed")
 	}
 

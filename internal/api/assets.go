@@ -14,6 +14,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
 	"damask/server/internal/telemetry"
+	"damask/server/internal/visualsimilarity"
 
 	"github.com/gofiber/fiber/v3"
 	"go.opentelemetry.io/otel/attribute"
@@ -181,7 +182,9 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 	}()
 
 	// Demo upload cap enforcement (DM-4.2) — no-op in non-demo builds
-	if blocked, err := s.checkDemoUploadCap(c, claims); err != nil || blocked {
+	var blocked bool
+	blocked, err = s.checkDemoUploadCap(c, claims)
+	if err != nil || blocked {
 		return err
 	}
 
@@ -190,7 +193,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 		return errRes(c, fiber.StatusBadRequest, "file field is required")
 	}
 
-	if err := s.storageSvc.CheckLimit(c.Context(), claims.WorkspaceID, fh.Size); err != nil {
+	if err = s.storageSvc.CheckLimit(c.Context(), claims.WorkspaceID, fh.Size); err != nil {
 		if errors.Is(err, service.ErrStorageLimitReached) {
 			return c.Status(fiber.StatusInsufficientStorage).JSON(fiber.Map{
 				"error":   "storage_limit_reached",
@@ -331,7 +334,8 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 			lp.SimilarToIDs = []string{}
 			similarToNotIndexed = true
 		} else {
-			similar, err := s.visualSimilaritySvc.FindSimilarEnriched(
+			var similar []visualsimilarity.SimilarAsset
+			similar, err = s.visualSimilaritySvc.FindSimilarEnriched(
 				c.Context(),
 				claims.WorkspaceID,
 				*anchorDTO.CurrentVersionID,
@@ -604,13 +608,10 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	// Resolve CreatedBy from the first (oldest) version.
 	var createdBy *AssetContributor
-	if firstVer, err := s.versions.GetFirstByAsset(
-		c.Context(),
-		id,
-	); err == nil && firstVer != nil &&
-		firstVer.CreatedBy != nil {
+	firstVer, firstVerErr := s.versions.GetFirstByAsset(c.Context(), id)
+	if firstVerErr == nil && firstVer != nil && firstVer.CreatedBy != nil {
 		cb := &AssetContributor{ID: *firstVer.CreatedBy}
-		if u, err := s.users.GetByID(c.Context(), *firstVer.CreatedBy); err == nil {
+		if u, uErr := s.users.GetByID(c.Context(), *firstVer.CreatedBy); uErr == nil {
 			cb.Name = u.Name
 		}
 		createdBy = cb
@@ -618,7 +619,8 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 
 	// Resolve Authors: distinct created_by user IDs across all versions.
 	authors := []AssetContributor{}
-	if allVersions, err := s.versions.List(c.Context(), id); err == nil {
+	allVersions, versionsErr := s.versions.List(c.Context(), id)
+	if versionsErr == nil {
 		seen := make(map[string]struct{})
 		userNames := make(map[string]string)
 		for _, v := range allVersions {
@@ -631,7 +633,7 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 			}
 			seen[uid] = struct{}{}
 			if _, resolved := userNames[uid]; !resolved {
-				if u, err := s.users.GetByID(c.Context(), uid); err == nil {
+				if u, uErr := s.users.GetByID(c.Context(), uid); uErr == nil {
 					userNames[uid] = u.Name
 				} else {
 					userNames[uid] = ""

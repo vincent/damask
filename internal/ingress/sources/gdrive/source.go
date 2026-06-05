@@ -123,7 +123,8 @@ func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 		if pageToken != "" {
 			call = call.PageToken(pageToken)
 		}
-		result, err := call.Do()
+		var result *drive.FileList
+		result, err = call.Do()
 		if err != nil {
 			return nil, fmt.Errorf("gdrive: list files: %w", err)
 		}
@@ -166,11 +167,11 @@ func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadClo
 
 	if isGoogleWorkspaceType(mimeType) {
 		exportMIME := exportMIMEType(mimeType)
-		resp, err := svc.Files.Export(fileID, exportMIME).Context(ctx).Download()
-		if err != nil {
-			return nil, fmt.Errorf("gdrive: export %s as %s: %w", fileID, exportMIME, err)
+		exportResp, exportErr := svc.Files.Export(fileID, exportMIME).Context(ctx).Download()
+		if exportErr != nil {
+			return nil, fmt.Errorf("gdrive: export %s as %s: %w", fileID, exportMIME, exportErr)
 		}
-		return resp.Body, nil
+		return exportResp.Body, nil
 	}
 
 	resp, err := svc.Files.Get(fileID).Context(ctx).Download()

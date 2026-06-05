@@ -64,8 +64,8 @@ func (s *Source) Validate(_ context.Context) error {
 	}
 	defer c.Close()
 	cmd := c.Select(s.cfg.Mailbox, nil)
-	if _, err := cmd.Wait(); err != nil {
-		return fmt.Errorf("imap: select %s: %w", s.cfg.Mailbox, err)
+	if _, waitErr := cmd.Wait(); waitErr != nil {
+		return fmt.Errorf("imap: select %s: %w", s.cfg.Mailbox, waitErr)
 	}
 	return nil
 }
@@ -77,8 +77,8 @@ func (s *Source) Poll(_ context.Context) ([]ingress.IngestItem, error) {
 	}
 	defer c.Close()
 
-	if _, err := c.Select(s.cfg.Mailbox, nil).Wait(); err != nil {
-		return nil, fmt.Errorf("imap: select %s: %w", s.cfg.Mailbox, err)
+	if _, waitErr := c.Select(s.cfg.Mailbox, nil).Wait(); waitErr != nil {
+		return nil, fmt.Errorf("imap: select %s: %w", s.cfg.Mailbox, waitErr)
 	}
 
 	// Search for all UNSEEN messages
@@ -110,8 +110,8 @@ func (s *Source) Poll(_ context.Context) ([]ingress.IngestItem, error) {
 		if msg == nil {
 			break
 		}
-		buf, err := msg.Collect()
-		if err != nil {
+		buf, collectErr := msg.Collect()
+		if collectErr != nil {
 			continue
 		}
 		if buf.Envelope == nil {
@@ -151,9 +151,9 @@ func (s *Source) Fetch(_ context.Context, item ingress.IngestItem) (io.ReadClose
 		return nil, err
 	}
 
-	if _, err := c.Select(s.cfg.Mailbox, nil).Wait(); err != nil {
+	if _, waitErr := c.Select(s.cfg.Mailbox, nil).Wait(); waitErr != nil {
 		_ = c.Close()
-		return nil, fmt.Errorf("imap: select %s: %w", s.cfg.Mailbox, err)
+		return nil, fmt.Errorf("imap: select %s: %w", s.cfg.Mailbox, waitErr)
 	}
 
 	numSet := goimap.UIDSetNum(uid)
@@ -201,9 +201,9 @@ func (s *Source) connect() (*imapclient.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("imap: connect %s: %w", addr, err)
 	}
-	if err := c.Login(s.cfg.Username, s.cfg.Password).Wait(); err != nil {
+	if loginErr := c.Login(s.cfg.Username, s.cfg.Password).Wait(); loginErr != nil {
 		_ = c.Close()
-		return nil, fmt.Errorf("imap: login: %w", err)
+		return nil, fmt.Errorf("imap: login: %w", loginErr)
 	}
 	return c, nil
 }

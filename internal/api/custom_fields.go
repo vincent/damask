@@ -311,7 +311,7 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 		}
 		if existing.FieldType == "select" {
 			var opts []string
-			if err := json.Unmarshal([]byte(*body.Options), &opts); err != nil || len(opts) == 0 {
+			if unmarshalErr := json.Unmarshal([]byte(*body.Options), &opts); unmarshalErr != nil || len(opts) == 0 {
 				return errRes(c, fiber.StatusBadRequest, "options must be a non-empty JSON array of strings")
 			}
 		} else {

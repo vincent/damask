@@ -40,11 +40,11 @@ func TestHandleUploadAvatar_DelegatesToService(t *testing.T) {
 		t.Fatalf("CreateFormFile: %v", err)
 	}
 	payload := []byte("avatar-bytes")
-	if _, err := part.Write(payload); err != nil {
-		t.Fatalf("part.Write: %v", err)
+	if _, writeErr := part.Write(payload); writeErr != nil {
+		t.Fatalf("part.Write: %v", writeErr)
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("writer.Close: %v", err)
+	if closeErr := writer.Close(); closeErr != nil {
+		t.Fatalf("writer.Close: %v", closeErr)
 	}
 
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/users/me/avatar", body, token)
@@ -74,11 +74,11 @@ func TestHandleUploadAvatar_TooLarge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFormFile: %v", err)
 	}
-	if _, err := part.Write(bytes.Repeat([]byte("a"), 5<<20+1)); err != nil {
-		t.Fatalf("part.Write: %v", err)
+	if _, writeErr := part.Write(bytes.Repeat([]byte("a"), 5<<20+1)); writeErr != nil {
+		t.Fatalf("part.Write: %v", writeErr)
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("writer.Close: %v", err)
+	if closeErr := writer.Close(); closeErr != nil {
+		t.Fatalf("writer.Close: %v", closeErr)
 	}
 
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/users/me/avatar", body, token)
@@ -93,8 +93,8 @@ func TestHandleUploadAvatar_TooLarge(t *testing.T) {
 	var out struct {
 		Error string `json:"error"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		t.Fatalf("decode: %v", err)
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&out); decodeErr != nil {
+		t.Fatalf("decode: %v", decodeErr)
 	}
 	if out.Error != "avatar_too_large" {
 		t.Fatalf("error = %q, want avatar_too_large", out.Error)
@@ -155,11 +155,11 @@ func TestHandleUploadAvatar_UnsupportedType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFormFile: %v", err)
 	}
-	if _, err := part.Write([]byte("payload")); err != nil {
-		t.Fatalf("part.Write: %v", err)
+	if _, writeErr := part.Write([]byte("payload")); writeErr != nil {
+		t.Fatalf("part.Write: %v", writeErr)
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("writer.Close: %v", err)
+	if closeErr := writer.Close(); closeErr != nil {
+		t.Fatalf("writer.Close: %v", closeErr)
 	}
 
 	req := testutil.BearerRequest(http.MethodPost, "/api/v1/users/me/avatar", body, token)
