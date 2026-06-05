@@ -196,8 +196,8 @@ func TestListAssets_SimilarToNotIndexed(t *testing.T) {
 	if code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", code)
 	}
-	if !body.SimilarToNotIndexed {
-		t.Fatal("expected similar_to_not_indexed")
+	if !body.SimilarToNoMatches {
+		t.Fatal("expected similar_to_no_matches")
 	}
 	if body.Similarity == nil || body.Similarity.ResultCount != 0 {
 		t.Fatalf("unexpected similarity meta: %#v", body.Similarity)

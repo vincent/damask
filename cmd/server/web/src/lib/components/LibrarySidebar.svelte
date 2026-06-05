@@ -27,7 +27,6 @@
     ArrowLeft,
     Download,
     HardDrive,
-    History,
     Info,
     LibraryBig,
     Megaphone,
@@ -35,7 +34,6 @@
     Plug,
     ScanSearch,
     Settings2,
-    Shield,
     Upload,
     Tags,
     User,
@@ -91,18 +89,6 @@
       icon: Settings2,
     },
     {
-      id: 'ingress',
-      label: () => m.tab_ingress(),
-      path: '/library/settings/ingress',
-      icon: Download,
-    },
-    {
-      id: 'exports',
-      label: () => 'Exports',
-      path: '/library/settings/exports',
-      icon: Upload,
-    },
-    {
       id: 'integrations',
       label: () => m.integrations_title(),
       path: '/library/settings/integrations',
@@ -115,16 +101,22 @@
       icon: Workflow,
     },
     {
+      id: 'ingress',
+      label: () => m.tab_ingress(),
+      path: '/library/settings/ingress',
+      icon: Download,
+    },
+    {
+      id: 'exports',
+      label: () => 'Exports',
+      path: '/library/settings/exports',
+      icon: Upload,
+    },
+    {
       id: 'content',
       label: () => m.settings_content_title(),
       path: '/library/settings/content',
       icon: ScanSearch,
-    },
-    {
-      id: 'versioning',
-      label: () => m.tab_history(),
-      path: '/library/settings/versioning',
-      icon: History,
     },
     {
       id: 'storage',
@@ -135,12 +127,6 @@
   ]
 
   const securitySections = [
-    {
-      id: 'privacy',
-      label: () => m.tab_exif_privacy(),
-      path: '/library/settings/privacy',
-      icon: Shield,
-    },
     {
       id: 'activity',
       label: () => m.activity(),
