@@ -9,7 +9,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 )
 
-// newStorageSvcDB opens an in-memory SQLite DB and returns a StorageService, Queries, and *sql.DB.
+// newStorageSvcDB opens an in-memory SQLite DB and returns a StorageService, Queries, and *[sql.DB].
 func newStorageSvcDB(t *testing.T) (StorageService, *dbgen.Queries, *sql.DB) {
 	t.Helper()
 	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")

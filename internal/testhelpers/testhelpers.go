@@ -289,12 +289,12 @@ func MintEditorToken(t *testing.T, env *TestEnv, workspaceID string, role auth.R
 	return token
 }
 
-// JSONStr returns an io.Reader wrapping a JSON string literal.
+// JSONStr returns an [io.Reader] wrapping a JSON string literal.
 func JSONStr(s string) io.Reader {
 	return strings.NewReader(s)
 }
 
-// JSONBody marshals v to JSON and returns an io.Reader suitable for AuthRequest/BearerRequest.
+// JSONBody marshals v to JSON and returns an [io.Reader] suitable for AuthRequest/BearerRequest.
 func JSONBody(v any) io.Reader {
 	b, err := json.Marshal(v)
 	if err != nil {

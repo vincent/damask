@@ -158,7 +158,7 @@ func (e *TestEnv) MintToken(t *testing.T, userID, workspaceID string) string {
 	return tok
 }
 
-// MintCookie issues a signed JWT and wraps it in an http.Cookie named "auth_token".
+// MintCookie issues a signed JWT and wraps it in an [http.Cookie] named "auth_token".
 func (e *TestEnv) MintCookie(t *testing.T, userID, workspaceID string) *http.Cookie {
 	t.Helper()
 	tok := e.MintToken(t, userID, workspaceID)
@@ -166,7 +166,7 @@ func (e *TestEnv) MintCookie(t *testing.T, userID, workspaceID string) *http.Coo
 }
 
 // AuthRequest builds an HTTP request carrying the given cookie.
-// body may be nil.
+// body ([io.Reader]) may be nil.
 func AuthRequest(method, path string, body io.Reader, cookie *http.Cookie) *http.Request {
 	req := httptest.NewRequestWithContext(context.Background(), method, path, body)
 	if body != nil {
@@ -179,7 +179,7 @@ func AuthRequest(method, path string, body io.Reader, cookie *http.Cookie) *http
 }
 
 // BearerRequest builds an HTTP request with an Authorization: Bearer <token> header.
-// body may be nil.
+// body ([io.Reader]) may be nil.
 func BearerRequest(method, path string, body io.Reader, token string) *http.Request {
 	req := httptest.NewRequestWithContext(context.Background(), method, path, body)
 	if body != nil {
@@ -191,12 +191,12 @@ func BearerRequest(method, path string, body io.Reader, token string) *http.Requ
 	return req
 }
 
-// JSONStr returns an io.Reader over a raw JSON string literal.
+// JSONStr returns an [io.Reader] over a raw JSON string literal.
 func JSONStr(s string) io.Reader {
 	return strings.NewReader(s)
 }
 
-// JSONBody marshals v to JSON and returns it as an io.Reader.
+// JSONBody marshals v to JSON and returns it as an [io.Reader].
 func JSONBody(v any) io.Reader {
 	b, err := json.Marshal(v)
 	if err != nil {

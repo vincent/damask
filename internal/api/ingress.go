@@ -13,7 +13,7 @@ import (
 
 // -- Request / response types
 
-// RawToNullableString converts a *json.RawMessage field to *string.
+// RawToNullableString converts a *[json.RawMessage] field to *string.
 // Returns (nil, false) when the field was absent (pointer is nil).
 // Returns (nil, true) when the field was explicitly JSON null → clear the value.
 // Returns (&s, true) when the field was a JSON string → set to s.

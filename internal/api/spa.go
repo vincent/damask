@@ -10,7 +10,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// newSPAHandler serves an embedded fs.FS with SPA fallback to index.html for unknown paths.
+// newSPAHandler serves an embedded [fs.FS] with SPA fallback to index.html for unknown paths.
 func newSPAHandler(fsys fs.FS) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		p := strings.TrimPrefix(c.Path(), "/")
@@ -34,7 +34,7 @@ func newSPAHandler(fsys fs.FS) fiber.Handler {
 	}
 }
 
-// serveFile serves a file from fs.FS by path using Fiber's built-in SendFile.
+// serveFile serves a file from [fs.FS] by path using Fiber's built-in SendFile.
 func serveFile(c fiber.Ctx, fsys fs.FS, path string) error {
 	// Read the entire file into memory for serving
 	data, err := fs.ReadFile(fsys, path)

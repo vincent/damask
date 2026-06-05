@@ -244,7 +244,7 @@ func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadClo
 	return &cancelOnClose{ReadCloser: dlResp.Body, cancel: dlCancel}, nil
 }
 
-// cancelOnClose wraps an io.ReadCloser and calls a cancel func on Close,
+// cancelOnClose wraps an [io.ReadCloser] and calls a cancel func on Close,
 // ensuring the download context is released when the caller is done streaming.
 type cancelOnClose struct {
 	io.ReadCloser

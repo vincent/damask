@@ -39,7 +39,7 @@ type EventWriter struct {
 // Ensure EventWriter implements Writer.
 var _ Writer = (*EventWriter)(nil)
 
-// New creates an EventWriter backed by the given *sql.DB.
+// New creates an EventWriter backed by the given *[sql.DB].
 func New(db *sql.DB) *EventWriter {
 	return &EventWriter{db: db}
 }

@@ -113,7 +113,7 @@ func NewUserService(
 
 // Register creates a new user and a default workspace atomically.
 // It uses WorkspaceRepository.RunRegistrationTx so that user row, workspace row, and
-// member row all land in a single DB transaction without leaking *sql.DB into the service.
+// member row all land in a single DB transaction without leaking *[sql.DB] into the service.
 func (s *userService) Register(ctx context.Context, p RegisterUserParams) (*RegisterUserResult, error) {
 	workspaceID := uuid.New().String()
 	var result RegisterUserResult

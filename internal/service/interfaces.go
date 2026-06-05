@@ -474,7 +474,7 @@ type AuditLogService interface {
 	ExportActivity(ctx context.Context, p ExportActivityParams) (csv string, err error)
 }
 
-// UploadService handles asset ingestion from an io.Reader.
+// UploadService handles asset ingestion from an [io.Reader].
 type UploadService interface {
 	Ingest(ctx context.Context, workspaceID string, r io.Reader, meta UploadMeta) (*AssetDTO, error)
 }

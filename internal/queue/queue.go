@@ -291,7 +291,6 @@ const (
 	JobTypeExtractPlainTextTrack    = "document_plain_extract_text_track"
 	JobTypeExtractDocumentTextTrack = "document_office_extract_text_track"
 
-	// Variant jobs — user-triggered, each creates a variants row.
 	JobTypeVideoCaptureImage = "video_capture_image"
 	JobTypeVideoTranscode    = "video_transcode"
 	JobTypeVideoWatermark    = "video_watermark"
@@ -306,34 +305,25 @@ const (
 	JobTypeTranscodeAudio    = "audio_transcode"
 	JobTypeNormalizeAudio    = "audio_normalize"
 
-	/* Ingress jobs. */
 	JobTypeIngestPoll  = "ingest_poll"
 	JobTypeIngestFetch = "ingest_fetch"
 
-	// Rebuild jobs — system-triggered on new version upload.
 	JobTypeRebuildVariants = "rebuild_variants"
 	JobTypeRunWorkflow     = "run_workflow"
 
-	// EXIF extraction.
 	JobTypeExtractExif      = "extract_exif"
 	JobTypeExtractMediaTags = "extract_media_tags"
 
-	// Stack merge jobs.
-	JobTypeStackMerge = "stack_merge"
-
-	// Variant draft jobs.
+	JobTypeStackMerge         = "stack_merge"
 	JobTypeCreateVariantDraft = "create_variant_draft"
 
-	// Export jobs.
 	JobTypeExportRun = "export_run"
 
-	// Maintenance jobs.
 	JobTypePurgeDeletedFields      = "purge_deleted_fields"
 	JobTypeEnforceVersionRetention = "enforce_version_retention"
 	JobTypePurgeVersionStorage     = "purge_version_storage"
 	JobTypePurgeAuditLog           = "purge_event_log"
 	JobTypePurgeScratchVariants    = "purge_scratch_variants"
 
-	// Visual similarity.
 	JobTypeVisualSimilarityBackfill = "visual_similarity_backfill"
 )

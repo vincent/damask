@@ -11,7 +11,7 @@ import (
 )
 
 // ErrStorageLimitReached is the same sentinel as ingress.ErrStorageLimitReached so
-// callers in both packages can use errors.Is consistently.
+// callers in both packages can use [errors.Is] consistently.
 var ErrStorageLimitReached = ingress.ErrStorageLimitReached
 
 // AssetTypeBucket breaks usage down by asset type.
