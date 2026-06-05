@@ -77,7 +77,7 @@ func (s *Server) handleGetSimilarAssets(c fiber.Ctx) error {
 	for _, sa := range similar {
 		var thumbURL *string
 		if sa.ThumbnailKey != nil {
-			u := "/api/v1/assets/" + sa.AssetID + "/versions/" + sa.AssetVersionID + "/thumb"
+			u := versionThumbURL(sa.AssetID, sa.AssetVersionID)
 			thumbURL = &u
 		}
 		results = append(results, VisualSimilarResult{

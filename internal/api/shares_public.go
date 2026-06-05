@@ -358,12 +358,12 @@ func (s *Server) handleShareGetVariantThumb(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 	if v.ThumbnailKey == nil {
-		return c.Redirect().To(fmt.Sprintf("/shared/%s/assets/%s/thumb", shareID, assetID))
+		return c.Redirect().To(sharedAssetThumbURL(shareID, assetID))
 	}
 
 	rc, err := s.storage.Get(*v.ThumbnailKey)
 	if err != nil {
-		return c.Redirect().To(fmt.Sprintf("/shared/%s/assets/%s/thumb", shareID, assetID))
+		return c.Redirect().To(sharedAssetThumbURL(shareID, assetID))
 	}
 
 	ct := v.ThumbnailContentType

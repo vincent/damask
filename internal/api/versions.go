@@ -53,7 +53,7 @@ func (s *Server) resolveCreator(ctx context.Context, userID string) *VersionCrea
 func versionDTOToResponse(v *service.VersionDTO, createdBy *VersionCreatedByResponse) VersionResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
-		u := fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", v.AssetID, v.ID)
+		u := versionThumbURL(v.AssetID, v.ID)
 		thumbURL = &u
 	}
 	return VersionResponse{

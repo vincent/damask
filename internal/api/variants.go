@@ -102,7 +102,7 @@ type automateVariantsResponse struct {
 func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
-		u := fmt.Sprintf("/api/v1/assets/%s/variants/%s/thumb", assetID, v.ID)
+		u := variantThumbURL(assetID, v.ID)
 		thumbURL = &u
 	}
 	ct := v.ThumbnailContentType
@@ -121,7 +121,7 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 		Size:                 v.Size,
 		Status:               status,
 		StorageKey:           v.StorageKey,
-		DownloadURL:          fmt.Sprintf("/api/v1/assets/%s/variants/%s/file", assetID, v.ID),
+		DownloadURL:          variantFileURL(assetID, v.ID),
 		ThumbnailURL:         thumbURL,
 		ThumbnailContentType: ct,
 		Title:                v.Title,
@@ -133,7 +133,7 @@ func variantDTOToResponse(assetID string, v *service.VariantDTO) VariantResponse
 func sharedVariantDTOToResponse(shareID, assetID string, v service.SharedVariantDTO) SharedVariantResponse {
 	var thumbURL *string
 	if v.ThumbnailKey != nil {
-		u := fmt.Sprintf("/shared/%s/assets/%s/variants/%s/thumb", shareID, assetID, v.ID)
+		u := sharedVariantThumbURL(shareID, assetID, v.ID)
 		thumbURL = &u
 	}
 	ct := v.ThumbnailContentType
@@ -156,7 +156,7 @@ func sharedVariantDTOToResponse(shareID, assetID string, v service.SharedVariant
 }
 
 func systemTagAssetToWatermarkResponse(v *service.AssetDTO, scope string) WatermarkAssetResponse {
-	u := fmt.Sprintf("/api/v1/assets/%s/thumb", v.ID)
+	u := assetThumbURL(v.ID)
 	return WatermarkAssetResponse{
 		ID:           v.ID,
 		Name:         v.OriginalFilename,
@@ -436,7 +436,7 @@ func (s *Server) handleSetVariantThumbnail(c fiber.Ctx) error {
 	}
 
 	return c.JSON(SetVariantThumbnailResponse{
-		ThumbnailURL: fmt.Sprintf("/api/v1/assets/%s/thumb", assetID),
+		ThumbnailURL: assetThumbURL(assetID),
 	})
 }
 

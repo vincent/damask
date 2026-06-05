@@ -48,7 +48,7 @@ func textTrackDTOToResponse(dto service.TextTrackDTO, truncate bool) TextTrackRe
 	}
 	var downloadURL *string
 	if dto.StorageKey != nil {
-		u := fmt.Sprintf("/api/v1/assets/%s/text-tracks/%s/download", dto.AssetID, dto.ID)
+		u := textTrackDownloadURL(dto.AssetID, dto.ID)
 		downloadURL = &u
 	}
 	return TextTrackResponse{

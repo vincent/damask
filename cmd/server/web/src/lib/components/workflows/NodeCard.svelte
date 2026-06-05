@@ -3,6 +3,8 @@
     WorkflowGraphNode,
     WorkflowNodeSchema,
   } from '$lib/api/workflows'
+  import { assetApi } from '$lib/api/assets'
+  import { variantApi } from '$lib/api/client'
 
   interface Props {
     node: WorkflowGraphNode
@@ -38,12 +40,10 @@
     onPortContextMenu = () => {},
   }: Props = $props()
 
-  const VITE_API_URL = import.meta.env.VITE_API_URL ?? ''
-
   const assetThumbUrl = $derived.by(() => {
     const assetId = inputCtx?.['asset_id']
     if (typeof assetId !== 'string' || !assetId) return null
-    return `${VITE_API_URL}/api/v1/assets/${assetId}/thumb`
+    return assetApi.thumbUrl(assetId)
   })
 
   const variantThumbUrl = $derived.by(() => {
@@ -51,7 +51,7 @@
     const variantId = outputCtx?.['variant_id']
     if (typeof variantId !== 'string' || !variantId) return null
     if (typeof assetId !== 'string' || !assetId) return null
-    return `${VITE_API_URL}/api/v1/assets/${assetId}/variants/${variantId}/thumb`
+    return variantApi.thumbUrl(assetId, variantId)
   })
 
   function accentColor(category: string | undefined) {
