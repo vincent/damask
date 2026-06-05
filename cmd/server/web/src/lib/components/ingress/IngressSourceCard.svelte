@@ -98,7 +98,7 @@
     </div>
 
     <!-- Actions -->
-    <div class="flex shrink-0 items-center gap-1">
+    <div class="flex shrink-0 items-center gap-1" onclick={(e) => e.stopPropagation()} role="none">
       <ButtonStart
         onclick={handlePoll}
         disabled={polling || !source.enabled}

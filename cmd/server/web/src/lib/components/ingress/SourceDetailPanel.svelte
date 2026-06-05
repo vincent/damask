@@ -156,8 +156,7 @@
 </script>
 
 <aside
-  in:fly={{ x: 250, duration: 150, delay: 150 }}
-  out:fly={{ x: 250, duration: 150 }}
+  in:fly={{ x: 250, duration: 150 }}
   class="flex w-2xl shrink-0 flex-col border-l border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
 >
   <!-- Panel header -->

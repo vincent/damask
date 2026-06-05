@@ -93,6 +93,7 @@
           {#each ingressStore.sources as source (source.id)}
             <button
               type="button"
+              onclick={() => handleEdit(source)}
               class="w-full text-left focus:outline-none {!detailSource
                 ? ''
                 : detailSource != source
