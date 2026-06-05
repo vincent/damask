@@ -78,7 +78,8 @@ func TestListWorkflowsFilterByTriggerType(t *testing.T) {
 		got = params
 		return []service.WorkflowDTO{{ID: "wf_1", WorkspaceID: workspaceID, Name: "Manual", Enabled: true}}, nil
 	}
-	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows?trigger_type=trigger.manual&enabled_only=true", nil, env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(http.MethodGet,
+		"/api/v1/workflows?trigger_type=trigger.manual&enabled_only=true", nil, env.MintToken(t, "usr_1", "ws_1"))
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)

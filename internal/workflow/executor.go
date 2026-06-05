@@ -40,15 +40,13 @@ func (e *Executor) Run(ctx context.Context, runID string) error {
 
 	run, err := e.deps.Runs.GetByID(ctx, runID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.EndSpan(span, err)
 		return err
 	}
 
 	wf, err := e.deps.Workflows.GetByID(ctx, run.WorkspaceID, run.WorkflowID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.EndSpan(span, err)
 		return err
 	}
 
@@ -127,8 +125,7 @@ func (e *Executor) executeNode(
 
 	n, err := Build(e.deps, node.Type)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.EndSpan(span, err)
 		return err
 	}
 
@@ -247,8 +244,7 @@ func (e *Executor) ResumeAt(ctx context.Context, cont NodeContinuation, updates 
 
 	wf, err := e.deps.Workflows.GetByID(ctx, cont.WorkspaceID, cont.WorkflowID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.EndSpan(span, err)
 		return err
 	}
 
@@ -273,8 +269,7 @@ func (e *Executor) ResumeAt(ctx context.Context, cont NodeContinuation, updates 
 	}
 	if !found {
 		err = fmt.Errorf("node %q not found in workflow graph", cont.NodeID)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		telemetry.EndSpan(span, err)
 		return err
 	}
 

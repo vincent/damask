@@ -348,7 +348,7 @@ func (r *fieldRepo) PurgeExpired(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // best-effort
 
 	qtx := r.q.WithTx(tx)
 	for _, id := range ids {

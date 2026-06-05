@@ -96,10 +96,10 @@ func newTelemetryQueue(t *testing.T) (*Queue, *tracetest.SpanRecorder) {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
-	if err := dbpkg.RunMigrations(sqlDB); err != nil {
+	if err = dbpkg.RunMigrations(sqlDB); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_1', 'Test')`); err != nil {
+	if _, err = sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_1', 'Test')`); err != nil {
 		t.Fatalf("insert workspace: %v", err)
 	}
 	return New(dbgen.New(sqlDB), 1), recorder

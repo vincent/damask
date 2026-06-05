@@ -574,6 +574,7 @@ func (s *textTrackService) RunOCR(ctx context.Context, workspaceID, assetID, tra
 	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.ocr",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
+		attribute.String("damask.asset_mime_type", mimeType),
 		attribute.String("damask.text_track_id", trackID),
 		attribute.String("damask.text_track.lang", lang),
 		attribute.String("damask.text_track.output_format", outputFormat),

@@ -205,7 +205,7 @@ func (s *JobServer) finalizeVariant(
 				"variant_content_type": contentType,
 				"variant_storage_key":  storageKey,
 			}); resumeErr != nil {
-				slog.Error("workflow continuation failed after variant ready",
+				slog.ErrorContext(ctx, "workflow continuation failed after variant ready",
 					"run_id", p.Continuation.RunID,
 					"node_id", p.Continuation.NodeID,
 					"error", resumeErr,

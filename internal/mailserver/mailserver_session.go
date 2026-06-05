@@ -55,7 +55,7 @@ func (s *Session) Data(r io.Reader) error {
 		if h.Address != s.to {
 			continue
 		}
-		if err := h.Trigger(context.Background(), s.from, email); err != nil {
+		if err = h.Trigger(context.Background(), s.from, email); err != nil {
 			return err
 		}
 	}
@@ -109,7 +109,7 @@ func (s *Session) Data(r io.Reader) error {
 		}
 
 		for _, att := range email.Attachments {
-			if err := s.ingestAttachment(ctx, src, att, overrideFolderID); err != nil {
+			if err = s.ingestAttachment(ctx, src, att, overrideFolderID); err != nil {
 				slog.ErrorContext(
 					ctx,
 					"mailserver: ingest attachment",
@@ -191,7 +191,7 @@ func (s *Session) ingestAttachment(
 		OverrideFolderID: overrideFolderID,
 	})
 
-	if _, err := s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
+	if _, err = s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("enqueue: %w", err)
 	}

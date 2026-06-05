@@ -271,7 +271,7 @@ func (q *Queue) processNext(ctx context.Context) {
 
 	span.SetStatus(codes.Ok, "")
 
-	if err := q.queries.CompleteJob(ctx, job.ID); err != nil {
+	if err = q.queries.CompleteJob(ctx, job.ID); err != nil {
 		slog.ErrorContext(ctx, "queue: complete job", "job_id", job.ID, "error", err)
 	}
 

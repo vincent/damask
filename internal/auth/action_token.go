@@ -59,7 +59,7 @@ func VerifyActionToken(secret []byte, token string) (ActionTokenClaims, error) {
 		return ActionTokenClaims{}, ErrTokenInvalid
 	}
 	var claims ActionTokenClaims
-	if err := json.Unmarshal(payload, &claims); err != nil {
+	if err = json.Unmarshal(payload, &claims); err != nil {
 		return ActionTokenClaims{}, ErrTokenInvalid
 	}
 	if time.Now().Unix() > claims.Exp {

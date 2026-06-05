@@ -129,7 +129,7 @@ func ExtractAVTags(ctx context.Context, ffprobePath, filePath string) (*AVTags, 
 	}
 
 	var probe ffprobeOut
-	if err := json.Unmarshal(out, &probe); err != nil {
+	if err = json.Unmarshal(out, &probe); err != nil {
 		return nil, fmt.Errorf("mediameta: parse: %w", err)
 	}
 

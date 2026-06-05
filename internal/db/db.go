@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -22,17 +23,19 @@ func Open(dbPath string) (*db.Queries, *sql.DB, error) {
 		return nil, nil, fmt.Errorf("open db: %w", err)
 	}
 
-	if _, err := sqlDB.Exec(`PRAGMA journal_mode=WAL`); err != nil {
+	ctx := context.Background()
+
+	if _, err = sqlDB.ExecContext(ctx, `PRAGMA journal_mode=WAL`); err != nil {
 		return nil, nil, fmt.Errorf("set WAL mode: %w", err)
 	}
-	if _, err := sqlDB.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+	if _, err = sqlDB.ExecContext(ctx, `PRAGMA foreign_keys=ON`); err != nil {
 		return nil, nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
-	if _, err := sqlDB.Exec(`PRAGMA busy_timeout=5000`); err != nil {
+	if _, err = sqlDB.ExecContext(ctx, `PRAGMA busy_timeout=5000`); err != nil {
 		return nil, nil, fmt.Errorf("set busy timeout: %w", err)
 	}
 
-	if err := RunMigrations(sqlDB); err != nil {
+	if err = RunMigrations(sqlDB); err != nil {
 		return nil, nil, fmt.Errorf("run migrations: %w", err)
 	}
 

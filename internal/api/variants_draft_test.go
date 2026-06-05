@@ -45,7 +45,14 @@ func (notFoundError) Is(target error) bool {
 }
 
 // writeScratchFiles puts a fake draft output + meta into in-memory storage.
-func writeScratchFiles(t *testing.T, stor storage.Storage, workspaceID, userID, nonce, assetID string) { //nolint:unparam // readability
+func writeScratchFiles( //nolint:unparam // readability
+	t *testing.T,
+	stor storage.Storage,
+	workspaceID,
+	userID,
+	nonce,
+	assetID string,
+) {
 	t.Helper()
 	outputKey := fmt.Sprintf("scratch/%s/%s/%s", workspaceID, userID, nonce)
 	metaKey := outputKey + ".meta"

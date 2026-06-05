@@ -101,17 +101,17 @@ func setupMailserverDB(t *testing.T) (*dbgen.Queries, *sql.DB) {
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	ctx := context.Background()
-	if _, err := sqlDB.ExecContext(
+	if _, err = sqlDB.ExecContext(
 		ctx,
 		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`,
 	); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
-	if _, err := sqlDB.ExecContext(ctx,
+	if _, err = sqlDB.ExecContext(ctx,
 		`INSERT INTO workspaces (id, name, created_at) VALUES ('ws1','Test',datetime('now'))`); err != nil {
 		t.Fatalf("insert workspace: %v", err)
 	}
-	if _, err := queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+	if _, err = queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
 		ID: "src1", WorkspaceID: "ws1", CreatedBy: "u1",
 		Type: "email_api", Label: "Mail drop", Config: "{}",
 		PublicToken: "abc123", Enabled: 1, PollIntervalMin: 0,
@@ -134,19 +134,19 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert a workspace and user to satisfy FK constraints.
-	if _, err := sqlDB.ExecContext(
+	if _, err = sqlDB.ExecContext(
 		ctx,
 		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES ('u1','u@x.com','h','U',datetime('now'))`,
 	); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
-	if _, err := sqlDB.ExecContext(ctx,
+	if _, err = sqlDB.ExecContext(ctx,
 		`INSERT INTO workspaces (id, name, created_at) VALUES ('ws1','Test',datetime('now'))`); err != nil {
 		t.Fatalf("insert workspace: %v", err)
 	}
 
 	const token = "abc123"
-	if _, err := queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
+	if _, err = queries.CreateIngressSource(ctx, dbgen.CreateIngressSourceParams{
 		ID: "src1", WorkspaceID: "ws1", CreatedBy: "u1",
 		Type: "email_api", Label: "Mail drop", Config: "{}",
 		PublicToken: token, Enabled: 1, PollIntervalMin: 0,
@@ -157,10 +157,10 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	q := queue.New(queries, 1)
 	session := &Session{queries: queries, queue: q}
 
-	if err := session.Rcpt(token+"@ingress.damask.studio", nil); err != nil {
+	if err = session.Rcpt(token+"@ingress.damask.studio", nil); err != nil {
 		t.Fatalf("Rcpt: %v", err)
 	}
-	if err := session.Data(strings.NewReader(buildEmailTo("abc123@ingress.damask.studio"))); err != nil {
+	if err = session.Data(strings.NewReader(buildEmailTo("abc123@ingress.damask.studio"))); err != nil {
 		t.Fatalf("Data: %v", err)
 	}
 
@@ -216,7 +216,7 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 		Filename    string `json:"filename"`
 		TmpPath     string `json:"tmp_path"`
 	}
-	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
+	if err = json.Unmarshal([]byte(job.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal payload: %v", err)
 	}
 	if payload.SourceID != "src1" {
@@ -314,7 +314,7 @@ func TestSession_FolderRouting_UnknownTagFallsBack(t *testing.T) {
 	var payload struct {
 		OverrideFolderID string `json:"override_folder_id"`
 	}
-	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
+	if err = json.Unmarshal([]byte(job.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal payload: %v", err)
 	}
 	if payload.OverrideFolderID != "" {

@@ -62,7 +62,7 @@ func (m *MockWorkspaceService) ListForUser(ctx context.Context, userID string) (
 	if m.ListForUserFn != nil {
 		return m.ListForUserFn(ctx, userID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockWorkspaceService) CountAssets(ctx context.Context, workspaceID string) (int64, error) {
@@ -129,7 +129,7 @@ func (m *MockWorkspaceService) ListMembers(ctx context.Context, workspaceID stri
 	if m.ListMembersFn != nil {
 		return m.ListMembersFn(ctx, workspaceID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockWorkspaceService) RemoveMember(ctx context.Context, workspaceID, callerID, targetUserID string) error {
@@ -165,7 +165,7 @@ func (m *MockWorkspaceService) ListInvites(ctx context.Context, workspaceID stri
 	if m.ListInvitesFn != nil {
 		return m.ListInvitesFn(ctx, workspaceID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockWorkspaceService) DeleteInvite(ctx context.Context, workspaceID, inviteID string) error {

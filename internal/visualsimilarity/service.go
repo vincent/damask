@@ -108,13 +108,13 @@ func (s *Service) FindSimilarEnriched(ctx context.Context, workspaceID, assetVer
 	var results []SimilarAsset
 	for rows.Next() {
 		var r SimilarAsset
-		if err := rows.Scan(&r.AssetVersionID, &r.AssetID, &r.OriginalFilename, &r.MimeType, &r.Width, &r.Height, &r.ThumbnailKey); err != nil {
+		if err = rows.Scan(&r.AssetVersionID, &r.AssetID, &r.OriginalFilename, &r.MimeType, &r.Width, &r.Height, &r.ThumbnailKey); err != nil {
 			telemetry.EndSpan(span, err)
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 		results = append(results, r)
 	}
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		telemetry.EndSpan(span, err)
 		return nil, err
 	}

@@ -65,7 +65,7 @@ func (s *SFTPStorage) connect() (*gsftp.Client, *ssh.Client, error) {
 		authMethods = append(authMethods, ssh.Password(s.cfg.Password))
 	}
 
-	hostKeyCallback := ssh.HostKeyCallback(func(_ string, remote net.Addr, key ssh.PublicKey) error {
+	hostKeyCallback := ssh.HostKeyCallback(func(_ string, _ net.Addr, _ ssh.PublicKey) error {
 		return errors.New(
 			"sftp storage: host key verification not configured;" +
 				"set STORAGE_SFTP_INSECURE_HOST_KEY=true to skip (not recommended for production)")
