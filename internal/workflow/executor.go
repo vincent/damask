@@ -153,7 +153,7 @@ func (e *Executor) executeNode(
 	if node.Type == nodeTypeCreateVariant {
 		for _, s := range g.Successors(node.ID, portOut) {
 			if s.Type == nodeTypeSetNewVersion {
-				rc.Set(rcKeyContinuation, WorkflowContinuation{
+				rc.Set(rcKeyContinuation, NodeContinuation{
 					RunID:       runID,
 					NodeID:      s.ID,
 					WorkflowID:  workflowID,
@@ -237,7 +237,7 @@ func (e *Executor) executeNode(
 
 // ResumeAt restores a paused workflow run at a specific node, merging additional
 // context updates (e.g. variant result data) before executing forward.
-func (e *Executor) ResumeAt(ctx context.Context, cont WorkflowContinuation, updates map[string]any) error {
+func (e *Executor) ResumeAt(ctx context.Context, cont NodeContinuation, updates map[string]any) error {
 	var err error
 	ctx, span := tracer.Start(ctx, "workflow.resume_at", trace.WithAttributes(
 		attribute.String("workflow.run_id", cont.RunID),

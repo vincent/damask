@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"strings"
 
 	"damask/server/internal/auth"
@@ -45,7 +46,7 @@ func (s *Server) handleGetSimilarAssets(c fiber.Ctx) error {
 		WorkspaceID: claims.WorkspaceID,
 	})
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return errRes(c, fiber.StatusNotFound, "asset not found")
 		}
 		return errRes(c, fiber.StatusInternalServerError, "could not fetch asset")

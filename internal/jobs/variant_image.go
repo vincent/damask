@@ -20,18 +20,18 @@ const variantStatusReady = "ready"
 // VariantJobPayload is the payload for user-triggered variant creation jobs.
 // VersionID and VersionNum identify the asset version the variant is bound to.
 type VariantJobPayload struct {
-	AssetID      string                        `json:"asset_id"`
-	WorkspaceID  string                        `json:"workspace_id"`
-	VersionID    string                        `json:"version_id"`
-	VersionNum   int64                         `json:"version_num"`
-	VariantID    string                        `json:"variant_id,omitempty"`
-	StorageKey   string                        `json:"storage_key"`
-	MimeType     string                        `json:"mime_type"`
-	Type         string                        `json:"type"`
-	Params       json.RawMessage               `json:"params"`
-	Title        *string                       `json:"title,omitempty"`
-	IsShared     bool                          `json:"is_shared,omitempty"`
-	Continuation *workflow.WorkflowContinuation `json:"continuation,omitempty"`
+	AssetID      string                     `json:"asset_id"`
+	WorkspaceID  string                     `json:"workspace_id"`
+	VersionID    string                     `json:"version_id"`
+	VersionNum   int64                      `json:"version_num"`
+	VariantID    string                     `json:"variant_id,omitempty"`
+	StorageKey   string                     `json:"storage_key"`
+	MimeType     string                     `json:"mime_type"`
+	Type         string                     `json:"type"`
+	Params       json.RawMessage            `json:"params"`
+	Title        *string                    `json:"title,omitempty"`
+	IsShared     bool                       `json:"is_shared,omitempty"`
+	Continuation *workflow.NodeContinuation `json:"continuation,omitempty"`
 }
 
 // enqueueVariantThumb enqueues a generate_variant_thumbnail job after a variant row is created.

@@ -37,7 +37,7 @@ func (m *MockWorkspaceService) Get(ctx context.Context, workspaceID string) (*se
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkspaceService) Update(
@@ -48,21 +48,21 @@ func (m *MockWorkspaceService) Update(
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkspaceService) Me(ctx context.Context, workspaceID, userID string) (*service.WorkspaceMeDTO, error) {
 	if m.MeFn != nil {
 		return m.MeFn(ctx, workspaceID, userID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkspaceService) ListForUser(ctx context.Context, userID string) ([]service.WorkspaceWithRoleDTO, error) {
 	if m.ListForUserFn != nil {
 		return m.ListForUserFn(ctx, userID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkspaceService) CountAssets(ctx context.Context, workspaceID string) (int64, error) {
@@ -129,7 +129,7 @@ func (m *MockWorkspaceService) ListMembers(ctx context.Context, workspaceID stri
 	if m.ListMembersFn != nil {
 		return m.ListMembersFn(ctx, workspaceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkspaceService) RemoveMember(ctx context.Context, workspaceID, callerID, targetUserID string) error {
@@ -158,14 +158,14 @@ func (m *MockWorkspaceService) CreateInvite(
 	if m.CreateInviteFn != nil {
 		return m.CreateInviteFn(ctx, workspaceID, callerID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkspaceService) ListInvites(ctx context.Context, workspaceID string) ([]service.InviteDTO, error) {
 	if m.ListInvitesFn != nil {
 		return m.ListInvitesFn(ctx, workspaceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkspaceService) DeleteInvite(ctx context.Context, workspaceID, inviteID string) error {
@@ -182,5 +182,5 @@ func (m *MockWorkspaceService) AcceptInvite(
 	if m.AcceptInviteFn != nil {
 		return m.AcceptInviteFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }

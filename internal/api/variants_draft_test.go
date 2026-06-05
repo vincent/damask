@@ -16,7 +16,7 @@ import (
 
 // ---- helpers ----
 
-func setupDraftAsset(t *testing.T, env *testutil.TestEnv, assetID, workspaceID string) {
+func setupDraftAsset(t *testing.T, env *testutil.TestEnv, assetID, workspaceID string) { //nolint:unparam // readability
 	t.Helper()
 	versionID := "ver_1"
 	env.Assets.GetFn = func(_ context.Context, wsID, id string) (*service.AssetDTO, error) {
@@ -29,23 +29,23 @@ func setupDraftAsset(t *testing.T, env *testutil.TestEnv, assetID, workspaceID s
 			CurrentVersionID: &versionID,
 		}, nil
 	}
-	env.Versions.GetCurrentByAssetFn = func(_ context.Context, id string) (*service.VersionDTO, error) {
+	env.Versions.GetCurrentByAssetFn = func(_ context.Context, _ string) (*service.VersionDTO, error) {
 		return &service.VersionDTO{ID: versionID, VersionNum: 1}, nil
 	}
 }
 
 // errNotFound is a sentinel to simulate apperr.ErrNotFound in mock fns.
-var errNotFound = notFoundSentinel{}
+var errNotFound = notFoundError{}
 
-type notFoundSentinel struct{}
+type notFoundError struct{}
 
-func (notFoundSentinel) Error() string { return "not found" }
-func (notFoundSentinel) Is(target error) bool {
+func (notFoundError) Error() string { return "not found" }
+func (notFoundError) Is(target error) bool {
 	return target.Error() == "not found"
 }
 
 // writeScratchFiles puts a fake draft output + meta into in-memory storage.
-func writeScratchFiles(t *testing.T, stor storage.Storage, workspaceID, userID, nonce, assetID string) {
+func writeScratchFiles(t *testing.T, stor storage.Storage, workspaceID, userID, nonce, assetID string) { //nolint:unparam // readability
 	t.Helper()
 	outputKey := fmt.Sprintf("scratch/%s/%s/%s", workspaceID, userID, nonce)
 	metaKey := outputKey + ".meta"
@@ -115,7 +115,7 @@ func TestDraftVariant_ViewerForbidden(t *testing.T) {
 		userID      = "viewer_1"
 		workspaceID = "ws_1"
 	)
-	env.Workspace.GetMemberFn = func(_ context.Context, wsID, uid string) (*service.MemberDTO, error) {
+	env.Workspace.GetMemberFn = func(_ context.Context, _, _ string) (*service.MemberDTO, error) {
 		return &service.MemberDTO{Role: "viewer"}, nil
 	}
 	cookie := env.MintCookie(t, userID, workspaceID)
@@ -133,7 +133,7 @@ func TestDraftVariant_WorkspaceIsolation(t *testing.T) {
 		assetID     = "ast_other"
 	)
 	// Asset belongs to a different workspace.
-	env.Assets.GetFn = func(_ context.Context, wsID, id string) (*service.AssetDTO, error) {
+	env.Assets.GetFn = func(_ context.Context, wsID, _ string) (*service.AssetDTO, error) {
 		if wsID != workspaceID {
 			return nil, errNotFound
 		}

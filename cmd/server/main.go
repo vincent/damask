@@ -305,17 +305,17 @@ func initMailServer(cfg *config.Config, queries *dbgen.Queries, q *queue.Queue) 
 
 func initScheduler(ctx context.Context, cfg *config.Config, q *queue.Queue, queries *dbgen.Queries, js *jobs.JobServer) {
 	ingress.NewScheduler(queries, q).Start(ctx)
-	slog.Info("ingress scheduler started")
+	slog.InfoContext(ctx, "ingress scheduler started")
 	jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)
-	slog.Info("field cleanup scheduler started")
+	slog.InfoContext(ctx, "field cleanup scheduler started")
 	jobs.NewRetentionScheduler(q).Start(ctx)
-	slog.Info("retention scheduler started")
+	slog.InfoContext(ctx, "retention scheduler started")
 	jobs.NewAuditLogRetentionScheduler(q).Start(ctx)
-	slog.Info("audit-log retention scheduler started")
+	slog.InfoContext(ctx, "audit-log retention scheduler started")
 	jobs.NewScratchPurgeScheduler(q, cfg).Start(ctx)
-	slog.Info("scratch purge scheduler started")
+	slog.InfoContext(ctx, "scratch purge scheduler started")
 	jobs.NewExportScheduler(q, js).Start(ctx)
-	slog.Info("export scheduler started")
+	slog.InfoContext(ctx, "export scheduler started")
 }
 
 func initStorageFromConfig(cfg *config.Config) (storage.Storage, error) {

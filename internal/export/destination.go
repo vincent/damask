@@ -7,9 +7,9 @@ import (
 	"io"
 )
 
-// ExportDestination is the write side of an external storage location.
+// Destination is the write side of an external storage location.
 // Implementations must be safe for concurrent use.
-type ExportDestination interface {
+type Destination interface {
 	Type() string
 
 	// Write uploads the content of r to remotePath at the destination.
@@ -32,7 +32,7 @@ type ExportDestination interface {
 }
 
 // ConstructorFn builds a destination from decrypted config JSON.
-type ConstructorFn func(configJSON []byte) (ExportDestination, error)
+type ConstructorFn func(configJSON []byte) (Destination, error)
 
 var registry = map[string]ConstructorFn{}
 
@@ -40,7 +40,7 @@ var registry = map[string]ConstructorFn{}
 func Register(destType string, fn ConstructorFn) { registry[destType] = fn }
 
 // NewDestination constructs a destination from the given type and config JSON.
-func NewDestination(destType string, configJSON []byte) (ExportDestination, error) {
+func NewDestination(destType string, configJSON []byte) (Destination, error) {
 	fn, ok := registry[destType]
 	if !ok {
 		return nil, fmt.Errorf("unknown export destination type: %s", destType)

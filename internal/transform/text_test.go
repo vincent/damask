@@ -12,6 +12,8 @@ import (
 )
 
 func TestGenerateImageOfText_DefaultFont(t *testing.T) {
+	t.Parallel()
+
 	tf := &mockTransformer{}
 	tests := []struct {
 		name        string

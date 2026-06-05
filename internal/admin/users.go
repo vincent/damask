@@ -75,13 +75,13 @@ func (m UsersModel) Update(msg tea.Msg) (UsersModel, tea.Cmd) {
 		if msg.err == nil {
 			m.rows = msg.rows
 			m.total = msg.total
-			m.rebuildTable()
+			m = m.rebuildTable()
 		}
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.rebuildCols()
+		m = m.rebuildCols()
 
 	case tea.KeyMsg:
 		if m.typing {
@@ -167,7 +167,7 @@ func (m UsersModel) View() string {
 	return sb.String()
 }
 
-func (m *UsersModel) rebuildCols() {
+func (m UsersModel) rebuildCols() UsersModel {
 	narrow := m.width < 100
 	var cols []table.Column
 	if narrow {
@@ -192,10 +192,11 @@ func (m *UsersModel) rebuildCols() {
 	}
 	m.table.SetColumns(cols)
 	m.table.SetHeight(m.height - 6)
+	return m
 }
 
-func (m *UsersModel) rebuildTable() {
-	m.rebuildCols()
+func (m UsersModel) rebuildTable() UsersModel {
+	m = m.rebuildCols()
 	narrow := m.width < 100
 	var rows []table.Row
 	for _, r := range m.rows {
@@ -226,6 +227,7 @@ func (m *UsersModel) rebuildTable() {
 		}
 	}
 	m.table.SetRows(rows)
+	return m
 }
 
 func (m UsersModel) loadCmd() tea.Cmd {

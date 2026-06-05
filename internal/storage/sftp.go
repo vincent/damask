@@ -65,7 +65,7 @@ func (s *SFTPStorage) connect() (*gsftp.Client, *ssh.Client, error) {
 		authMethods = append(authMethods, ssh.Password(s.cfg.Password))
 	}
 
-	hostKeyCallback := ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+	hostKeyCallback := ssh.HostKeyCallback(func(_ string, remote net.Addr, key ssh.PublicKey) error {
 		return errors.New(
 			"sftp storage: host key verification not configured;" +
 				"set STORAGE_SFTP_INSECURE_HOST_KEY=true to skip (not recommended for production)")
@@ -104,7 +104,7 @@ func (s *SFTPStorage) Put(key string, r io.Reader) error {
 	defer sshConn.Close()
 
 	remote := s.remotePath(key)
-	if err := client.MkdirAll(path.Dir(remote)); err != nil {
+	if err = client.MkdirAll(path.Dir(remote)); err != nil {
 		return fmt.Errorf("sftp storage: mkdirall %s: %w", path.Dir(remote), err)
 	}
 
@@ -114,7 +114,7 @@ func (s *SFTPStorage) Put(key string, r io.Reader) error {
 	}
 	defer f.Close()
 
-	if _, err := io.Copy(f, r); err != nil {
+	if _, err = io.Copy(f, r); err != nil {
 		return fmt.Errorf("sftp storage: write %s: %w", remote, err)
 	}
 	return nil
@@ -145,14 +145,14 @@ func (s *SFTPStorage) Delete(key string) error {
 	defer sshConn.Close()
 
 	remote := s.remotePath(key)
-	if err := client.Remove(remote); err != nil && !isNotExist(err) {
+	if err = client.Remove(remote); err != nil && !isNotExist(err) {
 		return fmt.Errorf("sftp storage: remove %s: %w", remote, err)
 	}
 
 	// Best-effort: remove empty parent directories up to (but not including) basePath.
 	dir := path.Dir(remote)
 	for dir != s.cfg.BasePath && dir != "/" && dir != "." {
-		if err := client.RemoveDirectory(dir); err != nil {
+		if err = client.RemoveDirectory(dir); err != nil {
 			break // non-empty or permission error — stop climbing
 		}
 		dir = path.Dir(dir)
@@ -170,7 +170,7 @@ func (s *SFTPStorage) List(prefix string) ([]string, error) {
 
 	root := path.Join(s.cfg.BasePath, prefix)
 
-	if _, err := client.Stat(root); err != nil {
+	if _, err = client.Stat(root); err != nil {
 		if isNotExist(err) {
 			return []string{}, nil
 		}

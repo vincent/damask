@@ -49,7 +49,7 @@ func (r *folderRepo) ListByProject(ctx context.Context, workspaceID, projectID s
 	var out []repository.Folder
 	for sqlRows.Next() {
 		var f dbgen.Folder
-		if err := sqlRows.Scan(
+		if err = sqlRows.Scan(
 			&f.ID,
 			&f.WorkspaceID,
 			&f.ProjectID,
@@ -165,7 +165,7 @@ func (r *folderRepo) ListTree(ctx context.Context, workspaceID, projectID string
 		}
 		flat = append(flat, flatRow{folder: toFolder(f), depth: depth, assetCount: assetCount})
 	}
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 

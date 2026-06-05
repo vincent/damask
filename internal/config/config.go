@@ -131,7 +131,7 @@ func Load() (*Config, error) {
 		}
 	}
 
-	demoMode := getEnv("DEMO_MODE", "false") == "true" //nolint:goconst // readability
+	demoMode := getEnv("DEMO_MODE", strconv.FormatBool(false)) == strconv.FormatBool(true)
 	demoResetHours := 6
 	if h := os.Getenv("DEMO_RESET_INTERVAL_HOURS"); h != "" {
 		if n, err := strconv.Atoi(h); err == nil && n > 0 {
@@ -139,8 +139,8 @@ func Load() (*Config, error) {
 		}
 	}
 
-	GOOGLE_CLIENT_ID := os.Getenv("GOOGLE_CLIENT_ID")
-	CANVA_CLIENT_ID := os.Getenv("CANVA_CLIENT_ID")
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	canvaClientID := os.Getenv("CANVA_CLIENT_ID")
 
 	cfg := &Config{
 		Port:           getEnv("PORT", "8080"),
@@ -163,7 +163,7 @@ func Load() (*Config, error) {
 			Password:        os.Getenv("STORAGE_SFTP_PASSWORD"),
 			PrivateKey:      os.Getenv("STORAGE_SFTP_PRIVATE_KEY"),
 			BasePath:        getEnv("STORAGE_SFTP_BASE_PATH", "/"),
-			InsecureHostKey: os.Getenv("STORAGE_SFTP_INSECURE_HOST_KEY") == "true",
+			InsecureHostKey: os.Getenv("STORAGE_SFTP_INSECURE_HOST_KEY") == strconv.FormatBool(true),
 		},
 		StorageS3: storage.AferoS3Config{
 			Base:      getEnv("STORAGE_S3_BASE_PATH", "/"),
@@ -177,21 +177,21 @@ func Load() (*Config, error) {
 		AppEnv:          getEnv("APP_ENV", "development"),
 		QueueWorkers:    workers,
 		FrontendPath:    os.Getenv("FRONTEND_PATH"),
-		EnableScheduler: getEnv("ENABLE_SCHEDULER", "true") != "false",
-		EnableSignup:    getEnv("ENABLE_SIGNUP", "true") != "false",
+		EnableScheduler: getEnv("ENABLE_SCHEDULER", strconv.FormatBool(true)) != strconv.FormatBool(false),
+		EnableSignup:    getEnv("ENABLE_SIGNUP", strconv.FormatBool(true)) != strconv.FormatBool(false),
 		Demo: DemoConfig{
 			DemoMode:           demoMode,
 			ResetIntervalHours: demoResetHours,
 			UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.studio"),
 			WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
-			ShowBanner:         demoMode && getEnv("DEMO_BANNER", "true") != "false",
+			ShowBanner:         demoMode && getEnv("DEMO_BANNER", strconv.FormatBool(true)) != strconv.FormatBool(false),
 			SignupURL:          getEnv("DEMO_SIGNUP_URL", "/signup"),
 		},
 		ImageRouter: ImageRouterConfig{
 			APIKey:               os.Getenv("IMAGEROUTER_API_KEY"),
 			DefaultModel:         getEnv("IMAGEROUTER_DEFAULT_MODEL", "black-forest-labs/FLUX-2-klein-4b:free"),
 			DefaultBgRemoveModel: getEnv("IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL", "bria/remove-background:free"),
-			RetryPaidOnFreeLimit: getEnv("IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT", "false") == "true",
+			RetryPaidOnFreeLimit: getEnv("IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT", strconv.FormatBool(false)) == strconv.FormatBool(true),
 		},
 		FFmpeg: FFmpegConfig{
 			Path:    strings.TrimSpace(os.Getenv("FFMPEG_PATH")),
@@ -204,7 +204,7 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("SCRATCH_PURGE_TIME %q is invalid; expected HH:MM (24h UTC)", scratchPurgeTime)
 	}
 	cfg.Telemetry = TelemetryConfig{
-		Enabled:     getEnv("OTEL_ENABLED", "false") == "true",
+		Enabled:     getEnv("OTEL_ENABLED", strconv.FormatBool(false)) == strconv.FormatBool(true),
 		Endpoint:    getEnv("OTEL_ENDPOINT", "http://localhost:8082/api/otel/v1"),
 		Token:       getEnv("OTEL_TOKEN", "dev-token"),
 		ServiceName: "damask",
@@ -217,13 +217,13 @@ func Load() (*Config, error) {
 		Label:        getEnv("OIDC_LABEL", "Sign in with SSO"),
 	}
 	cfg.Google = GoogleOIDCConfig{
-		Auth:         GOOGLE_CLIENT_ID != "" && getEnv("GOOGLE_SIGNIN", "false") == "true",
-		ClientID:     GOOGLE_CLIENT_ID,
+		Auth:         googleClientID != "" && getEnv("GOOGLE_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		ClientID:     googleClientID,
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	}
 	cfg.Canva = CanvaConfig{
-		Auth:         CANVA_CLIENT_ID != "" && getEnv("CANVA_SIGNIN", "false") == "true",
-		ClientID:     CANVA_CLIENT_ID,
+		Auth:         canvaClientID != "" && getEnv("CANVA_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		ClientID:     canvaClientID,
 		ClientSecret: os.Getenv("CANVA_CLIENT_SECRET"),
 	}
 

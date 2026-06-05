@@ -84,11 +84,11 @@ func newVariantSvc(t *testing.T) (service.VariantService, *memory.RealVariantRep
 func newVariantSvcWithTags(
 	t *testing.T,
 	tags service.TagService,
-) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
+) (service.VariantService, *memory.AssetRepo) {
 	t.Helper()
 	varRepo := memory.NewRealVariantRepo()
 	assetRepo := memory.NewAssetRepo()
-	return service.NewVariantService(varRepo, assetRepo, tags, audit.NopWriter{}), varRepo, assetRepo
+	return service.NewVariantService(varRepo, assetRepo, tags, audit.NopWriter{}), assetRepo
 }
 
 func newVariantSvcSpy(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo, *spyWriter) {
@@ -507,7 +507,7 @@ func TestVariantService_PrepareCreate_RejectsInvalidType(t *testing.T) {
 }
 
 func TestVariantService_PrepareCreate_WatermarkInjectsAssetID(t *testing.T) {
-	svc, _, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
+	svc, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
 		resolveFn: func(_ context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
 			if workspaceID != "ws_1" || tagName != "_watermark" {
 				t.Fatalf("unexpected lookup args workspace=%s tag=%s", workspaceID, tagName)
@@ -546,7 +546,7 @@ func TestVariantService_PrepareCreate_WatermarkInjectsAssetID(t *testing.T) {
 }
 
 func TestVariantService_PrepareCreate_VideoWatermarkInjectsAssetID(t *testing.T) {
-	svc, _, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
+	svc, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
 		resolveFn: func(_ context.Context, workspaceID, tagName string, scope service.SystemTagScope) (*service.AssetDTO, error) {
 			if workspaceID != "ws_1" || tagName != "_watermark" {
 				t.Fatalf("unexpected lookup args workspace=%s tag=%s", workspaceID, tagName)
@@ -584,7 +584,7 @@ func TestVariantService_PrepareCreate_VideoWatermarkInjectsAssetID(t *testing.T)
 }
 
 func TestVariantService_PrepareCreate_WatermarkMissingReturnsInvalidInput(t *testing.T) {
-	svc, _, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
+	svc, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
 		resolveFn: func(_ context.Context, _, _ string, _ service.SystemTagScope) (*service.AssetDTO, error) {
 			return nil, nil
 		},

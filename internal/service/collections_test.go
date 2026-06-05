@@ -11,17 +11,17 @@ import (
 	"damask/server/internal/service"
 )
 
-func newCollectionSvc(t *testing.T) (service.CollectionService, *memory.RealCollectionRepo) {
+func newCollectionSvc(t *testing.T) service.CollectionService {
 	t.Helper()
 	repo := memory.NewRealCollectionRepo()
-	return service.NewCollectionService(repo, memory.NewAssetRepo()), repo
+	return service.NewCollectionService(repo, memory.NewAssetRepo())
 }
 
 // --- List ---
 
 func TestCollectionService_List_WorkspaceIsolation(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	svc.Create(context.Background(), "ws_A", service.CreateCollectionParams{Name: "Alpha", CreatedBy: "u1"})
 	svc.Create(context.Background(), "ws_B", service.CreateCollectionParams{Name: "Beta", CreatedBy: "u2"})
 
@@ -60,7 +60,7 @@ func TestCollectionService_Create_WithForeignAsset(t *testing.T) {
 
 func TestCollectionService_Create_OK(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	dto, err := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{
 		Name:      "Favorites",
 		CreatedBy: "user_1",
@@ -78,7 +78,7 @@ func TestCollectionService_Create_OK(t *testing.T) {
 
 func TestCollectionService_Create_EmptyName(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	_, err := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "  "})
 	if !errors.Is(err, apperr.ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
@@ -89,7 +89,7 @@ func TestCollectionService_Create_EmptyName(t *testing.T) {
 
 func TestCollectionService_Get_NotFound(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	_, err := svc.Get(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
@@ -100,7 +100,7 @@ func TestCollectionService_Get_NotFound(t *testing.T) {
 
 func TestCollectionService_Update_OK(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "Old"})
 	newName := "New"
 	updated, err := svc.Update(context.Background(), "ws_1", dto.ID, service.UpdateCollectionParams{Name: &newName})
@@ -114,7 +114,7 @@ func TestCollectionService_Update_OK(t *testing.T) {
 
 func TestCollectionService_Update_EmptyName(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "X"})
 	empty := ""
 	_, err := svc.Update(context.Background(), "ws_1", dto.ID, service.UpdateCollectionParams{Name: &empty})
@@ -125,7 +125,7 @@ func TestCollectionService_Update_EmptyName(t *testing.T) {
 
 func TestCollectionService_Update_NotFound(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	name := "x"
 	_, err := svc.Update(context.Background(), "ws_1", "nope", service.UpdateCollectionParams{Name: &name})
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -137,7 +137,7 @@ func TestCollectionService_Update_NotFound(t *testing.T) {
 
 func TestCollectionService_Delete_OK(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "ToDelete"})
 	if err := svc.Delete(context.Background(), "ws_1", dto.ID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -149,7 +149,7 @@ func TestCollectionService_Delete_OK(t *testing.T) {
 
 func TestCollectionService_Delete_NotFound(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	if err := svc.Delete(context.Background(), "ws_1", "nope"); !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
@@ -159,7 +159,7 @@ func TestCollectionService_Delete_NotFound(t *testing.T) {
 
 func TestCollectionService_AddAsset_Idempotent(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "C"})
 	if err := svc.AddAsset(context.Background(), "ws_1", dto.ID, "ast_1"); err != nil {
 		t.Fatalf("first add: %v", err)
@@ -171,7 +171,7 @@ func TestCollectionService_AddAsset_Idempotent(t *testing.T) {
 
 func TestCollectionService_RemoveAsset_OK(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "C"})
 	svc.AddAsset(context.Background(), "ws_1", dto.ID, "ast_1")
 	if err := svc.RemoveAsset(context.Background(), "ws_1", dto.ID, "ast_1"); err != nil {
@@ -181,7 +181,7 @@ func TestCollectionService_RemoveAsset_OK(t *testing.T) {
 
 func TestCollectionService_AddAsset_CollectionNotFound(t *testing.T) {
 	t.Parallel()
-	svc, _ := newCollectionSvc(t)
+	svc := newCollectionSvc(t)
 	err := svc.AddAsset(context.Background(), "ws_1", "nope", "ast_1")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)

@@ -49,7 +49,7 @@ func newUploadSvc(t *testing.T) service.UploadService {
 	return service.NewUploadService(ingester, audit.NopWriter{}, nil)
 }
 
-func waitForTriggerCount(t *testing.T, spy *triggerSpy, want int) {
+func waitForTriggerCount(t *testing.T, spy *triggerSpy, want int) { //nolint:unparam // readability
 	t.Helper()
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {

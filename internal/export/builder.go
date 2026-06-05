@@ -38,7 +38,7 @@ type BuildResult struct {
 type BuildParams struct {
 	Config     repository.ExportConfig
 	Run        repository.ExportRun
-	Dest       ExportDestination
+	Dest       Destination
 	Storage    storage.Storage
 	Queries    *dbgen.Queries
 	SQLite     *sql.DB
@@ -253,7 +253,7 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("export: create temp file: %w", err)
 	}
-	defer os.Remove(f.Name()) //nolint:errcheck
+	defer os.Remove(f.Name())
 
 	// 6. Open zip writer.
 	zw := zip.NewWriter(f)

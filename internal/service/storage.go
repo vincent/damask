@@ -69,7 +69,7 @@ type StorageService interface {
 }
 
 type storageService struct {
-	db      *dbgen.Queries
+	db         *dbgen.Queries
 	usageCache cache.Cache[string, *WorkspaceStorageUsage]
 }
 
@@ -231,8 +231,8 @@ func buildUsage(rows []dbgen.GetStorageByProjectAndTypeRow, folderCounts []dbgen
 	return usage
 }
 
-// toStringPtr converts a SQLite CASE expression interface{} result to *string.
-func toStringPtr(v interface{}) *string {
+// toStringPtr converts a SQLite CASE expression any result to *string.
+func toStringPtr(v any) *string {
 	if v == nil {
 		return nil
 	}
@@ -242,8 +242,8 @@ func toStringPtr(v interface{}) *string {
 	return nil
 }
 
-// toInt64 converts SQLite COALESCE/SUM interface{} results to int64.
-func toInt64(v interface{}) int64 {
+// toInt64 converts SQLite COALESCE/SUM any results to int64.
+func toInt64(v any) int64 {
 	if v == nil {
 		return 0
 	}

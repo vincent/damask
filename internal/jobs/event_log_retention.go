@@ -27,14 +27,12 @@ func (s *JobServer) jobPurgeAuditLog(ctx context.Context, _ dbgen.Job) error {
 	}
 
 	for _, ws := range workspaces {
-		if err := s.purgeAuditLogForWorkspace(ctx, ws); err != nil {
-			slog.ErrorContext(ctx, "audit-log retention: workspace failed", "workspace_id", ws.ID, "error", err)
-		}
+		s.purgeAuditLogForWorkspace(ctx, ws)
 	}
 	return nil
 }
 
-func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.ListWorkspacesForEventRetentionRow) error {
+func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.ListWorkspacesForEventRetentionRow) {
 	now := time.Now().UTC()
 
 	// Purge download events on their shorter retention cycle.
@@ -77,8 +75,6 @@ func (s *JobServer) purgeAuditLogForWorkspace(ctx context.Context, ws dbgen.List
 			slog.InfoContext(ctx, "audit-log retention: purged project events", "workspace_id", ws.ID, "cutoff", cutoff)
 		}
 	}
-
-	return nil
 }
 
 // AuditLogRetentionScheduler fires the purge_event_log job nightly at 04:00 UTC.

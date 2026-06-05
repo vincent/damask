@@ -39,56 +39,56 @@ func (m *MockUserService) Register(
 	if m.RegisterFn != nil {
 		return m.RegisterFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) Login(ctx context.Context, p service.LoginUserParams) (*service.LoginUserResult, error) {
 	if m.LoginFn != nil {
 		return m.LoginFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) GetByID(ctx context.Context, userID string) (*service.UserDTO, error) {
 	if m.GetByIDFn != nil {
 		return m.GetByIDFn(ctx, userID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) CreateWorkspace(ctx context.Context, userID, name string) (*service.WorkspaceDTO, error) {
 	if m.CreateWorkspaceFn != nil {
 		return m.CreateWorkspaceFn(ctx, userID, name)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) GetProfile(ctx context.Context, userID string) (*service.OIDCUserDTO, error) {
 	if m.GetProfileFn != nil {
 		return m.GetProfileFn(ctx, userID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) GetProfileByEmail(ctx context.Context, email string) (*service.OIDCUserDTO, error) {
 	if m.GetProfileByEmailFn != nil {
 		return m.GetProfileByEmailFn(ctx, email)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) UpdateProfile(ctx context.Context, userID, displayName string) (*service.OIDCUserDTO, error) {
 	if m.UpdateProfileFn != nil {
 		return m.UpdateProfileFn(ctx, userID, displayName)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) UploadAvatar(ctx context.Context, userID string, data []byte) (*service.OIDCUserDTO, error) {
 	if m.UploadAvatarFn != nil {
 		return m.UploadAvatarFn(ctx, userID, data)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) DeleteAvatar(ctx context.Context, userID string) error {
@@ -105,14 +105,14 @@ func (m *MockUserService) UpdateAvatarKey(
 	if m.UpdateAvatarKeyFn != nil {
 		return m.UpdateAvatarKeyFn(ctx, userID, storageKey)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) ClearAvatar(ctx context.Context, userID string) (*service.OIDCUserDTO, error) {
 	if m.ClearAvatarFn != nil {
 		return m.ClearAvatarFn(ctx, userID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) ResetPassword(ctx context.Context, userID, passwordHash string) error {
@@ -147,7 +147,7 @@ func (m *MockUserService) ConfirmEmailChange(ctx context.Context, userID, email 
 	if m.ConfirmEmailChangeFn != nil {
 		return m.ConfirmEmailChangeFn(ctx, userID, email)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) DeleteAccount(ctx context.Context, userID, password string, hardDelete bool) error {
@@ -164,7 +164,7 @@ func (m *MockUserService) UpsertOIDCUser(
 	if m.UpsertOIDCUserFn != nil {
 		return m.UpsertOIDCUserFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) UpsertCanvaUser(
@@ -174,12 +174,12 @@ func (m *MockUserService) UpsertCanvaUser(
 	if m.UpsertCanvaUserFn != nil {
 		return m.UpsertCanvaUserFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockUserService) UnlinkProvider(ctx context.Context, userID, provider string) (*service.OIDCUserDTO, error) {
 	if m.UnlinkProviderFn != nil {
 		return m.UnlinkProviderFn(ctx, userID, provider)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }

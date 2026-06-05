@@ -25,21 +25,21 @@ func (m *MockProjectService) Create(
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockProjectService) Get(ctx context.Context, workspaceID, id string) (*service.ProjectDTO, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockProjectService) List(ctx context.Context, workspaceID string) ([]*service.ProjectDTO, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockProjectService) Update(
@@ -50,7 +50,7 @@ func (m *MockProjectService) Update(
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockProjectService) Delete(ctx context.Context, workspaceID, id string) error {

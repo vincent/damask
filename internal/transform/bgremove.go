@@ -35,7 +35,7 @@ func (t *transformer) RemoveBackground(ctx context.Context, imageData []byte, ap
 	if err != nil {
 		return nil, fmt.Errorf("create form file: %w", err)
 	}
-	if _, err := fw.Write(imageData); err != nil {
+	if _, err = fw.Write(imageData); err != nil {
 		return nil, fmt.Errorf("write image data: %w", err)
 	}
 	_ = w.WriteField("size", "auto")

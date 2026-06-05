@@ -371,7 +371,7 @@ func (s *userService) ResetPassword(ctx context.Context, userID, passwordHash st
 	if err := s.users.SetPassword(ctx, userID, passwordHash); err != nil {
 		return err
 	}
-	if hasAuthMethod(user.AuthMethods, "password") {
+	if hasPasswordMethod(user.AuthMethods, "password") {
 		return nil
 	}
 	_, err = s.users.SetAuthMethods(ctx, userID, addAuthMethod(user.AuthMethods, "password"))
@@ -383,7 +383,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID, currentPasswor
 	if err != nil {
 		return err
 	}
-	if hasAuthMethod(user.AuthMethods, "password") {
+	if hasPasswordMethod(user.AuthMethods, "password") {
 		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
 			return fmt.Errorf("current_password_incorrect: %w", apperr.ErrInvalidInput)
 		}
@@ -391,7 +391,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID, currentPasswor
 	if err := s.users.SetPassword(ctx, userID, newPasswordHash); err != nil {
 		return err
 	}
-	if hasAuthMethod(user.AuthMethods, "password") {
+	if hasPasswordMethod(user.AuthMethods, "password") {
 		return nil
 	}
 	_, err = s.users.SetAuthMethods(ctx, userID, addAuthMethod(user.AuthMethods, "password"))
@@ -443,7 +443,7 @@ func (s *userService) DeleteAccount(ctx context.Context, userID, password string
 	if err != nil {
 		return err
 	}
-	if hasAuthMethod(user.AuthMethods, "password") {
+	if hasPasswordMethod(user.AuthMethods, "password") {
 		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 			return fmt.Errorf("password_incorrect: %w", apperr.ErrInvalidInput)
 		}
@@ -812,7 +812,7 @@ func hasOnlyMethodStr(authMethods, method string) bool {
 	return len(methods) == 1 && methods[0] == method
 }
 
-func hasAuthMethod(authMethods, method string) bool {
+func hasPasswordMethod(authMethods, method string) bool { //nolint:unparam // readability
 	var methods []string
 	_ = json.Unmarshal([]byte(authMethods), &methods)
 	return slices.Contains(methods, method)

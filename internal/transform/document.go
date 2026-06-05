@@ -18,7 +18,8 @@ func (t *transformer) PDFExtractResolution(ctx context.Context, srcPath string) 
 	defer cancel()
 
 	// identify -format "%wx%h" "file.pdf[0]"
-	out, err := exec.CommandContext(ctx, "identify", "-format", "%wx%h", srcPath+"[0]").Output()
+	out, err := exec.CommandContext(ctx, //nolint:gosec // not user input
+		"identify", "-format", "%wx%h", srcPath+"[0]").Output()
 	if err != nil {
 		return nil, fmt.Errorf("identify pdf resolution: %w", err)
 	}
@@ -46,7 +47,7 @@ func ExtractPDFText(ctx context.Context, pdfBytes []byte) (string, error) {
 	}
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
-	if _, err := tmpFile.Write(pdfBytes); err != nil {
+	if _, err = tmpFile.Write(pdfBytes); err != nil {
 		_ = tmpFile.Close()
 		return "", fmt.Errorf("pdftotext: write temp: %w", err)
 	}
@@ -72,7 +73,7 @@ func ExtractDocumentText(ctx context.Context, docBytes []byte, mimeType string) 
 	}
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
-	if _, err := tmpFile.Write(docBytes); err != nil {
+	if _, err = tmpFile.Write(docBytes); err != nil {
 		_ = tmpFile.Close()
 		return "", fmt.Errorf("soffice txt: write temp: %w", err)
 	}
@@ -87,7 +88,7 @@ func ExtractDocumentText(ctx context.Context, docBytes []byte, mimeType string) 
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, "soffice",
+	out, err := exec.CommandContext(ctx, "soffice", //nolint:gosec // not user input
 		"-env:UserInstallation=file://"+outDir+"/.lo",
 		"--headless", "--convert-to", "txt:Text", "--outdir", outDir, tmpPath).
 		CombinedOutput()
@@ -139,7 +140,7 @@ func (t *transformer) DocumentThumbnail(ctx context.Context, src io.Reader, mime
 
 	// soffice cannot reliably convert office documents (DOCX, XLSX, PPTX, HTML, …) directly
 	// to PNG. Convert to PDF first, then render the first page as PNG.
-	out, err := exec.CommandContext(ctx, "soffice",
+	out, err := exec.CommandContext(ctx, "soffice", //nolint:gosec // not user input
 		"-env:UserInstallation=file://"+outDir+"/.lo",
 		"--headless", "--convert-to", "pdf", "--outdir", outDir, tmpPath).
 		CombinedOutput()
@@ -151,7 +152,7 @@ func (t *transformer) DocumentThumbnail(ctx context.Context, src io.Reader, mime
 		return nil, fmt.Errorf("soffice doc→pdf: %w", err)
 	}
 
-	out, err = exec.CommandContext(ctx, "soffice",
+	out, err = exec.CommandContext(ctx, "soffice", //nolint:gosec // not user input
 		"-env:UserInstallation=file://"+outDir+"/.lo",
 		"--headless", "--convert-to", "png", "--outdir", outDir, pdfPath).
 		CombinedOutput()

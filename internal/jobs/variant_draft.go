@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -144,27 +145,27 @@ func (s *JobServer) draftTransformer(
 	case queue.JobTypeImageWatermark:
 		var p transform.WatermarkParams
 		if err := json.Unmarshal(params, &p); err != nil {
-			return nil, fmt.Errorf("invalid params")
+			return nil, errors.New("invalid params")
 		}
 		if p.WatermarkAssetID == "" {
-			return nil, fmt.Errorf("watermark asset id is required")
+			return nil, errors.New("watermark asset id is required")
 		}
 		wm, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 			ID:          p.WatermarkAssetID,
 			WorkspaceID: workspaceID,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("watermark asset not found")
+			return nil, errors.New("watermark asset not found")
 		}
-		return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+		return func(_ context.Context, sourceKey string) ([]byte, string, error) {
 			wmRC, err := s.storage.Get(wm.StorageKey)
 			if err != nil {
-				return nil, "", fmt.Errorf("failed to load watermark file")
+				return nil, "", errors.New("failed to load watermark file")
 			}
 			srcRC, err := s.storage.Get(sourceKey)
 			if err != nil {
 				_ = wmRC.Close()
-				return nil, "", fmt.Errorf("failed to load asset file")
+				return nil, "", errors.New("failed to load asset file")
 			}
 			data, contentType, err := s.trf.ImageWatermark(srcRC, wmRC, p)
 			_ = srcRC.Close()

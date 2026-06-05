@@ -21,7 +21,7 @@ func newStorageSvcDB(t *testing.T) (StorageService, *dbgen.Queries, *sql.DB) {
 }
 
 // seedWorkspace inserts a minimal workspace row.
-func seedWorkspace(t *testing.T, ctx context.Context, queries *dbgen.Queries, id string) {
+func seedWorkspace(ctx context.Context, t *testing.T, queries *dbgen.Queries, id string) {
 	t.Helper()
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: id, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
@@ -29,7 +29,7 @@ func seedWorkspace(t *testing.T, ctx context.Context, queries *dbgen.Queries, id
 }
 
 // setLimit sets storage_limit_bytes on a workspace via raw SQL.
-func setLimit(t *testing.T, ctx context.Context, db *sql.DB, wsID string, limit int64) {
+func setLimit(ctx context.Context, t *testing.T, db *sql.DB, wsID string, limit int64) {
 	t.Helper()
 	if _, err := db.ExecContext(ctx,
 		`UPDATE workspaces SET storage_limit_bytes = ? WHERE id = ?`, limit, wsID); err != nil {
@@ -39,7 +39,7 @@ func setLimit(t *testing.T, ctx context.Context, db *sql.DB, wsID string, limit 
 
 // ── interface constraints ─────────────────────────────────────────────────────
 
-func TestStorageService_ImplementsInvalidator(t *testing.T) {
+func TestStorageService_ImplementsInvalidator(_ *testing.T) {
 	var _ StorageInvalidator = (*storageService)(nil)
 }
 
@@ -93,7 +93,7 @@ func TestBuildUsage_NullProject(t *testing.T) {
 func TestCheckLimit_Unlimited(t *testing.T) {
 	ctx := context.Background()
 	svc, queries, _ := newStorageSvcDB(t)
-	seedWorkspace(t, ctx, queries, "ws1")
+	seedWorkspace(ctx, t, queries, "ws1")
 
 	if err := svc.CheckLimit(ctx, "ws1", 999_000_000); err != nil {
 		t.Errorf("want nil, got %v", err)
@@ -103,8 +103,8 @@ func TestCheckLimit_Unlimited(t *testing.T) {
 func TestCheckLimit_UnderLimit(t *testing.T) {
 	ctx := context.Background()
 	svc, queries, db := newStorageSvcDB(t)
-	seedWorkspace(t, ctx, queries, "ws2")
-	setLimit(t, ctx, db, "ws2", 1_000_000_000)
+	seedWorkspace(ctx, t, queries, "ws2")
+	setLimit(ctx, t, db, "ws2", 1_000_000_000)
 
 	if err := svc.CheckLimit(ctx, "ws2", 100); err != nil {
 		t.Errorf("want nil, got %v", err)
@@ -114,8 +114,8 @@ func TestCheckLimit_UnderLimit(t *testing.T) {
 func TestCheckLimit_AtLimit(t *testing.T) {
 	ctx := context.Background()
 	svc, queries, db := newStorageSvcDB(t)
-	seedWorkspace(t, ctx, queries, "ws3")
-	setLimit(t, ctx, db, "ws3", 0)
+	seedWorkspace(ctx, t, queries, "ws3")
+	setLimit(ctx, t, db, "ws3", 0)
 
 	if err := svc.CheckLimit(ctx, "ws3", 1); err == nil {
 		t.Error("want ErrStorageLimitReached, got nil")
@@ -125,8 +125,8 @@ func TestCheckLimit_AtLimit(t *testing.T) {
 func TestCheckLimit_OverLimit(t *testing.T) {
 	ctx := context.Background()
 	svc, queries, db := newStorageSvcDB(t)
-	seedWorkspace(t, ctx, queries, "ws4")
-	setLimit(t, ctx, db, "ws4", 0)
+	seedWorkspace(ctx, t, queries, "ws4")
+	setLimit(ctx, t, db, "ws4", 0)
 
 	// total=0 + incoming=0 is NOT > 0, so should return nil
 	if err := svc.CheckLimit(ctx, "ws4", 0); err != nil {
@@ -139,7 +139,7 @@ func TestCheckLimit_OverLimit(t *testing.T) {
 func TestGetUsage_NoLimit(t *testing.T) {
 	ctx := context.Background()
 	svc, queries, _ := newStorageSvcDB(t)
-	seedWorkspace(t, ctx, queries, "ws5")
+	seedWorkspace(ctx, t, queries, "ws5")
 
 	u, err := svc.GetUsage(ctx, "ws5")
 	if err != nil {
@@ -153,9 +153,9 @@ func TestGetUsage_NoLimit(t *testing.T) {
 func TestGetUsage_WithLimit(t *testing.T) {
 	ctx := context.Background()
 	svc, queries, db := newStorageSvcDB(t)
-	seedWorkspace(t, ctx, queries, "ws6")
+	seedWorkspace(ctx, t, queries, "ws6")
 	limit := int64(5_000_000_000)
-	setLimit(t, ctx, db, "ws6", limit)
+	setLimit(ctx, t, db, "ws6", limit)
 
 	u, err := svc.GetUsage(ctx, "ws6")
 	if err != nil {
@@ -169,7 +169,7 @@ func TestGetUsage_WithLimit(t *testing.T) {
 func TestGetUsage_InvalidateClears(t *testing.T) {
 	ctx := context.Background()
 	svc, queries, db := newStorageSvcDB(t)
-	seedWorkspace(t, ctx, queries, "ws7")
+	seedWorkspace(ctx, t, queries, "ws7")
 
 	// Prime cache with no limit
 	u1, _ := svc.GetUsage(ctx, "ws7")
@@ -179,7 +179,7 @@ func TestGetUsage_InvalidateClears(t *testing.T) {
 
 	// Set limit in DB while cache still holds stale value
 	limit := int64(1_000_000)
-	setLimit(t, ctx, db, "ws7", limit)
+	setLimit(ctx, t, db, "ws7", limit)
 
 	u2, _ := svc.GetUsage(ctx, "ws7")
 	if u2.LimitBytes != nil {

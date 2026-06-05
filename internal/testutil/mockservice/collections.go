@@ -25,14 +25,14 @@ func (m *MockCollectionService) List(ctx context.Context, workspaceID string) ([
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockCollectionService) Get(ctx context.Context, workspaceID, id string) (*service.CollectionDTO, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockCollectionService) Create(
@@ -43,7 +43,7 @@ func (m *MockCollectionService) Create(
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockCollectionService) Update(
@@ -54,7 +54,7 @@ func (m *MockCollectionService) Update(
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockCollectionService) Delete(ctx context.Context, workspaceID, id string) error {
@@ -85,7 +85,7 @@ func (m *MockCollectionService) ListForAsset(
 	if m.ListForAssetFn != nil {
 		return m.ListForAssetFn(ctx, workspaceID, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockCollectionService) ListAssets(
@@ -95,5 +95,5 @@ func (m *MockCollectionService) ListAssets(
 	if m.ListAssetsFn != nil {
 		return m.ListAssetsFn(ctx, workspaceID, collectionID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }

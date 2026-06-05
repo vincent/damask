@@ -306,7 +306,7 @@ const (
 	JobTypeTranscodeAudio    = "audio_transcode"
 	JobTypeNormalizeAudio    = "audio_normalize"
 
-	// Ingress jobs.
+	/* Ingress jobs. */
 	JobTypeIngestPoll  = "ingest_poll"
 	JobTypeIngestFetch = "ingest_fetch"
 

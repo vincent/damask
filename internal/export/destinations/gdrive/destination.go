@@ -36,7 +36,7 @@ func SetRefresher(r *oauth.TokenRefresher) {
 }
 
 func init() {
-	export.Register("gdrive", func(cfg []byte) (export.ExportDestination, error) {
+	export.Register("gdrive", func(cfg []byte) (export.Destination, error) {
 		return New(cfg)
 	})
 }

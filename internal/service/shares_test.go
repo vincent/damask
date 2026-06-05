@@ -18,17 +18,17 @@ func init() {
 	service.ShareBcryptCost = bcrypt.MinCost //nolint:reassign // tests only
 }
 
-func newShareSvc(t *testing.T) (service.ShareService, *memory.RealShareRepo) {
+func newShareSvc(t *testing.T) service.ShareService {
 	t.Helper()
 	repo := memory.NewRealShareRepo()
-	return service.NewShareService(repo, audit.NopWriter{}), repo
+	return service.NewShareService(repo, audit.NopWriter{})
 }
 
-func newShareSvcSpy(t *testing.T) (service.ShareService, *memory.RealShareRepo, *spyWriter) {
+func newShareSvcSpy(t *testing.T) (service.ShareService, *spyWriter) {
 	t.Helper()
 	spy := newSpy()
 	repo := memory.NewRealShareRepo()
-	return service.NewShareService(repo, spy), repo, spy
+	return service.NewShareService(repo, spy), spy
 }
 
 func baseShareParams() service.CreateShareParams {
@@ -43,7 +43,7 @@ func baseShareParams() service.CreateShareParams {
 // --- Create ---
 
 func TestShareService_Create_OK(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	dto, err := svc.Create(context.Background(), "ws_1", baseShareParams())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -60,7 +60,7 @@ func TestShareService_Create_OK(t *testing.T) {
 }
 
 func TestShareService_Create_InvalidTargetType(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	p := baseShareParams()
 	p.TargetType = "invalid"
 	_, err := svc.Create(context.Background(), "ws_1", p)
@@ -70,7 +70,7 @@ func TestShareService_Create_InvalidTargetType(t *testing.T) {
 }
 
 func TestShareService_Create_WithPassword(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	p := baseShareParams()
 	pass := "secret123"
 	p.Password = &pass
@@ -87,7 +87,7 @@ func TestShareService_Create_WithPassword(t *testing.T) {
 }
 
 func TestShareService_Create_WithExpiry(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	p := baseShareParams()
 	days := 7
 	p.ExpiresInDays = &days
@@ -103,7 +103,7 @@ func TestShareService_Create_WithExpiry(t *testing.T) {
 // --- List ---
 
 func TestShareService_List_WorkspaceIsolation(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	svc.Create(context.Background(), "ws_A", baseShareParams())
 	svc.Create(context.Background(), "ws_B", baseShareParams())
 
@@ -122,7 +122,7 @@ func TestShareService_List_WorkspaceIsolation(t *testing.T) {
 // --- Get ---
 
 func TestShareService_Get_WrongWorkspace(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	dto, err := svc.Create(context.Background(), "ws_A", baseShareParams())
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -134,7 +134,7 @@ func TestShareService_Get_WrongWorkspace(t *testing.T) {
 }
 
 func TestShareService_Get_NotFound(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	_, err := svc.Get(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
@@ -144,7 +144,7 @@ func TestShareService_Get_NotFound(t *testing.T) {
 // --- Update ---
 
 func TestShareService_Update_Label(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseShareParams())
 	newLabel := "Updated Label"
 	updated, err := svc.Update(context.Background(), "ws_1", dto.ID, service.UpdateShareParams{Label: &newLabel})
@@ -157,7 +157,7 @@ func TestShareService_Update_Label(t *testing.T) {
 }
 
 func TestShareService_Update_ClearPassword(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	p := baseShareParams()
 	pass := "secret"
 	p.Password = &pass
@@ -172,7 +172,7 @@ func TestShareService_Update_ClearPassword(t *testing.T) {
 }
 
 func TestShareService_Update_NotFound(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	newLabel := "x"
 	_, err := svc.Update(context.Background(), "ws_1", "nope", service.UpdateShareParams{Label: &newLabel})
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -183,7 +183,7 @@ func TestShareService_Update_NotFound(t *testing.T) {
 // --- Revoke ---
 
 func TestShareService_Revoke_OK(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseShareParams())
 	if err := svc.Revoke(context.Background(), "ws_1", dto.ID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -198,7 +198,7 @@ func TestShareService_Revoke_OK(t *testing.T) {
 }
 
 func TestShareService_Revoke_NotFound(t *testing.T) {
-	svc, _ := newShareSvc(t)
+	svc := newShareSvc(t)
 	err := svc.Revoke(context.Background(), "ws_1", "nope")
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
@@ -208,7 +208,7 @@ func TestShareService_Revoke_NotFound(t *testing.T) {
 // --- Audit events ---
 
 func TestShareService_Create_EmitsAuditEvent(t *testing.T) {
-	svc, _, spy := newShareSvcSpy(t)
+	svc, spy := newShareSvcSpy(t)
 	if _, err := svc.Create(context.Background(), "ws_1", baseShareParams()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestShareService_Create_EmitsAuditEvent(t *testing.T) {
 }
 
 func TestShareService_Create_NoAuditForNonAssetTarget(t *testing.T) {
-	svc, _, spy := newShareSvcSpy(t)
+	svc, spy := newShareSvcSpy(t)
 	p := baseShareParams()
 	p.TargetType = "collection"
 	if _, err := svc.Create(context.Background(), "ws_1", p); err != nil {
@@ -234,7 +234,7 @@ func TestShareService_Create_NoAuditForNonAssetTarget(t *testing.T) {
 }
 
 func TestShareService_Revoke_EmitsAuditEvent(t *testing.T) {
-	svc, _, spy := newShareSvcSpy(t)
+	svc, spy := newShareSvcSpy(t)
 	dto, _ := svc.Create(context.Background(), "ws_1", baseShareParams())
 	spy.asset = nil // reset after create
 	if err := svc.Revoke(context.Background(), "ws_1", dto.ID); err != nil {

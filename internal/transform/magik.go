@@ -108,7 +108,7 @@ func (t *transformer) PDFSlideshowThumbnail(
 	cmd.Stderr = &stderr
 	span.SetAttributes(attribute.String("transform.command", cmd.String()))
 
-	if err := cmd.Run(); err != nil {
+	if err = cmd.Run(); err != nil {
 		return nil, "", fmt.Errorf("convert pdf: %w — stderr: %s", err, stderr.String())
 	}
 
@@ -180,7 +180,7 @@ func (t *transformer) PDFSlideshowThumbnail(
 	ffCmd := t.ffmpeg.commandFFmpeg(ctx, ffArgs...)
 	var ffmpegStderr bytes.Buffer
 	ffCmd.Stderr = &ffmpegStderr
-	if err := ffCmd.Run(); err != nil {
+	if err = ffCmd.Run(); err != nil {
 		return nil, "", fmt.Errorf("ffmpeg pdf slideshow: %w — stderr: %s", err, ffmpegStderr.String())
 	}
 

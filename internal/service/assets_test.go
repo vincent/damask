@@ -437,7 +437,7 @@ func TestAssetService_HardDelete_AuditBeforeDelete(t *testing.T) {
 	stor, _ := storage.NewAferoMemoryStorage()
 
 	hw := &hookWriter{}
-	hw.OnWriteAsset = func(e audit.AssetEvent) {
+	hw.OnWriteAsset = func(_ audit.AssetEvent) {
 		if _, err := repo.GetByID(context.Background(), "ws_1", "a1"); err != nil {
 			t.Errorf("audit event fired after asset was deleted: %v", err)
 		}

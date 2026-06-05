@@ -161,13 +161,13 @@ func (r *versionRepo) SetCurrent(ctx context.Context, assetID, versionID string)
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	qtx := r.q.WithTx(tx)
-	if err := qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
+	if err = qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
 		return err
 	}
-	if err := qtx.SetCurrentVersionFlag(ctx, versionID); err != nil {
+	if err = qtx.SetCurrentVersionFlag(ctx, versionID); err != nil {
 		return err
 	}
-	if err := qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
+	if err = qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
 		CurrentVersionID: &versionID,
 		ID:               assetID,
 	}); err != nil {

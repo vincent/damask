@@ -3,6 +3,7 @@ package visualsimilarity
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -58,7 +59,7 @@ type SimilarAsset struct {
 func (s *Service) FindSimilarEnriched(ctx context.Context, workspaceID, assetVersionID string) ([]SimilarAsset, error) {
 	row, err := s.q.GetVisualSimilarityHash(ctx, assetVersionID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return []SimilarAsset{}, nil
 		}
 		return nil, fmt.Errorf("get hash: %w", err)
@@ -89,7 +90,7 @@ func (s *Service) FindSimilarEnriched(ctx context.Context, workspaceID, assetVer
 	args := make([]any, 0, 1+len(hashSet)+2)
 	args = append(args, workspaceID)
 	for _, v := range hashSet {
-		args = append(args, int64(v))
+		args = append(args, v)
 	}
 	args = append(args, assetVersionID, workspaceID)
 
@@ -129,7 +130,7 @@ func (s *Service) FindSimilarEnriched(ctx context.Context, workspaceID, assetVer
 func (s *Service) FindSimilar(ctx context.Context, workspaceID, assetVersionID string) ([]string, error) {
 	row, err := s.q.GetVisualSimilarityHash(ctx, assetVersionID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return []string{}, nil
 		}
 		return nil, fmt.Errorf("get hash: %w", err)
@@ -156,7 +157,7 @@ func (s *Service) FindSimilar(ctx context.Context, workspaceID, assetVersionID s
 	args := make([]any, 0, 1+len(hashSet)+1)
 	args = append(args, workspaceID)
 	for _, v := range hashSet {
-		args = append(args, int64(v))
+		args = append(args, v)
 	}
 	args = append(args, assetVersionID)
 

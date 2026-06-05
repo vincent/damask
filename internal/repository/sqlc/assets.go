@@ -193,7 +193,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	var out []repository.Asset
 	for rows.Next() {
 		var a repository.Asset
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.DerivedFromAssetID, &a.OriginalFilename, &a.StorageKey,
 			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
 			&a.CurrentVersionID, &a.CreatedAt, &a.UpdatedAt,
@@ -357,23 +357,23 @@ func (r *assetRepo) RefreshFTS(ctx context.Context, assetID string) error {
 	parts := []string{originalFilename}
 	for rows.Next() {
 		var t string
-		if err := rows.Scan(&t); err == nil {
+		if err = rows.Scan(&t); err == nil {
 			parts = append(parts, t)
 		}
 	}
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return err
 	}
 
 	combined := strings.Join(parts, " ")
-	if _, err := r.sqlDB.ExecContext(ctx, `
+	if _, err = r.sqlDB.ExecContext(ctx, `
 		INSERT INTO assets_fts(assets_fts, rowid, original_filename)
 		SELECT 'delete', rowid, original_filename FROM assets WHERE id = ?
 	`, assetID); err != nil {
 		slog.ErrorContext(ctx, "fts refresh delete", "asset_id", assetID, "error", err)
 		return err
 	}
-	if _, err := r.sqlDB.ExecContext(ctx, `
+	if _, err = r.sqlDB.ExecContext(ctx, `
 		INSERT INTO assets_fts(rowid, original_filename)
 		SELECT rowid, ? FROM assets WHERE id = ?
 	`, combined, assetID); err != nil {
@@ -449,7 +449,7 @@ func (r *assetRepo) ListByFields(
 	var out []repository.Asset
 	for rows.Next() {
 		var a dbgen.Asset
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
 			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
 			&a.CreatedAt, &a.UpdatedAt,
@@ -614,12 +614,12 @@ func (r *assetRepo) CollectStorageKeys(
 	defer textTrackRows.Close()
 	for textTrackRows.Next() {
 		var key string
-		if err := textTrackRows.Scan(&key); err != nil {
+		if err = textTrackRows.Scan(&key); err != nil {
 			return repository.AssetStorageKeys{}, err
 		}
 		out.TextTrackKeys = append(out.TextTrackKeys, key)
 	}
-	if err := textTrackRows.Err(); err != nil {
+	if err = textTrackRows.Err(); err != nil {
 		return repository.AssetStorageKeys{}, err
 	}
 	return out, nil
@@ -744,7 +744,7 @@ func (r *assetRepo) batchCounts(ctx context.Context, assetIDs []string, query st
 	for rows.Next() {
 		var id string
 		var n int64
-		if err := rows.Scan(&id, &n); err == nil {
+		if err = rows.Scan(&id, &n); err == nil {
 			counts[id] = n
 		}
 	}

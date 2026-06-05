@@ -84,18 +84,18 @@ type VariantPrepareResult struct {
 }
 
 type VariantJobPayload struct {
-	AssetID      string                `json:"asset_id"`
-	WorkspaceID  string                `json:"workspace_id"`
-	VersionID    string                `json:"version_id"`
-	VersionNum   int64                 `json:"version_num"`
-	VariantID    string                `json:"variant_id,omitempty"`
-	StorageKey   string                `json:"storage_key"`
-	MimeType     string                `json:"mime_type"`
-	Type         string                `json:"type"`
-	Params       json.RawMessage       `json:"params"`
-	Title        *string               `json:"title,omitempty"`
-	IsShared     bool                  `json:"is_shared,omitempty"`
-	Continuation *WorkflowContinuation `json:"continuation,omitempty"`
+	AssetID      string            `json:"asset_id"`
+	WorkspaceID  string            `json:"workspace_id"`
+	VersionID    string            `json:"version_id"`
+	VersionNum   int64             `json:"version_num"`
+	VariantID    string            `json:"variant_id,omitempty"`
+	StorageKey   string            `json:"storage_key"`
+	MimeType     string            `json:"mime_type"`
+	Type         string            `json:"type"`
+	Params       json.RawMessage   `json:"params"`
+	Title        *string           `json:"title,omitempty"`
+	IsShared     bool              `json:"is_shared,omitempty"`
+	Continuation *NodeContinuation `json:"continuation,omitempty"`
 }
 
 type VariantManager interface {
@@ -111,9 +111,9 @@ type VersionManager interface {
 	SetAssetThumbnail(ctx context.Context, assetID string, key *string) error
 }
 
-// WorkflowContinuation carries the data needed to resume a workflow run
+// NodeContinuation carries the data needed to resume a workflow run
 // after an async job completes.
-type WorkflowContinuation struct {
+type NodeContinuation struct {
 	RunID       string `json:"run_id"`
 	NodeID      string `json:"node_id"`
 	WorkflowID  string `json:"workflow_id"`

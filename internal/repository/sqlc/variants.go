@@ -154,7 +154,7 @@ func (r *variantRepo) ListSharedByAssetIDs(
 	var out []repository.VariantWithAssetID
 	for rows.Next() {
 		var item repository.VariantWithAssetID
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&item.ID,
 			&item.WorkspaceID,
 			&item.AssetVersionID,

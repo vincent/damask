@@ -34,39 +34,39 @@ const defaultBodyLimitBytes = 100 * 1024 * 1024 // 100 MB
 
 // Server holds shared dependencies injected at startup.
 type Server struct {
-	queries       *dbgen.Queries
-	auth          *auth.Maker
-	storage       storage.Storage
-	queue         queue.JobQueue
-	mailer        mail.Mailer
-	hub           events.EventHub
-	previewCache  *LruPreviewCache
-	cfg           *config.Config
-	trf           transform.Transformer
-	media         *ingest.Registry
-	demo          DemoSeeder // nil when demo build tag is not set
-	assets        service.AssetService
-	projects      service.ProjectService
-	folders       service.FolderService
-	tags          service.TagService
-	collections   service.CollectionService
-	shares        service.ShareService
-	sharePublic   service.SharePublicService
-	fields        service.FieldService
-	integrations  service.IntegrationService
-	assetFields   service.AssetFieldService
-	projectFields service.ProjectFieldService
-	versions      service.VersionService
-	variants      service.VariantService
-	textTracks    service.TextTrackService
-	auditLog      service.AuditLogService
-	workspace     service.WorkspaceService
-	users         service.UserService
-	ingress       service.IngressService
-	exports       service.ExportService
-	stack         service.StackService
-	upload        service.UploadService
-	workflows     service.WorkflowService
+	queries             *dbgen.Queries
+	auth                *auth.Maker
+	storage             storage.Storage
+	queue               queue.JobQueue
+	mailer              mail.Mailer
+	hub                 events.EventHub
+	previewCache        *LruPreviewCache
+	cfg                 *config.Config
+	trf                 transform.Transformer
+	media               *ingest.Registry
+	demo                DemoSeeder // nil when demo build tag is not set
+	assets              service.AssetService
+	projects            service.ProjectService
+	folders             service.FolderService
+	tags                service.TagService
+	collections         service.CollectionService
+	shares              service.ShareService
+	sharePublic         service.SharePublicService
+	fields              service.FieldService
+	integrations        service.IntegrationService
+	assetFields         service.AssetFieldService
+	projectFields       service.ProjectFieldService
+	versions            service.VersionService
+	variants            service.VariantService
+	textTracks          service.TextTrackService
+	auditLog            service.AuditLogService
+	workspace           service.WorkspaceService
+	users               service.UserService
+	ingress             service.IngressService
+	exports             service.ExportService
+	stack               service.StackService
+	upload              service.UploadService
+	workflows           service.WorkflowService
 	storageSvc          service.StorageService
 	visualSimilaritySvc *visualsimilarity.Service
 }
@@ -182,14 +182,11 @@ func NewHTTPServer(
 // @version 1.0
 // @description This is a Damask server.
 // @termsOfService http://swagger.io/terms/
-
 // @contact.name API Support
 // @contact.url http://www.swagger.io/support
 // @contact.email support@getdamask.com
-
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
 // @BasePath /
 // @schemes http.
 func NewRouter(

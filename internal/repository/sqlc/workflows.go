@@ -214,7 +214,7 @@ func (r *workflowRepo) RunInTx(ctx context.Context, fn func(repository.WorkflowR
 		return err
 	}
 	txRepo := &workflowRepo{q: dbgen.New(tx), sqlDB: r.sqlDB}
-	if err := fn(txRepo); err != nil {
+	if err = fn(txRepo); err != nil {
 		_ = tx.Rollback()
 		return err
 	}

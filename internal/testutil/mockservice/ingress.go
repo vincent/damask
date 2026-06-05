@@ -32,14 +32,14 @@ func (m *MockIngressService) ListSources(ctx context.Context, workspaceID string
 	if m.ListSourcesFn != nil {
 		return m.ListSourcesFn(ctx, workspaceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) GetSource(ctx context.Context, workspaceID, id string) (*service.IngressSourceDTO, error) {
 	if m.GetSourceFn != nil {
 		return m.GetSourceFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) CreateSource(
@@ -50,7 +50,7 @@ func (m *MockIngressService) CreateSource(
 	if m.CreateSourceFn != nil {
 		return m.CreateSourceFn(ctx, workspaceID, userID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) UpdateSource(
@@ -61,7 +61,7 @@ func (m *MockIngressService) UpdateSource(
 	if m.UpdateSourceFn != nil {
 		return m.UpdateSourceFn(ctx, workspaceID, id, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) DeleteSource(ctx context.Context, workspaceID, id string) error {
@@ -92,7 +92,7 @@ func (m *MockIngressService) ListRules(
 	if m.ListRulesFn != nil {
 		return m.ListRulesFn(ctx, workspaceID, sourceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) CreateRule(
@@ -103,7 +103,7 @@ func (m *MockIngressService) CreateRule(
 	if m.CreateRuleFn != nil {
 		return m.CreateRuleFn(ctx, workspaceID, sourceID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) UpdateRule(
@@ -114,7 +114,7 @@ func (m *MockIngressService) UpdateRule(
 	if m.UpdateRuleFn != nil {
 		return m.UpdateRuleFn(ctx, workspaceID, sourceID, ruleID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) DeleteRule(ctx context.Context, workspaceID, sourceID, ruleID string) error {
@@ -132,7 +132,7 @@ func (m *MockIngressService) ReorderRules(
 	if m.ReorderRulesFn != nil {
 		return m.ReorderRulesFn(ctx, workspaceID, sourceID, entries)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) ListLog(
@@ -143,7 +143,7 @@ func (m *MockIngressService) ListLog(
 	if m.ListLogFn != nil {
 		return m.ListLogFn(ctx, workspaceID, statusFilter, limit, offset)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) ListSourceLog(
@@ -154,7 +154,7 @@ func (m *MockIngressService) ListSourceLog(
 	if m.ListSourceLogFn != nil {
 		return m.ListSourceLogFn(ctx, workspaceID, sourceID, limit, offset)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockIngressService) DeleteLogEntry(ctx context.Context, workspaceID, entryID string) error {

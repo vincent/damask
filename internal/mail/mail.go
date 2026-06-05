@@ -83,7 +83,7 @@ func (m *MailerImpl) renderTemplate(name string, data any) (string, error) {
 		return "", fmt.Errorf("mail: parse template %q: %w", name, err)
 	}
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, name+".html", data); err != nil {
+	if err = tmpl.ExecuteTemplate(&buf, name+".html", data); err != nil {
 		return "", fmt.Errorf("mail: execute template %q: %w", name, err)
 	}
 	out := buf.String()
@@ -107,7 +107,7 @@ func (m *MailerImpl) prepare(to, subject, body string) (message *gomail.Msg, err
 		slog.Error("mailer: failed to set [from] address", "error", err)
 		return nil, err
 	}
-	if err := message.To(to); err != nil {
+	if err = message.To(to); err != nil {
 		slog.Error("mailer: failed to set [to] address", "error", err)
 		return nil, err
 	}

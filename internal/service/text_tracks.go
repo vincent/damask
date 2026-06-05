@@ -570,7 +570,7 @@ func (s *textTrackService) writeExtractedText(ctx context.Context, workspaceID, 
 	return nil
 }
 
-func (s *textTrackService) RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) (err error) {
+func (s *textTrackService) RunOCR(ctx context.Context, workspaceID, assetID, trackID, _, storageKey, mimeType, lang, outputFormat string) (err error) {
 	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.ocr",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),

@@ -28,7 +28,7 @@ func (m *MockVersionService) List(ctx context.Context, assetID string) ([]*servi
 	if m.ListFn != nil {
 		return m.ListFn(ctx, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) ListWithVariantCount(
@@ -38,35 +38,35 @@ func (m *MockVersionService) ListWithVariantCount(
 	if m.ListWithVariantCountFn != nil {
 		return m.ListWithVariantCountFn(ctx, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) Get(ctx context.Context, workspaceID, id string) (*service.VersionDTO, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) GetCurrentByAsset(ctx context.Context, assetID string) (*service.VersionDTO, error) {
 	if m.GetCurrentByAssetFn != nil {
 		return m.GetCurrentByAssetFn(ctx, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) GetFirstByAsset(ctx context.Context, assetID string) (*service.VersionDTO, error) {
 	if m.GetFirstByAssetFn != nil {
 		return m.GetFirstByAssetFn(ctx, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) GetByHash(ctx context.Context, assetID, contentHash string) (*service.VersionDTO, error) {
 	if m.GetByHashFn != nil {
 		return m.GetByHashFn(ctx, assetID, contentHash)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) NextVersionNum(ctx context.Context, assetID string) (int64, error) {
@@ -80,7 +80,7 @@ func (m *MockVersionService) Create(ctx context.Context, v *service.VersionDTO) 
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, v)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) UploadNewVersion(
@@ -90,7 +90,7 @@ func (m *MockVersionService) UploadNewVersion(
 	if m.UploadNewVersionFn != nil {
 		return m.UploadNewVersionFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVersionService) SetCurrent(ctx context.Context, assetID, versionID string) error {
@@ -153,7 +153,7 @@ func (m *MockVariantService) Get(ctx context.Context, workspaceID, id string) (*
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVariantService) PrepareCreate(
@@ -170,7 +170,7 @@ func (m *MockVariantService) Create(ctx context.Context, p service.CreateVariant
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVariantService) CommitDraft(ctx context.Context, p service.CommitDraftParams) (*service.VariantDTO, error) {
@@ -201,7 +201,7 @@ func (m *MockVariantService) ListSharedByAssets(
 	if m.ListSharedFn != nil {
 		return m.ListSharedFn(ctx, assetIDs)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVariantService) GetSharedForShare(
@@ -211,7 +211,7 @@ func (m *MockVariantService) GetSharedForShare(
 	if m.GetSharedForFn != nil {
 		return m.GetSharedForFn(ctx, variantID, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockVariantService) Delete(ctx context.Context, workspaceID, assetID, variantID string) error {

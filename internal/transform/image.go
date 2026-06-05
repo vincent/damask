@@ -36,7 +36,7 @@ func ProcessAvatar(data []byte) ([]byte, error) {
 	avatar := imaging.PasteCenter(canvas, fitted)
 
 	var out bytes.Buffer
-	if err := nativewebp.Encode(&out, avatar, &nativewebp.Options{
+	if err = nativewebp.Encode(&out, avatar, &nativewebp.Options{
 		CompressionLevel: nativewebp.BestCompression,
 	}); err != nil {
 		return nil, fmt.Errorf("encode avatar: %w", err)

@@ -37,14 +37,14 @@ func (m *MockWorkflowService) List(
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, params)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) Get(ctx context.Context, workspaceID, id string) (*service.WorkflowDTO, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) Create(
@@ -55,7 +55,7 @@ func (m *MockWorkflowService) Create(
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, createdBy, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) Update(
@@ -66,7 +66,7 @@ func (m *MockWorkflowService) Update(
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) SetEnabled(ctx context.Context, workspaceID, id string, enabled bool) error {
@@ -98,7 +98,7 @@ func (m *MockWorkflowService) TriggerManualBulk(
 	if m.TriggerManualBulkFn != nil {
 		return m.TriggerManualBulkFn(ctx, workspaceID, workflowID, assetIDs)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error) {
@@ -112,7 +112,7 @@ func (m *MockWorkflowService) GetRun(ctx context.Context, workspaceID, runID str
 	if m.GetRunFn != nil {
 		return m.GetRunFn(ctx, workspaceID, runID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) ListRuns(
@@ -124,7 +124,7 @@ func (m *MockWorkflowService) ListRuns(
 	if m.ListRunsFn != nil {
 		return m.ListRunsFn(ctx, workflowID, limit, cursor)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) ListAllRuns(
@@ -136,7 +136,7 @@ func (m *MockWorkflowService) ListAllRuns(
 	if m.ListAllRunsFn != nil {
 		return m.ListAllRunsFn(ctx, workspaceID, limit, cursor)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) FindCoveringWorkflow(
@@ -146,7 +146,7 @@ func (m *MockWorkflowService) FindCoveringWorkflow(
 	if m.FindCoveringFn != nil {
 		return m.FindCoveringFn(ctx, workspaceID, assetID, assetProjectID, assetFolderID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) CreateFromVariants(
@@ -157,7 +157,7 @@ func (m *MockWorkflowService) CreateFromVariants(
 	if m.CreateFromVariantsFn != nil {
 		return m.CreateFromVariantsFn(ctx, workspaceID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockWorkflowService) GetWebhookToken(ctx context.Context, workspaceID, id string) (string, error) {

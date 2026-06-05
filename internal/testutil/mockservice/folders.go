@@ -26,21 +26,21 @@ func (m *MockFolderService) Create(
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, projectID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFolderService) Get(ctx context.Context, workspaceID, id string) (*service.FolderDTO, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFolderService) List(ctx context.Context, workspaceID, projectID string) ([]*service.FolderDTO, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, projectID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFolderService) ListTree(
@@ -50,7 +50,7 @@ func (m *MockFolderService) ListTree(
 	if m.ListTreeFn != nil {
 		return m.ListTreeFn(ctx, workspaceID, projectID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFolderService) Update(
@@ -61,7 +61,7 @@ func (m *MockFolderService) Update(
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFolderService) Delete(ctx context.Context, workspaceID, id string) error {

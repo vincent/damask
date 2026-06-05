@@ -194,7 +194,7 @@ func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, asset
 		if err != nil {
 			continue // no value set on project for this field — skip
 		}
-		if _, err := r.q.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+		if _, err = r.q.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 			ID:           uuid.NewString(),
 			AssetID:      assetID,
 			FieldID:      def.ID,
@@ -287,7 +287,7 @@ func (r *assetFieldRepo) RunInTx(ctx context.Context, fn func(tx repository.Asse
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	txRepo := &assetFieldRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}
-	if err := fn(txRepo); err != nil {
+	if err = fn(txRepo); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -352,18 +352,18 @@ func (r *fieldRepo) PurgeExpired(ctx context.Context) (int, error) {
 
 	qtx := r.q.WithTx(tx)
 	for _, id := range ids {
-		if err := qtx.DeleteAssetFieldValuesByField(ctx, id); err != nil {
+		if err = qtx.DeleteAssetFieldValuesByField(ctx, id); err != nil {
 			return 0, err
 		}
-		if err := qtx.DeleteProjectFieldValuesByField(ctx, id); err != nil {
+		if err = qtx.DeleteProjectFieldValuesByField(ctx, id); err != nil {
 			return 0, err
 		}
-		if err := qtx.HardDeleteFieldDefinition(ctx, id); err != nil {
+		if err = qtx.HardDeleteFieldDefinition(ctx, id); err != nil {
 			return 0, err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		return 0, err
 	}
 	return len(ids), nil

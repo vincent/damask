@@ -7,11 +7,11 @@ import (
 )
 
 type MockTextTrackService struct {
-	ListFn   func(ctx context.Context, workspaceID, assetID string) ([]service.TextTrackDTO, error)
-	GetFn    func(ctx context.Context, workspaceID, trackID string) (service.TextTrackDTO, error)
-	CreateFn func(ctx context.Context, p service.CreateTextTrackParams) (service.TextTrackDTO, error)
-	DeleteFn func(ctx context.Context, workspaceID, trackID string) error
-	RunOCRFn          func(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
+	ListFn               func(ctx context.Context, workspaceID, assetID string) ([]service.TextTrackDTO, error)
+	GetFn                func(ctx context.Context, workspaceID, trackID string) (service.TextTrackDTO, error)
+	CreateFn             func(ctx context.Context, p service.CreateTextTrackParams) (service.TextTrackDTO, error)
+	DeleteFn             func(ctx context.Context, workspaceID, trackID string) error
+	RunOCRFn             func(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
 	RunExtractPDFFn      func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractPlainFn    func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractDocumentFn func(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
@@ -23,7 +23,7 @@ func (m *MockTextTrackService) List(ctx context.Context, workspaceID, assetID st
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTextTrackService) Get(ctx context.Context, workspaceID, trackID string) (service.TextTrackDTO, error) {

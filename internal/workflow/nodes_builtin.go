@@ -498,7 +498,7 @@ func (n setNewVersionNode) Execute(
 		slog.ErrorContext(ctx, "set_new_version: clear asset thumbnail failed", "asset_id", assetID, "err", err)
 	}
 	if n.deps.Queue == nil {
-		return "", nil, fmt.Errorf("set_new_version: queue dependency is nil")
+		return "", nil, errors.New("set_new_version: queue dependency is nil")
 	}
 	payload, err := json.Marshal(map[string]string{
 		"asset_id":     assetID,
@@ -712,7 +712,7 @@ func (n createVariantNode) Execute(
 	// node is wired as our successor), embed it in the job payload so the job
 	// worker can resume the workflow run once the variant is ready.
 	if contVal, ok := rc.Get(rcKeyContinuation); ok {
-		if cont, ok := contVal.(WorkflowContinuation); ok {
+		if cont, ok := contVal.(NodeContinuation); ok {
 			// Snapshot the current context (before variant outputs) for the resume.
 			cont.ContextJSON = mustJSON(rc)
 			// Embed variant_id so the resumed node can look up the variant row.

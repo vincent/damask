@@ -19,11 +19,11 @@ func newTagSvc(t *testing.T) (service.TagService, *memory.RealTagRepo) {
 	return service.NewTagService(repo, audit.NopWriter{}), repo
 }
 
-func newTagSvcSpy(t *testing.T) (service.TagService, *memory.RealTagRepo, *spyWriter) {
+func newTagSvcSpy(t *testing.T) (service.TagService, *spyWriter) {
 	t.Helper()
 	spy := newSpy()
 	repo := memory.NewRealTagRepo()
-	return service.NewTagService(repo, spy), repo, spy
+	return service.NewTagService(repo, spy), spy
 }
 
 // --- Create ---
@@ -283,7 +283,7 @@ func TestTagService_Merge_SystemTagAsSource_ReturnsProtectedError(t *testing.T) 
 // --- Audit events ---
 
 func TestTagService_AddToAsset_EmitsAuditEvent(t *testing.T) {
-	svc, _, spy := newTagSvcSpy(t)
+	svc, spy := newTagSvcSpy(t)
 	if _, err := svc.AddToAsset(context.Background(), "ws_1", "ast_1", "nature"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestTagService_AddToAsset_EmitsAuditEvent(t *testing.T) {
 }
 
 func TestTagService_RemoveFromAsset_EmitsAuditEvent(t *testing.T) {
-	svc, _, spy := newTagSvcSpy(t)
+	svc, spy := newTagSvcSpy(t)
 	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "nature")
 	spy.asset = nil // reset after add
 	if err := svc.RemoveFromAsset(context.Background(), "ws_1", "ast_1", "nature"); err != nil {
@@ -313,7 +313,7 @@ func TestTagService_RemoveFromAsset_EmitsAuditEvent(t *testing.T) {
 }
 
 func TestTagService_AddToAsset_AuditOnEveryCall(t *testing.T) {
-	svc, _, spy := newTagSvcSpy(t)
+	svc, spy := newTagSvcSpy(t)
 	// Two calls with the same tag: the repo deduplicates the link, but the
 	// service emits an audit event on every call regardless.
 	svc.AddToAsset(context.Background(), "ws_1", "ast_1", "photo")

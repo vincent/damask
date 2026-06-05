@@ -145,7 +145,7 @@ func (r *shareRepo) ListAssetsByTarget(
 	for rows.Next() {
 		var a repository.PublicAsset
 		var createdAt, updatedAt string
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&a.ID, &a.WorkspaceID, &a.ProjectID, &a.FolderID, &a.OriginalFilename, &a.StorageKey,
 			&a.MimeType, &a.Size, &a.Width, &a.Height, &a.ThumbnailKey, &a.Metadata,
 			&createdAt, &updatedAt,

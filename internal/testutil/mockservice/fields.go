@@ -25,14 +25,14 @@ func (m *MockFieldService) List(ctx context.Context, workspaceID, scope string) 
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, scope)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFieldService) Get(ctx context.Context, workspaceID, id string) (*service.FieldDefinitionDTO, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, workspaceID, id)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFieldService) Create(
@@ -43,7 +43,7 @@ func (m *MockFieldService) Create(
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFieldService) Update(
@@ -54,7 +54,7 @@ func (m *MockFieldService) Update(
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, workspaceID, id, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFieldService) Delete(ctx context.Context, workspaceID, id string) error {
@@ -92,7 +92,7 @@ func (m *MockFieldService) ListAssetsMissingExif(ctx context.Context, workspaceI
 	if m.ListAssetsMissingExifFn != nil {
 		return m.ListAssetsMissingExifFn(ctx, workspaceID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockFieldService) PurgeExpiredFields(_ context.Context) (int, error) { return 0, nil }
@@ -114,7 +114,7 @@ func (m *MockAssetFieldService) GetValues(
 	if m.GetValuesFn != nil {
 		return m.GetValuesFn(ctx, workspaceID, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockAssetFieldService) SetValues(
@@ -125,7 +125,7 @@ func (m *MockAssetFieldService) SetValues(
 	if m.SetValuesFn != nil {
 		return m.SetValuesFn(ctx, workspaceID, assetID, userID, inputs)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockAssetFieldService) BulkSetValues(
@@ -148,7 +148,7 @@ func (m *MockAssetFieldService) BulkPreview(
 	if m.BulkPreviewFn != nil {
 		return m.BulkPreviewFn(ctx, workspaceID, assetIDs, fieldIDs)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 // MockProjectFieldService is a no-op implementation of service.ProjectFieldService.
@@ -166,7 +166,7 @@ func (m *MockProjectFieldService) GetValues(
 	if m.GetValuesFn != nil {
 		return m.GetValuesFn(ctx, workspaceID, projectID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockProjectFieldService) SetValues(
@@ -177,5 +177,5 @@ func (m *MockProjectFieldService) SetValues(
 	if m.SetValuesFn != nil {
 		return m.SetValuesFn(ctx, workspaceID, projectID, userID, inputs)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }

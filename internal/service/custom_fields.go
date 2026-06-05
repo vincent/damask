@@ -435,7 +435,7 @@ func (s *assetFieldService) SetValues(
 	}
 	//nolint:dupl // Asset and project audit payloads are parallel event types with different writer methods.
 	emitFieldValueAuditEvents(inputs, existingByFieldID, afterByFieldID, func(
-		input SetFieldValueInput, // TODO: check why unused
+		_ SetFieldValueInput, // TODO: check why unused
 		before, after *FieldValueDTO,
 		beforeVal any,
 	) {
@@ -452,7 +452,7 @@ func (s *assetFieldService) SetValues(
 				Before:    beforeVal,
 			},
 		})
-	}, func(input SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
+	}, func(_ SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
 		s.audit.WriteAsset(ctx, audit.AssetEvent{
 			WorkspaceID: workspaceID,
 			AssetID:     assetID,
@@ -767,7 +767,7 @@ func (s *projectFieldService) SetValues(
 	}
 	//nolint:dupl // Asset and project audit payloads are parallel event types with different writer methods.
 	emitFieldValueAuditEvents(inputs, existingByFieldID, afterByFieldID, func(
-		input SetFieldValueInput,
+		_ SetFieldValueInput,
 		before, after *FieldValueDTO,
 		beforeVal any,
 	) {
@@ -784,7 +784,7 @@ func (s *projectFieldService) SetValues(
 				Before:    beforeVal,
 			},
 		})
-	}, func(input SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
+	}, func(_ SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
 		s.audit.WriteProject(ctx, audit.ProjectEvent{
 			WorkspaceID: workspaceID,
 			ProjectID:   projectID,

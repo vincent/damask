@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+	_ "image/gif"  //nolint:gci // register GIF format
+	_ "image/jpeg" //nolint:gci // register JPEG format
+	_ "image/png"  //nolint:gci // register PNG format
 	"log/slog"
 	"time"
 

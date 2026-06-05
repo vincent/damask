@@ -23,7 +23,7 @@ func (m *MockAuditLogService) ListAssetEvents(
 	if m.ListAssetEventsFn != nil {
 		return m.ListAssetEventsFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockAuditLogService) ListProjectEvents(
@@ -33,7 +33,7 @@ func (m *MockAuditLogService) ListProjectEvents(
 	if m.ListProjectEventsFn != nil {
 		return m.ListProjectEventsFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockAuditLogService) ListWorkspaceActivity(
@@ -43,7 +43,7 @@ func (m *MockAuditLogService) ListWorkspaceActivity(
 	if m.ListWorkspaceActivityFn != nil {
 		return m.ListWorkspaceActivityFn(ctx, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockAuditLogService) ExportActivity(ctx context.Context, p service.ExportActivityParams) (string, error) {

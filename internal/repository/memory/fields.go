@@ -94,7 +94,7 @@ func (r *RealFieldRepo) CountByWorkspaceAndScope(_ context.Context, workspaceID,
 	return count, nil
 }
 
-func (r *RealFieldRepo) PurgeExpired(ctx context.Context) (int, error) {
+func (r *RealFieldRepo) PurgeExpired(_ context.Context) (int, error) {
 	return 0, nil
 }
 

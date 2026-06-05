@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	export.Register("sftp", func(cfg []byte) (export.ExportDestination, error) {
+	export.Register("sftp", func(cfg []byte) (export.Destination, error) {
 		return New(cfg)
 	})
 }
@@ -30,7 +30,7 @@ type Config struct {
 	Port            int    `json:"port"`
 	Username        string `json:"username"`
 	Password        string `json:"password"`
-	PrivateKey      string `json:"private_key"`   // PEM-encoded
+	PrivateKey      string `json:"private_key"` // PEM-encoded
 	RemotePath      string `json:"remote_path"`
 	InsecureHostKey bool   `json:"insecure_host_key"` // skip host-key verification; not recommended for production
 }

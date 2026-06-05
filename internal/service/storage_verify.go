@@ -28,6 +28,9 @@ func VerifySizeColumns(ctx context.Context, db *sql.DB, log *slog.Logger) {
 					"workspace_id", wsID, "count", cnt)
 			}
 		}
+		if err := rows.Err(); err != nil {
+			log.WarnContext(ctx, "storage verify: asset_versions iteration error", "error", err)
+		}
 	}
 
 	rows2, err := db.QueryContext(ctx, `
@@ -48,5 +51,8 @@ func VerifySizeColumns(ctx context.Context, db *sql.DB, log *slog.Logger) {
 			log.WarnContext(ctx, "storage verify: variants with size=0 or NULL",
 				"workspace_id", wsID, "count", cnt)
 		}
+	}
+	if err := rows2.Err(); err != nil {
+		log.WarnContext(ctx, "storage verify: variants iteration error", "error", err)
 	}
 }

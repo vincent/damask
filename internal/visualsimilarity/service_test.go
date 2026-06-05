@@ -31,14 +31,16 @@ func insertWorkspaceAndVersion(t *testing.T, sqlDB *sql.DB) (workspaceID, versio
 		t.Fatalf("insert workspace: %v", err)
 	}
 	_, err = sqlDB.Exec(
-		`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size) VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size) 
+		  VALUES (?, ?, ?, ?, ?, ?)`,
 		assetID, workspaceID, "test.jpg", "key/test.jpg", "image/jpeg", 1024,
 	)
 	if err != nil {
 		t.Fatalf("insert asset: %v", err)
 	}
 	_, err = sqlDB.Exec(
-		`INSERT INTO asset_versions (id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, is_current) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO asset_versions (id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, is_current)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		versionID, assetID, workspaceID, 1, "key/test.jpg", "abc123", "image/jpeg", 1024, 1,
 	)
 	if err != nil {
@@ -63,7 +65,8 @@ func TestStore_IdempotentUpsert(t *testing.T) {
 	}
 
 	var count int
-	_ = sqlDB.QueryRow(`SELECT COUNT(*) FROM asset_visual_similarity_hashes WHERE asset_version_id = ?`, versionID).Scan(&count)
+	_ = sqlDB.QueryRow(`SELECT COUNT(*) FROM asset_visual_similarity_hashes 
+		WHERE asset_version_id = ?`, versionID).Scan(&count)
 	if count != 1 {
 		t.Errorf("expected 1 row, got %d", count)
 	}

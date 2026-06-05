@@ -31,14 +31,14 @@ func (m *MockTagService) List(ctx context.Context, workspaceID string, includeSy
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, includeSystem)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTagService) GetByName(ctx context.Context, workspaceID, name string) (*service.TagDTO, error) {
 	if m.GetByNameFn != nil {
 		return m.GetByNameFn(ctx, workspaceID, name)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTagService) Create(
@@ -49,7 +49,7 @@ func (m *MockTagService) Create(
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, workspaceID, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTagService) Patch(
@@ -60,7 +60,7 @@ func (m *MockTagService) Patch(
 	if m.PatchFn != nil {
 		return m.PatchFn(ctx, workspaceID, currentName, p)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTagService) EnsureSystemTag(ctx context.Context, workspaceID, name string) error {
@@ -108,7 +108,7 @@ func (m *MockTagService) ResolveSystemTag(
 	if m.ResolveSystemTagFn != nil {
 		return m.ResolveSystemTagFn(ctx, workspaceID, tagName, scope)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTagService) TouchLastUsed(ctx context.Context, workspaceID, name string) error {
@@ -122,7 +122,7 @@ func (m *MockTagService) ListForAsset(ctx context.Context, assetID string) ([]*s
 	if m.ListForAssetFn != nil {
 		return m.ListForAssetFn(ctx, assetID)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTagService) AddToAsset(
@@ -132,7 +132,7 @@ func (m *MockTagService) AddToAsset(
 	if m.AddToAssetFn != nil {
 		return m.AddToAssetFn(ctx, workspaceID, assetID, tagName)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock
 }
 
 func (m *MockTagService) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error {

@@ -277,7 +277,7 @@ func (r *workspaceRepo) RunInTx(ctx context.Context, fn func(repository.Workspac
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	if err := fn(&workspaceRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
+	if err = fn(&workspaceRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
 		return err
 	}
 	return tx.Commit()

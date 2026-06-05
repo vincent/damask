@@ -164,7 +164,7 @@ func (r *tagRepo) BatchTagsForAssets(ctx context.Context, assetIDs []string) (ma
 	out := make(map[string][]string, len(assetIDs))
 	for rows.Next() {
 		var assetID, name string
-		if err := rows.Scan(&assetID, &name); err != nil {
+		if err = rows.Scan(&assetID, &name); err != nil {
 			return nil, err
 		}
 		out[assetID] = append(out[assetID], name)
@@ -250,7 +250,7 @@ func (r *tagRepo) RunInTx(ctx context.Context, fn func(tx repository.TagReposito
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 	txRepo := &tagRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}
-	if err := fn(txRepo); err != nil {
+	if err = fn(txRepo); err != nil {
 		return err
 	}
 	return tx.Commit()

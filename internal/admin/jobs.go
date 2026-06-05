@@ -71,13 +71,13 @@ func (m JobsModel) Update(msg tea.Msg) (JobsModel, tea.Cmd) {
 		if msg.err == nil {
 			m.health = msg.health
 			m.failed = msg.failed
-			m.rebuildFailedTable()
+			m = m.rebuildFailedTable()
 		}
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.rebuildFailedCols()
+		m = m.rebuildFailedCols()
 
 	case tea.KeyMsg:
 		// Close modal first
@@ -242,7 +242,7 @@ func renderJobHealthTable(rows []JobRow, width int, _ bool) string {
 	return strings.Join(lines, "\n")
 }
 
-func (m *JobsModel) rebuildFailedCols() {
+func (m JobsModel) rebuildFailedCols() JobsModel {
 	errW := clamp(m.width-70, 20, 50)
 	cols := []table.Column{
 		{Title: "ID", Width: 14},
@@ -253,10 +253,11 @@ func (m *JobsModel) rebuildFailedCols() {
 	}
 	m.failedTable.SetColumns(cols)
 	m.failedTable.SetHeight(clamp(m.height/3, 5, 12))
+	return m
 }
 
-func (m *JobsModel) rebuildFailedTable() {
-	m.rebuildFailedCols()
+func (m JobsModel) rebuildFailedTable() JobsModel {
+	m = m.rebuildFailedCols()
 	errW := clamp(m.width-70, 20, 50)
 	var rows []table.Row
 	for _, r := range m.failed {
@@ -269,6 +270,7 @@ func (m *JobsModel) rebuildFailedTable() {
 		})
 	}
 	m.failedTable.SetRows(rows)
+	return m
 }
 
 func (m JobsModel) renderJobModal() string {
