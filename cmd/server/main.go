@@ -127,11 +127,11 @@ func main() {
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := otelTracesShutdown(shutdownCtx); err != nil {
-			slog.WarnContext(shutdownCtx, "otel shutdown failed", "error", err)
+		if e := otelTracesShutdown(shutdownCtx); e != nil {
+			slog.WarnContext(shutdownCtx, "otel shutdown failed", "error", e)
 		}
-		if err := otelLogsShutdown(shutdownCtx); err != nil {
-			slog.WarnContext(shutdownCtx, "otel shutdown failed", "error", err)
+		if e := otelLogsShutdown(shutdownCtx); e != nil {
+			slog.WarnContext(shutdownCtx, "otel shutdown failed", "error", e)
 		}
 	}()
 
@@ -273,19 +273,19 @@ func main() {
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)
 	appErr := make(chan error, 1)
 	go func() {
-		if err := app.Listen(":"+cfg.Port, fiber.ListenConfig{
+		if e := app.Listen(":"+cfg.Port, fiber.ListenConfig{
 			DisableStartupMessage: true,
-		}); err != nil {
-			appErr <- err
+		}); e != nil {
+			appErr <- e
 		}
 	}()
 
 	select {
-	case err := <-mailErr:
-		slog.Error("mail server", "error", err)
+	case e := <-mailErr:
+		slog.Error("mail server", "error", e)
 		os.Exit(1)
-	case err := <-appErr:
-		slog.Error("api server", "error", err)
+	case e := <-appErr:
+		slog.Error("api server", "error", e)
 		os.Exit(1)
 	case <-ctx.Done():
 	}

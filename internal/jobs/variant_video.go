@@ -133,9 +133,9 @@ func (s *JobServer) videoTranscodeTransformer(params json.RawMessage) (variantTr
 		ext := transform.FormatExtension(p.Format)
 		dstPath := srcPath + "_out" + ext
 		defer os.Remove(dstPath)
-		if err := s.trf.VideoTranscode(ctx, srcPath, dstPath, p); err != nil {
-			telemetry.EndSpan(span, err)
-			return nil, "", fmt.Errorf("transcode: %w", err)
+		if e := s.trf.VideoTranscode(ctx, srcPath, dstPath, p); e != nil {
+			telemetry.EndSpan(span, e)
+			return nil, "", fmt.Errorf("transcode: %w", e)
 		}
 		data, err := os.ReadFile(dstPath)
 		if err != nil {

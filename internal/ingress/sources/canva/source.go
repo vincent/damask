@@ -131,7 +131,7 @@ func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 			} `json:"items"`
 			Continuation string `json:"continuation"`
 		}
-		if err := json.Unmarshal(body, &page); err != nil {
+		if err = json.Unmarshal(body, &page); err != nil {
 			return nil, fmt.Errorf("canva: parse designs response: %w", err)
 		}
 
@@ -190,7 +190,7 @@ func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadClo
 			Status string `json:"status"`
 		} `json:"job"`
 	}
-	if err := json.Unmarshal(resp, &exportResp); err != nil {
+	if err = json.Unmarshal(resp, &exportResp); err != nil {
 		return nil, fmt.Errorf("canva: parse export response: %w", err)
 	}
 	jobID := exportResp.Job.ID
@@ -198,7 +198,8 @@ func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadClo
 	// Step 2: poll until done.
 	var downloadURL string
 	for range exportPollMax {
-		body, err := s.doGet(pollCtx, token, canvaAPIBase+"/exports/"+jobID)
+		var body []byte
+		body, err = s.doGet(pollCtx, token, canvaAPIBase+"/exports/"+jobID)
 		if err != nil {
 			return nil, fmt.Errorf("canva: poll export: %w", err)
 		}
@@ -209,7 +210,7 @@ func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadClo
 				Urls   []string `json:"urls"`
 			} `json:"job"`
 		}
-		if err := json.Unmarshal(body, &status); err != nil {
+		if err = json.Unmarshal(body, &status); err != nil {
 			return nil, fmt.Errorf("canva: parse export status: %w", err)
 		}
 

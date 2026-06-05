@@ -108,7 +108,7 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 			continue
 		}
 
-		if err := s.rebuildVariant(ctx, newVer, spec.Type, paramsStr, paramsHash); err != nil {
+		if e := s.rebuildVariant(ctx, newVer, spec.Type, paramsStr, paramsHash); e != nil {
 			slog.ErrorContext(
 				ctx,
 				"rebuild-variants: variant failed",
@@ -117,7 +117,7 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 				"type",
 				spec.Type,
 				"error",
-				err,
+				e,
 			)
 			// Continue with remaining variants even if one fails.
 		}

@@ -67,7 +67,7 @@ func (s *JobServer) audioTransformer(jobType, sourceMime string, params json.Raw
 		dstPath := srcPath + "_out" + ext
 		defer os.Remove(dstPath)
 
-		if _, err := s.runAudioVariant(ctx, jobType, srcPath, dstPath, p); err != nil {
+		if _, err = s.runAudioVariant(ctx, jobType, srcPath, dstPath, p); err != nil {
 			telemetry.EndSpan(span, err)
 			return nil, "", err
 		}

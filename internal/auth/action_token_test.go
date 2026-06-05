@@ -39,8 +39,8 @@ func TestVerify_ExpiredToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
-	if _, err := VerifyActionToken(secret, token); !errors.Is(err, ErrTokenExpired) {
-		t.Fatalf("expected ErrTokenExpired, got %v", err)
+	if _, e := VerifyActionToken(secret, token); !errors.Is(e, ErrTokenExpired) {
+		t.Fatalf("expected ErrTokenExpired, got %v", e)
 	}
 }
 
@@ -55,14 +55,14 @@ func TestVerify_WrongSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
-	if _, err := VerifyActionToken(
+	if _, e := VerifyActionToken(
 		[]byte("another-secret-key-must-be-32chars"),
 		token,
 	); !errors.Is(
-		err,
+		e,
 		ErrTokenInvalid,
 	) {
-		t.Fatalf("expected ErrTokenInvalid, got %v", err)
+		t.Fatalf("expected ErrTokenInvalid, got %v", e)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestVerify_TamperedPayload(t *testing.T) {
 		t.Fatalf("sign: %v", err)
 	}
 	tampered := "ZmFrZQ." + token[strings.Index(token, ".")+1:]
-	if _, err := VerifyActionToken(secret, tampered); !errors.Is(err, ErrTokenInvalid) {
+	if _, e := VerifyActionToken(secret, tampered); !errors.Is(e, ErrTokenInvalid) {
 		t.Fatalf("expected ErrTokenInvalid, got %v", err)
 	}
 }

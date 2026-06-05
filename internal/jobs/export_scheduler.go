@@ -63,8 +63,8 @@ func (s *ExportScheduler) tick(ctx context.Context) {
 			continue
 		}
 		payload := fmt.Sprintf(`{"export_config_id":%q,"export_run_id":%q}`, cfg.ID, created.ID)
-		if _, err := s.queue.Enqueue(ctx, cfg.WorkspaceID, queue.JobTypeExportRun, payload); err != nil {
-			slog.WarnContext(ctx, "export scheduler: enqueue", "config_id", cfg.ID, "error", err)
+		if _, e := s.queue.Enqueue(ctx, cfg.WorkspaceID, queue.JobTypeExportRun, payload); e != nil {
+			slog.WarnContext(ctx, "export scheduler: enqueue", "config_id", cfg.ID, "error", e)
 			continue
 		}
 		now := time.Now()

@@ -56,18 +56,18 @@ func TestImageBgRemoveJobCreatesVariantAndThumbnail(t *testing.T) {
 	env.JobServer.DrainForTest(context.Background())
 
 	var count int
-	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_bg_remove'`).
-		Scan(&count); err != nil {
-		t.Fatalf("count variants: %v", err)
+	if e := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_bg_remove'`).
+		Scan(&count); e != nil {
+		t.Fatalf("count variants: %v", e)
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 variant, got %d", count)
 	}
 
 	var thumbKey string
-	if err := env.Database.QueryRow(`SELECT COALESCE(thumbnail_key, '') FROM variants WHERE type = 'image_bg_remove' LIMIT 1`).
-		Scan(&thumbKey); err != nil {
-		t.Fatalf("load thumbnail_key: %v", err)
+	if e := env.Database.QueryRow(`SELECT COALESCE(thumbnail_key, '') FROM variants WHERE type = 'image_bg_remove' LIMIT 1`).
+		Scan(&thumbKey); e != nil {
+		t.Fatalf("load thumbnail_key: %v", e)
 	}
 	if thumbKey == "" {
 		t.Fatal("expected thumbnail_key to be set after drain")
@@ -113,9 +113,9 @@ func TestImageWithPromptJobFailureDoesNotCreateVariant(t *testing.T) {
 	env.JobServer.DrainForTest(context.Background())
 
 	var count int
-	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).
-		Scan(&count); err != nil {
-		t.Fatalf("count variants: %v", err)
+	if e := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).
+		Scan(&count); e != nil {
+		t.Fatalf("count variants: %v", e)
 	}
 	if count != 0 {
 		t.Fatalf("expected no variants to be created on failure, got %d", count)
@@ -185,9 +185,9 @@ func TestImageWithPromptJobRetriesPaidModelWhenConfigured(t *testing.T) {
 	}
 
 	var count int
-	if err := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).
-		Scan(&count); err != nil {
-		t.Fatalf("count variants: %v", err)
+	if e := env.Database.QueryRow(`SELECT COUNT(*) FROM variants WHERE type = 'image_with_prompt'`).
+		Scan(&count); e != nil {
+		t.Fatalf("count variants: %v", e)
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 variant to be created after retry, got %d", count)

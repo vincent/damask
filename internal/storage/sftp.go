@@ -180,8 +180,8 @@ func (s *SFTPStorage) List(prefix string) ([]string, error) {
 	walker := client.Walk(root)
 	var keys []string
 	for walker.Step() {
-		if err := walker.Err(); err != nil {
-			return nil, fmt.Errorf("sftp storage: walk %s: %w", root, err)
+		if e := walker.Err(); e != nil {
+			return nil, fmt.Errorf("sftp storage: walk %s: %w", root, e)
 		}
 		if walker.Stat().IsDir() {
 			continue

@@ -115,7 +115,7 @@ func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
 
 	if entry.useFullFinalize {
 		variantID := resolveVariantID(p)
-		if err := s.finalizeVariant(
+		if e := s.finalizeVariant(
 			ctx,
 			p,
 			variantID,
@@ -124,8 +124,8 @@ func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
 			paramsHash,
 			data,
 			contentType,
-		); err != nil {
-			return err
+		); e != nil {
+			return e
 		}
 		if entry.postJobHook != nil {
 			storageKey := storage.VersionedVariantKey(
@@ -142,8 +142,8 @@ func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
 	}
 
 	ver := assetVersionFromPayload(p)
-	if err := s.finalizeRebuildVariant(ctx, ver, job.Type, paramsJSON, paramsHash, data, contentType); err != nil {
-		return err
+	if e := s.finalizeRebuildVariant(ctx, ver, job.Type, paramsJSON, paramsHash, data, contentType); e != nil {
+		return e
 	}
 	if entry.postJobHook != nil {
 		variantID := resolveVariantID(p)

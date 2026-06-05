@@ -37,7 +37,7 @@ func main() {
 	defer db.Close()
 
 	// Warn on narrow terminal
-	if w, _, err := admin.TermSize(); err == nil && w > 0 && w < 80 {
+	if w, _, e := admin.TermSize(); e == nil && w > 0 && w < 80 {
 		fmt.Fprintf(os.Stderr, "damask-admin: terminal width %d < 80; some layout may be clipped\n", w)
 	}
 

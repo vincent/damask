@@ -158,12 +158,12 @@ func (s *JobServer) draftTransformer(
 			return nil, errors.New("watermark asset not found")
 		}
 		return func(_ context.Context, sourceKey string) ([]byte, string, error) {
-			wmRC, err := s.storage.Get(wm.StorageKey)
-			if err != nil {
+			wmRC, e := s.storage.Get(wm.StorageKey)
+			if e != nil {
 				return nil, "", errors.New("failed to load watermark file")
 			}
-			srcRC, err := s.storage.Get(sourceKey)
-			if err != nil {
+			srcRC, e := s.storage.Get(sourceKey)
+			if e != nil {
 				_ = wmRC.Close()
 				return nil, "", errors.New("failed to load asset file")
 			}

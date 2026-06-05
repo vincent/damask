@@ -40,12 +40,12 @@ func TestRegistry_ExtractMeta_ImageDimensions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create png: %v", err)
 	}
-	if err := png.Encode(f, img); err != nil {
+	if e := png.Encode(f, img); e != nil {
 		_ = f.Close()
-		t.Fatalf("encode png: %v", err)
+		t.Fatalf("encode png: %v", e)
 	}
-	if err := f.Close(); err != nil {
-		t.Fatalf("close png: %v", err)
+	if e := f.Close(); e != nil {
+		t.Fatalf("close png: %v", e)
 	}
 
 	meta, err := r.ExtractMeta(context.Background(), path, "image/png")

@@ -96,7 +96,7 @@ func EnqueueExtractMediaTagsJob(ctx context.Context, q queue.JobQueue, workspace
 
 func (s *JobServer) jobExtractMediaTags(ctx context.Context, job dbgen.Job) (err error) {
 	var p ExtractMediaTagsPayload
-	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
+	if err = json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}
 	ctx, span := telemetry.StartBackgroundSpan(ctx, "jobs.media_tags.extract",
@@ -192,7 +192,7 @@ func (s *JobServer) ensureMediaTagFields(ctx context.Context, workspaceID string
 		defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 		qtx := s.queries.WithTx(tx)
 		for _, fd := range mediaTagFields {
-			if err := qtx.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
+			if e := qtx.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
 				ID:          uuid.NewString(),
 				WorkspaceID: workspaceID,
 				Source:      mediaTagsSource,
@@ -200,12 +200,12 @@ func (s *JobServer) ensureMediaTagFields(ctx context.Context, workspaceID string
 				Key:         fd.key,
 				FieldType:   fd.fieldType,
 				Position:    fd.position,
-			}); err != nil {
-				return nil, err
+			}); e != nil {
+				return nil, e
 			}
 		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
+		if e := tx.Commit(); e != nil {
+			return nil, e
 		}
 		fields, err = s.queries.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
 			WorkspaceID: workspaceID,

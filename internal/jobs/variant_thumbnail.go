@@ -57,8 +57,8 @@ func (s *JobServer) jobVariantThumbnail(ctx context.Context, job dbgen.Job) erro
 	}
 
 	thumbKey := fmt.Sprintf("%s/%s/variants/%s/thumb%s", p.WorkspaceID, p.AssetID, p.VariantID, thumbExt)
-	if err := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
-		return fmt.Errorf("store variant thumb: %w", err)
+	if e := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); e != nil {
+		return fmt.Errorf("store variant thumb: %w", e)
 	}
 
 	thumbContentType := mime.TypeByExtension(thumbExt)
@@ -66,12 +66,12 @@ func (s *JobServer) jobVariantThumbnail(ctx context.Context, job dbgen.Job) erro
 		thumbContentType = "image/jpeg"
 	}
 
-	if err := s.queries.SetVariantThumbnail(ctx, dbgen.SetVariantThumbnailParams{
+	if e := s.queries.SetVariantThumbnail(ctx, dbgen.SetVariantThumbnailParams{
 		ThumbnailKey:         &thumbKey,
 		ThumbnailContentType: thumbContentType,
 		ID:                   p.VariantID,
-	}); err != nil {
-		return fmt.Errorf("set variant thumbnail: %w", err)
+	}); e != nil {
+		return fmt.Errorf("set variant thumbnail: %w", e)
 	}
 
 	return nil

@@ -79,8 +79,8 @@ func TestVariantThumbnailJobWritesKey(t *testing.T) {
 
 	var thumbKey *string
 	row := env.Database.QueryRowContext(ctx, `SELECT thumbnail_key FROM variants WHERE id = ?`, variantID)
-	if err := row.Scan(&thumbKey); err != nil {
-		t.Fatalf("query thumbnail_key: %v", err)
+	if e := row.Scan(&thumbKey); e != nil {
+		t.Fatalf("query thumbnail_key: %v", e)
 	}
 	if thumbKey == nil || *thumbKey == "" {
 		t.Error("expected thumbnail_key to be set after variant thumbnail job")
@@ -114,11 +114,11 @@ func TestVariantThumbnailJobEnqueuedAfterVariantCreation(t *testing.T) {
 	}
 
 	var count int
-	if err := env.Database.QueryRow(
+	if e := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'generate_variant_thumbnail' AND workspace_id = ?`,
 		owner.WorkspaceID,
-	).Scan(&count); err != nil {
-		t.Fatalf("query jobs: %v", err)
+	).Scan(&count); e != nil {
+		t.Fatalf("query jobs: %v", e)
 	}
 	if count == 0 {
 		t.Error("expected generate_variant_thumbnail job to be enqueued after manual variant upload")

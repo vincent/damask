@@ -85,8 +85,8 @@ func (d *Destination) Write(ctx context.Context, remotePath string, r io.Reader,
 	if size > resumableUploadThreshold {
 		call = call.SupportsTeamDrives(true)
 	}
-	if _, err := call.Media(r).Do(); err != nil {
-		return fmt.Errorf("gdrive dest: upload %s: %w", name, err)
+	if _, e := call.Media(r).Do(); e != nil {
+		return fmt.Errorf("gdrive dest: upload %s: %w", name, e)
 	}
 	return nil
 }
@@ -133,8 +133,8 @@ func (d *Destination) WriteManifest(ctx context.Context, remotePath string, data
 		Name:    name,
 		Parents: []string{d.cfg.FolderID},
 	}
-	if _, err := svc.Files.Create(f).Media(bytes.NewReader(data)).Do(); err != nil {
-		return fmt.Errorf("gdrive dest: create manifest: %w", err)
+	if _, e := svc.Files.Create(f).Media(bytes.NewReader(data)).Do(); e != nil {
+		return fmt.Errorf("gdrive dest: create manifest: %w", e)
 	}
 	return nil
 }

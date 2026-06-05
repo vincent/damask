@@ -48,7 +48,8 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	type entry struct{ storageKey, ext string }
 	var entries []entry
 	for _, assetID := range p.AssetIDs {
-		ver, err := s.queries.GetCurrentVersion(ctx, assetID)
+		var ver dbgen.AssetVersion
+		ver, err = s.queries.GetCurrentVersion(ctx, assetID)
 		if err != nil {
 			slog.WarnContext(ctx, "stack_merge: skip asset (no current version)", "asset_id", assetID)
 			continue
@@ -64,22 +65,22 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	}
 
 	var localPaths []string
-	for i, e := range entries {
-		rc, err := s.storage.Get(e.storageKey)
+	for i, ent := range entries {
+		rc, err := s.storage.Get(ent.storageKey)
 		if err != nil {
-			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", e.storageKey, "err", err)
+			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", ent.storageKey, "err", err)
 			continue
 		}
-		path := filepath.Join(tmpDir, fmt.Sprintf("%04d%s", i, e.ext))
+		path := filepath.Join(tmpDir, fmt.Sprintf("%04d%s", i, ent.ext))
 		f, err := os.Create(path)
 		if err != nil {
 			_ = rc.Close()
 			continue
 		}
-		if _, err := io.Copy(f, rc); err != nil {
+		if _, err = io.Copy(f, rc); err != nil {
 			_ = f.Close()
 			_ = rc.Close()
-			slog.WarnContext(ctx, "stack_merge: copy error", "key", e.storageKey, "err", err)
+			slog.WarnContext(ctx, "stack_merge: copy error", "key", ent.storageKey, "err", err)
 			continue
 		}
 		_ = f.Close()
@@ -95,14 +96,14 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	case "gif":
 		outPath = filepath.Join(tmpDir, "output.gif")
 		outExt = ".gif"
-		if err := buildGIF(localPaths, outPath, p.GifFrameMs); err != nil {
-			return fmt.Errorf("build gif: %w", err)
+		if e := buildGIF(localPaths, outPath, p.GifFrameMs); e != nil {
+			return fmt.Errorf("build gif: %w", e)
 		}
 	case "pdf":
 		outPath = filepath.Join(tmpDir, "output.pdf")
 		outExt = ".pdf"
-		if err := buildPDF(localPaths, outPath); err != nil {
-			return fmt.Errorf("build pdf: %w", err)
+		if e := buildPDF(localPaths, outPath); e != nil {
+			return fmt.Errorf("build pdf: %w", e)
 		}
 	default:
 		return fmt.Errorf("unsupported output type: %s", p.OutputType)
@@ -123,11 +124,11 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 
 	resultBytes, _ := json.Marshal(map[string]string{"asset_id": asset.ID})
 	resultStr := string(resultBytes)
-	if err := s.queries.CompleteJobWithResult(ctx, dbgen.CompleteJobWithResultParams{
+	if e := s.queries.CompleteJobWithResult(ctx, dbgen.CompleteJobWithResultParams{
 		Result: &resultStr,
 		ID:     job.ID,
-	}); err != nil {
-		slog.ErrorContext(ctx, "stack_merge: could not persist result", "err", err)
+	}); e != nil {
+		slog.ErrorContext(ctx, "stack_merge: could not persist result", "err", e)
 	}
 
 	s.hub.Publish(ctx, p.WorkspaceID, events.Event{

@@ -17,11 +17,11 @@ func TestExtractExif_EnqueuedOnImageUpload(t *testing.T) {
 	th.UploadAsset(t, env, owner.Cookie)
 
 	var count int
-	if err := env.Database.QueryRow(
+	if e := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'extract_exif' AND workspace_id = ?`,
 		owner.WorkspaceID,
-	).Scan(&count); err != nil {
-		t.Fatalf("query jobs: %v", err)
+	).Scan(&count); e != nil {
+		t.Fatalf("query jobs: %v", e)
 	}
 	if count == 0 {
 		t.Error("expected extract_exif job to be enqueued after image upload")
@@ -101,22 +101,22 @@ func TestExtractExif_HandlerWritesTombstoneForJPEGWithNoExif(t *testing.T) {
 
 	// The _exif_make field definition should now exist
 	var fieldCount int
-	if err := env.Database.QueryRow(
+	if e := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM field_definitions WHERE key = '_exif_make' AND workspace_id = ?`,
 		owner.WorkspaceID,
-	).Scan(&fieldCount); err != nil {
-		t.Fatalf("query field defs: %v", err)
+	).Scan(&fieldCount); e != nil {
+		t.Fatalf("query field defs: %v", e)
 	}
 	if fieldCount == 0 {
 		t.Fatal("expected _exif_make field definition to be created")
 	}
 
 	var source string
-	if err := env.Database.QueryRow(
+	if e := env.Database.QueryRow(
 		`SELECT source FROM field_definitions WHERE key = '_exif_make' AND workspace_id = ?`,
 		owner.WorkspaceID,
-	).Scan(&source); err != nil {
-		t.Fatalf("query field source: %v", err)
+	).Scan(&source); e != nil {
+		t.Fatalf("query field source: %v", e)
 	}
 	if source != "exif" {
 		t.Fatalf("source = %q, want exif", source)
@@ -124,13 +124,13 @@ func TestExtractExif_HandlerWritesTombstoneForJPEGWithNoExif(t *testing.T) {
 
 	// A tombstone value row should exist for _exif_make
 	var valueCount int
-	if err := env.Database.QueryRow(
+	if e := env.Database.QueryRow(
 		`SELECT COUNT(*) FROM asset_field_values afv
 		 JOIN field_definitions fd ON fd.id = afv.field_id
 		 WHERE fd.key = '_exif_make' AND fd.workspace_id = ?`,
 		owner.WorkspaceID,
-	).Scan(&valueCount); err != nil {
-		t.Fatalf("query tombstone: %v", err)
+	).Scan(&valueCount); e != nil {
+		t.Fatalf("query tombstone: %v", e)
 	}
 	if valueCount == 0 {
 		t.Error("expected tombstone row for _exif_make after processing no-EXIF JPEG")
