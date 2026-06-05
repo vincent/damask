@@ -524,177 +524,134 @@ func (s *userService) CreateWorkspace(ctx context.Context, userID, name string) 
 	return toWorkspaceDTO(ws), nil
 }
 
+// oauthProvider captures the per-provider behavior for the three-phase OAuth upsert.
+type oauthProvider struct {
+	method     string
+	lookupByID func(ctx context.Context) (repository.User, error)
+	applyID    func(u *repository.User)
+	linkUser   func(ctx context.Context, u repository.User) (repository.User, error)
+	createUser func(ctx context.Context, txUsers repository.UserRepository, u repository.User) (repository.User, error)
+}
+
 func (s *userService) UpsertOIDCUser(ctx context.Context, p UpsertOIDCUserParams) (*OIDCUserDTO, error) {
-	var user repository.User
-	var lookupErr error
-	if p.IsGoogle {
-		user, lookupErr = s.users.GetByGoogleID(ctx, p.Sub)
-	} else {
-		user, lookupErr = s.users.GetByOIDC(ctx, p.Issuer, p.Sub)
-	}
-
-	if lookupErr != nil && !errors.Is(lookupErr, apperr.ErrNotFound) {
-		return nil, lookupErr
-	}
-
-	if lookupErr == nil {
-		// Existing user — refresh avatar/auth_methods.
-		updated := user
-		updated.AuthMethods = addAuthMethod(user.AuthMethods, methodName(p.IsGoogle))
-		if user.AvatarStorageKey == nil {
-			updated.AvatarURL = nilIfEmpty(p.AvatarURL)
-		}
-		var err error
-		if p.IsGoogle {
-			updated.GoogleUserID = &p.Sub
-			user, err = s.users.LinkGoogle(ctx, updated)
-		} else {
-			updated.OidcIssuer = &p.Issuer
-			updated.OidcSub = &p.Sub
-			user, err = s.users.LinkOIDC(ctx, updated)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return s.toOIDCUserDTO(ctx, user)
-	}
-
-	// Try to link by email.
-	existing, err := s.users.GetByEmail(ctx, p.Email)
-	if err != nil && !errors.Is(err, apperr.ErrNotFound) {
-		return nil, err
-	}
-	if err == nil {
-		existing.AuthMethods = addAuthMethod(existing.AuthMethods, methodName(p.IsGoogle))
-		if existing.AvatarStorageKey == nil {
-			existing.AvatarURL = nilIfEmpty(p.AvatarURL)
-		}
-		if p.IsGoogle {
-			existing.GoogleUserID = &p.Sub
-			existing, err = s.users.LinkGoogle(ctx, existing)
-		} else {
-			existing.OidcIssuer = &p.Issuer
-			existing.OidcSub = &p.Sub
-			existing, err = s.users.LinkOIDC(ctx, existing)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return s.toOIDCUserDTO(ctx, existing)
-	}
-
-	// New user — create with workspace in one transaction.
-	userID := uuid.New().String()
-	workspaceID := uuid.New().String()
-	initMethods := `["` + methodName(p.IsGoogle) + `"]`
-
-	newUser := repository.User{
-		ID:          userID,
-		Email:       p.Email,
-		Name:        p.Name,
-		AvatarURL:   nilIfEmpty(p.AvatarURL),
-		AuthMethods: initMethods,
-	}
-	if p.IsGoogle {
-		newUser.GoogleUserID = &p.Sub
-	} else {
-		newUser.OidcIssuer = &p.Issuer
-		newUser.OidcSub = &p.Sub
-	}
-
-	err = s.workspaces.RunRegistrationTx(
-		ctx,
-		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
-			var uErr error
+	issuer := p.Issuer
+	sub := p.Sub
+	prov := oauthProvider{
+		method: methodName(p.IsGoogle),
+		lookupByID: func(ctx context.Context) (repository.User, error) {
 			if p.IsGoogle {
-				user, uErr = txUsers.CreateWithGoogle(ctx, newUser)
-			} else {
-				user, uErr = txUsers.CreateWithOIDC(ctx, newUser)
+				return s.users.GetByGoogleID(ctx, sub)
 			}
-			if uErr != nil {
-				return uErr
-			}
-			ws, wErr := txWorkspaces.Create(ctx, repository.Workspace{ID: workspaceID, Name: p.Name + "'s Workspace"})
-			if wErr != nil {
-				return wErr
-			}
-			return txWorkspaces.CreateMember(ctx, repository.Member{
-				WorkspaceID: ws.ID,
-				UserID:      user.ID,
-				Role:        string(auth.Owner),
-			})
+			return s.users.GetByOIDC(ctx, issuer, sub)
 		},
-	)
-	if err != nil {
-		return nil, err
+		applyID: func(u *repository.User) {
+			if p.IsGoogle {
+				u.GoogleUserID = &sub
+			} else {
+				u.OidcIssuer = &issuer
+				u.OidcSub = &sub
+			}
+		},
+		linkUser: func(ctx context.Context, u repository.User) (repository.User, error) {
+			if p.IsGoogle {
+				return s.users.LinkGoogle(ctx, u)
+			}
+			return s.users.LinkOIDC(ctx, u)
+		},
+		createUser: func(ctx context.Context, txUsers repository.UserRepository, u repository.User) (repository.User, error) {
+			if p.IsGoogle {
+				return txUsers.CreateWithGoogle(ctx, u)
+			}
+			return txUsers.CreateWithOIDC(ctx, u)
+		},
 	}
-	dto, err := s.toOIDCUserDTO(ctx, user)
-	if err != nil {
-		return nil, err
-	}
-	dto.WorkspaceID = workspaceID
-	return dto, nil
+	return s.oauthUpsert(ctx, prov, p.Email, p.Name, p.AvatarURL)
 }
 
 func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserParams) (*OIDCUserDTO, error) {
-	user, err := s.users.GetByCanvaID(ctx, p.CanvaID)
-	if err != nil && !errors.Is(err, apperr.ErrNotFound) {
-		return nil, err
-	}
-	if err == nil {
-		user.AuthMethods = addAuthMethod(user.AuthMethods, "canva")
-		if user.AvatarStorageKey == nil {
-			user.AvatarURL = nilIfEmpty(p.AvatarURL)
-		}
-		user.CanvaUserID = &p.CanvaID
-		user, err = s.users.LinkCanva(ctx, user)
-		if err != nil {
-			return nil, err
-		}
-		return s.toOIDCUserDTO(ctx, user)
-	}
-
-	if p.Email != "" {
-		existing, emailErr := s.users.GetByEmail(ctx, p.Email)
-		if emailErr == nil {
-			existing.AuthMethods = addAuthMethod(existing.AuthMethods, "canva")
-			if existing.AvatarStorageKey == nil {
-				existing.AvatarURL = nilIfEmpty(p.AvatarURL)
-			}
-			existing.CanvaUserID = &p.CanvaID
-			existing, emailErr = s.users.LinkCanva(ctx, existing)
-			if emailErr != nil {
-				return nil, emailErr
-			}
-			return s.toOIDCUserDTO(ctx, existing)
-		}
-	}
-
-	// New user.
+	canvaID := p.CanvaID
 	name := p.Name
 	if name == "" {
 		name = "Canva User"
 	}
-	email := "canva+" + p.CanvaID + "@canva.local"
-	if p.Email != "" {
-		email = p.Email
+	email := p.Email
+	if email == "" {
+		email = "canva+" + canvaID + "@canva.local"
 	}
+	prov := oauthProvider{
+		method: "canva",
+		lookupByID: func(ctx context.Context) (repository.User, error) {
+			return s.users.GetByCanvaID(ctx, canvaID)
+		},
+		applyID: func(u *repository.User) {
+			u.CanvaUserID = &canvaID
+		},
+		linkUser: func(ctx context.Context, u repository.User) (repository.User, error) {
+			return s.users.LinkCanva(ctx, u)
+		},
+		createUser: func(ctx context.Context, txUsers repository.UserRepository, u repository.User) (repository.User, error) {
+			return txUsers.CreateWithCanva(ctx, u)
+		},
+	}
+	return s.oauthUpsert(ctx, prov, email, name, p.AvatarURL)
+}
+
+// oauthUpsert implements the three-phase pattern shared by all OAuth providers:
+// look up by provider ID → link by email → create new user+workspace.
+func (s *userService) oauthUpsert(ctx context.Context, prov oauthProvider, email, name, avatarURL string) (*OIDCUserDTO, error) {
+	// Phase 1: existing provider identity.
+	user, err := prov.lookupByID(ctx)
+	if err != nil && !errors.Is(err, apperr.ErrNotFound) {
+		return nil, err
+	}
+	if err == nil {
+		return s.refreshAndLink(ctx, user, prov, avatarURL)
+	}
+
+	// Phase 2: link by email.
+	existing, err := s.users.GetByEmail(ctx, email)
+	if err != nil && !errors.Is(err, apperr.ErrNotFound) {
+		return nil, err
+	}
+	if err == nil {
+		return s.refreshAndLink(ctx, existing, prov, avatarURL)
+	}
+
+	// Phase 3: new user + workspace in one transaction.
+	return s.createOAuthUser(ctx, prov, email, name, avatarURL)
+}
+
+func (s *userService) refreshAndLink(ctx context.Context, user repository.User, prov oauthProvider, avatarURL string) (*OIDCUserDTO, error) {
+	user.AuthMethods = addAuthMethod(user.AuthMethods, prov.method)
+	if user.AvatarStorageKey == nil {
+		user.AvatarURL = nilIfEmpty(avatarURL)
+	}
+	prov.applyID(&user)
+	linked, err := prov.linkUser(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	return s.toOIDCUserDTO(ctx, linked)
+}
+
+func (s *userService) createOAuthUser(ctx context.Context, prov oauthProvider, email, name, avatarURL string) (*OIDCUserDTO, error) {
 	userID := uuid.New().String()
 	workspaceID := uuid.New().String()
 	newUser := repository.User{
 		ID:          userID,
 		Email:       email,
 		Name:        name,
-		AvatarURL:   nilIfEmpty(p.AvatarURL),
-		AuthMethods: `["canva"]`,
-		CanvaUserID: &p.CanvaID,
+		AvatarURL:   nilIfEmpty(avatarURL),
+		AuthMethods: `["` + prov.method + `"]`,
 	}
+	prov.applyID(&newUser)
 
-	err = s.workspaces.RunRegistrationTx(
+	var created repository.User
+	err := s.workspaces.RunRegistrationTx(
 		ctx,
 		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
 			var uErr error
-			user, uErr = txUsers.CreateWithCanva(ctx, newUser)
+			created, uErr = prov.createUser(ctx, txUsers, newUser)
 			if uErr != nil {
 				return uErr
 			}
@@ -704,7 +661,7 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 			}
 			return txWorkspaces.CreateMember(ctx, repository.Member{
 				WorkspaceID: ws.ID,
-				UserID:      user.ID,
+				UserID:      created.ID,
 				Role:        string(auth.Owner),
 			})
 		},
@@ -712,7 +669,7 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 	if err != nil {
 		return nil, err
 	}
-	dto, err := s.toOIDCUserDTO(ctx, user)
+	dto, err := s.toOIDCUserDTO(ctx, created)
 	if err != nil {
 		return nil, err
 	}
