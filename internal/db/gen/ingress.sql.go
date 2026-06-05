@@ -405,7 +405,7 @@ const listIngressSourceLog = `-- name: ListIngressSourceLog :many
 SELECT id, source_id, remote_id, filename, asset_id, status, error, imported_at FROM ingress_log
 WHERE source_id = ?
 ORDER BY imported_at DESC
-LIMIT ?3 OFFSET ?2
+LIMIT ? OFFSET ?
 `
 
 type ListIngressSourceLogParams struct {

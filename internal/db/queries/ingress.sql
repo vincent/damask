@@ -97,7 +97,7 @@ WHERE id = ?;
 SELECT * FROM ingress_log
 WHERE source_id = ?
 ORDER BY imported_at DESC
-LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+LIMIT ? OFFSET ?;
 
 -- name: ListWorkspaceIngressLog :many
 SELECT l.* FROM ingress_log l

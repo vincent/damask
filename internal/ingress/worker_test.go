@@ -572,13 +572,10 @@ func TestHandlePoll_EnqueuesItemsFromSource(t *testing.T) {
 		t.Fatalf("HandlePoll: %v", err)
 	}
 
-	// Both items should have log entries
-	// Note: ListIngressSourceLog SQL uses LIMIT ?3 OFFSET ?2, so the struct
-	// fields are positionally swapped: Limit goes to OFFSET, Offset goes to LIMIT.
 	log, err := queries.ListIngressSourceLog(ctx, dbgen.ListIngressSourceLogParams{
 		SourceID: sourceID,
-		Limit:    0,  // maps to SQL OFFSET
-		Offset:   10, // maps to SQL LIMIT
+		Limit:    10,
+		Offset:   0,
 	})
 	if err != nil {
 		t.Fatalf("list log: %v", err)
@@ -614,8 +611,8 @@ func TestHandlePoll_DuplicateItem_IsSkipped(t *testing.T) {
 
 	log, err := queries.ListIngressSourceLog(ctx, dbgen.ListIngressSourceLogParams{
 		SourceID: sourceID,
-		Limit:    0,  // maps to SQL OFFSET
-		Offset:   10, // maps to SQL LIMIT
+		Limit:    10,
+		Offset:   0,
 	})
 	if err != nil {
 		t.Fatalf("list log: %v", err)
@@ -663,8 +660,8 @@ func TestHandlePoll_DisabledSource_DoesNothing(t *testing.T) {
 
 	log, err := queries.ListIngressSourceLog(ctx, dbgen.ListIngressSourceLogParams{
 		SourceID: sourceID,
-		Limit:    0,  // maps to SQL OFFSET
-		Offset:   10, // maps to SQL LIMIT
+		Limit:    10,
+		Offset:   0,
 	})
 	if err != nil {
 		t.Fatalf("list log: %v", err)
