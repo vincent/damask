@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/ingress"
 	"damask/server/internal/queue"
 	"damask/server/internal/slug"
 
@@ -46,95 +47,80 @@ func (s *Session) Rcpt(to string, _ *smtp.RcptOptions) error {
 }
 
 func (s *Session) Data(r io.Reader) error {
-	email, err := parsemail.Parse(r) // returns Email struct and error
+	email, err := parsemail.Parse(r)
 	if err != nil {
 		return err
 	}
 
 	for _, h := range s.hooks {
-		if h.Address != s.to {
-			continue
+		if h.Address == s.to {
+			if err = h.Trigger(context.Background(), s.from, email); err != nil {
+				return err
+			}
 		}
-		if err = h.Trigger(context.Background(), s.from, email); err != nil {
-			return err
-		}
+	}
+
+	if s.queries == nil || s.queue == nil {
+		return nil
 	}
 
 	parts := strings.Split(s.to, "@")
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid recipient address: %s", s.to)
 	}
-	localPart := parts[0]
 
-	if s.queries != nil && s.queue != nil && localPart != s.to {
-		ctx := context.Background()
-		token, tag := slug.ParseSubaddress(localPart)
-		src, err := s.queries.GetIngressSourceByPublicToken(ctx, token)
-		if err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				slog.ErrorContext(
-					ctx,
-					"mailserver: lookup source token",
-					"token_prefix",
-					safePrefix(token),
-					"error",
-					err,
-				)
-			}
-			return nil
-		}
-		if src.Enabled == 0 {
-			slog.Debug("mailserver: ignore disabled source", "token", token)
-			return nil
-		}
+	ctx := context.Background()
+	token, tag := slug.ParseSubaddress(parts[0])
 
-		// Resolve folder from +tag subaddress if present
-		var overrideFolderID string
-		if tag != "" {
-			if folder, err := s.queries.GetFolderBySlug(ctx, dbgen.GetFolderBySlugParams{
-				WorkspaceID: src.WorkspaceID,
-				Slug:        &tag,
-			}); err == nil {
-				overrideFolderID = folder.ID
-			} else {
-				slog.WarnContext(
-					ctx,
-					"mailserver: no folder for tag (falling back to default)",
-					"tag",
-					tag,
-					"workspace_id",
-					src.WorkspaceID,
-				)
-			}
-		}
-
-		for _, att := range email.Attachments {
-			if err = s.ingestAttachment(ctx, src, att, overrideFolderID); err != nil {
-				slog.ErrorContext(
-					ctx,
-					"mailserver: ingest attachment",
-					"filename",
-					att.Filename,
-					"source_id",
-					src.ID,
-					"error",
-					err,
-				)
-			}
-		}
+	src, err := s.resolveIngressSource(ctx, token)
+	if err != nil || src == nil {
+		return nil
 	}
 
+	overrideFolderID := s.resolveFolderOverride(ctx, *src, tag)
+
+	for _, att := range email.Attachments {
+		if err = s.enqueueAttachment(ctx, *src, att, overrideFolderID); err != nil {
+			slog.ErrorContext(ctx, "mailserver: enqueue attachment",
+				"filename", att.Filename, "source_id", src.ID, "error", err)
+		}
+	}
 	return nil
 }
 
-func safePrefix(s string) string {
-	if len(s) <= 8 { //nolint:mnd // 8 is an arbitrary prefix length that balances utility and safety
-		return "***"
+func (s *Session) resolveIngressSource(ctx context.Context, token string) (*dbgen.IngressSource, error) {
+	src, err := s.queries.GetIngressSourceByPublicToken(ctx, token)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			slog.ErrorContext(ctx, "mailserver: lookup source token",
+				"token_prefix", safePrefix(token), "error", err)
+		}
+		return nil, nil //nolint:nilerr // not-found and DB errors are both silent skips
 	}
-	return s[:8] + "..."
+	if src.Enabled == 0 {
+		slog.Debug("mailserver: ignore disabled source", "token", token)
+		return nil, nil
+	}
+	return &src, nil
 }
 
-func (s *Session) ingestAttachment(
+func (s *Session) resolveFolderOverride(ctx context.Context, src dbgen.IngressSource, tag string) string {
+	if tag == "" {
+		return ""
+	}
+	folder, err := s.queries.GetFolderBySlug(ctx, dbgen.GetFolderBySlugParams{
+		WorkspaceID: src.WorkspaceID,
+		Slug:        &tag,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "mailserver: no folder for tag (falling back to default)",
+			"tag", tag, "workspace_id", src.WorkspaceID)
+		return ""
+	}
+	return folder.ID
+}
+
+func (s *Session) enqueueAttachment(
 	ctx context.Context,
 	src dbgen.IngressSource,
 	att parsemail.Attachment,
@@ -173,15 +159,7 @@ func (s *Session) ingestAttachment(
 		return fmt.Errorf("insert log entry: %w", err)
 	}
 
-	payload, _ := json.Marshal(struct {
-		SourceID         string `json:"source_id"`
-		WorkspaceID      string `json:"workspace_id"`
-		LogEntryID       string `json:"log_entry_id"`
-		RemoteID         string `json:"remote_id"`
-		Filename         string `json:"filename"`
-		TmpPath          string `json:"tmp_path,omitempty"`
-		OverrideFolderID string `json:"override_folder_id,omitempty"`
-	}{
+	payload, _ := json.Marshal(ingress.FetchJobPayload{
 		SourceID:         src.ID,
 		WorkspaceID:      src.WorkspaceID,
 		LogEntryID:       entry.ID,
@@ -196,6 +174,13 @@ func (s *Session) ingestAttachment(
 		return fmt.Errorf("enqueue: %w", err)
 	}
 	return nil
+}
+
+func safePrefix(s string) string {
+	if len(s) <= 8 { //nolint:mnd // 8 is an arbitrary prefix length that balances utility and safety
+		return "***"
+	}
+	return s[:8] + "..."
 }
 
 func (s *Session) Reset() {}
