@@ -56,9 +56,9 @@ func (q *Queries) CountVariantsByVersion(ctx context.Context, assetVersionID str
 }
 
 const createVariant = `-- name: CreateVariant :one
-INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at
+INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, content_hash)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at
 `
 
 type CreateVariantParams struct {
@@ -70,6 +70,7 @@ type CreateVariantParams struct {
 	TransformParams *string `json:"transform_params"`
 	Size            *int64  `json:"size"`
 	Status          string  `json:"status"`
+	ContentHash     string  `json:"content_hash"`
 }
 
 func (q *Queries) CreateVariant(ctx context.Context, arg CreateVariantParams) (Variant, error) {
@@ -82,6 +83,7 @@ func (q *Queries) CreateVariant(ctx context.Context, arg CreateVariantParams) (V
 		arg.TransformParams,
 		arg.Size,
 		arg.Status,
+		arg.ContentHash,
 	)
 	var i Variant
 	err := row.Scan(
@@ -97,15 +99,16 @@ func (q *Queries) CreateVariant(ctx context.Context, arg CreateVariantParams) (V
 		&i.ThumbnailContentType,
 		&i.Title,
 		&i.IsShared,
+		&i.ContentHash,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const createVariantFull = `-- name: CreateVariantFull :one
-INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at
+INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared, content_hash)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at
 `
 
 type CreateVariantFullParams struct {
@@ -119,6 +122,7 @@ type CreateVariantFullParams struct {
 	Status          string  `json:"status"`
 	Title           *string `json:"title"`
 	IsShared        int64   `json:"is_shared"`
+	ContentHash     string  `json:"content_hash"`
 }
 
 func (q *Queries) CreateVariantFull(ctx context.Context, arg CreateVariantFullParams) (Variant, error) {
@@ -133,6 +137,7 @@ func (q *Queries) CreateVariantFull(ctx context.Context, arg CreateVariantFullPa
 		arg.Status,
 		arg.Title,
 		arg.IsShared,
+		arg.ContentHash,
 	)
 	var i Variant
 	err := row.Scan(
@@ -148,6 +153,7 @@ func (q *Queries) CreateVariantFull(ctx context.Context, arg CreateVariantFullPa
 		&i.ThumbnailContentType,
 		&i.Title,
 		&i.IsShared,
+		&i.ContentHash,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -177,7 +183,7 @@ func (q *Queries) DeleteVariantsByVersion(ctx context.Context, assetVersionID st
 }
 
 const getVariantByID = `-- name: GetVariantByID :one
-SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at FROM variants WHERE id = ? AND workspace_id = ?
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at FROM variants WHERE id = ? AND workspace_id = ?
 `
 
 type GetVariantByIDParams struct {
@@ -201,13 +207,14 @@ func (q *Queries) GetVariantByID(ctx context.Context, arg GetVariantByIDParams) 
 		&i.ThumbnailContentType,
 		&i.Title,
 		&i.IsShared,
+		&i.ContentHash,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getVariantByTypeAndParams = `-- name: GetVariantByTypeAndParams :one
-SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at FROM variants
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at FROM variants
 WHERE asset_version_id = ? AND type = ? AND transform_params = ?
 LIMIT 1
 `
@@ -235,13 +242,14 @@ func (q *Queries) GetVariantByTypeAndParams(ctx context.Context, arg GetVariantB
 		&i.ThumbnailContentType,
 		&i.Title,
 		&i.IsShared,
+		&i.ContentHash,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listVariantsByAssetCurrentVersion = `-- name: ListVariantsByAssetCurrentVersion :many
-SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size, v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.created_at
+SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size, v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.content_hash, v.created_at
 FROM variants v
 JOIN asset_versions av ON av.id = v.asset_version_id
 WHERE av.asset_id = ? AND av.is_current = 1
@@ -271,6 +279,7 @@ func (q *Queries) ListVariantsByAssetCurrentVersion(ctx context.Context, assetID
 			&i.ThumbnailContentType,
 			&i.Title,
 			&i.IsShared,
+			&i.ContentHash,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -287,7 +296,7 @@ func (q *Queries) ListVariantsByAssetCurrentVersion(ctx context.Context, assetID
 }
 
 const listVariantsByVersion = `-- name: ListVariantsByVersion :many
-SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at FROM variants WHERE asset_version_id = ? ORDER BY created_at DESC
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at FROM variants WHERE asset_version_id = ? ORDER BY created_at DESC
 `
 
 // All variants for a specific asset_version_id, ordered newest first.
@@ -313,6 +322,7 @@ func (q *Queries) ListVariantsByVersion(ctx context.Context, assetVersionID stri
 			&i.ThumbnailContentType,
 			&i.Title,
 			&i.IsShared,
+			&i.ContentHash,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

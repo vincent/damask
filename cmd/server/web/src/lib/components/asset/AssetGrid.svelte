@@ -383,7 +383,7 @@
       {#if group.length > 0}
         <div class="mb-10">
           <div
-            class="sticky top-[-25px] z-10 flex items-center gap-3 bg-[var(--bg-app)] py-2"
+            class="sticky top-[-25px] z-10 flex items-center gap-3 bg-[var(--bg-app)] p-2"
           >
             <AssetIcon
               category={cat}
@@ -417,7 +417,9 @@
   {:else if sort === 'created_at'}
     {#each assetsByMonth as group, groupIndex}
       <div class="mb-10">
-        <div class="sticky top-[-25px] z-10 flex items-center gap-2 py-2">
+        <div
+          class="sticky top-[-25px] z-10 flex items-center gap-3 bg-[var(--bg-app)] p-2"
+        >
           <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
           </h2>
@@ -439,7 +441,9 @@
   {:else}
     {#each assetsBySize as group, groupIndex}
       <div class="mb-10">
-        <div class="sticky top-[-25px] z-10 flex items-center gap-2 py-2">
+        <div
+          class="sticky top-[-25px] z-10 flex items-center gap-3 bg-[var(--bg-app)] p-2"
+        >
           <h2 class="text-sm font-semibold text-[var(--text-primary)]">
             {group.label}
           </h2>

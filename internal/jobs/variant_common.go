@@ -3,6 +3,8 @@ package jobs
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -178,6 +180,8 @@ func (s *JobServer) finalizeVariant(
 		return fmt.Errorf("store variant: %w", err)
 	}
 
+	sum := sha256.Sum256(data)
+	contentHash := hex.EncodeToString(sum[:])
 	sz := int64(len(data))
 	_, err := s.queries.CreateVariantFull(ctx, dbgen.CreateVariantFullParams{
 		ID:              variantID,
@@ -190,6 +194,7 @@ func (s *JobServer) finalizeVariant(
 		Status:          variantStatusReady,
 		Title:           p.Title,
 		IsShared:        boolToInt64(p.IsShared),
+		ContentHash:     contentHash,
 	})
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
@@ -229,6 +234,7 @@ func (s *JobServer) finalizeRebuildVariant(
 		return fmt.Errorf("store variant: %w", err)
 	}
 
+	sum := sha256.Sum256(data)
 	sz := int64(len(data))
 	vid := uuid.NewString()
 	_, err := s.queries.CreateVariant(ctx, dbgen.CreateVariantParams{
@@ -239,6 +245,7 @@ func (s *JobServer) finalizeRebuildVariant(
 		StorageKey:      storageKey,
 		TransformParams: &paramsJSON,
 		Size:            &sz,
+		ContentHash:     hex.EncodeToString(sum[:]),
 	})
 	if err == nil {
 		s.publishVariantReady(ctx, ver.WorkspaceID, ver.AssetID, vid)

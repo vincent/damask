@@ -372,6 +372,7 @@ type Variant struct {
 	ThumbnailContentType string    `json:"thumbnail_content_type"`
 	Title                *string   `json:"title"`
 	IsShared             int64     `json:"is_shared"`
+	ContentHash          string    `json:"content_hash"`
 	CreatedAt            time.Time `json:"created_at"`
 }
 

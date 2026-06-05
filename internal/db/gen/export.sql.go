@@ -504,7 +504,7 @@ func (q *Queries) GetProjectAssetsForExport(ctx context.Context, arg GetProjectA
 }
 
 const getVariantsForVersionIDs = `-- name: GetVariantsForVersionIDs :many
-SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at FROM variants
+SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at FROM variants
 WHERE asset_version_id IN (/*SLICE:version_ids*/?)
   AND workspace_id = ?
   AND status = 'ready'
@@ -538,6 +538,7 @@ func (q *Queries) GetVariantsForVersionIDs(ctx context.Context, arg GetVariantsF
 			&i.ThumbnailContentType,
 			&i.Title,
 			&i.IsShared,
+			&i.ContentHash,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

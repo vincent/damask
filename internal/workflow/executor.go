@@ -147,6 +147,24 @@ func (e *Executor) executeNode(
 		return err
 	}
 
+	// Pre-inject the continuation hint so create_variant.Execute() can read it
+	// from rc and embed it in the job payload.
+	// Currently this is only used for create_variant -> set_new_version
+	if node.Type == nodeTypeCreateVariant {
+		for _, s := range g.Successors(node.ID, portOut) {
+			if s.Type == nodeTypeSetNewVersion {
+				rc.Set(rcKeyContinuation, WorkflowContinuation{
+					RunID:       runID,
+					NodeID:      s.ID,
+					WorkflowID:  workflowID,
+					WorkspaceID: workspaceID,
+					// ContextJSON left empty; createVariantNode.Execute fills it just before embedding in the job payload.
+				})
+				break
+			}
+		}
+	}
+
 	policy := retryPolicyFromConfig(node.Config)
 	var outPort string
 	var updates map[string]any
@@ -179,33 +197,13 @@ func (e *Executor) executeNode(
 	}
 
 	rc.Merge(updates)
-
-	// For create_variant nodes: inject the continuation hint after merging
-	// updates so ContextJSON captures the final post-execution state.
-	if node.Type == nodeTypeCreateVariant {
-		successors := g.Successors(node.ID, portOut)
-		for _, s := range successors {
-			if s.Type == nodeTypeSetNewVersion {
-				cont := WorkflowContinuation{
-					RunID:       runID,
-					NodeID:      s.ID,
-					WorkflowID:  workflowID,
-					WorkspaceID: workspaceID,
-					ContextJSON: mustJSON(rc),
-				}
-				rc.Set(rcKeyContinuation, cont)
-				break
-			}
-		}
-	}
+	// Remove the continuation hint after merging so a node echoing rcKeyContinuation
+	// in its updates doesn't cause it to survive into downstream nodes.
+	rc.Delete(rcKeyContinuation)
 
 	span.SetAttributes(attribute.String("workflow.output_port", outPort))
 	_ = e.deps.Runs.SetStepCompleted(ctx, stepID, mustJSON(rc))
 	e.publishStepEvent(ctx, workspaceID, rc, runID, workflowID, node.ID, workflowRunStatusCompleted, "")
-
-	// Remove the continuation hint before traversing successors so it doesn't
-	// pollute downstream nodes or the persisted run context.
-	rc.Delete(rcKeyContinuation)
 
 	successors := g.Successors(node.ID, outPort)
 	switch len(successors) {

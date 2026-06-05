@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 
 	"github.com/google/uuid"
@@ -459,14 +460,6 @@ func (n setNewVersionNode) Execute(
 		return "", nil, fmt.Errorf("next version num: %w", err)
 	}
 
-	// Fetch the source version to copy its content hash rather than hashing the storage key.
-	var contentHash string
-	if srcVersionID, ok := rcGetString(rc, "version_id"); ok && srcVersionID != "" {
-		if srcVer, verErr := n.deps.Versions.GetByID(ctx, srcVersionID); verErr == nil {
-			contentHash = srcVer.ContentHash
-		}
-	}
-
 	createdBy := actorUserID(ctx, rc)
 	size := int64(0)
 	if variant.Size != nil {
@@ -485,7 +478,7 @@ func (n setNewVersionNode) Execute(
 		WorkspaceID: workspaceID,
 		VersionNum:  nextNum,
 		StorageKey:  variant.StorageKey,
-		ContentHash: contentHash,
+		ContentHash: variant.ContentHash,
 		MimeType:    mimeType,
 		Size:        size,
 		Comment:     nodeCfg.Comment,
@@ -498,6 +491,26 @@ func (n setNewVersionNode) Execute(
 	if err := n.deps.Versions.SetCurrent(ctx, assetID, created.ID); err != nil {
 		return "", nil, fmt.Errorf("set current version: %w", err)
 	}
+
+	// Clear the old thumbnail so the asset doesn't show a stale image, then
+	// enqueue a fresh thumbnail job for the new version.
+	if err := n.deps.Versions.SetAssetThumbnail(ctx, assetID, nil); err != nil {
+		slog.ErrorContext(ctx, "set_new_version: clear asset thumbnail failed", "asset_id", assetID, "err", err)
+	}
+	if n.deps.Queue == nil {
+		return "", nil, fmt.Errorf("set_new_version: queue dependency is nil")
+	}
+	payload, err := json.Marshal(map[string]string{
+		"asset_id":     assetID,
+		"version_id":   created.ID,
+		"workspace_id": workspaceID,
+		"storage_key":  created.StorageKey,
+		"mime_type":    created.MimeType,
+	})
+	if err != nil {
+		return "", nil, fmt.Errorf("set_new_version: marshal thumbnail payload: %w", err)
+	}
+	_, _ = n.deps.Queue.Enqueue(ctx, workspaceID, queue.JobTypeVersionThumbnail, string(payload))
 
 	return portOut, map[string]any{
 		"version_id":  created.ID,

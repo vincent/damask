@@ -309,6 +309,7 @@ type Variant struct {
 	ThumbnailContentType string
 	Title                *string
 	IsShared             bool
+	ContentHash          string
 	CreatedAt            time.Time
 }
 

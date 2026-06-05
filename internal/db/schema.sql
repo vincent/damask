@@ -151,6 +151,7 @@ CREATE TABLE variants (
     thumbnail_content_type TEXT NOT NULL DEFAULT 'image/jpeg',
     title                  TEXT,
     is_shared              INTEGER NOT NULL DEFAULT 0,
+    content_hash           TEXT NOT NULL DEFAULT '',
     created_at             DATETIME NOT NULL DEFAULT (datetime('now'))
 );
 

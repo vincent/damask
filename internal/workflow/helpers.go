@@ -108,6 +108,7 @@ type VersionManager interface {
 	NextVersionNum(ctx context.Context, assetID string) (int64, error)
 	Create(ctx context.Context, v repository.AssetVersion) (repository.AssetVersion, error)
 	SetCurrent(ctx context.Context, assetID, versionID string) error
+	SetAssetThumbnail(ctx context.Context, assetID string, key *string) error
 }
 
 // WorkflowContinuation carries the data needed to resume a workflow run

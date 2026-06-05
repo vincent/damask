@@ -23,7 +23,7 @@ func NewVariantRepo(sqlDB *sql.DB) repository.VariantRepository {
 func (r *variantRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Variant, error) {
 	row := r.sqlDB.QueryRowContext(ctx, `
 		SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size,
-		       status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at
+		       status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at
 		FROM variants
 		WHERE id = ? AND workspace_id = ?`, id, workspaceID)
 	return scanVariant(row)
@@ -32,7 +32,7 @@ func (r *variantRepo) GetByID(ctx context.Context, workspaceID, id string) (repo
 func (r *variantRepo) ListByAsset(ctx context.Context, _ string, assetID string) ([]repository.Variant, error) {
 	rows, err := r.sqlDB.QueryContext(ctx, `
 		SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
-		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.created_at
+		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.content_hash, v.created_at
 		FROM variants v
 		JOIN asset_versions av ON av.id = v.asset_version_id
 		WHERE av.asset_id = ? AND av.is_current = 1
@@ -61,10 +61,10 @@ func (r *variantRepo) Create(ctx context.Context, v repository.Variant) (reposit
 	row := r.sqlDB.QueryRowContext(
 		ctx,
 		`
-		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared, content_hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id, workspace_id, asset_version_id, type, storage_key, transform_params, size,
-		          status, thumbnail_key, thumbnail_content_type, title, is_shared, created_at`,
+		          status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at`,
 		v.ID,
 		v.WorkspaceID,
 		v.AssetVersionID,
@@ -75,6 +75,7 @@ func (r *variantRepo) Create(ctx context.Context, v repository.Variant) (reposit
 		status,
 		v.Title,
 		v.IsShared,
+		v.ContentHash,
 	)
 	return scanVariant(row)
 }
@@ -136,7 +137,7 @@ func (r *variantRepo) ListSharedByAssetIDs(
 	}
 	query := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
 		`SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
-		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.created_at,
+		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.content_hash, v.created_at,
 		       av.asset_id AS asset_id
 		FROM variants v
 		JOIN asset_versions av ON av.id = v.asset_version_id
@@ -166,6 +167,7 @@ func (r *variantRepo) ListSharedByAssetIDs(
 			&item.ThumbnailContentType,
 			&item.Title,
 			&item.IsShared,
+			&item.ContentHash,
 			&item.CreatedAt,
 			&item.AssetID,
 		); err != nil {
@@ -182,7 +184,7 @@ func (r *variantRepo) GetSharedByVariantAndAsset(
 ) (repository.Variant, error) {
 	row := r.sqlDB.QueryRowContext(ctx, `
 		SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
-		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.created_at
+		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.content_hash, v.created_at
 		FROM variants v
 		JOIN asset_versions av ON av.id = v.asset_version_id
 		WHERE v.id = ?
@@ -198,7 +200,7 @@ func scanVariant(row interface {
 	var v repository.Variant
 	err := row.Scan(
 		&v.ID, &v.WorkspaceID, &v.AssetVersionID, &v.Type, &v.StorageKey, &v.TransformParams, &v.Size,
-		&v.Status, &v.ThumbnailKey, &v.ThumbnailContentType, &v.Title, &v.IsShared, &v.CreatedAt,
+		&v.Status, &v.ThumbnailKey, &v.ThumbnailContentType, &v.Title, &v.IsShared, &v.ContentHash, &v.CreatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return repository.Variant{}, apperr.ErrNotFound

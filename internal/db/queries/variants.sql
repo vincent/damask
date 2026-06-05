@@ -1,6 +1,6 @@
 -- name: CreateVariant :one
-INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, content_hash)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: SetVariantThumbnail :exec
@@ -64,6 +64,6 @@ WHERE id = ? AND workspace_id = ?;
 UPDATE variants SET status = ? WHERE id = ? AND workspace_id = ?;
 
 -- name: CreateVariantFull :one
-INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared, content_hash)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
