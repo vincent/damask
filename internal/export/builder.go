@@ -52,64 +52,165 @@ func remoteKey(assetID string, versionNum int64, variantID string) string {
 	return fmt.Sprintf("%s:%d:%s", assetID, versionNum, variantID)
 }
 
+// assetVersionRow is the common shape produced by both asset-query paths.
+type assetVersionRow struct {
+	assetID          string
+	originalFilename string
+	folderName       *string
+	versionID        string
+	versionNum       int64
+	storageKey       string
+	contentHash      string
+	mimeType         string
+	size             int64
+	comment          *string
+	versionCreatedAt string
+	isCurrent        bool
+}
+
+// itemInfo pairs a resolved ZIP path with its source row and optional variant.
+type itemInfo struct {
+	row          assetVersionRow
+	variant      *dbgen.Variant // nil for originals
+	resolvedPath string
+}
+
+// buildCtx holds the state accumulated while running a single Build call.
+type buildCtx struct {
+	p            BuildParams
+	remoteHashes map[string]string
+	tagsMap      map[string][]string
+	fieldsMap    map[string][]ManifestFieldVal
+	variantsMap  map[string][]dbgen.Variant // versionID → variants
+	manifest     Manifest
+	assetIndex   map[string]int // assetID → index in manifest.Assets
+	result       BuildResult
+}
+
 // Build assembles the ZIP archive and writes it to the destination.
 // The temp file is cleaned up automatically.
 func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
-	// 1. Fetch remote sidecar manifest → remoteHashes
-	sidecarPath := slugify(p.Project.Name) + "__manifest.json"
-	remoteHashes := map[string]string{}
-	manifestBytes, err := p.Dest.ReadManifest(ctx, sidecarPath)
-	if err != nil {
+	b := &buildCtx{
+		p:            p,
+		remoteHashes: map[string]string{},
+		assetIndex:   map[string]int{},
+	}
+
+	if err := b.loadRemoteHashes(ctx); err != nil {
 		slog.WarnContext(ctx, "export: read remote manifest failed", "error", err)
-	} else if manifestBytes != nil {
-		var prev Manifest
-		if jsonErr := json.Unmarshal(manifestBytes, &prev); jsonErr == nil {
-			for _, a := range prev.Assets {
-				for _, v := range a.Versions {
-					remoteHashes[remoteKey(a.ID, v.VersionNum, "")] = v.ContentHash
-					for _, vr := range v.Variants {
-						remoteHashes[remoteKey(a.ID, v.VersionNum, vr.ID)] = vr.ContentHash
-					}
-				}
+	}
+
+	avRows, err := b.queryAssetVersions(ctx)
+	if err != nil {
+		return BuildResult{}, err
+	}
+
+	if err := b.queryTagsAndFields(ctx); err != nil {
+		return BuildResult{}, err
+	}
+
+	if err := b.queryVariants(ctx, collectVersionIDs(avRows)); err != nil {
+		return BuildResult{}, err
+	}
+
+	items := b.resolveItems(avRows)
+	b.manifest = newManifest(p)
+
+	f, err := os.CreateTemp("", "damask-export-*.zip")
+	if err != nil {
+		return BuildResult{}, fmt.Errorf("export: create temp file: %w", err)
+	}
+	defer os.Remove(f.Name())
+
+	zw := zip.NewWriter(f)
+
+	for i, item := range items {
+		written, skipped, itemErr := b.writeItem(ctx, item, zw)
+		if itemErr != nil {
+			_ = zw.Close()
+			_ = f.Close()
+			return BuildResult{}, itemErr
+		}
+		if skipped {
+			b.result.AssetsSkipped++
+		} else {
+			b.result.AssetsExported++
+			b.result.BytesWritten += written
+		}
+		size := item.row.size
+		if item.variant != nil && item.variant.Size != nil {
+			size = *item.variant.Size
+		}
+		if size == 0 {
+			size = written
+		}
+		b.appendToManifest(item, size)
+
+		if p.OnProgress != nil && (i+1)%10 == 0 {
+			p.OnProgress(BuildProgress{
+				AssetsExported: b.result.AssetsExported,
+				AssetsSkipped:  b.result.AssetsSkipped,
+				BytesWritten:   b.result.BytesWritten,
+			})
+		}
+	}
+
+	manifestJSON, err := b.writeManifestToZip(zw)
+	if err != nil {
+		return BuildResult{}, err
+	}
+
+	if err := b.writeToDestination(ctx, f, manifestJSON); err != nil {
+		return BuildResult{}, err
+	}
+
+	b.result.AssetsTotal = b.result.AssetsExported + b.result.AssetsSkipped
+	b.result.ManifestJSON = manifestJSON
+	return b.result, nil
+}
+
+// loadRemoteHashes reads the sidecar manifest from the destination and populates
+// b.remoteHashes for incremental dedup. A missing manifest is not an error.
+func (b *buildCtx) loadRemoteHashes(ctx context.Context) error {
+	sidecarPath := slugify(b.p.Project.Name) + "__manifest.json"
+	manifestBytes, err := b.p.Dest.ReadManifest(ctx, sidecarPath)
+	if err != nil {
+		return err
+	}
+	if manifestBytes == nil {
+		return nil
+	}
+	var prev Manifest
+	if jsonErr := json.Unmarshal(manifestBytes, &prev); jsonErr != nil {
+		return jsonErr
+	}
+	for _, a := range prev.Assets {
+		for _, v := range a.Versions {
+			b.remoteHashes[remoteKey(a.ID, v.VersionNum, "")] = v.ContentHash
+			for _, vr := range v.Variants {
+				b.remoteHashes[remoteKey(a.ID, v.VersionNum, vr.ID)] = vr.ContentHash
 			}
 		}
 	}
+	return nil
+}
 
-	// 2. Decrypt dest_config (already done by caller for validation; builder just needs it for destination).
-	// Destination is already constructed and passed in via BuildParams.Dest.
+// queryAssetVersions fetches asset versions based on the export config's Versions setting.
+func (b *buildCtx) queryAssetVersions(ctx context.Context) ([]assetVersionRow, error) {
+	projectID := b.p.Config.ProjectID
+	workspaceID := b.p.Config.WorkspaceID
 
-	// 3. Query assets based on versions setting.
-	projectID := p.Config.ProjectID
-	workspaceID := p.Config.WorkspaceID
-	includeVariants := p.Config.IncludeVariants
-
-	type assetVersionRow struct {
-		assetID          string
-		originalFilename string
-		folderName       *string
-		versionID        string
-		versionNum       int64
-		storageKey       string
-		contentHash      string
-		mimeType         string
-		size             int64
-		comment          *string
-		versionCreatedAt string
-		isCurrent        bool
-	}
-
-	var avRows []assetVersionRow
-
-	if p.Config.Versions == "all" {
-		rows, qErr := p.Queries.GetProjectAllVersionsForExport(ctx, dbgen.GetProjectAllVersionsForExportParams{
+	if b.p.Config.Versions == "all" {
+		rows, err := b.p.Queries.GetProjectAllVersionsForExport(ctx, dbgen.GetProjectAllVersionsForExportParams{
 			ProjectID:   &projectID,
 			WorkspaceID: workspaceID,
 		})
-		if qErr != nil {
-			return BuildResult{}, fmt.Errorf("export: query all versions: %w", qErr)
+		if err != nil {
+			return nil, fmt.Errorf("export: query all versions: %w", err)
 		}
+		out := make([]assetVersionRow, 0, len(rows))
 		for _, r := range rows {
-			avRows = append(avRows, assetVersionRow{
+			out = append(out, assetVersionRow{
 				assetID:          r.AssetID,
 				originalFilename: r.OriginalFilename,
 				folderName:       r.FolderName,
@@ -124,53 +225,61 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 				isCurrent:        r.IsCurrent == 1,
 			})
 		}
-	} else {
-		rows, qErr := p.Queries.GetProjectAssetsForExport(ctx, dbgen.GetProjectAssetsForExportParams{
-			ProjectID:   &projectID,
-			WorkspaceID: workspaceID,
+		return out, nil
+	}
+
+	rows, err := b.p.Queries.GetProjectAssetsForExport(ctx, dbgen.GetProjectAssetsForExportParams{
+		ProjectID:   &projectID,
+		WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("export: query current versions: %w", err)
+	}
+	out := make([]assetVersionRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, assetVersionRow{
+			assetID:          r.ID,
+			originalFilename: r.OriginalFilename,
+			folderName:       r.FolderName,
+			versionID:        r.VersionID,
+			versionNum:       r.VersionNum,
+			storageKey:       r.StorageKey,
+			contentHash:      r.ContentHash,
+			mimeType:         r.MimeType,
+			size:             r.Size,
+			comment:          r.Comment,
+			versionCreatedAt: r.VersionCreatedAt,
+			isCurrent:        true,
 		})
-		if qErr != nil {
-			return BuildResult{}, fmt.Errorf("export: query current versions: %w", qErr)
-		}
-		for _, r := range rows {
-			avRows = append(avRows, assetVersionRow{
-				assetID:          r.ID,
-				originalFilename: r.OriginalFilename,
-				folderName:       r.FolderName,
-				versionID:        r.VersionID,
-				versionNum:       r.VersionNum,
-				storageKey:       r.StorageKey,
-				contentHash:      r.ContentHash,
-				mimeType:         r.MimeType,
-				size:             r.Size,
-				comment:          r.Comment,
-				versionCreatedAt: r.VersionCreatedAt,
-				isCurrent:        true,
-			})
-		}
 	}
+	return out, nil
+}
 
-	// Tags and field values.
-	tagRows, err := p.Queries.GetAssetTagsForProject(ctx, dbgen.GetAssetTagsForProjectParams{
+// queryTagsAndFields populates b.tagsMap and b.fieldsMap.
+func (b *buildCtx) queryTagsAndFields(ctx context.Context) error {
+	projectID := b.p.Config.ProjectID
+	workspaceID := b.p.Config.WorkspaceID
+
+	tagRows, err := b.p.Queries.GetAssetTagsForProject(ctx, dbgen.GetAssetTagsForProjectParams{
 		ProjectID:   &projectID,
 		WorkspaceID: workspaceID,
 	})
 	if err != nil {
-		return BuildResult{}, fmt.Errorf("export: query tags: %w", err)
+		return fmt.Errorf("export: query tags: %w", err)
 	}
-	tagsMap := map[string][]string{}
+	b.tagsMap = make(map[string][]string, len(tagRows))
 	for _, tr := range tagRows {
-		tagsMap[tr.AssetID] = append(tagsMap[tr.AssetID], tr.TagName)
+		b.tagsMap[tr.AssetID] = append(b.tagsMap[tr.AssetID], tr.TagName)
 	}
 
-	fieldRows, err := p.Queries.GetFieldValuesForProject(ctx, dbgen.GetFieldValuesForProjectParams{
+	fieldRows, err := b.p.Queries.GetFieldValuesForProject(ctx, dbgen.GetFieldValuesForProjectParams{
 		ProjectID:   &projectID,
 		WorkspaceID: workspaceID,
 	})
 	if err != nil {
-		return BuildResult{}, fmt.Errorf("export: query fields: %w", err)
+		return fmt.Errorf("export: query fields: %w", err)
 	}
-	fieldsMap := map[string][]ManifestFieldVal{}
+	b.fieldsMap = make(map[string][]ManifestFieldVal, len(fieldRows))
 	for _, fr := range fieldRows {
 		var val any
 		switch fr.FieldType {
@@ -183,39 +292,38 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 		default:
 			val = fr.ValueText
 		}
-		fieldsMap[fr.AssetID] = append(fieldsMap[fr.AssetID], ManifestFieldVal{
+		b.fieldsMap[fr.AssetID] = append(b.fieldsMap[fr.AssetID], ManifestFieldVal{
 			Name:  fr.FieldName,
 			Type:  fr.FieldType,
 			Value: val,
 		})
 	}
+	return nil
+}
 
-	// Variants per version.
-	variantsMap := map[string][]dbgen.Variant{} // versionID → []Variant
-	if includeVariants && len(avRows) > 0 {
-		versionIDs := make([]string, 0, len(avRows))
-		for _, r := range avRows {
-			versionIDs = append(versionIDs, r.versionID)
-		}
-		variants, qErr := queryVariantsForVersionIDs(ctx, p.SQLite, versionIDs, workspaceID)
-		if qErr != nil {
-			return BuildResult{}, fmt.Errorf("export: query variants: %w", qErr)
-		}
-		for _, v := range variants {
-			variantsMap[v.AssetVersionID] = append(variantsMap[v.AssetVersionID], v)
-		}
+// queryVariants populates b.variantsMap when IncludeVariants is set.
+func (b *buildCtx) queryVariants(ctx context.Context, versionIDs []string) error {
+	if !b.p.Config.IncludeVariants || len(versionIDs) == 0 {
+		b.variantsMap = map[string][]dbgen.Variant{}
+		return nil
 	}
+	variants, err := queryVariantsForVersionIDs(ctx, b.p.SQLite, versionIDs, b.p.Config.WorkspaceID)
+	if err != nil {
+		return fmt.Errorf("export: query variants: %w", err)
+	}
+	b.variantsMap = make(map[string][]dbgen.Variant, len(variants))
+	for _, v := range variants {
+		b.variantsMap[v.AssetVersionID] = append(b.variantsMap[v.AssetVersionID], v)
+	}
+	return nil
+}
 
-	// 4. Build PathRegistry and resolve all paths up front.
+// resolveItems builds the flat list of items to write into the ZIP, with paths
+// already deduplicated by PathRegistry.
+func (b *buildCtx) resolveItems(avRows []assetVersionRow) []itemInfo {
 	reg := NewPathRegistry()
-	type itemInfo struct {
-		row          assetVersionRow
-		variant      *dbgen.Variant // nil for originals
-		resolvedPath string
-	}
-
-	includeVersionSuffix := p.Config.Versions == "all"
-	var items []itemInfo
+	includeVersionSuffix := b.p.Config.Versions == "all"
+	items := make([]itemInfo, 0, len(avRows))
 
 	for _, r := range avRows {
 		stem, ext := splitFilename(r.originalFilename)
@@ -227,39 +335,139 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 		if r.folderName != nil {
 			folderName = *r.folderName
 		}
-		rp := reg.Resolve(p.Project.Name, folderName, stem, ext, versionSuffix, "")
+		rp := reg.Resolve(b.p.Project.Name, folderName, stem, ext, versionSuffix, "")
 		items = append(items, itemInfo{row: r, resolvedPath: rp})
 
-		if includeVariants {
-			for i := range variantsMap[r.versionID] {
-				v := variantsMap[r.versionID][i]
-				title := ""
-				if v.Title != nil {
+		if b.p.Config.IncludeVariants {
+			for i := range b.variantsMap[r.versionID] {
+				v := b.variantsMap[r.versionID][i]
+				title := v.Type
+				if v.Title != nil && *v.Title != "" {
 					title = *v.Title
 				}
-				if title == "" {
-					title = v.Type
-				}
 				variantSlug := "__" + slugify(title)
-				variantExt := ext
-				vrp := reg.Resolve(p.Project.Name, folderName, stem, variantExt, versionSuffix, variantSlug)
-				items = append(items, itemInfo{row: r, variant: &variantsMap[r.versionID][i], resolvedPath: vrp})
+				vrp := reg.Resolve(b.p.Project.Name, folderName, stem, ext, versionSuffix, variantSlug)
+				items = append(items, itemInfo{row: r, variant: &b.variantsMap[r.versionID][i], resolvedPath: vrp})
 			}
 		}
 	}
+	return items
+}
 
-	// 5. Create temp file for ZIP.
-	f, err := os.CreateTemp("", "damask-export-*.zip")
-	if err != nil {
-		return BuildResult{}, fmt.Errorf("export: create temp file: %w", err)
+// writeItem copies one item from storage into the ZIP writer.
+// Returns (bytesWritten, skipped, error). A fatal zip error is returned as err;
+// storage/copy errors are warned and reported as skipped.
+func (b *buildCtx) writeItem(
+	ctx context.Context,
+	item itemInfo,
+	zw *zip.Writer,
+) (written int64, skipped bool, err error) {
+	r := item.row
+
+	var storageKey, contentHash string
+	var rkey string
+
+	if item.variant != nil {
+		storageKey = item.variant.StorageKey
+		rkey = remoteKey(r.assetID, r.versionNum, item.variant.ID)
+	} else {
+		storageKey = r.storageKey
+		contentHash = r.contentHash
+		rkey = remoteKey(r.assetID, r.versionNum, "")
 	}
-	defer os.Remove(f.Name())
 
-	// 6. Open zip writer.
-	zw := zip.NewWriter(f)
+	if prevHash, ok := b.remoteHashes[rkey]; ok && contentHash != "" && prevHash == contentHash {
+		return 0, true, nil
+	}
 
-	// 7. Build in-memory manifest.
-	manifest := Manifest{
+	rc, storageErr := b.p.Storage.Get(storageKey)
+	if storageErr != nil {
+		slog.WarnContext(ctx, "export: storage get failed, skipping asset",
+			"storage_key", storageKey,
+			"error", storageErr)
+		return 0, true, nil
+	}
+
+	w, zipErr := zw.Create(item.resolvedPath)
+	if zipErr != nil {
+		_ = rc.Close()
+		return 0, false, fmt.Errorf("export: zip create entry: %w", zipErr)
+	}
+
+	n, copyErr := io.Copy(w, rc)
+	_ = rc.Close()
+	if copyErr != nil {
+		slog.WarnContext(ctx, "export: copy to zip failed", "error", copyErr)
+		return 0, true, nil
+	}
+	return n, false, nil
+}
+
+// appendToManifest records an item in b.manifest after it has been written.
+func (b *buildCtx) appendToManifest(item itemInfo, size int64) {
+	r := item.row
+
+	if item.variant == nil {
+		if _, exists := b.assetIndex[r.assetID]; !exists {
+			folderName := (*string)(nil)
+			if r.folderName != nil {
+				fn := *r.folderName
+				folderName = &fn
+			}
+			b.manifest.Assets = append(b.manifest.Assets, ManifestAsset{
+				ID:               r.assetID,
+				OriginalFilename: r.originalFilename,
+				Folder:           folderName,
+				Tags:             b.tagsMap[r.assetID],
+				CustomFields:     b.fieldsMap[r.assetID],
+				Versions:         []ManifestVersion{},
+			})
+			b.assetIndex[r.assetID] = len(b.manifest.Assets) - 1
+		}
+		idx := b.assetIndex[r.assetID]
+		versionCreatedAt, _ := time.Parse("2006-01-02 15:04:05", r.versionCreatedAt)
+		b.manifest.Assets[idx].Versions = append(b.manifest.Assets[idx].Versions, ManifestVersion{
+			VersionNum:  r.versionNum,
+			IsCurrent:   r.isCurrent,
+			ContentHash: r.contentHash,
+			Size:        size,
+			MimeType:    r.mimeType,
+			Comment:     r.comment,
+			CreatedAt:   versionCreatedAt,
+			Path:        item.resolvedPath,
+			Variants:    []ManifestVariant{},
+		})
+		return
+	}
+
+	idx, ok := b.assetIndex[r.assetID]
+	if !ok {
+		return
+	}
+	for vi := range b.manifest.Assets[idx].Versions {
+		if b.manifest.Assets[idx].Versions[vi].VersionNum == r.versionNum {
+			title := ""
+			if item.variant.Title != nil {
+				title = *item.variant.Title
+			}
+			b.manifest.Assets[idx].Versions[vi].Variants = append(
+				b.manifest.Assets[idx].Versions[vi].Variants,
+				ManifestVariant{
+					ID:    item.variant.ID,
+					Type:  item.variant.Type,
+					Title: title,
+					Path:  item.resolvedPath,
+					Size:  size,
+				},
+			)
+			break
+		}
+	}
+}
+
+// newManifest constructs the Manifest header from build params.
+func newManifest(p BuildParams) Manifest {
+	return Manifest{
 		DamaskExportVersion: "1",
 		ExportedAt:          time.Now().UTC(),
 		ExportConfigID:      p.Config.ID,
@@ -272,174 +480,56 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 		},
 		Assets: []ManifestAsset{},
 	}
+}
 
-	// Track assets for manifest building.
-	assetManifestMap := map[string]*ManifestAsset{}
-
-	var result BuildResult
-
-	// 8. Write each item into the ZIP.
-	for i, item := range items {
-		r := item.row
-
-		var storageKey string
-		var contentHash string
-		var size int64
-		var rkey string
-
-		if item.variant != nil {
-			storageKey = item.variant.StorageKey
-			if item.variant.Size != nil {
-				size = *item.variant.Size
-			}
-			rkey = remoteKey(r.assetID, r.versionNum, item.variant.ID)
-			contentHash = ""
-		} else {
-			storageKey = r.storageKey
-			contentHash = r.contentHash
-			size = r.size
-			rkey = remoteKey(r.assetID, r.versionNum, "")
-		}
-
-		// Incremental skip check.
-		if prevHash, ok := remoteHashes[rkey]; ok && contentHash != "" && prevHash == contentHash {
-			result.AssetsSkipped++
-		} else {
-			rc, storageErr := p.Storage.Get(storageKey)
-			if storageErr != nil {
-				slog.WarnContext(ctx, "export: storage get failed, skipping asset",
-					"storage_key", storageKey,
-					"error", storageErr)
-				result.AssetsSkipped++
-			} else {
-				w, zipErr := zw.Create(item.resolvedPath)
-				if zipErr != nil {
-					_ = rc.Close()
-					_ = zw.Close()
-					_ = f.Close()
-					return BuildResult{}, fmt.Errorf("export: zip create entry: %w", zipErr)
-				}
-				written, copyErr := io.Copy(w, rc)
-				_ = rc.Close()
-				if copyErr != nil {
-					slog.WarnContext(ctx, "export: copy to zip failed", "error", copyErr)
-					result.AssetsSkipped++
-				} else {
-					result.AssetsExported++
-					result.BytesWritten += written
-					if size == 0 {
-						size = written
-					}
-				}
-			}
-		}
-
-		// Build manifest entry.
-		if item.variant == nil {
-			ma, exists := assetManifestMap[r.assetID]
-			if !exists {
-				folderName := (*string)(nil)
-				if r.folderName != nil {
-					fn := *r.folderName
-					folderName = &fn
-				}
-				newMA := ManifestAsset{
-					ID:               r.assetID,
-					OriginalFilename: r.originalFilename,
-					Folder:           folderName,
-					Tags:             tagsMap[r.assetID],
-					CustomFields:     fieldsMap[r.assetID],
-					Versions:         []ManifestVersion{},
-				}
-				manifest.Assets = append(manifest.Assets, newMA)
-				assetManifestMap[r.assetID] = &manifest.Assets[len(manifest.Assets)-1]
-				ma = assetManifestMap[r.assetID]
-			}
-			versionCreatedAt, _ := time.Parse("2006-01-02 15:04:05", r.versionCreatedAt)
-			ma.Versions = append(ma.Versions, ManifestVersion{
-				VersionNum:  r.versionNum,
-				IsCurrent:   r.isCurrent,
-				ContentHash: r.contentHash,
-				Size:        size,
-				MimeType:    r.mimeType,
-				Comment:     r.comment,
-				CreatedAt:   versionCreatedAt,
-				Path:        item.resolvedPath,
-				Variants:    []ManifestVariant{},
-			})
-		} else if item.variant != nil {
-			if ma, ok := assetManifestMap[r.assetID]; ok {
-				for idx := range ma.Versions {
-					if ma.Versions[idx].VersionNum == r.versionNum {
-						title := ""
-						if item.variant.Title != nil {
-							title = *item.variant.Title
-						}
-						ma.Versions[idx].Variants = append(ma.Versions[idx].Variants, ManifestVariant{
-							ID:    item.variant.ID,
-							Type:  item.variant.Type,
-							Title: title,
-							Path:  item.resolvedPath,
-							Size:  size,
-						})
-						break
-					}
-				}
-			}
-		}
-
-		// Progress callback every 10 items.
-		if p.OnProgress != nil && (i+1)%10 == 0 {
-			p.OnProgress(BuildProgress{
-				AssetsExported: result.AssetsExported,
-				AssetsSkipped:  result.AssetsSkipped,
-				BytesWritten:   result.BytesWritten,
-			})
-		}
-	}
-
-	// 9. Write manifest.json into ZIP.
-	manifestJSON, err := json.MarshalIndent(manifest, "", "  ")
+// writeManifestToZip marshals b.manifest and writes it as manifest.json into zw.
+func (b *buildCtx) writeManifestToZip(zw *zip.Writer) ([]byte, error) {
+	manifestJSON, err := json.MarshalIndent(b.manifest, "", "  ")
 	if err != nil {
-		return BuildResult{}, fmt.Errorf("export: marshal manifest: %w", err)
+		return nil, fmt.Errorf("export: marshal manifest: %w", err)
 	}
 	mw, err := zw.Create("manifest.json")
 	if err != nil {
-		return BuildResult{}, fmt.Errorf("export: zip manifest entry: %w", err)
+		return nil, fmt.Errorf("export: zip manifest entry: %w", err)
 	}
 	if _, err := mw.Write(manifestJSON); err != nil {
-		return BuildResult{}, fmt.Errorf("export: write manifest to zip: %w", err)
+		return nil, fmt.Errorf("export: write manifest to zip: %w", err)
 	}
-
-	// 10. Close zip, rewind.
 	if err := zw.Close(); err != nil {
-		return BuildResult{}, fmt.Errorf("export: close zip: %w", err)
+		return nil, fmt.Errorf("export: close zip: %w", err)
 	}
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return BuildResult{}, fmt.Errorf("export: seek temp file: %w", err)
-	}
+	return manifestJSON, nil
+}
 
-	// 11. Get ZIP size.
+// writeToDestination uploads the ZIP and sidecar manifest to the destination.
+func (b *buildCtx) writeToDestination(ctx context.Context, f *os.File, manifestJSON []byte) error {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("export: seek temp file: %w", err)
+	}
 	fi, err := f.Stat()
 	if err != nil {
-		return BuildResult{}, fmt.Errorf("export: stat temp file: %w", err)
-	}
-	zipSize := fi.Size()
-
-	// 12. Write ZIP to destination.
-	zipRemotePath := slugify(p.Project.Name) + "__export.zip"
-	if err := p.Dest.Write(ctx, zipRemotePath, f, zipSize, ""); err != nil {
-		return BuildResult{}, fmt.Errorf("export: write zip to destination: %w", err)
+		return fmt.Errorf("export: stat temp file: %w", err)
 	}
 
-	// 13. Write sidecar manifest.
-	if err := p.Dest.WriteManifest(ctx, sidecarPath, manifestJSON); err != nil {
-		return BuildResult{}, fmt.Errorf("export: write manifest to destination: %w", err)
+	zipRemotePath := slugify(b.p.Project.Name) + "__export.zip"
+	if err := b.p.Dest.Write(ctx, zipRemotePath, f, fi.Size(), ""); err != nil {
+		return fmt.Errorf("export: write zip to destination: %w", err)
 	}
 
-	result.AssetsTotal = result.AssetsExported + result.AssetsSkipped
-	result.ManifestJSON = manifestJSON
-	return result, nil
+	sidecarPath := slugify(b.p.Project.Name) + "__manifest.json"
+	if err := b.p.Dest.WriteManifest(ctx, sidecarPath, manifestJSON); err != nil {
+		return fmt.Errorf("export: write manifest to destination: %w", err)
+	}
+	return nil
+}
+
+// collectVersionIDs extracts the versionID from each row.
+func collectVersionIDs(rows []assetVersionRow) []string {
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		ids[i] = r.versionID
+	}
+	return ids
 }
 
 // splitFilename splits a filename into stem and extension.
@@ -486,7 +576,7 @@ func queryVariantsForVersionIDs(
 	}
 	defer rows.Close()
 
-	var out []dbgen.Variant
+	var variants []dbgen.Variant
 	for rows.Next() {
 		var v dbgen.Variant
 		if err := rows.Scan(
@@ -506,7 +596,7 @@ func queryVariantsForVersionIDs(
 		); err != nil {
 			return nil, err
 		}
-		out = append(out, v)
+		variants = append(variants, v)
 	}
-	return out, rows.Err()
+	return variants, rows.Err()
 }
