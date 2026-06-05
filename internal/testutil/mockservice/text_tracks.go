@@ -23,7 +23,7 @@ func (m *MockTextTrackService) List(ctx context.Context, workspaceID, assetID st
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockTextTrackService) Get(ctx context.Context, workspaceID, trackID string) (service.TextTrackDTO, error) {
@@ -50,28 +50,40 @@ func (m *MockTextTrackService) Delete(ctx context.Context, workspaceID, trackID 
 	return nil
 }
 
-func (m *MockTextTrackService) RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error {
+func (m *MockTextTrackService) RunOCR(
+	ctx context.Context,
+	workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
+) error {
 	if m.RunOCRFn != nil {
 		return m.RunOCRFn(ctx, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat)
 	}
 	return nil
 }
 
-func (m *MockTextTrackService) RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error {
+func (m *MockTextTrackService) RunExtractPDF(
+	ctx context.Context,
+	workspaceID, assetID, trackID, storageKey string,
+) error {
 	if m.RunExtractPDFFn != nil {
 		return m.RunExtractPDFFn(ctx, workspaceID, assetID, trackID, storageKey)
 	}
 	return nil
 }
 
-func (m *MockTextTrackService) RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error {
+func (m *MockTextTrackService) RunExtractPlain(
+	ctx context.Context,
+	workspaceID, assetID, trackID, storageKey string,
+) error {
 	if m.RunExtractPlainFn != nil {
 		return m.RunExtractPlainFn(ctx, workspaceID, assetID, trackID, storageKey)
 	}
 	return nil
 }
 
-func (m *MockTextTrackService) RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error {
+func (m *MockTextTrackService) RunExtractDocument(
+	ctx context.Context,
+	workspaceID, assetID, trackID, storageKey, mimeType string,
+) error {
 	if m.RunExtractDocumentFn != nil {
 		return m.RunExtractDocumentFn(ctx, workspaceID, assetID, trackID, storageKey, mimeType)
 	}

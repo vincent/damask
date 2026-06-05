@@ -39,7 +39,7 @@ func (m *MockProjectService) List(ctx context.Context, workspaceID string) ([]*s
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockProjectService) Update(

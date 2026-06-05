@@ -47,7 +47,10 @@ type fieldPurgeService interface {
 // textTrackService is the subset of service.TextTrackService used by job handlers.
 // Defined here to avoid an import cycle (service imports jobs for queue payload types).
 type textTrackService interface {
-	RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
+	RunOCR(
+		ctx context.Context,
+		workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
+	) error
 	RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
@@ -161,7 +164,17 @@ func (s *JobServer) RegisterJobHandlers() {
 	}
 
 	// Register ingress job handlers
-	ingressWorker := ingress.NewWorker(s.queries, s.sqlDB, s.storage, s.queue, s.cfg, s.audit, s.mailer, s.ingester, s.storageSvc)
+	ingressWorker := ingress.NewWorker(
+		s.queries,
+		s.sqlDB,
+		s.storage,
+		s.queue,
+		s.cfg,
+		s.audit,
+		s.mailer,
+		s.ingester,
+		s.storageSvc,
+	)
 	reg(queue.JobTypeIngestPoll, ingressWorker.HandlePoll)
 	reg(queue.JobTypeIngestFetch, ingressWorker.HandleFetch)
 

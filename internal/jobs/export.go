@@ -20,4 +20,3 @@ func (s *JobServer) jobExportRun(ctx context.Context, job dbgen.Job) error {
 	}
 	return s.exportSvc.ExecuteRun(ctx, job.WorkspaceID, p.ExportConfigID, p.ExportRunID)
 }
-

@@ -43,8 +43,8 @@ type testMailer struct {
 	errMsg   string
 }
 
-func (m *testMailer) SendInvite(context.Context, string, string, string, string) error  { return nil }
-func (m *testMailer) SendWelcome(context.Context, string, string, string) error { return nil }
+func (m *testMailer) SendInvite(context.Context, string, string, string, string) error { return nil }
+func (m *testMailer) SendWelcome(context.Context, string, string, string) error        { return nil }
 func (m *testMailer) SendInviteAccepted(context.Context, string, string, string, string, string) error {
 	return nil
 }

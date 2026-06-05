@@ -28,7 +28,7 @@ func (m *MockVersionService) List(ctx context.Context, assetID string) ([]*servi
 	if m.ListFn != nil {
 		return m.ListFn(ctx, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockVersionService) ListWithVariantCount(
@@ -38,7 +38,7 @@ func (m *MockVersionService) ListWithVariantCount(
 	if m.ListWithVariantCountFn != nil {
 		return m.ListWithVariantCountFn(ctx, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockVersionService) Get(ctx context.Context, workspaceID, id string) (*service.VersionDTO, error) {
@@ -173,7 +173,10 @@ func (m *MockVariantService) Create(ctx context.Context, p service.CreateVariant
 	return nil, nil //nolint:nilnil // mock
 }
 
-func (m *MockVariantService) CommitDraft(ctx context.Context, p service.CommitDraftParams) (*service.VariantDTO, error) {
+func (m *MockVariantService) CommitDraft(
+	ctx context.Context,
+	p service.CommitDraftParams,
+) (*service.VariantDTO, error) {
 	if m.CommitDraftFn != nil {
 		return m.CommitDraftFn(ctx, p)
 	}
@@ -201,7 +204,7 @@ func (m *MockVariantService) ListSharedByAssets(
 	if m.ListSharedFn != nil {
 		return m.ListSharedFn(ctx, assetIDs)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockVariantService) GetSharedForShare(

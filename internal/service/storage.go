@@ -110,7 +110,10 @@ func (s *storageService) GetUsage(ctx context.Context, workspaceID string) (*Wor
 	return usage, nil
 }
 
-func (s *storageService) GetFolderUsage(ctx context.Context, workspaceID, projectID string) ([]FolderStorageUsage, error) {
+func (s *storageService) GetFolderUsage(
+	ctx context.Context,
+	workspaceID, projectID string,
+) ([]FolderStorageUsage, error) {
 	rows, err := s.db.GetStorageByFolder(ctx, dbgen.GetStorageByFolderParams{
 		WorkspaceID:   workspaceID,
 		WorkspaceID_2: workspaceID,
@@ -155,7 +158,11 @@ func (s *storageService) Invalidate(workspaceID string) {
 
 // buildUsage aggregates flat DB rows into a WorkspaceStorageUsage.
 // Pure function — no DB access — easy to unit-test.
-func buildUsage(rows []dbgen.GetStorageByProjectAndTypeRow, folderCounts []dbgen.GetFolderCountsByProjectRow, limitBytes *int64) *WorkspaceStorageUsage {
+func buildUsage(
+	rows []dbgen.GetStorageByProjectAndTypeRow,
+	folderCounts []dbgen.GetFolderCountsByProjectRow,
+	limitBytes *int64,
+) *WorkspaceStorageUsage {
 	fcMap := make(map[string]int64, len(folderCounts))
 	for _, fc := range folderCounts {
 		if fc.ProjectID != nil {

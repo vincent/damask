@@ -57,6 +57,7 @@ func (m *MailerImpl) newBaseData(workspaceID, eventLabel, workspaceName string) 
 // InviteData is used by SendInvite.
 type InviteData struct {
 	BaseData
+
 	Role      string // e.g. "Viewer"
 	InviteURL string // full URL including token
 }
@@ -64,6 +65,7 @@ type InviteData struct {
 // WelcomeData is used by SendWelcome.
 type WelcomeData struct {
 	BaseData
+
 	Username   string
 	LibraryURL string
 }
@@ -71,6 +73,7 @@ type WelcomeData struct {
 // InviteAcceptedData is used by SendInviteAccepted.
 type InviteAcceptedData struct {
 	BaseData
+
 	NewMemberName    string // "Rez Halabi"
 	NewMemberEmail   string // "rez@halabi.studio"
 	NewMemberInitial string // "R"
@@ -83,6 +86,7 @@ type InviteAcceptedData struct {
 // IngressSourceAddedData is used by SendIngressSourceAdded.
 type IngressSourceAddedData struct {
 	BaseData
+
 	SourceName string
 	IngressURL string // links to ingress settings for this workspace
 }
@@ -90,6 +94,7 @@ type IngressSourceAddedData struct {
 // IngressSourceFailedData is used by SendIngressSourceFailed.
 type IngressSourceFailedData struct {
 	BaseData
+
 	SourceName string
 	ErrMsg     string
 	IngressURL string
@@ -98,6 +103,7 @@ type IngressSourceFailedData struct {
 // IngressSourceDisabledData is used by SendIngressSourceDisabled.
 type IngressSourceDisabledData struct {
 	BaseData
+
 	SourceName string
 	ErrMsg     string
 	IngressURL string
@@ -106,6 +112,7 @@ type IngressSourceDisabledData struct {
 // CommentData is used by SendCommentPosted.
 type CommentData struct {
 	BaseData
+
 	AuthorName  string
 	ShareLabel  string
 	CommentBody string
@@ -115,12 +122,14 @@ type CommentData struct {
 // PasswordResetData is used by SendPasswordReset.
 type PasswordResetData struct {
 	BaseData
+
 	ResetURL string
 }
 
 // EmailChangeData is used by SendEmailChangeConfirmation.
 type EmailChangeData struct {
 	BaseData
+
 	NewEmail   string
 	ConfirmURL string
 }
@@ -128,6 +137,7 @@ type EmailChangeData struct {
 // WorkflowFailedData is used by SendWorkflowRunFailed.
 type WorkflowFailedData struct {
 	BaseData
+
 	WorkflowName string
 	ErrMsg       string
 	WorkflowsURL string

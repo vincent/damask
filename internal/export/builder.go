@@ -444,7 +444,7 @@ func Build(ctx context.Context, p BuildParams) (BuildResult, error) {
 
 // splitFilename splits a filename into stem and extension.
 // "hero-shot.jpg" → ("hero-shot", ".jpg")
-// "archive.tar.gz" → ("archive.tar", ".gz")
+// "archive.tar.gz" → ("archive.tar", ".gz").
 func splitFilename(name string) (stem, ext string) {
 	ext = filepath.Ext(name)
 	stem = strings.TrimSuffix(name, ext)
@@ -453,7 +453,12 @@ func splitFilename(name string) (stem, ext string) {
 
 // queryVariantsForVersionIDs fetches ready variants for a set of version IDs.
 // Uses raw SQL with IN clause since sqlc doesn't support slices properly.
-func queryVariantsForVersionIDs(ctx context.Context, db *sql.DB, versionIDs []string, workspaceID string) ([]dbgen.Variant, error) {
+func queryVariantsForVersionIDs(
+	ctx context.Context,
+	db *sql.DB,
+	versionIDs []string,
+	workspaceID string,
+) ([]dbgen.Variant, error) {
 	if len(versionIDs) == 0 {
 		return nil, nil
 	}

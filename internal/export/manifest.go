@@ -14,11 +14,11 @@ type Manifest struct {
 
 // ManifestProject holds project-level metadata in the manifest.
 type ManifestProject struct {
-	ID           string              `json:"id"`
-	Name         string              `json:"name"`
-	Description  *string             `json:"description,omitempty"`
-	Color        *string             `json:"color,omitempty"`
-	CustomFields []ManifestFieldVal  `json:"custom_fields,omitempty"`
+	ID           string             `json:"id"`
+	Name         string             `json:"name"`
+	Description  *string            `json:"description,omitempty"`
+	Color        *string            `json:"color,omitempty"`
+	CustomFields []ManifestFieldVal `json:"custom_fields,omitempty"`
 }
 
 // ManifestAsset holds per-asset data in the manifest.
@@ -33,15 +33,15 @@ type ManifestAsset struct {
 
 // ManifestVersion holds per-version data in the manifest.
 type ManifestVersion struct {
-	VersionNum  int64              `json:"version_num"`
-	IsCurrent   bool               `json:"is_current"`
-	ContentHash string             `json:"content_hash"`
-	Size        int64              `json:"size"`
-	MimeType    string             `json:"mime_type"`
-	Comment     *string            `json:"comment,omitempty"`
-	CreatedAt   time.Time          `json:"created_at"`
-	Path        string             `json:"path"`
-	Variants    []ManifestVariant  `json:"variants"`
+	VersionNum  int64             `json:"version_num"`
+	IsCurrent   bool              `json:"is_current"`
+	ContentHash string            `json:"content_hash"`
+	Size        int64             `json:"size"`
+	MimeType    string            `json:"mime_type"`
+	Comment     *string           `json:"comment,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	Path        string            `json:"path"`
+	Variants    []ManifestVariant `json:"variants"`
 }
 
 // ManifestVariant holds per-variant data in the manifest.

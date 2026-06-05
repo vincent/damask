@@ -22,5 +22,15 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) erro
 	if err := json.Unmarshal([]byte(rawPayload), &p); err != nil {
 		return fmt.Errorf("jobOCRTextTrack: unmarshal: %w", err)
 	}
-	return s.textTrackSvc.RunOCR(ctx, p.WorkspaceID, p.AssetID, p.TrackID, p.AssetVersionID, p.StorageKey, p.MimeType, p.Lang, p.OutputFormat)
+	return s.textTrackSvc.RunOCR(
+		ctx,
+		p.WorkspaceID,
+		p.AssetID,
+		p.TrackID,
+		p.AssetVersionID,
+		p.StorageKey,
+		p.MimeType,
+		p.Lang,
+		p.OutputFormat,
+	)
 }

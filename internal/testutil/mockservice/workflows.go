@@ -37,7 +37,7 @@ func (m *MockWorkflowService) List(
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, params)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockWorkflowService) Get(ctx context.Context, workspaceID, id string) (*service.WorkflowDTO, error) {
@@ -98,7 +98,7 @@ func (m *MockWorkflowService) TriggerManualBulk(
 	if m.TriggerManualBulkFn != nil {
 		return m.TriggerManualBulkFn(ctx, workspaceID, workflowID, assetIDs)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockWorkflowService) TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error) {
@@ -124,7 +124,7 @@ func (m *MockWorkflowService) ListRuns(
 	if m.ListRunsFn != nil {
 		return m.ListRunsFn(ctx, workflowID, limit, cursor)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockWorkflowService) ListAllRuns(
@@ -136,7 +136,7 @@ func (m *MockWorkflowService) ListAllRuns(
 	if m.ListAllRunsFn != nil {
 		return m.ListAllRunsFn(ctx, workspaceID, limit, cursor)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockWorkflowService) FindCoveringWorkflow(

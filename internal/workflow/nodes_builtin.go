@@ -447,7 +447,12 @@ func (n setNewVersionNode) Execute(
 		return "", nil, fmt.Errorf("get variant: %w", err)
 	}
 	if variant.Status != "ready" {
-		return "", nil, fmt.Errorf("variant %s is not ready (status: %s): %w", variantID, variant.Status, apperr.ErrVariantNotReady)
+		return "", nil, fmt.Errorf(
+			"variant %s is not ready (status: %s): %w",
+			variantID,
+			variant.Status,
+			apperr.ErrVariantNotReady,
+		)
 	}
 
 	var nodeCfg struct {

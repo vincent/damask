@@ -31,7 +31,7 @@ func (m *MockTagService) List(ctx context.Context, workspaceID string, includeSy
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, includeSystem)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockTagService) GetByName(ctx context.Context, workspaceID, name string) (*service.TagDTO, error) {
@@ -122,7 +122,7 @@ func (m *MockTagService) ListForAsset(ctx context.Context, assetID string) ([]*s
 	if m.ListForAssetFn != nil {
 		return m.ListForAssetFn(ctx, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockTagService) AddToAsset(

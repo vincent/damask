@@ -105,7 +105,14 @@ func (t *thumbnailer) GenerateThumbnailData(
 		}
 		data, ext, err := t.ThumbnailFromDocument(ctx, rc, mimeType)
 		if err != nil {
-			slog.WarnContext(ctx, "thumbnail: soffice document conversion failed, skipping", "storage_key", storageKey, "error", err)
+			slog.WarnContext(
+				ctx,
+				"thumbnail: soffice document conversion failed, skipping",
+				"storage_key",
+				storageKey,
+				"error",
+				err,
+			)
 			return nil, "", nil
 		}
 		return data, ext, nil

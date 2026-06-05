@@ -115,11 +115,27 @@ func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
 
 	if entry.useFullFinalize {
 		variantID := resolveVariantID(p)
-		if err := s.finalizeVariant(ctx, p, variantID, job.Type, paramsJSON, paramsHash, data, contentType); err != nil {
+		if err := s.finalizeVariant(
+			ctx,
+			p,
+			variantID,
+			job.Type,
+			paramsJSON,
+			paramsHash,
+			data,
+			contentType,
+		); err != nil {
 			return err
 		}
 		if entry.postJobHook != nil {
-			storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, job.Type, paramsHash, transform.MimeToExt(contentType))
+			storageKey := storage.VersionedVariantKey(
+				p.WorkspaceID,
+				p.AssetID,
+				p.VersionNum,
+				job.Type,
+				paramsHash,
+				transform.MimeToExt(contentType),
+			)
 			entry.postJobHook(s, ctx, p, variantID, storageKey, contentType)
 		}
 		return nil
@@ -131,14 +147,25 @@ func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
 	}
 	if entry.postJobHook != nil {
 		variantID := resolveVariantID(p)
-		storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, job.Type, paramsHash, transform.MimeToExt(contentType))
+		storageKey := storage.VersionedVariantKey(
+			p.WorkspaceID,
+			p.AssetID,
+			p.VersionNum,
+			job.Type,
+			paramsHash,
+			transform.MimeToExt(contentType),
+		)
 		entry.postJobHook(s, ctx, p, variantID, storageKey, contentType)
 	}
 	return nil
 }
 
 // rebuildOneVariant runs the transform for a single variant spec and writes the result.
-func (s *JobServer) rebuildVariant(ctx context.Context, ver dbgen.AssetVersion, variantType, paramsJSON, paramsHash string) error {
+func (s *JobServer) rebuildVariant(
+	ctx context.Context,
+	ver dbgen.AssetVersion,
+	variantType, paramsJSON, paramsHash string,
+) error {
 	reg := s.variantRegistry()
 	entry, ok := reg[variantType]
 	if !ok {
@@ -228,7 +255,14 @@ func (s *JobServer) finalizeRebuildVariant(
 	contentType string,
 ) error {
 	ext := transform.MimeToExt(contentType)
-	storageKey := storage.VersionedVariantKey(ver.WorkspaceID, ver.AssetID, ver.VersionNum, variantType, paramsHash, ext)
+	storageKey := storage.VersionedVariantKey(
+		ver.WorkspaceID,
+		ver.AssetID,
+		ver.VersionNum,
+		variantType,
+		paramsHash,
+		ext,
+	)
 
 	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)

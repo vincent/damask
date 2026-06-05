@@ -275,7 +275,10 @@ func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *test
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "vn@example.com", PasswordHash: "x", Name: "vn"}); err != nil {
+	if _, err := queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "vn@example.com", PasswordHash: "x", Name: "vn"},
+	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 

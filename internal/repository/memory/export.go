@@ -62,7 +62,10 @@ func (r *ExportConfigMemoryRepo) List(_ context.Context, workspaceID string) ([]
 	return out, nil
 }
 
-func (r *ExportConfigMemoryRepo) ListByProject(_ context.Context, workspaceID, projectID string) ([]repository.ExportConfig, error) {
+func (r *ExportConfigMemoryRepo) ListByProject(
+	_ context.Context,
+	workspaceID, projectID string,
+) ([]repository.ExportConfig, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	out := []repository.ExportConfig{}
@@ -175,7 +178,11 @@ func (r *ExportRunMemoryRepo) Get(_ context.Context, workspaceID, id string) (re
 	return run, nil
 }
 
-func (r *ExportRunMemoryRepo) List(_ context.Context, configID string, limit, offset int) ([]repository.ExportRun, error) {
+func (r *ExportRunMemoryRepo) List(
+	_ context.Context,
+	configID string,
+	limit, offset int,
+) ([]repository.ExportRun, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	out := []repository.ExportRun{}

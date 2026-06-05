@@ -245,7 +245,10 @@ func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
 	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{ID: userID, Email: "np@t.com", PasswordHash: "x", Name: "t"}); err != nil {
+	if _, err := queries.CreateUser(
+		ctx,
+		dbgen.CreateUserParams{ID: userID, Email: "np@t.com", PasswordHash: "x", Name: "t"},
+	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 

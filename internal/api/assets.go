@@ -331,7 +331,11 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 			lp.SimilarToIDs = []string{}
 			similarToNotIndexed = true
 		} else {
-			similar, err := s.visualSimilaritySvc.FindSimilarEnriched(c.Context(), claims.WorkspaceID, *anchorDTO.CurrentVersionID)
+			similar, err := s.visualSimilaritySvc.FindSimilarEnriched(
+				c.Context(),
+				claims.WorkspaceID,
+				*anchorDTO.CurrentVersionID,
+			)
 			if err != nil {
 				return errRes(c, fiber.StatusInternalServerError, "could not find similar assets")
 			}

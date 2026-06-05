@@ -54,7 +54,7 @@ func (m *MockIntegrationService) ListConnections(
 	if m.ListConnectionsFn != nil {
 		return m.ListConnectionsFn(ctx, workspaceID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockIntegrationService) DeleteConnection(ctx context.Context, workspaceID, id string) error {

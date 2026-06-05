@@ -38,7 +38,7 @@ func NewPathRegistry() *PathRegistry {
 // - stem: the file stem (without extension)
 // - ext: the file extension including dot (e.g. ".jpg"), or ""
 // - versionSuffix: "" for current-only, "__vN" for historical
-// - variantSlug: "" for original file, "__slug" for a variant
+// - variantSlug: "" for original file, "__slug" for a variant.
 func (r *PathRegistry) Resolve(projectName, folderName, stem, ext, versionSuffix, variantSlug string) string {
 	projectSeg := slugify(projectName)
 	var folderSeg string

@@ -37,7 +37,13 @@ func newWorkflowSvc(
 	workflows := memory.NewWorkflowRepo()
 	runs := memory.NewWorkflowRunRepo()
 	queue := &workflowQueueStub{}
-	svc := service.NewWorkflowService(workflows, runs, memory.NewWorkflowWebhookRepo(), queue, service.WorkflowServiceDeps{})
+	svc := service.NewWorkflowService(
+		workflows,
+		runs,
+		memory.NewWorkflowWebhookRepo(),
+		queue,
+		service.WorkflowServiceDeps{},
+	)
 	return svc, workflows, runs, queue
 }
 
@@ -132,12 +138,12 @@ func TestWorkflowServiceTriggerManual_WithAsset_TriggerDataHasAssetContext(t *te
 		Size:             512,
 	})
 	versions.Seed(repository.AssetVersion{
-		ID:         "ver_1",
-		AssetID:    "ast_1",
+		ID:          "ver_1",
+		AssetID:     "ast_1",
 		WorkspaceID: "ws_1",
-		VersionNum: 1,
-		StorageKey: "ws_1/ast_1/v1.jpg",
-		IsCurrent:  true,
+		VersionNum:  1,
+		StorageKey:  "ws_1/ast_1/v1.jpg",
+		IsCurrent:   true,
 	})
 
 	runID, err := svc.TriggerManual(context.Background(), "ws_1", "wf_1", "ast_1")
@@ -153,11 +159,11 @@ func TestWorkflowServiceTriggerManual_WithAsset_TriggerDataHasAssetContext(t *te
 		t.Fatalf("invalid trigger_data JSON: %v", err)
 	}
 	checks := map[string]any{
-		"asset_id":    "ast_1",
-		"version_id":  "ver_1",
-		"mime_type":   "image/jpeg",
-		"project_id":  "",
-		"folder_id":   "",
+		"asset_id":   "ast_1",
+		"version_id": "ver_1",
+		"mime_type":  "image/jpeg",
+		"project_id": "",
+		"folder_id":  "",
 	}
 	for key, want := range checks {
 		got, ok := td[key]
@@ -191,10 +197,34 @@ func TestWorkflowServiceTriggerManual_UnknownAsset_ReturnsNotFound(t *testing.T)
 func TestWorkflowServiceListFilterManualEnabled(t *testing.T) {
 	svc, repo, _, _ := newWorkflowSvc(t)
 	repo.Seed(
-		repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Name: "Manual", Enabled: true, TriggerType: "trigger.manual"},
-		repository.Workflow{ID: "wf_2", WorkspaceID: "ws_1", Name: "Disabled", Enabled: false, TriggerType: "trigger.manual"},
-		repository.Workflow{ID: "wf_3", WorkspaceID: "ws_1", Name: "Asset", Enabled: true, TriggerType: "trigger.asset_created"},
-		repository.Workflow{ID: "wf_4", WorkspaceID: "ws_2", Name: "Other workspace", Enabled: true, TriggerType: "trigger.manual"},
+		repository.Workflow{
+			ID:          "wf_1",
+			WorkspaceID: "ws_1",
+			Name:        "Manual",
+			Enabled:     true,
+			TriggerType: "trigger.manual",
+		},
+		repository.Workflow{
+			ID:          "wf_2",
+			WorkspaceID: "ws_1",
+			Name:        "Disabled",
+			Enabled:     false,
+			TriggerType: "trigger.manual",
+		},
+		repository.Workflow{
+			ID:          "wf_3",
+			WorkspaceID: "ws_1",
+			Name:        "Asset",
+			Enabled:     true,
+			TriggerType: "trigger.asset_created",
+		},
+		repository.Workflow{
+			ID:          "wf_4",
+			WorkspaceID: "ws_2",
+			Name:        "Other workspace",
+			Enabled:     true,
+			TriggerType: "trigger.manual",
+		},
 	)
 	triggerType := "trigger.manual"
 	got, err := svc.List(context.Background(), "ws_1", service.ListWorkflowsParams{
@@ -234,14 +264,53 @@ func TestWorkflowServiceTriggerManualBulkOK(t *testing.T) {
 	svc, repo, runs, assets, versions, q := newWorkflowSvcWithAssets(t)
 	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.manual"})
 	assets.Seed(
-		repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", OriginalFilename: "foo.jpg", MimeType: "image/jpeg", Size: 1024},
-		repository.Asset{ID: "ast_2", WorkspaceID: "ws_1", OriginalFilename: "bar.png", MimeType: "image/png", Size: 2048},
-		repository.Asset{ID: "ast_3", WorkspaceID: "ws_1", OriginalFilename: "baz.mp4", MimeType: "video/mp4", Size: 4096},
+		repository.Asset{
+			ID:               "ast_1",
+			WorkspaceID:      "ws_1",
+			OriginalFilename: "foo.jpg",
+			MimeType:         "image/jpeg",
+			Size:             1024,
+		},
+		repository.Asset{
+			ID:               "ast_2",
+			WorkspaceID:      "ws_1",
+			OriginalFilename: "bar.png",
+			MimeType:         "image/png",
+			Size:             2048,
+		},
+		repository.Asset{
+			ID:               "ast_3",
+			WorkspaceID:      "ws_1",
+			OriginalFilename: "baz.mp4",
+			MimeType:         "video/mp4",
+			Size:             4096,
+		},
 	)
 	versions.Seed(
-		repository.AssetVersion{ID: "ver_1", AssetID: "ast_1", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "ws_1/ast_1/v1.jpg", IsCurrent: true},
-		repository.AssetVersion{ID: "ver_2", AssetID: "ast_2", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "ws_1/ast_2/v1.png", IsCurrent: true},
-		repository.AssetVersion{ID: "ver_3", AssetID: "ast_3", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "ws_1/ast_3/v1.mp4", IsCurrent: true},
+		repository.AssetVersion{
+			ID:          "ver_1",
+			AssetID:     "ast_1",
+			WorkspaceID: "ws_1",
+			VersionNum:  1,
+			StorageKey:  "ws_1/ast_1/v1.jpg",
+			IsCurrent:   true,
+		},
+		repository.AssetVersion{
+			ID:          "ver_2",
+			AssetID:     "ast_2",
+			WorkspaceID: "ws_1",
+			VersionNum:  1,
+			StorageKey:  "ws_1/ast_2/v1.png",
+			IsCurrent:   true,
+		},
+		repository.AssetVersion{
+			ID:          "ver_3",
+			AssetID:     "ast_3",
+			WorkspaceID: "ws_1",
+			VersionNum:  1,
+			StorageKey:  "ws_1/ast_3/v1.mp4",
+			IsCurrent:   true,
+		},
 	)
 	runIDs, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_1", "ast_2", "ast_3"})
 	if err != nil {
@@ -323,7 +392,14 @@ func TestWorkflowServiceTriggerManualBulkAssetNotFound(t *testing.T) {
 func TestWorkflowServiceTriggerManualBulkNoCurrentVersion(t *testing.T) {
 	svc, repo, _, assets, _, q := newWorkflowSvcWithAssets(t)
 	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.manual"})
-	assets.Seed(repository.Asset{ID: "ast_noversion", WorkspaceID: "ws_1", OriginalFilename: "ghost.jpg", MimeType: "image/jpeg"})
+	assets.Seed(
+		repository.Asset{
+			ID:               "ast_noversion",
+			WorkspaceID:      "ws_1",
+			OriginalFilename: "ghost.jpg",
+			MimeType:         "image/jpeg",
+		},
+	)
 	runIDs, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_noversion"})
 	if !errors.Is(err, apperr.ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
@@ -340,7 +416,16 @@ func TestWorkflowServiceTriggerManualBulkPartialSuccess(t *testing.T) {
 		repository.Asset{ID: "ast_ok", WorkspaceID: "ws_1", OriginalFilename: "ok.jpg", MimeType: "image/jpeg"},
 		repository.Asset{ID: "ast_bad", WorkspaceID: "ws_1", OriginalFilename: "bad.jpg", MimeType: "image/jpeg"},
 	)
-	versions.Seed(repository.AssetVersion{ID: "ver_ok", AssetID: "ast_ok", WorkspaceID: "ws_1", VersionNum: 1, StorageKey: "k/ok.jpg", IsCurrent: true})
+	versions.Seed(
+		repository.AssetVersion{
+			ID:          "ver_ok",
+			AssetID:     "ast_ok",
+			WorkspaceID: "ws_1",
+			VersionNum:  1,
+			StorageKey:  "k/ok.jpg",
+			IsCurrent:   true,
+		},
+	)
 	runIDs, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_ok", "ast_bad"})
 	if !errors.Is(err, apperr.ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)

@@ -103,7 +103,12 @@ func TestBulkManualRunOKReturns202(t *testing.T) {
 		}
 		return []string{"r1", "r2", "r3"}, nil
 	}
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":["a1","a2","a3"]}`), env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/workflows/wf_1/runs/bulk",
+		strings.NewReader(`{"asset_ids":["a1","a2","a3"]}`),
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +123,12 @@ func TestBulkManualRunOKReturns202(t *testing.T) {
 
 func TestBulkManualRunUnauthenticatedReturns401(t *testing.T) {
 	env := testutil.NewTestEnv(t)
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":["a1"]}`), "")
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/workflows/wf_1/runs/bulk",
+		strings.NewReader(`{"asset_ids":["a1"]}`),
+		"",
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -131,7 +141,12 @@ func TestBulkManualRunViewerReturns403(t *testing.T) {
 	env.Workspace.GetMemberFn = func(_ context.Context, _, userID string) (*service.MemberDTO, error) {
 		return &service.MemberDTO{UserID: userID, Role: string(auth.Viewer)}, nil
 	}
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":["a1"]}`), env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/workflows/wf_1/runs/bulk",
+		strings.NewReader(`{"asset_ids":["a1"]}`),
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -157,7 +172,12 @@ func assertBulkManualRunError(t *testing.T, svcErr error, wantStatus int) {
 	env.Workflows.TriggerManualBulkFn = func(_ context.Context, _, _ string, _ []string) ([]string, error) {
 		return nil, svcErr
 	}
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs/bulk", strings.NewReader(`{"asset_ids":[]}`), env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/workflows/wf_1/runs/bulk",
+		strings.NewReader(`{"asset_ids":[]}`),
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -175,7 +195,12 @@ func TestManualWorkflowRun_NoBody_CallsWithEmptyAssetID(t *testing.T) {
 		capturedAssetID = assetID
 		return "run_1", nil
 	}
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs", nil, env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/workflows/wf_1/runs",
+		nil,
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +219,12 @@ func TestManualWorkflowRun_WithAssetID_ForwardsAssetID(t *testing.T) {
 		return "run_1", nil
 	}
 	body := strings.NewReader(`{"asset_id":"ast_1"}`)
-	req := testutil.BearerRequest(http.MethodPost, "/api/v1/workflows/wf_1/runs", body, env.MintToken(t, "usr_1", "ws_1"))
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/workflows/wf_1/runs",
+		body,
+		env.MintToken(t, "usr_1", "ws_1"),
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)

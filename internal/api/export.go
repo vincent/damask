@@ -73,7 +73,12 @@ func (s *Server) handleValidateExportDestination(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&body); err != nil {
 		return errRes(c, fiber.StatusBadRequest, "invalid request body")
 	}
-	if err := s.exports.ValidateDestinationConfig(c.Context(), claims.WorkspaceID, body.DestType, body.DestConfig); err != nil {
+	if err := s.exports.ValidateDestinationConfig(
+		c.Context(),
+		claims.WorkspaceID,
+		body.DestType,
+		body.DestConfig,
+	); err != nil {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"ok": false, apiErrorKey: err.Error()})
 	}
 	return c.JSON(fiber.Map{"ok": true})

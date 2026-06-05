@@ -184,14 +184,20 @@ func Load() (*Config, error) {
 			ResetIntervalHours: demoResetHours,
 			UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.studio"),
 			WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
-			ShowBanner:         demoMode && getEnv("DEMO_BANNER", strconv.FormatBool(true)) != strconv.FormatBool(false),
-			SignupURL:          getEnv("DEMO_SIGNUP_URL", "/signup"),
+			ShowBanner: demoMode &&
+				getEnv("DEMO_BANNER", strconv.FormatBool(true)) != strconv.FormatBool(false),
+			SignupURL: getEnv("DEMO_SIGNUP_URL", "/signup"),
 		},
 		ImageRouter: ImageRouterConfig{
 			APIKey:               os.Getenv("IMAGEROUTER_API_KEY"),
 			DefaultModel:         getEnv("IMAGEROUTER_DEFAULT_MODEL", "black-forest-labs/FLUX-2-klein-4b:free"),
 			DefaultBgRemoveModel: getEnv("IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL", "bria/remove-background:free"),
-			RetryPaidOnFreeLimit: getEnv("IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT", strconv.FormatBool(false)) == strconv.FormatBool(true),
+			RetryPaidOnFreeLimit: getEnv(
+				"IMAGEROUTER_RETRY_PAID_ON_FREE_LIMIT",
+				strconv.FormatBool(false),
+			) == strconv.FormatBool(
+				true,
+			),
 		},
 		FFmpeg: FFmpegConfig{
 			Path:    strings.TrimSpace(os.Getenv("FFMPEG_PATH")),
@@ -217,12 +223,14 @@ func Load() (*Config, error) {
 		Label:        getEnv("OIDC_LABEL", "Sign in with SSO"),
 	}
 	cfg.Google = GoogleOIDCConfig{
-		Auth:         googleClientID != "" && getEnv("GOOGLE_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		Auth: googleClientID != "" &&
+			getEnv("GOOGLE_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
 		ClientID:     googleClientID,
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	}
 	cfg.Canva = CanvaConfig{
-		Auth:         canvaClientID != "" && getEnv("CANVA_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		Auth: canvaClientID != "" &&
+			getEnv("CANVA_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
 		ClientID:     canvaClientID,
 		ClientSecret: os.Getenv("CANVA_CLIENT_SECRET"),
 	}

@@ -148,7 +148,15 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 			Config:    cfg,
 		},
 	)
-	exportSvc := service.NewExportServiceWithRepos(queries, sqlDB, stor, cfg.AppSecret, q, repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo())
+	exportSvc := service.NewExportServiceWithRepos(
+		queries,
+		sqlDB,
+		stor,
+		cfg.AppSecret,
+		q,
+		repomemory.NewExportConfigRepo(),
+		repomemory.NewExportRunRepo(),
+	)
 	exifSvc := service.NewExifService(queries, stor)
 	fieldSvc := service.NewFieldService(reposqlc.NewFieldRepo(queries, sqlDB))
 	textTrackSvc := service.NewTextTrackService(queries, q, stor)

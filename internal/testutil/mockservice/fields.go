@@ -25,7 +25,7 @@ func (m *MockFieldService) List(ctx context.Context, workspaceID, scope string) 
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, scope)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockFieldService) Get(ctx context.Context, workspaceID, id string) (*service.FieldDefinitionDTO, error) {
@@ -92,7 +92,7 @@ func (m *MockFieldService) ListAssetsMissingExif(ctx context.Context, workspaceI
 	if m.ListAssetsMissingExifFn != nil {
 		return m.ListAssetsMissingExifFn(ctx, workspaceID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockFieldService) PurgeExpiredFields(_ context.Context) (int, error) { return 0, nil }
@@ -114,7 +114,7 @@ func (m *MockAssetFieldService) GetValues(
 	if m.GetValuesFn != nil {
 		return m.GetValuesFn(ctx, workspaceID, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockAssetFieldService) SetValues(
@@ -125,7 +125,7 @@ func (m *MockAssetFieldService) SetValues(
 	if m.SetValuesFn != nil {
 		return m.SetValuesFn(ctx, workspaceID, assetID, userID, inputs)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockAssetFieldService) BulkSetValues(
@@ -148,7 +148,7 @@ func (m *MockAssetFieldService) BulkPreview(
 	if m.BulkPreviewFn != nil {
 		return m.BulkPreviewFn(ctx, workspaceID, assetIDs, fieldIDs)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 // MockProjectFieldService is a no-op implementation of service.ProjectFieldService.
@@ -166,7 +166,7 @@ func (m *MockProjectFieldService) GetValues(
 	if m.GetValuesFn != nil {
 		return m.GetValuesFn(ctx, workspaceID, projectID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockProjectFieldService) SetValues(
@@ -177,5 +177,5 @@ func (m *MockProjectFieldService) SetValues(
 	if m.SetValuesFn != nil {
 		return m.SetValuesFn(ctx, workspaceID, projectID, userID, inputs)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }

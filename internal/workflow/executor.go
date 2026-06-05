@@ -278,7 +278,8 @@ func (e *Executor) ResumeAt(ctx context.Context, cont NodeContinuation, updates 
 	// Guard against double-write: if the run was already finalised by a
 	// portContinued branch in Execute, skip SetFinal here.
 	existing, lookupErr := e.deps.Runs.GetByID(ctx, cont.RunID)
-	if lookupErr == nil && (existing.Status == workflowRunStatusCompleted || existing.Status == workflowRunStatusFailed) {
+	if lookupErr == nil &&
+		(existing.Status == workflowRunStatusCompleted || existing.Status == workflowRunStatusFailed) {
 		return runErr
 	}
 

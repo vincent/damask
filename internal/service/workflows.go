@@ -452,7 +452,10 @@ func (s *workflowService) manualAssetTriggerData(
 	workspaceID, assetID string,
 ) (map[string]any, error) {
 	if s.assets == nil || s.versions == nil {
-		return nil, fmt.Errorf("workflowService: Assets and Versions deps required for manual trigger: %w", apperr.ErrInternal)
+		return nil, fmt.Errorf(
+			"workflowService: Assets and Versions deps required for manual trigger: %w",
+			apperr.ErrInternal,
+		)
 	}
 	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 	if err != nil {

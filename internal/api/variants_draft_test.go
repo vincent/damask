@@ -45,7 +45,7 @@ func (notFoundError) Is(target error) bool {
 }
 
 // writeScratchFiles puts a fake draft output + meta into in-memory storage.
-func writeScratchFiles( //nolint:unparam // readability
+func writeScratchFiles(
 	t *testing.T,
 	stor storage.Storage,
 	workspaceID,
@@ -167,7 +167,12 @@ func TestPreviewDraft_HappyPath(t *testing.T) {
 	writeScratchFiles(t, env.Server.StorageForTest(), workspaceID, userID, nonce, assetID)
 
 	cookie := env.MintCookie(t, userID, workspaceID)
-	req := testutil.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/preview", nil, cookie)
+	req := testutil.AuthRequest(
+		http.MethodGet,
+		"/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/preview",
+		nil,
+		cookie,
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -188,7 +193,12 @@ func TestPreviewDraft_NotFound(t *testing.T) {
 	setupDraftAsset(t, env, assetID, workspaceID)
 
 	cookie := env.MintCookie(t, userID, workspaceID)
-	req := testutil.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants/draft/nonexistentnonce/preview", nil, cookie)
+	req := testutil.AuthRequest(
+		http.MethodGet,
+		"/api/v1/assets/"+assetID+"/variants/draft/nonexistentnonce/preview",
+		nil,
+		cookie,
+	)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
@@ -208,7 +218,12 @@ func TestPreviewDraft_OtherUser(t *testing.T) {
 
 	// Authed as viewerID — different user_id in path → meta not found.
 	cookie := env.MintCookie(t, viewerID, workspaceID)
-	req := testutil.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/preview", nil, cookie)
+	req := testutil.AuthRequest(
+		http.MethodGet,
+		"/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/preview",
+		nil,
+		cookie,
+	)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
@@ -228,7 +243,12 @@ func TestPreviewDraft_ViewerForbidden(t *testing.T) {
 	writeScratchFiles(t, env.Server.StorageForTest(), workspaceID, userID, nonce, assetID)
 
 	cookie := env.MintCookie(t, userID, workspaceID)
-	req := testutil.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/preview", nil, cookie)
+	req := testutil.AuthRequest(
+		http.MethodGet,
+		"/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/preview",
+		nil,
+		cookie,
+	)
 	resp, _ := env.App.Test(req)
 	// Viewer can preview — not 403.
 	testutil.AssertStatus(t, resp, http.StatusOK)
@@ -249,7 +269,12 @@ func TestCommitDraft_HappyPath(t *testing.T) {
 
 	cookie := env.MintCookie(t, userID, workspaceID)
 	body := testutil.JSONStr(`{"name":"my variant"}`)
-	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/commit", body, cookie)
+	req := testutil.AuthRequest(
+		http.MethodPost,
+		"/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/commit",
+		body,
+		cookie,
+	)
 	resp, err := env.App.Test(req)
 	if err != nil {
 		t.Fatal(err)
@@ -273,7 +298,12 @@ func TestCommitDraft_NotFound(t *testing.T) {
 	setupDraftAsset(t, env, assetID, workspaceID)
 
 	cookie := env.MintCookie(t, userID, workspaceID)
-	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants/draft/nosuchnonce/commit", nil, cookie)
+	req := testutil.AuthRequest(
+		http.MethodPost,
+		"/api/v1/assets/"+assetID+"/variants/draft/nosuchnonce/commit",
+		nil,
+		cookie,
+	)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
@@ -292,7 +322,12 @@ func TestCommitDraft_AssetMismatch(t *testing.T) {
 	writeScratchFiles(t, env.Server.StorageForTest(), workspaceID, userID, nonce, assetID)
 
 	cookie := env.MintCookie(t, userID, workspaceID)
-	req := testutil.AuthRequest(http.MethodPost, "/api/v1/assets/"+otherAsset+"/variants/draft/"+nonce+"/commit", nil, cookie)
+	req := testutil.AuthRequest(
+		http.MethodPost,
+		"/api/v1/assets/"+otherAsset+"/variants/draft/"+nonce+"/commit",
+		nil,
+		cookie,
+	)
 	resp, _ := env.App.Test(req)
 	testutil.AssertStatus(t, resp, http.StatusBadRequest)
 }
@@ -310,7 +345,12 @@ func TestCommitDraft_Idempotent(t *testing.T) {
 
 	cookie := env.MintCookie(t, userID, workspaceID)
 	makeReq := func() *http.Request {
-		return testutil.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/commit", nil, cookie)
+		return testutil.AuthRequest(
+			http.MethodPost,
+			"/api/v1/assets/"+assetID+"/variants/draft/"+nonce+"/commit",
+			nil,
+			cookie,
+		)
 	}
 
 	// First commit.

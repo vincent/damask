@@ -21,7 +21,7 @@ func (m *MockShareService) List(ctx context.Context, workspaceID string) ([]*ser
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockShareService) Get(ctx context.Context, workspaceID, id string) (*service.ShareDTO, error) {
@@ -99,7 +99,7 @@ func (m *MockSharePublicService) ListAssets(
 	if m.ListAssetsFn != nil {
 		return m.ListAssetsFn(ctx, targetType, targetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockSharePublicService) GetAsset(ctx context.Context, assetID string) (*service.PublicAssetDTO, error) {
@@ -156,7 +156,7 @@ func (m *MockSharePublicService) ListCommentsByShare(
 	if m.ListCommentsByShareFn != nil {
 		return m.ListCommentsByShareFn(ctx, shareID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockSharePublicService) ListCommentsByShareAndAsset(
@@ -166,7 +166,7 @@ func (m *MockSharePublicService) ListCommentsByShareAndAsset(
 	if m.ListCommentsByShareAndAssetFn != nil {
 		return m.ListCommentsByShareAndAssetFn(ctx, shareID, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockSharePublicService) DeleteComment(ctx context.Context, shareID, commentID string) error {

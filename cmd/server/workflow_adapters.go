@@ -193,4 +193,3 @@ func (a versionManagerAdapter) SetCurrent(ctx context.Context, assetID, versionI
 func (a versionManagerAdapter) SetAssetThumbnail(ctx context.Context, assetID string, key *string) error {
 	return a.versions.SetAssetThumbnail(ctx, assetID, key)
 }
-

@@ -40,7 +40,7 @@ func (m *MockFolderService) List(ctx context.Context, workspaceID, projectID str
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID, projectID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockFolderService) ListTree(
@@ -50,7 +50,7 @@ func (m *MockFolderService) ListTree(
 	if m.ListTreeFn != nil {
 		return m.ListTreeFn(ctx, workspaceID, projectID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockFolderService) Update(

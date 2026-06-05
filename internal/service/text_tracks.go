@@ -280,7 +280,11 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	return TextTrackDTO{}, ErrUnsupportedTextTrackSource
 }
 
-func (s *textTrackService) enqueueExtract(ctx context.Context, span interface{ SetAttributes(...attribute.KeyValue) }, p CreateTextTrackParams) (TextTrackDTO, error) {
+func (s *textTrackService) enqueueExtract(
+	ctx context.Context,
+	span interface{ SetAttributes(...attribute.KeyValue) },
+	p CreateTextTrackParams,
+) (TextTrackDTO, error) {
 	jobType, err := extractJobType(p.Source)
 	if err != nil {
 		return TextTrackDTO{}, err
@@ -425,7 +429,10 @@ func stringParam(params map[string]any, key, fallback string) string {
 	return fallback
 }
 
-func (s *textTrackService) RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) (err error) {
+func (s *textTrackService) RunExtractPDF(
+	ctx context.Context,
+	workspaceID, assetID, trackID, storageKey string,
+) (err error) {
 	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_pdf",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
@@ -467,7 +474,10 @@ func (s *textTrackService) RunExtractPDF(ctx context.Context, workspaceID, asset
 	return s.writeExtractedText(ctx, workspaceID, assetID, trackID, "pdf", text)
 }
 
-func (s *textTrackService) RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) (err error) {
+func (s *textTrackService) RunExtractPlain(
+	ctx context.Context,
+	workspaceID, assetID, trackID, storageKey string,
+) (err error) {
 	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_plain",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
@@ -498,7 +508,10 @@ func (s *textTrackService) RunExtractPlain(ctx context.Context, workspaceID, ass
 	return s.writeExtractedText(ctx, workspaceID, assetID, trackID, "plain", string(textBytes))
 }
 
-func (s *textTrackService) RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) (err error) {
+func (s *textTrackService) RunExtractDocument(
+	ctx context.Context,
+	workspaceID, assetID, trackID, storageKey, mimeType string,
+) (err error) {
 	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_document",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
@@ -540,7 +553,10 @@ func (s *textTrackService) RunExtractDocument(ctx context.Context, workspaceID, 
 	return s.writeExtractedText(ctx, workspaceID, assetID, trackID, "document", text)
 }
 
-func (s *textTrackService) writeExtractedText(ctx context.Context, workspaceID, assetID, trackID, source, text string) error {
+func (s *textTrackService) writeExtractedText(
+	ctx context.Context,
+	workspaceID, assetID, trackID, source, text string,
+) error {
 	content := readyTextContent(text)
 	wordCount := len(strings.Fields(text))
 	metaBytes, _ := json.Marshal(map[string]any{"word_count": wordCount})
@@ -570,7 +586,10 @@ func (s *textTrackService) writeExtractedText(ctx context.Context, workspaceID, 
 	return nil
 }
 
-func (s *textTrackService) RunOCR(ctx context.Context, workspaceID, assetID, trackID, _, storageKey, mimeType, lang, outputFormat string) (err error) {
+func (s *textTrackService) RunOCR(
+	ctx context.Context,
+	workspaceID, assetID, trackID, _, storageKey, mimeType, lang, outputFormat string,
+) (err error) {
 	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.ocr",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),

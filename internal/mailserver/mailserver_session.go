@@ -95,7 +95,7 @@ func (s *Session) resolveIngressSource(ctx context.Context, token string) (*dbge
 			slog.ErrorContext(ctx, "mailserver: lookup source token",
 				"token_prefix", safePrefix(token), "error", err)
 		}
-		return nil, nil //nolint:nilerr // not-found and DB errors are both silent skips
+		return nil, nil
 	}
 	if src.Enabled == 0 {
 		slog.Debug("mailserver: ignore disabled source", "token", token)

@@ -31,7 +31,13 @@ type exportService struct {
 }
 
 // NewExportService creates a production ExportService with sqlc-backed repos.
-func NewExportService(queries *dbgen.Queries, sqlDB *sql.DB, stor storage.Storage, appSecret string, q queue.JobQueue) ExportService {
+func NewExportService(
+	queries *dbgen.Queries,
+	sqlDB *sql.DB,
+	stor storage.Storage,
+	appSecret string,
+	q queue.JobQueue,
+) ExportService {
 	return &exportService{
 		queries:    queries,
 		sqlDB:      sqlDB,
@@ -80,7 +86,11 @@ func stampWorkspaceID(cfg json.RawMessage, workspaceID string) (json.RawMessage,
 	return out, nil
 }
 
-func (s *exportService) Create(ctx context.Context, workspaceID, userID string, p CreateExportConfigParams) (*ExportConfigDTO, error) {
+func (s *exportService) Create(
+	ctx context.Context,
+	workspaceID, userID string,
+	p CreateExportConfigParams,
+) (*ExportConfigDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
@@ -147,7 +157,11 @@ func (s *exportService) ListByProject(ctx context.Context, workspaceID, projectI
 	return out, nil
 }
 
-func (s *exportService) Update(ctx context.Context, workspaceID, id string, p UpdateExportConfigParams) (*ExportConfigDTO, error) {
+func (s *exportService) Update(
+	ctx context.Context,
+	workspaceID, id string,
+	p UpdateExportConfigParams,
+) (*ExportConfigDTO, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
@@ -205,7 +219,11 @@ func (s *exportService) ValidateDestination(ctx context.Context, workspaceID, co
 	return dest.Validate(ctx)
 }
 
-func (s *exportService) ValidateDestinationConfig(ctx context.Context, workspaceID, destType string, destConfig json.RawMessage) error {
+func (s *exportService) ValidateDestinationConfig(
+	ctx context.Context,
+	workspaceID, destType string,
+	destConfig json.RawMessage,
+) error {
 	stamped, err := stampWorkspaceID(destConfig, workspaceID)
 	if err != nil {
 		return fmt.Errorf("%w: %s", apperr.ErrInvalidInput, err.Error())
@@ -217,7 +235,10 @@ func (s *exportService) ValidateDestinationConfig(ctx context.Context, workspace
 	return dest.Validate(ctx)
 }
 
-func (s *exportService) TriggerManual(ctx context.Context, workspaceID, userID, configID string) (*ExportRunDTO, error) {
+func (s *exportService) TriggerManual(
+	ctx context.Context,
+	workspaceID, userID, configID string,
+) (*ExportRunDTO, error) {
 	cfg, err := s.configRepo.Get(ctx, workspaceID, configID)
 	if err != nil {
 		return nil, err
@@ -249,7 +270,11 @@ func (s *exportService) GetRun(ctx context.Context, workspaceID, runID string) (
 	return exportRunToDTO(run), nil
 }
 
-func (s *exportService) ListRuns(ctx context.Context, workspaceID, configID string, limit, offset int) ([]*ExportRunDTO, error) {
+func (s *exportService) ListRuns(
+	ctx context.Context,
+	workspaceID, configID string,
+	limit, offset int,
+) ([]*ExportRunDTO, error) {
 	if _, err := s.configRepo.Get(ctx, workspaceID, configID); err != nil {
 		return nil, err
 	}

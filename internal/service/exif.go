@@ -228,7 +228,11 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 	return nil
 }
 
-func (s *ExifService) ensureFields(ctx context.Context, workspaceID, _ string, keepGPS bool) (map[string]string, error) {
+func (s *ExifService) ensureFields(
+	ctx context.Context,
+	workspaceID, _ string,
+	keepGPS bool,
+) (map[string]string, error) {
 	for i, fd := range exifFields {
 		if fd.gpsOnly && !keepGPS {
 			continue

@@ -37,7 +37,12 @@ type uploadServiceImpl struct {
 
 // NewUploadService returns an UploadService. Pass a non-nil inv to invalidate
 // the storage usage cache after each successful ingest; pass nil to skip.
-func NewUploadService(ingester AssetIngester, aw audit.Writer, inv StorageInvalidator, triggers ...WorkflowTriggerPublisher) UploadService {
+func NewUploadService(
+	ingester AssetIngester,
+	aw audit.Writer,
+	inv StorageInvalidator,
+	triggers ...WorkflowTriggerPublisher,
+) UploadService {
 	return &uploadServiceImpl{
 		ingester:   ingester,
 		audit:      aw,

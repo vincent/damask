@@ -46,7 +46,16 @@ func NewAssetService(
 	if len(inv) > 0 {
 		si = inv[0]
 	}
-	return &assetService{assets: assets, versions: versions, tags: tags, fields: fields, stor: stor, audit: aw, q: q, invalidate: si}
+	return &assetService{
+		assets:     assets,
+		versions:   versions,
+		tags:       tags,
+		fields:     fields,
+		stor:       stor,
+		audit:      aw,
+		q:          q,
+		invalidate: si,
+	}
 }
 
 func (s *assetService) Get(ctx context.Context, workspaceID, assetID string) (*AssetDTO, error) {

@@ -46,7 +46,7 @@ func (m *MockAssetService) List(ctx context.Context, params service.ListAssetsPa
 	if m.ListFn != nil {
 		return m.ListFn(ctx, params)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockAssetService) Move(
@@ -124,7 +124,7 @@ func (m *MockAssetService) GetComments(
 	if m.GetCommentsFn != nil {
 		return m.GetCommentsFn(ctx, workspaceID, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockAssetService) CountVersionsByAsset(ctx context.Context, assetID string) (int64, error) {
@@ -169,7 +169,7 @@ func (m *MockAssetService) ListByFields(
 	if m.ListByFieldsFn != nil {
 		return m.ListByFieldsFn(ctx, params)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockAssetService) BatchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {
@@ -194,7 +194,7 @@ func (m *MockAssetService) RegenerateThumbnail(
 	if m.RegenerateThumbnailFn != nil {
 		return m.RegenerateThumbnailFn(ctx, workspaceID, assetIDs)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockAssetService) WriteAssetDownloadedAsync(_, _, _ string) {}

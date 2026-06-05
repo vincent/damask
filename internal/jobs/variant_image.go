@@ -50,7 +50,10 @@ func (s *JobServer) enqueueVariantThumb(
 }
 
 // imageLocalBuild is the variantBuildFn for local image transforms (resize, convert, crop, watermark, smart-crop).
-func (s *JobServer) imageLocalBuild(jobType, _, workspaceID string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) imageLocalBuild(
+	jobType, _, workspaceID string,
+	params json.RawMessage,
+) (variantTransformer, error) {
 	return s.imageLocalTransformer(jobType, params, workspaceID)
 }
 

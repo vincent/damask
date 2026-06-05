@@ -41,12 +41,20 @@ func insertWorkspaceAndVersion(t *testing.T, sqlDB *sql.DB) (workspaceID, versio
 	_, err = sqlDB.Exec(
 		`INSERT INTO asset_versions (id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, is_current)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		versionID, assetID, workspaceID, 1, "key/test.jpg", "abc123", "image/jpeg", 1024, 1,
+		versionID,
+		assetID,
+		workspaceID,
+		1,
+		"key/test.jpg",
+		"abc123",
+		"image/jpeg",
+		1024,
+		1,
 	)
 	if err != nil {
 		t.Fatalf("insert asset_version: %v", err)
 	}
-	return
+	return workspaceID, versionID
 }
 
 func TestStore_IdempotentUpsert(t *testing.T) {
@@ -81,10 +89,27 @@ func TestFindSimilar_ReturnsMatchesExcludesSelf(t *testing.T) {
 	// Create a second version in the same workspace that shares a hash bucket.
 	assetID2 := uuid.NewString()
 	v2 := uuid.NewString()
-	_, _ = sqlDB.Exec(`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size) VALUES (?, ?, ?, ?, ?, ?)`,
-		assetID2, wsID, "copy.jpg", "key/copy.jpg", "image/jpeg", 1024)
-	_, _ = sqlDB.Exec(`INSERT INTO asset_versions (id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, is_current) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		v2, assetID2, wsID, 1, "key/copy.jpg", "def456", "image/jpeg", 1024, 1)
+	_, _ = sqlDB.Exec(
+		`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size) VALUES (?, ?, ?, ?, ?, ?)`,
+		assetID2,
+		wsID,
+		"copy.jpg",
+		"key/copy.jpg",
+		"image/jpeg",
+		1024,
+	)
+	_, _ = sqlDB.Exec(
+		`INSERT INTO asset_versions (id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, is_current) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		v2,
+		assetID2,
+		wsID,
+		1,
+		"key/copy.jpg",
+		"def456",
+		"image/jpeg",
+		1024,
+		1,
+	)
 
 	// v1 and v2 share hash bucket 999.
 	h1 := Hashes{CentralHash: 999, HashSet: []uint64{999, 777}}

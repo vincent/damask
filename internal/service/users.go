@@ -598,7 +598,11 @@ func (s *userService) UpsertCanvaUser(ctx context.Context, p UpsertCanvaUserPara
 
 // oauthUpsert implements the three-phase pattern shared by all OAuth providers:
 // look up by provider ID → link by email → create new user+workspace.
-func (s *userService) oauthUpsert(ctx context.Context, prov oauthProvider, email, name, avatarURL string) (*OIDCUserDTO, error) {
+func (s *userService) oauthUpsert(
+	ctx context.Context,
+	prov oauthProvider,
+	email, name, avatarURL string,
+) (*OIDCUserDTO, error) {
 	// Phase 1: existing provider identity.
 	user, err := prov.lookupByID(ctx)
 	if err != nil && !errors.Is(err, apperr.ErrNotFound) {
@@ -621,7 +625,12 @@ func (s *userService) oauthUpsert(ctx context.Context, prov oauthProvider, email
 	return s.createOAuthUser(ctx, prov, email, name, avatarURL)
 }
 
-func (s *userService) refreshAndLink(ctx context.Context, user repository.User, prov oauthProvider, avatarURL string) (*OIDCUserDTO, error) {
+func (s *userService) refreshAndLink(
+	ctx context.Context,
+	user repository.User,
+	prov oauthProvider,
+	avatarURL string,
+) (*OIDCUserDTO, error) {
 	user.AuthMethods = addAuthMethod(user.AuthMethods, prov.method)
 	if user.AvatarStorageKey == nil {
 		user.AvatarURL = nilIfEmpty(avatarURL)
@@ -634,7 +643,11 @@ func (s *userService) refreshAndLink(ctx context.Context, user repository.User, 
 	return s.toOIDCUserDTO(ctx, linked)
 }
 
-func (s *userService) createOAuthUser(ctx context.Context, prov oauthProvider, email, name, avatarURL string) (*OIDCUserDTO, error) {
+func (s *userService) createOAuthUser(
+	ctx context.Context,
+	prov oauthProvider,
+	email, name, avatarURL string,
+) (*OIDCUserDTO, error) {
 	userID := uuid.New().String()
 	workspaceID := uuid.New().String()
 	newUser := repository.User{

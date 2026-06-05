@@ -303,7 +303,13 @@ func initMailServer(cfg *config.Config, queries *dbgen.Queries, q *queue.Queue) 
 	return mailErr
 }
 
-func initScheduler(ctx context.Context, cfg *config.Config, q *queue.Queue, queries *dbgen.Queries, js *jobs.JobServer) {
+func initScheduler(
+	ctx context.Context,
+	cfg *config.Config,
+	q *queue.Queue,
+	queries *dbgen.Queries,
+	js *jobs.JobServer,
+) {
 	ingress.NewScheduler(queries, q).Start(ctx)
 	slog.InfoContext(ctx, "ingress scheduler started")
 	jobs.NewFieldCleanupScheduler(queries, q).Start(ctx)

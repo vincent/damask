@@ -121,9 +121,18 @@ func NewHTTPServer(
 		},
 	)
 	return &Server{
-		queries:       queries,
-		assetFields:   service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
-		assets:        service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q, storageSvc),
+		queries:     queries,
+		assetFields: service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
+		assets: service.NewAssetService(
+			assetRepo,
+			versionRepo,
+			tagRepo,
+			fieldRepo,
+			stor,
+			auditWriter,
+			q,
+			storageSvc,
+		),
 		auditLog:      service.NewAuditLogService(queries),
 		auth:          tokenMaker,
 		cfg:           cfg,
@@ -166,7 +175,12 @@ func NewHTTPServer(
 		}),
 		storageSvc:          storageSvc,
 		visualSimilaritySvc: visualsimilarity.NewService(queries, sqlDB),
-		workspace:           service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey),
+		workspace: service.NewWorkspaceService(
+			workspaceRepo,
+			userRepo,
+			cfg.AppSecret,
+			cfg.ImageRouter.APIKey,
+		),
 		workflows: service.NewWorkflowService(
 			workflowRepo,
 			workflowRunRepo,

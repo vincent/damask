@@ -314,7 +314,13 @@ type OAuthConnectionRepository interface {
 	GetByProviderUserID(ctx context.Context, workspaceID, provider, providerUserID string) (OAuthConnection, error)
 	Create(ctx context.Context, c OAuthConnection) error
 	UpdateTokens(ctx context.Context, id, accessToken string, refreshToken *string, expiresAt *string) error
-	UpdateTokensAndScopes(ctx context.Context, id, accessToken string, refreshToken *string, expiresAt *string, scopes string) error
+	UpdateTokensAndScopes(
+		ctx context.Context,
+		id, accessToken string,
+		refreshToken *string,
+		expiresAt *string,
+		scopes string,
+	) error
 	Delete(ctx context.Context, workspaceID, id string) error
 }
 

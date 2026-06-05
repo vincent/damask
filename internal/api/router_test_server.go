@@ -37,29 +37,29 @@ type TestServerConfig struct {
 	Cfg        *config.Config
 
 	// Services — leave nil to use no-op defaults
-	Assets        service.AssetService
-	Projects      service.ProjectService
-	Folders       service.FolderService
-	Tags          service.TagService
-	Collections   service.CollectionService
-	Shares        service.ShareService
-	SharePublic   service.SharePublicService
-	Fields        service.FieldService
-	Integrations  service.IntegrationService
-	AssetFields   service.AssetFieldService
-	ProjectFields service.ProjectFieldService
-	Versions      service.VersionService
-	Variants      service.VariantService
-	TextTracks    service.TextTrackService
-	AuditLog      service.AuditLogService
-	Workspace     service.WorkspaceService
-	Users         service.UserService
-	Ingress       service.IngressService
-	Exports       service.ExportService
-	Stack               service.StackService
-	Upload              service.UploadService
-	Workflows           service.WorkflowService
-	VisualSimilarity    *visualsimilarity.Service
+	Assets           service.AssetService
+	Projects         service.ProjectService
+	Folders          service.FolderService
+	Tags             service.TagService
+	Collections      service.CollectionService
+	Shares           service.ShareService
+	SharePublic      service.SharePublicService
+	Fields           service.FieldService
+	Integrations     service.IntegrationService
+	AssetFields      service.AssetFieldService
+	ProjectFields    service.ProjectFieldService
+	Versions         service.VersionService
+	Variants         service.VariantService
+	TextTracks       service.TextTrackService
+	AuditLog         service.AuditLogService
+	Workspace        service.WorkspaceService
+	Users            service.UserService
+	Ingress          service.IngressService
+	Exports          service.ExportService
+	Stack            service.StackService
+	Upload           service.UploadService
+	Workflows        service.WorkflowService
+	VisualSimilarity *visualsimilarity.Service
 }
 
 // NewTestServer constructs a Server from explicit service interfaces and returns
@@ -112,34 +112,34 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 	}
 
 	s := &Server{
-		queries:       cfg.DB,
-		auth:          cfg.TokenMaker,
-		storage:       stor,
-		queue:         q,
-		mailer:        mailer,
-		hub:           hub,
-		previewCache:  NewLRUPreviewCache(100), //nolint:mnd // arbitrary cache size
-		cfg:           cfg.Cfg,
-		demo:          nil,
-		assets:        cfg.Assets,
-		projects:      cfg.Projects,
-		folders:       cfg.Folders,
-		tags:          cfg.Tags,
-		collections:   cfg.Collections,
-		shares:        cfg.Shares,
-		sharePublic:   cfg.SharePublic,
-		fields:        cfg.Fields,
-		integrations:  cfg.Integrations,
-		assetFields:   cfg.AssetFields,
-		projectFields: cfg.ProjectFields,
-		versions:      cfg.Versions,
-		variants:      cfg.Variants,
-		textTracks:    cfg.TextTracks,
-		auditLog:      cfg.AuditLog,
-		workspace:     cfg.Workspace,
-		users:         cfg.Users,
-		ingress:       cfg.Ingress,
-		exports:       cfg.Exports,
+		queries:             cfg.DB,
+		auth:                cfg.TokenMaker,
+		storage:             stor,
+		queue:               q,
+		mailer:              mailer,
+		hub:                 hub,
+		previewCache:        NewLRUPreviewCache(100), //nolint:mnd // arbitrary cache size
+		cfg:                 cfg.Cfg,
+		demo:                nil,
+		assets:              cfg.Assets,
+		projects:            cfg.Projects,
+		folders:             cfg.Folders,
+		tags:                cfg.Tags,
+		collections:         cfg.Collections,
+		shares:              cfg.Shares,
+		sharePublic:         cfg.SharePublic,
+		fields:              cfg.Fields,
+		integrations:        cfg.Integrations,
+		assetFields:         cfg.AssetFields,
+		projectFields:       cfg.ProjectFields,
+		versions:            cfg.Versions,
+		variants:            cfg.Variants,
+		textTracks:          cfg.TextTracks,
+		auditLog:            cfg.AuditLog,
+		workspace:           cfg.Workspace,
+		users:               cfg.Users,
+		ingress:             cfg.Ingress,
+		exports:             cfg.Exports,
 		stack:               cfg.Stack,
 		upload:              cfg.Upload,
 		workflows:           cfg.Workflows,

@@ -82,7 +82,14 @@ func (s *JobServer) jobVisualSimilarityBackfill(ctx context.Context, job dbgen.J
 		return fmt.Errorf("list versions without hash: %w", err)
 	}
 
-	slog.InfoContext(ctx, "visual similarity backfill: starting", "workspace_id", payload.WorkspaceID, "count", len(versions))
+	slog.InfoContext(
+		ctx,
+		"visual similarity backfill: starting",
+		"workspace_id",
+		payload.WorkspaceID,
+		"count",
+		len(versions),
+	)
 
 	for _, v := range versions {
 		if !transform.IsImageMime(v.MimeType) {
@@ -92,7 +99,14 @@ func (s *JobServer) jobVisualSimilarityBackfill(ctx context.Context, job dbgen.J
 		time.Sleep(visualSimilarityBackfillSleep)
 	}
 
-	slog.InfoContext(ctx, "visual similarity backfill: done", "workspace_id", payload.WorkspaceID, "processed", len(versions))
+	slog.InfoContext(
+		ctx,
+		"visual similarity backfill: done",
+		"workspace_id",
+		payload.WorkspaceID,
+		"processed",
+		len(versions),
+	)
 	return nil
 }
 

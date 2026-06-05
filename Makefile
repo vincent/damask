@@ -42,12 +42,12 @@ test-integration:
 
 # Run linters
 lint:
-	golangci-lint run --config .golangci.yaml
+	golangci-lint run --config .golangci.yaml --fix
 	cd cmd/server/web && npm run check
 
 # Run linters
 lint-go-hardened:
-	golangci-lint run --config .golangci.hardened.yaml
+	golangci-lint run --config .golangci.hardened.yaml --fix
 
 # Run sqlc code generation
 generate:

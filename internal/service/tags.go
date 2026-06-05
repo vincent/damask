@@ -396,7 +396,16 @@ func (s *tagService) BatchTagsForAssets(ctx context.Context, assetIDs []string) 
 
 func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagName string) (*TagDTO, error) {
 	tagName = strings.ToLower(strings.TrimSpace(tagName))
-	slog.DebugContext(ctx, "tags: AddToAsset called", "workspace_id", workspaceID, "asset_id", assetID, "tag_name", tagName)
+	slog.DebugContext(
+		ctx,
+		"tags: AddToAsset called",
+		"workspace_id",
+		workspaceID,
+		"asset_id",
+		assetID,
+		"tag_name",
+		tagName,
+	)
 	if tagName == "" {
 		return nil, fmt.Errorf("tag name is required: %w", apperr.ErrInvalidInput)
 	}

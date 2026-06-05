@@ -192,7 +192,10 @@ type TextTrackService interface {
 	Get(ctx context.Context, workspaceID, trackID string) (TextTrackDTO, error)
 	Create(ctx context.Context, p CreateTextTrackParams) (TextTrackDTO, error)
 	Delete(ctx context.Context, workspaceID, trackID string) error
-	RunOCR(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
+	RunOCR(
+		ctx context.Context,
+		workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
+	) error
 	RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error

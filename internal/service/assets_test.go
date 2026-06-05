@@ -417,6 +417,7 @@ func TestAssetService_HardDelete_EmitsAuditEvent(t *testing.T) {
 // allowing tests to assert repository state at the moment the audit write occurs.
 type hookWriter struct {
 	spyWriter
+
 	OnWriteAsset func(audit.AssetEvent)
 }
 

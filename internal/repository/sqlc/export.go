@@ -72,7 +72,10 @@ func (r *exportConfigRepo) List(ctx context.Context, workspaceID string) ([]repo
 	return out, nil
 }
 
-func (r *exportConfigRepo) ListByProject(ctx context.Context, workspaceID, projectID string) ([]repository.ExportConfig, error) {
+func (r *exportConfigRepo) ListByProject(
+	ctx context.Context,
+	workspaceID, projectID string,
+) ([]repository.ExportConfig, error) {
 	rows, err := r.q.ListExportConfigsByProject(ctx, dbgen.ListExportConfigsByProjectParams{
 		ProjectID:   projectID,
 		WorkspaceID: workspaceID,

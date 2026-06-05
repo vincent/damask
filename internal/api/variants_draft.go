@@ -40,7 +40,7 @@ func (r *CommitDraftRequest) Valid(_ context.Context) map[string]string {
 
 // ---- Handlers ----
 
-// handleGenerateDraft handles POST /api/v1/assets/:id/variants/draft
+// handleGenerateDraft handles POST /api/v1/assets/:id/variants/draft.
 func (s *Server) handleGenerateDraft(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -72,14 +72,19 @@ func (s *Server) handleGenerateDraft(c fiber.Ctx) error {
 		Params:      body.Params,
 	})
 
-	if _, err = s.queue.Enqueue(c.Context(), claims.WorkspaceID, queue.JobTypeCreateVariantDraft, string(payload)); err != nil {
+	if _, err = s.queue.Enqueue(
+		c.Context(),
+		claims.WorkspaceID,
+		queue.JobTypeCreateVariantDraft,
+		string(payload),
+	); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not enqueue draft job")
 	}
 
 	return c.Status(fiber.StatusAccepted).JSON(DraftGenerateResponse{DraftKey: nonce})
 }
 
-// handlePreviewDraft handles GET /api/v1/assets/:id/variants/draft/:nonce/preview
+// handlePreviewDraft handles GET /api/v1/assets/:id/variants/draft/:nonce/preview.
 func (s *Server) handlePreviewDraft(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -111,7 +116,7 @@ func (s *Server) handlePreviewDraft(c fiber.Ctx) error {
 	return c.Send(data)
 }
 
-// handleCommitDraft handles POST /api/v1/assets/:id/variants/draft/:nonce/commit
+// handleCommitDraft handles POST /api/v1/assets/:id/variants/draft/:nonce/commit.
 func (s *Server) handleCommitDraft(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -140,7 +145,11 @@ func (s *Server) handleCommitDraft(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
 	}
 	if meta.AssetVersionID != "" && meta.AssetVersionID != currentVer.ID {
-		return errRes(c, fiber.StatusConflict, "asset has been updated since draft was created; please generate a new draft")
+		return errRes(
+			c,
+			fiber.StatusConflict,
+			"asset has been updated since draft was created; please generate a new draft",
+		)
 	}
 
 	paramsHash := draftParamsHash(meta.TransformParams)
@@ -187,7 +196,7 @@ func (s *Server) handleCommitDraft(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(variantDTOToResponse(assetID, variant))
 }
 
-// handleDiscardDraft handles DELETE /api/v1/assets/:id/variants/draft/:nonce
+// handleDiscardDraft handles DELETE /api/v1/assets/:id/variants/draft/:nonce.
 func (s *Server) handleDiscardDraft(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -263,7 +272,7 @@ func draftMoveKey(stor storage.Storage, src, dst string) error {
 		// src gone — check dst already present.
 		dstRC, dstErr := stor.Get(dst)
 		if dstErr == nil {
-			dstRC.Close() //nolint:errcheck // just checking existence
+			dstRC.Close()
 			return nil
 		}
 		return fmt.Errorf("read scratch file: %w", err)

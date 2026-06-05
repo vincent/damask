@@ -117,9 +117,9 @@ func TestRenderInviteAccepted(t *testing.T) {
 	for _, want := range []string{
 		"Rez Halabi",
 		"rez@halabi.studio",
-		"R",           // initial in avatar
-		"VIEWER",      // badge
-		"Viewer",      // role in body text
+		"R",      // initial in avatar
+		"VIEWER", // badge
+		"Viewer", // role in body text
 		"browse, comment and download",
 		"Atelier Vento",
 		"A NEW MEMBER",

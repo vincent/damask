@@ -161,7 +161,17 @@ func (r *workflowRepo) FindCoveringWorkflow(
 			ELSE 3
 		  END
 		LIMIT 1`
-	row := r.sqlDB.QueryRowContext(ctx, q, workspaceID, assetID, assetProjectID, assetFolderID, assetID, assetFolderID, assetProjectID)
+	row := r.sqlDB.QueryRowContext(
+		ctx,
+		q,
+		workspaceID,
+		assetID,
+		assetProjectID,
+		assetFolderID,
+		assetID,
+		assetFolderID,
+		assetProjectID,
+	)
 	var wf repository.CoveringWorkflow
 	var enabled int
 	if err := row.Scan(&wf.ID, &wf.Name, &wf.TriggerType, &wf.TriggerConfig, &enabled); err != nil {

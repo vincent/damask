@@ -170,7 +170,10 @@ func (m *MailerImpl) SendWelcome(ctx context.Context, to, username, workspaceID 
 	return m.deliver(ctx, to, "Welcome to Damask, "+username+"!", html)
 }
 
-func (m *MailerImpl) SendInviteAccepted(ctx context.Context, workspaceID, to, newMemberName, newMemberEmail, role string) error {
+func (m *MailerImpl) SendInviteAccepted(
+	ctx context.Context,
+	workspaceID, to, newMemberName, newMemberEmail, role string,
+) error {
 	base := m.newBaseData(workspaceID, "A NEW MEMBER", "")
 	base.Preheader = newMemberName + " accepted your invitation to the studio."
 	manageMembersURL := m.BaseURL + "/settings/members"
@@ -241,7 +244,10 @@ func (m *MailerImpl) SendIngressSourceDisabled(ctx context.Context, to, sourceNa
 	return m.deliver(ctx, to, "Ingress source disabled: "+sourceName, html)
 }
 
-func (m *MailerImpl) SendCommentPosted(ctx context.Context, workspaceID, assetID, to, authorName, shareLabel, commentBody string) error {
+func (m *MailerImpl) SendCommentPosted(
+	ctx context.Context,
+	workspaceID, assetID, to, authorName, shareLabel, commentBody string,
+) error {
 	base := m.newBaseData(workspaceID, "NEW COMMENT", "")
 	base.Preheader = authorName + " commented on \"" + shareLabel + "\"."
 	shareURL := m.BaseURL + "/library?ws=" + workspaceID + "&asset=" + assetID

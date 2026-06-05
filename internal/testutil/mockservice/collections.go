@@ -25,7 +25,7 @@ func (m *MockCollectionService) List(ctx context.Context, workspaceID string) ([
 	if m.ListFn != nil {
 		return m.ListFn(ctx, workspaceID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockCollectionService) Get(ctx context.Context, workspaceID, id string) (*service.CollectionDTO, error) {
@@ -85,7 +85,7 @@ func (m *MockCollectionService) ListForAsset(
 	if m.ListForAssetFn != nil {
 		return m.ListForAssetFn(ctx, workspaceID, assetID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
 
 func (m *MockCollectionService) ListAssets(
@@ -95,5 +95,5 @@ func (m *MockCollectionService) ListAssets(
 	if m.ListAssetsFn != nil {
 		return m.ListAssetsFn(ctx, workspaceID, collectionID)
 	}
-	return nil, nil //nolint:nilnil // mock
+	return nil, nil
 }
