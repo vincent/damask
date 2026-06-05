@@ -198,20 +198,21 @@ func main() {
 
 	// --- workflow executor ---
 	workflowExec := workflow.NewExecutor(workflow.Deps{
-		Workflows:   workflowRepo,
-		Runs:        workflowRunRepo,
-		Queue:       q,
-		Storage:     stor,
-		Mailer:      mailer,
-		Hub:         eventsHub,
-		Audit:       auditWriter,
-		Assets:      newAssetManager(assetSvc),
-		Variants:    newVariantManager(variantSvc),
-		Shares:      newShareManager(shareSvc),
-		Tags:        newTagManager(tagSvc),
-		AssetFields: newAssetFieldManager(assetFieldSvc),
-		Workspace:   newWorkspaceManager(workspaceSvc),
-		Config:      cfg,
+		Workflows:     workflowRepo,
+		Runs:          workflowRunRepo,
+		Queue:         q,
+		Storage:       stor,
+		Mailer:        mailer,
+		Hub:           eventsHub,
+		Audit:         auditWriter,
+		Assets:        newAssetManager(assetSvc),
+		Variants:      newVariantManager(variantSvc),
+		Versions: newVersionManager(versionRepo, variantRepo),
+		Shares:        newShareManager(shareSvc),
+		Tags:          newTagManager(tagSvc),
+		AssetFields:   newAssetFieldManager(assetFieldSvc),
+		Workspace:     newWorkspaceManager(workspaceSvc),
+		Config:        cfg,
 	})
 
 	// --- job server ---

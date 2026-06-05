@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
@@ -193,6 +194,20 @@ func (s *JobServer) finalizeVariant(
 	if err == nil {
 		s.publishVariantReady(ctx, p.WorkspaceID, p.AssetID, variantID)
 		s.enqueueVariantThumb(ctx, p, variantID, storageKey, contentType)
+		if p.Continuation != nil {
+			if resumeErr := s.workflowExec.ResumeAt(ctx, *p.Continuation, map[string]any{
+				"variant_id":           variantID,
+				"variant_content_type": contentType,
+				"variant_storage_key":  storageKey,
+			}); resumeErr != nil {
+				slog.Error("workflow continuation failed after variant ready",
+					"run_id", p.Continuation.RunID,
+					"node_id", p.Continuation.NodeID,
+					"error", resumeErr,
+				)
+				return resumeErr
+			}
+		}
 	}
 	return err
 }

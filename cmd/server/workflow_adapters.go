@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"damask/server/internal/repository"
 	"damask/server/internal/service"
 	"damask/server/internal/workflow"
 )
@@ -151,3 +152,33 @@ func (a workspaceAdapter) GetImageRouterKeyStatus(ctx context.Context, workspace
 	}
 	return status.KeySet, nil
 }
+
+type versionManagerAdapter struct {
+	versions repository.VersionRepository
+	variants repository.VariantRepository
+}
+
+func newVersionManager(versions repository.VersionRepository, variants repository.VariantRepository) workflow.VersionManager {
+	return versionManagerAdapter{versions: versions, variants: variants}
+}
+
+func (a versionManagerAdapter) GetByID(ctx context.Context, id string) (repository.AssetVersion, error) {
+	return a.versions.GetByID(ctx, id)
+}
+
+func (a versionManagerAdapter) GetVariantByID(ctx context.Context, workspaceID, id string) (repository.Variant, error) {
+	return a.variants.GetByID(ctx, workspaceID, id)
+}
+
+func (a versionManagerAdapter) NextVersionNum(ctx context.Context, assetID string) (int64, error) {
+	return a.versions.NextVersionNum(ctx, assetID)
+}
+
+func (a versionManagerAdapter) Create(ctx context.Context, v repository.AssetVersion) (repository.AssetVersion, error) {
+	return a.versions.Create(ctx, v)
+}
+
+func (a versionManagerAdapter) SetCurrent(ctx context.Context, assetID, versionID string) error {
+	return a.versions.SetCurrent(ctx, assetID, versionID)
+}
+

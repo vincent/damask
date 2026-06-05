@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 )
 
 const (
+	workflowRunStatusCompleted  = "completed"
 	workflowRunStatusFailed     = "failed"
 	workflowRunFailedEvent      = "workflow_run_failed"
 	workflowRunStepUpdatedEvent = "workflow_run_step_updated"
@@ -84,7 +86,7 @@ func (e *Executor) Run(ctx context.Context, runID string) error {
 	}
 	runErr := e.executeNode(ctx, &graph, trigger, rc, runID, wf.WorkspaceID, wf.ID)
 
-	status := "completed"
+	status := workflowRunStatusCompleted
 	if runErr != nil {
 		status = workflowRunStatusFailed
 		span.RecordError(runErr)
@@ -177,9 +179,33 @@ func (e *Executor) executeNode(
 	}
 
 	rc.Merge(updates)
+
+	// For create_variant nodes: inject the continuation hint after merging
+	// updates so ContextJSON captures the final post-execution state.
+	if node.Type == nodeTypeCreateVariant {
+		successors := g.Successors(node.ID, portOut)
+		for _, s := range successors {
+			if s.Type == nodeTypeSetNewVersion {
+				cont := WorkflowContinuation{
+					RunID:       runID,
+					NodeID:      s.ID,
+					WorkflowID:  workflowID,
+					WorkspaceID: workspaceID,
+					ContextJSON: mustJSON(rc),
+				}
+				rc.Set(rcKeyContinuation, cont)
+				break
+			}
+		}
+	}
+
 	span.SetAttributes(attribute.String("workflow.output_port", outPort))
 	_ = e.deps.Runs.SetStepCompleted(ctx, stepID, mustJSON(rc))
-	e.publishStepEvent(ctx, workspaceID, rc, runID, workflowID, node.ID, "completed", "")
+	e.publishStepEvent(ctx, workspaceID, rc, runID, workflowID, node.ID, workflowRunStatusCompleted, "")
+
+	// Remove the continuation hint before traversing successors so it doesn't
+	// pollute downstream nodes or the persisted run context.
+	rc.Delete(rcKeyContinuation)
 
 	successors := g.Successors(node.ID, outPort)
 	switch len(successors) {
@@ -209,6 +235,82 @@ func (e *Executor) executeNode(
 		wg.Wait()
 		return firstErr
 	}
+}
+
+// ResumeAt restores a paused workflow run at a specific node, merging additional
+// context updates (e.g. variant result data) before executing forward.
+func (e *Executor) ResumeAt(ctx context.Context, cont WorkflowContinuation, updates map[string]any) error {
+	var err error
+	ctx, span := tracer.Start(ctx, "workflow.resume_at", trace.WithAttributes(
+		attribute.String("workflow.run_id", cont.RunID),
+		attribute.String("workflow.node_id", cont.NodeID),
+	))
+	defer telemetry.EndSpan(span, err)
+
+	wf, err := e.deps.Workflows.GetByID(ctx, cont.WorkspaceID, cont.WorkflowID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	var graph Graph
+	if err = json.Unmarshal([]byte(wf.Graph), &graph); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid graph JSON")
+		return err
+	}
+
+	rc := NewRunContext(jsonToMap(cont.ContextJSON))
+	rc.Merge(updates)
+
+	var targetNode GraphNode
+	found := false
+	for _, n := range graph.Nodes {
+		if n.ID == cont.NodeID {
+			targetNode = n
+			found = true
+			break
+		}
+	}
+	if !found {
+		err = fmt.Errorf("node %q not found in workflow graph", cont.NodeID)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+
+	runErr := e.executeNode(ctx, &graph, targetNode, rc, cont.RunID, cont.WorkspaceID, cont.WorkflowID)
+
+	// Guard against double-write: if the run was already finalised by a
+	// portContinued branch in Execute, skip SetFinal here.
+	existing, lookupErr := e.deps.Runs.GetByID(ctx, cont.RunID)
+	if lookupErr == nil && (existing.Status == workflowRunStatusCompleted || existing.Status == workflowRunStatusFailed) {
+		return runErr
+	}
+
+	status := workflowRunStatusCompleted
+	if runErr != nil {
+		status = workflowRunStatusFailed
+		span.RecordError(runErr)
+		span.SetStatus(codes.Error, runErr.Error())
+	}
+
+	finalErr := e.deps.Runs.SetFinal(ctx, repository.SetWorkflowRunFinalParams{
+		ID:          cont.RunID,
+		Status:      status,
+		Context:     mustJSON(rc),
+		Error:       errStringPtr(runErr),
+		CompletedAt: nowPtr(),
+	})
+	if finalErr != nil && runErr == nil {
+		runErr = finalErr
+	}
+	_ = e.deps.Workflows.TouchLastRunAt(ctx, cont.WorkflowID)
+	if status == workflowRunStatusFailed && runErr != nil {
+		e.reportRunFailure(ctx, wf, cont.RunID, rc, runErr)
+	}
+	return runErr
 }
 
 func (e *Executor) reportRunFailure(

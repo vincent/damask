@@ -30,6 +30,12 @@ func (rc *RunContext) Set(key string, val any) {
 	rc.data[key] = val
 }
 
+func (rc *RunContext) Delete(key string) {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	delete(rc.data, key)
+}
+
 func (rc *RunContext) Merge(updates map[string]any) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()

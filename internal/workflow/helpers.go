@@ -36,6 +36,7 @@ type Deps struct {
 	Audit       audit.Writer
 	Assets      AssetManager
 	Variants    VariantManager
+	Versions    VersionManager
 	Shares      ShareManager
 	Tags        TagManager
 	AssetFields AssetFieldManager
@@ -83,21 +84,40 @@ type VariantPrepareResult struct {
 }
 
 type VariantJobPayload struct {
-	AssetID     string          `json:"asset_id"`
-	WorkspaceID string          `json:"workspace_id"`
-	VersionID   string          `json:"version_id"`
-	VersionNum  int64           `json:"version_num"`
-	VariantID   string          `json:"variant_id,omitempty"`
-	StorageKey  string          `json:"storage_key"`
-	MimeType    string          `json:"mime_type"`
-	Type        string          `json:"type"`
-	Params      json.RawMessage `json:"params"`
-	Title       *string         `json:"title,omitempty"`
-	IsShared    bool            `json:"is_shared,omitempty"`
+	AssetID      string                `json:"asset_id"`
+	WorkspaceID  string                `json:"workspace_id"`
+	VersionID    string                `json:"version_id"`
+	VersionNum   int64                 `json:"version_num"`
+	VariantID    string                `json:"variant_id,omitempty"`
+	StorageKey   string                `json:"storage_key"`
+	MimeType     string                `json:"mime_type"`
+	Type         string                `json:"type"`
+	Params       json.RawMessage       `json:"params"`
+	Title        *string               `json:"title,omitempty"`
+	IsShared     bool                  `json:"is_shared,omitempty"`
+	Continuation *WorkflowContinuation `json:"continuation,omitempty"`
 }
 
 type VariantManager interface {
 	PrepareCreate(ctx context.Context, p VariantPrepareRequest) (VariantPrepareResult, error)
+}
+
+type VersionManager interface {
+	GetByID(ctx context.Context, id string) (repository.AssetVersion, error)
+	GetVariantByID(ctx context.Context, workspaceID, id string) (repository.Variant, error)
+	NextVersionNum(ctx context.Context, assetID string) (int64, error)
+	Create(ctx context.Context, v repository.AssetVersion) (repository.AssetVersion, error)
+	SetCurrent(ctx context.Context, assetID, versionID string) error
+}
+
+// WorkflowContinuation carries the data needed to resume a workflow run
+// after an async job completes.
+type WorkflowContinuation struct {
+	RunID       string `json:"run_id"`
+	NodeID      string `json:"node_id"`
+	WorkflowID  string `json:"workflow_id"`
+	WorkspaceID string `json:"workspace_id"`
+	ContextJSON string `json:"context_json"`
 }
 
 type ShareCreateParams struct {

@@ -10,17 +10,22 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/repository"
 
 	"github.com/google/uuid"
 )
 
 const (
-	nodeCategoryTrigger = "trigger"
-	portError           = "error"
-	portOut             = "out"
-	portMatch           = "match"
-	labelError          = "Error"
-	labelOut            = "Out"
+	nodeCategoryTrigger   = "trigger"
+	portError             = "error"
+	portOut               = "out"
+	portMatch             = "match"
+	labelError            = "Error"
+	labelOut              = "Out"
+	nodeTypeCreateVariant = "action.create_variant"
+	nodeTypeSetNewVersion = "action.set_new_version"
+	rcKeyContinuation     = "__workflow_continuation"
+	portContinued         = "continued"
 )
 
 func mustConfigSchema(raw string) json.RawMessage {
@@ -63,6 +68,35 @@ func actionSchema(nodeType, label, desc string, configSchema json.RawMessage) No
 		Inputs:       []Port{{ID: "in", Label: "In"}},
 		Outputs:      []Port{{ID: portOut, Label: labelOut}, {ID: portError, Label: labelError}},
 		ConfigSchema: configSchema,
+	}
+}
+
+func setNewVersionSchemaFn() NodeSchema {
+	return actionSchema(
+		nodeTypeSetNewVersion,
+		"Set New Version",
+		"Promotes the current variant as a new asset version.",
+		mustConfigSchema(
+			`{"type":"object","properties":{"comment":{"type":"string","title":"Version Comment"}},"additionalProperties":false}`,
+		),
+	)
+}
+
+func createVariantSchemaFn() NodeSchema {
+	return NodeSchema{
+		Type:        nodeTypeCreateVariant,
+		Label:       "Create Variant",
+		Category:    "action",
+		Description: "Queues a new variant job.",
+		Inputs:      []Port{{ID: "in", Label: "In"}},
+		Outputs: []Port{
+			{ID: portOut, Label: labelOut},
+			{ID: portContinued, Label: "Continued"},
+			{ID: portError, Label: labelError},
+		},
+		ConfigSchema: mustConfigSchema(
+			`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`,
+		),
 	}
 }
 
@@ -256,26 +290,9 @@ func init() {
 	)
 
 	Register(
-		actionSchema(
-			"action.create_variant",
-			"Create Variant",
-			"Queues a new variant job.",
-			mustConfigSchema(
-				`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`,
-			),
-		),
+		createVariantSchemaFn(),
 		func(deps Deps) Node {
-			return createVariantNode{
-				deps: deps,
-				schema: actionSchema(
-					"action.create_variant",
-					"Create Variant",
-					"Queues a new variant job.",
-					mustConfigSchema(
-						`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`,
-					),
-				),
-			}
+			return createVariantNode{deps: deps, schema: createVariantSchemaFn()}
 		},
 	)
 	Register(
@@ -388,6 +405,104 @@ func init() {
 			}
 		},
 	)
+	Register(
+		setNewVersionSchemaFn(),
+		func(deps Deps) Node {
+			return setNewVersionNode{deps: deps, schema: setNewVersionSchemaFn()}
+		},
+	)
+}
+
+type setNewVersionNode struct {
+	deps   Deps
+	schema NodeSchema
+}
+
+func (n setNewVersionNode) Schema() NodeSchema { return n.schema }
+
+func (n setNewVersionNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
+	assetID, err := rcRequireString(rc, "asset_id")
+	if err != nil {
+		return "", nil, err
+	}
+	workspaceID, err := rcRequireString(rc, "workspace_id")
+	if err != nil {
+		return "", nil, err
+	}
+	variantID, err := rcRequireString(rc, "variant_id")
+	if err != nil {
+		return "", nil, err
+	}
+	if n.deps.Versions == nil {
+		return "", nil, errors.New("workflow set_new_version dependencies not configured")
+	}
+
+	variant, err := n.deps.Versions.GetVariantByID(ctx, workspaceID, variantID)
+	if err != nil {
+		return "", nil, fmt.Errorf("get variant: %w", err)
+	}
+	if variant.Status != "ready" {
+		return "", nil, fmt.Errorf("variant %s is not ready (status: %s): %w", variantID, variant.Status, apperr.ErrVariantNotReady)
+	}
+
+	var nodeCfg struct {
+		Comment *string `json:"comment,omitempty"`
+	}
+	_ = json.Unmarshal(cfg, &nodeCfg)
+
+	nextNum, err := n.deps.Versions.NextVersionNum(ctx, assetID)
+	if err != nil {
+		return "", nil, fmt.Errorf("next version num: %w", err)
+	}
+
+	// Fetch the source version to copy its content hash rather than hashing the storage key.
+	var contentHash string
+	if srcVersionID, ok := rcGetString(rc, "version_id"); ok && srcVersionID != "" {
+		if srcVer, verErr := n.deps.Versions.GetByID(ctx, srcVersionID); verErr == nil {
+			contentHash = srcVer.ContentHash
+		}
+	}
+
+	createdBy := actorUserID(ctx, rc)
+	size := int64(0)
+	if variant.Size != nil {
+		size = *variant.Size
+	}
+	// Use the content type injected by the job worker; fall back to the asset's
+	// original mime type when running outside the continuation path.
+	mimeType, _ := rcGetString(rc, "variant_content_type")
+	if mimeType == "" {
+		mimeType, _ = rcGetString(rc, "mime_type")
+	}
+	newVersionID := uuid.NewString()
+	created, err := n.deps.Versions.Create(ctx, repository.AssetVersion{
+		ID:          newVersionID,
+		AssetID:     assetID,
+		WorkspaceID: workspaceID,
+		VersionNum:  nextNum,
+		StorageKey:  variant.StorageKey,
+		ContentHash: contentHash,
+		MimeType:    mimeType,
+		Size:        size,
+		Comment:     nodeCfg.Comment,
+		CreatedBy:   &createdBy,
+	})
+	if err != nil {
+		return "", nil, fmt.Errorf("create version: %w", err)
+	}
+
+	if err := n.deps.Versions.SetCurrent(ctx, assetID, created.ID); err != nil {
+		return "", nil, fmt.Errorf("set current version: %w", err)
+	}
+
+	return portOut, map[string]any{
+		"version_id":  created.ID,
+		"version_num": created.VersionNum,
+	}, nil
 }
 
 type passThroughNode struct{ schema NodeSchema }
@@ -580,6 +695,43 @@ func (n createVariantNode) Execute(
 		Title:       prepared.Title,
 		IsShared:    prepared.IsShared,
 	})
+	// If the executor pre-populated a continuation (meaning a set_new_version
+	// node is wired as our successor), embed it in the job payload so the job
+	// worker can resume the workflow run once the variant is ready.
+	if contVal, ok := rc.Get(rcKeyContinuation); ok {
+		if cont, ok := contVal.(WorkflowContinuation); ok {
+			// Snapshot the current context (before variant outputs) for the resume.
+			cont.ContextJSON = mustJSON(rc)
+			// Embed variant_id so the resumed node can look up the variant row.
+			seed := jsonToMap(cont.ContextJSON)
+			seed["variant_id"] = variantID
+			cont.ContextJSON = mustJSON(NewRunContext(seed))
+			vjp := VariantJobPayload{
+				AssetID:      asset.ID,
+				WorkspaceID:  asset.WorkspaceID,
+				VersionID:    versionID,
+				VersionNum:   versionNum,
+				VariantID:    variantID,
+				StorageKey:   storageKey,
+				MimeType:     asset.MimeType,
+				Type:         prepared.Type,
+				Params:       prepared.Params,
+				Title:        prepared.Title,
+				IsShared:     prepared.IsShared,
+				Continuation: &cont,
+			}
+			payload, _ = json.Marshal(vjp)
+			if _, err := n.deps.Queue.Enqueue(ctx, workspaceID, prepared.Type, string(payload)); err != nil {
+				return "", nil, err
+			}
+			// Return portContinued (no edges) — the job worker will resume the run.
+			return portContinued, map[string]any{
+				"variant_id":   variantID,
+				"variant_type": prepared.Type,
+			}, nil
+		}
+	}
+
 	job, err := n.deps.Queue.Enqueue(ctx, workspaceID, prepared.Type, string(payload))
 	if err != nil {
 		return "", nil, err
