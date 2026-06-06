@@ -475,6 +475,8 @@ linters:
           - intrange
           - nestif
           - govet
+          - nolintlint
+          - nilnil
       - source: "TODO"
         linters: [godot]
       - text: "should have a package comment"

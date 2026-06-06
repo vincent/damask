@@ -145,7 +145,7 @@ func (s *variantService) List(ctx context.Context, p ListVariantsParams) (*ListV
 			p.AssetProjectID,
 			p.AssetFolderID,
 		)
-		if wfErr != nil {
+		if wfErr != nil && !errors.Is(wfErr, apperr.ErrNotFound) {
 			return nil, wfErr
 		}
 		result.CoveringWorkflow = wf
@@ -302,11 +302,11 @@ func (s *variantService) resolveSystemTagAsset(
 		FolderID:  asset.FolderID,
 		ProjectID: asset.ProjectID,
 	})
+	if errors.Is(err, apperr.ErrNotFound) || resolved == nil {
+		return nil, invalidVariantInputError("no_watermark_asset")
+	}
 	if err != nil {
 		return nil, err
-	}
-	if resolved == nil {
-		return nil, invalidVariantInputError("no_watermark_asset")
 	}
 	return resolved, nil
 }

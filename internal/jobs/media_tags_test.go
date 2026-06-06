@@ -195,7 +195,7 @@ VALUES ('afv-media-title', 'asset-media-tags-2', 'fd-media-title', 'Existing', d
 	t.Cleanup(func() { mediaTagExtract = orig })
 	mediaTagExtract = func(context.Context, string, string) (*contentmeta.AVTags, error) {
 		t.Fatal("extractor should not be called for fresh values")
-		return nil, nil
+		return nil, nil //nolint:nilnil // tests
 	}
 
 	payload, _ := json.Marshal(ExtractMediaTagsPayload{AssetID: "asset-media-tags-2", WorkspaceID: "ws_test"})

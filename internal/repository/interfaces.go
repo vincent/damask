@@ -348,7 +348,6 @@ type WorkflowRepository interface {
 type WorkflowRunRepository interface {
 	GetByID(ctx context.Context, id string) (WorkflowRun, error)
 	List(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRun, error)
-	ListByWorkspace(ctx context.Context, workspaceID string, limit int, cursor string) ([]WorkflowRun, error)
 	Create(ctx context.Context, p CreateWorkflowRunParams) (WorkflowRun, error)
 	SetStatus(ctx context.Context, id, status string) error
 	SetFinal(ctx context.Context, p SetWorkflowRunFinalParams) error

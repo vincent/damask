@@ -44,7 +44,7 @@ func TestListWorkflowsEmptyWorkspaceReturnsPersistedRowsOnly(t *testing.T) {
 	}
 	env.Workflows.CreateFn = func(_ context.Context, _, _ string, _ service.CreateWorkflowParams) (*service.WorkflowDTO, error) {
 		createCalls++
-		return nil, nil
+		return nil, nil //nolint:nilnil // test
 	}
 
 	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows", nil, env.MintToken(t, "usr_1", "ws_1"))
@@ -268,7 +268,7 @@ func TestGetWorkflowTemplatesDoesNotMaterializeWorkflowRows(t *testing.T) {
 	}
 	env.Workflows.CreateFn = func(_ context.Context, _, _ string, _ service.CreateWorkflowParams) (*service.WorkflowDTO, error) {
 		createCalls++
-		return nil, nil
+		return nil, nil //nolint:nilnil // test
 	}
 
 	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows/templates", nil, env.MintToken(t, "usr_1", "ws_1"))

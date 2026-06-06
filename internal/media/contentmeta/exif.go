@@ -58,7 +58,7 @@ func ExtractImageEXIF(ctx context.Context, r io.Reader, keepGPS bool) (result *I
 	x, decErr := exif.Decode(r)
 	if decErr != nil {
 		if exif.IsCriticalError(decErr) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // critical errors treated as no EXIF
 		}
 		return nil, decErr
 	}

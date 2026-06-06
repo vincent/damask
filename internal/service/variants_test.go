@@ -26,15 +26,15 @@ func (s systemTagServiceStub) List(context.Context, string, bool) ([]*service.Ta
 }
 
 func (s systemTagServiceStub) GetByName(context.Context, string, string) (*service.TagDTO, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil // tests
 }
 
 func (s systemTagServiceStub) Create(context.Context, string, service.CreateTagParams) (*service.TagDTO, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil // tests
 }
 
 func (s systemTagServiceStub) Patch(context.Context, string, string, service.PatchTagParams) (*service.TagDTO, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil // tests
 }
 
 func (s systemTagServiceStub) EnsureSystemTag(context.Context, string, string) error { return nil }
@@ -54,7 +54,7 @@ func (s systemTagServiceStub) ResolveSystemTag(
 	if s.resolveFn != nil {
 		return s.resolveFn(ctx, workspaceID, tagName, scope)
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // tests
 }
 
 func (s systemTagServiceStub) TouchLastUsed(context.Context, string, string) error { return nil }
@@ -62,7 +62,7 @@ func (s systemTagServiceStub) ListForAsset(context.Context, string) ([]*service.
 	return nil, nil
 }
 func (s systemTagServiceStub) AddToAsset(context.Context, string, string, string) (*service.TagDTO, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil // tests
 }
 func (s systemTagServiceStub) RemoveFromAsset(context.Context, string, string, string) error {
 	return nil
@@ -586,7 +586,7 @@ func TestVariantService_PrepareCreate_VideoWatermarkInjectsAssetID(t *testing.T)
 func TestVariantService_PrepareCreate_WatermarkMissingReturnsInvalidInput(t *testing.T) {
 	svc, assetRepo := newVariantSvcWithTags(t, systemTagServiceStub{
 		resolveFn: func(_ context.Context, _, _ string, _ service.SystemTagScope) (*service.AssetDTO, error) {
-			return nil, nil
+			return nil, apperr.ErrNotFound
 		},
 	})
 	assetRepo.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_1"})

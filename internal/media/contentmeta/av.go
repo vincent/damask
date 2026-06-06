@@ -192,7 +192,7 @@ func ExtractAVTags(ctx context.Context, ffprobePath, filePath string) (*AVTags, 
 	}
 
 	if r.isEmpty() {
-		return nil, nil
+		return nil, nil //nolint:nilnil // empty result is not an error
 	}
 	return r, nil
 }

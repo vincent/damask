@@ -602,8 +602,8 @@ func TestWorkflowServiceFindCoveringWorkflowAssetScope(t *testing.T) {
 	}
 	// must not match a different asset
 	none, err := svc.FindCoveringWorkflow(context.Background(), "ws_1", "ast_2", "prj_1", "fld_1")
-	if err != nil {
-		t.Fatalf("FindCoveringWorkflow() unexpected error: %v", err)
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("FindCoveringWorkflow() expected ErrNotFound, got %v", err)
 	}
 	if none != nil {
 		t.Fatalf("expected no workflow for different asset, got %#v", none)

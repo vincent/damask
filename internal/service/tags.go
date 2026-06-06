@@ -367,7 +367,7 @@ func (s *tagService) ResolveSystemTag(
 	asset, err := s.tags.FindAssetBySystemTagInWorkspace(ctx, workspaceID, tagName)
 	if err != nil {
 		if isNotFound(err) {
-			return nil, nil
+			return nil, apperr.ErrNotFound
 		}
 		return nil, err
 	}

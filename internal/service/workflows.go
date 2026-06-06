@@ -291,7 +291,7 @@ func (s *workflowService) ListAllRuns(
 	limit int,
 	cursor string,
 ) ([]WorkflowRunDTO, error) {
-	rows, err := s.runs.ListByWorkspace(ctx, workspaceID, limit, cursor)
+	rows, err := s.runs.List(ctx, workspaceID, limit, cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +498,7 @@ func findCoveringWorkflowDTO(
 ) (*CoveringWorkflowDTO, error) {
 	wf, err := workflows.FindCoveringWorkflow(ctx, workspaceID, assetID, assetProjectID, assetFolderID)
 	if errors.Is(err, apperr.ErrNotFound) {
-		return nil, nil
+		return nil, apperr.ErrNotFound
 	}
 	if err != nil {
 		return nil, err

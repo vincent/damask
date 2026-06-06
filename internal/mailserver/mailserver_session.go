@@ -21,6 +21,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var errSourceSkipped = errors.New("ingress source skipped")
+
 // A Session is returned after successful login.
 type Session struct {
 	hooks   []Hook
@@ -74,7 +76,7 @@ func (s *Session) Data(r io.Reader) error {
 
 	src, err := s.resolveIngressSource(ctx, token)
 	if err != nil || src == nil {
-		return nil
+		return nil //nolint:nilerr // skip processing if source is not found or skipped
 	}
 
 	overrideFolderID := s.resolveFolderOverride(ctx, *src, tag)
@@ -95,11 +97,11 @@ func (s *Session) resolveIngressSource(ctx context.Context, token string) (*dbge
 			slog.ErrorContext(ctx, "mailserver: lookup source token",
 				"token_prefix", safePrefix(token), "error", err)
 		}
-		return nil, nil
+		return nil, errSourceSkipped
 	}
 	if src.Enabled == 0 {
 		slog.DebugContext(ctx, "mailserver: ignore disabled source", "token", token)
-		return nil, nil
+		return nil, errSourceSkipped
 	}
 	return &src, nil
 }
