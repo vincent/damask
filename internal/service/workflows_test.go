@@ -32,7 +32,7 @@ func (q *workflowQueueStub) Enqueue(_ context.Context, _, jobType, _ string) (db
 
 func newWorkflowSvc(
 	t *testing.T,
-) (service.WorkflowService, *memory.WorkflowMemoryRepo, *memory.WorkflowRunMemoryRepo, *workflowQueueStub) {
+) (service.WorkflowService, *memory.WorkflowRepo, *memory.WorkflowRunRepo, *workflowQueueStub) {
 	t.Helper()
 	workflows := memory.NewWorkflowRepo()
 	runs := memory.NewWorkflowRunRepo()
@@ -241,8 +241,8 @@ func TestWorkflowServiceListFilterManualEnabled(t *testing.T) {
 
 func newWorkflowSvcWithAssets(t *testing.T) (
 	service.WorkflowService,
-	*memory.WorkflowMemoryRepo,
-	*memory.WorkflowRunMemoryRepo,
+	*memory.WorkflowRepo,
+	*memory.WorkflowRunRepo,
 	*memory.AssetRepo,
 	*memory.RealVersionRepo,
 	*workflowQueueStub,

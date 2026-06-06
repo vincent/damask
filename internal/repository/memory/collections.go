@@ -2,43 +2,32 @@ package memory
 
 import (
 	"context"
-	"fmt"
 	"slices"
-	"sync"
 
-	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
 )
 
-// RealCollectionRepo is a map-backed CollectionRepository for unit tests.
-type RealCollectionRepo struct {
-	mu          sync.RWMutex
-	collections map[string]repository.Collection
-	assets      map[string][]string // collectionID -> []assetID
+// CollectionRepo is a map-backed CollectionRepository for unit tests.
+type CollectionRepo struct {
+	mapStore[repository.Collection]
+
+	assets map[string][]string // collectionID -> []assetID
 }
 
-func NewRealCollectionRepo() *RealCollectionRepo {
-	return &RealCollectionRepo{
-		collections: make(map[string]repository.Collection),
-		assets:      make(map[string][]string),
+func NewRealCollectionRepo() *CollectionRepo {
+	return &CollectionRepo{
+		mapStore: newMapStore[repository.Collection](),
+		assets:   make(map[string][]string),
 	}
 }
 
-func (r *RealCollectionRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Collection, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	c, ok := r.collections[id]
-	if !ok || c.WorkspaceID != workspaceID {
-		return repository.Collection{}, fmt.Errorf("collection %q: %w", id, apperr.ErrNotFound)
-	}
-	return c, nil
+func (r *CollectionRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Collection, error) {
+	return r.mapStore.get("collection", id, workspaceID, func(c repository.Collection) string { return c.WorkspaceID })
 }
 
-func (r *RealCollectionRepo) List(_ context.Context, workspaceID string) ([]repository.Collection, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *CollectionRepo) List(_ context.Context, workspaceID string) ([]repository.Collection, error) {
 	var out []repository.Collection
-	for _, c := range r.collections {
+	for _, c := range r.mapStore.all() {
 		if c.WorkspaceID == workspaceID {
 			out = append(out, c)
 		}
@@ -46,39 +35,35 @@ func (r *RealCollectionRepo) List(_ context.Context, workspaceID string) ([]repo
 	return out, nil
 }
 
-func (r *RealCollectionRepo) Create(_ context.Context, c repository.Collection) (repository.Collection, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.collections[c.ID] = c
+func (r *CollectionRepo) Create(_ context.Context, c repository.Collection) (repository.Collection, error) {
+	r.mapStore.put(c.ID, c)
 	return c, nil
 }
 
-func (r *RealCollectionRepo) Update(_ context.Context, c repository.Collection) (repository.Collection, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	existing, ok := r.collections[c.ID]
-	if !ok || existing.WorkspaceID != c.WorkspaceID {
-		return repository.Collection{}, fmt.Errorf("collection %q: %w", c.ID, apperr.ErrNotFound)
-	}
-	r.collections[c.ID] = c
-	return c, nil
+func (r *CollectionRepo) Update(_ context.Context, c repository.Collection) (repository.Collection, error) {
+	err := r.mapStore.putChecked("collection", c.ID, c.WorkspaceID,
+		func(x repository.Collection) string { return x.WorkspaceID }, c)
+	return c, err
 }
 
-func (r *RealCollectionRepo) Delete(_ context.Context, workspaceID, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	c, ok := r.collections[id]
-	if !ok || c.WorkspaceID != workspaceID {
-		return fmt.Errorf("collection %q: %w", id, apperr.ErrNotFound)
+func (r *CollectionRepo) Delete(_ context.Context, workspaceID, id string) error {
+	if err := r.mapStore.del(
+		"collection",
+		id,
+		workspaceID,
+		func(c repository.Collection) string { return c.WorkspaceID },
+	); err != nil {
+		return err
 	}
-	delete(r.collections, id)
+	r.mapStore.mu.Lock()
 	delete(r.assets, id)
+	r.mapStore.mu.Unlock()
 	return nil
 }
 
-func (r *RealCollectionRepo) AddAsset(_ context.Context, collectionID, assetID string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *CollectionRepo) AddAsset(_ context.Context, collectionID, assetID string) error {
+	r.mapStore.mu.Lock()
+	defer r.mapStore.mu.Unlock()
 	if slices.Contains(r.assets[collectionID], assetID) {
 		return nil
 	}
@@ -86,9 +71,9 @@ func (r *RealCollectionRepo) AddAsset(_ context.Context, collectionID, assetID s
 	return nil
 }
 
-func (r *RealCollectionRepo) RemoveAsset(_ context.Context, collectionID, assetID string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *CollectionRepo) RemoveAsset(_ context.Context, collectionID, assetID string) error {
+	r.mapStore.mu.Lock()
+	defer r.mapStore.mu.Unlock()
 	ids := r.assets[collectionID]
 	filtered := ids[:0]
 	for _, id := range ids {
@@ -100,16 +85,16 @@ func (r *RealCollectionRepo) RemoveAsset(_ context.Context, collectionID, assetI
 	return nil
 }
 
-func (r *RealCollectionRepo) ListForAsset(
+func (r *CollectionRepo) ListForAsset(
 	_ context.Context,
 	workspaceID, assetID string,
 ) ([]repository.Collection, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mapStore.mu.RLock()
+	defer r.mapStore.mu.RUnlock()
 	var out []repository.Collection
 	for collID, assetIDs := range r.assets {
 		if slices.Contains(assetIDs, assetID) {
-			if c, ok := r.collections[collID]; ok && c.WorkspaceID == workspaceID {
+			if c, ok := r.mapStore.items[collID]; ok && c.WorkspaceID == workspaceID {
 				out = append(out, c)
 			}
 		}
@@ -117,15 +102,15 @@ func (r *RealCollectionRepo) ListForAsset(
 	return out, nil
 }
 
-func (r *RealCollectionRepo) CountAssets(_ context.Context, collectionID string) (int64, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *CollectionRepo) CountAssets(_ context.Context, collectionID string) (int64, error) {
+	r.mapStore.mu.RLock()
+	defer r.mapStore.mu.RUnlock()
 	return int64(len(r.assets[collectionID])), nil
 }
 
-func (r *RealCollectionRepo) ListAssetIDs(_ context.Context, collectionID string) ([]string, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *CollectionRepo) ListAssetIDs(_ context.Context, collectionID string) ([]string, error) {
+	r.mapStore.mu.RLock()
+	defer r.mapStore.mu.RUnlock()
 	ids := r.assets[collectionID]
 	out := make([]string, len(ids))
 	copy(out, ids)

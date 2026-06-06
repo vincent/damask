@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
@@ -12,31 +11,26 @@ import (
 
 const deletedAtMarker = "deleted"
 
-// RealFieldRepo is a map-backed FieldRepository for unit tests.
-type RealFieldRepo struct {
-	mu     sync.RWMutex
-	fields map[string]repository.FieldDefinition
+// FieldRepo is a map-backed FieldRepository for unit tests.
+type FieldRepo struct {
+	mapStore[repository.FieldDefinition]
 }
 
-func NewRealFieldRepo() *RealFieldRepo {
-	return &RealFieldRepo{fields: make(map[string]repository.FieldDefinition)}
+func NewRealFieldRepo() *FieldRepo {
+	return &FieldRepo{mapStore: newMapStore[repository.FieldDefinition]()}
 }
 
-func (r *RealFieldRepo) GetByID(_ context.Context, workspaceID, id string) (repository.FieldDefinition, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	f, ok := r.fields[id]
-	if !ok || f.WorkspaceID != workspaceID {
-		return repository.FieldDefinition{}, fmt.Errorf("field %q: %w", id, apperr.ErrNotFound)
-	}
-	return f, nil
+func (r *FieldRepo) Seed(fields ...repository.FieldDefinition) {
+	r.mapStore.seed(fields, func(f repository.FieldDefinition) string { return f.ID })
 }
 
-func (r *RealFieldRepo) List(_ context.Context, workspaceID, scope string) ([]repository.FieldDefinition, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *FieldRepo) GetByID(_ context.Context, workspaceID, id string) (repository.FieldDefinition, error) {
+	return r.mapStore.get("field", id, workspaceID, func(f repository.FieldDefinition) string { return f.WorkspaceID })
+}
+
+func (r *FieldRepo) List(_ context.Context, workspaceID, scope string) ([]repository.FieldDefinition, error) {
 	var out []repository.FieldDefinition
-	for _, f := range r.fields {
+	for _, f := range r.mapStore.all() {
 		if f.WorkspaceID == workspaceID && f.Scope == scope && f.DeletedAt == nil {
 			out = append(out, f)
 		}
@@ -44,49 +38,39 @@ func (r *RealFieldRepo) List(_ context.Context, workspaceID, scope string) ([]re
 	return out, nil
 }
 
-func (r *RealFieldRepo) Create(_ context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	// Check unique key within (workspace, scope)
-	for _, existing := range r.fields {
+func (r *FieldRepo) Create(_ context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
+	r.mapStore.mu.Lock()
+	defer r.mapStore.mu.Unlock()
+	for _, existing := range r.mapStore.items {
 		if existing.WorkspaceID == f.WorkspaceID && existing.Scope == f.Scope && existing.Key == f.Key &&
 			existing.DeletedAt == nil {
 			return repository.FieldDefinition{}, errors.New("UNIQUE constraint failed: field_definitions.key")
 		}
 	}
-	r.fields[f.ID] = f
+	r.mapStore.items[f.ID] = f
 	return f, nil
 }
 
-func (r *RealFieldRepo) Update(_ context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	existing, ok := r.fields[f.ID]
-	if !ok || existing.WorkspaceID != f.WorkspaceID {
-		return repository.FieldDefinition{}, fmt.Errorf("field %q: %w", f.ID, apperr.ErrNotFound)
-	}
-	r.fields[f.ID] = f
-	return f, nil
+func (r *FieldRepo) Update(_ context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
+	err := r.mapStore.putChecked("field", f.ID, f.WorkspaceID,
+		func(x repository.FieldDefinition) string { return x.WorkspaceID }, f)
+	return f, err
 }
 
-func (r *RealFieldRepo) SoftDelete(_ context.Context, workspaceID, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	f, ok := r.fields[id]
-	if !ok || f.WorkspaceID != workspaceID {
-		return fmt.Errorf("field %q: %w", id, apperr.ErrNotFound)
-	}
-	now := deletedAtMarker
-	f.DeletedAt = &now
-	r.fields[id] = f
-	return nil
+func (r *FieldRepo) SoftDelete(_ context.Context, workspaceID, id string) error {
+	return r.mapStore.mutate("field", id, workspaceID,
+		func(f repository.FieldDefinition) string { return f.WorkspaceID },
+		func(f repository.FieldDefinition) (repository.FieldDefinition, error) {
+			now := deletedAtMarker
+			f.DeletedAt = &now
+			return f, nil
+		},
+	)
 }
 
-func (r *RealFieldRepo) CountByWorkspaceAndScope(_ context.Context, workspaceID, scope string) (int64, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *FieldRepo) CountByWorkspaceAndScope(_ context.Context, workspaceID, scope string) (int64, error) {
 	var count int64
-	for _, f := range r.fields {
+	for _, f := range r.mapStore.all() {
 		if f.WorkspaceID == workspaceID && f.Scope == scope && f.DeletedAt == nil {
 			count++
 		}
@@ -94,38 +78,25 @@ func (r *RealFieldRepo) CountByWorkspaceAndScope(_ context.Context, workspaceID,
 	return count, nil
 }
 
-func (r *RealFieldRepo) PurgeExpired(_ context.Context) (int, error) {
-	return 0, nil
+func (r *FieldRepo) PurgeExpired(_ context.Context) (int, error) { return 0, nil }
+
+func (r *FieldRepo) CountAssetValues(_ context.Context, _ string) (int64, error)   { return 0, nil }
+func (r *FieldRepo) CountProjectValues(_ context.Context, _ string) (int64, error) { return 0, nil }
+
+func (r *FieldRepo) UpdatePosition(_ context.Context, workspaceID, id string, position int64) error {
+	return r.mapStore.mutate("field", id, workspaceID,
+		func(f repository.FieldDefinition) string { return f.WorkspaceID },
+		func(f repository.FieldDefinition) (repository.FieldDefinition, error) {
+			f.Position = position
+			return f, nil
+		},
+	)
 }
 
-func (r *RealFieldRepo) CountAssetValues(_ context.Context, _ string) (int64, error) {
-	return 0, nil
-}
+func (r *FieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error { return nil }
 
-func (r *RealFieldRepo) CountProjectValues(_ context.Context, _ string) (int64, error) {
-	return 0, nil
-}
-
-func (r *RealFieldRepo) UpdatePosition(_ context.Context, workspaceID, id string, position int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	f, ok := r.fields[id]
-	if !ok || f.WorkspaceID != workspaceID {
-		return nil
-	}
-	f.Position = position
-	r.fields[id] = f
-	return nil
-}
-
-func (r *RealFieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error {
-	return nil
-}
-
-func (r *RealFieldRepo) GetByKey(_ context.Context, workspaceID, key string) (repository.FieldDefinition, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	for _, f := range r.fields {
+func (r *FieldRepo) GetByKey(_ context.Context, workspaceID, key string) (repository.FieldDefinition, error) {
+	for _, f := range r.mapStore.all() {
 		if f.WorkspaceID == workspaceID && f.Key == key && f.DeletedAt == nil {
 			return f, nil
 		}
@@ -133,10 +104,10 @@ func (r *RealFieldRepo) GetByKey(_ context.Context, workspaceID, key string) (re
 	return repository.FieldDefinition{}, fmt.Errorf("field key %q: %w", key, apperr.ErrNotFound)
 }
 
-func (r *RealFieldRepo) ListImageAssetIDs(_ context.Context, _ string) ([]string, error) {
+func (r *FieldRepo) ListImageAssetIDs(_ context.Context, _ string) ([]string, error) {
 	return nil, nil
 }
 
-func (r *RealFieldRepo) ListMissingExifField(_ context.Context, _, _ string, _ int64) ([]string, error) {
+func (r *FieldRepo) ListMissingExifField(_ context.Context, _, _ string, _ int64) ([]string, error) {
 	return nil, nil
 }

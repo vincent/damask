@@ -11,7 +11,7 @@ import (
 	"damask/server/internal/service"
 )
 
-func newFolderSvc(t *testing.T) (service.FolderService, *memory.RealFolderRepo) {
+func newFolderSvc(t *testing.T) (service.FolderService, *memory.FolderRepo) {
 	t.Helper()
 	repo := memory.NewRealFolderRepo()
 	return service.NewFolderService(repo), repo
@@ -157,7 +157,7 @@ func TestFolderService_Update_OK(t *testing.T) {
 
 // folderNullifySpyRepo wraps RealFolderRepo and records whether NullifyAssets was called.
 type folderNullifySpyRepo struct {
-	*memory.RealFolderRepo
+	*memory.FolderRepo
 
 	nullifyCalled bool
 }
@@ -172,7 +172,7 @@ func (r *folderNullifySpyRepo) NullifyAssets(_ context.Context, _, _ string) err
 func TestFolderService_Delete_NullifiesAssets(t *testing.T) {
 	t.Parallel()
 	inner := memory.NewRealFolderRepo()
-	spy := &folderNullifySpyRepo{RealFolderRepo: inner}
+	spy := &folderNullifySpyRepo{FolderRepo: inner}
 	svc := service.NewFolderService(spy)
 	inner.Seed(repository.Folder{ID: "f1", WorkspaceID: "ws_1", ProjectID: "p1", Name: "ToDelete"})
 

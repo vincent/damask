@@ -2,47 +2,31 @@ package memory
 
 import (
 	"context"
-	"fmt"
-	"sync"
 
-	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
 )
 
 // AssetRepo is an in-memory implementation of repository.AssetRepository.
 // It is safe for concurrent use and intended for use in unit tests only.
 type AssetRepo struct {
-	mu     sync.RWMutex
-	assets map[string]repository.Asset // keyed by id
+	mapStore[repository.Asset]
 }
 
 // NewAssetRepo returns an empty AssetRepo.
 func NewAssetRepo() *AssetRepo {
-	return &AssetRepo{assets: make(map[string]repository.Asset)}
+	return &AssetRepo{mapStore: newMapStore[repository.Asset]()}
 }
 
 // Seed pre-populates the repo with the given assets. Call before the test runs.
 func (r *AssetRepo) Seed(assets ...repository.Asset) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, a := range assets {
-		r.assets[a.ID] = a
-	}
+	r.mapStore.seed(assets, func(a repository.Asset) string { return a.ID })
 }
 
 func (r *AssetRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Asset, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	a, ok := r.assets[id]
-	if !ok || a.WorkspaceID != workspaceID {
-		return repository.Asset{}, fmt.Errorf("asset %q: %w", id, apperr.ErrNotFound)
-	}
-	return a, nil
+	return r.mapStore.get("asset", id, workspaceID, func(a repository.Asset) string { return a.WorkspaceID })
 }
 
 func (r *AssetRepo) List(_ context.Context, params repository.ListAssetsParams) ([]repository.Asset, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	var similarAllow map[string]struct{}
 	if params.SimilarToIDs != nil {
 		similarAllow = make(map[string]struct{}, len(params.SimilarToIDs))
@@ -51,7 +35,7 @@ func (r *AssetRepo) List(_ context.Context, params repository.ListAssetsParams) 
 		}
 	}
 	var out []repository.Asset
-	for _, a := range r.assets {
+	for _, a := range r.mapStore.all() {
 		if a.WorkspaceID != params.WorkspaceID {
 			continue
 		}
@@ -75,8 +59,6 @@ func (r *AssetRepo) List(_ context.Context, params repository.ListAssetsParams) 
 }
 
 func (r *AssetRepo) Create(_ context.Context, params repository.CreateAssetParams) (repository.Asset, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	a := repository.Asset{
 		ID:                   params.ID,
 		WorkspaceID:          params.WorkspaceID,
@@ -93,51 +75,45 @@ func (r *AssetRepo) Create(_ context.Context, params repository.CreateAssetParam
 		ThumbnailContentType: params.ThumbnailContentType,
 		Metadata:             params.Metadata,
 	}
-	r.assets[a.ID] = a
+	r.mapStore.put(a.ID, a)
 	return a, nil
 }
 
 func (r *AssetRepo) Update(_ context.Context, params repository.UpdateAssetParams) (repository.Asset, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	a, ok := r.assets[params.ID]
-	if !ok || a.WorkspaceID != params.WorkspaceID {
-		return repository.Asset{}, fmt.Errorf("asset %q: %w", params.ID, apperr.ErrNotFound)
-	}
-	if params.OriginalFilename != nil {
-		a.OriginalFilename = *params.OriginalFilename
-	}
-	if params.FolderID != nil {
-		a.FolderID = params.FolderID
-	}
-	if params.ProjectID != nil {
-		a.ProjectID = params.ProjectID
-	}
-	if params.ThumbnailKey != nil {
-		a.ThumbnailKey = params.ThumbnailKey
-	}
-	if params.CurrentVersionID != nil {
-		a.CurrentVersionID = params.CurrentVersionID
-	}
-	if params.Width != nil {
-		a.Width = params.Width
-	}
-	if params.Height != nil {
-		a.Height = params.Height
-	}
-	r.assets[a.ID] = a
-	return a, nil
+	var result repository.Asset
+	err := r.mapStore.mutate("asset", params.ID, params.WorkspaceID,
+		func(a repository.Asset) string { return a.WorkspaceID },
+		func(a repository.Asset) (repository.Asset, error) {
+			if params.OriginalFilename != nil {
+				a.OriginalFilename = *params.OriginalFilename
+			}
+			if params.FolderID != nil {
+				a.FolderID = params.FolderID
+			}
+			if params.ProjectID != nil {
+				a.ProjectID = params.ProjectID
+			}
+			if params.ThumbnailKey != nil {
+				a.ThumbnailKey = params.ThumbnailKey
+			}
+			if params.CurrentVersionID != nil {
+				a.CurrentVersionID = params.CurrentVersionID
+			}
+			if params.Width != nil {
+				a.Width = params.Width
+			}
+			if params.Height != nil {
+				a.Height = params.Height
+			}
+			result = a
+			return a, nil
+		},
+	)
+	return result, err
 }
 
 func (r *AssetRepo) SoftDelete(_ context.Context, workspaceID, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	a, ok := r.assets[id]
-	if !ok || a.WorkspaceID != workspaceID {
-		return fmt.Errorf("asset %q: %w", id, apperr.ErrNotFound)
-	}
-	delete(r.assets, id)
-	return nil
+	return r.mapStore.del("asset", id, workspaceID, func(a repository.Asset) string { return a.WorkspaceID })
 }
 
 func (r *AssetRepo) IsProjectCover(_ context.Context, _, _ string) (bool, error)  { return false, nil }
@@ -153,14 +129,12 @@ func (r *AssetRepo) ListByFields(
 }
 
 func (r *AssetRepo) CountByIDs(_ context.Context, workspaceID string, ids []string) (int64, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	set := make(map[string]struct{}, len(ids))
 	for _, id := range ids {
 		set[id] = struct{}{}
 	}
 	var count int64
-	for _, a := range r.assets {
+	for _, a := range r.mapStore.all() {
 		if a.WorkspaceID == workspaceID {
 			if _, ok := set[a.ID]; ok {
 				count++
@@ -203,13 +177,11 @@ func (r *AssetRepo) BatchVariantCounts(_ context.Context, ids []string) (map[str
 	return m, nil
 }
 func (r *AssetRepo) SetProject(_ context.Context, workspaceID, assetID string, projectID *string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	a, ok := r.assets[assetID]
-	if !ok || a.WorkspaceID != workspaceID {
-		return fmt.Errorf("asset %q: %w", assetID, apperr.ErrNotFound)
-	}
-	a.ProjectID = projectID
-	r.assets[assetID] = a
-	return nil
+	return r.mapStore.mutate("asset", assetID, workspaceID,
+		func(a repository.Asset) string { return a.WorkspaceID },
+		func(a repository.Asset) (repository.Asset, error) {
+			a.ProjectID = projectID
+			return a, nil
+		},
+	)
 }

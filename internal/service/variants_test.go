@@ -74,7 +74,7 @@ func (s systemTagServiceStub) BatchTagsForAssets(context.Context, []string) (map
 	return map[string][]string{}, nil
 }
 
-func newVariantSvc(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo) {
+func newVariantSvc(t *testing.T) (service.VariantService, *memory.VariantRepo, *memory.AssetRepo) {
 	t.Helper()
 	varRepo := memory.NewRealVariantRepo()
 	assetRepo := memory.NewAssetRepo()
@@ -91,7 +91,7 @@ func newVariantSvcWithTags(
 	return service.NewVariantService(varRepo, assetRepo, tags, audit.NopWriter{}), assetRepo
 }
 
-func newVariantSvcSpy(t *testing.T) (service.VariantService, *memory.RealVariantRepo, *memory.AssetRepo, *spyWriter) {
+func newVariantSvcSpy(t *testing.T) (service.VariantService, *memory.VariantRepo, *memory.AssetRepo, *spyWriter) {
 	t.Helper()
 	spy := newSpy()
 	varRepo := memory.NewRealVariantRepo()

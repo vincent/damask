@@ -2,45 +2,29 @@ package memory
 
 import (
 	"context"
-	"fmt"
-	"sync"
 
-	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
 )
 
 type ProjectRepo struct {
-	mu       sync.RWMutex
-	projects map[string]repository.Project
+	mapStore[repository.Project]
 }
 
 func NewProjectRepo() *ProjectRepo {
-	return &ProjectRepo{projects: make(map[string]repository.Project)}
+	return &ProjectRepo{mapStore: newMapStore[repository.Project]()}
 }
 
 func (r *ProjectRepo) Seed(projects ...repository.Project) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, p := range projects {
-		r.projects[p.ID] = p
-	}
+	r.mapStore.seed(projects, func(p repository.Project) string { return p.ID })
 }
 
 func (r *ProjectRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Project, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	p, ok := r.projects[id]
-	if !ok || p.WorkspaceID != workspaceID {
-		return repository.Project{}, fmt.Errorf("project %q: %w", id, apperr.ErrNotFound)
-	}
-	return p, nil
+	return r.mapStore.get("project", id, workspaceID, func(p repository.Project) string { return p.WorkspaceID })
 }
 
 func (r *ProjectRepo) List(_ context.Context, workspaceID string) ([]repository.ProjectWithCount, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	var out []repository.ProjectWithCount
-	for _, p := range r.projects {
+	for _, p := range r.mapStore.all() {
 		if p.WorkspaceID == workspaceID {
 			out = append(out, repository.ProjectWithCount{Project: p})
 		}
@@ -51,30 +35,16 @@ func (r *ProjectRepo) List(_ context.Context, workspaceID string) ([]repository.
 func (r *ProjectRepo) NullifyAssets(_ context.Context, _, _ string) error { return nil }
 
 func (r *ProjectRepo) Create(_ context.Context, p repository.Project) (repository.Project, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.projects[p.ID] = p
+	r.mapStore.put(p.ID, p)
 	return p, nil
 }
 
 func (r *ProjectRepo) Update(_ context.Context, p repository.Project) (repository.Project, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	existing, ok := r.projects[p.ID]
-	if !ok || existing.WorkspaceID != p.WorkspaceID {
-		return repository.Project{}, fmt.Errorf("project %q: %w", p.ID, apperr.ErrNotFound)
-	}
-	r.projects[p.ID] = p
-	return p, nil
+	err := r.mapStore.putChecked("project", p.ID, p.WorkspaceID,
+		func(x repository.Project) string { return x.WorkspaceID }, p)
+	return p, err
 }
 
 func (r *ProjectRepo) Delete(_ context.Context, workspaceID, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	p, ok := r.projects[id]
-	if !ok || p.WorkspaceID != workspaceID {
-		return fmt.Errorf("project %q: %w", id, apperr.ErrNotFound)
-	}
-	delete(r.projects, id)
-	return nil
+	return r.mapStore.del("project", id, workspaceID, func(p repository.Project) string { return p.WorkspaceID })
 }

@@ -11,38 +11,26 @@ import (
 	"damask/server/internal/repository"
 )
 
-type WorkflowMemoryRepo struct {
-	mu        sync.RWMutex
-	workflows map[string]repository.Workflow
+// WorkflowRepo is a map-backed WorkflowRepository for unit tests.
+type WorkflowRepo struct {
+	mapStore[repository.Workflow]
 }
 
-func NewWorkflowRepo() *WorkflowMemoryRepo {
-	return &WorkflowMemoryRepo{workflows: map[string]repository.Workflow{}}
+func NewWorkflowRepo() *WorkflowRepo {
+	return &WorkflowRepo{mapStore: newMapStore[repository.Workflow]()}
 }
 
-func (r *WorkflowMemoryRepo) Seed(wfs ...repository.Workflow) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, wf := range wfs {
-		r.workflows[wf.ID] = wf
-	}
+func (r *WorkflowRepo) Seed(wfs ...repository.Workflow) {
+	r.mapStore.seed(wfs, func(wf repository.Workflow) string { return wf.ID })
 }
 
-func (r *WorkflowMemoryRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Workflow, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	wf, ok := r.workflows[id]
-	if !ok || wf.WorkspaceID != workspaceID {
-		return repository.Workflow{}, apperr.ErrNotFound
-	}
-	return wf, nil
+func (r *WorkflowRepo) GetByID(_ context.Context, workspaceID, id string) (repository.Workflow, error) {
+	return r.mapStore.get("workflow", id, workspaceID, func(wf repository.Workflow) string { return wf.WorkspaceID })
 }
 
-func (r *WorkflowMemoryRepo) List(_ context.Context, workspaceID string) ([]repository.Workflow, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	out := []repository.Workflow{}
-	for _, wf := range r.workflows {
+func (r *WorkflowRepo) List(_ context.Context, workspaceID string) ([]repository.Workflow, error) {
+	var out []repository.Workflow
+	for _, wf := range r.mapStore.all() {
 		if wf.WorkspaceID == workspaceID {
 			out = append(out, wf)
 		}
@@ -51,11 +39,9 @@ func (r *WorkflowMemoryRepo) List(_ context.Context, workspaceID string) ([]repo
 	return out, nil
 }
 
-func (r *WorkflowMemoryRepo) ListByTrigger(_ context.Context, triggerType string) ([]repository.Workflow, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	out := []repository.Workflow{}
-	for _, wf := range r.workflows {
+func (r *WorkflowRepo) ListByTrigger(_ context.Context, triggerType string) ([]repository.Workflow, error) {
+	var out []repository.Workflow
+	for _, wf := range r.mapStore.all() {
 		if wf.Enabled && wf.TriggerType == triggerType {
 			out = append(out, wf)
 		}
@@ -63,14 +49,12 @@ func (r *WorkflowMemoryRepo) ListByTrigger(_ context.Context, triggerType string
 	return out, nil
 }
 
-func (r *WorkflowMemoryRepo) ListEnabledByTrigger(
+func (r *WorkflowRepo) ListEnabledByTrigger(
 	_ context.Context,
 	workspaceID, triggerType string,
 ) ([]repository.Workflow, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	out := []repository.Workflow{}
-	for _, wf := range r.workflows {
+	var out []repository.Workflow
+	for _, wf := range r.mapStore.all() {
 		if wf.WorkspaceID == workspaceID && wf.Enabled && wf.TriggerType == triggerType {
 			out = append(out, wf)
 		}
@@ -79,9 +63,7 @@ func (r *WorkflowMemoryRepo) ListEnabledByTrigger(
 	return out, nil
 }
 
-func (r *WorkflowMemoryRepo) Create(_ context.Context, p repository.CreateWorkflowParams) (repository.Workflow, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *WorkflowRepo) Create(_ context.Context, p repository.CreateWorkflowParams) (repository.Workflow, error) {
 	now := time.Now().UTC()
 	wf := repository.Workflow{
 		ID:                   p.ID,
@@ -97,53 +79,51 @@ func (r *WorkflowMemoryRepo) Create(_ context.Context, p repository.CreateWorkfl
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}
-	r.workflows[wf.ID] = wf
+	r.mapStore.put(wf.ID, wf)
 	return wf, nil
 }
 
-func (r *WorkflowMemoryRepo) Update(_ context.Context, p repository.UpdateWorkflowParams) (repository.Workflow, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	wf, ok := r.workflows[p.ID]
-	if !ok || wf.WorkspaceID != p.WorkspaceID {
-		return repository.Workflow{}, apperr.ErrNotFound
-	}
-	if p.Name != nil {
-		wf.Name = *p.Name
-	}
-	if p.Description != nil {
-		wf.Description = *p.Description
-	}
-	if p.TriggerType != nil {
-		wf.TriggerType = *p.TriggerType
-	}
-	if p.TriggerConfig != nil {
-		wf.TriggerConfig = defaultTriggerConfig(*p.TriggerConfig)
-	}
-	if p.Graph != nil {
-		wf.Graph = *p.Graph
-	}
-	if p.NotifyOnFailureEmail != nil {
-		wf.NotifyOnFailureEmail = *p.NotifyOnFailureEmail
-	}
-	now := time.Now().UTC()
-	wf.UpdatedAt = now
-	r.workflows[p.ID] = wf
-	return wf, nil
+func (r *WorkflowRepo) Update(_ context.Context, p repository.UpdateWorkflowParams) (repository.Workflow, error) {
+	var result repository.Workflow
+	err := r.mapStore.mutate("workflow", p.ID, p.WorkspaceID,
+		func(wf repository.Workflow) string { return wf.WorkspaceID },
+		func(wf repository.Workflow) (repository.Workflow, error) {
+			if p.Name != nil {
+				wf.Name = *p.Name
+			}
+			if p.Description != nil {
+				wf.Description = *p.Description
+			}
+			if p.TriggerType != nil {
+				wf.TriggerType = *p.TriggerType
+			}
+			if p.TriggerConfig != nil {
+				wf.TriggerConfig = defaultTriggerConfig(*p.TriggerConfig)
+			}
+			if p.Graph != nil {
+				wf.Graph = *p.Graph
+			}
+			if p.NotifyOnFailureEmail != nil {
+				wf.NotifyOnFailureEmail = *p.NotifyOnFailureEmail
+			}
+			wf.UpdatedAt = time.Now().UTC()
+			result = wf
+			return wf, nil
+		},
+	)
+	return result, err
 }
 
-func (r *WorkflowMemoryRepo) FindCoveringWorkflow(
+func (r *WorkflowRepo) FindCoveringWorkflow(
 	_ context.Context,
 	workspaceID, assetID, assetProjectID, assetFolderID string,
 ) (*repository.CoveringWorkflow, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	type candidate struct {
 		wf    repository.Workflow
 		score int
 	}
 	var candidates []candidate
-	for _, wf := range r.workflows {
+	for _, wf := range r.mapStore.all() {
 		if wf.WorkspaceID != workspaceID || wf.TriggerType != "trigger.version_uploaded" || !wf.Enabled {
 			continue
 		}
@@ -178,45 +158,36 @@ func (r *WorkflowMemoryRepo) FindCoveringWorkflow(
 	}, nil
 }
 
-func (r *WorkflowMemoryRepo) SetEnabled(_ context.Context, workspaceID, id string, enabled bool) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	wf, ok := r.workflows[id]
-	if !ok || wf.WorkspaceID != workspaceID {
-		return apperr.ErrNotFound
-	}
-	wf.Enabled = enabled
-	wf.UpdatedAt = time.Now().UTC()
-	r.workflows[id] = wf
-	return nil
+func (r *WorkflowRepo) SetEnabled(_ context.Context, workspaceID, id string, enabled bool) error {
+	return r.mapStore.mutate("workflow", id, workspaceID,
+		func(wf repository.Workflow) string { return wf.WorkspaceID },
+		func(wf repository.Workflow) (repository.Workflow, error) {
+			wf.Enabled = enabled
+			wf.UpdatedAt = time.Now().UTC()
+			return wf, nil
+		},
+	)
 }
 
-func (r *WorkflowMemoryRepo) Delete(_ context.Context, workspaceID, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	wf, ok := r.workflows[id]
-	if !ok || wf.WorkspaceID != workspaceID {
-		return apperr.ErrNotFound
-	}
-	delete(r.workflows, id)
-	return nil
+func (r *WorkflowRepo) Delete(_ context.Context, workspaceID, id string) error {
+	return r.mapStore.del("workflow", id, workspaceID, func(wf repository.Workflow) string { return wf.WorkspaceID })
 }
 
-func (r *WorkflowMemoryRepo) TouchLastRunAt(_ context.Context, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	wf, ok := r.workflows[id]
+func (r *WorkflowRepo) TouchLastRunAt(_ context.Context, id string) error {
+	r.mapStore.mu.Lock()
+	defer r.mapStore.mu.Unlock()
+	wf, ok := r.mapStore.items[id]
 	if !ok {
 		return apperr.ErrNotFound
 	}
 	now := time.Now().UTC()
 	wf.LastRunAt = &now
 	wf.UpdatedAt = now
-	r.workflows[id] = wf
+	r.mapStore.items[id] = wf
 	return nil
 }
 
-func (r *WorkflowMemoryRepo) RunInTx(_ context.Context, fn func(repository.WorkflowRepository) error) error {
+func (r *WorkflowRepo) RunInTx(_ context.Context, fn func(repository.WorkflowRepository) error) error {
 	return fn(r)
 }
 
@@ -227,20 +198,22 @@ func defaultTriggerConfig(v string) string {
 	return v
 }
 
-type WorkflowRunMemoryRepo struct {
+// WorkflowRunRepo is a map-backed WorkflowRunRepository for unit tests.
+// Keyed by run ID (no workspace scope on lookup), so it does not embed mapStore.
+type WorkflowRunRepo struct {
 	mu    sync.RWMutex
 	runs  map[string]repository.WorkflowRun
 	steps map[string]repository.WorkflowRunStep
 }
 
-func NewWorkflowRunRepo() *WorkflowRunMemoryRepo {
-	return &WorkflowRunMemoryRepo{
+func NewWorkflowRunRepo() *WorkflowRunRepo {
+	return &WorkflowRunRepo{
 		runs:  map[string]repository.WorkflowRun{},
 		steps: map[string]repository.WorkflowRunStep{},
 	}
 }
 
-func (r *WorkflowRunMemoryRepo) GetByID(_ context.Context, id string) (repository.WorkflowRun, error) {
+func (r *WorkflowRunRepo) GetByID(_ context.Context, id string) (repository.WorkflowRun, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	run, ok := r.runs[id]
@@ -250,7 +223,7 @@ func (r *WorkflowRunMemoryRepo) GetByID(_ context.Context, id string) (repositor
 	return run, nil
 }
 
-func (r *WorkflowRunMemoryRepo) List(
+func (r *WorkflowRunRepo) List(
 	_ context.Context,
 	workflowID string,
 	limit int,
@@ -258,7 +231,7 @@ func (r *WorkflowRunMemoryRepo) List(
 ) ([]repository.WorkflowRun, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	out := []repository.WorkflowRun{}
+	var out []repository.WorkflowRun
 	for _, run := range r.runs {
 		if run.WorkflowID != workflowID {
 			continue
@@ -280,7 +253,7 @@ func (r *WorkflowRunMemoryRepo) List(
 	return out, nil
 }
 
-func (r *WorkflowRunMemoryRepo) Create(
+func (r *WorkflowRunRepo) Create(
 	_ context.Context,
 	p repository.CreateWorkflowRunParams,
 ) (repository.WorkflowRun, error) {
@@ -302,7 +275,7 @@ func (r *WorkflowRunMemoryRepo) Create(
 	return run, nil
 }
 
-func (r *WorkflowRunMemoryRepo) SetStatus(_ context.Context, id, status string) error {
+func (r *WorkflowRunRepo) SetStatus(_ context.Context, id, status string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	run, ok := r.runs[id]
@@ -318,7 +291,7 @@ func (r *WorkflowRunMemoryRepo) SetStatus(_ context.Context, id, status string) 
 	return nil
 }
 
-func (r *WorkflowRunMemoryRepo) SetFinal(_ context.Context, p repository.SetWorkflowRunFinalParams) error {
+func (r *WorkflowRunRepo) SetFinal(_ context.Context, p repository.SetWorkflowRunFinalParams) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	run, ok := r.runs[p.ID]
@@ -335,10 +308,10 @@ func (r *WorkflowRunMemoryRepo) SetFinal(_ context.Context, p repository.SetWork
 	return nil
 }
 
-func (r *WorkflowRunMemoryRepo) ListSteps(_ context.Context, runID string) ([]repository.WorkflowRunStep, error) {
+func (r *WorkflowRunRepo) ListSteps(_ context.Context, runID string) ([]repository.WorkflowRunStep, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	out := []repository.WorkflowRunStep{}
+	var out []repository.WorkflowRunStep
 	for _, step := range r.steps {
 		if step.RunID == runID {
 			out = append(out, step)
@@ -348,7 +321,7 @@ func (r *WorkflowRunMemoryRepo) ListSteps(_ context.Context, runID string) ([]re
 	return out, nil
 }
 
-func (r *WorkflowRunMemoryRepo) CreateStep(
+func (r *WorkflowRunRepo) CreateStep(
 	_ context.Context,
 	p repository.CreateWorkflowRunStepParams,
 ) (repository.WorkflowRunStep, error) {
@@ -376,7 +349,7 @@ func (r *WorkflowRunMemoryRepo) CreateStep(
 	return step, nil
 }
 
-func (r *WorkflowRunMemoryRepo) SetStepStatus(_ context.Context, id, status string) error {
+func (r *WorkflowRunRepo) SetStepStatus(_ context.Context, id, status string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	step, ok := r.steps[id]
@@ -388,7 +361,7 @@ func (r *WorkflowRunMemoryRepo) SetStepStatus(_ context.Context, id, status stri
 	return nil
 }
 
-func (r *WorkflowRunMemoryRepo) SetStepFailed(_ context.Context, id, errMsg string) error {
+func (r *WorkflowRunRepo) SetStepFailed(_ context.Context, id, errMsg string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	step, ok := r.steps[id]
@@ -403,7 +376,7 @@ func (r *WorkflowRunMemoryRepo) SetStepFailed(_ context.Context, id, errMsg stri
 	return nil
 }
 
-func (r *WorkflowRunMemoryRepo) SetStepCompleted(_ context.Context, id, outputCtx string) error {
+func (r *WorkflowRunRepo) SetStepCompleted(_ context.Context, id, outputCtx string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	step, ok := r.steps[id]
@@ -418,7 +391,7 @@ func (r *WorkflowRunMemoryRepo) SetStepCompleted(_ context.Context, id, outputCt
 	return nil
 }
 
-func (r *WorkflowRunMemoryRepo) IncrementStepAttempt(_ context.Context, id string) error {
+func (r *WorkflowRunRepo) IncrementStepAttempt(_ context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	step, ok := r.steps[id]
@@ -430,16 +403,18 @@ func (r *WorkflowRunMemoryRepo) IncrementStepAttempt(_ context.Context, id strin
 	return nil
 }
 
-type WorkflowWebhookMemoryRepo struct {
+// WorkflowWebhookRepo is a map-backed WorkflowWebhookRepository for unit tests.
+// Keyed by workflowID (not an ID+workspaceID pair), so it does not embed mapStore.
+type WorkflowWebhookRepo struct {
 	mu     sync.RWMutex
 	tokens map[string]string
 }
 
-func NewWorkflowWebhookRepo() *WorkflowWebhookMemoryRepo {
-	return &WorkflowWebhookMemoryRepo{tokens: map[string]string{}}
+func NewWorkflowWebhookRepo() *WorkflowWebhookRepo {
+	return &WorkflowWebhookRepo{tokens: map[string]string{}}
 }
 
-func (r *WorkflowWebhookMemoryRepo) GetTokenHash(_ context.Context, workflowID string) (string, error) {
+func (r *WorkflowWebhookRepo) GetTokenHash(_ context.Context, workflowID string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	tokenHash, ok := r.tokens[workflowID]
@@ -449,14 +424,14 @@ func (r *WorkflowWebhookMemoryRepo) GetTokenHash(_ context.Context, workflowID s
 	return tokenHash, nil
 }
 
-func (r *WorkflowWebhookMemoryRepo) Upsert(_ context.Context, workflowID, tokenHash string) error {
+func (r *WorkflowWebhookRepo) Upsert(_ context.Context, workflowID, tokenHash string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.tokens[workflowID] = tokenHash
 	return nil
 }
 
-func (r *WorkflowWebhookMemoryRepo) Delete(_ context.Context, workflowID string) error {
+func (r *WorkflowWebhookRepo) Delete(_ context.Context, workflowID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.tokens, workflowID)

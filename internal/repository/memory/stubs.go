@@ -1,65 +1,47 @@
 // Package memory provides in-memory repository implementations for unit tests.
-// This file contains minimal stubs for aggregates that are not yet exercised by
-// service-layer unit tests. Flesh out each stub when the corresponding service
-// is migrated in Phase 2.
+//
+// Stub repos in this file are not yet exercised by service-layer tests.
+// Philosophy: methods that return a domain value panic so that accidentally
+// calling an unimplemented path produces an immediate, obvious test failure
+// rather than a silent empty result. Methods that return a safe sentinel
+// (ErrNotFound, false, 0, "") are left as-is and annotated. Echo-back Creates
+// and RunInTx wrappers have correct semantics and are left unchanged.
+// Promote a stub to its own file (with mapStore) when a service test needs it.
 package memory
 
 import (
 	"context"
-	"time"
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
 )
 
-// FolderRepo ---------------------------------------------------------------
-
-type FolderRepo struct{}
-
-func NewFolderRepo() *FolderRepo { return &FolderRepo{} }
-
-func (r *FolderRepo) GetByID(_ context.Context, _, _ string) (repository.Folder, error) {
-	return repository.Folder{}, nil
-}
-func (r *FolderRepo) ListByProject(_ context.Context, _, _ string) ([]repository.Folder, error) {
-	return nil, nil
-}
-func (r *FolderRepo) Create(_ context.Context, f repository.Folder) (repository.Folder, error) {
-	return f, nil
-}
-func (r *FolderRepo) Update(_ context.Context, f repository.Folder) (repository.Folder, error) {
-	return f, nil
-}
-func (r *FolderRepo) Delete(_ context.Context, _, _ string) error { return nil }
-func (r *FolderRepo) GetChildren(_ context.Context, _, _ string) ([]repository.Folder, error) {
-	return nil, nil
-}
-func (r *FolderRepo) NullifyAssets(_ context.Context, _, _ string) error { return nil }
-
 // TagRepo ------------------------------------------------------------------
+// Stub: not exercised by service tests. Promote to mapStore when needed.
 
 type TagRepo struct{}
 
 func NewTagRepo() *TagRepo { return &TagRepo{} }
 
 func (r *TagRepo) GetByName(_ context.Context, _, _ string) (repository.Tag, error) {
-	return repository.Tag{}, nil
+	panic("memory: TagRepo.GetByName not implemented")
 }
 func (r *TagRepo) List(_ context.Context, _ string, _ bool) ([]repository.Tag, error) {
-	return nil, nil
+	panic("memory: TagRepo.List not implemented")
 }
 func (r *TagRepo) Upsert(_ context.Context, _, _ string) (repository.Tag, error) {
-	return repository.Tag{}, nil
+	panic("memory: TagRepo.Upsert not implemented")
 }
 func (r *TagRepo) EnsureSystemTag(_ context.Context, _, _ string) error              { return nil }
 func (r *TagRepo) UpdateMetadata(_ context.Context, _, _ string, _, _ *string) error { return nil }
 func (r *TagRepo) Rename(_ context.Context, _, _, _ string) error                    { return nil }
 func (r *TagRepo) Delete(_ context.Context, _ string, _ []string) error              { return nil }
 func (r *TagRepo) ListForAsset(_ context.Context, _ string) ([]repository.Tag, error) {
-	return nil, nil
+	panic("memory: TagRepo.ListForAsset not implemented")
 }
 func (r *TagRepo) AddToAsset(_ context.Context, _, _ string) error { return nil }
 func (r *TagRepo) BatchTagsForAssets(_ context.Context, _ []string) (map[string][]string, error) {
+	// Returns empty map — callers treat missing tags as zero tags, so this is safe.
 	return map[string][]string{}, nil
 }
 func (r *TagRepo) RemoveFromAsset(_ context.Context, _, _, _ string) error { return nil }
@@ -67,219 +49,119 @@ func (r *TagRepo) CountAssets(_ context.Context, _ string) (int64, error)  { ret
 func (r *TagRepo) ReassignAssets(_ context.Context, _, _ string) error     { return nil }
 func (r *TagRepo) TouchLastUsed(_ context.Context, _, _ string) error      { return nil }
 func (r *TagRepo) FindAssetBySystemTagInFolder(_ context.Context, _, _, _ string) (repository.Asset, error) {
-	return repository.Asset{}, apperr.ErrNotFound
+	return repository.Asset{}, apperr.ErrNotFound // sentinel: "not found" is correct test-time behaviour
 }
 func (r *TagRepo) FindAssetBySystemTagInProject(_ context.Context, _, _, _ string) (repository.Asset, error) {
-	return repository.Asset{}, apperr.ErrNotFound
+	return repository.Asset{}, apperr.ErrNotFound // sentinel
 }
 func (r *TagRepo) FindAssetBySystemTagInWorkspace(_ context.Context, _, _ string) (repository.Asset, error) {
-	return repository.Asset{}, apperr.ErrNotFound
+	return repository.Asset{}, apperr.ErrNotFound // sentinel
 }
 func (r *TagRepo) RunInTx(_ context.Context, fn func(repository.TagRepository) error) error {
 	return fn(r)
 }
 
-// CollectionRepo -----------------------------------------------------------
-
-type CollectionRepo struct{}
-
-func NewCollectionRepo() *CollectionRepo { return &CollectionRepo{} }
-
-func (r *CollectionRepo) GetByID(_ context.Context, _, _ string) (repository.Collection, error) {
-	return repository.Collection{}, nil
-}
-func (r *CollectionRepo) List(_ context.Context, _ string) ([]repository.Collection, error) {
-	return nil, nil
-}
-func (r *CollectionRepo) Create(_ context.Context, c repository.Collection) (repository.Collection, error) {
-	return c, nil
-}
-func (r *CollectionRepo) Update(_ context.Context, c repository.Collection) (repository.Collection, error) {
-	return c, nil
-}
-func (r *CollectionRepo) Delete(_ context.Context, _, _ string) error      { return nil }
-func (r *CollectionRepo) AddAsset(_ context.Context, _, _ string) error    { return nil }
-func (r *CollectionRepo) RemoveAsset(_ context.Context, _, _ string) error { return nil }
-func (r *CollectionRepo) ListForAsset(_ context.Context, _, _ string) ([]repository.Collection, error) {
-	return nil, nil
-}
-func (r *CollectionRepo) CountAssets(_ context.Context, _ string) (int64, error) { return 0, nil }
-func (r *CollectionRepo) ListAssetIDs(_ context.Context, _ string) ([]string, error) {
-	return nil, nil
-}
-
-// ShareRepo ----------------------------------------------------------------
-
-type ShareRepo struct{}
-
-func NewShareRepo() *ShareRepo { return &ShareRepo{} }
-
-func (r *ShareRepo) GetByID(_ context.Context, _, _ string) (repository.Share, error) {
-	return repository.Share{}, nil
-}
-func (r *ShareRepo) GetPublic(_ context.Context, _ string) (repository.Share, error) {
-	return repository.Share{}, nil
-}
-func (r *ShareRepo) GetByIDAndWorkspace(_ context.Context, _, _ string) (repository.Share, error) {
-	return repository.Share{}, nil
-}
-func (r *ShareRepo) List(_ context.Context, _ string) ([]repository.Share, error) { return nil, nil }
-func (r *ShareRepo) Create(_ context.Context, s repository.Share) (repository.Share, error) {
-	return s, nil
-}
-func (r *ShareRepo) Update(_ context.Context, s repository.Share) (repository.Share, error) {
-	return s, nil
-}
-func (r *ShareRepo) Revoke(_ context.Context, _, _ string) error          { return nil }
-func (r *ShareRepo) IncrementViewCount(_ context.Context, _ string) error { return nil }
-func (r *ShareRepo) ListAssetsByTarget(_ context.Context, _, _ string) ([]repository.PublicAsset, error) {
-	return nil, nil
-}
-func (r *ShareRepo) GetPublicAsset(_ context.Context, _ string) (repository.PublicAsset, error) {
-	return repository.PublicAsset{}, nil
-}
-func (r *ShareRepo) GetPublicAssetFile(_ context.Context, _ string) (repository.PublicAssetFile, error) {
-	return repository.PublicAssetFile{}, nil
-}
-func (r *ShareRepo) GetPublicAssetThumb(_ context.Context, _ string) (*string, time.Time, error) {
-	return nil, time.Time{}, nil
-}
-func (r *ShareRepo) IsAssetInTarget(_ context.Context, _, _, _ string) (bool, error) {
-	return true, nil
-}
-func (r *ShareRepo) CreateComment(_ context.Context, c repository.ShareComment) (repository.ShareComment, error) {
-	return c, nil
-}
-func (r *ShareRepo) ListCommentsByShare(_ context.Context, _ string) ([]repository.ShareComment, error) {
-	return nil, nil
-}
-func (r *ShareRepo) ListCommentsByShareAndAsset(_ context.Context, _, _ string) ([]repository.ShareComment, error) {
-	return nil, nil
-}
-func (r *ShareRepo) DeleteComment(_ context.Context, _, _ string) error { return nil }
-
 // VersionRepo --------------------------------------------------------------
+// Stub: not exercised by service tests. Promote to mapStore when needed.
 
 type VersionRepo struct{}
 
 func NewVersionRepo() *VersionRepo { return &VersionRepo{} }
 
 func (r *VersionRepo) GetByID(_ context.Context, _ string) (repository.AssetVersion, error) {
-	return repository.AssetVersion{}, nil
+	panic("memory: VersionRepo.GetByID not implemented")
 }
 func (r *VersionRepo) GetByIDForWorkspace(_ context.Context, _, _ string) (repository.AssetVersion, error) {
-	return repository.AssetVersion{}, nil
+	panic("memory: VersionRepo.GetByIDForWorkspace not implemented")
 }
 func (r *VersionRepo) GetCurrentByAsset(_ context.Context, _ string) (repository.AssetVersion, error) {
-	return repository.AssetVersion{}, nil
+	panic("memory: VersionRepo.GetCurrentByAsset not implemented")
 }
 func (r *VersionRepo) GetFirstByAsset(_ context.Context, _ string) (repository.AssetVersion, error) {
-	return repository.AssetVersion{}, nil
+	panic("memory: VersionRepo.GetFirstByAsset not implemented")
 }
 func (r *VersionRepo) ListByAsset(_ context.Context, _ string) ([]repository.AssetVersion, error) {
-	return nil, nil
+	panic("memory: VersionRepo.ListByAsset not implemented")
 }
 func (r *VersionRepo) Create(_ context.Context, v repository.AssetVersion) (repository.AssetVersion, error) {
-	return v, nil
+	return v, nil // echo-back: correct semantics for tests that only create, don't re-fetch
 }
-func (r *VersionRepo) SoftDelete(_ context.Context, _ string) error            { return nil }
-func (r *VersionRepo) Delete(_ context.Context, _ string) error                { return nil }
-func (r *VersionRepo) CountByAsset(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *VersionRepo) SoftDelete(_ context.Context, _ string) error { return nil }
+func (r *VersionRepo) Delete(_ context.Context, _ string) error     { return nil }
+func (r *VersionRepo) CountByAsset(_ context.Context, _ string) (int64, error) {
+	return 0, nil // sentinel: 0 is the correct answer when no versions are seeded
+}
 func (r *VersionRepo) IsReferencedAsCover(_ context.Context, _ string) (bool, error) {
-	return false, nil
+	return false, nil // sentinel: safe default
 }
 func (r *VersionRepo) GetByHash(_ context.Context, _, _ string) (repository.AssetVersion, error) {
-	return repository.AssetVersion{}, apperr.ErrNotFound
+	return repository.AssetVersion{}, apperr.ErrNotFound // sentinel
 }
-func (r *VersionRepo) NextVersionNum(_ context.Context, _ string) (int64, error)      { return 1, nil }
+func (r *VersionRepo) NextVersionNum(_ context.Context, _ string) (int64, error) {
+	return 1, nil // sentinel: always 1 in tests that don't track version sequences
+}
 func (r *VersionRepo) SetCurrent(_ context.Context, _, _ string) error                { return nil }
 func (r *VersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *string) error { return nil }
 func (r *VersionRepo) ListWithVariantCount(_ context.Context, _ string) ([]repository.AssetVersionWithCount, error) {
-	return nil, nil
+	panic("memory: VersionRepo.ListWithVariantCount not implemented")
 }
-
-// FieldRepo ----------------------------------------------------------------
-
-type FieldRepo struct{}
-
-func NewFieldRepo() *FieldRepo { return &FieldRepo{} }
-
-func (r *FieldRepo) GetByID(_ context.Context, _, _ string) (repository.FieldDefinition, error) {
-	return repository.FieldDefinition{}, nil
-}
-func (r *FieldRepo) List(_ context.Context, _, _ string) ([]repository.FieldDefinition, error) {
-	return nil, nil
-}
-func (r *FieldRepo) Create(_ context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
-	return f, nil
-}
-func (r *FieldRepo) Update(_ context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
-	return f, nil
-}
-func (r *FieldRepo) SoftDelete(_ context.Context, _, _ string) error { return nil }
-func (r *FieldRepo) CountByWorkspaceAndScope(_ context.Context, _, _ string) (int64, error) {
-	return 0, nil
-}
-func (r *FieldRepo) CountAssetValues(_ context.Context, _ string) (int64, error)   { return 0, nil }
-func (r *FieldRepo) CountProjectValues(_ context.Context, _ string) (int64, error) { return 0, nil }
-func (r *FieldRepo) UpdatePosition(_ context.Context, _, _ string, _ int64) error  { return nil }
-func (r *FieldRepo) InheritProjectFields(_ context.Context, _, _, _, _ string) error {
-	return nil
-}
-func (r *FieldRepo) PurgeExpired(_ context.Context) (int, error) { return 0, nil }
 
 // WorkspaceRepo ------------------------------------------------------------
+// Stub: not exercised by service tests. Promote to mapStore when needed.
 
 type WorkspaceRepo struct{}
 
 func NewWorkspaceRepo() *WorkspaceRepo { return &WorkspaceRepo{} }
 
 func (r *WorkspaceRepo) GetByID(_ context.Context, _ string) (repository.Workspace, error) {
-	return repository.Workspace{}, nil
+	panic("memory: WorkspaceRepo.GetByID not implemented")
 }
 func (r *WorkspaceRepo) Create(_ context.Context, w repository.Workspace) (repository.Workspace, error) {
-	return w, nil
+	return w, nil // echo-back
 }
-func (r *WorkspaceRepo) Update(_ context.Context, w repository.Workspace) (repository.Workspace, error) {
-	return w, nil
+func (r *WorkspaceRepo) Update(_ context.Context, _ repository.Workspace) (repository.Workspace, error) {
+	panic("memory: WorkspaceRepo.Update not implemented")
 }
 func (r *WorkspaceRepo) UpdateLockedTaxonomy(_ context.Context, _ string, _ bool) (repository.Workspace, error) {
-	return repository.Workspace{}, nil
+	panic("memory: WorkspaceRepo.UpdateLockedTaxonomy not implemented")
 }
 func (r *WorkspaceRepo) GetImageRouterKey(_ context.Context, _ string) (string, error) {
-	return "", nil
+	return "", nil // sentinel: empty key
 }
 func (r *WorkspaceRepo) SetImageRouterKey(_ context.Context, _, _ string) error { return nil }
 func (r *WorkspaceRepo) ClearImageRouterKey(_ context.Context, _ string) error  { return nil }
-func (r *WorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) { return 0, nil }
+func (r *WorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) {
+	return 0, nil // sentinel
+}
 func (r *WorkspaceRepo) GetMember(_ context.Context, _, _ string) (repository.Member, error) {
-	return repository.Member{}, nil
+	panic("memory: WorkspaceRepo.GetMember not implemented")
 }
 func (r *WorkspaceRepo) ListMembers(_ context.Context, _ string) ([]repository.Member, error) {
-	return nil, nil
+	panic("memory: WorkspaceRepo.ListMembers not implemented")
 }
-func (r *WorkspaceRepo) CountMembers(_ context.Context, _ string) (int64, error)   { return 0, nil }
+func (r *WorkspaceRepo) CountMembers(_ context.Context, _ string) (int64, error) {
+	return 0, nil // sentinel
+}
 func (r *WorkspaceRepo) CreateMember(_ context.Context, _ repository.Member) error { return nil }
 func (r *WorkspaceRepo) DeleteMember(_ context.Context, _, _ string) error         { return nil }
 func (r *WorkspaceRepo) UpdateMemberRole(_ context.Context, _, _, _ string) error  { return nil }
 func (r *WorkspaceRepo) CreateInvite(_ context.Context, inv repository.Invite) (repository.Invite, error) {
-	return inv, nil
+	return inv, nil // echo-back
 }
 func (r *WorkspaceRepo) ListPendingInvites(_ context.Context, _ string) ([]repository.Invite, error) {
-	return nil, nil
+	panic("memory: WorkspaceRepo.ListPendingInvites not implemented")
 }
 func (r *WorkspaceRepo) GetInviteByToken(_ context.Context, _ string) (repository.Invite, error) {
-	return repository.Invite{}, nil
+	panic("memory: WorkspaceRepo.GetInviteByToken not implemented")
 }
 func (r *WorkspaceRepo) DeleteInvite(_ context.Context, _, _ string) error { return nil }
 func (r *WorkspaceRepo) AcceptInvite(_ context.Context, _ string) error    { return nil }
 func (r *WorkspaceRepo) ListByUserID(_ context.Context, _ string) ([]repository.WorkspaceWithRole, error) {
-	return nil, nil
+	panic("memory: WorkspaceRepo.ListByUserID not implemented")
 }
 func (r *WorkspaceRepo) RunInTx(_ context.Context, fn func(repository.WorkspaceRepository) error) error {
 	return fn(r)
 }
-
 func (r *WorkspaceRepo) RunRegistrationTx(
 	_ context.Context,
 	fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error,
@@ -288,113 +170,103 @@ func (r *WorkspaceRepo) RunRegistrationTx(
 }
 
 // UserRepo -----------------------------------------------------------------
+// Stub: not exercised by service tests. Promote to mapStore when needed.
 
 type UserRepo struct{}
 
 func NewUserRepo() *UserRepo { return &UserRepo{} }
 
 func (r *UserRepo) GetByID(_ context.Context, _ string) (repository.User, error) {
-	return repository.User{}, nil
+	panic("memory: UserRepo.GetByID not implemented")
 }
 func (r *UserRepo) GetByEmail(_ context.Context, _ string) (repository.User, error) {
-	return repository.User{}, nil
+	panic("memory: UserRepo.GetByEmail not implemented")
 }
 func (r *UserRepo) Create(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+	return u, nil // echo-back
 }
-func (r *UserRepo) Update(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+func (r *UserRepo) Update(_ context.Context, _ repository.User) (repository.User, error) {
+	panic("memory: UserRepo.Update not implemented")
 }
 func (r *UserRepo) UpdateProfile(_ context.Context, _ string, _ string) (repository.User, error) {
-	return repository.User{}, nil
+	panic("memory: UserRepo.UpdateProfile not implemented")
 }
 func (r *UserRepo) UpdateAvatarKey(_ context.Context, _ string, _ string) (repository.User, error) {
-	return repository.User{}, nil
+	panic("memory: UserRepo.UpdateAvatarKey not implemented")
 }
 func (r *UserRepo) ClearAvatarKey(_ context.Context, _ string) (repository.User, error) {
-	return repository.User{}, nil
+	panic("memory: UserRepo.ClearAvatarKey not implemented")
 }
-func (r *UserRepo) SetPassword(_ context.Context, _, _ string) error {
-	return nil
-}
+func (r *UserRepo) SetPassword(_ context.Context, _, _ string) error { return nil }
 func (r *UserRepo) SetAuthMethods(_ context.Context, _ string, _ string) (repository.User, error) {
-	return repository.User{}, nil
+	panic("memory: UserRepo.SetAuthMethods not implemented")
 }
-func (r *UserRepo) SetPendingEmail(_ context.Context, _ string, _ string) error {
-	return nil
-}
-func (r *UserRepo) ClearPendingEmail(_ context.Context, _ string) error {
-	return nil
-}
+func (r *UserRepo) SetPendingEmail(_ context.Context, _ string, _ string) error { return nil }
+func (r *UserRepo) ClearPendingEmail(_ context.Context, _ string) error         { return nil }
 func (r *UserRepo) ConfirmEmailChange(_ context.Context, _ string, _ string) (repository.User, error) {
-	return repository.User{}, nil
+	panic("memory: UserRepo.ConfirmEmailChange not implemented")
 }
-func (r *UserRepo) SoftDelete(_ context.Context, _ string) error {
-	return nil
-}
-func (r *UserRepo) AnonymizeDeletedUser(_ context.Context, _ string) error {
-	return nil
-}
-func (r *UserRepo) HardDelete(_ context.Context, _ string) error {
-	return nil
-}
+func (r *UserRepo) SoftDelete(_ context.Context, _ string) error           { return nil }
+func (r *UserRepo) AnonymizeDeletedUser(_ context.Context, _ string) error { return nil }
+func (r *UserRepo) HardDelete(_ context.Context, _ string) error           { return nil }
 func (r *UserRepo) GetByGoogleID(_ context.Context, _ string) (repository.User, error) {
-	return repository.User{}, apperr.ErrNotFound
+	return repository.User{}, apperr.ErrNotFound // sentinel
 }
 func (r *UserRepo) GetByCanvaID(_ context.Context, _ string) (repository.User, error) {
-	return repository.User{}, apperr.ErrNotFound
+	return repository.User{}, apperr.ErrNotFound // sentinel
 }
 func (r *UserRepo) GetByOIDC(_ context.Context, _, _ string) (repository.User, error) {
-	return repository.User{}, apperr.ErrNotFound
+	return repository.User{}, apperr.ErrNotFound // sentinel
 }
 func (r *UserRepo) CreateWithGoogle(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+	return u, nil // echo-back
 }
 func (r *UserRepo) CreateWithOIDC(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+	return u, nil // echo-back
 }
 func (r *UserRepo) CreateWithCanva(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+	return u, nil // echo-back
 }
-func (r *UserRepo) LinkGoogle(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+func (r *UserRepo) LinkGoogle(_ context.Context, _ repository.User) (repository.User, error) {
+	panic("memory: UserRepo.LinkGoogle not implemented")
 }
-func (r *UserRepo) LinkOIDC(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+func (r *UserRepo) LinkOIDC(_ context.Context, _ repository.User) (repository.User, error) {
+	panic("memory: UserRepo.LinkOIDC not implemented")
 }
-func (r *UserRepo) LinkCanva(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+func (r *UserRepo) LinkCanva(_ context.Context, _ repository.User) (repository.User, error) {
+	panic("memory: UserRepo.LinkCanva not implemented")
 }
-func (r *UserRepo) UnlinkGoogle(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+func (r *UserRepo) UnlinkGoogle(_ context.Context, _ repository.User) (repository.User, error) {
+	panic("memory: UserRepo.UnlinkGoogle not implemented")
 }
-func (r *UserRepo) UnlinkOIDC(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+func (r *UserRepo) UnlinkOIDC(_ context.Context, _ repository.User) (repository.User, error) {
+	panic("memory: UserRepo.UnlinkOIDC not implemented")
 }
-func (r *UserRepo) UnlinkCanva(_ context.Context, u repository.User) (repository.User, error) {
-	return u, nil
+func (r *UserRepo) UnlinkCanva(_ context.Context, _ repository.User) (repository.User, error) {
+	panic("memory: UserRepo.UnlinkCanva not implemented")
 }
 func (r *UserRepo) ListWorkspaceIDs(_ context.Context, _ string) ([]string, error) {
-	return nil, nil
+	panic("memory: UserRepo.ListWorkspaceIDs not implemented")
 }
 func (r *UserRepo) RunInTx(_ context.Context, fn func(repository.UserRepository) error) error {
 	return fn(r)
 }
 
 // OAuthRepo ----------------------------------------------------------------
+// Stub: not exercised by service tests. Promote to mapStore when needed.
 
 type OAuthRepo struct{}
 
 func NewOAuthRepo() *OAuthRepo { return &OAuthRepo{} }
 
 func (r *OAuthRepo) List(_ context.Context, _ string) ([]repository.OAuthConnection, error) {
-	return nil, nil
+	panic("memory: OAuthRepo.List not implemented")
 }
 func (r *OAuthRepo) GetByID(_ context.Context, _, _ string) (repository.OAuthConnection, error) {
-	return repository.OAuthConnection{}, apperr.ErrNotFound
+	return repository.OAuthConnection{}, apperr.ErrNotFound // sentinel
 }
 func (r *OAuthRepo) GetByProviderUserID(_ context.Context, _, _, _ string) (repository.OAuthConnection, error) {
-	return repository.OAuthConnection{}, apperr.ErrNotFound
+	return repository.OAuthConnection{}, apperr.ErrNotFound // sentinel
 }
 func (r *OAuthRepo) Create(_ context.Context, _ repository.OAuthConnection) error { return nil }
 func (r *OAuthRepo) UpdateTokens(_ context.Context, _, _ string, _ *string, _ *string) error {
