@@ -26,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -199,60 +200,100 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	if err = json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("ingest_fetch: parse payload: %w", err)
 	}
-
-	span.SetAttributes(attribute.String("damask.ingest.workspace_id", p.WorkspaceID))
-	span.SetAttributes(attribute.String("damask.ingest.entry_id", p.LogEntryID))
+	span.SetAttributes(
+		attribute.String("damask.ingest.workspace_id", p.WorkspaceID),
+		attribute.String("damask.ingest.entry_id", p.LogEntryID),
+	)
 
 	entry, err := w.queries.GetIngressLogEntry(ctx, p.LogEntryID)
 	if err != nil {
 		return fmt.Errorf("ingest_fetch: get log entry %s: %w", p.LogEntryID, err)
 	}
-
-	span.SetAttributes(attribute.String("damask.ingest.entry_remote_id", entry.RemoteID))
-	span.SetAttributes(attribute.String("damask.ingest.entry_status", entry.Status))
-
-	// Idempotency: skip if already processed
-	if entry.Status != "pending" {
+	span.SetAttributes(
+		attribute.String("damask.ingest.entry_remote_id", entry.RemoteID),
+		attribute.String("damask.ingest.entry_status", entry.Status),
+	)
+	if entry.Status != "pending" { // idempotency
 		return nil
 	}
 
-	src, err := w.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
-		ID: p.SourceID, WorkspaceID: p.WorkspaceID,
-	})
+	src, source, err := w.resolveSource(ctx, p.SourceID, p.WorkspaceID)
 	if err != nil {
-		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: get source: %w", err))
+		return w.failEntry(ctx, entry.ID, src, err)
 	}
+	span.SetAttributes(
+		attribute.String("damask.ingest.entry_source_id", src.ID),
+		attribute.String("damask.ingest.entry_source_label", src.Label),
+		attribute.String("damask.ingest.entry_source_type", src.Type),
+	)
 
-	span.SetAttributes(attribute.String("damask.ingest.entry_source_id", src.ID))
-	span.SetAttributes(attribute.String("damask.ingest.entry_source_label", src.Label))
-	span.SetAttributes(attribute.String("damask.ingest.entry_source_type", src.Type))
-
-	configJSON, err := DecryptConfig(w.cfg.AppSecret, src.Config)
-	if err != nil {
-		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: decrypt config: %w", err))
+	rules, rulesErr := w.queries.ListIngressRules(ctx, src.ID)
+	if rulesErr != nil {
+		slog.WarnContext(
+			ctx,
+			"ingest_fetch: list rules (continuing without rules)",
+			"source_id",
+			src.ID,
+			"error",
+			rulesErr,
+		)
 	}
-
-	source, err := Build(src.Type, configJSON)
-	if err != nil {
-		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: build source: %w", err))
-	}
-
-	// Evaluate rules
-	rules, err := w.queries.ListIngressRules(ctx, src.ID)
-	if err != nil {
-		slog.WarnContext(ctx, "ingest_fetch: list rules (continuing without rules)", "source_id", src.ID, "error", err)
-	}
-
 	span.SetAttributes(attribute.Int("damask.ingest.entry_source_rules", len(rules)))
 
-	ruleResult := EvaluateRules(rules, ItemMeta{Filename: entry.Filename})
+	ruleResult, skip, err := w.applyGatingChecks(ctx, entry, p.WorkspaceID, rules)
 	span.SetAttributes(attribute.Bool("damask.ingest.entry_source_rules_pass", ruleResult.Allow))
+	if skip || err != nil {
+		return err
+	}
+
+	projectID, folderID := w.resolveDestination(src, p, ruleResult)
+	if folderID != nil {
+		span.SetAttributes(attribute.String("damask.ingest.entry_folder_id", *folderID))
+	}
+	if projectID != nil {
+		span.SetAttributes(attribute.String("damask.ingest.entry_project_id", *projectID))
+	}
+
+	namedTmp, cleanup, err := w.streamToNamedTemp(ctx, entry, src, p, source)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	return w.finalizeImport(ctx, span, namedTmp, entry, src, projectID, folderID)
+}
+
+func (w *Worker) resolveSource(ctx context.Context, sourceID, workspaceID string) (dbgen.IngressSource, Source, error) {
+	src, err := w.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+		ID: sourceID, WorkspaceID: workspaceID,
+	})
+	if err != nil {
+		return src, nil, fmt.Errorf("ingest_fetch: get source: %w", err)
+	}
+	configJSON, err := DecryptConfig(w.cfg.AppSecret, src.Config)
+	if err != nil {
+		return src, nil, fmt.Errorf("ingest_fetch: decrypt config: %w", err)
+	}
+	source, err := Build(src.Type, configJSON)
+	if err != nil {
+		return src, nil, fmt.Errorf("ingest_fetch: build source: %w", err)
+	}
+	return src, source, nil
+}
+
+func (w *Worker) applyGatingChecks(
+	ctx context.Context,
+	entry dbgen.IngressLog,
+	workspaceID string,
+	rules []dbgen.IngressRule,
+) (RuleResult, bool, error) {
+	ruleResult := EvaluateRules(rules, ItemMeta{Filename: entry.Filename})
 	if !ruleResult.Allow {
 		skipped := ingressStatusSkipped
 		_ = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 			Status: ingressStatusSkipped, ID: entry.ID, Error: &skipped,
 		})
-		return nil
+		return ruleResult, true, nil
 	}
 
 	// Storage limit pre-check before fetching any bytes. incomingBytes=0 because
@@ -260,34 +301,47 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	// their limit (total > limit) but allows workspaces at exactly 100% to
 	// receive one more file before being cut off — acceptable for ingress.
 	if w.storageSvc != nil {
-		if err = w.storageSvc.CheckLimit(ctx, p.WorkspaceID, 0); err != nil {
+		if err := w.storageSvc.CheckLimit(ctx, workspaceID, 0); err != nil {
 			if errors.Is(err, ErrStorageLimitReached) {
 				skipped := "storage limit reached"
 				_ = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 					Status: ingressStatusSkipped, ID: entry.ID, Error: &skipped,
 				})
-				return nil
+				return ruleResult, true, nil
 			}
-			return err
+			return ruleResult, false, err
 		}
 	}
+	return ruleResult, false, nil
+}
 
-	// Determine destination: rules > email subaddress override > source defaults
-	projectID := src.DestProjectID
-	folderID := src.DestFolderID
+// resolveDestination applies the priority chain: source defaults < payload override < rule result.
+func (w *Worker) resolveDestination(
+	src dbgen.IngressSource,
+	p FetchJobPayload,
+	ruleResult RuleResult,
+) (projectID *string, folderID *string) {
+	projectID = src.DestProjectID
+	folderID = src.DestFolderID
 	if p.OverrideFolderID != "" {
-		span.SetAttributes(attribute.String("damask.ingest.entry_folder_id", p.OverrideFolderID))
 		folderID = &p.OverrideFolderID
 	}
 	if ruleResult.FolderID != nil {
-		span.SetAttributes(attribute.String("damask.ingest.entry_folder_id", *ruleResult.FolderID))
 		folderID = ruleResult.FolderID
 	}
 	if ruleResult.ProjectID != nil {
-		span.SetAttributes(attribute.String("damask.ingest.entry_project_id", *ruleResult.ProjectID))
 		projectID = ruleResult.ProjectID
 	}
+	return projectID, folderID
+}
 
+func (w *Worker) streamToNamedTemp(
+	ctx context.Context,
+	entry dbgen.IngressLog,
+	src dbgen.IngressSource,
+	p FetchJobPayload,
+	source Source,
+) (namedTmp string, cleanup func(), err error) {
 	// Fetch the item — either from a pre-written temp file (email_api push path)
 	// or by calling source.Fetch() (pull sources).
 	var rc io.ReadCloser
@@ -295,15 +349,19 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 		slog.DebugContext(ctx, "use existing temp file")
 		f, openErr := os.Open(p.TmpPath)
 		if openErr != nil {
-			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: open tmp file: %w", openErr))
+			return "", func() {}, w.failEntry(
+				ctx,
+				entry.ID,
+				src,
+				fmt.Errorf("ingest_fetch: open tmp file: %w", openErr),
+			)
 		}
-		defer os.Remove(p.TmpPath)
 		rc = f
 	} else {
 		slog.DebugContext(ctx, "use fetch from source")
 		rc, err = source.Fetch(ctx, IngestItem{RemoteID: entry.RemoteID, Filename: entry.Filename, Meta: p.Meta})
 		if err != nil {
-			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: fetch item: %w", err))
+			return "", func() {}, w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: fetch item: %w", err))
 		}
 	}
 	defer rc.Close()
@@ -317,29 +375,45 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 
 	tmp, err := os.CreateTemp("", "ingest-*")
 	if err != nil {
-		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create temp file: %w", err))
+		return "", func() {}, w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create temp file: %w", err))
 	}
 	tmpPath := tmp.Name()
 	slog.DebugContext(ctx, "use temp file", "path", tmpPath)
-	defer os.Remove(tmpPath)
 
 	copied, err := io.Copy(tmp, io.MultiReader(bytes.NewReader(sniff), rc))
 	if err != nil {
 		_ = tmp.Close()
-		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: write temp file: %w", err))
+		os.Remove(tmpPath)
+		return "", func() {}, w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: write temp file: %w", err))
 	}
 	slog.DebugContext(ctx, "wrote temp file", "path", tmpPath, "bytes", copied)
 	_ = tmp.Close()
 
 	// Rename temp file to use original filename for CreateAsset
-	namedTmp := filepath.Join(os.TempDir(), filepath.Base(entry.Filename))
+	namedTmp = filepath.Join(os.TempDir(), filepath.Base(entry.Filename))
 	if err = os.Rename(tmpPath, namedTmp); err != nil {
 		namedTmp = tmpPath // fall back to random name
 	}
-	defer os.Remove(namedTmp)
-
 	slog.DebugContext(ctx, "ingest file", "path", namedTmp)
 
+	cleanup = func() {
+		os.Remove(namedTmp)
+		if p.TmpPath != "" {
+			os.Remove(p.TmpPath)
+		}
+	}
+	return namedTmp, cleanup, nil
+}
+
+func (w *Worker) finalizeImport(
+	ctx context.Context,
+	span trace.Span,
+	namedTmp string,
+	entry dbgen.IngressLog,
+	src dbgen.IngressSource,
+	projectID *string,
+	folderID *string,
+) error {
 	asset, err := w.ingester.IngestFile(ctx, src.WorkspaceID, namedTmp, assetio.IngestFileOpts{
 		ProjectID: projectID,
 		FolderID:  folderID,

@@ -51,6 +51,7 @@ import (
 
 var uiFS fs.FS // Populated by ui.go (prod) or ui_dev.go (dev)
 
+//nolint:funlen // entrypoint, setup, and shutdown logic
 func main() {
 	logLevel := new(slog.LevelVar)
 	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})

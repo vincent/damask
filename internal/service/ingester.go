@@ -15,7 +15,7 @@ import (
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
-	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
 
@@ -107,12 +107,14 @@ func (s *ingesterImpl) IngestFileWithDetails(
 }
 
 // ingest is the shared implementation called by IngestFile and IngestFileFull.
+//
+//nolint:funlen // mostly sequential steps with error handling and telemetry.
 func (s *ingesterImpl) ingest(
 	ctx context.Context,
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
 ) (asset dbgen.Asset, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.ingester.ingest",
+	ctx, span := telemetry.StartSpan(ctx, "service.ingester.ingest",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Bool("damask.upload.has_project", opts.ProjectID != nil),
 		attribute.Bool("damask.upload.has_folder", opts.FolderID != nil),
@@ -125,7 +127,7 @@ func (s *ingesterImpl) ingest(
 				attribute.Int64("damask.asset.size", asset.Size),
 			)
 		}
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(ctx, "asset ingest failed", "workspace_id", workspaceID, "error", err)
 		}
@@ -166,25 +168,25 @@ func (s *ingesterImpl) ingest(
 		return dbgen.Asset{}, fmt.Errorf("could not open file: %w", err)
 	}
 	defer f.Close()
-	_, storeSpan := apptelemetry.StartSpan(ctx, "service.ingester.storage_put",
+	_, storeSpan := telemetry.StartSpan(ctx, "service.ingester.storage_put",
 		attribute.String("damask.storage.key", storageKey),
 		attribute.Int64("damask.upload.bytes", stat.Size()),
 	)
 	err = s.stor.Put(storageKey, f)
-	apptelemetry.EndSpan(storeSpan, err)
+	telemetry.EndSpan(storeSpan, err)
 	if err != nil {
 		return dbgen.Asset{}, fmt.Errorf("could not store file: %w", err)
 	}
 
 	meta := ingest.FileMeta{}
 	if s.media.Supports(mimeType) {
-		metaCtx, metaSpan := apptelemetry.StartSpan(ctx, "service.ingester.extract_metadata",
+		metaCtx, metaSpan := telemetry.StartSpan(ctx, "service.ingester.extract_metadata",
 			attribute.String("damask.mime_type", mimeType),
 		)
 		if m, merr := s.media.ExtractMeta(ctx, filePath, mimeType); merr == nil {
 			meta = m
 		} else {
-			apptelemetry.RecordError(metaSpan, merr)
+			telemetry.RecordError(metaSpan, merr)
 			slog.WarnContext(metaCtx, "metadata extraction failed", "mime_type", mimeType, "error", merr)
 		}
 		metaSpan.End()
@@ -197,7 +199,7 @@ func (s *ingesterImpl) ingest(
 		)
 	}
 
-	_, createSpan := apptelemetry.StartSpan(ctx, "service.ingester.create_asset")
+	_, createSpan := telemetry.StartSpan(ctx, "service.ingester.create_asset")
 	asset, err = s.queries.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
@@ -209,21 +211,12 @@ func (s *ingesterImpl) ingest(
 		Width:            meta.Width,
 		Height:           meta.Height,
 	})
-	apptelemetry.EndSpan(createSpan, err)
+	telemetry.EndSpan(createSpan, err)
 	if err != nil {
 		return dbgen.Asset{}, fmt.Errorf("could not save asset: %w", err)
 	}
 
-	slog.DebugContext(
-		ctx,
-		"created asset",
-		"asset_id",
-		asset.ID,
-		"mime_type",
-		asset.MimeType,
-		"size",
-		asset.Size,
-	)
+	slog.DebugContext(ctx, "created asset", "asset_id", asset.ID, "mime_type", asset.MimeType, "size", asset.Size)
 
 	initialVersionID, vErr := s.createInitialVersion(ctx, asset, filePath, storageKey, mimeType, meta, opts.UserID)
 	if vErr != nil {
@@ -243,7 +236,7 @@ func (s *ingesterImpl) ingest(
 	}
 
 	if opts.InheritFields != nil && opts.ProjectID != nil && opts.UserID != "" {
-		inheritCtx, inheritSpan := apptelemetry.StartSpan(ctx, "service.ingester.inherit_project_fields",
+		inheritCtx, inheritSpan := telemetry.StartSpan(ctx, "service.ingester.inherit_project_fields",
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.project_id", *opts.ProjectID),
 		)
@@ -279,12 +272,12 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 ) {
 	enqueue := func(spanName, logMsg, jobType string, payload any) {
 		data, _ := json.Marshal(payload)
-		_, span := apptelemetry.StartSpan(ctx, spanName,
+		_, span := telemetry.StartSpan(ctx, spanName,
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", jobType),
 		)
 		_, err := s.q.Enqueue(ctx, workspaceID, jobType, string(data))
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(ctx, logMsg, "asset_id", asset.ID, "error", err)
 		}
@@ -349,13 +342,13 @@ func (s *ingesterImpl) createInitialVersion(
 	meta ingest.FileMeta,
 	userID string,
 ) (versionID string, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.ingester.create_initial_version",
+	ctx, span := telemetry.StartSpan(ctx, "service.ingester.create_initial_version",
 		attribute.String("damask.workspace_id", asset.WorkspaceID),
 		attribute.String("damask.asset_id", asset.ID),
 		attribute.Int64("damask.asset.size", asset.Size),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(ctx, "create initial version failed", "asset_id", asset.ID, "error", err)
 		}

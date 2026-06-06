@@ -161,6 +161,8 @@ func (s *Server) StorageForTest() storage.Storage {
 
 // buildTestApp registers all routes on a fresh Fiber app using server s.
 // The route registrations must stay in sync with NewRouter in router.go.
+//
+//nolint:funlen // tests
 func buildTestApp(s *Server) *fiber.App {
 	tokenMaker := s.auth
 

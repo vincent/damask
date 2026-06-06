@@ -21,7 +21,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
-	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
 
@@ -158,7 +158,7 @@ func (s *versionService) NextVersionNum(ctx context.Context, assetID string) (in
 }
 
 func (s *versionService) Create(ctx context.Context, v *VersionDTO) (out *VersionDTO, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.create",
+	ctx, span := telemetry.StartSpan(ctx, "service.versions.create",
 		attribute.String("damask.workspace_id", v.WorkspaceID),
 		attribute.String("damask.asset_id", v.AssetID),
 		attribute.Int64("damask.version.number", v.VersionNum),
@@ -168,7 +168,7 @@ func (s *versionService) Create(ctx context.Context, v *VersionDTO) (out *Versio
 		if out != nil {
 			span.SetAttributes(attribute.String("damask.version_id", out.ID))
 		}
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -208,7 +208,7 @@ func (s *versionService) UploadNewVersion(
 	ctx context.Context,
 	p UploadAssetVersionParams,
 ) (out *UploadAssetVersionResult, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.upload_new",
+	ctx, span := telemetry.StartSpan(ctx, "service.versions.upload_new",
 		attribute.String("damask.workspace_id", p.WorkspaceID),
 		attribute.String("damask.asset_id", p.AssetID),
 		attribute.String("damask.filename", p.Filename),
@@ -217,20 +217,11 @@ func (s *versionService) UploadNewVersion(
 		if out != nil && out.Version != nil {
 			span.SetAttributes(attribute.String("damask.version_id", out.Version.ID))
 		}
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(
-				ctx,
-				"version upload failed",
-				"workspace_id",
-				p.WorkspaceID,
-				"asset_id",
-				p.AssetID,
-				"filename",
-				p.Filename,
-				"error",
-				err,
-			)
+			slog.ErrorContext(ctx, "version upload failed",
+				"workspace_id", p.WorkspaceID, "asset_id", p.AssetID,
+				"filename", p.Filename, "error", err)
 		}
 	}()
 
@@ -254,58 +245,24 @@ func (s *versionService) UploadNewVersion(
 		return nil, err
 	}
 
-	tmpF, err := os.CreateTemp("", "damask-version-*"+filepath.Ext(p.Filename))
+	tmpPath, cleanup, err := writeTempFile(p.Reader, filepath.Ext(p.Filename))
 	if err != nil {
-		return nil, fmt.Errorf("cannot create temp file: %w", err)
+		return nil, err
 	}
-	tmpPath := tmpF.Name()
-	defer os.Remove(tmpPath)
-
-	if _, copyErr := io.Copy(tmpF, p.Reader); copyErr != nil {
-		_ = tmpF.Close()
-		return nil, fmt.Errorf("cannot write temp file: %w", copyErr)
-	}
-	if closeErr := tmpF.Close(); closeErr != nil {
-		return nil, fmt.Errorf("cannot close temp file: %w", closeErr)
-	}
-
-	hashFile, err := os.Open(tmpPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not open uploaded file: %w", err)
-	}
-	hash, size, err := versioning.HashReader(hashFile)
-	_ = hashFile.Close()
-	if err != nil {
-		return nil, fmt.Errorf("could not hash file: %w", err)
-	}
-
-	existing, hashErr := s.versions.GetByHash(ctx, p.AssetID, hash)
-	if hashErr == nil && existing.IsCurrent {
-		return nil, fmt.Errorf("this file is identical to the current version: %w", apperr.ErrConflict)
-	}
+	defer cleanup()
 
 	nextNum, err := s.versions.NextVersionNum(ctx, p.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("could not determine version number: %w", err)
 	}
 
+	storageKey, hash, size, err := s.resolveStorageKey(ctx, p.AssetID, p.WorkspaceID, nextNum, p.Filename, tmpPath)
+	if err != nil {
+		return nil, err
+	}
+
 	mimeType := resolveVersionMimeType(tmpPath, p.ContentType, p.Filename)
 	meta := s.extractVersionMeta(ctx, tmpPath, mimeType, p.AssetID)
-
-	storageKey := fmt.Sprintf("%s/%s/v%d/%s", p.WorkspaceID, p.AssetID, nextNum, p.Filename)
-	if hashErr != nil {
-		storeFile, openErr := os.Open(tmpPath)
-		if openErr != nil {
-			return nil, fmt.Errorf("could not reopen uploaded file: %w", openErr)
-		}
-		putErr := s.storage.Put(storageKey, storeFile)
-		_ = storeFile.Close()
-		if putErr != nil {
-			return nil, fmt.Errorf("could not store file: %w", putErr)
-		}
-	} else {
-		storageKey = existing.StorageKey
-	}
 
 	var commentPtr *string
 	if comment != "" {
@@ -338,48 +295,104 @@ func (s *versionService) UploadNewVersion(
 	newVersion.IsCurrent = true
 
 	if thumbErr := s.SetAssetThumbnail(ctx, p.AssetID, nil); thumbErr != nil {
-		slog.ErrorContext(
-			ctx,
-			"clear asset thumbnail",
-			"asset_id",
-			p.AssetID,
-			"version_id",
-			newVersion.ID,
-			"error",
-			thumbErr,
-		)
+		slog.ErrorContext(ctx, "clear asset thumbnail",
+			"asset_id", p.AssetID, "version_id", newVersion.ID, "error", thumbErr)
 	}
-
-	s.enqueueVersionThumbnail(ctx, asset, newVersion)
-	s.enqueueVersionMediaTags(ctx, p.WorkspaceID, p.AssetID, newVersion.ID, mimeType)
 
 	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
 	if err != nil {
 		return nil, fmt.Errorf("could not reload asset: %w", err)
 	}
 
-	s.WriteVersionUploaded(ctx, p.WorkspaceID, p.AssetID, newVersion, comment)
+	s.publishVersionEvent(ctx, asset, updatedAsset, newVersion, comment, mimeType)
+
+	return &UploadAssetVersionResult{
+		Asset:   toAssetDTO(updatedAsset),
+		Version: newVersion,
+	}, nil
+}
+
+func writeTempFile(r io.Reader, ext string) (path string, cleanup func(), err error) {
+	f, err := os.CreateTemp("", "damask-version-*"+ext)
+	if err != nil {
+		return "", func() {}, fmt.Errorf("cannot create temp file: %w", err)
+	}
+	name := f.Name()
+	remove := func() { os.Remove(name) }
+	if _, err = io.Copy(f, r); err != nil {
+		_ = f.Close()
+		remove()
+		return "", func() {}, fmt.Errorf("cannot write temp file: %w", err)
+	}
+	if err = f.Close(); err != nil {
+		remove()
+		return "", func() {}, fmt.Errorf("cannot close temp file: %w", err)
+	}
+	return name, remove, nil
+}
+
+func (s *versionService) resolveStorageKey(
+	ctx context.Context,
+	assetID, workspaceID string,
+	nextNum int64,
+	filename, tmpPath string,
+) (storageKey, hash string, size int64, err error) {
+	hashFile, err := os.Open(tmpPath)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("could not open uploaded file: %w", err)
+	}
+	hash, size, err = versioning.HashReader(hashFile)
+	_ = hashFile.Close()
+	if err != nil {
+		return "", "", 0, fmt.Errorf("could not hash file: %w", err)
+	}
+
+	existing, hashErr := s.versions.GetByHash(ctx, assetID, hash)
+	if hashErr == nil {
+		if existing.IsCurrent {
+			return "", "", 0, fmt.Errorf("this file is identical to the current version: %w", apperr.ErrConflict)
+		}
+		return existing.StorageKey, hash, size, nil
+	}
+
+	key := fmt.Sprintf("%s/%s/v%d/%s", workspaceID, assetID, nextNum, filename)
+	storeFile, err := os.Open(tmpPath)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("could not reopen uploaded file: %w", err)
+	}
+	putErr := s.storage.Put(key, storeFile)
+	_ = storeFile.Close()
+	if putErr != nil {
+		return "", "", 0, fmt.Errorf("could not store file: %w", putErr)
+	}
+	return key, hash, size, nil
+}
+
+func (s *versionService) publishVersionEvent(
+	ctx context.Context,
+	asset, updatedAsset repository.Asset,
+	version *VersionDTO,
+	comment, mimeType string,
+) {
+	s.enqueueVersionThumbnail(ctx, asset, version)
+	s.enqueueVersionMediaTags(ctx, updatedAsset.WorkspaceID, updatedAsset.ID, version.ID, mimeType)
+	s.WriteVersionUploaded(ctx, updatedAsset.WorkspaceID, updatedAsset.ID, version, comment)
 	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.version_uploaded", map[string]any{
 		"asset_id":          updatedAsset.ID,
 		"workspace_id":      updatedAsset.WorkspaceID,
 		"project_id":        ptrStr(updatedAsset.ProjectID),
 		"folder_id":         ptrStr(updatedAsset.FolderID),
-		"mime_type":         newVersion.MimeType,
-		"size":              newVersion.Size,
+		"mime_type":         version.MimeType,
+		"size":              version.Size,
 		"original_filename": updatedAsset.OriginalFilename,
 		"filename":          updatedAsset.OriginalFilename,
-		"version_id":        newVersion.ID,
-		"version_num":       newVersion.VersionNum,
-		"storage_key":       newVersion.StorageKey,
+		"version_id":        version.ID,
+		"version_num":       version.VersionNum,
+		"storage_key":       version.StorageKey,
 	})
-
 	if s.invalidate != nil {
-		s.invalidate.Invalidate(p.WorkspaceID)
+		s.invalidate.Invalidate(updatedAsset.WorkspaceID)
 	}
-	return &UploadAssetVersionResult{
-		Asset:   toAssetDTO(updatedAsset),
-		Version: newVersion,
-	}, nil
 }
 
 func (s *versionService) validateUploadNewVersionDeps() error {
@@ -458,11 +471,11 @@ func (s *versionService) enqueueVersionMediaTags(
 }
 
 func (s *versionService) SetCurrent(ctx context.Context, assetID, versionID string) (err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.set_current",
+	ctx, span := telemetry.StartSpan(ctx, "service.versions.set_current",
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.version_id", versionID),
 	)
-	defer func() { apptelemetry.EndSpan(span, err) }()
+	defer func() { telemetry.EndSpan(span, err) }()
 	return s.versions.SetCurrent(ctx, assetID, versionID)
 }
 
@@ -472,13 +485,13 @@ func (s *versionService) SetAssetThumbnail(ctx context.Context, assetID string, 
 
 // Delete soft-deletes a non-current version that is not in use as a cover.
 func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versionID string) (err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.versions.delete",
+	ctx, span := telemetry.StartSpan(ctx, "service.versions.delete",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.version_id", versionID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,

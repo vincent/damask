@@ -203,6 +203,8 @@ func NewHTTPServer(
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 // @BasePath /
 // @schemes http.
+//
+//nolint:funlen // router
 func NewRouter(
 	queries *dbgen.Queries,
 	sqlDB *sql.DB,

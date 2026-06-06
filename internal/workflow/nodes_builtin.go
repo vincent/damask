@@ -109,6 +109,9 @@ func createVariantSchemaFn() NodeSchema {
 	}
 }
 
+// initializes built-in nodes (triggers, filters, and actions that don't require external dependencies)
+//
+//nolint:funlen // this is just a long list of node registrations
 func init() {
 	registerPassThroughTrigger := func(nodeType, label, desc string, configSchema json.RawMessage) {
 		schema := triggerSchema(nodeType, label, desc, configSchema)
