@@ -269,80 +269,14 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		return s.handleListAssetsByFields(c, claims.WorkspaceID, limit)
 	}
 
-	lp := service.ListAssetsParams{
-		WorkspaceID: claims.WorkspaceID,
-		Limit:       limit,
-	}
-
-	// Search
-	if q := c.Query("q"); q != "" {
-		lp.SearchQuery = q
-	}
-
-	// Tag filter — AND logic
-	if tagsParam := c.Query("tags"); tagsParam != "" {
-		for t := range strings.SplitSeq(tagsParam, ",") {
-			lp.TagNames = append(lp.TagNames, strings.TrimSpace(strings.ToLower(t)))
-		}
-	}
-
-	// Folder filter
-	folderID, projectID, isRoot, err := parseFolderFilter(c.Query("folder_id"), c.Query("project_id"))
+	lp, err := s.parseListAssetsParams(c, claims.WorkspaceID, limit)
 	if err != nil {
-		return errRes(c, fiber.StatusBadRequest, err.Error())
-	}
-	lp.FolderID = folderID
-	lp.ProjectID = projectID
-	lp.FolderIsRoot = isRoot
-
-	if cid := c.Query("collection_id"); cid != "" {
-		lp.CollectionID = &cid
-	}
-
-	if mime := c.Query("mime"); mime != "" {
-		lp.MimePrefix = &mime
+		return err
 	}
 
 	sim, err := s.parseSimilarityFilter(c, claims.WorkspaceID, &lp)
 	if err != nil {
 		return err
-	}
-
-	// Sort
-	sort := c.Query("sort")
-	switch sort {
-	case "size_asc":
-		lp.SortField = sortFieldSize
-		lp.SortDesc = false
-	case "size_desc":
-		lp.SortField = sortFieldSize
-		lp.SortDesc = true
-	case "id_asc":
-		lp.SortField = "id"
-		lp.SortDesc = false
-	case "id_desc":
-		lp.SortField = "id"
-		lp.SortDesc = true
-	case "created_at_asc":
-		lp.SortField = "created_at_asc"
-		lp.SortDesc = false
-	case sortFieldTakenAt:
-		lp.SortField = sortFieldTakenAt
-		lp.SortDesc = false
-	case "taken_at_desc":
-		lp.SortField = sortFieldTakenAt
-		lp.SortDesc = true
-	default: // created_at DESC
-		lp.SortDesc = true
-	}
-
-	// Cursor
-	if cursor := c.Query("cursor"); cursor != "" {
-		if cv, cvErr := decodeCursor(cursor); cvErr == nil {
-			lp.CursorField = cv.Field
-			lp.CursorValue = cv.Value
-			lp.CursorID = cv.ID
-		}
 	}
 	span.End()
 
@@ -391,6 +325,71 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		response.SimilarToNoMatches = sim.NoMatches
 	}
 	return c.JSON(response)
+}
+
+func (s *Server) parseListAssetsParams(c fiber.Ctx, workspaceID string, limit int64) (service.ListAssetsParams, error) {
+	lp := service.ListAssetsParams{
+		WorkspaceID: workspaceID,
+		Limit:       limit,
+	}
+
+	if q := c.Query("q"); q != "" {
+		lp.SearchQuery = q
+	}
+
+	if tagsParam := c.Query("tags"); tagsParam != "" {
+		for t := range strings.SplitSeq(tagsParam, ",") {
+			lp.TagNames = append(lp.TagNames, strings.TrimSpace(strings.ToLower(t)))
+		}
+	}
+
+	folderID, projectID, isRoot, err := parseFolderFilter(c.Query("folder_id"), c.Query("project_id"))
+	if err != nil {
+		return lp, errRes(c, fiber.StatusBadRequest, err.Error())
+	}
+	lp.FolderID = folderID
+	lp.ProjectID = projectID
+	lp.FolderIsRoot = isRoot
+
+	if cid := c.Query("collection_id"); cid != "" {
+		lp.CollectionID = &cid
+	}
+
+	if mime := c.Query("mime"); mime != "" {
+		lp.MimePrefix = &mime
+	}
+
+	switch c.Query("sort") {
+	case "size_asc":
+		lp.SortField = sortFieldSize
+	case "size_desc":
+		lp.SortField = sortFieldSize
+		lp.SortDesc = true
+	case "id_asc":
+		lp.SortField = "id"
+	case "id_desc":
+		lp.SortField = "id"
+		lp.SortDesc = true
+	case "created_at_asc":
+		lp.SortField = "created_at_asc"
+	case sortFieldTakenAt:
+		lp.SortField = sortFieldTakenAt
+	case "taken_at_desc":
+		lp.SortField = sortFieldTakenAt
+		lp.SortDesc = true
+	default:
+		lp.SortDesc = true
+	}
+
+	if cursor := c.Query("cursor"); cursor != "" {
+		if cv, cvErr := decodeCursor(cursor); cvErr == nil {
+			lp.CursorField = cv.Field
+			lp.CursorValue = cv.Value
+			lp.CursorID = cv.ID
+		}
+	}
+
+	return lp, nil
 }
 
 type similarityFilterResult struct {

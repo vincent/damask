@@ -547,9 +547,9 @@ func requiresAudioAsset(variantType string) bool {
 }
 
 func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage) (json.RawMessage, error) {
+	var p transform.AudioParams
 	switch variantType {
 	case queue.JobTypeExtractAudio:
-		var p transform.AudioParams
 		if err := json.Unmarshal(raw, &p); err != nil {
 			return nil, invalidVariantInputError("invalid audio params")
 		}
@@ -559,15 +559,10 @@ func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage
 		if p.Bitrate == "" {
 			p.Bitrate = defaultAudioBitrate
 		}
-		if !isAllowedAudioBitrate(p.Bitrate) {
-			return nil, invalidVariantInputError("unsupported audio bitrate")
+		if err := validateAudioBitrateAndFormat(p, "aac", "mp3", "opus", "flac"); err != nil {
+			return nil, err
 		}
-		if !isAllowedAudioFormat(p.OutputFormat, "aac", "mp3", "opus", "flac") {
-			return nil, invalidVariantInputError("unsupported audio format")
-		}
-		return marshalRaw(p), nil
 	case queue.JobTypeTranscodeAudio:
-		var p transform.AudioParams
 		if err := json.Unmarshal(raw, &p); err != nil {
 			return nil, invalidVariantInputError("invalid audio params")
 		}
@@ -577,15 +572,10 @@ func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage
 		if p.Bitrate == "" {
 			p.Bitrate = defaultAudioBitrate
 		}
-		if !isAllowedAudioBitrate(p.Bitrate) {
-			return nil, invalidVariantInputError("unsupported audio bitrate")
+		if err := validateAudioBitrateAndFormat(p, "mp3", "aac", "opus", "ogg", "flac", "wav"); err != nil {
+			return nil, err
 		}
-		if !isAllowedAudioFormat(p.OutputFormat, "mp3", "aac", "opus", "ogg", "flac", "wav") {
-			return nil, invalidVariantInputError("unsupported audio format")
-		}
-		return marshalRaw(p), nil
 	case queue.JobTypeNormalizeAudio:
-		var p transform.AudioParams
 		if err := json.Unmarshal(raw, &p); err != nil {
 			return nil, invalidVariantInputError("invalid audio params")
 		}
@@ -601,13 +591,23 @@ func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage
 		if p.TargetLUFS < transform.MinLUFS || p.TargetLUFS > transform.MaxLUFS {
 			return nil, invalidVariantInputError("target_lufs must be between -70 and 0")
 		}
-		if !isAllowedAudioFormat(p.OutputFormat, "mp3", "aac", "wav", "ogg", "flac") {
-			return nil, invalidVariantInputError("unsupported audio format")
+		if err := validateAudioBitrateAndFormat(p, "mp3", "aac", "wav", "ogg", "flac"); err != nil {
+			return nil, err
 		}
-		return marshalRaw(p), nil
 	default:
 		return raw, nil
 	}
+	return marshalRaw(p), nil
+}
+
+func validateAudioBitrateAndFormat(p transform.AudioParams, allowedFormats ...string) error {
+	if p.Bitrate != "" && !isAllowedAudioBitrate(p.Bitrate) {
+		return invalidVariantInputError("unsupported audio bitrate")
+	}
+	if !isAllowedAudioFormat(p.OutputFormat, allowedFormats...) {
+		return invalidVariantInputError("unsupported audio format")
+	}
+	return nil
 }
 
 func marshalRaw(v any) json.RawMessage {

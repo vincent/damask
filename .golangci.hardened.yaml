@@ -477,6 +477,8 @@ linters:
           - govet
           - nolintlint
           - nilnil
+          - gocognit
+          - cyclop
       - source: "TODO"
         linters: [godot]
       - text: "should have a package comment"
@@ -500,3 +502,4 @@ linters:
           - noctx
           - wrapcheck
           - rowserrcheck
+          - gocognit

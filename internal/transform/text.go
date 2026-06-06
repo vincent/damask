@@ -29,65 +29,17 @@ type ImageOfTextOptions struct {
 }
 
 func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextOptions) ([]byte, error) {
-	var err error
-	var openTypeFont *opentype.Font
-	if opts.FontFile == nil {
-		openTypeFont, err = opentype.Parse(goregular.TTF)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		var fontData []byte
-		fontData, err = io.ReadAll(opts.FontFile)
-		if err != nil {
-			return nil, fmt.Errorf("read font file: %w", err)
-		}
-		openTypeFont, err = opentype.Parse(fontData)
-		if err != nil {
-			return nil, fmt.Errorf("parse font file: %w", err)
-		}
+	_ = ctx
+
+	openTypeFont, err := loadTextFont(opts.FontFile)
+	if err != nil {
+		return nil, err
 	}
 
-	if opts.TextContent == "" {
-		opts.TextContent = " " // avoid empty content which can cause issues with some font renderers
-	}
-	if opts.FgColorHex == "" {
-		opts.FgColorHex = "#000000" // default to black
-	}
-	if opts.BgColorHex == "" {
-		opts.BgColorHex = "#FFFFFF" // default to white
-	}
-	if opts.Dpi <= 0 {
-		opts.Dpi = 72 // default DPI
-	}
-	if opts.Width <= 0 {
-		opts.Width = 400 // default width
-	}
-	if opts.Height <= 0 {
-		opts.Height = 400 // default height
-	}
+	applyImageOfTextDefaults(&opts)
 
-	fgColor := color.RGBA{0, 0, 0, 255}
-	_, _ = fmt.Sscanf(opts.FgColorHex, "#%02x%02x%02x", &fgColor.R, &fgColor.G, &fgColor.B)
-
-	bgColor := color.RGBA{255, 255, 255, 255}
-	_, _ = fmt.Sscanf(opts.BgColorHex, "#%02x%02x%02x", &bgColor.R, &bgColor.G, &bgColor.B)
-
-	lines := strings.Split(opts.TextContent, "\n")
-	maxLen := 0
-	for _, line := range lines {
-		if len(line) > maxLen {
-			maxLen = len(line)
-		}
-	}
-	if maxLen == 0 {
-		maxLen = 1
-	}
-
-	if opts.FontSize <= 0 {
-		//nolint:mnd // heuristic font size based on width and text length
-		opts.FontSize = max(8, min(32, float64(opts.Width)/float64(maxLen)*1.5))
-	}
+	fgColor := parseHexColorRGBA(opts.FgColorHex, color.RGBA{0, 0, 0, 255})
+	bgColor := parseHexColorRGBA(opts.BgColorHex, color.RGBA{255, 255, 255, 255})
 
 	face, err := opentype.NewFace(openTypeFont, &opentype.FaceOptions{
 		Size:    opts.FontSize,
@@ -109,45 +61,16 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 	dst := image.NewRGBA(image.Rect(0, 0, opts.Width, opts.Height))
 	draw.Draw(dst, dst.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)
 
-	d := &font.Drawer{
-		Dst:  dst,
-		Src:  &image.Uniform{fgColor},
-		Face: face,
-	}
+	d := &font.Drawer{Dst: dst, Src: &image.Uniform{fgColor}, Face: face}
 
-	var wrappedLines []string
-	for line := range strings.SplitSeq(opts.TextContent, "\n") {
-		words := strings.Fields(line)
-		if len(words) == 0 {
-			wrappedLines = append(wrappedLines, "")
-			continue
-		}
+	wrappedLines := wrapTextLines(d, opts.TextContent, maxWidth)
 
-		current := words[0]
-		for _, word := range words[1:] {
-			test := current + " " + word
-			if d.MeasureString(test).Round() <= maxWidth {
-				current = test
-			} else {
-				wrappedLines = append(wrappedLines, current)
-				current = word
-			}
-		}
-		wrappedLines = append(wrappedLines, current)
-	}
-
-	// draw with clipping (discard overflow)
 	y := fixed.I(margin) + ascent
-
 	for _, line := range wrappedLines {
 		if (y.Round() + lineHeight) > (margin + maxHeight) {
-			break // stop drawing if overflow
+			break
 		}
-
-		d.Dot = fixed.Point26_6{
-			X: fixed.I(margin),
-			Y: y,
-		}
+		d.Dot = fixed.Point26_6{X: fixed.I(margin), Y: y}
 		d.DrawString(line)
 		y += fixed.I(lineHeight)
 	}
@@ -156,6 +79,80 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 	if err = png.Encode(buf, dst); err != nil {
 		return nil, err
 	}
-
 	return buf.Bytes(), nil
+}
+
+func loadTextFont(fontFile io.ReadCloser) (*opentype.Font, error) {
+	if fontFile == nil {
+		return opentype.Parse(goregular.TTF)
+	}
+	data, err := io.ReadAll(fontFile)
+	if err != nil {
+		return nil, fmt.Errorf("read font file: %w", err)
+	}
+	f, err := opentype.Parse(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse font file: %w", err)
+	}
+	return f, nil
+}
+
+func applyImageOfTextDefaults(opts *ImageOfTextOptions) {
+	if opts.TextContent == "" {
+		opts.TextContent = " "
+	}
+	if opts.FgColorHex == "" {
+		opts.FgColorHex = "#000000"
+	}
+	if opts.BgColorHex == "" {
+		opts.BgColorHex = "#FFFFFF"
+	}
+	if opts.Dpi <= 0 {
+		opts.Dpi = 72
+	}
+	if opts.Width <= 0 {
+		opts.Width = 400
+	}
+	if opts.Height <= 0 {
+		opts.Height = 400
+	}
+	if opts.FontSize <= 0 {
+		maxLen := 1
+		for line := range strings.SplitSeq(opts.TextContent, "\n") {
+			if len(line) > maxLen {
+				maxLen = len(line)
+			}
+		}
+		//nolint:mnd // heuristic font size based on width and text length
+		opts.FontSize = max(8, min(32, float64(opts.Width)/float64(maxLen)*1.5))
+	}
+}
+
+func parseHexColorRGBA(hex string, fallback color.RGBA) color.RGBA {
+	c := fallback
+	_, _ = fmt.Sscanf(hex, "#%02x%02x%02x", &c.R, &c.G, &c.B)
+	return c
+}
+
+func wrapTextLines(d *font.Drawer, text string, maxWidth int) []string {
+	var out []string
+	for line := range strings.SplitSeq(text, "\n") {
+		words := strings.Fields(line)
+		if len(words) == 0 {
+			out = append(out, "")
+			continue
+		}
+		current := words[0]
+		for _, word := range words[1:] {
+			test := current + " " + word
+			if d.MeasureString(test).Round() <= maxWidth {
+				current = test
+			} else {
+				out = append(out, current)
+				current = word
+			}
+		}
+		out = append(out, current)
+	}
+	return out
 }

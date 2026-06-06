@@ -453,20 +453,8 @@ func (s *userService) DeleteAccount(ctx context.Context, userID, password string
 	if err != nil {
 		return err
 	}
-	for _, ws := range workspaces {
-		members, membersErr := s.workspaces.ListMembers(ctx, ws.ID)
-		if membersErr != nil {
-			return membersErr
-		}
-		ownerCount := 0
-		for _, member := range members {
-			if member.Role == string(auth.Owner) {
-				ownerCount++
-			}
-		}
-		if ownerCount == 1 {
-			return fmt.Errorf("sole workspace owner: %w", apperr.ErrInvalidInput)
-		}
+	if err = s.checkSoleOwnerWorkspaces(ctx, workspaces); err != nil {
+		return err
 	}
 
 	return s.workspaces.RunRegistrationTx(
@@ -493,6 +481,25 @@ func (s *userService) DeleteAccount(ctx context.Context, userID, password string
 			return nil
 		},
 	)
+}
+
+func (s *userService) checkSoleOwnerWorkspaces(ctx context.Context, workspaces []repository.WorkspaceWithRole) error {
+	for _, ws := range workspaces {
+		members, err := s.workspaces.ListMembers(ctx, ws.ID)
+		if err != nil {
+			return err
+		}
+		ownerCount := 0
+		for _, m := range members {
+			if m.Role == string(auth.Owner) {
+				ownerCount++
+			}
+		}
+		if ownerCount == 1 {
+			return fmt.Errorf("sole workspace owner: %w", apperr.ErrInvalidInput)
+		}
+	}
+	return nil
 }
 
 // CreateWorkspace creates a new workspace owned by userID in a transaction.

@@ -506,14 +506,10 @@ func (s *assetFieldService) BulkSetValues(
 	}()
 
 	// Validate values once (same fields for all assets).
-	type resolvedInput struct {
-		fieldID string
-		p       *repository.SetFieldValueParams // nil = delete (clear)
-	}
-	resolved := make([]resolvedInput, len(inputs))
+	resolved := make([]bulkFieldInput, len(inputs))
 	for i, input := range inputs {
 		if input.Value == nil {
-			resolved[i] = resolvedInput{fieldID: input.FieldID}
+			resolved[i] = bulkFieldInput{fieldID: input.FieldID}
 			continue
 		}
 		def, defErr := s.fields.GetByID(ctx, workspaceID, input.FieldID)
@@ -531,7 +527,7 @@ func (s *assetFieldService) BulkSetValues(
 			return result, fmt.Errorf("%w", apperr.ErrInvalidInput)
 		}
 		p.CreatedBy = userID
-		resolved[i] = resolvedInput{fieldID: input.FieldID, p: &p}
+		resolved[i] = bulkFieldInput{fieldID: input.FieldID, p: &p}
 	}
 
 	// Pre-filter: collect only asset IDs that belong to this workspace (read before tx).
@@ -543,28 +539,7 @@ func (s *assetFieldService) BulkSetValues(
 	}
 
 	err = s.assetFields.RunInTx(ctx, func(tx repository.AssetFieldRepository) error {
-		for _, assetID := range validIDs {
-			assetOK := true
-			assetCleared := int64(0)
-			for _, r := range resolved {
-				if r.p == nil {
-					if delErr := tx.DeleteValue(ctx, assetID, r.fieldID); delErr != nil {
-						assetOK = false
-						break
-					}
-					assetCleared++
-					continue
-				}
-				if upsertErr := tx.UpsertValue(ctx, assetID, *r.p); upsertErr != nil {
-					return upsertErr
-				}
-			}
-			if assetOK {
-				result.Updated++
-				result.Cleared += assetCleared
-			}
-		}
-		return nil
+		return applyBulkFieldValues(ctx, tx, validIDs, resolved, &result)
 	})
 	if err != nil {
 		return BulkSetValuesResult{}, err
@@ -577,26 +552,9 @@ func (s *assetFieldService) BulkPreview(
 	workspaceID string,
 	assetIDs, fieldIDs []string,
 ) ([]BulkPreviewEntry, error) {
-	// Resolve field definitions.
-	var defs []repository.FieldDefinition
-	if len(fieldIDs) == 0 {
-		all, err := s.fields.List(ctx, workspaceID, string(AutomationScopeAsset))
-		if err != nil {
-			return nil, err
-		}
-		for _, d := range all {
-			if d.DeletedAt == nil {
-				defs = append(defs, d)
-			}
-		}
-	} else {
-		for _, fid := range fieldIDs {
-			d, err := s.fields.GetByID(ctx, workspaceID, fid)
-			if err != nil || d.DeletedAt != nil {
-				continue
-			}
-			defs = append(defs, d)
-		}
+	defs, err := resolveFieldDefs(ctx, s.fields, workspaceID, fieldIDs)
+	if err != nil {
+		return nil, err
 	}
 	if len(defs) == 0 {
 		return []BulkPreviewEntry{}, nil
@@ -605,7 +563,7 @@ func (s *assetFieldService) BulkPreview(
 	// Pre-filter assets to workspace membership.
 	validIDs := make([]string, 0, len(assetIDs))
 	for _, assetID := range assetIDs {
-		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err == nil {
+		if _, validErr := s.assets.GetByID(ctx, workspaceID, assetID); validErr == nil {
 			validIDs = append(validIDs, assetID)
 		}
 	}
@@ -621,8 +579,8 @@ func (s *assetFieldService) BulkPreview(
 	}
 
 	for _, assetID := range validIDs {
-		rows, err := s.assetFields.GetValues(ctx, assetID)
-		if err != nil {
+		rows, validErr := s.assetFields.GetValues(ctx, assetID)
+		if validErr != nil {
 			continue
 		}
 		for _, row := range rows {
@@ -630,21 +588,7 @@ func (s *assetFieldService) BulkPreview(
 			if !ok {
 				continue
 			}
-			var strVal string
-			switch {
-			case row.ValueText != nil:
-				strVal = *row.ValueText
-			case row.ValueNumber != nil:
-				strVal = fmt.Sprintf("%v", *row.ValueNumber)
-			case row.ValueDate != nil:
-				strVal = *row.ValueDate
-			case row.ValueBoolean != nil:
-				if *row.ValueBoolean != 0 {
-					strVal = "true"
-				} else {
-					strVal = "false"
-				}
-			}
+			strVal := fieldValueString(row)
 			if strVal != "" {
 				acc.withValue++
 				acc.valueCounts[strVal]++
@@ -683,6 +627,89 @@ func (s *assetFieldService) BulkPreview(
 		})
 	}
 	return entries, nil
+}
+
+type bulkFieldInput struct {
+	fieldID string
+	p       *repository.SetFieldValueParams // nil = delete (clear)
+}
+
+func applyBulkFieldValues(
+	ctx context.Context,
+	tx repository.AssetFieldRepository,
+	validIDs []string,
+	resolved []bulkFieldInput,
+	result *BulkSetValuesResult,
+) error {
+	for _, assetID := range validIDs {
+		assetOK := true
+		assetCleared := int64(0)
+		for _, r := range resolved {
+			if r.p == nil {
+				if delErr := tx.DeleteValue(ctx, assetID, r.fieldID); delErr != nil {
+					assetOK = false
+					break
+				}
+				assetCleared++
+				continue
+			}
+			if upsertErr := tx.UpsertValue(ctx, assetID, *r.p); upsertErr != nil {
+				return upsertErr
+			}
+		}
+		if assetOK {
+			result.Updated++
+			result.Cleared += assetCleared
+		}
+	}
+	return nil
+}
+
+func resolveFieldDefs(
+	ctx context.Context,
+	fields repository.FieldRepository,
+	workspaceID string,
+	fieldIDs []string,
+) ([]repository.FieldDefinition, error) {
+	if len(fieldIDs) == 0 {
+		all, err := fields.List(ctx, workspaceID, string(AutomationScopeAsset))
+		if err != nil {
+			return nil, err
+		}
+		var defs []repository.FieldDefinition
+		for _, d := range all {
+			if d.DeletedAt == nil {
+				defs = append(defs, d)
+			}
+		}
+		return defs, nil
+	}
+	var defs []repository.FieldDefinition
+	for _, fid := range fieldIDs {
+		d, err := fields.GetByID(ctx, workspaceID, fid)
+		if err != nil || d.DeletedAt != nil {
+			continue
+		}
+		defs = append(defs, d)
+	}
+	return defs, nil
+}
+
+func fieldValueString(row repository.FieldValue) string {
+	switch {
+	case row.ValueText != nil:
+		return *row.ValueText
+	case row.ValueNumber != nil:
+		return fmt.Sprintf("%v", *row.ValueNumber)
+	case row.ValueDate != nil:
+		return *row.ValueDate
+	case row.ValueBoolean != nil:
+		if *row.ValueBoolean != 0 {
+			return "true"
+		}
+		return "false"
+	}
+	return ""
 }
 
 // -- ProjectFieldService -------------------------------------------------------

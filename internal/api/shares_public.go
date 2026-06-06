@@ -708,11 +708,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 		sharedByAsset[v.AssetID] = append(sharedByAsset[v.AssetID], v)
 	}
 
-	type entry struct {
-		name       string
-		storageKey string
-	}
-	var entries []entry
+	var entries []zipExportEntry
 	for _, d := range dtos {
 		shared := sharedByAsset[d.ID]
 		folder := sanitiseFilename(strings.TrimSuffix(d.OriginalFilename, filepath.Ext(d.OriginalFilename)))
@@ -720,7 +716,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 			folder = d.ID
 		}
 		collisions := map[string]int{}
-		entries = append(entries, entry{
+		entries = append(entries, zipExportEntry{
 			name: folder + "/" + uniqueZipChildName(
 				collisions,
 				"original"+strings.ToLower(filepath.Ext(d.OriginalFilename)),
@@ -730,7 +726,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 		for _, v := range shared {
 			ext := strings.ToLower(filepath.Ext(v.StorageKey))
 			child := uniqueZipChildName(collisions, sanitiseFilename(v.Title)+ext)
-			entries = append(entries, entry{name: folder + "/" + child, storageKey: v.StorageKey})
+			entries = append(entries, zipExportEntry{name: folder + "/" + child, storageKey: v.StorageKey})
 		}
 	}
 
@@ -750,39 +746,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 	)
 
 	pr, pw := io.Pipe()
-	go func() {
-		zw := zip.NewWriter(pw)
-		var missing []string
-		for _, e := range entries {
-			rc, getErr := s.storage.Get(e.storageKey)
-			if getErr != nil {
-				missing = append(missing, e.name)
-				continue
-			}
-			fw, createErr := zw.Create(e.name)
-			if createErr != nil {
-				_ = rc.Close()
-				missing = append(missing, e.name)
-				continue
-			}
-			if _, copyErr := io.Copy(fw, rc); copyErr != nil {
-				slog.WarnContext(c.Context(), "share zip copy error", "name", e.name, "err", copyErr)
-			}
-			_ = rc.Close()
-		}
-		if len(missing) > 0 {
-			if fw, createErr := zw.Create("_missing_files.txt"); createErr == nil {
-				for _, n := range missing {
-					_, _ = fmt.Fprintln(fw, n)
-				}
-			}
-		}
-		if closeErr := zw.Close(); closeErr != nil {
-			_ = pw.CloseWithError(closeErr)
-		} else {
-			_ = pw.Close()
-		}
-	}()
+	go writeShareZip(pw, entries, s.storage)
 
 	return c.SendStream(pr)
 }
@@ -816,4 +780,47 @@ func uniqueZipChildName(counts map[string]int, name string) string {
 	ext := filepath.Ext(name)
 	stem := strings.TrimSuffix(name, ext)
 	return fmt.Sprintf("%s_%d%s", stem, counts[name], ext)
+}
+
+type zipExportEntry struct {
+	name       string
+	storageKey string
+}
+
+type shareZipStorage interface {
+	Get(key string) (io.ReadCloser, error)
+}
+
+func writeShareZip(pw *io.PipeWriter, entries []zipExportEntry, storage shareZipStorage) {
+	zw := zip.NewWriter(pw)
+	var missing []string
+	for _, e := range entries {
+		rc, getErr := storage.Get(e.storageKey)
+		if getErr != nil {
+			missing = append(missing, e.name)
+			continue
+		}
+		fw, createErr := zw.Create(e.name)
+		if createErr != nil {
+			_ = rc.Close()
+			missing = append(missing, e.name)
+			continue
+		}
+		if _, copyErr := io.Copy(fw, rc); copyErr != nil {
+			slog.Warn("share zip copy error", "name", e.name, "err", copyErr)
+		}
+		_ = rc.Close()
+	}
+	if len(missing) > 0 {
+		if fw, createErr := zw.Create("_missing_files.txt"); createErr == nil {
+			for _, n := range missing {
+				_, _ = fmt.Fprintln(fw, n)
+			}
+		}
+	}
+	if closeErr := zw.Close(); closeErr != nil {
+		_ = pw.CloseWithError(closeErr)
+	} else {
+		_ = pw.Close()
+	}
 }

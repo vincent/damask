@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"mime"
@@ -279,54 +281,22 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 
 	switch body.Source {
 	case "ocr":
-		if !transform.SupportedOCRMIMEs[asset.MimeType] {
-			return errRes(c, fiber.StatusUnprocessableEntity, "unsupported OCR asset MIME type")
-		}
-		if !tesseractAvailable() {
-			return errRes(c, fiber.StatusServiceUnavailable, "Tesseract is not installed on this server")
-		}
-		if asset.CurrentVersionID == nil {
-			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
-		}
-		outputFormat := "txt"
-		if raw, rawOk := params["output_format"].(string); rawOk && strings.TrimSpace(raw) != "" {
-			outputFormat = raw
-		}
-		if outputFormat != "txt" && outputFormat != "hocr" {
-			return errRes(c, fiber.StatusUnprocessableEntity, "unsupported OCR output format")
-		}
-		lang := "eng"
-		if body.Lang != nil && strings.TrimSpace(*body.Lang) != "" {
-			lang = strings.TrimSpace(*body.Lang)
-		}
-		span.SetAttributes(
-			attribute.String("damask.text_track.lang", lang),
-			attribute.String("damask.text_track.output_format", outputFormat),
-		)
-		versionCtx, versionSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.load_current_version")
-		currentVersion, versionErr := s.versions.GetCurrentByAsset(versionCtx, assetID)
-		apptelemetry.EndSpan(versionSpan, versionErr)
-		if versionErr != nil {
-			span.RecordError(versionErr)
-			slog.ErrorContext(
-				ctx,
-				"create text track: load current version",
-				"workspace_id",
-				claims.WorkspaceID,
-				"asset_id",
-				assetID,
-				apiErrorKey,
-				versionErr,
-			)
-			err = ErrorStatusResponse(c, versionErr)
+		if err = s.prepareOCRParams(
+			ctx,
+			c,
+			assetID,
+			claims.WorkspaceID,
+			asset,
+			body.Lang,
+			params,
+			&createParams,
+		); err != nil {
+			var ve *ocrValidationError
+			if errors.As(err, &ve) {
+				return errRes(c, ve.status, ve.msg)
+			}
 			return err
 		}
-		createParams.AssetVersionID = asset.CurrentVersionID
-		createParams.Lang = &lang
-		params["lang"] = lang
-		params["output_format"] = outputFormat
-		params["storage_key"] = currentVersion.StorageKey
-		params["mime_type"] = currentVersion.MimeType
 	case "manual":
 		content, _ := params["content"].(string)
 		if strings.TrimSpace(content) == "" {
@@ -334,42 +304,20 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 		}
 		createParams.InitialContent = content
 	case "extract_pdf":
-		if !transform.IsPdfMime(asset.MimeType) {
-			return errRes(c, fiber.StatusUnprocessableEntity, "asset is not a PDF")
+		if err = s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
+			transform.IsPdfMime, "asset is not a PDF", false, params); err != nil {
+			return err
 		}
-		if asset.CurrentVersionID == nil {
-			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
-		}
-		currentVersion, versionErr := s.versions.GetCurrentByAsset(ctx, assetID)
-		if versionErr != nil {
-			return ErrorStatusResponse(c, versionErr)
-		}
-		params["storage_key"] = currentVersion.StorageKey
 	case "extract_plain":
-		if !transform.IsTextMime(asset.MimeType) {
-			return errRes(c, fiber.StatusUnprocessableEntity, "asset is not a plain text file")
+		if err = s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
+			transform.IsTextMime, "asset is not a plain text file", false, params); err != nil {
+			return err
 		}
-		if asset.CurrentVersionID == nil {
-			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
-		}
-		currentVersion, versionErr := s.versions.GetCurrentByAsset(ctx, assetID)
-		if versionErr != nil {
-			return ErrorStatusResponse(c, versionErr)
-		}
-		params["storage_key"] = currentVersion.StorageKey
 	case "extract_document":
-		if !transform.IsDocumentMime(asset.MimeType) {
-			return errRes(c, fiber.StatusUnprocessableEntity, "asset is not a supported document type")
+		if err = s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
+			transform.IsDocumentMime, "asset is not a supported document type", true, params); err != nil {
+			return err
 		}
-		if asset.CurrentVersionID == nil {
-			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
-		}
-		currentVersion, versionErr := s.versions.GetCurrentByAsset(ctx, assetID)
-		if versionErr != nil {
-			return ErrorStatusResponse(c, versionErr)
-		}
-		params["storage_key"] = currentVersion.StorageKey
-		params["mime_type"] = currentVersion.MimeType
 	default:
 		return errRes(c, fiber.StatusUnprocessableEntity, "unsupported_source")
 	}
@@ -404,6 +352,86 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	return c.Status(status).JSON(map[string]TextTrackResponse{
 		"text_track": textTrackDTOToResponse(track, false),
 	})
+}
+
+func (s *Server) prepareExtractParams(
+	ctx context.Context,
+	c fiber.Ctx,
+	assetID, mimeType string,
+	currentVersionID *string,
+	mimeCheck func(string) bool,
+	mimeErrMsg string,
+	includeMime bool,
+	params map[string]any,
+) error {
+	if !mimeCheck(mimeType) {
+		return errRes(c, fiber.StatusUnprocessableEntity, mimeErrMsg)
+	}
+	if currentVersionID == nil {
+		return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
+	}
+	currentVersion, err := s.versions.GetCurrentByAsset(ctx, assetID)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	params["storage_key"] = currentVersion.StorageKey
+	if includeMime {
+		params["mime_type"] = currentVersion.MimeType
+	}
+	return nil
+}
+
+type ocrValidationError struct {
+	status int
+	msg    string
+}
+
+func (e *ocrValidationError) Error() string { return e.msg }
+
+func (s *Server) prepareOCRParams(
+	ctx context.Context,
+	c fiber.Ctx,
+	assetID, workspaceID string,
+	asset *service.AssetDTO,
+	lang *string,
+	params map[string]any,
+	createParams *service.CreateTextTrackParams,
+) error {
+	if !transform.SupportedOCRMIMEs[asset.MimeType] {
+		return &ocrValidationError{fiber.StatusUnprocessableEntity, "unsupported OCR asset MIME type"}
+	}
+	if !tesseractAvailable() {
+		return &ocrValidationError{fiber.StatusServiceUnavailable, "Tesseract is not installed on this server"}
+	}
+	if asset.CurrentVersionID == nil {
+		return &ocrValidationError{fiber.StatusUnprocessableEntity, "asset has no current version"}
+	}
+	outputFormat := "txt"
+	if raw, ok := params["output_format"].(string); ok && strings.TrimSpace(raw) != "" {
+		outputFormat = raw
+	}
+	if outputFormat != "txt" && outputFormat != "hocr" {
+		return &ocrValidationError{fiber.StatusUnprocessableEntity, "unsupported OCR output format"}
+	}
+	resolvedLang := "eng"
+	if lang != nil && strings.TrimSpace(*lang) != "" {
+		resolvedLang = strings.TrimSpace(*lang)
+	}
+	versionCtx, versionSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.load_current_version")
+	currentVersion, versionErr := s.versions.GetCurrentByAsset(versionCtx, assetID)
+	apptelemetry.EndSpan(versionSpan, versionErr)
+	if versionErr != nil {
+		slog.ErrorContext(ctx, "create text track: load current version",
+			"workspace_id", workspaceID, "asset_id", assetID, apiErrorKey, versionErr)
+		return ErrorStatusResponse(c, versionErr)
+	}
+	createParams.AssetVersionID = asset.CurrentVersionID
+	createParams.Lang = &resolvedLang
+	params["lang"] = resolvedLang
+	params["output_format"] = outputFormat
+	params["storage_key"] = currentVersion.StorageKey
+	params["mime_type"] = currentVersion.MimeType
+	return nil
 }
 
 func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {

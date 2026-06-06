@@ -289,31 +289,8 @@ func (s *versionService) UploadNewVersion(
 		return nil, fmt.Errorf("could not determine version number: %w", err)
 	}
 
-	mimeType, _ := transform.DetectMimeType(tmpPath)
-	if mimeType == "" {
-		mimeType = p.ContentType
-	}
-	if mimeType == "" {
-		mimeType = mime.TypeByExtension(filepath.Ext(p.Filename))
-	}
-
-	meta := ingest.FileMeta{}
-	if s.media != nil {
-		if extracted, metaErr := s.media.ExtractMeta(ctx, tmpPath, mimeType); metaErr != nil {
-			slog.WarnContext(
-				ctx,
-				"version metadata extraction failed",
-				"asset_id",
-				p.AssetID,
-				"mime_type",
-				mimeType,
-				"error",
-				metaErr,
-			)
-		} else {
-			meta = extracted
-		}
-	}
+	mimeType := resolveVersionMimeType(tmpPath, p.ContentType, p.Filename)
+	meta := s.extractVersionMeta(ctx, tmpPath, mimeType, p.AssetID)
 
 	storageKey := fmt.Sprintf("%s/%s/v%d/%s", p.WorkspaceID, p.AssetID, nextNum, p.Filename)
 	if hashErr != nil {
@@ -374,30 +351,7 @@ func (s *versionService) UploadNewVersion(
 	}
 
 	s.enqueueVersionThumbnail(ctx, asset, newVersion)
-
-	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
-		payload, _ := json.Marshal(jobs.ExtractMediaTagsPayload{
-			AssetID:     p.AssetID,
-			WorkspaceID: p.WorkspaceID,
-		})
-		if _, enqErr := s.queue.Enqueue(
-			ctx,
-			p.WorkspaceID,
-			queue.JobTypeExtractMediaTags,
-			string(payload),
-		); enqErr != nil {
-			slog.ErrorContext(
-				ctx,
-				"enqueue extract_media_tags",
-				"asset_id",
-				p.AssetID,
-				"version_id",
-				newVersion.ID,
-				"error",
-				enqErr,
-			)
-		}
-	}
+	s.enqueueVersionMediaTags(ctx, p.WorkspaceID, p.AssetID, newVersion.ID, mimeType)
 
 	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
 	if err != nil {
@@ -460,6 +414,46 @@ func (s *versionService) enqueueVersionThumbnail(ctx context.Context, asset repo
 			"error",
 			err,
 		)
+	}
+}
+
+func resolveVersionMimeType(tmpPath, contentType, filename string) string {
+	if mt, _ := transform.DetectMimeType(tmpPath); mt != "" {
+		return mt
+	}
+	if contentType != "" {
+		return contentType
+	}
+	return mime.TypeByExtension(filepath.Ext(filename))
+}
+
+func (s *versionService) extractVersionMeta(ctx context.Context, tmpPath, mimeType, assetID string) ingest.FileMeta {
+	if s.media == nil {
+		return ingest.FileMeta{}
+	}
+	extracted, metaErr := s.media.ExtractMeta(ctx, tmpPath, mimeType)
+	if metaErr != nil {
+		slog.WarnContext(ctx, "version metadata extraction failed",
+			"asset_id", assetID, "mime_type", mimeType, "error", metaErr)
+		return ingest.FileMeta{}
+	}
+	return extracted
+}
+
+func (s *versionService) enqueueVersionMediaTags(
+	ctx context.Context,
+	workspaceID, assetID, versionID, mimeType string,
+) {
+	if !strings.HasPrefix(mimeType, "audio/") && !strings.HasPrefix(mimeType, "video/") {
+		return
+	}
+	payload, _ := json.Marshal(jobs.ExtractMediaTagsPayload{
+		AssetID:     assetID,
+		WorkspaceID: workspaceID,
+	})
+	if _, err := s.queue.Enqueue(ctx, workspaceID, queue.JobTypeExtractMediaTags, string(payload)); err != nil {
+		slog.ErrorContext(ctx, "enqueue extract_media_tags",
+			"asset_id", assetID, "version_id", versionID, "error", err)
 	}
 }
 

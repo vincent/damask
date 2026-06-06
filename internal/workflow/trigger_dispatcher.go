@@ -40,7 +40,6 @@ func (d *TriggerDispatcher) Dispatch(ctx context.Context, eventType string, data
 
 	wfs, err := d.workflows.ListByTrigger(ctx, eventType)
 	if err != nil {
-		span.RecordError(err)
 		return err
 	}
 

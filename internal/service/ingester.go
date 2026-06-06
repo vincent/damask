@@ -267,112 +267,79 @@ func (s *ingesterImpl) ingest(
 	)
 
 	// once created, we can enqueue specialized jobs for this asset
-
-	if s.media.Supports(mimeType) && initialVersionID != "" {
-		payload, _ := json.Marshal(versionThumbnailPayload{
-			AssetID:     asset.ID,
-			VersionID:   initialVersionID,
-			WorkspaceID: asset.WorkspaceID,
-			StorageKey:  asset.StorageKey,
-			MimeType:    asset.MimeType,
-		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_thumbnail",
-			attribute.String("damask.asset_id", asset.ID),
-			attribute.String("damask.job.type", string(queue.JobTypeVersionThumbnail)),
-		)
-		_, enqErr := s.q.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, enqErr)
-		if enqErr != nil {
-			slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "error", enqErr)
-		}
-	}
-
-	if transform.IsImageMime(mimeType) {
-		exifPayload, _ := json.Marshal(map[string]string{
-			"asset_id":     asset.ID,
-			"workspace_id": workspaceID,
-			"user_id":      opts.UserID,
-		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_exif",
-			attribute.String("damask.asset_id", asset.ID),
-			attribute.String("damask.job.type", string(queue.JobTypeExtractExif)),
-		)
-		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractExif, string(exifPayload))
-		apptelemetry.EndSpan(enqueueSpan, enqErr)
-		if enqErr != nil {
-			slog.ErrorContext(ctx, "enqueue extract_exif", "asset_id", asset.ID, "error", enqErr)
-		}
-	}
-
-	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
-		mediaTagsPayload, _ := json.Marshal(map[string]string{
-			"asset_id":     asset.ID,
-			"workspace_id": workspaceID,
-		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_media_tags",
-			attribute.String("damask.asset_id", asset.ID),
-			attribute.String("damask.job.type", string(queue.JobTypeExtractMediaTags)),
-		)
-		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractMediaTags, string(mediaTagsPayload))
-		apptelemetry.EndSpan(enqueueSpan, enqErr)
-		if enqErr != nil {
-			slog.ErrorContext(ctx, "enqueue extract_media_tags", "asset_id", asset.ID, "error", enqErr)
-		}
-	}
-
-	if transform.IsPdfMime(mimeType) {
-		payload, _ := json.Marshal(map[string]string{
-			"asset_id":     asset.ID,
-			"workspace_id": workspaceID,
-			"storage_key":  asset.StorageKey,
-		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_extract_text",
-			attribute.String("damask.asset_id", asset.ID),
-			attribute.String("damask.job.type", string(queue.JobTypeExtractPDFTextTrack)),
-		)
-		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPDFTextTrack, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, enqErr)
-		if enqErr != nil {
-			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", enqErr)
-		}
-	}
-
-	if transform.IsTextMime(mimeType) {
-		payload, _ := json.Marshal(map[string]string{
-			"asset_id":     asset.ID,
-			"workspace_id": workspaceID,
-			"storage_key":  asset.StorageKey,
-		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_extract_text",
-			attribute.String("damask.asset_id", asset.ID),
-			attribute.String("damask.job.type", string(queue.JobTypeExtractPlainTextTrack)),
-		)
-		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPlainTextTrack, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, enqErr)
-		if enqErr != nil {
-			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", enqErr)
-		}
-	}
-
-	if transform.IsDocumentMime(mimeType) {
-		payload, _ := json.Marshal(map[string]string{
-			"asset_id":     asset.ID,
-			"workspace_id": workspaceID,
-			"storage_key":  asset.StorageKey,
-			"mime_type":    mimeType,
-		})
-		_, enqueueSpan := apptelemetry.StartSpan(ctx, "service.ingester.enqueue_extract_text",
-			attribute.String("damask.asset_id", asset.ID),
-			attribute.String("damask.job.type", string(queue.JobTypeExtractDocumentTextTrack)),
-		)
-		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractDocumentTextTrack, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, enqErr)
-		if enqErr != nil {
-			slog.ErrorContext(ctx, "enqueue extract_document_text", "asset_id", asset.ID, "error", enqErr)
-		}
-	}
+	s.enqueueIngestionJobs(ctx, asset, workspaceID, mimeType, initialVersionID, opts.UserID)
 
 	return asset, nil
+}
+
+func (s *ingesterImpl) enqueueIngestionJobs(
+	ctx context.Context,
+	asset dbgen.Asset,
+	workspaceID, mimeType, initialVersionID, userID string,
+) {
+	enqueue := func(spanName, logMsg, jobType string, payload any) {
+		data, _ := json.Marshal(payload)
+		_, span := apptelemetry.StartSpan(ctx, spanName,
+			attribute.String("damask.asset_id", asset.ID),
+			attribute.String("damask.job.type", jobType),
+		)
+		_, err := s.q.Enqueue(ctx, workspaceID, jobType, string(data))
+		apptelemetry.EndSpan(span, err)
+		if err != nil {
+			slog.ErrorContext(ctx, logMsg, "asset_id", asset.ID, "error", err)
+		}
+	}
+
+	if s.media.Supports(mimeType) && initialVersionID != "" {
+		enqueue("service.ingester.enqueue_thumbnail", "enqueue version thumbnail",
+			queue.JobTypeVersionThumbnail, versionThumbnailPayload{
+				AssetID:     asset.ID,
+				VersionID:   initialVersionID,
+				WorkspaceID: asset.WorkspaceID,
+				StorageKey:  asset.StorageKey,
+				MimeType:    asset.MimeType,
+			})
+	}
+	if transform.IsImageMime(mimeType) {
+		enqueue("service.ingester.enqueue_exif", "enqueue extract_exif",
+			queue.JobTypeExtractExif, map[string]string{
+				"asset_id":     asset.ID,
+				"workspace_id": workspaceID,
+				"user_id":      userID,
+			})
+	}
+	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
+		enqueue("service.ingester.enqueue_media_tags", "enqueue extract_media_tags",
+			queue.JobTypeExtractMediaTags, map[string]string{
+				"asset_id":     asset.ID,
+				"workspace_id": workspaceID,
+			})
+	}
+	if transform.IsPdfMime(mimeType) {
+		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_text",
+			queue.JobTypeExtractPDFTextTrack, map[string]string{
+				"asset_id":     asset.ID,
+				"workspace_id": workspaceID,
+				"storage_key":  asset.StorageKey,
+			})
+	}
+	if transform.IsTextMime(mimeType) {
+		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_text",
+			queue.JobTypeExtractPlainTextTrack, map[string]string{
+				"asset_id":     asset.ID,
+				"workspace_id": workspaceID,
+				"storage_key":  asset.StorageKey,
+			})
+	}
+	if transform.IsDocumentMime(mimeType) {
+		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_document_text",
+			queue.JobTypeExtractDocumentTextTrack, map[string]string{
+				"asset_id":     asset.ID,
+				"workspace_id": workspaceID,
+				"storage_key":  asset.StorageKey,
+				"mime_type":    mimeType,
+			})
+	}
 }
 
 func (s *ingesterImpl) createInitialVersion(

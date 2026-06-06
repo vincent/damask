@@ -80,41 +80,45 @@ func (m JobsModel) Update(msg tea.Msg) (JobsModel, tea.Cmd) {
 		m = m.rebuildFailedCols()
 
 	case tea.KeyMsg:
-		// Close modal first
-		if m.expandedJob != nil {
-			switch msg.String() {
-			case "esc", "enter", "q":
-				m.expandedJob = nil
-			}
-			return m, nil
-		}
+		return handleJobsKey(m, msg)
+	}
 
+	var cmd tea.Cmd
+	m.failedTable, cmd = m.failedTable.Update(msg)
+	return m, cmd
+}
+
+func handleJobsKey(m JobsModel, msg tea.KeyMsg) (JobsModel, tea.Cmd) {
+	if m.expandedJob != nil {
 		switch msg.String() {
-		case "tab":
-			if m.activePanel == panelHealth {
-				m.activePanel = panelFailed
-				m.failedTable.Focus()
-			} else {
-				m.activePanel = panelHealth
-				m.failedTable.Blur()
-			}
-		case "enter":
-			if m.activePanel == panelFailed {
-				selected := m.failedTable.SelectedRow()
-				if selected != nil {
-					for i := range m.failed {
-						if m.failed[i].ID == selected[0] {
-							m.expandedJob = &m.failed[i]
-							break
-						}
+		case "esc", "enter", "q":
+			m.expandedJob = nil
+		}
+		return m, nil
+	}
+	switch msg.String() {
+	case "tab":
+		if m.activePanel == panelHealth {
+			m.activePanel = panelFailed
+			m.failedTable.Focus()
+		} else {
+			m.activePanel = panelHealth
+			m.failedTable.Blur()
+		}
+	case "enter":
+		if m.activePanel == panelFailed {
+			if selected := m.failedTable.SelectedRow(); selected != nil {
+				for i := range m.failed {
+					if m.failed[i].ID == selected[0] {
+						m.expandedJob = &m.failed[i]
+						break
 					}
 				}
 			}
-		case "r":
-			return m, m.Refresh()
 		}
+	case "r":
+		return m, m.Refresh()
 	}
-
 	var cmd tea.Cmd
 	m.failedTable, cmd = m.failedTable.Update(msg)
 	return m, cmd

@@ -153,42 +153,7 @@ func ExtractAVTags(ctx context.Context, ffprobePath, filePath string) (*AVTags, 
 	}
 
 	for _, s := range probe.Streams {
-		isCoverArt := s.Disposition.AttachedPic == 1 ||
-			(s.CodecType == "video" && (s.CodecName == "mjpeg" || s.CodecName == "png"))
-
-		switch {
-		case s.CodecType == "audio" && r.AudioCodec == nil:
-			r.AudioCodec = ptr(s.CodecName)
-			if br, parseErr := strconv.Atoi(s.BitRate); parseErr == nil {
-				r.AudioBitrate = ptr(br)
-			}
-			if sr, parseErr := strconv.Atoi(s.SampleRate); parseErr == nil && sr > 0 {
-				r.SampleRate = ptr(sr)
-			}
-			if s.Channels > 0 {
-				r.Channels = ptr(s.Channels)
-			}
-			if s.ChannelLayout != "" {
-				r.ChannelLayout = ptr(s.ChannelLayout)
-			}
-			if s.BitsPerSample > 0 {
-				bitsPerSample := int(s.BitsPerSample)
-				r.BitsPerSample = ptr(bitsPerSample)
-			}
-		case s.CodecType == "video" && !isCoverArt && r.VideoCodec == nil:
-			r.VideoCodec = ptr(s.CodecName)
-			if s.Width > 0 {
-				r.VideoWidth = ptr(s.Width)
-			}
-			if s.Height > 0 {
-				r.VideoHeight = ptr(s.Height)
-			}
-			if s.RFrameRate != "" && s.RFrameRate != "0/0" {
-				r.FrameRate = ptr(s.RFrameRate)
-			}
-		case isCoverArt:
-			r.HasCoverArt = true
-		}
+		applyStreamMeta(r, s)
 	}
 
 	if r.isEmpty() {
@@ -197,67 +162,106 @@ func ExtractAVTags(ctx context.Context, ffprobePath, filePath string) (*AVTags, 
 	return r, nil
 }
 
+func applyStreamMeta(r *AVTags, s ffprobeStream) {
+	isCoverArt := s.Disposition.AttachedPic == 1 ||
+		(s.CodecType == "video" && (s.CodecName == "mjpeg" || s.CodecName == "png"))
+	switch {
+	case s.CodecType == "audio" && r.AudioCodec == nil:
+		r.AudioCodec = ptr(s.CodecName)
+		if br, err := strconv.Atoi(s.BitRate); err == nil {
+			r.AudioBitrate = ptr(br)
+		}
+		if sr, err := strconv.Atoi(s.SampleRate); err == nil && sr > 0 {
+			r.SampleRate = ptr(sr)
+		}
+		if s.Channels > 0 {
+			r.Channels = ptr(s.Channels)
+		}
+		if s.ChannelLayout != "" {
+			r.ChannelLayout = ptr(s.ChannelLayout)
+		}
+		if s.BitsPerSample > 0 {
+			r.BitsPerSample = ptr(int(s.BitsPerSample))
+		}
+	case s.CodecType == "video" && !isCoverArt && r.VideoCodec == nil:
+		r.VideoCodec = ptr(s.CodecName)
+		if s.Width > 0 {
+			r.VideoWidth = ptr(s.Width)
+		}
+		if s.Height > 0 {
+			r.VideoHeight = ptr(s.Height)
+		}
+		if s.RFrameRate != "" && s.RFrameRate != "0/0" {
+			r.FrameRate = ptr(s.RFrameRate)
+		}
+	case isCoverArt:
+		r.HasCoverArt = true
+	}
+}
+
+func tagSetText(tags map[string]string, dst **string, keys ...string) {
+	if *dst != nil {
+		return
+	}
+	for _, k := range keys {
+		if v := strings.TrimSpace(tags[k]); v != "" {
+			*dst = ptr(v)
+			return
+		}
+	}
+}
+
+func tagSetInt(tags map[string]string, dst **int, keys ...string) {
+	if *dst != nil {
+		return
+	}
+	for _, k := range keys {
+		raw := strings.TrimSpace(tags[k])
+		if i := strings.IndexByte(raw, '/'); i >= 0 {
+			raw = raw[:i]
+		}
+		if v, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil {
+			*dst = ptr(v)
+			return
+		}
+	}
+}
+
+func tagSetTotal(tags map[string]string, dst **int, keys ...string) {
+	if *dst != nil {
+		return
+	}
+	for _, k := range keys {
+		raw := strings.TrimSpace(tags[k])
+		if _, after, ok := strings.Cut(raw, "/"); ok {
+			if v, err := strconv.Atoi(strings.TrimSpace(after)); err == nil {
+				*dst = ptr(v)
+				return
+			}
+		}
+	}
+}
+
 func (r *AVTags) applyTags(tags map[string]string) {
-	setText := func(dst **string, keys ...string) {
-		if *dst != nil {
-			return
-		}
-		for _, k := range keys {
-			if v := strings.TrimSpace(tags[k]); v != "" {
-				*dst = ptr(v)
-				return
-			}
-		}
-	}
-	setInt := func(dst **int, keys ...string) {
-		if *dst != nil {
-			return
-		}
-		for _, k := range keys {
-			raw := strings.TrimSpace(tags[k])
-			if i := strings.IndexByte(raw, '/'); i >= 0 {
-				raw = raw[:i]
-			}
-			if v, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil {
-				*dst = ptr(v)
-				return
-			}
-		}
-	}
-	setTotal := func(dst **int, keys ...string) {
-		if *dst != nil {
-			return
-		}
-		for _, k := range keys {
-			raw := strings.TrimSpace(tags[k])
-			if _, after, ok := strings.Cut(raw, "/"); ok {
-				if v, err := strconv.Atoi(strings.TrimSpace(after)); err == nil {
-					*dst = ptr(v)
-					return
-				}
-			}
-		}
-	}
+	tagSetText(tags, &r.Title, "title", "TITLE", "TIT2")
+	tagSetText(tags, &r.Artist, "artist", "ARTIST", "TPE1")
+	tagSetText(tags, &r.AlbumArtist, "album_artist", "ALBUMARTIST", "album artist", "TPE2")
+	tagSetText(tags, &r.Album, "album", "ALBUM", "TALB")
+	tagSetText(tags, &r.Date, "date", "DATE", "TDRC", "year", "TYER")
+	tagSetText(tags, &r.Genre, "genre", "GENRE", "TCON")
+	tagSetText(tags, &r.Composer, "composer", "COMPOSER", "TCOM")
+	tagSetText(tags, &r.Lyricist, "lyricist", "LYRICIST", "TEXT")
+	tagSetText(tags, &r.Comment, "comment", "COMMENT", "COMM")
+	tagSetText(tags, &r.Lyrics, "lyrics", "LYRICS", "USLT", "unsyncedlyrics")
+	tagSetText(tags, &r.Copyright, "copyright", "COPYRIGHT", "TCOP")
+	tagSetText(tags, &r.Encoder, "encoder", "ENCODER", "TSSE")
+	tagSetText(tags, &r.EncodedBy, "encoded_by", "ENCODED_BY", "TENC")
+	tagSetText(tags, &r.Language, "language", "LANGUAGE", "TLAN")
 
-	setText(&r.Title, "title", "TITLE", "TIT2")
-	setText(&r.Artist, "artist", "ARTIST", "TPE1")
-	setText(&r.AlbumArtist, "album_artist", "ALBUMARTIST", "album artist", "TPE2")
-	setText(&r.Album, "album", "ALBUM", "TALB")
-	setText(&r.Date, "date", "DATE", "TDRC", "year", "TYER")
-	setText(&r.Genre, "genre", "GENRE", "TCON")
-	setText(&r.Composer, "composer", "COMPOSER", "TCOM")
-	setText(&r.Lyricist, "lyricist", "LYRICIST", "TEXT")
-	setText(&r.Comment, "comment", "COMMENT", "COMM")
-	setText(&r.Lyrics, "lyrics", "LYRICS", "USLT", "unsyncedlyrics")
-	setText(&r.Copyright, "copyright", "COPYRIGHT", "TCOP")
-	setText(&r.Encoder, "encoder", "ENCODER", "TSSE")
-	setText(&r.EncodedBy, "encoded_by", "ENCODED_BY", "TENC")
-	setText(&r.Language, "language", "LANGUAGE", "TLAN")
-
-	setInt(&r.TrackNumber, "track", "TRACK", "TRCK", "tracknumber")
-	setTotal(&r.TrackTotal, "track", "TRACK", "TRCK", "tracktotal")
-	setInt(&r.DiscNumber, "disc", "DISC", "TPOS", "discnumber")
-	setTotal(&r.DiscTotal, "disc", "DISC", "TPOS", "disctotal")
+	tagSetInt(tags, &r.TrackNumber, "track", "TRACK", "TRCK", "tracknumber")
+	tagSetTotal(tags, &r.TrackTotal, "track", "TRACK", "TRCK", "tracktotal")
+	tagSetInt(tags, &r.DiscNumber, "disc", "DISC", "TPOS", "discnumber")
+	tagSetTotal(tags, &r.DiscTotal, "disc", "DISC", "TPOS", "disctotal")
 
 	if r.Year == nil && r.Date != nil && len(*r.Date) >= 4 {
 		if y, err := strconv.Atoi((*r.Date)[:4]); err == nil && y > 1000 {

@@ -106,64 +106,14 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	}
 
 	// Cursor
-	//nolint:nestif // clean me some day
 	if p.CursorID != "" && p.CursorValue != "" {
-		switch p.CursorField {
-		case "size":
-			if p.SortDesc {
-				where = append(where, "(a.size < ? OR (a.size = ? AND a.id < ?))")
-			} else {
-				where = append(where, "(a.size > ? OR (a.size = ? AND a.id < ?))")
-			}
-			args = append(args, p.CursorValue, p.CursorValue, p.CursorID)
-		case "id":
-			if p.SortDesc {
-				where = append(where, "a.id < ?")
-			} else {
-				where = append(where, "a.id > ?")
-			}
-			args = append(args, p.CursorID)
-		default: // created_at
-			if p.SortDesc || p.SortField == "" {
-				where = append(where, "(a.created_at < ? OR (a.created_at = ? AND a.id < ?))")
-			} else {
-				where = append(where, "(a.created_at > ? OR (a.created_at = ? AND a.id > ?))")
-			}
-			args = append(args, p.CursorValue, p.CursorValue, p.CursorID)
-		}
+		cursorClause, cursorArgs := buildCursorClause(p)
+		where = append(where, cursorClause)
+		args = append(args, cursorArgs...)
 	}
 
 	// ORDER BY
-	var orderBy string
-	switch p.SortField {
-	case "size":
-		if p.SortDesc {
-			orderBy = "a.size DESC, a.id DESC"
-		} else {
-			orderBy = "a.size ASC, a.id DESC"
-		}
-	case "id":
-		if p.SortDesc {
-			orderBy = "a.id DESC"
-		} else {
-			orderBy = "a.id ASC"
-		}
-	case "taken_at":
-		joins = append(joins, "LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?")
-		// ExifFieldID goes before WHERE args — prepend it.
-		newArgs := []any{p.ExifFieldID}
-		newArgs = append(newArgs, args...)
-		args = newArgs
-		dir := "ASC"
-		if p.SortDesc {
-			dir = "DESC"
-		}
-		orderBy = fmt.Sprintf("afv.value_date %s NULLS LAST, a.created_at DESC, a.id DESC", dir)
-	case "created_at_asc":
-		orderBy = "a.created_at ASC, a.id ASC"
-	default: // created_at DESC
-		orderBy = "a.created_at DESC, a.id DESC"
-	}
+	orderBy, joins, args := buildOrderByClause(p, joins, args)
 
 	args = append(args, p.Limit)
 
@@ -204,6 +154,63 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 		out = append(out, a)
 	}
 	return out, rows.Err()
+}
+
+func buildCursorClause(p repository.ListAssetsParams) (string, []any) {
+	switch p.CursorField {
+	case "size":
+		if p.SortDesc {
+			return "(a.size < ? OR (a.size = ? AND a.id < ?))", []any{p.CursorValue, p.CursorValue, p.CursorID}
+		}
+		return "(a.size > ? OR (a.size = ? AND a.id < ?))", []any{p.CursorValue, p.CursorValue, p.CursorID}
+	case "id":
+		if p.SortDesc {
+			return "a.id < ?", []any{p.CursorID}
+		}
+		return "a.id > ?", []any{p.CursorID}
+	default: // created_at
+		if p.SortDesc || p.SortField == "" {
+			return "(a.created_at < ? OR (a.created_at = ? AND a.id < ?))", []any{
+				p.CursorValue,
+				p.CursorValue,
+				p.CursorID,
+			}
+		}
+		return "(a.created_at > ? OR (a.created_at = ? AND a.id > ?))", []any{p.CursorValue, p.CursorValue, p.CursorID}
+	}
+}
+
+func buildOrderByClause(
+	p repository.ListAssetsParams,
+	joins []string,
+	args []any,
+) (orderBy string, outJoins []string, outArgs []any) {
+	switch p.SortField {
+	case "size":
+		if p.SortDesc {
+			return "a.size DESC, a.id DESC", joins, args
+		}
+		return "a.size ASC, a.id DESC", joins, args
+	case "id":
+		if p.SortDesc {
+			return "a.id DESC", joins, args
+		}
+		return "a.id ASC", joins, args
+	case "taken_at":
+		joins = append(joins, "LEFT JOIN asset_field_values afv ON afv.asset_id = a.id AND afv.field_id = ?")
+		// ExifFieldID goes before WHERE args — prepend it.
+		newArgs := []any{p.ExifFieldID}
+		newArgs = append(newArgs, args...)
+		dir := "ASC"
+		if p.SortDesc {
+			dir = "DESC"
+		}
+		return fmt.Sprintf("afv.value_date %s NULLS LAST, a.created_at DESC, a.id DESC", dir), joins, newArgs
+	case "created_at_asc":
+		return "a.created_at ASC, a.id ASC", joins, args
+	default:
+		return "a.created_at DESC, a.id DESC", joins, args
+	}
 }
 
 func (r *assetRepo) Create(ctx context.Context, params repository.CreateAssetParams) (repository.Asset, error) {

@@ -82,20 +82,10 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 	keepGPS := ws.ExifKeepGps == 1
 
 	// Tombstone check before ensureFields to avoid N inserts on already-processed assets.
-	if makeField, mfErr := s.queries.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
-		WorkspaceID: workspaceID,
-		Key:         "_exif_make",
-	}); mfErr == nil {
-		_, tombErr := s.queries.GetAssetFieldValueByAssetAndField(ctx, dbgen.GetAssetFieldValueByAssetAndFieldParams{
-			AssetID: assetID,
-			FieldID: makeField.ID,
-		})
-		if tombErr == nil {
-			return nil
-		}
-		if !errors.Is(tombErr, sql.ErrNoRows) {
-			return fmt.Errorf("check tombstone: %w", tombErr)
-		}
+	if processed, tombErr := s.isExifTombstoned(ctx, workspaceID, assetID); tombErr != nil {
+		return tombErr
+	} else if processed {
+		return nil
 	}
 
 	fieldIDs, err := s.ensureFields(ctx, workspaceID, userID, keepGPS)
@@ -134,89 +124,8 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		return nil
 	}
 
-	type textField struct {
-		key string
-		val *string
-	}
-	type numField struct {
-		key string
-		val *float64
-	}
-
-	texts := []textField{
-		{"_exif_make", result.Make},
-		{"_exif_model", result.Model},
-		{"_exif_lens", result.LensModel},
-		{"_exif_software", result.Software},
-		{"_exif_exposure_time", result.ExposureTime},
-		{"_exif_flash", result.Flash},
-		{"_exif_white_balance", result.WhiteBalance},
-	}
-	for _, f := range texts {
-		fid, found := fieldIDs[f.key]
-		if !found {
-			continue
-		}
-		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
-			ID:        uuid.New().String(),
-			AssetID:   assetID,
-			FieldID:   fid,
-			ValueText: f.val,
-			CreatedBy: &userID,
-		}); uErr != nil {
-			return fmt.Errorf("upsert %s: %w", f.key, uErr)
-		}
-	}
-
-	var isoF *float64
-	if result.ISO != nil {
-		v := float64(*result.ISO)
-		isoF = &v
-	}
-	nums := []numField{
-		{"_exif_f_number", result.FNumber},
-		{"_exif_iso", isoF},
-		{"_exif_focal_length", result.FocalLength},
-		{"_exif_focal_length_35", result.FocalLength35},
-	}
-	if keepGPS && result.GPS != nil {
-		lat := result.GPS.Lat
-		lng := result.GPS.Lng
-		nums = append(nums,
-			numField{"_exif_gps_lat", &lat},
-			numField{"_exif_gps_lng", &lng},
-		)
-	}
-	for _, f := range nums {
-		fid, found := fieldIDs[f.key]
-		if !found {
-			continue
-		}
-		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
-			ID:          uuid.New().String(),
-			AssetID:     assetID,
-			FieldID:     fid,
-			ValueNumber: f.val,
-			CreatedBy:   &userID,
-		}); uErr != nil {
-			return fmt.Errorf("upsert %s: %w", f.key, uErr)
-		}
-	}
-
-	if result.TakenAt != nil {
-		fid, found := fieldIDs["_exif_taken_at"]
-		if found {
-			v := result.TakenAt.Format("2006-01-02")
-			if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
-				ID:        uuid.New().String(),
-				AssetID:   assetID,
-				FieldID:   fid,
-				ValueDate: &v,
-				CreatedBy: &userID,
-			}); uErr != nil {
-				return fmt.Errorf("upsert _exif_taken_at: %w", uErr)
-			}
-		}
+	if err = s.upsertExifFields(ctx, assetID, userID, fieldIDs, result, keepGPS); err != nil {
+		return err
 	}
 
 	slog.DebugContext(ctx, "exif: extracted",
@@ -226,6 +135,27 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		"gps", result.GPS != nil,
 	)
 	return nil
+}
+
+func (s *ExifService) isExifTombstoned(ctx context.Context, workspaceID, assetID string) (bool, error) {
+	makeField, err := s.queries.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
+		WorkspaceID: workspaceID,
+		Key:         "_exif_make",
+	})
+	if err != nil {
+		return false, nil //nolint:nilerr // field doesn't exist yet
+	}
+	_, tombErr := s.queries.GetAssetFieldValueByAssetAndField(ctx, dbgen.GetAssetFieldValueByAssetAndFieldParams{
+		AssetID: assetID,
+		FieldID: makeField.ID,
+	})
+	if tombErr == nil {
+		return true, nil
+	}
+	if !errors.Is(tombErr, sql.ErrNoRows) {
+		return false, fmt.Errorf("check tombstone: %w", tombErr)
+	}
+	return false, nil
 }
 
 func (s *ExifService) ensureFields(
@@ -263,6 +193,94 @@ func (s *ExifService) ensureFields(
 		fieldIDs[field.Key] = field.ID
 	}
 	return fieldIDs, nil
+}
+
+func (s *ExifService) upsertExifFields(
+	ctx context.Context,
+	assetID, userID string,
+	fieldIDs map[string]string,
+	result *contentmeta.ImageEXIF,
+	keepGPS bool,
+) error {
+	type textField struct {
+		key string
+		val *string
+	}
+	type numField struct {
+		key string
+		val *float64
+	}
+
+	for _, f := range []textField{
+		{"_exif_make", result.Make},
+		{"_exif_model", result.Model},
+		{"_exif_lens", result.LensModel},
+		{"_exif_software", result.Software},
+		{"_exif_exposure_time", result.ExposureTime},
+		{"_exif_flash", result.Flash},
+		{"_exif_white_balance", result.WhiteBalance},
+	} {
+		fid, ok := fieldIDs[f.key]
+		if !ok {
+			continue
+		}
+		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+			ID:        uuid.New().String(),
+			AssetID:   assetID,
+			FieldID:   fid,
+			ValueText: f.val,
+			CreatedBy: &userID,
+		}); uErr != nil {
+			return fmt.Errorf("upsert %s: %w", f.key, uErr)
+		}
+	}
+
+	var isoF *float64
+	if result.ISO != nil {
+		v := float64(*result.ISO)
+		isoF = &v
+	}
+	nums := []numField{
+		{"_exif_f_number", result.FNumber},
+		{"_exif_iso", isoF},
+		{"_exif_focal_length", result.FocalLength},
+		{"_exif_focal_length_35", result.FocalLength35},
+	}
+	if keepGPS && result.GPS != nil {
+		lat, lng := result.GPS.Lat, result.GPS.Lng
+		nums = append(nums, numField{"_exif_gps_lat", &lat}, numField{"_exif_gps_lng", &lng})
+	}
+	for _, f := range nums {
+		fid, ok := fieldIDs[f.key]
+		if !ok {
+			continue
+		}
+		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+			ID:          uuid.New().String(),
+			AssetID:     assetID,
+			FieldID:     fid,
+			ValueNumber: f.val,
+			CreatedBy:   &userID,
+		}); uErr != nil {
+			return fmt.Errorf("upsert %s: %w", f.key, uErr)
+		}
+	}
+
+	if result.TakenAt != nil {
+		if fid, ok := fieldIDs["_exif_taken_at"]; ok {
+			v := result.TakenAt.Format("2006-01-02")
+			if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+				ID:        uuid.New().String(),
+				AssetID:   assetID,
+				FieldID:   fid,
+				ValueDate: &v,
+				CreatedBy: &userID,
+			}); uErr != nil {
+				return fmt.Errorf("upsert _exif_taken_at: %w", uErr)
+			}
+		}
+	}
+	return nil
 }
 
 func ptrStr(s *string) string {
