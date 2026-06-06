@@ -305,17 +305,9 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 
 	// Validate options format if provided
 	if body.Options != nil {
-		existing, err := s.fields.Get(c.Context(), claims.WorkspaceID, id)
+		err := s.validateFieldOptions(c, claims.WorkspaceID, id, body)
 		if err != nil {
-			return ErrorStatusResponse(c, err)
-		}
-		if existing.FieldType == "select" {
-			var opts []string
-			if unmarshalErr := json.Unmarshal([]byte(*body.Options), &opts); unmarshalErr != nil || len(opts) == 0 {
-				return errRes(c, fiber.StatusBadRequest, "options must be a non-empty JSON array of strings")
-			}
-		} else {
-			return errRes(c, fiber.StatusBadRequest, "options can only be set for select fields")
+			return err
 		}
 	}
 
@@ -341,6 +333,27 @@ func (s *Server) handleUpdateFieldDefinition(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fieldDTOToResponse(updated))
+}
+
+func (s *Server) validateFieldOptions(
+	c fiber.Ctx,
+	workspaceID string,
+	id string,
+	body *UpdateFieldDefinitionRequest,
+) error {
+	existing, err := s.fields.Get(c.Context(), workspaceID, id)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+	if existing.FieldType == "select" {
+		var opts []string
+		if unmarshalErr := json.Unmarshal([]byte(*body.Options), &opts); unmarshalErr != nil || len(opts) == 0 {
+			return errRes(c, fiber.StatusBadRequest, "options must be a non-empty JSON array of strings")
+		}
+	} else {
+		return errRes(c, fiber.StatusBadRequest, "options can only be set for select fields")
+	}
+	return nil
 }
 
 // @Summary Delete a field definition

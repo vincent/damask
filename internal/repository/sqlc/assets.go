@@ -106,6 +106,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	}
 
 	// Cursor
+	//nolint:nestif // clean me some day
 	if p.CursorID != "" && p.CursorValue != "" {
 		switch p.CursorField {
 		case "size":
@@ -237,6 +238,7 @@ func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 			return repository.Asset{}, err
 		}
 	}
+	//nolint:nestif // clean me some day
 	if params.FolderID != nil || params.ProjectID != nil {
 		if params.FolderID != nil {
 			if err := r.q.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{

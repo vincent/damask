@@ -80,6 +80,7 @@ func TestGenerateImageOfText_DefaultFont(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // shared state
 func TestGenerateImageOfText_CustomFont(t *testing.T) {
 	t.Parallel()
 	tf := &mockTransformer{}
@@ -141,6 +142,7 @@ func TestGenerateImageOfText_CustomFont(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // shared state
 func TestGenerateImageOfText_ErrorCases(t *testing.T) {
 	t.Parallel()
 	tf := transform.NewTransformer()

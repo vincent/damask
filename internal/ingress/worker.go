@@ -425,19 +425,19 @@ func (w *Worker) notifySourceFailure(ctx context.Context, src dbgen.IngressSourc
 	}
 	notified := map[string]bool{}
 	for _, m := range members {
-		if m.Role == string(auth.Owner) || m.UserID == src.CreatedBy {
-			if !notified[m.Email] {
-				notified[m.Email] = true
-				var mailErr error
-				if disabled {
-					mailErr = w.mailer.SendIngressSourceDisabled(ctx, m.Email, src.Label, errMsg, src.WorkspaceID)
-				} else {
-					mailErr = w.mailer.SendIngressSourceFailed(ctx, m.Email, src.Label, errMsg, src.WorkspaceID)
-				}
-				if mailErr != nil {
-					slog.ErrorContext(ctx, "failed to send ingress failure mail", "error", mailErr)
-				}
-			}
+		shouldSend := m.Role == string(auth.Owner) || m.UserID == src.CreatedBy
+		if !shouldSend || notified[m.Email] {
+			continue
+		}
+		notified[m.Email] = true
+		var mailErr error
+		if disabled {
+			mailErr = w.mailer.SendIngressSourceDisabled(ctx, m.Email, src.Label, errMsg, src.WorkspaceID)
+		} else {
+			mailErr = w.mailer.SendIngressSourceFailed(ctx, m.Email, src.Label, errMsg, src.WorkspaceID)
+		}
+		if mailErr != nil {
+			slog.ErrorContext(ctx, "failed to send ingress failure mail", "error", mailErr)
 		}
 	}
 }

@@ -14,7 +14,6 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/service"
 	"damask/server/internal/telemetry"
-	"damask/server/internal/visualsimilarity"
 
 	"github.com/gofiber/fiber/v3"
 	"go.opentelemetry.io/otel/attribute"
@@ -288,20 +287,13 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	}
 
 	// Folder filter
-	if folderID := c.Query("folder_id"); folderID != "" {
-		if folderID == "root" {
-			lp.FolderIsRoot = true
-			if pid := c.Query("project_id"); pid != "" {
-				lp.ProjectID = &pid
-			} else {
-				return errRes(c, fiber.StatusBadRequest, "project_id is required when using folder_id=root")
-			}
-		} else {
-			lp.FolderID = &folderID
-		}
-	} else if pid := c.Query("project_id"); pid != "" {
-		lp.ProjectID = &pid
+	folderID, projectID, isRoot, err := parseFolderFilter(c.Query("folder_id"), c.Query("project_id"))
+	if err != nil {
+		return errRes(c, fiber.StatusBadRequest, err.Error())
 	}
+	lp.FolderID = folderID
+	lp.ProjectID = projectID
+	lp.FolderIsRoot = isRoot
 
 	if cid := c.Query("collection_id"); cid != "" {
 		lp.CollectionID = &cid
@@ -311,52 +303,9 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 		lp.MimePrefix = &mime
 	}
 
-	var similarityMeta *AssetSimilarityMeta
-	var anchor *service.AssetDTO
-	similarToNotIndexed := false
-	similarToNoMatches := false
-	if similarTo := c.Query("similar_to"); similarTo != "" {
-		anchorDTO, err := s.assets.Get(c.Context(), claims.WorkspaceID, similarTo)
-		if err != nil {
-			return ErrorStatusResponse(c, err)
-		}
-		if !strings.HasPrefix(anchorDTO.MimeType, "image/") {
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "not_an_image"})
-		}
-
-		anchor = anchorDTO
-		similarityMeta = &AssetSimilarityMeta{
-			AnchorAssetID:  anchor.ID,
-			AnchorFilename: anchor.OriginalFilename,
-		}
-
-		if anchorDTO.CurrentVersionID == nil || s.visualSimilaritySvc == nil {
-			lp.SimilarToIDs = []string{}
-			similarToNotIndexed = true
-		} else {
-			var similar []visualsimilarity.SimilarAsset
-			similar, err = s.visualSimilaritySvc.FindSimilarEnriched(
-				c.Context(),
-				claims.WorkspaceID,
-				*anchorDTO.CurrentVersionID,
-			)
-			if err != nil {
-				return errRes(c, fiber.StatusInternalServerError, "could not find similar assets")
-			}
-			seen := map[string]struct{}{anchor.ID: {}}
-			lp.SimilarToIDs = make([]string, 0, len(similar))
-			for _, item := range similar {
-				if _, ok := seen[item.AssetID]; ok {
-					continue
-				}
-				seen[item.AssetID] = struct{}{}
-				lp.SimilarToIDs = append(lp.SimilarToIDs, item.AssetID)
-			}
-			if len(lp.SimilarToIDs) == 0 {
-				similarToNotIndexed = false
-				similarToNoMatches = true
-			}
-		}
+	sim, err := s.parseSimilarityFilter(c, claims.WorkspaceID, &lp)
+	if err != nil {
+		return err
 	}
 
 	// Sort
@@ -389,7 +338,7 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 
 	// Cursor
 	if cursor := c.Query("cursor"); cursor != "" {
-		if cv, err := decodeCursor(cursor); err == nil {
+		if cv, cvErr := decodeCursor(cursor); cvErr == nil {
 			lp.CursorField = cv.Field
 			lp.CursorValue = cv.Value
 			lp.CursorID = cv.ID
@@ -407,13 +356,13 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 
 	similarAssets := assets
 	resultCount := len(assets)
-	if similarityMeta != nil {
-		similarityMeta.ResultCount = resultCount
-		if anchor != nil && lp.CursorID == "" {
+	if sim.Meta != nil {
+		sim.Meta.ResultCount = resultCount
+		if sim.Anchor != nil && lp.CursorID == "" {
 			deduped := make([]*service.AssetDTO, 0, len(assets)+1)
-			deduped = append(deduped, anchor)
+			deduped = append(deduped, sim.Anchor)
 			for _, a := range assets {
-				if a.ID == anchor.ID {
+				if a.ID == sim.Anchor.ID {
 					continue
 				}
 				deduped = append(deduped, a)
@@ -433,15 +382,79 @@ func (s *Server) handleListAssets(c fiber.Ctx) error {
 	span.End()
 
 	response := buildAssetListResponseFromDTOs(assets, limit, lp.SortField, versionCounts, variantCounts, tagsByAsset)
-	if similarityMeta != nil {
+	if sim.Meta != nil {
 		total := resultCount
 		response.NextCursor = nextCursorFor(similarAssets, limit, lp.SortField)
 		response.Total = &total
-		response.Similarity = similarityMeta
-		response.SimilarToNotIndexed = similarToNotIndexed
-		response.SimilarToNoMatches = similarToNoMatches
+		response.Similarity = sim.Meta
+		response.SimilarToNotIndexed = sim.NotIndexed
+		response.SimilarToNoMatches = sim.NoMatches
 	}
 	return c.JSON(response)
+}
+
+type similarityFilterResult struct {
+	Meta       *AssetSimilarityMeta
+	Anchor     *service.AssetDTO
+	NotIndexed bool
+	NoMatches  bool
+}
+
+func (s *Server) parseSimilarityFilter(
+	c fiber.Ctx,
+	workspaceID string,
+	lp *service.ListAssetsParams,
+) (similarityFilterResult, error) {
+	similarTo := c.Query("similar_to")
+	if similarTo == "" {
+		return similarityFilterResult{}, nil
+	}
+
+	anchorDTO, err := s.assets.Get(c.Context(), workspaceID, similarTo)
+	if err != nil {
+		return similarityFilterResult{}, ErrorStatusResponse(c, err)
+	}
+	if !strings.HasPrefix(anchorDTO.MimeType, "image/") {
+		return similarityFilterResult{}, c.Status(fiber.StatusUnprocessableEntity).
+			JSON(fiber.Map{"error": "not_an_image"})
+	}
+
+	result := similarityFilterResult{
+		Anchor: anchorDTO,
+		Meta: &AssetSimilarityMeta{
+			AnchorAssetID:  anchorDTO.ID,
+			AnchorFilename: anchorDTO.OriginalFilename,
+		},
+	}
+
+	if anchorDTO.CurrentVersionID == nil || s.visualSimilaritySvc == nil {
+		lp.SimilarToIDs = []string{}
+		result.NotIndexed = true
+		return result, nil
+	}
+
+	similar, err := s.visualSimilaritySvc.FindSimilarEnriched(
+		c.Context(),
+		workspaceID,
+		*anchorDTO.CurrentVersionID,
+	)
+	if err != nil {
+		return similarityFilterResult{}, errRes(c, fiber.StatusInternalServerError, "could not find similar assets")
+	}
+
+	seen := map[string]struct{}{anchorDTO.ID: {}}
+	lp.SimilarToIDs = make([]string, 0, len(similar))
+	for _, item := range similar {
+		if _, ok := seen[item.AssetID]; ok {
+			continue
+		}
+		seen[item.AssetID] = struct{}{}
+		lp.SimilarToIDs = append(lp.SimilarToIDs, item.AssetID)
+	}
+	if len(lp.SimilarToIDs) == 0 {
+		result.NoMatches = true
+	}
+	return result, nil
 }
 
 // buildAssetListResponseFromDTOs builds an AssetListResponse from service.AssetDTO slice.
@@ -486,6 +499,23 @@ func buildAssetListResponseFromDTOs(
 		}
 	}
 	return AssetListResponse{Assets: items, NextCursor: nextCursorFor(assets, limit, sortField)}
+}
+
+func parseFolderFilter(folderParam, projectParam string) (folderID *string, projectID *string, isRoot bool, err error) {
+	switch folderParam {
+	case "":
+		if projectParam != "" {
+			return nil, &projectParam, false, nil
+		}
+		return nil, nil, false, nil
+	case "root":
+		if projectParam == "" {
+			return nil, nil, false, errors.New("project_id is required when using folder_id=root")
+		}
+		return nil, &projectParam, true, nil
+	default:
+		return &folderParam, nil, false, nil
+	}
 }
 
 func nextCursorFor(assets []*service.AssetDTO, limit int64, sortField string) *string {
@@ -606,42 +636,8 @@ func (s *Server) handleGetAsset(c fiber.Ctx) error {
 	asset := dtoToDBAsset(dto)
 	base := assetToResponseWithCount(asset, tagNames, versionCount, variantCount, variantsRebuilding)
 
-	// Resolve CreatedBy from the first (oldest) version.
-	var createdBy *AssetContributor
-	firstVer, firstVerErr := s.versions.GetFirstByAsset(c.Context(), id)
-	if firstVerErr == nil && firstVer != nil && firstVer.CreatedBy != nil {
-		cb := &AssetContributor{ID: *firstVer.CreatedBy}
-		if u, uErr := s.users.GetByID(c.Context(), *firstVer.CreatedBy); uErr == nil {
-			cb.Name = u.Name
-		}
-		createdBy = cb
-	}
-
-	// Resolve Authors: distinct created_by user IDs across all versions.
-	authors := []AssetContributor{}
-	allVersions, versionsErr := s.versions.List(c.Context(), id)
-	if versionsErr == nil {
-		seen := make(map[string]struct{})
-		userNames := make(map[string]string)
-		for _, v := range allVersions {
-			if v.CreatedBy == nil {
-				continue
-			}
-			uid := *v.CreatedBy
-			if _, ok := seen[uid]; ok {
-				continue
-			}
-			seen[uid] = struct{}{}
-			if _, resolved := userNames[uid]; !resolved {
-				if u, uErr := s.users.GetByID(c.Context(), uid); uErr == nil {
-					userNames[uid] = u.Name
-				} else {
-					userNames[uid] = ""
-				}
-			}
-			authors = append(authors, AssetContributor{ID: uid, Name: userNames[uid]})
-		}
-	}
+	createdBy := s.resolveAssetCreator(c, id)
+	authors := s.resolveAssetAuthors(c, id)
 
 	return c.JSON(assetToDetailResponse(base, createdBy, authors))
 }
@@ -949,4 +945,39 @@ func (s *Server) handleBulkDelete(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// fiber:context-methods migrated
+func (s *Server) resolveAssetCreator(c fiber.Ctx, assetID string) *AssetContributor {
+	firstVer, err := s.versions.GetFirstByAsset(c.Context(), assetID)
+	if err != nil || firstVer == nil || firstVer.CreatedBy == nil {
+		return nil
+	}
+	cb := &AssetContributor{ID: *firstVer.CreatedBy}
+	if u, uErr := s.users.GetByID(c.Context(), *firstVer.CreatedBy); uErr == nil {
+		cb.Name = u.Name
+	}
+	return cb
+}
+
+func (s *Server) resolveAssetAuthors(c fiber.Ctx, assetID string) []AssetContributor {
+	authors := []AssetContributor{}
+	versions, err := s.versions.List(c.Context(), assetID)
+	if err != nil {
+		return authors
+	}
+	seen := make(map[string]struct{})
+	for _, v := range versions {
+		if v.CreatedBy == nil {
+			continue
+		}
+		uid := *v.CreatedBy
+		if _, ok := seen[uid]; ok {
+			continue
+		}
+		seen[uid] = struct{}{}
+		name := ""
+		if u, uErr := s.users.GetByID(c.Context(), uid); uErr == nil {
+			name = u.Name
+		}
+		authors = append(authors, AssetContributor{ID: uid, Name: name})
+	}
+	return authors
+}

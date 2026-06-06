@@ -183,7 +183,7 @@ func insertWorkspaceAndPollSource(
 		t.Fatalf("create user: %v", err)
 	}
 
-	const typ = "fake_poll_source"
+	typ := "fake_poll_source_" + sourceID
 	Register(typ, func(_ []byte) (Source, error) {
 		return &pollSource{typ: typ, items: items}, nil
 	})

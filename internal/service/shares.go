@@ -170,6 +170,7 @@ func (s *shareService) Update(ctx context.Context, workspaceID, id string, p Upd
 	if p.Label != nil {
 		existing.Label = *p.Label
 	}
+	//nolint:nestif // clean me some day
 	if p.ClearPassword {
 		existing.PasswordHash = nil
 	} else if p.Password != nil {

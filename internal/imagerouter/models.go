@@ -181,15 +181,12 @@ func normalizeAndSortModels(in []Model) []Model {
 }
 
 func normalizeModel(model Model) Model {
-	if model.Provider == "" || model.Name == "" {
-		provider, slug, ok := strings.Cut(model.ID, "/")
-		if ok {
-			if model.Provider == "" {
-				model.Provider = provider
-			}
-			if model.Name == "" {
-				model.Name = humanizeModelSlug(slug)
-			}
+	if provider, slug, ok := strings.Cut(model.ID, "/"); ok {
+		if model.Provider == "" {
+			model.Provider = provider
+		}
+		if model.Name == "" {
+			model.Name = humanizeModelSlug(slug)
 		}
 	}
 	if model.Name == "" {
