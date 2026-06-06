@@ -6,7 +6,7 @@ func assetThumbURL(assetID string) string {
 	return fmt.Sprintf("/api/v1/assets/%s/thumb", assetID)
 }
 
-func assetFileURL(assetID string) string { //nolint:unused
+func assetFileURL(assetID string) string { //nolint:unused // readability
 	return fmt.Sprintf("/api/v1/assets/%s/file", assetID)
 }
 
@@ -14,7 +14,7 @@ func versionThumbURL(assetID, versionID string) string {
 	return fmt.Sprintf("/api/v1/assets/%s/versions/%s/thumb", assetID, versionID)
 }
 
-func versionFileURL(assetID, versionID string) string { //nolint:unused
+func versionFileURL(assetID, versionID string) string { //nolint:unused // readability
 	return fmt.Sprintf("/api/v1/assets/%s/versions/%s/file", assetID, versionID)
 }
 

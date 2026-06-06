@@ -443,7 +443,8 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 
 	// Look up the real storage_key from the assets table so the file endpoint works.
 	var storageKey string
-	if err = env.Database.QueryRow(
+	if err = env.Database.QueryRowContext(
+		t.Context(),
 		`SELECT storage_key FROM assets WHERE id = ?`, asset.ID,
 	).Scan(&storageKey); err != nil {
 		t.Fatalf("lookup storage key: %v", err)

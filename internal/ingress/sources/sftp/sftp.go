@@ -132,7 +132,7 @@ func (s *Source) connect() (*gsftp.Client, *ssh.Client, error) {
 		authMethods = append(authMethods, ssh.Password(s.cfg.Password))
 	}
 
-	hostKeyCallback := ssh.HostKeyCallback(func(_ string, _ net.Addr, key ssh.PublicKey) error {
+	hostKeyCallback := ssh.HostKeyCallback(func(_ string, _ net.Addr, _ ssh.PublicKey) error {
 		return errors.New(
 			"sftp: host key verification not configured; " +
 				"set insecure_host_key=true in source config to skip (not recommended for production)")
