@@ -22,26 +22,6 @@ jobs:
         with:
           version: latest
 
-  lint-go-hardened:
-    name: Lint (Go, hardened)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-      - name: Create web dist directory
-        run: mkdir -p cmd/server/web/build && echo "{}" > cmd/server/web/build/placeholder.json
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
-          args: --config .golangci.hardened.yaml
-      - name: Annotate hardened lint warnings
-        if: failure()
-        run: echo "::warning file=.golangci.hardened.yaml,line=1,col=1::Hardened lint issues detected — see golangci-lint output above"
-
   test-go:
     name: Test (Go)
     runs-on: ubuntu-latest

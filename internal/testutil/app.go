@@ -162,7 +162,7 @@ func (e *TestEnv) MintToken(t *testing.T, userID, workspaceID string) string {
 func (e *TestEnv) MintCookie(t *testing.T, userID, workspaceID string) *http.Cookie {
 	t.Helper()
 	tok := e.MintToken(t, userID, workspaceID)
-	return &http.Cookie{Name: "auth_token", Value: tok}
+	return &http.Cookie{Name: "auth_token", Value: tok, Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode}
 }
 
 // AuthRequest builds an HTTP request carrying the given cookie.

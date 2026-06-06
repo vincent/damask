@@ -37,7 +37,7 @@ func (s *JobServer) wrapVariantJob(h queue.HandlerFunc) queue.HandlerFunc {
 
 		err := h(ctx, job)
 		if err != nil {
-			slog.Error("variant generation failed", "error", err.Error())
+			slog.ErrorContext(ctx, "variant generation failed", "error", err.Error())
 			if p.VariantID != "" {
 				if _, setErr := s.sqlDB.ExecContext(
 					ctx,
