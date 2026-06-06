@@ -19,11 +19,15 @@ const (
 )
 
 const (
-	MimeImageJPEG = "image/jpeg"
-	MimeImagePNG  = "image/png"
-	MimeImageWebP = "image/webp"
-	MimeVideoMP4  = "video/mp4"
-	MimeVideoWebM = "video/webm"
+	MimeImageGIF               = "image/gif"
+	MimeImageJPEG              = "image/jpeg"
+	MimeImagePNG               = "image/png"
+	MimeImageWebP              = "image/webp"
+	MimeVideoMP4               = "video/mp4"
+	MimeVideoWebM              = "video/webm"
+	MimeTextPlain              = "text/plain"
+	MimeTextHTML               = "text/html"
+	MimeApplicationOctetStream = "application/octet-stream"
 )
 
 // DetectMimeType sniffs the MIME type of the file at filePath.

@@ -84,7 +84,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 
 	thumbContentType := mime.TypeByExtension(thumbExt)
 	if thumbContentType == "" {
-		thumbContentType = "image/jpeg"
+		thumbContentType = transform.MimeImageJPEG
 	}
 
 	if err = s.queries.SetVersionThumbnail(ctx, dbgen.SetVersionThumbnailParams{

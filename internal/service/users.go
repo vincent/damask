@@ -239,7 +239,7 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 
 	contentType := http.DetectContentType(data)
 	switch contentType {
-	case "image/jpeg", "image/png", "image/webp", "image/gif":
+	case transform.MimeImageJPEG, transform.MimeImagePNG, transform.MimeImageWebP, transform.MimeImageGIF:
 	default:
 		err = fmt.Errorf("%w: %s", ErrUnsupportedAvatarType, contentType)
 		return nil, err

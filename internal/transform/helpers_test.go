@@ -62,7 +62,7 @@ func (t *mockTransformer) PDFSlideshowThumbnail(
 	_ io.Reader,
 	_ string,
 ) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) DocumentThumbnail(_ context.Context, _ io.Reader, _ string) ([]byte, error) {
 	return t.pixel(imaging.JPEG), nil
@@ -73,28 +73,28 @@ func (t *mockTransformer) ImageWatermark(
 	_ io.Reader,
 	_ transform.WatermarkParams,
 ) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) ImageResize(_ io.Reader, _ transform.ResizeParams) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) ImageConvert(_ io.Reader, _ transform.ConvertParams) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) ImageCrop(_ io.Reader, _ transform.CropParams) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) ImageSmartCrop(_ io.Reader, _ transform.SmartCropParams) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) ImagePreview(_ io.Reader, _ transform.PreviewParams) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) RemoveBackground(_ context.Context, _ []byte, _ string) ([]byte, error) {
 	return t.pixel(imaging.JPEG), nil
 }
 func (t *mockTransformer) AudioWaveform(_ context.Context, _ io.Reader, _ string) ([]byte, string, error) {
-	return t.pixel(imaging.JPEG), "image/jpeg", nil
+	return t.pixel(imaging.JPEG), transform.MimeImageJPEG, nil
 }
 func (t *mockTransformer) ExtractAudio(_ context.Context, _, _ string, _ transform.AudioParams) error {
 	return nil

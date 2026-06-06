@@ -55,7 +55,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				data: map[string][]byte{"test.jpg": jpegData},
 			},
-			mimeType:   "image/jpeg",
+			mimeType:   transform.MimeImageJPEG,
 			storageKey: "test.jpg",
 			wantBytes:  true,
 			wantExt:    ".jpg",
@@ -66,7 +66,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				data: map[string][]byte{"test.png": pngData},
 			},
-			mimeType:   "image/png",
+			mimeType:   transform.MimeImagePNG,
 			storageKey: "test.png",
 			wantBytes:  true,
 			wantExt:    ".jpg",
@@ -77,7 +77,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				data: map[string][]byte{"test.webp": jpegData}, // reuse JPEG for simplicity
 			},
-			mimeType:   "image/webp",
+			mimeType:   transform.MimeImageWebP,
 			storageKey: "test.webp",
 			wantBytes:  true,
 			wantExt:    ".jpg",
@@ -88,7 +88,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				data: map[string][]byte{"test.txt": plainTextData},
 			},
-			mimeType:   "text/plain",
+			mimeType:   transform.MimeTextPlain,
 			storageKey: "test.txt",
 			wantBytes:  true,
 			wantExt:    ".png",
@@ -99,7 +99,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				data: map[string][]byte{"test.html": []byte("<html><body>Test HTML</body></html>")},
 			},
-			mimeType:   "text/html",
+			mimeType:   transform.MimeTextHTML,
 			storageKey: "test.html",
 			wantBytes:  true,
 			wantExt:    ".png",
@@ -110,7 +110,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				err: errors.New("storage unavailable"),
 			},
-			mimeType:   "image/jpeg",
+			mimeType:   transform.MimeImageJPEG,
 			storageKey: "missing.jpg",
 			wantBytes:  false,
 			wantExt:    "",
@@ -121,7 +121,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				err: errors.New("access denied"),
 			},
-			mimeType:   "text/plain",
+			mimeType:   transform.MimeTextPlain,
 			storageKey: "missing.txt",
 			wantBytes:  false,
 			wantExt:    "",
@@ -132,7 +132,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				data: map[string][]byte{},
 			},
-			mimeType:   "application/octet-stream",
+			mimeType:   transform.MimeApplicationOctetStream,
 			storageKey: "unknown.bin",
 			wantBytes:  false,
 			wantExt:    "",
@@ -143,7 +143,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				err: errors.New("video not found"),
 			},
-			mimeType:   "video/mp4",
+			mimeType:   transform.MimeVideoMP4,
 			storageKey: "missing.mp4",
 			wantBytes:  false,
 			wantExt:    "",
@@ -154,7 +154,7 @@ func TestGenerateThumbnailData(t *testing.T) {
 			storage: &mockStorage{
 				data: map[string][]byte{"empty.txt": []byte("")},
 			},
-			mimeType:   "text/plain",
+			mimeType:   transform.MimeTextPlain,
 			storageKey: "empty.txt",
 			wantBytes:  true,
 			wantExt:    ".png",

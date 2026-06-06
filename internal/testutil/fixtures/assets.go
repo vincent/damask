@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"damask/server/internal/service"
+	"damask/server/internal/transform"
 )
 
 var fixedTime = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -23,7 +24,7 @@ func Asset(overrides ...func(*service.AssetDTO)) *service.AssetDTO {
 		WorkspaceID:      fixtureWorkspaceID,
 		OriginalFilename: "fixture.jpg",
 		StorageKey:       fixtureWorkspaceID + "/ast_fixture_1/original.jpg",
-		MimeType:         "image/jpeg",
+		MimeType:         transform.MimeImageJPEG,
 		Size:             12345,
 		CreatedAt:        fixedTime,
 		UpdatedAt:        fixedTime,
@@ -117,7 +118,7 @@ func Version(overrides ...func(*service.VersionDTO)) *service.VersionDTO {
 		WorkspaceID: fixtureWorkspaceID,
 		VersionNum:  1,
 		StorageKey:  "ws_fixture_1/ast_fixture_1/v1/original.jpg",
-		MimeType:    "image/jpeg",
+		MimeType:    transform.MimeImageJPEG,
 		Size:        12345,
 		IsCurrent:   true,
 		CreatedAt:   fixedTime,

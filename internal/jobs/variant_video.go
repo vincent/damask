@@ -80,7 +80,7 @@ func (s *JobServer) videoCaptureTransformer(params json.RawMessage) (variantTran
 			return nil, "", fmt.Errorf("extract thumbnail: %w", err)
 		}
 		telemetry.EndSpan(span, nil)
-		return data, "image/jpeg", nil
+		return data, transform.MimeImageJPEG, nil
 	}, nil
 }
 

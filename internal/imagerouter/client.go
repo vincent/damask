@@ -14,6 +14,8 @@ import (
 	"net/textproto"
 	"strings"
 	"time"
+
+	"damask/server/internal/transform"
 )
 
 var (
@@ -27,7 +29,6 @@ var apiBaseURL = "https://api.imagerouter.io/v1"
 
 const (
 	clientTimeout                   = 120 * time.Second
-	contentTypeImagePNG             = "image/png"
 	imageRouterGenerationFailedText = "ImageRouter generation failed"
 )
 
@@ -334,12 +335,14 @@ func detectImageUpload(imageData []byte) (filename string, contentType string, e
 	}
 
 	switch http.DetectContentType(imageData) {
-	case contentTypeImagePNG:
-		return "source.png", contentTypeImagePNG, nil
-	case "image/jpeg":
-		return "source.jpg", "image/jpeg", nil
-	case "image/webp":
-		return "source.webp", "image/webp", nil
+	case transform.MimeImagePNG:
+		return "source.png", transform.MimeImagePNG, nil
+	case transform.MimeImageJPEG:
+		return "source.jpg", transform.MimeImageJPEG, nil
+	case transform.MimeImageWebP:
+		return "source.webp", transform.MimeImageWebP, nil
+	case transform.MimeImageGIF:
+		return "source.gif", transform.MimeImageGIF, nil
 	default:
 		return "", "", fmt.Errorf(
 			"imagerouter: unsupported source image format %q; expected PNG, JPEG, or WEBP",

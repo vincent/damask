@@ -9,6 +9,7 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
+	"damask/server/internal/transform"
 )
 
 // VariantThumbnailJobPayload is the payload for variant thumbnail generation.
@@ -63,7 +64,7 @@ func (s *JobServer) jobVariantThumbnail(ctx context.Context, job dbgen.Job) erro
 
 	thumbContentType := mime.TypeByExtension(thumbExt)
 	if thumbContentType == "" {
-		thumbContentType = "image/jpeg"
+		thumbContentType = transform.MimeImageJPEG
 	}
 
 	if e := s.queries.SetVariantThumbnail(ctx, dbgen.SetVariantThumbnailParams{
