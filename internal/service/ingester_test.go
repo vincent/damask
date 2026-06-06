@@ -66,8 +66,8 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 	}
 
 	tmpFile := filepath.Join(t.TempDir(), "test.txt")
-	if err := os.WriteFile(tmpFile, []byte("hello world"), 0644); err != nil {
-		t.Fatalf("write temp file: %v", err)
+	if writeErr := os.WriteFile(tmpFile, []byte("hello world"), 0644); writeErr != nil {
+		t.Fatalf("write temp file: %v", writeErr)
 	}
 
 	versionID, err := impl.createInitialVersion(
@@ -84,9 +84,9 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 	}
 
 	var createdBy *string
-	if err := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).
-		Scan(&createdBy); err != nil {
-		t.Fatalf("query created_by: %v", err)
+	if scanErr := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).
+		Scan(&createdBy); scanErr != nil {
+		t.Fatalf("query created_by: %v", scanErr)
 	}
 	if createdBy != nil {
 		t.Errorf("expected created_by to be NULL, got: %v", *createdBy)
@@ -138,8 +138,8 @@ func TestCreateInitialVersionWithUser(t *testing.T) {
 	}
 
 	tmpFile := filepath.Join(t.TempDir(), "test.txt")
-	if err := os.WriteFile(tmpFile, []byte("hello world"), 0644); err != nil {
-		t.Fatalf("write temp file: %v", err)
+	if writeErr := os.WriteFile(tmpFile, []byte("hello world"), 0644); writeErr != nil {
+		t.Fatalf("write temp file: %v", writeErr)
 	}
 
 	versionID, err := impl.createInitialVersion(
@@ -156,9 +156,9 @@ func TestCreateInitialVersionWithUser(t *testing.T) {
 	}
 
 	var createdBy *string
-	if err := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).
-		Scan(&createdBy); err != nil {
-		t.Fatalf("query created_by: %v", err)
+	if scanErr := sqlDB.QueryRow(`SELECT created_by FROM asset_versions WHERE id = ?`, versionID).
+		Scan(&createdBy); scanErr != nil {
+		t.Fatalf("query created_by: %v", scanErr)
 	}
 	if createdBy == nil {
 		t.Error("expected created_by to not be NULL")

@@ -185,9 +185,9 @@ func (s *JobServer) ensureMediaTagFields(ctx context.Context, workspaceID string
 		return nil, err
 	}
 	if len(fields) == 0 {
-		tx, err := s.sqlDB.BeginTx(ctx, nil)
-		if err != nil {
-			return nil, err
+		tx, txErr := s.sqlDB.BeginTx(ctx, nil)
+		if txErr != nil {
+			return nil, txErr
 		}
 		defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 		qtx := s.queries.WithTx(tx)

@@ -44,9 +44,9 @@ func (r *variantRepo) ListByAsset(ctx context.Context, _ string, assetID string)
 
 	var out []repository.Variant
 	for rows.Next() {
-		v, err := scanVariant(rows)
-		if err != nil {
-			return nil, err
+		v, scanErr := scanVariant(rows)
+		if scanErr != nil {
+			return nil, scanErr
 		}
 		out = append(out, v)
 	}

@@ -161,7 +161,8 @@ func (s *Server) handleGetAvatar(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "avatar not found")
 	}
 	if dto.AvatarStorageKey != nil && *dto.AvatarStorageKey != "" {
-		rc, err := s.storage.Get(*dto.AvatarStorageKey)
+		var rc io.ReadCloser
+		rc, err = s.storage.Get(*dto.AvatarStorageKey)
 		if err != nil {
 			return errRes(c, fiber.StatusNotFound, "avatar not found")
 		}
@@ -216,7 +217,7 @@ func (s *Server) handleResetPassword(c fiber.Ctx) error {
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
-	if err := s.users.ResetPassword(c.Context(), claims.Sub, hash); err != nil {
+	if err = s.users.ResetPassword(c.Context(), claims.Sub, hash); err != nil {
 		if errors.Is(err, apperr.ErrInvalidInput) {
 			return errRes(c, fiber.StatusBadRequest, "invalid_or_expired_token")
 		}
@@ -235,7 +236,7 @@ func (s *Server) handleChangePassword(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
 	claims := auth.GetClaims(c)
-	if err := s.users.ChangePassword(c.Context(), claims.UserID, req.CurrentPassword, hash); err != nil {
+	if err = s.users.ChangePassword(c.Context(), claims.UserID, req.CurrentPassword, hash); err != nil {
 		if errors.Is(err, apperr.ErrInvalidInput) {
 			return errRes(c, fiber.StatusUnprocessableEntity, err.Error())
 		}
@@ -254,7 +255,7 @@ func (s *Server) handleRequestEmailChange(c fiber.Ctx) error {
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	if err := s.users.RequestEmailChange(c.Context(), claims.UserID, req.Email); err != nil {
+	if err = s.users.RequestEmailChange(c.Context(), claims.UserID, req.Email); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 	token, err := auth.SignActionToken([]byte(s.cfg.AppSecret), auth.ActionTokenClaims{
@@ -285,7 +286,7 @@ func (s *Server) handleConfirmEmailChange(c fiber.Ctx) error {
 	if claims.Purpose != auth.PurposeEmailChange {
 		return errRes(c, fiber.StatusBadRequest, "invalid_or_expired_token")
 	}
-	if _, err := s.users.ConfirmEmailChange(c.Context(), claims.Sub, claims.Email); err != nil {
+	if _, err = s.users.ConfirmEmailChange(c.Context(), claims.Sub, claims.Email); err != nil {
 		if errors.Is(err, apperr.ErrInvalidInput) {
 			return errRes(c, fiber.StatusBadRequest, "invalid_or_expired_token")
 		}
@@ -302,13 +303,13 @@ func (s *Server) handleDeleteMe(c fiber.Ctx) error {
 	}
 	req := &DeleteMeRequest{}
 	if strings.Contains(dto.AuthMethods, "password") {
-		if err := c.Bind().Body(req); err != nil {
+		if err = c.Bind().Body(req); err != nil {
 			return errRes(c, fiber.StatusBadRequest, "invalid request body")
 		}
 	}
 	avatarKey := dto.AvatarStorageKey
 	hardDelete := strings.EqualFold(strings.TrimSpace(os.Getenv("USER_HARD_DELETE")), "true")
-	if err := s.users.DeleteAccount(c.Context(), claims.UserID, req.Password, hardDelete); err != nil {
+	if err = s.users.DeleteAccount(c.Context(), claims.UserID, req.Password, hardDelete); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 	if avatarKey != nil && *avatarKey != "" {

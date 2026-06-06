@@ -134,8 +134,8 @@ func (s *ingressService) ListSources(ctx context.Context, workspaceID string) ([
 	}
 	out := make([]*IngressSourceDTO, 0, len(rows))
 	for _, row := range rows {
-		dto, err := s.toSourceDTO(row)
-		if err != nil {
+		dto, dtoErr := s.toSourceDTO(row)
+		if dtoErr != nil {
 			continue // skip unreadable sources rather than failing the whole list
 		}
 		out = append(out, dto)
@@ -220,7 +220,7 @@ func (s *ingressService) CreateSource(
 	}
 
 	for _, rule := range p.Rules {
-		if _, err := s.queries.CreateIngressRule(ctx, dbgen.CreateIngressRuleParams{
+		if _, ruleErr := s.queries.CreateIngressRule(ctx, dbgen.CreateIngressRuleParams{
 			ID:       uuid.NewString(),
 			SourceID: src.ID,
 			Position: rule.Position,
@@ -228,15 +228,15 @@ func (s *ingressService) CreateSource(
 			Operator: rule.Operator,
 			Value:    rule.Value,
 			Action:   rule.Action,
-		}); err != nil {
-			return nil, err
+		}); ruleErr != nil {
+			return nil, ruleErr
 		}
 	}
 
 	// Fire-and-forget welcome email. Failures are logged but do not abort creation.
-	if creator, err := s.queries.GetUserByID(ctx, userID); err == nil {
-		if err := s.mailer.SendIngressSourceAdded(ctx, creator.Email, src.Label, workspaceID); err != nil {
-			slog.ErrorContext(ctx, "failed to send ingress source added mail", "error", err)
+	if creator, creatorErr := s.queries.GetUserByID(ctx, userID); creatorErr == nil {
+		if mailErr := s.mailer.SendIngressSourceAdded(ctx, creator.Email, src.Label, workspaceID); mailErr != nil {
+			slog.ErrorContext(ctx, "failed to send ingress source added mail", "error", mailErr)
 		}
 	}
 
@@ -266,13 +266,14 @@ func (s *ingressService) UpdateSource(
 	encryptedConfig := existing.Config
 	if p.Config != nil {
 		p.Config["workspace_id"] = workspaceID
-		configBytes, err := json.Marshal(p.Config)
-		if err != nil {
+		configBytes, marshalErr := json.Marshal(p.Config)
+		if marshalErr != nil {
 			return nil, fmt.Errorf("invalid config: %w", apperr.ErrInvalidInput)
 		}
-		encryptedConfig, err = ingress.EncryptConfig(s.appSecret, configBytes)
-		if err != nil {
-			return nil, fmt.Errorf("could not encrypt config: %w", err)
+		var encErr error
+		encryptedConfig, encErr = ingress.EncryptConfig(s.appSecret, configBytes)
+		if encErr != nil {
+			return nil, fmt.Errorf("could not encrypt config: %w", encErr)
 		}
 	}
 
@@ -365,8 +366,8 @@ func (s *ingressService) TestSource(ctx context.Context, workspaceID, id string)
 	testCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	if err := source.Validate(testCtx); err != nil {
-		return fmt.Errorf("%s: %w", err.Error(), apperr.ErrInvalidInput)
+	if valErr := source.Validate(testCtx); valErr != nil {
+		return fmt.Errorf("%s: %w", valErr.Error(), apperr.ErrInvalidInput)
 	}
 	return nil
 }
@@ -567,15 +568,15 @@ func (s *ingressService) ReorderRules(
 		if existing.SourceID != sourceID {
 			return nil, fmt.Errorf("rule %q: %w", e.ID, apperr.ErrNotFound)
 		}
-		if _, err := s.queries.UpdateIngressRule(ctx, dbgen.UpdateIngressRuleParams{
+		if _, updateErr := s.queries.UpdateIngressRule(ctx, dbgen.UpdateIngressRuleParams{
 			Position: e.Position,
 			Field:    existing.Field,
 			Operator: existing.Operator,
 			Value:    existing.Value,
 			Action:   existing.Action,
 			ID:       e.ID,
-		}); err != nil {
-			return nil, err
+		}); updateErr != nil {
+			return nil, updateErr
 		}
 	}
 
@@ -655,12 +656,12 @@ func (s *ingressService) DeleteLogEntry(ctx context.Context, workspaceID, entryI
 		return err
 	}
 
-	if _, err := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
+	if _, srcErr := s.queries.GetIngressSource(ctx, dbgen.GetIngressSourceParams{
 		ID: entry.SourceID, WorkspaceID: workspaceID,
-	}); errors.Is(err, sql.ErrNoRows) {
+	}); errors.Is(srcErr, sql.ErrNoRows) {
 		return fmt.Errorf("log entry %q: %w", entryID, apperr.ErrForbidden)
-	} else if err != nil {
-		return err
+	} else if srcErr != nil {
+		return srcErr
 	}
 
 	return s.queries.DeleteIngressLogEntry(ctx, entryID)
@@ -712,11 +713,11 @@ func (s *ingressService) RetryLogEntry(ctx context.Context, workspaceID, entryID
 		return "", fmt.Errorf("only error or skipped entries can be retried: %w", apperr.ErrInvalidInput)
 	}
 
-	if err := s.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+	if updateErr := s.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status: WorkflowRunStatusPending,
 		ID:     entryID,
-	}); err != nil {
-		return "", err
+	}); updateErr != nil {
+		return "", updateErr
 	}
 
 	payload, _ := json.Marshal(ingress.FetchJobPayload{
@@ -763,7 +764,7 @@ func (s *ingressService) toSourceDTO(src dbgen.IngressSource) (*IngressSourceDTO
 		return nil, err
 	}
 	var configMap map[string]any
-	if err := json.Unmarshal(configJSON, &configMap); err != nil {
+	if unmarshalErr := json.Unmarshal(configJSON, &configMap); unmarshalErr != nil {
 		configMap = map[string]any{}
 	}
 	return &IngressSourceDTO{

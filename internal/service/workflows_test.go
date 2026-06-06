@@ -110,8 +110,8 @@ func TestWorkflowServiceTriggerManual_NoAsset_TriggerDataIsManualOnly(t *testing
 		t.Fatalf("run not found: %v", err)
 	}
 	var td map[string]any
-	if err := json.Unmarshal([]byte(run.TriggerData), &td); err != nil {
-		t.Fatalf("invalid trigger_data JSON: %v", err)
+	if decodeErr := json.Unmarshal([]byte(run.TriggerData), &td); decodeErr != nil {
+		t.Fatalf("invalid trigger_data JSON: %v", decodeErr)
 	}
 	if td["trigger"] != "manual" {
 		t.Fatalf("trigger: got %v, want manual", td["trigger"])
@@ -155,8 +155,8 @@ func TestWorkflowServiceTriggerManual_WithAsset_TriggerDataHasAssetContext(t *te
 		t.Fatalf("run not found: %v", err)
 	}
 	var td map[string]any
-	if err := json.Unmarshal([]byte(run.TriggerData), &td); err != nil {
-		t.Fatalf("invalid trigger_data JSON: %v", err)
+	if decodeErr := json.Unmarshal([]byte(run.TriggerData), &td); decodeErr != nil {
+		t.Fatalf("invalid trigger_data JSON: %v", decodeErr)
 	}
 	checks := map[string]any{
 		"asset_id":   "ast_1",
@@ -339,13 +339,13 @@ func TestWorkflowServiceTriggerManualBulkOK(t *testing.T) {
 		{"ast_3", "video/mp4", "baz.mp4", 4096, "ver_3", 1, "ws_1/ast_3/v1.mp4"},
 	}
 	for i, runID := range runIDs {
-		run, err := runs.GetByID(context.Background(), runID)
-		if err != nil {
-			t.Fatalf("run %q not persisted: %v", runID, err)
+		run, runErr := runs.GetByID(context.Background(), runID)
+		if runErr != nil {
+			t.Fatalf("run %q not persisted: %v", runID, runErr)
 		}
 		var td map[string]any
-		if err := json.Unmarshal([]byte(run.TriggerData), &td); err != nil {
-			t.Fatalf("run %d trigger_data invalid JSON: %v", i, err)
+		if decodeErr := json.Unmarshal([]byte(run.TriggerData), &td); decodeErr != nil {
+			t.Fatalf("run %d trigger_data invalid JSON: %v", i, decodeErr)
 		}
 		ex := expectations[i]
 		// strings.Contains still used to keep "strings" import valid

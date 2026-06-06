@@ -332,7 +332,7 @@ func (r *userRepo) RunInTx(ctx context.Context, fn func(repository.UserRepositor
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	if err := fn(&userRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB, db: tx}); err != nil {
+	if err = fn(&userRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB, db: tx}); err != nil {
 		return err
 	}
 	return tx.Commit()

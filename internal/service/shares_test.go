@@ -81,8 +81,8 @@ func TestShareService_Create_WithPassword(t *testing.T) {
 	if dto.PasswordHash == nil {
 		t.Fatal("expected password hash to be set")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(*dto.PasswordHash), []byte(pass)); err != nil {
-		t.Errorf("password hash does not match: %v", err)
+	if cmpErr := bcrypt.CompareHashAndPassword([]byte(*dto.PasswordHash), []byte(pass)); cmpErr != nil {
+		t.Errorf("password hash does not match: %v", cmpErr)
 	}
 }
 

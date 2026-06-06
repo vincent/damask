@@ -296,7 +296,7 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 			"workspace_id": workspaceID,
 			"user_id":      userID,
 		})
-		if _, err := s.queue.Enqueue(c.Context(), workspaceID, queue.JobTypeExtractExif, string(payload)); err != nil {
+		if _, err = s.queue.Enqueue(c.Context(), workspaceID, queue.JobTypeExtractExif, string(payload)); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not enqueue jobs")
 		}
 	}
@@ -558,12 +558,12 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	if err := s.mailer.SendWelcome(c.Context(), result.UserEmail, result.UserName, result.WorkspaceID); err != nil {
+	if err = s.mailer.SendWelcome(c.Context(), result.UserEmail, result.UserName, result.WorkspaceID); err != nil {
 		slog.ErrorContext(c.Context(), "failed to send welcome mail", "error", err)
 	}
 
-	if inviter, err := s.users.GetByID(c.Context(), result.InviterID); err == nil {
-		if err := s.mailer.SendInviteAccepted(
+	if inviter, inviterErr := s.users.GetByID(c.Context(), result.InviterID); inviterErr == nil {
+		if err = s.mailer.SendInviteAccepted(
 			c.Context(),
 			result.WorkspaceID,
 			inviter.Email,

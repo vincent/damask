@@ -74,9 +74,9 @@ func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 		Prefix: &s.cfg.Prefix,
 	})
 	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("s3: list objects: %w", err)
+		page, pageErr := paginator.NextPage(ctx)
+		if pageErr != nil {
+			return nil, fmt.Errorf("s3: list objects: %w", pageErr)
 		}
 		for _, obj := range page.Contents {
 			if obj.Key == nil || (obj.Size != nil && *obj.Size == 0) {

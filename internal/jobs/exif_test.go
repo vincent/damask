@@ -45,7 +45,7 @@ func TestExtractExif_NotEnqueuedForNonImage(t *testing.T) {
 	}
 
 	var count int
-	if err := env.Database.QueryRow(
+	if err = env.Database.QueryRow(
 		`SELECT COUNT(*) FROM jobs WHERE type = 'extract_exif' AND workspace_id = ?`,
 		owner.WorkspaceID,
 	).Scan(&count); err != nil {

@@ -131,7 +131,7 @@ func (s *Session) enqueueAttachment(
 		return fmt.Errorf("create temp: %w", err)
 	}
 	tmpPath := tmp.Name()
-	if _, err := io.Copy(tmp, att.Data); err != nil {
+	if _, err = io.Copy(tmp, att.Data); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write temp: %w", err)

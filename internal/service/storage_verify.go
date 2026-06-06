@@ -23,13 +23,13 @@ func VerifySizeColumns(ctx context.Context, db *sql.DB, log *slog.Logger) {
 		for rows.Next() {
 			var wsID string
 			var cnt int64
-			if err := rows.Scan(&wsID, &cnt); err == nil {
+			if scanErr := rows.Scan(&wsID, &cnt); scanErr == nil {
 				log.WarnContext(ctx, "storage verify: asset_versions with size=0",
 					"workspace_id", wsID, "count", cnt)
 			}
 		}
-		if err := rows.Err(); err != nil {
-			log.WarnContext(ctx, "storage verify: asset_versions iteration error", "error", err)
+		if iterErr := rows.Err(); iterErr != nil {
+			log.WarnContext(ctx, "storage verify: asset_versions iteration error", "error", iterErr)
 		}
 	}
 
@@ -47,12 +47,12 @@ func VerifySizeColumns(ctx context.Context, db *sql.DB, log *slog.Logger) {
 	for rows2.Next() {
 		var wsID string
 		var cnt int64
-		if err := rows2.Scan(&wsID, &cnt); err == nil {
+		if scanErr := rows2.Scan(&wsID, &cnt); scanErr == nil {
 			log.WarnContext(ctx, "storage verify: variants with size=0 or NULL",
 				"workspace_id", wsID, "count", cnt)
 		}
 	}
-	if err := rows2.Err(); err != nil {
-		log.WarnContext(ctx, "storage verify: variants iteration error", "error", err)
+	if iterErr := rows2.Err(); iterErr != nil {
+		log.WarnContext(ctx, "storage verify: variants iteration error", "error", iterErr)
 	}
 }

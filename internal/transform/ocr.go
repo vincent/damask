@@ -52,11 +52,11 @@ func RunOCR(ctx context.Context, imageData []byte, p OCRParams) (*OCRResult, err
 	}
 	defer os.Remove(tmpIn.Name())
 
-	if _, err := tmpIn.Write(imageData); err != nil {
+	if _, err = tmpIn.Write(imageData); err != nil {
 		_ = tmpIn.Close()
 		return nil, fmt.Errorf("ocr: write temp file: %w", err)
 	}
-	if err := tmpIn.Close(); err != nil {
+	if err = tmpIn.Close(); err != nil {
 		return nil, fmt.Errorf("ocr: close temp file: %w", err)
 	}
 
@@ -68,7 +68,7 @@ func RunOCR(ctx context.Context, imageData []byte, p OCRParams) (*OCRResult, err
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	if err = cmd.Run(); err != nil {
 		return nil, fmt.Errorf("ocr: tesseract: %w (stderr: %s)", err, strings.TrimSpace(stderr.String()))
 	}
 

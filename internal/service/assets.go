@@ -86,8 +86,8 @@ func (s *assetService) List(ctx context.Context, params ListAssetsParams) (out [
 	// For taken_at sort, look up the exif field definition ID.
 	exifFieldID := ""
 	if params.SortField == "taken_at" {
-		fd, err := s.fields.GetByKey(ctx, params.WorkspaceID, "_exif_taken_at")
-		if err == nil {
+		fd, fdErr := s.fields.GetByKey(ctx, params.WorkspaceID, "_exif_taken_at")
+		if fdErr == nil {
 			exifFieldID = fd.ID
 		}
 		// If the field doesn't exist, proceed with empty exifFieldID (join yields no rows).
@@ -329,7 +329,7 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 		EventType:   audit.EventAssetDeleted,
 		Payload:     audit.AssetDeletedPayload{V: 1},
 	})
-	if err := s.assets.HardDelete(ctx, workspaceID, assetID); err != nil {
+	if err = s.assets.HardDelete(ctx, workspaceID, assetID); err != nil {
 		return err
 	}
 	s.deleteStorageKeys(keys)
@@ -366,14 +366,14 @@ func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, a
 	}
 	var todo []pending
 	for _, id := range assetIDs {
-		keys, err := s.assets.CollectStorageKeys(ctx, workspaceID, id)
-		if err != nil {
+		keys, keysErr := s.assets.CollectStorageKeys(ctx, workspaceID, id)
+		if keysErr != nil {
 			continue // skip assets not in this workspace
 		}
 		todo = append(todo, pending{keys: keys, id: id})
 	}
 	for _, p := range todo {
-		if err := s.assets.HardDelete(ctx, workspaceID, p.id); err != nil {
+		if err = s.assets.HardDelete(ctx, workspaceID, p.id); err != nil {
 			return err
 		}
 		s.deleteStorageKeys(p.keys)
@@ -433,7 +433,7 @@ func (s *assetService) BulkSetTag(ctx context.Context, workspaceID, tagName stri
 	}
 	// TODO: in one pass
 	for _, assetID := range assetIDs {
-		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+		if _, getErr := s.assets.GetByID(ctx, workspaceID, assetID); getErr != nil {
 			continue // skip assets not in this workspace
 		}
 		_ = s.tags.AddToAsset(ctx, assetID, tag.ID)
@@ -466,11 +466,11 @@ func (s *assetService) BulkRemoveTag(ctx context.Context, workspaceID, tagName s
 	}()
 
 	for _, assetID := range assetIDs {
-		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+		if _, getErr := s.assets.GetByID(ctx, workspaceID, assetID); getErr != nil {
 			continue // skip assets not in this workspace
 		}
-		if err := s.tags.RemoveFromAsset(ctx, workspaceID, assetID, tagName); err != nil {
-			slog.WarnContext(ctx, "bulk remove tag: remove from asset failed", "asset_id", assetID, "error", err)
+		if removeErr := s.tags.RemoveFromAsset(ctx, workspaceID, assetID, tagName); removeErr != nil {
+			slog.WarnContext(ctx, "bulk remove tag: remove from asset failed", "asset_id", assetID, "error", removeErr)
 		}
 	}
 	return nil
@@ -504,10 +504,10 @@ func (s *assetService) BulkMoveProject(
 	}()
 
 	for _, assetID := range assetIDs {
-		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err != nil {
+		if _, getErr := s.assets.GetByID(ctx, workspaceID, assetID); getErr != nil {
 			continue // skip assets not in this workspace
 		}
-		if err := s.assets.SetProject(ctx, workspaceID, assetID, projectID); err != nil {
+		if err = s.assets.SetProject(ctx, workspaceID, assetID, projectID); err != nil {
 			return err
 		}
 	}
@@ -596,16 +596,16 @@ func (s *assetService) RegenerateThumbnail(
 	}()
 
 	for _, assetID := range assetIDs {
-		asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
-		if err != nil {
+		asset, getErr := s.assets.GetByID(ctx, workspaceID, assetID)
+		if getErr != nil {
 			continue // skip assets not in this workspace
 		}
 		if asset.CurrentVersionID == nil {
 			return jobIDs, fmt.Errorf("asset is has no version yet: %w", apperr.ErrNotFound)
 		}
 
-		ver, err := s.versions.GetCurrentByAsset(ctx, assetID)
-		if err != nil {
+		ver, verErr := s.versions.GetCurrentByAsset(ctx, assetID)
+		if verErr != nil {
 			return jobIDs, fmt.Errorf("could not load current version: %w", apperr.ErrNotFound)
 		}
 
@@ -617,8 +617,8 @@ func (s *assetService) RegenerateThumbnail(
 			MimeType:    ver.MimeType,
 		})
 
-		job, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeVersionThumbnail, string(payload))
-		if err != nil {
+		job, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeVersionThumbnail, string(payload))
+		if enqErr != nil {
 			return jobIDs, fmt.Errorf("could not enqueue job: %w", apperr.ErrConflict)
 		}
 		jobIDs = append(jobIDs, job.ID)

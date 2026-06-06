@@ -157,7 +157,7 @@ func (r *folderRepo) ListTree(ctx context.Context, workspaceID, projectID string
 	for rows.Next() {
 		var f dbgen.Folder
 		var depth, assetCount int64
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&f.ID, &f.WorkspaceID, &f.ProjectID, &f.ParentID,
 			&f.Name, &f.Slug, &f.Position, &f.CreatedAt, &depth, &assetCount,
 		); err != nil {

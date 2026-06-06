@@ -275,7 +275,7 @@ func googleUserInfo(ctx context.Context, accessToken string) (string, string, er
 		Sub   string `json:"sub"`
 		Email string `json:"email"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		return "", "", err
 	}
 	return info.Sub, info.Email, nil
@@ -299,7 +299,7 @@ func canvaUserInfo(ctx context.Context, accessToken string) (string, string, err
 			Email  string `json:"email"`
 		} `json:"profile"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&me); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&me); err != nil {
 		return "", "", err
 	}
 	return me.Profile.UserID, me.Profile.Email, nil

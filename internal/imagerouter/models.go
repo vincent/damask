@@ -138,7 +138,7 @@ func FetchModels(ctx context.Context, apiKey string) ([]Model, error) {
 	}
 
 	var parsed modelsResponseV2
-	if err := json.Unmarshal(body, &parsed); err != nil {
+	if err = json.Unmarshal(body, &parsed); err != nil {
 		return fallbackModels(ctx, err), nil
 	}
 

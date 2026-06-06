@@ -256,8 +256,8 @@ func (s *exportService) TriggerManual(
 		return nil, err
 	}
 	payload := fmt.Sprintf(`{"export_config_id":%q,"export_run_id":%q}`, cfg.ID, created.ID)
-	if _, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExportRun, payload); err != nil {
-		return nil, fmt.Errorf("export: enqueue job: %w", err)
+	if _, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExportRun, payload); enqErr != nil {
+		return nil, fmt.Errorf("export: enqueue job: %w", enqErr)
 	}
 	return exportRunToDTO(created), nil
 }
@@ -312,8 +312,8 @@ func (s *exportService) ExecuteRun(ctx context.Context, workspaceID, configID, r
 		return fmt.Errorf("export: load run %s: %w", runID, err)
 	}
 
-	if err := s.runRepo.Start(ctx, run.ID); err != nil {
-		slog.WarnContext(ctx, "export: mark run started", "error", err)
+	if startErr := s.runRepo.Start(ctx, run.ID); startErr != nil {
+		slog.WarnContext(ctx, "export: mark run started", "error", startErr)
 	}
 
 	project, err := s.queries.GetProjectByID(ctx, dbgen.GetProjectByIDParams{
@@ -352,21 +352,21 @@ func (s *exportService) ExecuteRun(ctx context.Context, workspaceID, configID, r
 		configStatus = "partial"
 	}
 
-	if err := s.runRepo.Finish(ctx, run.ID, repository.ExportFinish{
+	if finishErr := s.runRepo.Finish(ctx, run.ID, repository.ExportFinish{
 		Status:         "done",
 		AssetsTotal:    result.AssetsTotal,
 		AssetsExported: result.AssetsExported,
 		AssetsSkipped:  result.AssetsSkipped,
 		BytesWritten:   result.BytesWritten,
-	}); err != nil {
-		slog.WarnContext(ctx, "export: finish run", "error", err)
+	}); finishErr != nil {
+		slog.WarnContext(ctx, "export: finish run", "error", finishErr)
 	}
 
-	if err := s.configRepo.SetLastRun(ctx, cfg.ID, repository.ExportRunResult{
+	if setErr := s.configRepo.SetLastRun(ctx, cfg.ID, repository.ExportRunResult{
 		LastRunAt:     time.Now(),
 		LastRunStatus: configStatus,
-	}); err != nil {
-		slog.WarnContext(ctx, "export: set last run", "error", err)
+	}); setErr != nil {
+		slog.WarnContext(ctx, "export: set last run", "error", setErr)
 	}
 
 	return nil

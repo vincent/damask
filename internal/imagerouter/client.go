@@ -186,10 +186,10 @@ func (c *Client) performEditImage(
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	if err := writer.WriteField("model", model); err != nil {
+	if err = writer.WriteField("model", model); err != nil {
 		return nil, 0, "", fmt.Errorf("imagerouter: write model field: %w", err)
 	}
-	if err := writer.WriteField("prompt", prompt); err != nil {
+	if err = writer.WriteField("prompt", prompt); err != nil {
 		return nil, 0, "", fmt.Errorf("imagerouter: write prompt field: %w", err)
 	}
 	header := make(textproto.MIMEHeader)
@@ -199,10 +199,10 @@ func (c *Client) performEditImage(
 	if err != nil {
 		return nil, 0, "", fmt.Errorf("imagerouter: create image part: %w", err)
 	}
-	if _, err := part.Write(imageData); err != nil {
+	if _, err = part.Write(imageData); err != nil {
 		return nil, 0, "", fmt.Errorf("imagerouter: write image part: %w", err)
 	}
-	if err := writer.Close(); err != nil {
+	if err = writer.Close(); err != nil {
 		return nil, 0, "", fmt.Errorf("imagerouter: close multipart: %w", err)
 	}
 
@@ -237,7 +237,7 @@ func (c *Client) performEditImage(
 	}
 
 	var envelope imageResponseEnvelope
-	if err := json.Unmarshal(payload, &envelope); err != nil {
+	if err = json.Unmarshal(payload, &envelope); err != nil {
 		decodeErr := parseImageRouterAPIError(ErrAPIError, payload, fmt.Errorf("imagerouter: decode response: %w", err))
 		endGenAISpan(span, model, nil, decodeErr)
 		return nil, resp.StatusCode, payloadText, decodeErr
@@ -253,10 +253,10 @@ func (c *Client) performEditImage(
 
 	item := envelope.Data[0]
 	if strings.TrimSpace(item.URL) != "" {
-		downloaded, err := c.fetchImageURL(ctx, item.URL)
-		if err != nil {
-			endGenAISpan(span, model, nil, err)
-			return nil, resp.StatusCode, payloadText, err
+		downloaded, fetchErr := c.fetchImageURL(ctx, item.URL)
+		if fetchErr != nil {
+			endGenAISpan(span, model, nil, fetchErr)
+			return nil, resp.StatusCode, payloadText, fetchErr
 		}
 		endGenAISpan(span, model, &envelope, nil)
 		return downloaded, resp.StatusCode, payloadText, nil

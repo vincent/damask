@@ -334,11 +334,11 @@ func (t *transformer) VideoWatermark(
 	}
 	overlayPath := overlayFile.Name()
 	defer os.Remove(overlayPath)
-	if err := png.Encode(overlayFile, overlay); err != nil {
+	if err = png.Encode(overlayFile, overlay); err != nil {
 		_ = overlayFile.Close()
 		return fmt.Errorf("encode overlay: %w", err)
 	}
-	if err := overlayFile.Close(); err != nil {
+	if err = overlayFile.Close(); err != nil {
 		return fmt.Errorf("close overlay temp: %w", err)
 	}
 
@@ -388,7 +388,7 @@ func (t *transformer) VideoWatermark(
 	cmd := t.ffmpeg.commandFFmpeg(ctx, t.ffmpeg.withVideoDecode(args...)...)
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
+	if err = cmd.Run(); err != nil {
 		return fmt.Errorf("ffmpeg watermark: %w — stderr: %s", err, stderr.String())
 	}
 	return nil

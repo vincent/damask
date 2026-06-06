@@ -21,10 +21,9 @@ func newSPAHandler(fsys fs.FS) fiber.Handler {
 		}
 
 		// Try to serve the file directly
-		if file, err := fsys.Open(p); err == nil {
+		if file, openErr := fsys.Open(p); openErr == nil {
 			defer file.Close()
-			stat, err := file.Stat()
-			if err == nil && !stat.IsDir() {
+			if stat, statErr := file.Stat(); statErr == nil && !stat.IsDir() {
 				return serveFile(c, fsys, p)
 			}
 		}
@@ -98,8 +97,8 @@ func newViteProxy() fiber.Handler {
 
 		resp := &fasthttp.Response{}
 		client := &fasthttp.Client{}
-		if err := client.Do(req, resp); err != nil {
-			return c.Status(http.StatusInternalServerError).SendString("Proxy error: " + err.Error())
+		if doErr := client.Do(req, resp); doErr != nil {
+			return c.Status(http.StatusInternalServerError).SendString("Proxy error: " + doErr.Error())
 		}
 
 		// Copy response headers

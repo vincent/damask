@@ -95,7 +95,7 @@ func (s *sqlVariantActionsStore) Promote(
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, execErr := tx.ExecContext(ctx, `
 		INSERT INTO assets (
 			id, workspace_id, project_id, folder_id, original_filename,
 			storage_key, mime_type, size, width, height,
@@ -105,11 +105,11 @@ func (s *sqlVariantActionsStore) Promote(
 		p.NewAssetID, p.WorkspaceID, p.ProjectID, p.FolderID, p.OriginalFilename,
 		p.StorageKey, p.MimeType, p.Size, p.Width, p.Height,
 		p.ThumbnailKey, p.ThumbnailContentType, p.DerivedFromAssetID,
-	); err != nil {
-		return promoteVariantDBResult{}, err
+	); execErr != nil {
+		return promoteVariantDBResult{}, execErr
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, execErr := tx.ExecContext(ctx, `
 		INSERT INTO asset_versions (
 			id, asset_id, workspace_id, version_num, storage_key, content_hash,
 			mime_type, size, width, height, thumbnail_key, thumbnail_content_type,
@@ -118,26 +118,26 @@ func (s *sqlVariantActionsStore) Promote(
 		p.NewVersionID, p.NewAssetID, p.WorkspaceID, p.StorageKey, p.ContentHash,
 		p.MimeType, p.Size, p.Width, p.Height, p.ThumbnailKey, p.ThumbnailContentType,
 		p.CreatedBy,
-	); err != nil {
-		return promoteVariantDBResult{}, err
+	); execErr != nil {
+		return promoteVariantDBResult{}, execErr
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, execErr := tx.ExecContext(ctx, `
 		UPDATE assets SET current_version_id = ?, updated_at = datetime('now') WHERE id = ?`,
 		p.NewVersionID, p.NewAssetID,
-	); err != nil {
-		return promoteVariantDBResult{}, err
+	); execErr != nil {
+		return promoteVariantDBResult{}, execErr
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, execErr := tx.ExecContext(ctx, `
 		INSERT OR IGNORE INTO asset_tags (asset_id, tag_id)
 		SELECT ?, tag_id FROM asset_tags WHERE asset_id = ?`,
 		p.NewAssetID, p.SourceAssetID,
-	); err != nil {
-		return promoteVariantDBResult{}, err
+	); execErr != nil {
+		return promoteVariantDBResult{}, execErr
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, execErr := tx.ExecContext(ctx, `
 		INSERT OR IGNORE INTO asset_field_values (
 			id, asset_id, field_id, value_text, value_number, value_date, value_boolean,
 			created_by, created_at, updated_at
@@ -147,21 +147,21 @@ func (s *sqlVariantActionsStore) Promote(
 		FROM asset_field_values
 		WHERE asset_id = ?`,
 		p.NewAssetID, p.SourceAssetID,
-	); err != nil {
-		return promoteVariantDBResult{}, err
+	); execErr != nil {
+		return promoteVariantDBResult{}, execErr
 	}
 
-	if _, err := tx.ExecContext(
+	if _, execErr := tx.ExecContext(
 		ctx,
 		`DELETE FROM variants WHERE id = ? AND workspace_id = ?`,
 		p.SourceVariantID,
 		p.WorkspaceID,
-	); err != nil {
-		return promoteVariantDBResult{}, err
+	); execErr != nil {
+		return promoteVariantDBResult{}, execErr
 	}
 
-	if err := tx.Commit(); err != nil {
-		return promoteVariantDBResult{}, err
+	if commitErr := tx.Commit(); commitErr != nil {
+		return promoteVariantDBResult{}, commitErr
 	}
 	return promoteVariantDBResult{NewAssetID: p.NewAssetID, NewVersionID: p.NewVersionID}, nil
 }
@@ -173,22 +173,22 @@ func (s *sqlVariantActionsStore) SetAsThumbnail(ctx context.Context, p setVarian
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, execErr := tx.ExecContext(ctx, `
 		UPDATE assets
 		SET thumbnail_key = ?, thumbnail_content_type = ?, updated_at = datetime('now')
 		WHERE id = ?`,
 		p.ThumbnailKey, p.ThumbnailContentType, p.AssetID,
-	); err != nil {
-		return err
+	); execErr != nil {
+		return execErr
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	if _, execErr := tx.ExecContext(ctx, `
 		UPDATE asset_versions
 		SET thumbnail_key = ?, thumbnail_content_type = ?
 		WHERE id = ?`,
 		p.ThumbnailKey, p.ThumbnailContentType, p.CurrentVersionID,
-	); err != nil {
-		return err
+	); execErr != nil {
+		return execErr
 	}
 
 	return tx.Commit()
@@ -308,14 +308,19 @@ func (s *variantService) Promote(ctx context.Context, p PromoteVariantParams) (P
 			"storage_key":  variant.StorageKey,
 			"mime_type":    mimeType,
 		})
-		if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload)); err != nil {
+		if _, enqErr := s.queue.Enqueue(
+			ctx,
+			p.WorkspaceID,
+			queue.JobTypeVersionThumbnail,
+			string(payload),
+		); enqErr != nil {
 			slog.WarnContext(
 				ctx,
 				"enqueue thumbnail for promoted variant",
 				"asset_id",
 				result.NewAssetID,
 				"error",
-				err,
+				enqErr,
 			)
 		}
 	}
@@ -369,13 +374,13 @@ func (s *variantService) SetAsThumbnail(ctx context.Context, workspaceID, assetI
 		return fmt.Errorf("variant thumbnail is still generating: %w", apperr.ErrConflict)
 	}
 
-	if err := s.actions.SetAsThumbnail(ctx, setVariantThumbnailDBParams{
+	if setErr := s.actions.SetAsThumbnail(ctx, setVariantThumbnailDBParams{
 		AssetID:              assetID,
 		CurrentVersionID:     variant.AssetVersionID,
 		ThumbnailKey:         variant.StorageKey,
 		ThumbnailContentType: inferMimeTypeFromKey(variant.StorageKey),
-	}); err != nil {
-		return err
+	}); setErr != nil {
+		return setErr
 	}
 
 	actor := auth.ActorFromCtx(ctx)
@@ -417,18 +422,25 @@ func (s *variantService) Rerun(ctx context.Context, p RerunVariantParams) error 
 	paramsBytes, _ := json.Marshal(merged)
 	paramsStr := string(paramsBytes)
 
-	if err := s.actions.MarkVariantPending(ctx, p.WorkspaceID, p.VariantID, &paramsStr); err != nil {
-		return err
+	if pendingErr := s.actions.MarkVariantPending(ctx, p.WorkspaceID, p.VariantID, &paramsStr); pendingErr != nil {
+		return pendingErr
 	}
 
 	if strings.TrimSpace(variant.StorageKey) != "" {
-		if err := s.storage.Delete(variant.StorageKey); err != nil {
-			slog.WarnContext(ctx, "delete old variant storage before rerun", "variant_id", variant.ID, "error", err)
+		if delErr := s.storage.Delete(variant.StorageKey); delErr != nil {
+			slog.WarnContext(ctx, "delete old variant storage before rerun", "variant_id", variant.ID, "error", delErr)
 		}
 	}
 	if variant.ThumbnailKey != nil {
-		if err := s.storage.Delete(*variant.ThumbnailKey); err != nil {
-			slog.WarnContext(ctx, "delete old variant thumbnail before rerun", "variant_id", variant.ID, "error", err)
+		if delErr := s.storage.Delete(*variant.ThumbnailKey); delErr != nil {
+			slog.WarnContext(
+				ctx,
+				"delete old variant thumbnail before rerun",
+				"variant_id",
+				variant.ID,
+				"error",
+				delErr,
+			)
 		}
 	}
 
@@ -448,7 +460,7 @@ func (s *variantService) Rerun(ctx context.Context, p RerunVariantParams) error 
 		Params:      paramsBytes,
 		VariantID:   variant.ID,
 	})
-	if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, variant.Type, string(payload)); err != nil {
+	if _, enqErr := s.queue.Enqueue(ctx, p.WorkspaceID, variant.Type, string(payload)); enqErr != nil {
 		return fmt.Errorf("could not enqueue variant rerun: %w", apperr.ErrConflict)
 	}
 
@@ -537,8 +549,8 @@ func hashStorageObject(stor interface {
 	defer rc.Close()
 
 	h := sha256.New()
-	if _, err := io.Copy(h, rc); err != nil {
-		return "", err
+	if _, copyErr := io.Copy(h, rc); copyErr != nil {
+		return "", copyErr
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }

@@ -593,9 +593,9 @@ func (r *assetRepo) CollectStorageKeys(
 			StorageKey:   v.StorageKey,
 			ThumbnailKey: v.ThumbnailKey,
 		}
-		variants, err := r.q.ListVariantsByVersion(ctx, v.ID)
-		if err != nil {
-			return repository.AssetStorageKeys{}, err
+		variants, varErr := r.q.ListVariantsByVersion(ctx, v.ID)
+		if varErr != nil {
+			return repository.AssetStorageKeys{}, varErr
 		}
 		for _, variant := range variants {
 			vk.VariantKeys = append(vk.VariantKeys, variant.StorageKey)

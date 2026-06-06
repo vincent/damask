@@ -251,7 +251,7 @@ func (q *Queue) processNext(ctx context.Context) {
 			jobSpan.End()
 		}()
 
-		if err := h(jobCtx, job); err != nil {
+		if err = h(jobCtx, job); err != nil {
 			jobFailed = true
 			telemetry.RecordError(jobSpan, err)
 			slog.ErrorContext(ctx, "queue: job failed", "job_id", job.ID, "job_type", job.Type, "error", err)

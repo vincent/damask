@@ -96,14 +96,14 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	ctx := context.Background()
 	wsID := "ws_upload"
 	userID := "user_upload"
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(
+	if _, usrErr := queries.CreateUser(
 		ctx,
 		dbgen.CreateUserParams{ID: userID, Email: "u@t.com", PasswordHash: "x", Name: "t"},
-	); err != nil {
-		t.Fatalf("seed user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	q2 := queue.New(queries, 1)
@@ -146,14 +146,14 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	ctx := context.Background()
 	wsID := "ws_audit"
 	userID := "user_audit"
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(
+	if _, usrErr := queries.CreateUser(
 		ctx,
 		dbgen.CreateUserParams{ID: userID, Email: "a@t.com", PasswordHash: "x", Name: "t"},
-	); err != nil {
-		t.Fatalf("seed user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	// Rebuild svc with the seeded DB so the workspace FK constraint passes.
@@ -191,14 +191,14 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 	ctx := context.Background()
 	wsID := "ws_trigger"
 	userID := "user_trigger"
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(
+	if _, usrErr := queries.CreateUser(
 		ctx,
 		dbgen.CreateUserParams{ID: userID, Email: "t@t.com", PasswordHash: "x", Name: "t"},
-	); err != nil {
-		t.Fatalf("seed user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	stor, _ := storage.NewAferoMemoryStorage()
@@ -242,14 +242,14 @@ func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
 	ctx := context.Background()
 	wsID := "ws_nil_proj"
 	userID := "usr_nil_proj"
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(
+	if _, usrErr := queries.CreateUser(
 		ctx,
 		dbgen.CreateUserParams{ID: userID, Email: "np@t.com", PasswordHash: "x", Name: "t"},
-	); err != nil {
-		t.Fatalf("seed user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	stor, _ := storage.NewAferoMemoryStorage()

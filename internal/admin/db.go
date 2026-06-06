@@ -15,7 +15,7 @@ func OpenReadOnly(path string) (*sql.DB, error) {
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-	if err := db.Ping(); err != nil {
+	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("cannot open database at %s: %w", path, err)
 	}
 	return db, nil

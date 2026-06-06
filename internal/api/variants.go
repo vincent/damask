@@ -597,7 +597,7 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	if err := s.variants.Delete(c.Context(), claims.WorkspaceID, assetID, variantID); err != nil {
+	if err = s.variants.Delete(c.Context(), claims.WorkspaceID, assetID, variantID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 
@@ -704,13 +704,13 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		VariantID: variantID,
 	})
 
-	if thumbPayload, err := json.Marshal(jobs.VariantThumbnailJobPayload{
+	if thumbPayload, thumbErr := json.Marshal(jobs.VariantThumbnailJobPayload{
 		VariantID:   variantID,
 		WorkspaceID: asset.WorkspaceID,
 		AssetID:     assetID,
 		StorageKey:  storageKey,
 		MimeType:    uploadedMimeType,
-	}); err == nil {
+	}); thumbErr == nil {
 		_, _ = s.queue.Enqueue(c.Context(), asset.WorkspaceID, queue.JobTypeVariantThumbnail, string(thumbPayload))
 	}
 

@@ -19,36 +19,41 @@ func TestVerifySizeColumns(t *testing.T) {
 
 	// Insert a workspace, user, project, and asset_version with size=0.
 	wsID := "ws-verify"
-	if _, err := sqlDB.ExecContext(ctx, `INSERT INTO workspaces (id, name) VALUES (?, ?)`, wsID, "test"); err != nil {
-		t.Fatalf("insert workspace: %v", err)
+	if _, wsErr := sqlDB.ExecContext(
+		ctx,
+		`INSERT INTO workspaces (id, name) VALUES (?, ?)`,
+		wsID,
+		"test",
+	); wsErr != nil {
+		t.Fatalf("insert workspace: %v", wsErr)
 	}
 	userID := "user-verify"
-	if _, err := sqlDB.ExecContext(
+	if _, usrErr := sqlDB.ExecContext(
 		ctx,
 		`INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, '', 'Test')`,
 		userID,
 		"v@test.com",
-	); err != nil {
-		t.Fatalf("insert user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("insert user: %v", usrErr)
 	}
 	assetID := "asset-verify"
-	if _, err := sqlDB.ExecContext(
+	if _, assetErr := sqlDB.ExecContext(
 		ctx,
 		`INSERT INTO assets (id, workspace_id, original_filename, storage_key, mime_type, size) VALUES (?, ?, 'f.jpg', 'k', 'image/jpeg', 0)`,
 		assetID,
 		wsID,
-	); err != nil {
-		t.Fatalf("insert asset: %v", err)
+	); assetErr != nil {
+		t.Fatalf("insert asset: %v", assetErr)
 	}
-	if _, err := sqlDB.ExecContext(
+	if _, verErr := sqlDB.ExecContext(
 		ctx,
 		`INSERT INTO asset_versions (id, workspace_id, asset_id, storage_key, content_hash, version_num, mime_type, size, created_by)
 		 VALUES ('ver1', ?, ?, 'k', 'abc', 1, 'image/jpeg', 0, ?)`,
 		wsID,
 		assetID,
 		userID,
-	); err != nil {
-		t.Fatalf("insert asset_version: %v", err)
+	); verErr != nil {
+		t.Fatalf("insert asset_version: %v", verErr)
 	}
 
 	// Capture log output

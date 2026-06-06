@@ -493,14 +493,14 @@ func (n setNewVersionNode) Execute(
 		return "", nil, fmt.Errorf("create version: %w", err)
 	}
 
-	if err := n.deps.Versions.SetCurrent(ctx, assetID, created.ID); err != nil {
-		return "", nil, fmt.Errorf("set current version: %w", err)
+	if setErr := n.deps.Versions.SetCurrent(ctx, assetID, created.ID); setErr != nil {
+		return "", nil, fmt.Errorf("set current version: %w", setErr)
 	}
 
 	// Clear the old thumbnail so the asset doesn't show a stale image, then
 	// enqueue a fresh thumbnail job for the new version.
-	if err := n.deps.Versions.SetAssetThumbnail(ctx, assetID, nil); err != nil {
-		slog.ErrorContext(ctx, "set_new_version: clear asset thumbnail failed", "asset_id", assetID, "err", err)
+	if thumbErr := n.deps.Versions.SetAssetThumbnail(ctx, assetID, nil); thumbErr != nil {
+		slog.ErrorContext(ctx, "set_new_version: clear asset thumbnail failed", "asset_id", assetID, "err", thumbErr)
 	}
 	if n.deps.Queue == nil {
 		return "", nil, errors.New("set_new_version: queue dependency is nil")
@@ -667,7 +667,7 @@ func (n createVariantNode) Execute(
 		Title    *string         `json:"title,omitempty"`
 		IsShared bool            `json:"is_shared"`
 	}
-	if err := json.Unmarshal(cfg, &nodeCfg); err != nil {
+	if unmarshalErr := json.Unmarshal(cfg, &nodeCfg); unmarshalErr != nil {
 		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
 	prepared, err := n.deps.Variants.PrepareCreate(ctx, VariantPrepareRequest{
@@ -717,7 +717,7 @@ func (n createVariantNode) Execute(
 	// node is wired as our successor), embed it in the job payload so the job
 	// worker can resume the workflow run once the variant is ready.
 	if contVal, ok := rc.Get(rcKeyContinuation); ok {
-		if cont, ok := contVal.(NodeContinuation); ok {
+		if cont, isCont := contVal.(NodeContinuation); isCont {
 			// Snapshot the current context (before variant outputs) for the resume.
 			cont.ContextJSON = mustJSON(rc)
 			// Embed variant_id so the resumed node can look up the variant row.
@@ -739,8 +739,8 @@ func (n createVariantNode) Execute(
 				Continuation: &cont,
 			}
 			payload, _ = json.Marshal(vjp)
-			if _, err := n.deps.Queue.Enqueue(ctx, workspaceID, prepared.Type, string(payload)); err != nil {
-				return "", nil, err
+			if _, enqErr := n.deps.Queue.Enqueue(ctx, workspaceID, prepared.Type, string(payload)); enqErr != nil {
+				return "", nil, enqErr
 			}
 			// Return portContinued (no edges) — the job worker will resume the run.
 			return portContinued, map[string]any{
@@ -787,7 +787,7 @@ func (n createShareNode) Execute(
 		AllowDownload bool   `json:"allow_download"`
 		ExpiresInDays *int   `json:"expires_in_days"`
 	}
-	if err := json.Unmarshal(cfg, &nodeCfg); err != nil {
+	if cfgErr := json.Unmarshal(cfg, &nodeCfg); cfgErr != nil {
 		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
 	createdBy := actorUserID(ctx, rc)
@@ -832,7 +832,7 @@ func (n tagAssetNode) Execute(
 	var nodeCfg struct {
 		Name string `json:"name"`
 	}
-	if err := json.Unmarshal(cfg, &nodeCfg); err != nil {
+	if cfgErr := json.Unmarshal(cfg, &nodeCfg); cfgErr != nil {
 		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
 	slog.DebugContext(ctx, "action.tag: applying tag",
@@ -874,7 +874,7 @@ func (n moveAssetNode) Execute(
 		FolderID  *string `json:"folder_id"`
 		ProjectID *string `json:"project_id"`
 	}
-	if err := json.Unmarshal(cfg, &nodeCfg); err != nil {
+	if cfgErr := json.Unmarshal(cfg, &nodeCfg); cfgErr != nil {
 		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
 	asset, err := n.deps.Assets.Move(ctx, workspaceID, assetID, AssetMoveParams{
@@ -914,7 +914,7 @@ func (n setFieldNode) Execute(
 		FieldID string `json:"field_id"`
 		Value   any    `json:"value"`
 	}
-	if err := json.Unmarshal(cfg, &nodeCfg); err != nil {
+	if cfgErr := json.Unmarshal(cfg, &nodeCfg); cfgErr != nil {
 		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
 	userID := actorUserID(ctx, rc)

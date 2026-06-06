@@ -115,9 +115,9 @@ func (s *Source) Poll(ctx context.Context) ([]ingress.IngestItem, error) {
 			url += "&continuation=" + pageToken
 		}
 
-		body, err := s.doGet(ctx, token, url)
-		if err != nil {
-			return nil, fmt.Errorf("canva: list designs: %w", err)
+		body, fetchErr := s.doGet(ctx, token, url)
+		if fetchErr != nil {
+			return nil, fmt.Errorf("canva: list designs: %w", fetchErr)
 		}
 
 		var page struct {

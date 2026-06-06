@@ -29,7 +29,7 @@ func (s *JobServer) jobEnforceVersionRetention(ctx context.Context, _ dbgen.Job)
 		if ws.VersionRetentionCount <= 0 {
 			continue
 		}
-		if err := s.EnforceRetentionForWorkspace(ctx, ws); err != nil {
+		if err = s.EnforceRetentionForWorkspace(ctx, ws); err != nil {
 			slog.ErrorContext(ctx, "retention: workspace failed", "workspace_id", ws.ID, "error", err)
 		}
 	}
@@ -45,9 +45,9 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 	keep := ws.VersionRetentionCount
 
 	for _, assetID := range assetIDs {
-		count, err := s.queries.CountActiveVersions(ctx, assetID)
-		if err != nil {
-			slog.ErrorContext(ctx, "retention: count versions", "asset_id", assetID, "error", err)
+		count, countErr := s.queries.CountActiveVersions(ctx, assetID)
+		if countErr != nil {
+			slog.ErrorContext(ctx, "retention: count versions", "asset_id", assetID, "error", countErr)
 			continue
 		}
 		if count <= keep {
@@ -56,12 +56,12 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 
 		// The query returns non-current versions ordered by version_num DESC,
 		// skipping the `keep` most recent, so what comes back should be deleted.
-		beyond, err := s.queries.ListVersionsBeyondRetention(ctx, dbgen.ListVersionsBeyondRetentionParams{
+		beyond, beyondErr := s.queries.ListVersionsBeyondRetention(ctx, dbgen.ListVersionsBeyondRetentionParams{
 			AssetID: assetID,
 			Offset:  keep, // skip the `keep` most recent non-current versions
 		})
-		if err != nil {
-			slog.ErrorContext(ctx, "retention: list beyond retention", "asset_id", assetID, "error", err)
+		if beyondErr != nil {
+			slog.ErrorContext(ctx, "retention: list beyond retention", "asset_id", assetID, "error", beyondErr)
 			continue
 		}
 
@@ -71,15 +71,15 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 				continue
 			}
 			// Safety: skip versions referenced as a project cover or workspace icon.
-			if refs, err := s.queries.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
+			if refs, refErr := s.queries.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
 				CoverVersionID: &v.ID,
 				IconVersionID:  &v.ID,
-			}); err == nil && refs > 0 {
+			}); refErr == nil && refs > 0 {
 				slog.DebugContext(ctx, "retention: skipping version in use as cover/icon", "version_id", v.ID)
 				continue
 			}
-			if err := s.queries.SoftDeleteVersion(ctx, v.ID); err != nil {
-				slog.ErrorContext(ctx, "retention: soft-delete version", "version_id", v.ID, "error", err)
+			if delErr := s.queries.SoftDeleteVersion(ctx, v.ID); delErr != nil {
+				slog.ErrorContext(ctx, "retention: soft-delete version", "version_id", v.ID, "error", delErr)
 				continue
 			}
 			// Enqueue physical purge after 7-day grace period.
@@ -87,8 +87,13 @@ func (s *JobServer) EnforceRetentionForWorkspace(ctx context.Context, ws dbgen.W
 				VersionID:   v.ID,
 				WorkspaceID: ws.ID,
 			})
-			if _, err := s.queue.Enqueue(ctx, ws.ID, queue.JobTypePurgeVersionStorage, string(payload)); err != nil {
-				slog.ErrorContext(ctx, "retention: enqueue purge", "version_id", v.ID, "error", err)
+			if _, enqErr := s.queue.Enqueue(
+				ctx,
+				ws.ID,
+				queue.JobTypePurgeVersionStorage,
+				string(payload),
+			); enqErr != nil {
+				slog.ErrorContext(ctx, "retention: enqueue purge", "version_id", v.ID, "error", enqErr)
 			}
 		}
 	}
@@ -133,13 +138,13 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 			p.VersionID,
 		)
 		payload, _ := json.Marshal(p)
-		if _, err := s.queue.Enqueue(
+		if _, enqErr := s.queue.Enqueue(
 			ctx,
 			p.WorkspaceID,
 			queue.JobTypePurgeVersionStorage,
 			string(payload),
-		); err != nil {
-			slog.ErrorContext(ctx, "purge-version-storage: re-enqueue", "version_id", p.VersionID, "error", err)
+		); enqErr != nil {
+			slog.ErrorContext(ctx, "purge-version-storage: re-enqueue", "version_id", p.VersionID, "error", enqErr)
 		}
 		return nil
 	}
@@ -151,43 +156,43 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 		slog.ErrorContext(ctx, "purge-version-storage: list variants", "version_id", p.VersionID, "error", varErr)
 	}
 	for _, v := range variants {
-		if err := s.storage.Delete(v.StorageKey); err != nil {
+		if delErr := s.storage.Delete(v.StorageKey); delErr != nil {
 			slog.ErrorContext(
 				ctx,
 				"purge-version-storage: delete variant storage",
 				"storage_key",
 				v.StorageKey,
 				"error",
-				err,
+				delErr,
 			)
 		}
 		if v.ThumbnailKey != nil {
-			if err := s.storage.Delete(*v.ThumbnailKey); err != nil {
+			if delErr := s.storage.Delete(*v.ThumbnailKey); delErr != nil {
 				slog.ErrorContext(
 					ctx,
 					"purge-version-storage: delete variant thumb",
 					"storage_key",
 					*v.ThumbnailKey,
 					"error",
-					err,
+					delErr,
 				)
 			}
 		}
 	}
 
 	// Delete source + thumbnail storage files.
-	if err := s.storage.Delete(ver.StorageKey); err != nil {
-		slog.ErrorContext(ctx, "purge-version-storage: delete storage", "storage_key", ver.StorageKey, "error", err)
+	if delErr := s.storage.Delete(ver.StorageKey); delErr != nil {
+		slog.ErrorContext(ctx, "purge-version-storage: delete storage", "storage_key", ver.StorageKey, "error", delErr)
 	}
 	if ver.ThumbnailKey != nil {
-		if err := s.storage.Delete(*ver.ThumbnailKey); err != nil {
+		if delErr := s.storage.Delete(*ver.ThumbnailKey); delErr != nil {
 			slog.ErrorContext(
 				ctx,
 				"purge-version-storage: delete thumb",
 				"storage_key",
 				*ver.ThumbnailKey,
 				"error",
-				err,
+				delErr,
 			)
 		}
 	}

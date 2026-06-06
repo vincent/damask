@@ -57,9 +57,9 @@ func (s *ExportScheduler) tick(ctx context.Context) {
 			Status:         "pending",
 			CreatedAt:      time.Now(),
 		}
-		created, err := s.exportSvc.CreateRun(ctx, run)
-		if err != nil {
-			slog.WarnContext(ctx, "export scheduler: create run", "config_id", cfg.ID, "error", err)
+		created, runErr := s.exportSvc.CreateRun(ctx, run)
+		if runErr != nil {
+			slog.WarnContext(ctx, "export scheduler: create run", "config_id", cfg.ID, "error", runErr)
 			continue
 		}
 		payload := fmt.Sprintf(`{"export_config_id":%q,"export_run_id":%q}`, cfg.ID, created.ID)

@@ -136,8 +136,8 @@ func (s *tagService) Create(ctx context.Context, workspaceID string, p CreateTag
 		return nil, err
 	}
 	if p.Color != nil || p.GroupName != nil {
-		if err := s.tags.UpdateMetadata(ctx, workspaceID, tag.Name, p.Color, p.GroupName); err != nil {
-			return nil, err
+		if metaErr := s.tags.UpdateMetadata(ctx, workspaceID, tag.Name, p.Color, p.GroupName); metaErr != nil {
+			return nil, metaErr
 		}
 		tag.Color = p.Color
 		tag.GroupName = p.GroupName
@@ -160,23 +160,23 @@ func (s *tagService) Patch(ctx context.Context, workspaceID, currentName string,
 		if existing.GroupName != nil && *existing.GroupName == systemtags.GroupName {
 			return nil, ErrSystemTagProtected
 		}
-		_, err := s.tags.GetByName(ctx, workspaceID, *p.Name)
-		if err == nil {
+		_, checkErr := s.tags.GetByName(ctx, workspaceID, *p.Name)
+		if checkErr == nil {
 			return nil, fmt.Errorf("tag %q already exists: %w", *p.Name, apperr.ErrConflict)
 		}
-		if !isNotFound(err) {
-			return nil, err
+		if !isNotFound(checkErr) {
+			return nil, checkErr
 		}
-		if err := s.tags.Rename(ctx, workspaceID, existing.Name, *p.Name); err != nil {
-			return nil, err
+		if renameErr := s.tags.Rename(ctx, workspaceID, existing.Name, *p.Name); renameErr != nil {
+			return nil, renameErr
 		}
 		finalName = *p.Name
 	}
 
 	if p.Color != nil || p.GroupName != nil {
-		reloaded, err := s.tags.GetByName(ctx, workspaceID, finalName)
-		if err != nil {
-			return nil, err
+		reloaded, reloadErr := s.tags.GetByName(ctx, workspaceID, finalName)
+		if reloadErr != nil {
+			return nil, reloadErr
 		}
 		newColor := reloaded.Color
 		if p.Color != nil {
@@ -186,8 +186,8 @@ func (s *tagService) Patch(ctx context.Context, workspaceID, currentName string,
 		if p.GroupName != nil {
 			newGroup = p.GroupName
 		}
-		if err := s.tags.UpdateMetadata(ctx, workspaceID, finalName, newColor, newGroup); err != nil {
-			return nil, err
+		if metaErr := s.tags.UpdateMetadata(ctx, workspaceID, finalName, newColor, newGroup); metaErr != nil {
+			return nil, metaErr
 		}
 	}
 
@@ -235,24 +235,24 @@ func (s *tagService) BulkDelete(
 	}()
 
 	err = s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
-		if err := guardMutableTagsRepo(ctx, tx, workspaceID, names...); err != nil {
-			return err
+		if guardErr := guardMutableTagsRepo(ctx, tx, workspaceID, names...); guardErr != nil {
+			return guardErr
 		}
 		for _, name := range names {
-			tag, err := tx.GetByName(ctx, workspaceID, name)
-			if isNotFound(err) {
+			tag, getErr := tx.GetByName(ctx, workspaceID, name)
+			if isNotFound(getErr) {
 				continue
 			}
-			if err != nil {
-				return err
+			if getErr != nil {
+				return getErr
 			}
-			count, err := tx.CountAssets(ctx, tag.ID)
-			if err != nil {
-				return err
+			count, countErr := tx.CountAssets(ctx, tag.ID)
+			if countErr != nil {
+				return countErr
 			}
 			result.RemovedFromAssets += count
-			if err := tx.Delete(ctx, workspaceID, []string{name}); err != nil {
-				return err
+			if delErr := tx.Delete(ctx, workspaceID, []string{name}); delErr != nil {
+				return delErr
 			}
 			result.Deleted++
 		}
@@ -292,40 +292,40 @@ func (s *tagService) Merge(
 	}()
 
 	err = s.tags.RunInTx(ctx, func(tx repository.TagRepository) error {
-		tgt, err := tx.Upsert(ctx, workspaceID, target)
-		if err != nil {
-			return err
+		tgt, upsertErr := tx.Upsert(ctx, workspaceID, target)
+		if upsertErr != nil {
+			return upsertErr
 		}
-		if err := guardMutableTagsRepo(ctx, tx, workspaceID, sources...); err != nil {
-			return err
+		if guardErr := guardMutableTagsRepo(ctx, tx, workspaceID, sources...); guardErr != nil {
+			return guardErr
 		}
 		for _, src := range sources {
-			srcTag, err := tx.GetByName(ctx, workspaceID, src)
-			if isNotFound(err) {
+			srcTag, getErr := tx.GetByName(ctx, workspaceID, src)
+			if isNotFound(getErr) {
 				continue
 			}
-			if err != nil {
-				return err
+			if getErr != nil {
+				return getErr
 			}
-			count, err := tx.CountAssets(ctx, srcTag.ID)
-			if err != nil {
-				return err
+			count, countErr := tx.CountAssets(ctx, srcTag.ID)
+			if countErr != nil {
+				return countErr
 			}
 			result.MergedAssets += count
-			if err := tx.ReassignAssets(ctx, srcTag.ID, tgt.ID); err != nil {
-				return err
+			if reassignErr := tx.ReassignAssets(ctx, srcTag.ID, tgt.ID); reassignErr != nil {
+				return reassignErr
 			}
-			if err := tx.Delete(ctx, workspaceID, []string{src}); err != nil {
-				return err
+			if delErr := tx.Delete(ctx, workspaceID, []string{src}); delErr != nil {
+				return delErr
 			}
 		}
-		reloaded, err := tx.GetByName(ctx, workspaceID, tgt.Name)
-		if err != nil {
-			return err
+		reloaded, reloadErr := tx.GetByName(ctx, workspaceID, tgt.Name)
+		if reloadErr != nil {
+			return reloadErr
 		}
-		count, err := tx.CountAssets(ctx, reloaded.ID)
-		if err != nil {
-			return err
+		count, countErr := tx.CountAssets(ctx, reloaded.ID)
+		if countErr != nil {
+			return countErr
 		}
 		reloaded.AssetCount = count
 		result.Target = toTagDTO(reloaded)
@@ -428,8 +428,8 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 	}
 	slog.DebugContext(ctx, "tags: upserted tag", "tag_id", tag.ID, "tag_name", tag.Name)
 	// AddToAsset is idempotent: duplicate links are silently ignored at the repo level.
-	if err := s.tags.AddToAsset(ctx, assetID, tag.ID); err != nil {
-		return nil, err
+	if addErr := s.tags.AddToAsset(ctx, assetID, tag.ID); addErr != nil {
+		return nil, addErr
 	}
 	slog.DebugContext(ctx, "tags: linked tag to asset", "asset_id", assetID, "tag_id", tag.ID)
 	dto := toTagDTO(tag)

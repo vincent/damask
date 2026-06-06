@@ -106,7 +106,7 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 
 	// Verify all IDs belong to this workspace.
 	for _, id := range p.AssetIDs {
-		if _, err := s.assets.GetByID(ctx, workspaceID, id); err != nil {
+		if _, checkErr := s.assets.GetByID(ctx, workspaceID, id); checkErr != nil {
 			return fmt.Errorf("asset %q not found in workspace: %w", id, apperr.ErrForbidden)
 		}
 	}
@@ -120,13 +120,13 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 	usedNames := map[string]int{}
 
 	for _, id := range p.AssetIDs {
-		asset, err := s.assets.GetByID(ctx, workspaceID, id)
-		if err != nil {
-			return err
+		asset, assetErr := s.assets.GetByID(ctx, workspaceID, id)
+		if assetErr != nil {
+			return assetErr
 		}
 
-		version, err := s.versions.GetCurrentByAsset(ctx, asset.ID)
-		if err != nil {
+		version, verErr := s.versions.GetCurrentByAsset(ctx, asset.ID)
+		if verErr != nil {
 			missingNames = append(missingNames, asset.OriginalFilename)
 			continue
 		}
@@ -150,27 +150,27 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 	missing := missingNames
 
 	for _, e := range entries {
-		rc, err := s.storage.Get(e.storageKey)
-		if err != nil {
+		rc, rcErr := s.storage.Get(e.storageKey)
+		if rcErr != nil {
 			missing = append(missing, e.name)
 			continue
 		}
-		fw, err := zw.Create(e.name)
-		if err != nil {
+		fw, fwErr := zw.Create(e.name)
+		if fwErr != nil {
 			_ = rc.Close()
 			missing = append(missing, e.name)
 			continue
 		}
-		if _, err := io.Copy(fw, rc); err != nil {
-			slog.WarnContext(ctx, "zip copy error", "name", e.name, "err", err)
+		if _, copyErr := io.Copy(fw, rc); copyErr != nil {
+			slog.WarnContext(ctx, "zip copy error", "name", e.name, "err", copyErr)
 		}
 		written++
 		_ = rc.Close()
 	}
 
 	if len(missing) > 0 {
-		fw, err := zw.Create("_missing_files.txt")
-		if err == nil {
+		fw, fwErr := zw.Create("_missing_files.txt")
+		if fwErr == nil {
 			for _, n := range missing {
 				_, _ = fmt.Fprintln(fw, n)
 			}
@@ -213,12 +213,12 @@ func (s *stackService) EnqueueMerge(
 		}
 	}()
 
-	if err := p.Validate(); err != nil {
-		return "", err
+	if valErr := p.Validate(); valErr != nil {
+		return "", valErr
 	}
 
 	for _, id := range p.AssetIDs {
-		if _, err := s.assets.GetByID(ctx, workspaceID, id); err != nil {
+		if _, checkErr := s.assets.GetByID(ctx, workspaceID, id); checkErr != nil {
 			return "", fmt.Errorf("asset %q not found in workspace: %w", id, apperr.ErrForbidden)
 		}
 	}

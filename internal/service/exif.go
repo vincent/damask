@@ -82,10 +82,10 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 	keepGPS := ws.ExifKeepGps == 1
 
 	// Tombstone check before ensureFields to avoid N inserts on already-processed assets.
-	if makeField, err := s.queries.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
+	if makeField, mfErr := s.queries.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
 		WorkspaceID: workspaceID,
 		Key:         "_exif_make",
-	}); err == nil {
+	}); mfErr == nil {
 		_, tombErr := s.queries.GetAssetFieldValueByAssetAndField(ctx, dbgen.GetAssetFieldValueByAssetAndFieldParams{
 			AssetID: assetID,
 			FieldID: makeField.ID,
@@ -153,8 +153,8 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		{"_exif_white_balance", result.WhiteBalance},
 	}
 	for _, f := range texts {
-		fid, ok := fieldIDs[f.key]
-		if !ok {
+		fid, found := fieldIDs[f.key]
+		if !found {
 			continue
 		}
 		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
@@ -188,8 +188,8 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		)
 	}
 	for _, f := range nums {
-		fid, ok := fieldIDs[f.key]
-		if !ok {
+		fid, found := fieldIDs[f.key]
+		if !found {
 			continue
 		}
 		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
@@ -204,8 +204,8 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 	}
 
 	if result.TakenAt != nil {
-		fid, ok := fieldIDs["_exif_taken_at"]
-		if ok {
+		fid, found := fieldIDs["_exif_taken_at"]
+		if found {
 			v := result.TakenAt.Format("2006-01-02")
 			if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 				ID:        uuid.New().String(),

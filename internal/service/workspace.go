@@ -398,17 +398,17 @@ func (s *workspaceService) AcceptInvite(ctx context.Context, p AcceptInviteParam
 	}
 
 	invitedBy := inv.InvitedBy
-	if err := s.workspaces.CreateMember(ctx, repository.Member{
+	if memberErr := s.workspaces.CreateMember(ctx, repository.Member{
 		WorkspaceID: inv.WorkspaceID,
 		UserID:      p.UserID,
 		Role:        inv.Role,
 		InvitedBy:   &invitedBy,
-	}); err != nil {
-		return nil, err
+	}); memberErr != nil {
+		return nil, memberErr
 	}
 
-	if err := s.workspaces.AcceptInvite(ctx, inv.ID); err != nil {
-		return nil, err
+	if acceptErr := s.workspaces.AcceptInvite(ctx, inv.ID); acceptErr != nil {
+		return nil, acceptErr
 	}
 
 	return &AcceptInviteResult{

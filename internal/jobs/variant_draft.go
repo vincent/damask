@@ -167,11 +167,11 @@ func (s *JobServer) draftTransformer(
 				_ = wmRC.Close()
 				return nil, "", errors.New("failed to load asset file")
 			}
-			data, contentType, err := s.trf.ImageWatermark(srcRC, wmRC, p)
+			data, contentType, wmErr := s.trf.ImageWatermark(srcRC, wmRC, p)
 			_ = srcRC.Close()
 			_ = wmRC.Close()
-			if err != nil {
-				return nil, "", err
+			if wmErr != nil {
+				return nil, "", wmErr
 			}
 			return data, contentType, nil
 		}, nil

@@ -234,8 +234,8 @@ func (s *versionService) UploadNewVersion(
 		}
 	}()
 
-	if err := s.validateUploadNewVersionDeps(); err != nil {
-		return nil, err
+	if valErr := s.validateUploadNewVersionDeps(); valErr != nil {
+		return nil, valErr
 	}
 	if p.WorkspaceID == "" || p.AssetID == "" || p.Filename == "" || p.UserID == "" || p.Reader == nil {
 		return nil, fmt.Errorf(
@@ -261,12 +261,12 @@ func (s *versionService) UploadNewVersion(
 	tmpPath := tmpF.Name()
 	defer os.Remove(tmpPath)
 
-	if _, err := io.Copy(tmpF, p.Reader); err != nil {
+	if _, copyErr := io.Copy(tmpF, p.Reader); copyErr != nil {
 		_ = tmpF.Close()
-		return nil, fmt.Errorf("cannot write temp file: %w", err)
+		return nil, fmt.Errorf("cannot write temp file: %w", copyErr)
 	}
-	if err := tmpF.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close temp file: %w", err)
+	if closeErr := tmpF.Close(); closeErr != nil {
+		return nil, fmt.Errorf("cannot close temp file: %w", closeErr)
 	}
 
 	hashFile, err := os.Open(tmpPath)
@@ -317,14 +317,14 @@ func (s *versionService) UploadNewVersion(
 
 	storageKey := fmt.Sprintf("%s/%s/v%d/%s", p.WorkspaceID, p.AssetID, nextNum, p.Filename)
 	if hashErr != nil {
-		storeFile, err := os.Open(tmpPath)
-		if err != nil {
-			return nil, fmt.Errorf("could not reopen uploaded file: %w", err)
+		storeFile, openErr := os.Open(tmpPath)
+		if openErr != nil {
+			return nil, fmt.Errorf("could not reopen uploaded file: %w", openErr)
 		}
-		err = s.storage.Put(storageKey, storeFile)
+		putErr := s.storage.Put(storageKey, storeFile)
 		_ = storeFile.Close()
-		if err != nil {
-			return nil, fmt.Errorf("could not store file: %w", err)
+		if putErr != nil {
+			return nil, fmt.Errorf("could not store file: %w", putErr)
 		}
 	} else {
 		storageKey = existing.StorageKey
@@ -355,12 +355,12 @@ func (s *versionService) UploadNewVersion(
 		return nil, fmt.Errorf("could not create version: %w", err)
 	}
 
-	if err := s.SetCurrent(ctx, p.AssetID, newVersion.ID); err != nil {
-		return nil, fmt.Errorf("could not promote version: %w", err)
+	if setCurrErr := s.SetCurrent(ctx, p.AssetID, newVersion.ID); setCurrErr != nil {
+		return nil, fmt.Errorf("could not promote version: %w", setCurrErr)
 	}
 	newVersion.IsCurrent = true
 
-	if err := s.SetAssetThumbnail(ctx, p.AssetID, nil); err != nil {
+	if thumbErr := s.SetAssetThumbnail(ctx, p.AssetID, nil); thumbErr != nil {
 		slog.ErrorContext(
 			ctx,
 			"clear asset thumbnail",
@@ -369,7 +369,7 @@ func (s *versionService) UploadNewVersion(
 			"version_id",
 			newVersion.ID,
 			"error",
-			err,
+			thumbErr,
 		)
 	}
 
@@ -380,7 +380,12 @@ func (s *versionService) UploadNewVersion(
 			AssetID:     p.AssetID,
 			WorkspaceID: p.WorkspaceID,
 		})
-		if _, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeExtractMediaTags, string(payload)); err != nil {
+		if _, enqErr := s.queue.Enqueue(
+			ctx,
+			p.WorkspaceID,
+			queue.JobTypeExtractMediaTags,
+			string(payload),
+		); enqErr != nil {
 			slog.ErrorContext(
 				ctx,
 				"enqueue extract_media_tags",
@@ -389,7 +394,7 @@ func (s *versionService) UploadNewVersion(
 				"version_id",
 				newVersion.ID,
 				"error",
-				err,
+				enqErr,
 			)
 		}
 	}
@@ -513,8 +518,8 @@ func (s *versionService) Delete(ctx context.Context, workspaceID, assetID, versi
 	if isCover {
 		return fmt.Errorf("version is in use as a project cover or workspace icon: %w", apperr.ErrConflict)
 	}
-	if err := s.versions.SoftDelete(ctx, versionID); err != nil {
-		return err
+	if delErr := s.versions.SoftDelete(ctx, versionID); delErr != nil {
+		return delErr
 	}
 	actor := auth.ActorFromCtx(ctx)
 	s.audit.WriteAsset(ctx, audit.AssetEvent{

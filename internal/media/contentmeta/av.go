@@ -137,10 +137,10 @@ func ExtractAVTags(ctx context.Context, ffprobePath, filePath string) (*AVTags, 
 	if probe.Format.FormatName != "" {
 		r.Container = ptr(probe.Format.FormatName)
 	}
-	if d, err := strconv.ParseFloat(probe.Format.Duration, 64); err == nil && d > 0 {
+	if d, parseErr := strconv.ParseFloat(probe.Format.Duration, 64); parseErr == nil && d > 0 {
 		r.DurationSec = ptr(d)
 	}
-	if br, err := strconv.Atoi(probe.Format.BitRate); err == nil {
+	if br, parseErr := strconv.Atoi(probe.Format.BitRate); parseErr == nil {
 		r.OverallBitrate = ptr(br)
 	}
 
@@ -159,10 +159,10 @@ func ExtractAVTags(ctx context.Context, ffprobePath, filePath string) (*AVTags, 
 		switch {
 		case s.CodecType == "audio" && r.AudioCodec == nil:
 			r.AudioCodec = ptr(s.CodecName)
-			if br, err := strconv.Atoi(s.BitRate); err == nil {
+			if br, parseErr := strconv.Atoi(s.BitRate); parseErr == nil {
 				r.AudioBitrate = ptr(br)
 			}
-			if sr, err := strconv.Atoi(s.SampleRate); err == nil && sr > 0 {
+			if sr, parseErr := strconv.Atoi(s.SampleRate); parseErr == nil && sr > 0 {
 				r.SampleRate = ptr(sr)
 			}
 			if s.Channels > 0 {

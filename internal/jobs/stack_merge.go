@@ -66,21 +66,21 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 
 	var localPaths []string
 	for i, ent := range entries {
-		rc, err := s.storage.Get(ent.storageKey)
-		if err != nil {
-			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", ent.storageKey, "err", err)
+		rc, getErr := s.storage.Get(ent.storageKey)
+		if getErr != nil {
+			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", ent.storageKey, "err", getErr)
 			continue
 		}
 		path := filepath.Join(tmpDir, fmt.Sprintf("%04d%s", i, ent.ext))
-		f, err := os.Create(path)
-		if err != nil {
+		f, createErr := os.Create(path)
+		if createErr != nil {
 			_ = rc.Close()
 			continue
 		}
-		if _, err = io.Copy(f, rc); err != nil {
+		if _, copyErr := io.Copy(f, rc); copyErr != nil {
 			_ = f.Close()
 			_ = rc.Close()
-			slog.WarnContext(ctx, "stack_merge: copy error", "key", ent.storageKey, "err", err)
+			slog.WarnContext(ctx, "stack_merge: copy error", "key", ent.storageKey, "err", copyErr)
 			continue
 		}
 		_ = f.Close()

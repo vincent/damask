@@ -38,15 +38,15 @@ func newIngressEnv(t *testing.T) *ingressTestEnv {
 	wsID := uuid.NewString()
 	userID := uuid.NewString()
 
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{
 		ID: wsID, Name: "test-workspace",
-	}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(ctx, dbgen.CreateUserParams{
+	if _, usrErr := queries.CreateUser(ctx, dbgen.CreateUserParams{
 		ID: userID, Email: userID + "@test.com", PasswordHash: "x", Name: "test",
-	}); err != nil {
-		t.Fatalf("seed user: %v", err)
+	}); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	mailer := mail.NewMailer(&mail.Config{})
@@ -375,11 +375,11 @@ func TestIngressService_RetryLogEntry_InvalidStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert log entry: %v", err)
 	}
-	if err := env.queries.UpdateIngressLogEntry(context.Background(), dbgen.UpdateIngressLogEntryParams{
+	if updateErr := env.queries.UpdateIngressLogEntry(context.Background(), dbgen.UpdateIngressLogEntryParams{
 		Status: "imported",
 		ID:     entry.ID,
-	}); err != nil {
-		t.Fatalf("update log entry: %v", err)
+	}); updateErr != nil {
+		t.Fatalf("update log entry: %v", updateErr)
 	}
 
 	_, err = env.svc.RetryLogEntry(context.Background(), env.workspaceID, entry.ID)

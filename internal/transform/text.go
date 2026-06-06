@@ -37,7 +37,8 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 			return nil, err
 		}
 	} else {
-		fontData, err := io.ReadAll(opts.FontFile)
+		var fontData []byte
+		fontData, err = io.ReadAll(opts.FontFile)
 		if err != nil {
 			return nil, fmt.Errorf("read font file: %w", err)
 		}
@@ -152,7 +153,7 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 	}
 
 	buf := new(bytes.Buffer)
-	if err := png.Encode(buf, dst); err != nil {
+	if err = png.Encode(buf, dst); err != nil {
 		return nil, err
 	}
 

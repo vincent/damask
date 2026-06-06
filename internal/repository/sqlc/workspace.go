@@ -297,7 +297,7 @@ func (r *workspaceRepo) RunRegistrationTx(
 	txQ := r.q.WithTx(tx)
 	txUsers := &userRepo{q: txQ, sqlDB: r.sqlDB, db: tx}
 	txWorkspaces := &workspaceRepo{q: txQ, sqlDB: r.sqlDB}
-	if err := fn(ctx, txUsers, txWorkspaces); err != nil {
+	if err = fn(ctx, txUsers, txWorkspaces); err != nil {
 		return err
 	}
 	return tx.Commit()

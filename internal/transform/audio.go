@@ -82,7 +82,7 @@ func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType
 	cmd.Stdout = &buf
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
+	if err = cmd.Run(); err != nil {
 		return nil, "", fmt.Errorf("ffmpeg failed: %w — stderr: %s", err, stderr.String())
 	}
 

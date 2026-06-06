@@ -57,7 +57,7 @@ func (s *JobServer) computeAndStoreVisualSimilarity(
 		return
 	}
 
-	if err := s.visualSimilarity.Store(ctx, workspaceID, assetVersionID, hashes); err != nil {
+	if err = s.visualSimilarity.Store(ctx, workspaceID, assetVersionID, hashes); err != nil {
 		slog.WarnContext(ctx, "visual similarity: store hashes", "version_id", assetVersionID, "error", err)
 	}
 }

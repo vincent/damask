@@ -189,9 +189,9 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 
 	var meta *string
 	if len(p.Params) > 0 {
-		b, err := json.Marshal(p.Params)
-		if err != nil {
-			return TextTrackDTO{}, fmt.Errorf("marshal params: %w", err)
+		b, marshalErr := json.Marshal(p.Params)
+		if marshalErr != nil {
+			return TextTrackDTO{}, fmt.Errorf("marshal params: %w", marshalErr)
 		}
 		s := string(b)
 		meta = &s
@@ -216,7 +216,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 
 	dto = toTextTrackDTO(row)
 	if p.Source == textTrackSourceManual {
-		if err := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
+		if ftsErr := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
 			TrackID:     row.ID,
 			AssetID:     row.AssetID,
 			WorkspaceID: row.WorkspaceID,
@@ -228,14 +228,14 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 				return ""
 			}(),
 			Content: content,
-		}); err != nil {
-			return TextTrackDTO{}, err
+		}); ftsErr != nil {
+			return TextTrackDTO{}, ftsErr
 		}
 		return dto, nil
 	}
 
 	if p.Source == textTrackSourceOCR {
-		payload, err := json.Marshal(struct {
+		payload, marshalErr := json.Marshal(struct {
 			WorkspaceID    string `json:"workspace_id"`
 			AssetID        string `json:"asset_id"`
 			TrackID        string `json:"track_id"`
@@ -254,12 +254,12 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 			Lang:           stringValue(p.Lang, "eng"),
 			OutputFormat:   stringParam(p.Params, "output_format", "txt"),
 		})
-		if err != nil {
-			return TextTrackDTO{}, fmt.Errorf("marshal OCR payload: %w", err)
+		if marshalErr != nil {
+			return TextTrackDTO{}, fmt.Errorf("marshal OCR payload: %w", marshalErr)
 		}
-		job, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeOCRTextTrack, string(payload))
-		if err != nil {
-			return TextTrackDTO{}, err
+		job, enqErr := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeOCRTextTrack, string(payload))
+		if enqErr != nil {
+			return TextTrackDTO{}, enqErr
 		}
 		span.SetAttributes(attribute.String("damask.job_id", job.ID))
 		slog.DebugContext(
@@ -353,7 +353,7 @@ func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID stri
 		attribute.Bool("damask.text_track.has_file", track.StorageKey != nil),
 	)
 	if track.StorageKey != nil && s.storage != nil {
-		if err := s.storage.Delete(*track.StorageKey); err != nil {
+		if delErr := s.storage.Delete(*track.StorageKey); delErr != nil {
 			slog.WarnContext(
 				ctx,
 				"text track storage delete failed",
@@ -362,18 +362,18 @@ func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID stri
 				"storage_key",
 				*track.StorageKey,
 				"error",
-				err,
+				delErr,
 			)
 		}
 	}
-	if err := s.queries.DeleteTextFTS(ctx, trackID); err != nil {
-		return err
+	if ftsErr := s.queries.DeleteTextFTS(ctx, trackID); ftsErr != nil {
+		return ftsErr
 	}
-	if err := s.queries.DeleteTextTrack(ctx, dbgen.DeleteTextTrackParams{
+	if delErr := s.queries.DeleteTextTrack(ctx, dbgen.DeleteTextTrackParams{
 		ID:          trackID,
 		WorkspaceID: workspaceID,
-	}); err != nil {
-		return err
+	}); delErr != nil {
+		return delErr
 	}
 	return nil
 }

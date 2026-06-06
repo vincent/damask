@@ -313,8 +313,8 @@ func TestVariantService_PrepareCreate_ExtractAudioDefaults(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var params transform.AudioParams
-	if err := json.Unmarshal(prepared.Params, &params); err != nil {
-		t.Fatalf("decode params: %v", err)
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
 	}
 	if params.OutputFormat != "aac" || params.Bitrate != "192k" {
 		t.Fatalf("unexpected params: %+v", params)
@@ -332,8 +332,8 @@ func TestVariantService_PrepareCreate_TranscodeAudioDefaultsBitrate(t *testing.T
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var params transform.AudioParams
-	if err := json.Unmarshal(prepared.Params, &params); err != nil {
-		t.Fatalf("decode params: %v", err)
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
 	}
 	if params.OutputFormat != "opus" || params.Bitrate != "192k" {
 		t.Fatalf("unexpected params: %+v", params)
@@ -351,8 +351,8 @@ func TestVariantService_PrepareCreate_NormalizeAudioSourceM4A(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var params transform.AudioParams
-	if err := json.Unmarshal(prepared.Params, &params); err != nil {
-		t.Fatalf("decode params: %v", err)
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
 	}
 	if params.OutputFormat != "aac" || params.TargetLUFS != -16 {
 		t.Fatalf("unexpected params: %+v", params)
@@ -437,8 +437,8 @@ func TestVariantService_PrepareCreate_ImageBgRemoveDefaultsModel(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var params map[string]string
-	if err := json.Unmarshal(prepared.Params, &params); err != nil {
-		t.Fatalf("decode params: %v", err)
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
 	}
 	if params["model"] != "bria/remove-background" {
 		t.Fatalf("expected default model, got %#v", params)
@@ -458,8 +458,8 @@ func TestVariantService_PrepareCreate_ImageWithPromptNormalizesPrompt(t *testing
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var params map[string]string
-	if err := json.Unmarshal(prepared.Params, &params); err != nil {
-		t.Fatalf("decode params: %v", err)
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
 	}
 	if params["prompt"] != "add soft shadows" {
 		t.Fatalf("expected trimmed prompt, got %#v", params["prompt"])
@@ -534,8 +534,8 @@ func TestVariantService_PrepareCreate_WatermarkInjectsAssetID(t *testing.T) {
 	}
 
 	var params transform.WatermarkParams
-	if err := json.Unmarshal(prepared.Params, &params); err != nil {
-		t.Fatalf("decode params: %v", err)
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
 	}
 	if params.WatermarkAssetID != "wm_1" {
 		t.Fatalf("expected watermark asset id wm_1, got %s", params.WatermarkAssetID)
@@ -572,8 +572,8 @@ func TestVariantService_PrepareCreate_VideoWatermarkInjectsAssetID(t *testing.T)
 	}
 
 	var params transform.VideoWatermarkParams
-	if err := json.Unmarshal(prepared.Params, &params); err != nil {
-		t.Fatalf("decode params: %v", err)
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
 	}
 	if params.WatermarkAssetID != "wm_1" {
 		t.Fatalf("expected watermark asset id wm_1, got %s", params.WatermarkAssetID)

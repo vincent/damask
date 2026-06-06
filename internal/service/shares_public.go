@@ -201,8 +201,8 @@ func (s *sharePublicService) CreateComment(ctx context.Context, p CreateShareCom
 	}
 
 	// Best-effort email notification.
-	if sh, err := s.shares.GetPublic(ctx, p.ShareID); err == nil {
-		if owner, err := s.users.GetByID(ctx, sh.CreatedBy); err == nil {
+	if sh, shErr := s.shares.GetPublic(ctx, p.ShareID); shErr == nil {
+		if owner, ownerErr := s.users.GetByID(ctx, sh.CreatedBy); ownerErr == nil {
 			emailBody := resolveVariantMention(ctx, s.variants, p.Body, p.AssetID)
 			_ = s.mailer.SendCommentPosted(
 				ctx,

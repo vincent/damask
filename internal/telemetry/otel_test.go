@@ -18,7 +18,7 @@ func TestSetup_Disabled(t *testing.T) {
 	if Tracer("damask/test") == nil {
 		t.Fatal("expected non-nil tracer")
 	}
-	if err := shutdown(context.Background()); err != nil {
+	if err = shutdown(context.Background()); err != nil {
 		t.Fatalf("shutdown: %v", err)
 	}
 }
@@ -47,10 +47,10 @@ func TestSetup_ShutdownIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	if err := shutdown(context.Background()); err != nil {
+	if err = shutdown(context.Background()); err != nil {
 		t.Fatalf("first shutdown: %v", err)
 	}
-	if err := shutdown(context.Background()); err != nil {
+	if err = shutdown(context.Background()); err != nil {
 		t.Fatalf("second shutdown: %v", err)
 	}
 }

@@ -289,7 +289,7 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 			return errRes(c, fiber.StatusUnprocessableEntity, "asset has no current version")
 		}
 		outputFormat := "txt"
-		if raw, ok := params["output_format"].(string); ok && strings.TrimSpace(raw) != "" {
+		if raw, rawOk := params["output_format"].(string); rawOk && strings.TrimSpace(raw) != "" {
 			outputFormat = raw
 		}
 		if outputFormat != "txt" && outputFormat != "hocr" {

@@ -69,7 +69,7 @@ func (d *Destination) Write(_ context.Context, remotePath string, r io.Reader, _
 	defer sshConn.Close()
 
 	dir := path.Dir(path.Join(d.cfg.RemotePath, remotePath))
-	if err := client.MkdirAll(dir); err != nil {
+	if err = client.MkdirAll(dir); err != nil {
 		return fmt.Errorf("sftp dest: mkdir %s: %w", dir, err)
 	}
 
@@ -80,7 +80,7 @@ func (d *Destination) Write(_ context.Context, remotePath string, r io.Reader, _
 	}
 	defer f.Close()
 
-	if _, err := io.Copy(f, r); err != nil {
+	if _, err = io.Copy(f, r); err != nil {
 		return fmt.Errorf("sftp dest: write %s: %w", fullPath, err)
 	}
 	return nil
@@ -126,13 +126,13 @@ func (d *Destination) WriteManifest(_ context.Context, remotePath string, data [
 	if err != nil {
 		return fmt.Errorf("sftp dest: create tmp manifest: %w", err)
 	}
-	if _, err := io.Copy(f, bytes.NewReader(data)); err != nil {
+	if _, err = io.Copy(f, bytes.NewReader(data)); err != nil {
 		_ = f.Close()
 		return fmt.Errorf("sftp dest: write tmp manifest: %w", err)
 	}
 	_ = f.Close()
 
-	if err := client.Rename(tmpPath, fullPath); err != nil {
+	if err = client.Rename(tmpPath, fullPath); err != nil {
 		return fmt.Errorf("sftp dest: rename manifest: %w", err)
 	}
 	return nil

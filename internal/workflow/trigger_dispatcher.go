@@ -50,7 +50,7 @@ func (d *TriggerDispatcher) Dispatch(ctx context.Context, eventType string, data
 			continue
 		}
 		runID := newID()
-		_, err := d.runs.Create(ctx, repository.CreateWorkflowRunParams{
+		_, createErr := d.runs.Create(ctx, repository.CreateWorkflowRunParams{
 			ID:          runID,
 			WorkflowID:  wf.ID,
 			WorkspaceID: wf.WorkspaceID,
@@ -58,13 +58,13 @@ func (d *TriggerDispatcher) Dispatch(ctx context.Context, eventType string, data
 			TriggerData: mustJSON(data),
 			Context:     "{}",
 		})
-		if err != nil {
-			span.RecordError(err)
+		if createErr != nil {
+			span.RecordError(createErr)
 			continue
 		}
 		payload, _ := json.Marshal(RunWorkflowPayload{RunID: runID})
-		if _, err := d.queue.Enqueue(ctx, wf.WorkspaceID, queue.JobTypeRunWorkflow, string(payload)); err != nil {
-			span.RecordError(err)
+		if _, enqErr := d.queue.Enqueue(ctx, wf.WorkspaceID, queue.JobTypeRunWorkflow, string(payload)); enqErr != nil {
+			span.RecordError(enqErr)
 			continue
 		}
 		enqueued++
@@ -93,7 +93,7 @@ func triggerMatches(wf repository.Workflow, data map[string]any) bool {
 	if len(trigger.Config) == 0 {
 		return true
 	}
-	if err := json.Unmarshal(trigger.Config, &cfg); err != nil {
+	if unmarshalErr := json.Unmarshal(trigger.Config, &cfg); unmarshalErr != nil {
 		return false
 	}
 	for key, expected := range cfg {

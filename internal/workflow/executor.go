@@ -56,7 +56,8 @@ func (e *Executor) Run(ctx context.Context, runID string) error {
 	)
 
 	var graph Graph
-	if err := json.Unmarshal([]byte(wf.Graph), &graph); err != nil {
+	err = json.Unmarshal([]byte(wf.Graph), &graph)
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid graph JSON")
 		_ = e.deps.Runs.SetFinal(ctx, repository.SetWorkflowRunFinalParams{
@@ -74,7 +75,8 @@ func (e *Executor) Run(ctx context.Context, runID string) error {
 	rc.Set("workflow_id", wf.ID)
 	rc.Set("workflow_created_by", wf.CreatedBy)
 
-	if err := e.deps.Runs.SetStatus(ctx, runID, "running"); err != nil {
+	err = e.deps.Runs.SetStatus(ctx, runID, "running")
+	if err != nil {
 		return err
 	}
 
@@ -183,8 +185,8 @@ func (e *Executor) executeNode(
 		_ = e.deps.Runs.SetStepFailed(ctx, stepID, execErr.Error())
 		e.publishStepEvent(ctx, workspaceID, rc, runID, workflowID, node.ID, workflowRunStatusFailed, execErr.Error())
 		for _, next := range g.Successors(node.ID, workflowRunStepErrorPort) {
-			if err := e.executeNode(ctx, g, next, rc.Clone(), runID, workspaceID, workflowID); err != nil {
-				return err
+			if stepErr := e.executeNode(ctx, g, next, rc.Clone(), runID, workspaceID, workflowID); stepErr != nil {
+				return stepErr
 			}
 		}
 		if len(g.Successors(node.ID, workflowRunStepErrorPort)) > 0 {
@@ -218,10 +220,10 @@ func (e *Executor) executeNode(
 			wg.Add(1)
 			go func(next GraphNode) {
 				defer wg.Done()
-				if err := e.executeNode(ctx, g, next, rc.Clone(), runID, workspaceID, workflowID); err != nil {
+				if stepErr := e.executeNode(ctx, g, next, rc.Clone(), runID, workspaceID, workflowID); stepErr != nil {
 					mu.Lock()
 					if firstErr == nil {
-						firstErr = err
+						firstErr = stepErr
 					}
 					mu.Unlock()
 				}

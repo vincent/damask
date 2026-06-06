@@ -78,7 +78,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 	thumbKey := fmt.Sprintf("%s/%s/versions/%s/thumb%s", p.WorkspaceID, p.AssetID, p.VersionID, thumbExt)
 	slog.DebugContext(ctx, "generate thumbnail: store in", "thumbKey", thumbKey)
 
-	if err := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
+	if err = s.storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
 		return fmt.Errorf("store thumb: %w", err)
 	}
 
@@ -87,7 +87,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		thumbContentType = "image/jpeg"
 	}
 
-	if err := s.queries.SetVersionThumbnail(ctx, dbgen.SetVersionThumbnailParams{
+	if err = s.queries.SetVersionThumbnail(ctx, dbgen.SetVersionThumbnailParams{
 		ThumbnailKey:         &thumbKey,
 		ThumbnailContentType: thumbContentType,
 		ID:                   p.VersionID,
@@ -111,7 +111,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 			"thumbKey",
 			thumbKey,
 		)
-		if err := s.queries.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+		if err = s.queries.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 			ThumbnailKey:         &thumbKey,
 			ThumbnailContentType: thumbContentType,
 			ID:                   p.AssetID,

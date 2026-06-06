@@ -177,7 +177,7 @@ func (s *Server) handleListAssetVersions(c fiber.Ctx) error {
 		if v.CreatedBy != nil {
 			if _, seen := userNames[*v.CreatedBy]; !seen {
 				userNames[*v.CreatedBy] = ""
-				if u, err := s.users.GetByID(c.Context(), *v.CreatedBy); err == nil {
+				if u, userErr := s.users.GetByID(c.Context(), *v.CreatedBy); userErr == nil {
 					userNames[*v.CreatedBy] = u.Name
 				}
 			}
@@ -240,11 +240,11 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusConflict, "version is already current")
 	}
 
-	if err := s.versions.SetCurrent(c.Context(), assetID, versionID); err != nil {
+	if err = s.versions.SetCurrent(c.Context(), assetID, versionID); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not restore version")
 	}
 
-	if err := s.versions.SetAssetThumbnail(c.Context(), assetID, target.ThumbnailKey); err != nil {
+	if err = s.versions.SetAssetThumbnail(c.Context(), assetID, target.ThumbnailKey); err != nil {
 		slog.ErrorContext(c.Context(), "restore: sync thumbnail", apiErrorKey, err)
 	}
 
@@ -255,11 +255,11 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 
 	var fromVersionNum int64
 	if assetBeforeRestore.CurrentVersionID != nil {
-		if prev, err := s.versions.Get(
+		if prev, prevErr := s.versions.Get(
 			c.Context(),
 			claims.WorkspaceID,
 			*assetBeforeRestore.CurrentVersionID,
-		); err == nil {
+		); prevErr == nil {
 			fromVersionNum = prev.VersionNum
 		}
 	}
@@ -312,7 +312,7 @@ func (s *Server) handleDeleteAssetVersion(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusNotFound, "version not found")
 	}
 
-	if err := s.versions.Delete(c.Context(), claims.WorkspaceID, assetID, versionID); err != nil {
+	if err = s.versions.Delete(c.Context(), claims.WorkspaceID, assetID, versionID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
 

@@ -218,15 +218,15 @@ func (s *folderService) Delete(ctx context.Context, workspaceID, id string) erro
 		return err
 	}
 	for _, child := range children {
-		if err := s.folders.NullifyAssets(ctx, workspaceID, child.ID); err != nil {
-			return err
+		if nullErr := s.folders.NullifyAssets(ctx, workspaceID, child.ID); nullErr != nil {
+			return nullErr
 		}
-		if err := s.folders.Delete(ctx, workspaceID, child.ID); err != nil {
-			return err
+		if delErr := s.folders.Delete(ctx, workspaceID, child.ID); delErr != nil {
+			return delErr
 		}
 	}
-	if err := s.folders.NullifyAssets(ctx, workspaceID, id); err != nil {
-		return err
+	if nullErr := s.folders.NullifyAssets(ctx, workspaceID, id); nullErr != nil {
+		return nullErr
 	}
 	return s.folders.Delete(ctx, workspaceID, id)
 }

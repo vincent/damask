@@ -103,7 +103,7 @@ func (m *MailerImpl) deliver(ctx context.Context, to, subject, htmlBody string) 
 
 func (m *MailerImpl) prepare(to, subject, body string) (message *gomail.Msg, err error) {
 	message = gomail.NewMsg()
-	if err := message.From(m.config.Sender); err != nil {
+	if err = message.From(m.config.Sender); err != nil {
 		slog.Error("mailer: failed to set [from] address", "error", err)
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (m *MailerImpl) send(ctx context.Context, message *gomail.Msg) (err error) 
 	defer telemetry.EndSpan(span, err)
 
 	if m.client != nil {
-		if err := m.client.DialAndSendWithContext(ctx, message); err != nil {
+		if err = m.client.DialAndSendWithContext(ctx, message); err != nil {
 			slog.ErrorContext(ctx, "mailer: failed to deliver mail", "error", err)
 			return err
 		}

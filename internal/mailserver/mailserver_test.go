@@ -177,7 +177,7 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	var count int
 	for rows.Next() {
 		var srcID, filename, status string
-		if err := rows.Scan(&logID, &srcID, &filename, &status); err != nil {
+		if err = rows.Scan(&logID, &srcID, &filename, &status); err != nil {
 			t.Fatalf("scan: %v", err)
 		}
 		if filename != "photo.jpg" {
@@ -273,7 +273,7 @@ func TestSession_FolderRoutingViaSubaddress(t *testing.T) {
 	var payload struct {
 		OverrideFolderID string `json:"override_folder_id"`
 	}
-	if err := json.Unmarshal([]byte(job.Payload), &payload); err != nil {
+	if err = json.Unmarshal([]byte(job.Payload), &payload); err != nil {
 		t.Fatalf("unmarshal payload: %v", err)
 	}
 	if payload.OverrideFolderID != "f1" {

@@ -137,7 +137,7 @@ func (s *variantService) List(ctx context.Context, p ListVariantsParams) (*ListV
 	}
 	result := &ListVariantsResult{Variants: out}
 	if s.workflows != nil {
-		wf, err := findCoveringWorkflowDTO(
+		wf, wfErr := findCoveringWorkflowDTO(
 			ctx,
 			s.workflows,
 			p.WorkspaceID,
@@ -145,8 +145,8 @@ func (s *variantService) List(ctx context.Context, p ListVariantsParams) (*ListV
 			p.AssetProjectID,
 			p.AssetFolderID,
 		)
-		if err != nil {
-			return nil, err
+		if wfErr != nil {
+			return nil, wfErr
 		}
 		result.CoveringWorkflow = wf
 	}
@@ -460,13 +460,13 @@ func (s *variantService) UpdateSharing(ctx context.Context, p UpdateVariantsShar
 	}
 
 	if len(toShare) > 0 {
-		if err := s.variants.UpdateSharedBatch(ctx, p.WorkspaceID, toShare, true); err != nil {
-			return err
+		if shareErr := s.variants.UpdateSharedBatch(ctx, p.WorkspaceID, toShare, true); shareErr != nil {
+			return shareErr
 		}
 	}
 	if len(toUnshare) > 0 {
-		if err := s.variants.UpdateSharedBatch(ctx, p.WorkspaceID, toUnshare, false); err != nil {
-			return err
+		if unshareErr := s.variants.UpdateSharedBatch(ctx, p.WorkspaceID, toUnshare, false); unshareErr != nil {
+			return unshareErr
 		}
 	}
 	return nil
@@ -754,8 +754,8 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 	if asset.CurrentVersionID == nil || v.AssetVersionID != *asset.CurrentVersionID {
 		return fmt.Errorf("variant belongs to a previous version: %w", apperr.ErrInvalidInput)
 	}
-	if err := s.variants.Delete(ctx, workspaceID, variantID); err != nil {
-		return err
+	if delErr := s.variants.Delete(ctx, workspaceID, variantID); delErr != nil {
+		return delErr
 	}
 	actor := auth.ActorFromCtx(ctx)
 	s.audit.WriteAsset(ctx, audit.AssetEvent{

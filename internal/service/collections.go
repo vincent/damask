@@ -117,8 +117,8 @@ func (s *collectionService) Create(
 		return nil, err
 	}
 	for _, assetID := range p.AssetIDs {
-		if err := s.collections.AddAsset(ctx, col.ID, assetID); err != nil {
-			return nil, err
+		if addErr := s.collections.AddAsset(ctx, col.ID, assetID); addErr != nil {
+			return nil, addErr
 		}
 	}
 	col.AssetCount = int64(len(p.AssetIDs))
@@ -193,8 +193,8 @@ func (s *collectionService) ListAssets(ctx context.Context, workspaceID, collect
 	}
 	out := make([]*AssetDTO, 0, len(ids))
 	for _, id := range ids {
-		a, err := s.assets.GetByID(ctx, workspaceID, id)
-		if err != nil {
+		a, getErr := s.assets.GetByID(ctx, workspaceID, id)
+		if getErr != nil {
 			continue // asset may have been soft-deleted
 		}
 		out = append(out, toAssetDTO(a))

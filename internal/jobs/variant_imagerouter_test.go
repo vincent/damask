@@ -106,7 +106,7 @@ func TestImageWithPromptJobFailureDoesNotCreateVariant(t *testing.T) {
 	var body struct {
 		JobID string `json:"job_id"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 

@@ -38,9 +38,9 @@ func readCPUTimes() (cpuTimes, error) {
 
 	values := make([]uint64, 0, len(fields)-1)
 	for _, field := range fields[1:] {
-		value, err := strconv.ParseUint(field, 10, 64)
-		if err != nil {
-			return cpuTimes{}, fmt.Errorf("could not parse CPU stat %q: %w", field, err)
+		value, parseErr := strconv.ParseUint(field, 10, 64)
+		if parseErr != nil {
+			return cpuTimes{}, fmt.Errorf("could not parse CPU stat %q: %w", field, parseErr)
 		}
 		values = append(values, value)
 	}
@@ -96,14 +96,14 @@ func diskIOStats() (diskIO, error) {
 			continue
 		}
 
-		sectorsRead, err := strconv.ParseUint(fields[5], 10, 64)
-		if err != nil {
-			return diskIO{}, fmt.Errorf("could not parse disk sectors read for %s: %w", fields[2], err)
+		sectorsRead, parseErr := strconv.ParseUint(fields[5], 10, 64)
+		if parseErr != nil {
+			return diskIO{}, fmt.Errorf("could not parse disk sectors read for %s: %w", fields[2], parseErr)
 		}
 
-		sectorsWritten, err := strconv.ParseUint(fields[9], 10, 64)
-		if err != nil {
-			return diskIO{}, fmt.Errorf("could not parse disk sectors written for %s: %w", fields[2], err)
+		sectorsWritten, parseErr := strconv.ParseUint(fields[9], 10, 64)
+		if parseErr != nil {
+			return diskIO{}, fmt.Errorf("could not parse disk sectors written for %s: %w", fields[2], parseErr)
 		}
 
 		stats.readBytes += sectorsRead * 512

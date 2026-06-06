@@ -66,9 +66,9 @@ func (s *integrationService) UpsertConnection(ctx context.Context, p UpsertConne
 	}
 	var encRefresh *string
 	if p.Token.RefreshToken != "" {
-		enc, err := p.EncryptToken(p.Token.RefreshToken)
-		if err != nil {
-			return err
+		enc, encErr := p.EncryptToken(p.Token.RefreshToken)
+		if encErr != nil {
+			return encErr
 		}
 		encRefresh = &enc
 	}

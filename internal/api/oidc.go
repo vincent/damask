@@ -182,7 +182,7 @@ func (s *Server) handleOIDCProviderCallback(c fiber.Ctx, rt *config.OIDCRuntime,
 	}
 
 	var claims oidcUserClaims
-	if err := idToken.Claims(&claims); err != nil {
+	if err = idToken.Claims(&claims); err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange")
 	}
 	if !claims.EmailVerified {
@@ -325,7 +325,7 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 			Email       string `json:"email"`
 		} `json:"profile"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&me); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&me); err != nil {
 		return c.Redirect().To("/login?error=oidc_exchange&error_step=user_profile_decode")
 	}
 
@@ -497,7 +497,7 @@ func verifyState(raw, secret string) (oauthState, error) {
 		return oauthState{}, err
 	}
 	var s oauthState
-	if err := json.Unmarshal(b, &s); err != nil {
+	if err = json.Unmarshal(b, &s); err != nil {
 		return oauthState{}, err
 	}
 	return s, nil

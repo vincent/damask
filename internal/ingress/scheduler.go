@@ -53,13 +53,13 @@ func (s *Scheduler) tick(ctx context.Context) {
 			SourceID:    src.ID,
 			WorkspaceID: src.WorkspaceID,
 		})
-		if _, err := s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestPoll, string(payload)); err != nil {
+		if _, err = s.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestPoll, string(payload)); err != nil {
 			slog.ErrorContext(ctx, "ingress scheduler: enqueue poll", "source_id", src.ID, "error", err)
 			continue
 		}
 		// Mark last_polled_at immediately to prevent double-scheduling.
 		// error_count and last_error are untouched here; the poll worker updates them.
-		if err := s.queries.MarkIngressSourceScheduled(ctx, src.ID); err != nil {
+		if err = s.queries.MarkIngressSourceScheduled(ctx, src.ID); err != nil {
 			slog.ErrorContext(ctx, "ingress scheduler: mark scheduled", "source_id", src.ID, "error", err)
 		}
 	}

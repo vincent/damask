@@ -38,7 +38,7 @@ func EncryptConfig(appSecret string, plaintext []byte) (string, error) {
 		return "", fmt.Errorf("ingress/crypto: new gcm: %w", err)
 	}
 	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", fmt.Errorf("ingress/crypto: rand nonce: %w", err)
 	}
 	sealed := gcm.Seal(nonce, nonce, plaintext, nil)

@@ -187,11 +187,11 @@ func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, asset
 		return err
 	}
 	for _, def := range defs {
-		pv, err := r.q.GetProjectFieldValue(ctx, dbgen.GetProjectFieldValueParams{
+		pv, pvErr := r.q.GetProjectFieldValue(ctx, dbgen.GetProjectFieldValueParams{
 			ProjectID: projectID,
 			FieldID:   def.ID,
 		})
-		if err != nil {
+		if pvErr != nil {
 			continue // no value set on project for this field — skip
 		}
 		if _, err = r.q.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{

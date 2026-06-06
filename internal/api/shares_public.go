@@ -146,7 +146,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 		if body.Password == "" {
 			return errRes(c, fiber.StatusUnauthorized, "password required")
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(*sh.PasswordHash), []byte(body.Password)); err != nil {
+		if err = bcrypt.CompareHashAndPassword([]byte(*sh.PasswordHash), []byte(body.Password)); err != nil {
 			return errRes(c, fiber.StatusUnauthorized, "incorrect password")
 		}
 	}
@@ -754,31 +754,31 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 		zw := zip.NewWriter(pw)
 		var missing []string
 		for _, e := range entries {
-			rc, err := s.storage.Get(e.storageKey)
-			if err != nil {
+			rc, getErr := s.storage.Get(e.storageKey)
+			if getErr != nil {
 				missing = append(missing, e.name)
 				continue
 			}
-			fw, err := zw.Create(e.name)
-			if err != nil {
+			fw, createErr := zw.Create(e.name)
+			if createErr != nil {
 				_ = rc.Close()
 				missing = append(missing, e.name)
 				continue
 			}
-			if _, err := io.Copy(fw, rc); err != nil {
-				slog.WarnContext(c.Context(), "share zip copy error", "name", e.name, "err", err)
+			if _, copyErr := io.Copy(fw, rc); copyErr != nil {
+				slog.WarnContext(c.Context(), "share zip copy error", "name", e.name, "err", copyErr)
 			}
 			_ = rc.Close()
 		}
 		if len(missing) > 0 {
-			if fw, err := zw.Create("_missing_files.txt"); err == nil {
+			if fw, createErr := zw.Create("_missing_files.txt"); createErr == nil {
 				for _, n := range missing {
 					_, _ = fmt.Fprintln(fw, n)
 				}
 			}
 		}
-		if err := zw.Close(); err != nil {
-			_ = pw.CloseWithError(err)
+		if closeErr := zw.Close(); closeErr != nil {
+			_ = pw.CloseWithError(closeErr)
 		} else {
 			_ = pw.Close()
 		}

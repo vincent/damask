@@ -187,35 +187,35 @@ func (s *JobServer) videoWatermarkTransformer(workspaceID string, params json.Ra
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "video_watermark"),
 		)
-		rc, err := s.storage.Get(sourceKey)
-		if err != nil {
-			telemetry.EndSpan(span, err)
-			return nil, "", err
+		rc, rcErr := s.storage.Get(sourceKey)
+		if rcErr != nil {
+			telemetry.EndSpan(span, rcErr)
+			return nil, "", rcErr
 		}
 		defer rc.Close()
-		srcPath, cleanSrc, err := writeToTempFile(ctx, rc, filepath.Ext(sourceKey))
-		if err != nil {
-			telemetry.EndSpan(span, err)
-			return nil, "", fmt.Errorf("write src temp: %w", err)
+		srcPath, cleanSrc, srcErr := writeToTempFile(ctx, rc, filepath.Ext(sourceKey))
+		if srcErr != nil {
+			telemetry.EndSpan(span, srcErr)
+			return nil, "", fmt.Errorf("write src temp: %w", srcErr)
 		}
 		defer cleanSrc()
-		wmRC, err := s.storage.Get(wm.StorageKey)
-		if err != nil {
-			telemetry.EndSpan(span, err)
-			return nil, "", fmt.Errorf("get watermark file: %w", err)
+		wmRC, wmRCErr := s.storage.Get(wm.StorageKey)
+		if wmRCErr != nil {
+			telemetry.EndSpan(span, wmRCErr)
+			return nil, "", fmt.Errorf("get watermark file: %w", wmRCErr)
 		}
 		defer wmRC.Close()
 		ext := transform.FormatExtension(p.Format)
 		dstPath := srcPath + "_wm" + ext
 		defer os.Remove(dstPath)
-		if err := s.trf.VideoWatermark(ctx, srcPath, dstPath, wmRC, p); err != nil {
-			telemetry.EndSpan(span, err)
-			return nil, "", fmt.Errorf("watermark: %w", err)
+		if wmErr := s.trf.VideoWatermark(ctx, srcPath, dstPath, wmRC, p); wmErr != nil {
+			telemetry.EndSpan(span, wmErr)
+			return nil, "", fmt.Errorf("watermark: %w", wmErr)
 		}
-		data, err := os.ReadFile(dstPath)
-		if err != nil {
-			telemetry.EndSpan(span, err)
-			return nil, "", fmt.Errorf("read output: %w", err)
+		data, readErr := os.ReadFile(dstPath)
+		if readErr != nil {
+			telemetry.EndSpan(span, readErr)
+			return nil, "", fmt.Errorf("read output: %w", readErr)
 		}
 		telemetry.EndSpan(span, nil)
 		return data, transform.FormatVideoMimeType(p.Format), nil

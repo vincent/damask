@@ -44,9 +44,9 @@ func ResolveKey(
 		return "", SourceNone, err
 	}
 	if strings.TrimSpace(encKey) != "" {
-		plain, err := ingress.DecryptConfig(appSecret, encKey)
-		if err != nil {
-			return "", SourceNone, err
+		plain, decErr := ingress.DecryptConfig(appSecret, encKey)
+		if decErr != nil {
+			return "", SourceNone, decErr
 		}
 		return string(plain), SourceWorkspace, nil
 	}

@@ -107,7 +107,7 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) (err error) {
 	defer telemetry.EndSpan(span, err)
 
 	var p PollJobPayload
-	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
+	if err = json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("ingest_poll: parse payload: %w", err)
 	}
@@ -152,7 +152,8 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) (err error) {
 		)
 		defer itemSpan.End()
 
-		entry, err := w.queries.InsertIngressLogEntry(ctx, dbgen.InsertIngressLogEntryParams{
+		var entry dbgen.IngressLog
+		entry, err = w.queries.InsertIngressLogEntry(ctx, dbgen.InsertIngressLogEntryParams{
 			ID:       entryID,
 			SourceID: src.ID,
 			RemoteID: item.RemoteID,
@@ -175,8 +176,13 @@ func (w *Worker) HandlePoll(ctx context.Context, job dbgen.Job) (err error) {
 			Filename:    item.Filename,
 			Meta:        item.Meta,
 		})
-		if _, err := w.queue.Enqueue(ctx, src.WorkspaceID, queue.JobTypeIngestFetch, string(payload)); err != nil {
-			slog.ErrorContext(ctx, "ingest_poll: enqueue fetch", "remote_id", item.RemoteID, "error", err)
+		if _, enqErr := w.queue.Enqueue(
+			ctx,
+			src.WorkspaceID,
+			queue.JobTypeIngestFetch,
+			string(payload),
+		); enqErr != nil {
+			slog.ErrorContext(ctx, "ingest_poll: enqueue fetch", "remote_id", item.RemoteID, "error", enqErr)
 		}
 	}
 
@@ -190,7 +196,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	defer telemetry.EndSpan(span, err)
 
 	var p FetchJobPayload
-	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
+	if err = json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("ingest_fetch: parse payload: %w", err)
 	}
 
@@ -254,7 +260,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	// their limit (total > limit) but allows workspaces at exactly 100% to
 	// receive one more file before being cut off — acceptable for ingress.
 	if w.storageSvc != nil {
-		if err := w.storageSvc.CheckLimit(ctx, p.WorkspaceID, 0); err != nil {
+		if err = w.storageSvc.CheckLimit(ctx, p.WorkspaceID, 0); err != nil {
 			if errors.Is(err, ErrStorageLimitReached) {
 				skipped := "storage limit reached"
 				_ = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
@@ -287,9 +293,9 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 	var rc io.ReadCloser
 	if p.TmpPath != "" {
 		slog.DebugContext(ctx, "use existing temp file")
-		f, err := os.Open(p.TmpPath)
-		if err != nil {
-			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: open tmp file: %w", err))
+		f, openErr := os.Open(p.TmpPath)
+		if openErr != nil {
+			return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: open tmp file: %w", openErr))
 		}
 		defer os.Remove(p.TmpPath)
 		rc = f
@@ -327,7 +333,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 
 	// Rename temp file to use original filename for CreateAsset
 	namedTmp := filepath.Join(os.TempDir(), filepath.Base(entry.Filename))
-	if err := os.Rename(tmpPath, namedTmp); err != nil {
+	if err = os.Rename(tmpPath, namedTmp); err != nil {
 		namedTmp = tmpPath // fall back to random name
 	}
 	defer os.Remove(namedTmp)
@@ -351,7 +357,7 @@ func (w *Worker) HandleFetch(ctx context.Context, job dbgen.Job) (err error) {
 		w.storageSvc.Invalidate(src.WorkspaceID)
 	}
 
-	if err := w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+	if err = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status:  ingressStatusImported,
 		AssetID: &assetID,
 		ID:      entry.ID,

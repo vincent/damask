@@ -235,7 +235,7 @@ func TestHandleFetch_TagsAssetWithSourceLabel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	if _, err := tmp.WriteString("hello world"); err != nil {
+	if _, err = tmp.WriteString("hello world"); err != nil {
 		t.Fatalf("write temp file: %v", err)
 	}
 	_ = tmp.Close()
@@ -250,7 +250,7 @@ func TestHandleFetch_TagsAssetWithSourceLabel(t *testing.T) {
 	})
 
 	job := dbgen.Job{Payload: string(payload)}
-	if err := w.HandleFetch(ctx, job); err != nil {
+	if err = w.HandleFetch(ctx, job); err != nil {
 		t.Fatalf("HandleFetch: %v", err)
 	}
 
@@ -298,7 +298,7 @@ func TestHandleFetch_Idempotent_AlreadyImported(t *testing.T) {
 	}
 
 	// Mark it already imported — no real asset needed, just a non-pending status
-	if err := queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+	if err = queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
 		Status: "imported",
 		ID:     entry.ID,
 	}); err != nil {
@@ -314,7 +314,7 @@ func TestHandleFetch_Idempotent_AlreadyImported(t *testing.T) {
 	})
 
 	// HandleFetch should return nil without doing anything
-	if err := w.HandleFetch(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
+	if err = w.HandleFetch(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
 		t.Fatalf("HandleFetch on already-imported entry should not error: %v", err)
 	}
 
@@ -376,7 +376,7 @@ func TestHandleFetch_DenyRule_MarksSkipped(t *testing.T) {
 		TmpPath:     tmp.Name(),
 	})
 
-	if err := w.HandleFetch(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
+	if err = w.HandleFetch(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
 		t.Fatalf("HandleFetch: %v", err)
 	}
 
@@ -444,7 +444,7 @@ func TestHandleFetch_PullSource_FetchesViaSource(t *testing.T) {
 		Filename:    "pulled.txt",
 	})
 
-	if err := w.HandleFetch(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
+	if err = w.HandleFetch(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
 		t.Fatalf("HandleFetch (pull): %v", err)
 	}
 
@@ -529,7 +529,7 @@ func TestHandleFetch_MetaPassedToSource(t *testing.T) {
 		t.Fatalf("expected job type %q, got %q", queue.JobTypeIngestFetch, fetchJob.Type)
 	}
 
-	if err := w.HandleFetch(ctx, fetchJob); err != nil {
+	if err = w.HandleFetch(ctx, fetchJob); err != nil {
 		t.Fatalf("HandleFetch: %v", err)
 	}
 
@@ -654,7 +654,7 @@ func TestHandlePoll_DisabledSource_DoesNothing(t *testing.T) {
 		WorkspaceID: workspaceID,
 	})
 
-	if err := w.HandlePoll(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
+	if err = w.HandlePoll(ctx, dbgen.Job{Payload: string(payload)}); err != nil {
 		t.Fatalf("HandlePoll on disabled source: %v", err)
 	}
 

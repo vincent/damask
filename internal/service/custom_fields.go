@@ -407,7 +407,7 @@ func (s *assetFieldService) SetValues(
 			return nil, fmt.Errorf("field %s is system-managed: %w", input.FieldID, apperr.ErrInvalidInput)
 		}
 		if input.Value == nil {
-			if err := s.assetFields.DeleteValue(ctx, assetID, input.FieldID); err != nil {
+			if err = s.assetFields.DeleteValue(ctx, assetID, input.FieldID); err != nil {
 				return nil, err
 			}
 			continue
@@ -417,7 +417,7 @@ func (s *assetFieldService) SetValues(
 			return nil, fmt.Errorf("%w", apperr.ErrInvalidInput)
 		}
 		p.CreatedBy = userID
-		if err := s.assetFields.UpsertValue(ctx, assetID, p); err != nil {
+		if err = s.assetFields.UpsertValue(ctx, assetID, p); err != nil {
 			return nil, err
 		}
 	}
@@ -516,9 +516,9 @@ func (s *assetFieldService) BulkSetValues(
 			resolved[i] = resolvedInput{fieldID: input.FieldID}
 			continue
 		}
-		def, err := s.fields.GetByID(ctx, workspaceID, input.FieldID)
-		if err != nil {
-			return result, err
+		def, defErr := s.fields.GetByID(ctx, workspaceID, input.FieldID)
+		if defErr != nil {
+			return result, defErr
 		}
 		if def.DeletedAt != nil {
 			return result, fmt.Errorf("field %s has been deleted: %w", input.FieldID, apperr.ErrInvalidInput)
@@ -526,8 +526,8 @@ func (s *assetFieldService) BulkSetValues(
 		if def.Source != "" && def.Source != "user" {
 			return result, fmt.Errorf("field %s is system-managed: %w", input.FieldID, apperr.ErrInvalidInput)
 		}
-		p, err := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
-		if err != nil {
+		p, resolveErr := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
+		if resolveErr != nil {
 			return result, fmt.Errorf("%w", apperr.ErrInvalidInput)
 		}
 		p.CreatedBy = userID
@@ -537,7 +537,7 @@ func (s *assetFieldService) BulkSetValues(
 	// Pre-filter: collect only asset IDs that belong to this workspace (read before tx).
 	validIDs := make([]string, 0, len(assetIDs))
 	for _, assetID := range assetIDs {
-		if _, err := s.assets.GetByID(ctx, workspaceID, assetID); err == nil {
+		if _, getErr := s.assets.GetByID(ctx, workspaceID, assetID); getErr == nil {
 			validIDs = append(validIDs, assetID)
 		}
 	}
@@ -548,15 +548,15 @@ func (s *assetFieldService) BulkSetValues(
 			assetCleared := int64(0)
 			for _, r := range resolved {
 				if r.p == nil {
-					if err := tx.DeleteValue(ctx, assetID, r.fieldID); err != nil {
+					if delErr := tx.DeleteValue(ctx, assetID, r.fieldID); delErr != nil {
 						assetOK = false
 						break
 					}
 					assetCleared++
 					continue
 				}
-				if err := tx.UpsertValue(ctx, assetID, *r.p); err != nil {
-					return err
+				if upsertErr := tx.UpsertValue(ctx, assetID, *r.p); upsertErr != nil {
+					return upsertErr
 				}
 			}
 			if assetOK {
@@ -739,17 +739,17 @@ func (s *projectFieldService) SetValues(
 			return nil, fmt.Errorf("field %s is not a project field: %w", def.Key, apperr.ErrInvalidInput)
 		}
 		if input.Value == nil {
-			if err := s.projectFields.DeleteValue(ctx, projectID, input.FieldID); err != nil {
+			if err = s.projectFields.DeleteValue(ctx, projectID, input.FieldID); err != nil {
 				return nil, err
 			}
 			continue
 		}
-		p, err := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
-		if err != nil {
+		p, resolveErr := resolveFieldValue(input.FieldID, def.FieldType, def.Options, input.Value)
+		if resolveErr != nil {
 			return nil, fmt.Errorf("%w", apperr.ErrInvalidInput)
 		}
 		p.CreatedBy = userID
-		if err := s.projectFields.UpsertValue(ctx, projectID, p); err != nil {
+		if err = s.projectFields.UpsertValue(ctx, projectID, p); err != nil {
 			return nil, err
 		}
 	}

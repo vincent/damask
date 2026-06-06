@@ -176,9 +176,9 @@ func (s *shareService) Update(ctx context.Context, workspaceID, id string, p Upd
 		if *p.Password == "" {
 			existing.PasswordHash = nil
 		} else {
-			hash, err := bcrypt.GenerateFromPassword([]byte(*p.Password), ShareBcryptCost)
-			if err != nil {
-				return nil, err
+			hash, hashErr := bcrypt.GenerateFromPassword([]byte(*p.Password), ShareBcryptCost)
+			if hashErr != nil {
+				return nil, hashErr
 			}
 			h := string(hash)
 			existing.PasswordHash = &h
@@ -208,8 +208,8 @@ func (s *shareService) Revoke(ctx context.Context, workspaceID, id string) error
 	if err != nil {
 		return err
 	}
-	if err := s.shares.Revoke(ctx, workspaceID, id); err != nil {
-		return err
+	if revokeErr := s.shares.Revoke(ctx, workspaceID, id); revokeErr != nil {
+		return revokeErr
 	}
 	if sh.TargetType == "asset" {
 		actor := auth.ActorFromCtx(ctx)

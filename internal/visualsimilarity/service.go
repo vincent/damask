@@ -178,12 +178,12 @@ func (s *Service) FindSimilar(ctx context.Context, workspaceID, assetVersionID s
 	var results []string
 	for rows.Next() {
 		var id string
-		if err := rows.Scan(&id); err != nil {
+		if err = rows.Scan(&id); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 		results = append(results, id)
 	}
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 	if results == nil {

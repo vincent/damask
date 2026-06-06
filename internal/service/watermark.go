@@ -39,28 +39,28 @@ func (s *watermarkService) ResolveWatermarkAsset(
 	}
 
 	if asset.FolderID != nil {
-		row, err := s.queries.FindWatermarkAssetInFolder(ctx, dbgen.FindWatermarkAssetInFolderParams{
+		row, folderErr := s.queries.FindWatermarkAssetInFolder(ctx, dbgen.FindWatermarkAssetInFolderParams{
 			WorkspaceID: workspaceID,
 			FolderID:    asset.FolderID,
 		})
-		if err == nil {
+		if folderErr == nil {
 			return toWatermarkAssetDTO(row, "folder"), nil
 		}
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("find folder watermark: %w", err)
+		if !errors.Is(folderErr, sql.ErrNoRows) {
+			return nil, fmt.Errorf("find folder watermark: %w", folderErr)
 		}
 	}
 
 	if asset.ProjectID != nil {
-		row, err := s.queries.FindWatermarkAssetInProject(ctx, dbgen.FindWatermarkAssetInProjectParams{
+		row, projectErr := s.queries.FindWatermarkAssetInProject(ctx, dbgen.FindWatermarkAssetInProjectParams{
 			WorkspaceID: workspaceID,
 			ProjectID:   *asset.ProjectID,
 		})
-		if err == nil {
+		if projectErr == nil {
 			return toWatermarkAssetDTO(row, "project"), nil
 		}
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("find project watermark: %w", err)
+		if !errors.Is(projectErr, sql.ErrNoRows) {
+			return nil, fmt.Errorf("find project watermark: %w", projectErr)
 		}
 	}
 

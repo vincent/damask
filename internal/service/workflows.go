@@ -207,13 +207,13 @@ func (s *workflowService) TriggerManualBulk(
 	}
 	runIDs := make([]string, 0, len(assetIDs))
 	for _, assetID := range assetIDs {
-		triggerData, err := s.manualAssetTriggerData(ctx, workspaceID, assetID)
-		if err != nil {
-			return runIDs, err
+		triggerData, tdErr := s.manualAssetTriggerData(ctx, workspaceID, assetID)
+		if tdErr != nil {
+			return runIDs, tdErr
 		}
-		runID, err := s.enqueueRun(ctx, wf, triggerData)
-		if err != nil {
-			return runIDs, err
+		runID, runErr := s.enqueueRun(ctx, wf, triggerData)
+		if runErr != nil {
+			return runIDs, runErr
 		}
 		runIDs = append(runIDs, runID)
 	}
@@ -441,8 +441,8 @@ func (s *workflowService) enqueueRun(
 		return "", err
 	}
 	payload, _ := json.Marshal(workflow.RunWorkflowPayload{RunID: runID})
-	if _, err := s.queue.Enqueue(ctx, wf.WorkspaceID, queue.JobTypeRunWorkflow, string(payload)); err != nil {
-		return "", err
+	if _, enqErr := s.queue.Enqueue(ctx, wf.WorkspaceID, queue.JobTypeRunWorkflow, string(payload)); enqErr != nil {
+		return "", enqErr
 	}
 	return runID, nil
 }
@@ -714,8 +714,8 @@ func (s *workflowService) regenerateWebhookToken(ctx context.Context, id string)
 	if err != nil {
 		return "", err
 	}
-	if err := s.webhooks.Upsert(ctx, id, workflow.Sha256Hex(token)); err != nil {
-		return "", err
+	if upsertErr := s.webhooks.Upsert(ctx, id, workflow.Sha256Hex(token)); upsertErr != nil {
+		return "", upsertErr
 	}
 	return token, nil
 }

@@ -111,9 +111,8 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() {
-		err := sqlDB.Close()
-		if err != nil {
-			t.Fatalf("close db: %v", err)
+		if closeErr := sqlDB.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
 		}
 	})
 
@@ -208,7 +207,7 @@ func Register(t *testing.T, env *TestEnv, name, email, password string) AuthResu
 	}
 
 	var parsed api.AuthResponse
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		t.Fatalf("decode register response: %v", err)
 	}
 
@@ -319,15 +318,15 @@ func BuildVersionUploadRequest(
 	if err != nil {
 		t.Fatalf("create form file: %v", err)
 	}
-	if _, err := fw.Write(content); err != nil {
+	if _, err = fw.Write(content); err != nil {
 		t.Fatalf("write form file: %v", err)
 	}
 	if comment != "" {
-		if err := w.WriteField("comment", comment); err != nil {
+		if err = w.WriteField("comment", comment); err != nil {
 			t.Fatalf("write comment field: %v", err)
 		}
 	}
-	if err := w.Close(); err != nil {
+	if err = w.Close(); err != nil {
 		t.Fatalf("close writer: %v", err)
 	}
 
@@ -373,12 +372,12 @@ func BuildUploadRequest(
 	if err != nil {
 		t.Fatalf("create form file: %v", err)
 	}
-	if _, err := fw.Write(content); err != nil {
+	if _, err = fw.Write(content); err != nil {
 		t.Fatalf("write form file: %v", err)
 	}
 	for _, fields := range extraFields {
 		for k, v := range fields {
-			if err := w.WriteField(k, v); err != nil {
+			if err = w.WriteField(k, v); err != nil {
 				t.Fatalf("write form field %q: %v", k, err)
 			}
 		}
@@ -411,7 +410,7 @@ func UploadAsset(t *testing.T, env *TestEnv, cookie *http.Cookie) api.AssetRespo
 		t.Fatalf("upload asset: expected 201, got %d: %s", resp.StatusCode, b)
 	}
 	var asset api.AssetResponse
-	if err := json.NewDecoder(resp.Body).Decode(&asset); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&asset); err != nil {
 		t.Fatalf("decode asset: %v", err)
 	}
 	return asset
@@ -444,7 +443,7 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 
 	// Look up the real storage_key from the assets table so the file endpoint works.
 	var storageKey string
-	if err := env.Database.QueryRow(
+	if err = env.Database.QueryRow(
 		`SELECT storage_key FROM assets WHERE id = ?`, asset.ID,
 	).Scan(&storageKey); err != nil {
 		t.Fatalf("lookup storage key: %v", err)
@@ -452,7 +451,7 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 
 	// Compute the real SHA-256 of the stored file so dedup logic works correctly.
 	contentHash := "seed-hash-" + asset.ID // fallback if storage read fails
-	if rc, err := env.Storage.Get(storageKey); err == nil {
+	if rc, storageErr := env.Storage.Get(storageKey); storageErr == nil {
 		if h, _, hErr := versioning.HashReader(rc); hErr == nil {
 			contentHash = h
 		}
@@ -519,7 +518,7 @@ func CreateProject(t *testing.T, env *TestEnv, cookie *http.Cookie, name, color 
 		t.Fatalf("create project: expected 201, got %d: %s", resp.StatusCode, b)
 	}
 	var project api.ProjectResponse
-	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatalf("decode project: %v", err)
 	}
 	return project

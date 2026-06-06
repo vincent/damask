@@ -195,14 +195,14 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 	ctx := context.Background()
 	wsID := "ws_upload"
 	userID := "usr_upload"
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(
+	if _, usrErr := queries.CreateUser(
 		ctx,
 		dbgen.CreateUserParams{ID: userID, Email: "u@example.com", PasswordHash: "x", Name: "u"},
-	); err != nil {
-		t.Fatalf("seed user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	stor, _ := storage.NewAferoMemoryStorage()
@@ -272,14 +272,14 @@ func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *test
 	ctx := context.Background()
 	wsID := "ws_ver_nil"
 	userID := "usr_ver_nil"
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(
+	if _, usrErr := queries.CreateUser(
 		ctx,
 		dbgen.CreateUserParams{ID: userID, Email: "vn@example.com", PasswordHash: "x", Name: "vn"},
-	); err != nil {
-		t.Fatalf("seed user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	stor, _ := storage.NewAferoMemoryStorage()
@@ -346,14 +346,14 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 	ctx := context.Background()
 	wsID := "ws_upload_err"
 	userID := "usr_upload_err"
-	if _, err := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); err != nil {
-		t.Fatalf("seed workspace: %v", err)
+	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{ID: wsID, Name: "test"}); wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
 	}
-	if _, err := queries.CreateUser(
+	if _, usrErr := queries.CreateUser(
 		ctx,
 		dbgen.CreateUserParams{ID: userID, Email: "u2@example.com", PasswordHash: "x", Name: "u2"},
-	); err != nil {
-		t.Fatalf("seed user: %v", err)
+	); usrErr != nil {
+		t.Fatalf("seed user: %v", usrErr)
 	}
 
 	stor, _ := storage.NewAferoMemoryStorage()
@@ -384,14 +384,14 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 		},
 	)
 
-	if _, err := versionSvc.UploadNewVersion(ctx, service.UploadAssetVersionParams{
+	if _, uploadErr := versionSvc.UploadNewVersion(ctx, service.UploadAssetVersionParams{
 		WorkspaceID: wsID,
 		AssetID:     asset.ID,
 		Filename:    "photo-v2.jpg",
 		ContentType: "image/jpeg",
 		UserID:      userID,
 		Reader:      strings.NewReader("second-version"),
-	}); err != nil {
-		t.Fatalf("UploadNewVersion should ignore dispatch errors: %v", err)
+	}); uploadErr != nil {
+		t.Fatalf("UploadNewVersion should ignore dispatch errors: %v", uploadErr)
 	}
 }

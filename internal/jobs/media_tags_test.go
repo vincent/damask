@@ -98,7 +98,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		nil,
 	)
 
-	if _, err := sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {
+	if _, err = sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
 	return queries, sqlDB, js, q, stor

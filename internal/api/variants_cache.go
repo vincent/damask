@@ -46,8 +46,8 @@ func (c *LruPreviewCache) Set(key string, data []byte, contentType string) {
 	defer c.mu.Unlock()
 	if el, ok := c.items[key]; ok {
 		c.order.MoveToFront(el)
-		entry, ok := el.Value.(*previewCacheEntry)
-		if !ok {
+		entry, entryOk := el.Value.(*previewCacheEntry)
+		if !entryOk {
 			return
 		}
 		entry.data = data
@@ -63,11 +63,11 @@ func (c *LruPreviewCache) Set(key string, data []byte, contentType string) {
 			break
 		}
 		c.order.Remove(back)
-		entry, ok := back.Value.(*previewCacheEntry)
-		if !ok {
+		backEntry, entryOk := back.Value.(*previewCacheEntry)
+		if !entryOk {
 			continue
 		}
-		delete(c.items, entry.key)
+		delete(c.items, backEntry.key)
 	}
 }
 

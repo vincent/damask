@@ -121,33 +121,33 @@ func (s *userService) Register(ctx context.Context, p RegisterUserParams) (*Regi
 	err := s.workspaces.RunRegistrationTx(
 		ctx,
 		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
-			u, err := txUsers.Create(ctx, repository.User{
+			u, createErr := txUsers.Create(ctx, repository.User{
 				ID:           p.UserID,
 				Email:        p.Email,
 				PasswordHash: p.PasswordHash,
 				Name:         p.Name,
 			})
-			if err != nil {
-				if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			if createErr != nil {
+				if strings.Contains(createErr.Error(), "UNIQUE constraint failed") {
 					return fmt.Errorf("email already in use: %w", apperr.ErrConflict)
 				}
-				return fmt.Errorf("could not create user: %w", err)
+				return fmt.Errorf("could not create user: %w", createErr)
 			}
 
-			ws, err := txWorkspaces.Create(ctx, repository.Workspace{
+			ws, wsErr := txWorkspaces.Create(ctx, repository.Workspace{
 				ID:   workspaceID,
 				Name: p.WorkspaceName,
 			})
-			if err != nil {
-				return fmt.Errorf("could not create workspace: %w", err)
+			if wsErr != nil {
+				return fmt.Errorf("could not create workspace: %w", wsErr)
 			}
 
-			if err := txWorkspaces.CreateMember(ctx, repository.Member{
+			if memberErr := txWorkspaces.CreateMember(ctx, repository.Member{
 				WorkspaceID: ws.ID,
 				UserID:      u.ID,
 				Role:        string(auth.Owner),
-			}); err != nil {
-				return fmt.Errorf("could not create membership: %w", err)
+			}); memberErr != nil {
+				return fmt.Errorf("could not create membership: %w", memberErr)
 			}
 
 			result = RegisterUserResult{User: toUserDTO(u), WorkspaceID: ws.ID}
@@ -169,7 +169,7 @@ func (s *userService) Login(ctx context.Context, p LoginUserParams) (*LoginUserR
 		return nil, err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(p.PlainPassword)); err != nil {
+	if cmpErr := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(p.PlainPassword)); cmpErr != nil {
 		return nil, fmt.Errorf("invalid credentials: %w", apperr.ErrForbidden)
 	}
 
@@ -368,8 +368,8 @@ func (s *userService) ResetPassword(ctx context.Context, userID, passwordHash st
 	if err != nil {
 		return fmt.Errorf("user not found: %w", apperr.ErrInvalidInput)
 	}
-	if err := s.users.SetPassword(ctx, userID, passwordHash); err != nil {
-		return err
+	if setErr := s.users.SetPassword(ctx, userID, passwordHash); setErr != nil {
+		return setErr
 	}
 	if hasPasswordMethod(user.AuthMethods, "password") {
 		return nil
@@ -384,12 +384,12 @@ func (s *userService) ChangePassword(ctx context.Context, userID, currentPasswor
 		return err
 	}
 	if hasPasswordMethod(user.AuthMethods, "password") {
-		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+		if cmpErr := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); cmpErr != nil {
 			return fmt.Errorf("current_password_incorrect: %w", apperr.ErrInvalidInput)
 		}
 	}
-	if err := s.users.SetPassword(ctx, userID, newPasswordHash); err != nil {
-		return err
+	if setErr := s.users.SetPassword(ctx, userID, newPasswordHash); setErr != nil {
+		return setErr
 	}
 	if hasPasswordMethod(user.AuthMethods, "password") {
 		return nil
@@ -406,10 +406,10 @@ func (s *userService) RequestEmailChange(ctx context.Context, userID, email stri
 	if strings.EqualFold(user.Email, email) {
 		return fmt.Errorf("email unchanged: %w", apperr.ErrInvalidInput)
 	}
-	if _, err := s.users.GetByEmail(ctx, email); err == nil {
+	if _, checkErr := s.users.GetByEmail(ctx, email); checkErr == nil {
 		return fmt.Errorf("email already in use: %w", apperr.ErrConflict)
-	} else if !errors.Is(err, apperr.ErrNotFound) {
-		return err
+	} else if !errors.Is(checkErr, apperr.ErrNotFound) {
+		return checkErr
 	}
 	return s.users.SetPendingEmail(ctx, userID, email)
 }
@@ -426,10 +426,10 @@ func (s *userService) ConfirmEmailChange(ctx context.Context, userID, email stri
 	if user.PendingEmail == nil || *user.PendingEmail != email {
 		return nil, fmt.Errorf("stale token: %w", apperr.ErrInvalidInput)
 	}
-	if existing, err := s.users.GetByEmail(ctx, email); err == nil && existing.ID != userID {
+	if existing, checkErr := s.users.GetByEmail(ctx, email); checkErr == nil && existing.ID != userID {
 		return nil, fmt.Errorf("email already in use: %w", apperr.ErrConflict)
-	} else if err != nil && !errors.Is(err, apperr.ErrNotFound) {
-		return nil, err
+	} else if checkErr != nil && !errors.Is(checkErr, apperr.ErrNotFound) {
+		return nil, checkErr
 	}
 	updated, err := s.users.ConfirmEmailChange(ctx, userID, email)
 	if err != nil {
@@ -444,7 +444,7 @@ func (s *userService) DeleteAccount(ctx context.Context, userID, password string
 		return err
 	}
 	if hasPasswordMethod(user.AuthMethods, "password") {
-		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		if cmpErr := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); cmpErr != nil {
 			return fmt.Errorf("password_incorrect: %w", apperr.ErrInvalidInput)
 		}
 	}
@@ -454,9 +454,9 @@ func (s *userService) DeleteAccount(ctx context.Context, userID, password string
 		return err
 	}
 	for _, ws := range workspaces {
-		members, err := s.workspaces.ListMembers(ctx, ws.ID)
-		if err != nil {
-			return err
+		members, membersErr := s.workspaces.ListMembers(ctx, ws.ID)
+		if membersErr != nil {
+			return membersErr
 		}
 		ownerCount := 0
 		for _, member := range members {
@@ -473,21 +473,21 @@ func (s *userService) DeleteAccount(ctx context.Context, userID, password string
 		ctx,
 		func(ctx context.Context, txUsers repository.UserRepository, txWorkspaces repository.WorkspaceRepository) error {
 			if !hardDelete {
-				if err := txUsers.SoftDelete(ctx, userID); err != nil {
-					return err
+				if softErr := txUsers.SoftDelete(ctx, userID); softErr != nil {
+					return softErr
 				}
-				if err := txUsers.AnonymizeDeletedUser(ctx, userID); err != nil {
-					return err
+				if anonErr := txUsers.AnonymizeDeletedUser(ctx, userID); anonErr != nil {
+					return anonErr
 				}
 			}
 			for _, ws := range workspaces {
-				if err := txWorkspaces.DeleteMember(ctx, ws.ID, userID); err != nil {
-					return err
+				if delErr := txWorkspaces.DeleteMember(ctx, ws.ID, userID); delErr != nil {
+					return delErr
 				}
 			}
 			if hardDelete {
-				if err := txUsers.HardDelete(ctx, userID); err != nil {
-					return err
+				if hardErr := txUsers.HardDelete(ctx, userID); hardErr != nil {
+					return hardErr
 				}
 			}
 			return nil

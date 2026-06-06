@@ -75,7 +75,7 @@ func (s *CronScheduler) IsDue(wf repository.Workflow) bool {
 	var cfg struct {
 		Cron string `json:"cron"`
 	}
-	if err := json.Unmarshal(trigger.Config, &cfg); err != nil || cfg.Cron == "" {
+	if unmarshalErr := json.Unmarshal(trigger.Config, &cfg); unmarshalErr != nil || cfg.Cron == "" {
 		return false
 	}
 	sched, err := cron.ParseStandard(cfg.Cron)

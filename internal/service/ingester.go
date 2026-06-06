@@ -231,12 +231,12 @@ func (s *ingesterImpl) ingest(
 	}
 
 	if opts.FolderID != nil {
-		if err := s.queries.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
+		if folderErr := s.queries.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
 			FolderID:    opts.FolderID,
 			ID:          asset.ID,
 			WorkspaceID: workspaceID,
-		}); err != nil {
-			slog.ErrorContext(ctx, "set folder for asset", "asset_id", asset.ID, "error", err)
+		}); folderErr != nil {
+			slog.ErrorContext(ctx, "set folder for asset", "asset_id", asset.ID, "error", folderErr)
 		} else {
 			asset.FolderID = opts.FolderID
 		}
@@ -280,10 +280,10 @@ func (s *ingesterImpl) ingest(
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeVersionThumbnail)),
 		)
-		_, err := s.q.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, err)
-		if err != nil {
-			slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "error", err)
+		_, enqErr := s.q.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, enqErr)
+		if enqErr != nil {
+			slog.ErrorContext(ctx, "enqueue version thumbnail", "asset_id", asset.ID, "error", enqErr)
 		}
 	}
 
@@ -297,10 +297,10 @@ func (s *ingesterImpl) ingest(
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractExif)),
 		)
-		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractExif, string(exifPayload))
-		apptelemetry.EndSpan(enqueueSpan, err)
-		if err != nil {
-			slog.ErrorContext(ctx, "enqueue extract_exif", "asset_id", asset.ID, "error", err)
+		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractExif, string(exifPayload))
+		apptelemetry.EndSpan(enqueueSpan, enqErr)
+		if enqErr != nil {
+			slog.ErrorContext(ctx, "enqueue extract_exif", "asset_id", asset.ID, "error", enqErr)
 		}
 	}
 
@@ -313,10 +313,10 @@ func (s *ingesterImpl) ingest(
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractMediaTags)),
 		)
-		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractMediaTags, string(mediaTagsPayload))
-		apptelemetry.EndSpan(enqueueSpan, err)
-		if err != nil {
-			slog.ErrorContext(ctx, "enqueue extract_media_tags", "asset_id", asset.ID, "error", err)
+		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractMediaTags, string(mediaTagsPayload))
+		apptelemetry.EndSpan(enqueueSpan, enqErr)
+		if enqErr != nil {
+			slog.ErrorContext(ctx, "enqueue extract_media_tags", "asset_id", asset.ID, "error", enqErr)
 		}
 	}
 
@@ -330,10 +330,10 @@ func (s *ingesterImpl) ingest(
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractPDFTextTrack)),
 		)
-		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPDFTextTrack, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, err)
-		if err != nil {
-			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", err)
+		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPDFTextTrack, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, enqErr)
+		if enqErr != nil {
+			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", enqErr)
 		}
 	}
 
@@ -347,10 +347,10 @@ func (s *ingesterImpl) ingest(
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractPlainTextTrack)),
 		)
-		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPlainTextTrack, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, err)
-		if err != nil {
-			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", err)
+		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractPlainTextTrack, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, enqErr)
+		if enqErr != nil {
+			slog.ErrorContext(ctx, "enqueue extract_text", "asset_id", asset.ID, "error", enqErr)
 		}
 	}
 
@@ -365,10 +365,10 @@ func (s *ingesterImpl) ingest(
 			attribute.String("damask.asset_id", asset.ID),
 			attribute.String("damask.job.type", string(queue.JobTypeExtractDocumentTextTrack)),
 		)
-		_, err := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractDocumentTextTrack, string(payload))
-		apptelemetry.EndSpan(enqueueSpan, err)
-		if err != nil {
-			slog.ErrorContext(ctx, "enqueue extract_document_text", "asset_id", asset.ID, "error", err)
+		_, enqErr := s.q.Enqueue(ctx, workspaceID, queue.JobTypeExtractDocumentTextTrack, string(payload))
+		apptelemetry.EndSpan(enqueueSpan, enqErr)
+		if enqErr != nil {
+			slog.ErrorContext(ctx, "enqueue extract_document_text", "asset_id", asset.ID, "error", enqErr)
 		}
 	}
 
