@@ -559,7 +559,7 @@ func queryVariantsForVersionIDs(
 	}
 	placeholders := strings.Repeat("?,", len(versionIDs))
 	placeholders = placeholders[:len(placeholders)-1]
-	query := fmt.Sprintf(
+	query := fmt.Sprintf( //nolint:gosec // only placeholders
 		`SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status,
 		        thumbnail_key, thumbnail_content_type, title, is_shared, created_at
 		 FROM variants

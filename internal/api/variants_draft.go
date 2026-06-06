@@ -160,7 +160,7 @@ func (s *Server) handleCommitDraft(c fiber.Ctx) error {
 	)
 
 	sk := draftScratchKey(claims.WorkspaceID, claims.UserID, nonce)
-	if err = draftMoveKey(s.storage, sk, permanentKey); err != nil {
+	if err = draftMoveKey(c.Context(), s.storage, sk, permanentKey); err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "failed to commit draft")
 	}
 
@@ -266,13 +266,13 @@ func draftReadMeta(stor storage.Storage, workspaceID, userID, nonce string) (*dr
 
 // draftMoveKey reads src into dst (Put), then deletes src.
 // If dst already exists and src is gone, the move is treated as complete (idempotent).
-func draftMoveKey(stor storage.Storage, src, dst string) error {
+func draftMoveKey(ctx context.Context, stor storage.Storage, src, dst string) error {
 	rc, err := stor.Get(src)
 	if err != nil {
 		// src gone — check dst already present.
 		dstRC, dstErr := stor.Get(dst)
 		if dstErr == nil {
-			dstRC.Close()
+			_ = dstRC.Close()
 			return nil
 		}
 		return fmt.Errorf("read scratch file: %w", err)
@@ -287,7 +287,14 @@ func draftMoveKey(stor storage.Storage, src, dst string) error {
 		return fmt.Errorf("write permanent file: %w", err)
 	}
 	if delErr := stor.Delete(src); delErr != nil && !draftIsNotFound(delErr) {
-		slog.Warn("draftMoveKey: delete scratch src failed; will be purged nightly", "key", src, "error", delErr)
+		slog.WarnContext(
+			ctx,
+			"draftMoveKey: delete scratch src failed; will be purged nightly",
+			"key",
+			src,
+			"error",
+			delErr,
+		)
 	}
 	return nil
 }

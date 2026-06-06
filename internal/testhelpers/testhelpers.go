@@ -456,7 +456,7 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 		if h, _, hErr := versioning.HashReader(rc); hErr == nil {
 			contentHash = h
 		}
-		rc.Close() //nolint:gosec,errcheck // file read only for test data
+		_ = rc.Close()
 	}
 
 	_, err = env.Database.ExecContext(

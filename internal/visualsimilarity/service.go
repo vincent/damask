@@ -36,7 +36,7 @@ func (s *Service) Store(ctx context.Context, workspaceID, assetVersionID string,
 	err = s.q.UpsertVisualSimilarityHash(ctx, dbgen.UpsertVisualSimilarityHashParams{
 		AssetVersionID: assetVersionID,
 		WorkspaceID:    workspaceID,
-		CentralHash:    int64(h.CentralHash), // SQLite INTEGER is signed 64-bit
+		CentralHash:    int64(h.CentralHash), //nolint:gosec // SQLite INTEGER is signed 64-bit
 		HashSet:        hashSet,
 	})
 	telemetry.EndSpan(span, err)
@@ -76,8 +76,8 @@ func (s *Service) FindSimilarEnriched(ctx context.Context, workspaceID, assetVer
 	placeholders := strings.Repeat("?,", len(hashSet))
 	placeholders = placeholders[:len(placeholders)-1]
 
-	query := fmt.Sprintf(`
-		SELECT av.id, av.asset_id, a.original_filename, av.mime_type, av.width, av.height, av.thumbnail_key
+	query := fmt.Sprintf( //nolint:gosec // only placeholders
+		`SELECT av.id, av.asset_id, a.original_filename, av.mime_type, av.width, av.height, av.thumbnail_key
 		FROM asset_versions av
 		JOIN assets a ON a.id = av.asset_id
 		WHERE av.id IN (
@@ -156,7 +156,7 @@ func (s *Service) FindSimilar(ctx context.Context, workspaceID, assetVersionID s
 	placeholders := strings.Repeat("?,", len(hashSet))
 	placeholders = placeholders[:len(placeholders)-1]
 
-	query := fmt.Sprintf(
+	query := fmt.Sprintf( //nolint:gosec // only placeholders
 		`SELECT DISTINCT asset_version_id FROM asset_visual_similarity_hashes
 		 WHERE workspace_id = ? AND central_hash IN (%s) AND asset_version_id != ?`,
 		placeholders,
