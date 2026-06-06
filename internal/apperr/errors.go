@@ -1,3 +1,4 @@
+// Package apperr defines application-level error types and helpers.
 package apperr
 
 import "errors"

@@ -1,3 +1,4 @@
+// Package main is the admin CLI entrypoint.
 package main
 
 import (

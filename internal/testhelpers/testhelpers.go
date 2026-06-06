@@ -1,7 +1,5 @@
+// Package testhelpers provides integration test utilities backed by a real DB.
 package testhelpers
-
-// Integration tests helpers.
-// Prefer using testutil helpers if you dont need a real DB.
 
 import (
 	"bytes"

@@ -10,6 +10,9 @@ import (
 	"damask/server/internal/ingress"
 )
 
+const usageCacheSize = 256
+const usageCacheTTL = 60 * time.Second
+
 // ErrStorageLimitReached is the same sentinel as ingress.ErrStorageLimitReached so
 // callers in both packages can use [errors.Is] consistently.
 var ErrStorageLimitReached = ingress.ErrStorageLimitReached
@@ -76,8 +79,8 @@ type storageService struct {
 // NewStorageService constructs a StorageService with a 60-second TTL cache.
 func NewStorageService(db *dbgen.Queries) StorageService {
 	c := cache.NewCache[string, *WorkspaceStorageUsage]().
-		WithMaxKeys(256).
-		WithTTL(60 * time.Second)
+		WithMaxKeys(usageCacheSize).
+		WithTTL(usageCacheTTL)
 	return &storageService{db: db, usageCache: c}
 }
 

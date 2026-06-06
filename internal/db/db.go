@@ -1,3 +1,4 @@
+// Package db manages the SQLite database connection and migrations.
 package db
 
 import (

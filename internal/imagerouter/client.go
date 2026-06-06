@@ -1,3 +1,4 @@
+// Package imagerouter integrates with external image routing services.
 package imagerouter
 
 import (

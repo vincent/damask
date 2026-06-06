@@ -1,3 +1,4 @@
+// Package contentmeta extracts metadata from media content.
 package contentmeta
 
 import (

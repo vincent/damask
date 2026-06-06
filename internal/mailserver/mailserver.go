@@ -1,3 +1,4 @@
+// Package mailserver handles outbound email delivery.
 package mailserver
 
 import (

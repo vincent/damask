@@ -1,3 +1,4 @@
+// Package main is the server entrypoint.
 package main
 
 import (

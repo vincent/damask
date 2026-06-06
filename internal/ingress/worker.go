@@ -383,7 +383,7 @@ func (w *Worker) streamToNamedTemp(
 	copied, err := io.Copy(tmp, io.MultiReader(bytes.NewReader(sniff), rc))
 	if err != nil {
 		_ = tmp.Close()
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return "", func() {}, w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: write temp file: %w", err))
 	}
 	slog.DebugContext(ctx, "wrote temp file", "path", tmpPath, "bytes", copied)
@@ -397,9 +397,9 @@ func (w *Worker) streamToNamedTemp(
 	slog.DebugContext(ctx, "ingest file", "path", namedTmp)
 
 	cleanup = func() {
-		os.Remove(namedTmp)
+		_ = os.Remove(namedTmp)
 		if p.TmpPath != "" {
-			os.Remove(p.TmpPath)
+			_ = os.Remove(p.TmpPath)
 		}
 	}
 	return namedTmp, cleanup, nil

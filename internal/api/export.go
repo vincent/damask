@@ -9,6 +9,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const maxExportRunsPageSize = 100
+
 func (s *Server) handleCreateExportConfig(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -114,8 +116,8 @@ func (s *Server) handleListExportRuns(c fiber.Ctx) error {
 			limit = v
 		}
 	}
-	if limit > 100 {
-		limit = 100
+	if limit > maxExportRunsPageSize {
+		limit = maxExportRunsPageSize
 	}
 	offset := 0
 	if o := c.Query("offset"); o != "" {

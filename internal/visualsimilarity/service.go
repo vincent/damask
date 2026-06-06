@@ -87,6 +87,7 @@ func (s *Service) FindSimilarEnriched(ctx context.Context, workspaceID, assetVer
 		)
 		AND a.workspace_id = ?`, placeholders)
 
+	//nolint:mnd // The number of args is dynamic based on the hash set size.
 	args := make([]any, 0, 1+len(hashSet)+2)
 	args = append(args, workspaceID)
 	for _, v := range hashSet {

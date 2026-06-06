@@ -1,3 +1,4 @@
+// Package storage abstracts file storage backends.
 package storage
 
 import (

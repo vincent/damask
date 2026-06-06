@@ -25,7 +25,7 @@ func (t *transformer) PDFExtractResolution(ctx context.Context, srcPath string) 
 	}
 
 	parts := strings.SplitN(strings.TrimSpace(string(out)), "x", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd // expect a format like "612x792".
 		return nil, fmt.Errorf("identify pdf resolution: unexpected output: %s", string(out))
 	}
 	width, err := strconv.ParseInt(parts[0], 10, 64)

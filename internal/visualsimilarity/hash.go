@@ -1,3 +1,4 @@
+// Package visualsimilarity computes perceptual hashes for visual deduplication.
 package visualsimilarity
 
 import (

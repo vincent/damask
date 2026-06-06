@@ -21,6 +21,7 @@ import (
 const (
 	canvaAPIBase  = "https://api.canva.com/rest/v1"
 	exportPollMax = 45 // max poll attempts at 2s each = 90 seconds
+	fetchThrottle = 2 * time.Second
 )
 
 // Config is the decrypted JSON config stored in ingress_sources.config.
@@ -226,7 +227,7 @@ func (s *Source) Fetch(ctx context.Context, item ingress.IngestItem) (io.ReadClo
 		if downloadURL != "" {
 			break
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(fetchThrottle)
 	}
 
 	if downloadURL == "" {

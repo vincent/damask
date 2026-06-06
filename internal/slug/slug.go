@@ -1,3 +1,4 @@
+// Package slug generates URL-safe slugs.
 package slug
 
 import (

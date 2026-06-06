@@ -1,3 +1,4 @@
+// Package workflow manages asset processing workflow state.
 package workflow
 
 import (

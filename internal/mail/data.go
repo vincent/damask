@@ -1,3 +1,4 @@
+// Package mail defines mail template data structures.
 package mail
 
 import (

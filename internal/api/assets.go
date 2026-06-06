@@ -1,3 +1,4 @@
+// Package api contains HTTP handlers for the REST API.
 package api
 
 import (

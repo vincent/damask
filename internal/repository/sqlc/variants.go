@@ -111,7 +111,7 @@ func (r *variantRepo) UpdateSharedBatch(ctx context.Context, workspaceID string,
 		return nil
 	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
-	args := make([]any, 0, len(ids)+2)
+	args := make([]any, 0, len(ids)+2) //nolint:mnd // isShared and workspaceID
 	args = append(args, isShared)
 	for _, id := range ids {
 		args = append(args, id)

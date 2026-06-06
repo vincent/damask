@@ -1,3 +1,4 @@
+// Package assetio handles asset ingestion and I/O operations.
 package assetio
 
 import "context"

@@ -1,3 +1,4 @@
+// Package jobs defines background job types and scheduling logic.
 package jobs
 
 import (

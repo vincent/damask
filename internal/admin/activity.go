@@ -1,3 +1,4 @@
+// Package admin provides admin-only handlers and reporting.
 package admin
 
 import (

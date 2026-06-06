@@ -877,6 +877,7 @@ type stackMergeRequest struct {
 
 func (r *stackMergeRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
+	//nolint:mnd // minimum of 2 assets required for a merge.
 	if len(r.AssetIDs) < 2 {
 		p["asset_ids"] = "at least 2 assets required"
 	}

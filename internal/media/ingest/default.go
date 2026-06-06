@@ -1,3 +1,4 @@
+// Package ingest processes media files during asset ingestion.
 package ingest
 
 import (

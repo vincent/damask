@@ -23,6 +23,7 @@ import (
 const (
 	transcodeSemaphoreLimit = 2
 	rebuildSemaphoreLimit   = 2
+	tickerInterval          = 2 * time.Second
 )
 
 // HandlerFunc processes a job payload and returns an error on failure.
@@ -127,7 +128,7 @@ func (q *Queue) Enqueue(ctx context.Context, workspaceID, jobType, payload strin
 func (q *Queue) worker(ctx context.Context) {
 	defer q.wg.Done()
 
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 
 	for {

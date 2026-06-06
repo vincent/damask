@@ -44,7 +44,7 @@ func SignActionToken(secret []byte, claims ActionTokenClaims, ttl time.Duration)
 
 func VerifyActionToken(secret []byte, token string) (ActionTokenClaims, error) {
 	parts := strings.Split(token, ".")
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd // expect a format like "payload.signature".
 		return ActionTokenClaims{}, ErrTokenInvalid
 	}
 	mac := hmac.New(sha256.New, secret)

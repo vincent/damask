@@ -55,8 +55,8 @@ func (t *transformer) GenerateImageOfText(ctx context.Context, opts ImageOfTextO
 	ascent := (metrics.Ascent + 63) &^ 63         //nolint:mnd // round to nearest integer
 
 	margin := 10
-	maxWidth := opts.Width - 2*margin
-	maxHeight := opts.Height - 2*margin
+	maxWidth := opts.Width - 2*margin   //nolint:mnd // fixed margin on each side
+	maxHeight := opts.Height - 2*margin //nolint:mnd // fixed margin on top and bottom
 
 	dst := image.NewRGBA(image.Rect(0, 0, opts.Width, opts.Height))
 	draw.Draw(dst, dst.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)

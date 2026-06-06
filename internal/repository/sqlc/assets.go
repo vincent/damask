@@ -1,3 +1,4 @@
+// Package reposqlc contains sqlc-generated SQL query implementations.
 package reposqlc
 
 import (

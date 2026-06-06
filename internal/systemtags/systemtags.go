@@ -1,3 +1,4 @@
+// Package systemtags defines reserved system tag names.
 package systemtags
 
 import "slices"

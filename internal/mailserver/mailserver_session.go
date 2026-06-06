@@ -67,6 +67,7 @@ func (s *Session) Data(r io.Reader) error {
 	}
 
 	parts := strings.Split(s.to, "@")
+	//nolint:mnd // name@host is the expected format
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid recipient address: %s", s.to)
 	}

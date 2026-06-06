@@ -1,3 +1,4 @@
+// Package repository defines repository interfaces and DTOs.
 package repository
 
 import "time"

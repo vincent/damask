@@ -222,7 +222,7 @@ func (s *Server) handleDiscardDraft(c fiber.Ctx) error {
 // ---- Local helpers ----
 
 func generateNonce() (string, error) {
-	b := make([]byte, 8)
+	b := make([]byte, 8) //nolint:mnd // nonce is 16 hex chars.
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}

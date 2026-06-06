@@ -1,3 +1,4 @@
+// Package events provides SSE event broadcasting.
 package events
 
 import (

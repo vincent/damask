@@ -1,3 +1,4 @@
+// Package oauth provides OAuth state signing and verification.
 package oauth
 
 import (

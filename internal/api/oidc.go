@@ -483,6 +483,7 @@ func signState(payload oauthState, secret string) (string, error) {
 
 func verifyState(raw, secret string) (oauthState, error) {
 	parts := strings.SplitN(raw, ".", 2)
+	//nolint:mnd // fixed number of parts.
 	if len(parts) != 2 {
 		return oauthState{}, errors.New("invalid state format")
 	}

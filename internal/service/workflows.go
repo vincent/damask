@@ -24,6 +24,7 @@ const (
 	workflowNodeFilterProject = "n_filter_project"
 	workflowNodeFilterMIME    = "n_filter_mime"
 	workflowNodeFanout        = "n_fanout"
+	maxBulkTriggerAssets      = 500
 )
 
 type workflowService struct {
@@ -192,8 +193,8 @@ func (s *workflowService) TriggerManualBulk(
 	if len(assetIDs) == 0 {
 		return nil, fmt.Errorf("asset_ids must not be empty: %w", apperr.ErrInvalidInput)
 	}
-	if len(assetIDs) > 500 {
-		return nil, fmt.Errorf("asset_ids exceeds maximum of 500: %w", apperr.ErrInvalidInput)
+	if len(assetIDs) > maxBulkTriggerAssets {
+		return nil, fmt.Errorf("asset_ids exceeds maximum of %d: %w", maxBulkTriggerAssets, apperr.ErrInvalidInput)
 	}
 	wf, err := s.workflows.GetByID(ctx, workspaceID, workflowID)
 	if err != nil {
@@ -624,7 +625,7 @@ func buildVariantAutomationGraph(
 		workflow.GraphEdge{FromNode: prevID, FromPort: prevPort, ToNode: workflowNodeFanout, ToPort: "in"},
 	)
 	spread := 160.0
-	startY := 263.0 - float64(len(variants)-1)*spread/2
+	startY := 263.0 - float64(len(variants)-1)*spread/2 //nolint:mnd // coordinates are arbitrary
 	for i, v := range variants {
 		nodeID := fmt.Sprintf("n_variant_%d", i)
 		nodes = append(nodes, workflow.GraphNode{

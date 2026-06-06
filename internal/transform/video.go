@@ -84,7 +84,7 @@ func (t *transformer) VideoExtractResolution(ctx context.Context, srcPath string
 
 	maybeWxH := bytes.Trim(buf.Bytes(), "x \n\n")
 	parts := bytes.Split(maybeWxH, []byte("x"))
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd // expect a fraction like "30000/1001".
 		return nil, fmt.Errorf("ffprobe resolution: unexpected output: %s", buf.String())
 	}
 	width, err := strconv.ParseInt(string(parts[0]), 10, 64)
@@ -167,7 +167,7 @@ func (t *transformer) gifFramerate(ctx context.Context, srcPath string) float64 
 		return 0
 	}
 	parts := strings.SplitN(strings.TrimSpace(string(out)), "/", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd // expect a fraction like "30000/1001".
 		return 0
 	}
 	num, err1 := strconv.ParseFloat(parts[0], 64)
@@ -395,7 +395,7 @@ func (t *transformer) VideoWatermark(
 }
 
 func ffmpegOutputFilters(format, resolution string) string {
-	filters := make([]string, 0, 2)
+	filters := make([]string, 0, 2) //nolint:mnd // max of 2 filters: scale and/or pad.
 	if scale := ffmpegResolutionScale(resolution); scale != "" {
 		filters = append(filters, "scale="+scale)
 	}

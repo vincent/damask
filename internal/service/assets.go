@@ -1,3 +1,4 @@
+// Package service implements business logic over repositories.
 package service
 
 import (

@@ -1,3 +1,4 @@
+// Package config loads and exposes application configuration.
 package config
 
 import (
@@ -16,6 +17,7 @@ import (
 )
 
 const defaultSMTPPort = 25
+const defaultPurgeHour = 3
 
 // OIDCConfig holds config for a generic OIDC provider (selfhosted IDP).
 // Provider and Verifier are populated at startup via OIDC discovery.
@@ -275,7 +277,7 @@ func getEnv(key, defaultVal string) string {
 // parsePurgeTime parses "HH:MM" into (hour, minute, ok).
 func parsePurgeTime(s string) (int, int, bool) {
 	parts := strings.SplitN(s, ":", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd // expect a format like "03:00".
 		return 0, 0, false
 	}
 	h, errH := strconv.Atoi(parts[0])
@@ -292,7 +294,7 @@ func (c ScratchConfig) PurgeHourMinute() (int, int) {
 	h, m, ok := parsePurgeTime(c.PurgeTime)
 	if !ok {
 		slog.Warn("SCRATCH_PURGE_TIME: invalid, using 03:00", "value", c.PurgeTime)
-		return 3, 0
+		return defaultPurgeHour, 0
 	}
 	return h, m
 }

@@ -318,7 +318,7 @@ func writeTempFile(r io.Reader, ext string) (path string, cleanup func(), err er
 		return "", func() {}, fmt.Errorf("cannot create temp file: %w", err)
 	}
 	name := f.Name()
-	remove := func() { os.Remove(name) }
+	remove := func() { _ = os.Remove(name) }
 	if _, err = io.Copy(f, r); err != nil {
 		_ = f.Close()
 		remove()
