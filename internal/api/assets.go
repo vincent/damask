@@ -74,8 +74,8 @@ type AssetSimilarityMeta struct {
 	ResultCount    int    `json:"result_count"`
 }
 
-func assetToResponse(a dbgen.Asset, tags []string) AssetResponse {
-	return assetToResponseWithCount(a, tags, 0, 0, false)
+func assetToResponse(a dbgen.Asset) AssetResponse {
+	return assetToResponseWithCount(a, nil, 0, 0, false)
 }
 
 func assetToResponseWithCount(
@@ -232,7 +232,7 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 		return ErrorStatusResponse(c, err)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(assetToResponse(dtoToDBAsset(asset), nil))
+	return c.Status(fiber.StatusCreated).JSON(assetToResponse(dtoToDBAsset(asset)))
 }
 
 // handleListAssets lists assets in the workspace with filtering, sorting, and cursor pagination.
@@ -883,7 +883,7 @@ func (s *Server) handleUpdateAssetFolder(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	return c.JSON(assetToResponse(dtoToDBAsset(updated), nil))
+	return c.JSON(assetToResponse(dtoToDBAsset(updated)))
 }
 
 // handleRenameAsset updates the display name of an asset.
@@ -915,7 +915,7 @@ func (s *Server) handleRenameAsset(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	return c.JSON(assetToResponse(dtoToDBAsset(updated), nil))
+	return c.JSON(assetToResponse(dtoToDBAsset(updated)))
 }
 
 // handleBulkDelete permanently deletes multiple assets.

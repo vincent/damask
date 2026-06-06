@@ -144,7 +144,7 @@ func (s *Server) handleGetCollection(c fiber.Ctx) error {
 
 	assetResponses := make([]AssetResponse, len(assets))
 	for i, a := range assets {
-		assetResponses[i] = assetToResponse(dtoToDBAsset(a), nil)
+		assetResponses[i] = assetToResponse(dtoToDBAsset(a))
 	}
 
 	return c.JSON(collectionDetailResponse{

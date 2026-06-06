@@ -48,10 +48,10 @@ func (notFoundError) Is(target error) bool {
 func writeScratchFiles(
 	t *testing.T,
 	stor storage.Storage,
-	workspaceID,
+	workspaceID, //nolint:unparam // tests
 	userID,
-	nonce,
-	assetID string,
+	nonce, //nolint:unparam // tests
+	assetID string, //nolint:unparam // tests
 ) {
 	t.Helper()
 	outputKey := fmt.Sprintf("scratch/%s/%s/%s", workspaceID, userID, nonce)

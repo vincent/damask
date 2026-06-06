@@ -140,7 +140,7 @@ func (s *Server) handleUploadAssetVersion(c fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"version":      versionDTOToResponse(result.Version, createdBy),
-		apiTargetAsset: assetToResponse(dtoToDBAsset(result.Asset), nil),
+		apiTargetAsset: assetToResponse(dtoToDBAsset(result.Asset)),
 	})
 }
 
@@ -273,7 +273,7 @@ func (s *Server) handleRestoreAssetVersion(c fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{
 		"version":      versionDTOToResponse(target, createdBy),
-		apiTargetAsset: assetToResponse(dtoToDBAsset(updatedAsset), nil),
+		apiTargetAsset: assetToResponse(dtoToDBAsset(updatedAsset)),
 	})
 }
 
