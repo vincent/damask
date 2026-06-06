@@ -11,6 +11,14 @@ type Graph struct {
 	Edges []GraphEdge `json:"edges"`
 }
 
+func nodesByID(nodes []GraphNode) map[string]GraphNode {
+	m := make(map[string]GraphNode, len(nodes))
+	for _, n := range nodes {
+		m[n.ID] = n
+	}
+	return m
+}
+
 type GraphNode struct {
 	ID       string          `json:"id"`
 	Type     string          `json:"type"`
@@ -34,13 +42,13 @@ func (g *Graph) Validate() error {
 	if len(g.Nodes) == 0 {
 		return errors.New("graph must contain at least one node")
 	}
-	byID := make(map[string]GraphNode, len(g.Nodes))
+	seen := make(map[string]struct{}, len(g.Nodes))
 	triggerCount := 0
 	for _, node := range g.Nodes {
 		if node.ID == "" {
 			return errors.New("node id is required")
 		}
-		if _, exists := byID[node.ID]; exists {
+		if _, exists := seen[node.ID]; exists {
 			return fmt.Errorf("duplicate node id %q", node.ID)
 		}
 		schema, ok := SchemaFor(node.Type)
@@ -50,11 +58,12 @@ func (g *Graph) Validate() error {
 		if schema.Category == nodeCategoryTrigger {
 			triggerCount++
 		}
-		byID[node.ID] = node
+		seen[node.ID] = struct{}{}
 	}
 	if triggerCount != 1 {
 		return errors.New("graph must contain exactly one trigger node")
 	}
+	byID := nodesByID(g.Nodes)
 	for _, edge := range g.Edges {
 		fromNode, ok := byID[edge.FromNode]
 		if !ok {
@@ -90,11 +99,8 @@ func (g *Graph) TriggerNode() (GraphNode, error) {
 }
 
 func (g *Graph) Successors(nodeID, fromPort string) []GraphNode {
-	byID := make(map[string]GraphNode, len(g.Nodes))
-	for _, node := range g.Nodes {
-		byID[node.ID] = node
-	}
-	out := []GraphNode{}
+	byID := nodesByID(g.Nodes)
+	var out []GraphNode
 	for _, edge := range g.Edges {
 		if edge.FromNode == nodeID && edge.FromPort == fromPort {
 			if next, ok := byID[edge.ToNode]; ok {
@@ -108,9 +114,8 @@ func (g *Graph) Successors(nodeID, fromPort string) []GraphNode {
 func (g *Graph) TopologicalSort() ([]GraphNode, error) {
 	adj := make(map[string][]string, len(g.Nodes))
 	indegree := make(map[string]int, len(g.Nodes))
-	byID := make(map[string]GraphNode, len(g.Nodes))
+	byID := nodesByID(g.Nodes)
 	for _, node := range g.Nodes {
-		byID[node.ID] = node
 		indegree[node.ID] = 0
 	}
 	for _, edge := range g.Edges {

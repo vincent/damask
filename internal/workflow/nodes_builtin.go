@@ -29,6 +29,14 @@ const (
 	portContinued         = "continued"
 )
 
+// ContinuationInjector is an optional interface nodes can implement to seed
+// the RunContext with a NodeContinuation before Execute is called. This lets
+// async nodes (e.g. create_variant) embed the resume hint in their job payload
+// without the executor needing to know which node types are involved.
+type ContinuationInjector interface {
+	InjectContinuation(rc *RunContext, g *Graph, nodeID, runID, workflowID, workspaceID string)
+}
+
 func mustConfigSchema(raw string) json.RawMessage {
 	return json.RawMessage(raw)
 }
@@ -632,6 +640,20 @@ type createVariantNode struct {
 }
 
 func (n createVariantNode) Schema() NodeSchema { return n.schema }
+
+func (n createVariantNode) InjectContinuation(rc *RunContext, g *Graph, nodeID, runID, workflowID, workspaceID string) {
+	for _, s := range g.Successors(nodeID, portOut) {
+		if s.Type == nodeTypeSetNewVersion {
+			rc.Set(rcKeyContinuation, NodeContinuation{
+				RunID:       runID,
+				NodeID:      s.ID,
+				WorkflowID:  workflowID,
+				WorkspaceID: workspaceID,
+			})
+			return
+		}
+	}
+}
 
 func (n createVariantNode) Execute(
 	ctx context.Context,
