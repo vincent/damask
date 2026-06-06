@@ -196,8 +196,8 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 	if err = s.storageSvc.CheckLimit(c.Context(), claims.WorkspaceID, fh.Size); err != nil {
 		if errors.Is(err, service.ErrStorageLimitReached) {
 			return c.Status(fiber.StatusInsufficientStorage).JSON(fiber.Map{
-				"error":   "storage_limit_reached",
-				"message": "Workspace storage limit reached. Delete assets or contact your administrator.",
+				apiErrorKey: "storage_limit_reached",
+				"message":   "Workspace storage limit reached. Delete assets or contact your administrator.",
 			})
 		}
 		return ErrorStatusResponse(c, err)
@@ -508,7 +508,7 @@ func parseFolderFilter(folderParam, projectParam string) (folderID *string, proj
 			return nil, &projectParam, false, nil
 		}
 		return nil, nil, false, nil
-	case "root":
+	case apiFolderRoot:
 		if projectParam == "" {
 			return nil, nil, false, errors.New("project_id is required when using folder_id=root")
 		}

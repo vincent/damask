@@ -26,11 +26,13 @@ const (
 	exifSource            = "exif"
 	customFieldTypeNumber = "number"
 	customFieldTypeText   = "text"
+	customFieldTypeDate   = "date"
 	startExifPosition     = 1000
+	exifKeyMake           = "_exif_make"
 )
 
 var exifFields = []exifFieldDef{
-	{"_exif_make", "Camera maker", customFieldTypeText, false},
+	{exifKeyMake, "Camera maker", customFieldTypeText, false},
 	{"_exif_model", "Camera model", customFieldTypeText, false},
 	{"_exif_lens", "Lens", customFieldTypeText, false},
 	{"_exif_software", "Software", customFieldTypeText, false},
@@ -41,7 +43,7 @@ var exifFields = []exifFieldDef{
 	{"_exif_focal_length_35", "Focal length 35mm equiv.", customFieldTypeNumber, false},
 	{"_exif_flash", "Flash", customFieldTypeText, false},
 	{"_exif_white_balance", "White balance", customFieldTypeText, false},
-	{"_exif_taken_at", "Date taken", "date", false},
+	{"_exif_taken_at", "Date taken", customFieldTypeDate, false},
 	{"_exif_gps_lat", "GPS latitude", customFieldTypeNumber, true},
 	{"_exif_gps_lng", "GPS longitude", customFieldTypeNumber, true},
 }
@@ -93,7 +95,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		return fmt.Errorf("ensure exif fields: %w", err)
 	}
 
-	makeFieldID, ok := fieldIDs["_exif_make"]
+	makeFieldID, ok := fieldIDs[exifKeyMake]
 	if !ok {
 		return errors.New("_exif_make field not found after ensureFields")
 	}
@@ -140,7 +142,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 func (s *ExifService) isExifTombstoned(ctx context.Context, workspaceID, assetID string) (bool, error) {
 	makeField, err := s.queries.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
 		WorkspaceID: workspaceID,
-		Key:         "_exif_make",
+		Key:         exifKeyMake,
 	})
 	if err != nil {
 		return false, nil //nolint:nilerr // field doesn't exist yet
@@ -212,7 +214,7 @@ func (s *ExifService) upsertExifFields(
 	}
 
 	for _, f := range []textField{
-		{"_exif_make", result.Make},
+		{exifKeyMake, result.Make},
 		{"_exif_model", result.Model},
 		{"_exif_lens", result.LensModel},
 		{"_exif_software", result.Software},

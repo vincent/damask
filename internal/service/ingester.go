@@ -12,6 +12,7 @@ import (
 
 	"damask/server/internal/assetio"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobs"
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
@@ -31,14 +32,6 @@ type AssetIngester interface {
 		workspaceID, filePath string,
 		opts assetio.IngestFileOpts,
 	) (*AssetDTO, error)
-}
-
-type versionThumbnailPayload struct {
-	AssetID     string `json:"asset_id"`
-	VersionID   string `json:"version_id"`
-	WorkspaceID string `json:"workspace_id"`
-	StorageKey  string `json:"storage_key"`
-	MimeType    string `json:"mime_type"`
 }
 
 type ingesterImpl struct {
@@ -129,14 +122,14 @@ func (s *ingesterImpl) ingest(
 		}
 		telemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "asset ingest failed", "workspace_id", workspaceID, "error", err)
+			slog.ErrorContext(ctx, "asset ingest failed", keyWorkspaceID, workspaceID, "error", err)
 		}
 	}()
 
 	slog.DebugContext(
 		ctx,
 		"starting asset ingest",
-		"workspace_id",
+		keyWorkspaceID,
 		workspaceID,
 		"file_path",
 		filePath,
@@ -187,14 +180,14 @@ func (s *ingesterImpl) ingest(
 			meta = m
 		} else {
 			telemetry.RecordError(metaSpan, merr)
-			slog.WarnContext(metaCtx, "metadata extraction failed", "mime_type", mimeType, "error", merr)
+			slog.WarnContext(metaCtx, "metadata extraction failed", keyMimeType, mimeType, "error", merr)
 		}
 		metaSpan.End()
 	} else {
 		slog.DebugContext(
 			ctx,
 			"no handler for MIME type, skipping metadata extraction",
-			"mime_type",
+			keyMimeType,
 			mimeType,
 		)
 	}
@@ -216,11 +209,11 @@ func (s *ingesterImpl) ingest(
 		return dbgen.Asset{}, fmt.Errorf("could not save asset: %w", err)
 	}
 
-	slog.DebugContext(ctx, "created asset", "asset_id", asset.ID, "mime_type", asset.MimeType, "size", asset.Size)
+	slog.DebugContext(ctx, "created asset", keyAssetID, asset.ID, keyMimeType, asset.MimeType, keySize, asset.Size)
 
 	initialVersionID, vErr := s.createInitialVersion(ctx, asset, filePath, storageKey, mimeType, meta, opts.UserID)
 	if vErr != nil {
-		slog.ErrorContext(ctx, "create initial version", "asset_id", asset.ID, "error", vErr)
+		slog.ErrorContext(ctx, "create initial version", keyAssetID, asset.ID, "error", vErr)
 	}
 
 	if opts.FolderID != nil {
@@ -229,7 +222,7 @@ func (s *ingesterImpl) ingest(
 			ID:          asset.ID,
 			WorkspaceID: workspaceID,
 		}); folderErr != nil {
-			slog.ErrorContext(ctx, "set folder for asset", "asset_id", asset.ID, "error", folderErr)
+			slog.ErrorContext(ctx, "set folder for asset", keyAssetID, asset.ID, "error", folderErr)
 		} else {
 			asset.FolderID = opts.FolderID
 		}
@@ -247,13 +240,13 @@ func (s *ingesterImpl) ingest(
 	slog.DebugContext(
 		ctx,
 		"asset ingest completed",
-		"asset_id",
+		keyAssetID,
 		asset.ID,
-		"workspace_id",
+		keyWorkspaceID,
 		workspaceID,
-		"mime_type",
+		keyMimeType,
 		asset.MimeType,
-		"size",
+		keySize,
 		asset.Size,
 		"supported_media",
 		s.media.Supports(mimeType),
@@ -279,13 +272,13 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 		_, err := s.q.Enqueue(ctx, workspaceID, jobType, string(data))
 		telemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, logMsg, "asset_id", asset.ID, "error", err)
+			slog.ErrorContext(ctx, logMsg, keyAssetID, asset.ID, "error", err)
 		}
 	}
 
 	if s.media.Supports(mimeType) && initialVersionID != "" {
 		enqueue("service.ingester.enqueue_thumbnail", "enqueue version thumbnail",
-			queue.JobTypeVersionThumbnail, versionThumbnailPayload{
+			queue.JobTypeVersionThumbnail, jobs.VersionThumbnailJobPayload{
 				AssetID:     asset.ID,
 				VersionID:   initialVersionID,
 				WorkspaceID: asset.WorkspaceID,
@@ -295,42 +288,42 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 	}
 	if transform.IsImageMime(mimeType) {
 		enqueue("service.ingester.enqueue_exif", "enqueue extract_exif",
-			queue.JobTypeExtractExif, map[string]string{
-				"asset_id":     asset.ID,
-				"workspace_id": workspaceID,
-				"user_id":      userID,
+			queue.JobTypeExtractExif, jobs.ExtractExifPayload{
+				AssetID:     asset.ID,
+				WorkspaceID: workspaceID,
+				UserID:      userID,
 			})
 	}
 	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
 		enqueue("service.ingester.enqueue_media_tags", "enqueue extract_media_tags",
-			queue.JobTypeExtractMediaTags, map[string]string{
-				"asset_id":     asset.ID,
-				"workspace_id": workspaceID,
+			queue.JobTypeExtractMediaTags, jobs.ExtractMediaTagsPayload{
+				AssetID:     asset.ID,
+				WorkspaceID: workspaceID,
 			})
 	}
 	if transform.IsPdfMime(mimeType) {
 		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_text",
-			queue.JobTypeExtractPDFTextTrack, map[string]string{
-				"asset_id":     asset.ID,
-				"workspace_id": workspaceID,
-				"storage_key":  asset.StorageKey,
+			queue.JobTypeExtractPDFTextTrack, jobs.ExtractTextPayload{
+				AssetID:     asset.ID,
+				WorkspaceID: workspaceID,
+				StorageKey:  asset.StorageKey,
 			})
 	}
 	if transform.IsTextMime(mimeType) {
 		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_text",
-			queue.JobTypeExtractPlainTextTrack, map[string]string{
-				"asset_id":     asset.ID,
-				"workspace_id": workspaceID,
-				"storage_key":  asset.StorageKey,
+			queue.JobTypeExtractPlainTextTrack, jobs.ExtractTextPayload{
+				AssetID:     asset.ID,
+				WorkspaceID: workspaceID,
+				StorageKey:  asset.StorageKey,
 			})
 	}
 	if transform.IsDocumentMime(mimeType) {
 		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_document_text",
-			queue.JobTypeExtractDocumentTextTrack, map[string]string{
-				"asset_id":     asset.ID,
-				"workspace_id": workspaceID,
-				"storage_key":  asset.StorageKey,
-				"mime_type":    mimeType,
+			queue.JobTypeExtractDocumentTextTrack, jobs.ExtractTextPayload{
+				AssetID:     asset.ID,
+				WorkspaceID: workspaceID,
+				StorageKey:  asset.StorageKey,
+				MimeType:    mimeType,
 			})
 	}
 }
@@ -350,7 +343,7 @@ func (s *ingesterImpl) createInitialVersion(
 	defer func() {
 		telemetry.EndSpan(span, err)
 		if err != nil {
-			slog.ErrorContext(ctx, "create initial version failed", "asset_id", asset.ID, "error", err)
+			slog.ErrorContext(ctx, "create initial version failed", keyAssetID, asset.ID, "error", err)
 		}
 	}()
 

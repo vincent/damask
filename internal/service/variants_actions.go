@@ -301,23 +301,23 @@ func (s *variantService) Promote(ctx context.Context, p PromoteVariantParams) (P
 	}
 
 	if variant.ThumbnailKey == nil {
-		payload, _ := json.Marshal(map[string]string{
-			"asset_id":     result.NewAssetID,
-			"version_id":   result.NewVersionID,
-			"workspace_id": p.WorkspaceID,
-			"storage_key":  variant.StorageKey,
-			"mime_type":    mimeType,
+		thumbPayload, _ := json.Marshal(jobs.VersionThumbnailJobPayload{
+			AssetID:     result.NewAssetID,
+			VersionID:   result.NewVersionID,
+			WorkspaceID: p.WorkspaceID,
+			StorageKey:  variant.StorageKey,
+			MimeType:    mimeType,
 		})
 		if _, enqErr := s.queue.Enqueue(
 			ctx,
 			p.WorkspaceID,
 			queue.JobTypeVersionThumbnail,
-			string(payload),
+			string(thumbPayload),
 		); enqErr != nil {
 			slog.WarnContext(
 				ctx,
 				"enqueue thumbnail for promoted variant",
-				"asset_id",
+				keyAssetID,
 				result.NewAssetID,
 				"error",
 				enqErr,

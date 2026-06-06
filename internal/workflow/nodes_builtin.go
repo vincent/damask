@@ -18,6 +18,8 @@ import (
 
 const (
 	nodeCategoryTrigger   = "trigger"
+	nodeCategoryFilter    = "filter"
+	nodeCategoryAction    = "action"
 	portError             = "error"
 	portOut               = "out"
 	portMatch             = "match"
@@ -56,7 +58,7 @@ func filterSchema(nodeType, label, desc string, configSchema json.RawMessage) No
 	return NodeSchema{
 		Type:        nodeType,
 		Label:       label,
-		Category:    "filter",
+		Category:    nodeCategoryFilter,
 		Description: desc,
 		Inputs:      []Port{{ID: "in", Label: "In"}},
 		Outputs: []Port{
@@ -72,7 +74,7 @@ func actionSchema(nodeType, label, desc string, configSchema json.RawMessage) No
 	return NodeSchema{
 		Type:         nodeType,
 		Label:        label,
-		Category:     "action",
+		Category:     nodeCategoryAction,
 		Description:  desc,
 		Inputs:       []Port{{ID: "in", Label: "In"}},
 		Outputs:      []Port{{ID: portOut, Label: labelOut}, {ID: portError, Label: labelError}},

@@ -10,8 +10,14 @@ import (
 	"damask/server/internal/ingress"
 )
 
-const usageCacheSize = 256
-const usageCacheTTL = 60 * time.Second
+const (
+	usageCacheSize    = 256
+	usageCacheTTL     = 60 * time.Second
+	assetTypeImage    = "image"
+	assetTypeVideo    = "video"
+	assetTypeAudio    = "audio"
+	assetTypeDocument = "document"
+)
 
 // ErrStorageLimitReached is the same sentinel as ingress.ErrStorageLimitReached so
 // callers in both packages can use [errors.Is] consistently.
@@ -204,13 +210,13 @@ func buildUsage(
 		p.VariantsBytes += varb
 
 		switch r.AssetType {
-		case "image":
+		case assetTypeImage:
 			p.ByType.Image += vb + varb
-		case "video":
+		case assetTypeVideo:
 			p.ByType.Video += vb + varb
-		case "audio":
+		case assetTypeAudio:
 			p.ByType.Audio += vb + varb
-		case "document":
+		case assetTypeDocument:
 			p.ByType.Document += vb + varb
 		default:
 			p.ByType.Other += vb + varb

@@ -12,7 +12,11 @@ import (
 	"damask/server/internal/workflow"
 )
 
-const maxWorkflowNameLength = 200
+const (
+	maxWorkflowNameLength  = 200
+	scheduleTypeManual     = "manual"
+	scheduleTypeAfterQuiet = "after_quiet"
+)
 
 // ListAssetsParams holds filters for listing assets via AssetService.List.
 type ListAssetsParams struct {
@@ -335,10 +339,10 @@ func (p CreateExportConfigParams) Validate() error {
 	if p.Versions != "current" && p.Versions != "all" {
 		return fmt.Errorf("versions must be 'current' or 'all': %w", apperr.ErrInvalidInput)
 	}
-	if p.ScheduleType != "manual" && p.ScheduleType != "after_quiet" {
+	if p.ScheduleType != scheduleTypeManual && p.ScheduleType != scheduleTypeAfterQuiet {
 		return fmt.Errorf("schedule_type must be 'manual' or 'after_quiet': %w", apperr.ErrInvalidInput)
 	}
-	if p.ScheduleType == "after_quiet" {
+	if p.ScheduleType == scheduleTypeAfterQuiet {
 		if p.QuietMinutes == nil {
 			return fmt.Errorf("quiet_minutes required when schedule_type is 'after_quiet': %w", apperr.ErrInvalidInput)
 		}

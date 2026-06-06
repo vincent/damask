@@ -377,19 +377,18 @@ func (s *versionService) publishVersionEvent(
 	s.enqueueVersionThumbnail(ctx, asset, version)
 	s.enqueueVersionMediaTags(ctx, updatedAsset.WorkspaceID, updatedAsset.ID, version.ID, mimeType)
 	s.WriteVersionUploaded(ctx, updatedAsset.WorkspaceID, updatedAsset.ID, version, comment)
-	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.version_uploaded", map[string]any{
-		"asset_id":          updatedAsset.ID,
-		"workspace_id":      updatedAsset.WorkspaceID,
-		"project_id":        ptrStr(updatedAsset.ProjectID),
-		"folder_id":         ptrStr(updatedAsset.FolderID),
-		"mime_type":         version.MimeType,
-		"size":              version.Size,
-		"original_filename": updatedAsset.OriginalFilename,
-		"filename":          updatedAsset.OriginalFilename,
-		"version_id":        version.ID,
-		"version_num":       version.VersionNum,
-		"storage_key":       version.StorageKey,
-	})
+	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.version_uploaded", workflowAssetTrigger{
+		AssetID:          updatedAsset.ID,
+		WorkspaceID:      updatedAsset.WorkspaceID,
+		ProjectID:        ptrStr(updatedAsset.ProjectID),
+		FolderID:         ptrStr(updatedAsset.FolderID),
+		MimeType:         version.MimeType,
+		Size:             version.Size,
+		OriginalFilename: updatedAsset.OriginalFilename,
+		VersionID:        version.ID,
+		VersionNum:       version.VersionNum,
+		StorageKey:       version.StorageKey,
+	}.toMap())
 	if s.invalidate != nil {
 		s.invalidate.Invalidate(updatedAsset.WorkspaceID)
 	}

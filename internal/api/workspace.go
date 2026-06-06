@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"damask/server/internal/auth"
+	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/telemetry"
@@ -287,21 +288,21 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 	}
 
 	if len(pendingIDs) == 0 {
-		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": 0})
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{apiEnqueuedKey: 0})
 	}
 
 	for _, assetID := range pendingIDs {
-		payload, _ := json.Marshal(map[string]string{
-			"asset_id":     assetID,
-			"workspace_id": workspaceID,
-			"user_id":      userID,
+		payload, _ := json.Marshal(jobs.ExtractExifPayload{
+			AssetID:     assetID,
+			WorkspaceID: workspaceID,
+			UserID:      userID,
 		})
 		if _, err = s.queue.Enqueue(c.Context(), workspaceID, queue.JobTypeExtractExif, string(payload)); err != nil {
 			return errRes(c, fiber.StatusInternalServerError, "could not enqueue jobs")
 		}
 	}
 
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": len(pendingIDs)})
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{apiEnqueuedKey: len(pendingIDs)})
 }
 
 func (s *Server) triggerVisualSimilarityBackfill(c fiber.Ctx, workspaceID string) error {
@@ -314,7 +315,7 @@ func (s *Server) triggerVisualSimilarityBackfill(c fiber.Ctx, workspaceID string
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not enqueue job")
 	}
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"enqueued": true})
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{apiEnqueuedKey: true})
 }
 
 type MemberResponse struct {

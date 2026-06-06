@@ -172,7 +172,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	content := ""
 	switch p.Source {
 	case textTrackSourceManual:
-		status = "ready"
+		status = variantStatusReady
 		content = readyTextContent(p.InitialContent)
 	case textTrackSourceOCR:
 		if stringParam(p.Params, "storage_key", "") == "" {
@@ -550,7 +550,7 @@ func (s *textTrackService) RunExtractDocument(
 		return fmt.Errorf("RunExtractDocument: extract: %w", err)
 	}
 
-	return s.writeExtractedText(ctx, workspaceID, assetID, trackID, "document", text)
+	return s.writeExtractedText(ctx, workspaceID, assetID, trackID, assetTypeDocument, text)
 }
 
 func (s *textTrackService) writeExtractedText(

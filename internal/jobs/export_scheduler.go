@@ -54,7 +54,7 @@ func (s *ExportScheduler) tick(ctx context.Context) {
 			ID:             uuid.NewString(),
 			ExportConfigID: cfg.ID,
 			WorkspaceID:    cfg.WorkspaceID,
-			Status:         "pending",
+			Status:         jobStatusPending,
 			CreatedAt:      time.Now(),
 		}
 		created, runErr := s.exportSvc.CreateRun(ctx, run)
@@ -68,10 +68,9 @@ func (s *ExportScheduler) tick(ctx context.Context) {
 			continue
 		}
 		now := time.Now()
-		pending := "pending"
 		_ = s.exportSvc.SetConfigLastRun(ctx, cfg.ID, repository.ExportRunResult{
 			LastRunAt:     now,
-			LastRunStatus: pending,
+			LastRunStatus: jobStatusPending,
 		})
 	}
 }

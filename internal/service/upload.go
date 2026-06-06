@@ -128,18 +128,17 @@ func (s *uploadServiceImpl) Ingest(
 		EventType:   audit.EventAssetCreated,
 		Payload:     audit.AssetCreatedPayload{V: 1, Filename: asset.OriginalFilename, Source: "upload"},
 	})
-	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.asset_created", map[string]any{
-		"asset_id":          asset.ID,
-		"workspace_id":      asset.WorkspaceID,
-		"project_id":        ptrStr(asset.ProjectID),
-		"folder_id":         ptrStr(asset.FolderID),
-		"mime_type":         asset.MimeType,
-		"size":              asset.Size,
-		"original_filename": asset.OriginalFilename,
-		"filename":          asset.OriginalFilename,
-		"version_id":        asset.CurrentVersionID,
-		"storage_key":       asset.StorageKey,
-	})
+	publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.asset_created", workflowAssetTrigger{
+		AssetID:          asset.ID,
+		WorkspaceID:      asset.WorkspaceID,
+		ProjectID:        ptrStr(asset.ProjectID),
+		FolderID:         ptrStr(asset.FolderID),
+		MimeType:         asset.MimeType,
+		Size:             asset.Size,
+		OriginalFilename: asset.OriginalFilename,
+		VersionID:        ptrStr(asset.CurrentVersionID),
+		StorageKey:       asset.StorageKey,
+	}.toMap())
 	if s.invalidate != nil {
 		s.invalidate.Invalidate(workspaceID)
 	}

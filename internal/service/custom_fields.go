@@ -862,7 +862,7 @@ func fieldValueOrNil(value *FieldValueDTO) any {
 func resolveFieldValue(fieldID, fieldType string, options *string, value any) (repository.SetFieldValueParams, error) {
 	p := repository.SetFieldValueParams{FieldID: fieldID}
 	switch fieldType {
-	case "text", "url":
+	case fieldTypeText, fieldTypeURL:
 		s, ok := value.(string)
 		if !ok {
 			return p, fmt.Errorf("field %s expects a string value", fieldID)
@@ -883,7 +883,7 @@ func resolveFieldValue(fieldID, fieldType string, options *string, value any) (r
 			}
 		}
 		p.ValueText = &s
-	case "number":
+	case fieldTypeNumber:
 		switch v := value.(type) {
 		case float64:
 			p.ValueNumber = &v
@@ -893,7 +893,7 @@ func resolveFieldValue(fieldID, fieldType string, options *string, value any) (r
 		default:
 			return p, fmt.Errorf("field %s expects a numeric value", fieldID)
 		}
-	case "date":
+	case fieldTypeDate:
 		s, ok := value.(string)
 		if !ok || !dateRe.MatchString(s) {
 			return p, fmt.Errorf("field %s expects a date in YYYY-MM-DD format", fieldID)
@@ -902,7 +902,7 @@ func resolveFieldValue(fieldID, fieldType string, options *string, value any) (r
 			return p, fmt.Errorf("field %s: invalid date '%s'", fieldID, s)
 		}
 		p.ValueDate = &s
-	case "boolean":
+	case fieldTypeBoolean:
 		b, ok := value.(bool)
 		if !ok {
 			return p, fmt.Errorf("field %s expects a boolean value", fieldID)
@@ -939,15 +939,15 @@ func toFieldValueDTO(row repository.FieldValue) *FieldValueDTO {
 		if row.ValueText != nil {
 			dto.Value = *row.ValueText
 		}
-	case "number":
+	case fieldTypeNumber:
 		if row.ValueNumber != nil {
 			dto.Value = *row.ValueNumber
 		}
-	case "date":
+	case fieldTypeDate:
 		if row.ValueDate != nil {
 			dto.Value = *row.ValueDate
 		}
-	case "boolean":
+	case fieldTypeBoolean:
 		if row.ValueBoolean != nil {
 			dto.Value = *row.ValueBoolean != 0
 		}

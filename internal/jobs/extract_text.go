@@ -10,7 +10,8 @@ import (
 	dbgen "damask/server/internal/db/gen"
 )
 
-type extractTextPayload struct {
+// ExtractTextPayload is the payload for the extract_text family of jobs.
+type ExtractTextPayload struct {
 	WorkspaceID string `json:"workspace_id"`
 	AssetID     string `json:"asset_id"`
 	StorageKey  string `json:"storage_key"`
@@ -18,7 +19,7 @@ type extractTextPayload struct {
 }
 
 func (s *JobServer) jobExtractPDFTextTrack(ctx context.Context, job dbgen.Job) error {
-	var p extractTextPayload
+	var p ExtractTextPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("jobExtractPDFTextTrack: unmarshal: %w", err)
 	}
@@ -30,7 +31,7 @@ func (s *JobServer) jobExtractPDFTextTrack(ctx context.Context, job dbgen.Job) e
 }
 
 func (s *JobServer) jobExtractPlainTextTrack(ctx context.Context, job dbgen.Job) error {
-	var p extractTextPayload
+	var p ExtractTextPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("jobExtractPlainTextTrack: unmarshal: %w", err)
 	}
@@ -42,7 +43,7 @@ func (s *JobServer) jobExtractPlainTextTrack(ctx context.Context, job dbgen.Job)
 }
 
 func (s *JobServer) jobExtractDocumentTextTrack(ctx context.Context, job dbgen.Job) error {
-	var p extractTextPayload
+	var p ExtractTextPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("jobExtractDocumentTextTrack: unmarshal: %w", err)
 	}
@@ -60,7 +61,7 @@ func (s *JobServer) createExtractTextTrack(ctx context.Context, workspaceID, ass
 		AssetID:     assetID,
 		Source:      source,
 		Content:     "",
-		Status:      "pending",
+		Status:      jobStatusPending,
 	})
 	if err != nil {
 		return "", err

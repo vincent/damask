@@ -25,6 +25,8 @@ const (
 	workflowNodeFilterMIME    = "n_filter_mime"
 	workflowNodeFanout        = "n_fanout"
 	maxBulkTriggerAssets      = 500
+	workflowTriggerManual     = "manual"
+	variantTypeManual         = "manual"
 )
 
 type workflowService struct {
@@ -175,7 +177,7 @@ func (s *workflowService) TriggerManual(ctx context.Context, workspaceID, id, as
 	if !wf.Enabled {
 		return "", fmt.Errorf("workflow is disabled: %w", apperr.ErrConflict)
 	}
-	triggerData := map[string]any{"trigger": "manual"}
+	triggerData := map[string]any{"trigger": workflowTriggerManual}
 	if assetID != "" {
 		triggerData, err = s.manualAssetTriggerData(ctx, workspaceID, assetID)
 		if err != nil {
@@ -390,7 +392,7 @@ func (s *workflowService) CreateFromVariants(
 	}
 	automatable := make([]*VariantDTO, 0, len(variantRows))
 	for i, v := range variantRows {
-		if v.Type == "manual" {
+		if v.Type == variantTypeManual {
 			continue
 		}
 		automatable = append(automatable, toVariantDTO(v, i+1))
@@ -477,19 +479,18 @@ func (s *workflowService) manualAssetTriggerData(
 	if asset.FolderID != nil {
 		folderID = *asset.FolderID
 	}
-	return map[string]any{
-		"asset_id":          asset.ID,
-		"workspace_id":      asset.WorkspaceID,
-		"project_id":        projectID,
-		"folder_id":         folderID,
-		"mime_type":         asset.MimeType,
-		"size":              asset.Size,
-		"original_filename": asset.OriginalFilename,
-		"filename":          asset.OriginalFilename,
-		"version_id":        ver.ID,
-		"version_num":       ver.VersionNum,
-		"storage_key":       ver.StorageKey,
-	}, nil
+	return workflowAssetTrigger{
+		AssetID:          asset.ID,
+		WorkspaceID:      asset.WorkspaceID,
+		ProjectID:        projectID,
+		FolderID:         folderID,
+		MimeType:         asset.MimeType,
+		Size:             asset.Size,
+		OriginalFilename: asset.OriginalFilename,
+		VersionID:        ver.ID,
+		VersionNum:       ver.VersionNum,
+		StorageKey:       ver.StorageKey,
+	}.toMap(), nil
 }
 
 func findCoveringWorkflowDTO(

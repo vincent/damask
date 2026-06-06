@@ -25,7 +25,10 @@ import (
 	"damask/server/internal/workflow"
 )
 
-const schedulerCronInterval = 24 * time.Hour
+const (
+	schedulerCronInterval = 24 * time.Hour
+	jobStatusPending      = "pending"
+)
 
 // exportService is the subset of service.ExportService used by job handlers and the scheduler.
 // Defined here to avoid an import cycle (service imports jobs for payload types and enqueue helpers).

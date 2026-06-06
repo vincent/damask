@@ -53,15 +53,15 @@ func (s *Server) handleGetSimilarAssets(c fiber.Ctx) error {
 	}
 
 	if !strings.HasPrefix(asset.MimeType, "image/") {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "not_an_image"})
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{apiErrorKey: "not_an_image"})
 	}
 
 	if asset.CurrentVersionID == nil {
-		return c.JSON(fiber.Map{"results": []VisualSimilarResult{}})
+		return c.JSON(fiber.Map{apiResultsKey: []VisualSimilarResult{}})
 	}
 
 	if s.visualSimilaritySvc == nil {
-		return c.JSON(fiber.Map{"results": []VisualSimilarResult{}})
+		return c.JSON(fiber.Map{apiResultsKey: []VisualSimilarResult{}})
 	}
 
 	_, span := telemetry.StartSpan(c.Context(), "api.assets.similar",

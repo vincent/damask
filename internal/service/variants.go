@@ -31,6 +31,7 @@ var (
 const (
 	maxVariantTitleLength = 255
 	defaultAudioBitrate   = "192k"
+	variantStatusReady    = "ready"
 )
 
 type invalidVariantInputError string
@@ -386,7 +387,7 @@ func (s *variantService) CommitDraft(ctx context.Context, p CommitDraftParams) (
 		Type:            p.VariantType,
 		StorageKey:      p.StorageKey,
 		TransformParams: p.TransformParams,
-		Status:          "ready",
+		Status:          variantStatusReady,
 		Title:           p.Title,
 	})
 	if err != nil {
@@ -775,7 +776,7 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 func toVariantDTO(v repository.Variant, position int) *VariantDTO {
 	status := v.Status
 	if status == "" {
-		status = "ready"
+		status = variantStatusReady
 	}
 	return &VariantDTO{
 		ID:                   v.ID,

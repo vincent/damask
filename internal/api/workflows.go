@@ -38,7 +38,7 @@ type bulkManualRunResponse struct {
 func workflowToResponse(dto service.WorkflowDTO) fiber.Map {
 	return fiber.Map{
 		"id":                      dto.ID,
-		"workspace_id":            dto.WorkspaceID,
+		apiWorkspaceIDKey:         dto.WorkspaceID,
 		"name":                    dto.Name,
 		"description":             dto.Description,
 		"enabled":                 dto.Enabled,

@@ -443,18 +443,18 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 		Payload:     audit.AssetTaggedPayload{V: 1, Tag: dto.Name},
 	})
 	if asset != nil {
-		publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.tag_added", map[string]any{
-			"asset_id":          assetID,
-			"workspace_id":      workspaceID,
-			"project_id":        ptrStr(asset.ProjectID),
-			"folder_id":         ptrStr(asset.FolderID),
-			"mime_type":         asset.MimeType,
-			"original_filename": asset.OriginalFilename,
-			"filename":          asset.OriginalFilename,
-			"version_id":        ptrStr(asset.CurrentVersionID),
-			"storage_key":       asset.StorageKey,
-			"tag":               dto.Name,
-		})
+		triggerData := workflowAssetTrigger{
+			AssetID:          assetID,
+			WorkspaceID:      workspaceID,
+			ProjectID:        ptrStr(asset.ProjectID),
+			FolderID:         ptrStr(asset.FolderID),
+			MimeType:         asset.MimeType,
+			OriginalFilename: asset.OriginalFilename,
+			VersionID:        ptrStr(asset.CurrentVersionID),
+			StorageKey:       asset.StorageKey,
+		}.toMap()
+		triggerData["tag"] = dto.Name
+		publishWorkflowTriggerAsync(ctx, s.triggers, "trigger.tag_added", triggerData)
 	}
 	return dto, nil
 }
