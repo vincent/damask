@@ -89,7 +89,7 @@ jobs:
       - name: Install swag
         run: go install github.com/swaggo/swag/cmd/swag@latest
       - name: Regenerate
-        run: make codegen
+        run: make generate
       - name: Assert no drift
         run: git diff --exit-code cmd/server/web/src/lib/api/types.gen.ts
 
