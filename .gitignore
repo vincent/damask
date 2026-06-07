@@ -22,6 +22,7 @@ cmd/server/web/build/
 
 # Go
 vendor/
+coverage
 
 # IDE
 .idea/
