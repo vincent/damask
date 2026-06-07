@@ -152,7 +152,6 @@ func TestExtractAVTags_NoUsefulTagsReturnsNil(t *testing.T) {
 }
 
 func TestExtractAVTags_StringBitsPerRawSampleOnCoverArt(t *testing.T) {
-	t.Parallel()
 	ffprobe := writeFakeFFprobe(t, `{
   "format": {
     "format_name": "mp3",

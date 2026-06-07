@@ -1,4 +1,4 @@
-.PHONY: dev dev-server dev-web build build-web build-demo build-dev test test-integration lint generate migrate admin admin-run admin-install swagger codegen check-i18n
+.PHONY: dev dev-server dev-web build build-web build-demo build-dev test test-integration lint generate migrate admin admin-run admin-install check-i18n
 
 # Run both server and web dev servers concurrently
 dev:
@@ -28,14 +28,10 @@ build-demo: build-web
 build-dev: build-web
 	go build -o bin/damask-server-dev ./cmd/server
 
-# Update Swagger docs
-swagger:
+# Run all code generation: sqlc queries, Swagger docs, TypeScript API types
+generate:
+	sqlc generate -f internal/db/sqlc.yaml
 	swag init -g cmd/server/main.go -o internal/docs --requiredByDefault
-
-# Generate TypeScript types from the Swagger spec.
-# Run after: make swagger
-.PHONY: codegen
-codegen: swagger
 	npx --yes openapi-typescript@5 internal/docs/swagger.json \
 	    --output cmd/server/web/src/lib/api/types.gen.ts \
 	    --immutable-types
@@ -52,10 +48,6 @@ test-integration:
 lint:
 	golangci-lint run --config .golangci.yaml --fix
 	cd cmd/server/web && npm run check
-
-# Run sqlc code generation
-generate:
-	sqlc generate -f internal/db/sqlc.yaml
 
 # Apply DB migrations (for manual use; server auto-migrates on start)
 migrate:
