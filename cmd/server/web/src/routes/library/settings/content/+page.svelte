@@ -4,7 +4,6 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
-  import PageContainer from '$lib/components/ui/PageContainer.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { m } from '$lib/paraglide/messages'
 
@@ -150,214 +149,216 @@
   <title>{m.settings_content_title()} — Damask</title>
 </svelte:head>
 
-<PageContainer>
+<div class="flex flex-1 flex-col overflow-hidden">
   <PageHeader
     title={m.settings_content_title()}
     description={m.settings_content_description()}
   />
-  <div class="mx-auto w-full max-w-3xl space-y-8 px-8 py-10">
-    {#if !isOwner}
-      <p
-        class="text-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
-      >
-        {m.version_history_settins_only_owners()}
-      </p>
-    {/if}
-
-    <!-- Visual similarity -->
-    <div
-      class="space-y-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
-    >
-      <div class="flex items-start justify-between gap-4">
-        <div class="flex-1">
-          <p class="text-md font-medium text-[var(--text-primary)]">
-            {m.visual_similarity_backfill()}
-          </p>
-          <p class="mt-0.5 text-sm text-[var(--text-muted)]">
-            {m.visual_similarity_backfill_description()}
-          </p>
-        </div>
-      </div>
-      <div class="flex justify-start">
-        <Button
-          variant="secondary"
-          disabled={visualSimBackfillRunning || !isOwner}
-          loading={visualSimBackfillRunning}
-          onclick={() => (showVisualSimShowConfirm = true)}
+  <div class="flex-1 overflow-y-auto px-6 py-6">
+    <div class="mx-auto w-full max-w-3xl space-y-8">
+      {#if !isOwner}
+        <p
+          class="text-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
         >
-          {m.visual_similarity_backfill_run()}
-        </Button>
-      </div>
-    </div>
-
-    <!-- Version retention -->
-    <div
-      class="space-y-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
-    >
-      <p class="text-md font-medium text-[var(--text-primary)]">
-        {m.version_history()}
-      </p>
-
-      <label class="flex cursor-pointer items-start gap-3">
-        <input
-          type="radio"
-          name="retention"
-          value="unlimited"
-          class="mt-1.5 accent-indigo-600"
-          bind:group={mode}
-          disabled={!isOwner}
-        />
-        <div class="flex-1 space-y-1.5">
-          <p class="text-md font-medium text-[var(--text-primary)]">
-            {m.keep_all_versions()}
-          </p>
-          <p class="text-sm text-[var(--text-muted)]">
-            {m.keep_all_versions_description()}
-          </p>
-        </div>
-      </label>
-
-      <label class="flex cursor-pointer items-start gap-3">
-        <input
-          type="radio"
-          name="retention"
-          value="capped"
-          class="mt-1.5 accent-indigo-600"
-          bind:group={mode}
-          disabled={!isOwner}
-        />
-        <div class="flex-1 space-y-1.5">
-          <p class="text-md font-medium text-[var(--text-primary)]">
-            {m.keep_n_versions()}
-          </p>
-          <p class="text-sm text-[var(--text-muted)]">
-            {m.keep_n_versions_description()}
-          </p>
-          {#if mode === 'capped'}
-            <div class="flex items-center gap-3 pt-1">
-              <input
-                type="number"
-                min="1"
-                max="50"
-                class="text-md w-24 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-[var(--text-primary)] focus:border-indigo-400 focus:outline-none"
-                bind:value={capValue}
-                disabled={!isOwner}
-              />
-              <span class="text-sm text-[var(--text-muted)]"
-                >{m.keep_n_versions_ex()}</span
-              >
-            </div>
-          {/if}
-        </div>
-      </label>
-
-      {#if isOwner}
-        <div class="flex justify-end">
-          <Button
-            variant="primary"
-            disabled={!isRetentionDirty}
-            loading={savingRetention}
-            onclick={saveRetention}
-          >
-            {m.save()}
-          </Button>
-        </div>
+          {m.version_history_settins_only_owners()}
+        </p>
       {/if}
-    </div>
 
-    <!-- EXIF privacy -->
-    <div
-      class="space-y-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
-    >
-      <p class="text-md font-medium text-[var(--text-primary)]">
-        {m.tab_exif_privacy()}
-      </p>
-
-      <div class="flex items-start justify-between gap-4">
-        <div class="flex-1">
-          <p class="text-md font-medium text-[var(--text-primary)]">
-            {m.extract_exif()}
-          </p>
-          <p class="mt-0.5 text-sm text-[var(--text-muted)]">
-            {m.extract_exif_description()}
-          </p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={exifKeep}
-          aria-label={m.extract_exif()}
-          disabled={!isOwner}
-          onclick={() => {
-            if (isOwner) exifKeep = !exifKeep
-          }}
-          class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
-            {exifKeep ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}"
-        >
-          <span
-            class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
-            {exifKeep ? 'translate-x-5' : 'translate-x-0'}"
-          ></span>
-        </button>
-      </div>
-
-      {#if exifKeep}
-        <div
-          class="flex items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-6"
-        >
+      <!-- Visual similarity -->
+      <div
+        class="space-y-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
+      >
+        <div class="flex items-start justify-between gap-4">
           <div class="flex-1">
             <p class="text-md font-medium text-[var(--text-primary)]">
-              {m.keep_gps()}
+              {m.visual_similarity_backfill()}
             </p>
             <p class="mt-0.5 text-sm text-[var(--text-muted)]">
-              {m.keep_gps_description()}
+              {m.visual_similarity_backfill_description()}
+            </p>
+          </div>
+        </div>
+        <div class="flex justify-start">
+          <Button
+            variant="secondary"
+            disabled={visualSimBackfillRunning || !isOwner}
+            loading={visualSimBackfillRunning}
+            onclick={() => (showVisualSimShowConfirm = true)}
+          >
+            {m.visual_similarity_backfill_run()}
+          </Button>
+        </div>
+      </div>
+
+      <!-- Version retention -->
+      <div
+        class="space-y-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
+      >
+        <p class="text-md font-medium text-[var(--text-primary)]">
+          {m.version_history()}
+        </p>
+
+        <label class="flex cursor-pointer items-start gap-3">
+          <input
+            type="radio"
+            name="retention"
+            value="unlimited"
+            class="mt-1.5 accent-indigo-600"
+            bind:group={mode}
+            disabled={!isOwner}
+          />
+          <div class="flex-1 space-y-1.5">
+            <p class="text-md font-medium text-[var(--text-primary)]">
+              {m.keep_all_versions()}
+            </p>
+            <p class="text-sm text-[var(--text-muted)]">
+              {m.keep_all_versions_description()}
+            </p>
+          </div>
+        </label>
+
+        <label class="flex cursor-pointer items-start gap-3">
+          <input
+            type="radio"
+            name="retention"
+            value="capped"
+            class="mt-1.5 accent-indigo-600"
+            bind:group={mode}
+            disabled={!isOwner}
+          />
+          <div class="flex-1 space-y-1.5">
+            <p class="text-md font-medium text-[var(--text-primary)]">
+              {m.keep_n_versions()}
+            </p>
+            <p class="text-sm text-[var(--text-muted)]">
+              {m.keep_n_versions_description()}
+            </p>
+            {#if mode === 'capped'}
+              <div class="flex items-center gap-3 pt-1">
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  class="text-md w-24 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-[var(--text-primary)] focus:border-indigo-400 focus:outline-none"
+                  bind:value={capValue}
+                  disabled={!isOwner}
+                />
+                <span class="text-sm text-[var(--text-muted)]"
+                  >{m.keep_n_versions_ex()}</span
+                >
+              </div>
+            {/if}
+          </div>
+        </label>
+
+        {#if isOwner}
+          <div class="flex justify-end">
+            <Button
+              variant="primary"
+              disabled={!isRetentionDirty}
+              loading={savingRetention}
+              onclick={saveRetention}
+            >
+              {m.save()}
+            </Button>
+          </div>
+        {/if}
+      </div>
+
+      <!-- EXIF privacy -->
+      <div
+        class="space-y-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
+      >
+        <p class="text-md font-medium text-[var(--text-primary)]">
+          {m.tab_exif_privacy()}
+        </p>
+
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1">
+            <p class="text-md font-medium text-[var(--text-primary)]">
+              {m.extract_exif()}
+            </p>
+            <p class="mt-0.5 text-sm text-[var(--text-muted)]">
+              {m.extract_exif_description()}
             </p>
           </div>
           <button
             type="button"
             role="switch"
-            aria-checked={exifKeepGPS}
-            aria-label={m.keep_gps()}
+            aria-checked={exifKeep}
+            aria-label={m.extract_exif()}
             disabled={!isOwner}
             onclick={() => {
-              if (isOwner) exifKeepGPS = !exifKeepGPS
+              if (isOwner) exifKeep = !exifKeep
             }}
             class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
-              {exifKeepGPS ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}"
+            {exifKeep ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}"
           >
             <span
               class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
-              {exifKeepGPS ? 'translate-x-5' : 'translate-x-0'}"
+            {exifKeep ? 'translate-x-5' : 'translate-x-0'}"
             ></span>
           </button>
         </div>
-      {/if}
 
-      {#if isOwner}
-        <div class="flex items-center justify-between">
-          <Button
-            variant="secondary"
-            disabled={exifBackfillRunning || !exifKeep}
-            loading={exifBackfillRunning}
-            title={!exifKeep ? m.extract_exif_first() : undefined}
-            onclick={() => (showBackfillConfirm = true)}
+        {#if exifKeep}
+          <div
+            class="flex items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-6"
           >
-            {m.extract_exif_again()}
-          </Button>
+            <div class="flex-1">
+              <p class="text-md font-medium text-[var(--text-primary)]">
+                {m.keep_gps()}
+              </p>
+              <p class="mt-0.5 text-sm text-[var(--text-muted)]">
+                {m.keep_gps_description()}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={exifKeepGPS}
+              aria-label={m.keep_gps()}
+              disabled={!isOwner}
+              onclick={() => {
+                if (isOwner) exifKeepGPS = !exifKeepGPS
+              }}
+              class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
+              {exifKeepGPS ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}"
+            >
+              <span
+                class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
+              {exifKeepGPS ? 'translate-x-5' : 'translate-x-0'}"
+              ></span>
+            </button>
+          </div>
+        {/if}
 
-          <Button
-            variant="primary"
-            disabled={!isExifDirty}
-            loading={savingExif}
-            onclick={saveExif}
-          >
-            {m.save()}
-          </Button>
-        </div>
-      {/if}
+        {#if isOwner}
+          <div class="flex items-center justify-between">
+            <Button
+              variant="secondary"
+              disabled={exifBackfillRunning || !exifKeep}
+              loading={exifBackfillRunning}
+              title={!exifKeep ? m.extract_exif_first() : undefined}
+              onclick={() => (showBackfillConfirm = true)}
+            >
+              {m.extract_exif_again()}
+            </Button>
+
+            <Button
+              variant="primary"
+              disabled={!isExifDirty}
+              loading={savingExif}
+              onclick={saveExif}
+            >
+              {m.save()}
+            </Button>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
-</PageContainer>
+</div>
 
 <Modal
   bind:open={showVisualSimShowConfirm}

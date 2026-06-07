@@ -88,19 +88,16 @@ function createTagsManagementStore() {
 
   async function mergeTags(sources: string[], target: string) {
     const result = await tagApi.merge(sources, target)
-    // Remove source rows, update or add target
-    tags = tags
-      .filter((t) => !sources.includes(t.name))
-      .map((t) => (t.name === target ? result.target : t))
-    // If target was new, add it
-    if (!tags.find((t) => t.name === target)) {
-      tags = [...tags, result.target].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
+    const sourceSet = new Set(sources)
+    const byId = new Map(tags.map((t) => [t.id, t]))
+    for (const s of sources) {
+      const t = tags.find((t) => t.name === s)
+      if (t) byId.delete(t.id)
     }
-    // Remove resolved duplicate pairs
+    byId.set(result.target.id, result.target)
+    tags = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
     duplicates = duplicates.filter(
-      (p) => !sources.includes(p.a) && !sources.includes(p.b)
+      (p) => !sourceSet.has(p.a) && !sourceSet.has(p.b)
     )
     return result
   }

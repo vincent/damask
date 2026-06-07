@@ -29,7 +29,6 @@
   import ButtonDelete from '$lib/components/ui/ButtonDelete.svelte'
   import ButtonEdit from '$lib/components/ui/ButtonEdit.svelte'
   import ButtonCancel from '$lib/components/ui/ButtonCancel.svelte'
-  import PageContainer from '$lib/components/ui/PageContainer.svelte'
   import SystemTagBadge from '$lib/components/tags/SystemTagBadge.svelte'
   import type { Tag } from '$lib/api'
   import TagsBulkActionBar from '$lib/components/TagsBulkActionBar.svelte'
@@ -415,7 +414,7 @@
   }}
 />
 
-<PageContainer>
+<div class="flex flex-1 flex-col overflow-hidden">
   <PageHeader title={m.tags()} description={m.tags_page_description()}>
     <div class="space-x-2">
       {#if unusedTags.length > 0}
@@ -442,257 +441,262 @@
     </div>
   </PageHeader>
 
-  <!-- Tag taxonomy section — owner only -->
-  {#if isOwner}
-    <div class="mx-auto w-full max-w-4xl pt-8">
-      <div
-        class="space-y-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
-      >
-        <h2
-          class="text-sm font-semibold tracking-wide text-[var(--text-muted)] uppercase"
-        >
-          {m.workspace_settings_tag_taxonomy_section()}
-        </h2>
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex-1">
-            <p class="text-md font-medium text-[var(--text-primary)]">
-              {m.workspace_settings_locked_taxonomy_label()}
-            </p>
-            <p class="mt-0.5 text-sm text-[var(--text-muted)]">
-              {m.workspace_settings_locked_taxonomy_description()}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={taxonomyLocked}
-            aria-label={m.workspace_settings_locked_taxonomy_label()}
-            disabled={taxonomySaving}
-            onclick={toggleLockedTaxonomy}
-            class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
-              {taxonomyLocked
-              ? 'bg-indigo-600'
-              : 'bg-gray-200 dark:bg-gray-700'}"
+  <div class="flex-1 overflow-y-auto px-6 py-6">
+    <div class="mx-auto w-full max-w-4xl">
+      <!-- Tag taxonomy section — owner only -->
+      {#if isOwner}
+        <div class="mb-8">
+          <div
+            class="space-y-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
           >
-            <span
-              class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
+            <h2
+              class="text-sm font-semibold tracking-wide text-[var(--text-muted)] uppercase"
+            >
+              {m.workspace_settings_tag_taxonomy_section()}
+            </h2>
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <p class="text-md font-medium text-[var(--text-primary)]">
+                  {m.workspace_settings_locked_taxonomy_label()}
+                </p>
+                <p class="mt-0.5 text-sm text-[var(--text-muted)]">
+                  {m.workspace_settings_locked_taxonomy_description()}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={taxonomyLocked}
+                aria-label={m.workspace_settings_locked_taxonomy_label()}
+                disabled={taxonomySaving}
+                onclick={toggleLockedTaxonomy}
+                class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
+              {taxonomyLocked
+                  ? 'bg-indigo-600'
+                  : 'bg-gray-200 dark:bg-gray-700'}"
+              >
+                <span
+                  class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
               {taxonomyLocked ? 'translate-x-5' : 'translate-x-0'}"
-            ></span>
+                ></span>
+              </button>
+            </div>
+            {#if taxonomyLocked}
+              <p class="text-sm text-indigo-600 dark:text-indigo-400">
+                {m.workspace_settings_locked_taxonomy_confirm({
+                  count: tagsManagementStore.tags.filter((t) => !t.is_system)
+                    .length,
+                })}
+              </p>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Toolbar -->
+      <div
+        class="flex items-center gap-3 border-b border-gray-100 py-3 dark:border-gray-800"
+      >
+        <div class="flex-1">
+          <SearchInput bind:value={search} placeholder={m.tags_search()} />
+        </div>
+
+        <!-- Duplicate banner -->
+        {#if tagsManagementStore.duplicates.length > 0}
+          <button
+            class="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
+            onclick={() => (showDupPanel = true)}
+          >
+            💡 {tagsManagementStore.duplicates.length} possible duplicate{tagsManagementStore
+              .duplicates.length !== 1
+              ? 's'
+              : ''} found
+            <ChevronRight class="h-3.5 w-3.5" />
+          </button>
+        {/if}
+
+        <!-- View toggle -->
+        <div
+          class="flex rounded-lg border border-gray-200 dark:border-gray-700"
+        >
+          <button
+            class="rounded-l-lg px-2.5 py-1.5 text-sm transition-colors
+            {viewMode === 'flat'
+              ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
+              : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => (viewMode = 'flat')}
+            title="Flat list"
+          >
+            <LayoutList class="h-4 w-4" />
+          </button>
+          <button
+            class="rounded-r-lg px-2.5 py-1.5 text-sm transition-colors
+            {viewMode === 'grouped'
+              ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
+              : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
+            onclick={() => (viewMode = 'grouped')}
+            title="By group"
+          >
+            <Layers class="h-4 w-4" />
           </button>
         </div>
-        {#if taxonomyLocked}
-          <p class="text-sm text-indigo-600 dark:text-indigo-400">
-            {m.workspace_settings_locked_taxonomy_confirm({
-              count: tagsManagementStore.tags.filter((t) => !t.is_system)
-                .length,
-            })}
-          </p>
-        {/if}
-      </div>
-    </div>
-  {/if}
-
-  <div class="mx-auto w-full max-w-4xl py-8">
-    <!-- Toolbar -->
-    <div
-      class="flex items-center gap-3 border-b border-gray-100 py-3 dark:border-gray-800"
-    >
-      <div class="flex-1">
-        <SearchInput bind:value={search} placeholder={m.tags_search()} />
       </div>
 
-      <!-- Duplicate banner -->
-      {#if tagsManagementStore.duplicates.length > 0}
-        <button
-          class="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
-          onclick={() => (showDupPanel = true)}
-        >
-          💡 {tagsManagementStore.duplicates.length} possible duplicate{tagsManagementStore
-            .duplicates.length !== 1
-            ? 's'
-            : ''} found
-          <ChevronRight class="h-3.5 w-3.5" />
-        </button>
-      {/if}
-
-      <!-- View toggle -->
-      <div class="flex rounded-lg border border-gray-200 dark:border-gray-700">
-        <button
-          class="rounded-l-lg px-2.5 py-1.5 text-sm transition-colors
-            {viewMode === 'flat'
-            ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
-            : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-          onclick={() => (viewMode = 'flat')}
-          title="Flat list"
-        >
-          <LayoutList class="h-4 w-4" />
-        </button>
-        <button
-          class="rounded-r-lg px-2.5 py-1.5 text-sm transition-colors
-            {viewMode === 'grouped'
-            ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
-            : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}"
-          onclick={() => (viewMode = 'grouped')}
-          title="By group"
-        >
-          <Layers class="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Main content -->
-    <div
-      class="flex flex-1 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-gray-700 dark:bg-gray-900"
-    >
-      <div class="flex-1 overflow-y-auto px-6 py-4">
-        {#if tagsManagementStore.loading}
-          <div class="flex justify-center py-16"><Spinner size="md" /></div>
-        {:else if sorted.length === 0}
-          <EmptyState
-            title={search ? 'No tags match your search' : 'No tags yet'}
-            description={search
-              ? 'Try a different search term.'
-              : 'Tags are created automatically when added to assets, or manually with the New Tag button.'}
-          />
-        {:else}
-          <!-- Column headers (flat view) -->
-          {#if viewMode === 'flat'}
-            <div
-              class="mb-1 grid grid-cols-[24px_16px_1fr_160px_80px_100px_80px] items-center gap-3 px-3 py-1.5 text-xs font-medium tracking-wide text-gray-400 dark:text-gray-500"
-            >
-              <span></span>
-              <span></span>
-              <button
-                class="flex items-center gap-1 text-left hover:text-gray-600 dark:hover:text-gray-300"
-                onclick={() => toggleSort('name')}
-              >
-                {m.name()}
-                {#if sortKey === 'name'}<ArrowUpDown class="h-3 w-3" />{/if}
-              </button>
-              <span>{m.group()}</span>
-              <button
-                class="flex items-center gap-1 text-right hover:text-gray-600 dark:hover:text-gray-300"
-                onclick={() => toggleSort('asset_count')}
-              >
-                {m.assets()}
-                {#if sortKey === 'asset_count'}<ArrowUpDown
-                    class="h-3 w-3"
-                  />{/if}
-              </button>
-              <button
-                class="flex items-center gap-1 hover:text-gray-600 dark:hover:text-gray-300"
-                onclick={() => toggleSort('last_used_at')}
-              >
-                {m.last_used()}
-                {#if sortKey === 'last_used_at'}<ArrowUpDown
-                    class="h-3 w-3"
-                  />{/if}
-              </button>
-              <span></span>
-            </div>
-          {/if}
-
-          {#if viewMode === 'flat'}
-            {#each sorted as tag (tag.id)}
-              {@render tagRow(tag)}
-            {/each}
-          {:else}
-            {#each groupedTags() as [group, groupTags] (group)}
-              {@const label = group === '__ungrouped__' ? 'Ungrouped' : group}
-              {@const totalCount = groupTags.reduce(
-                (s, t) => s + t.asset_count,
-                0
-              )}
-              {@const collapsed = collapsedGroups.has(group)}
-              <div class="mb-4">
-                <button
-                  class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
-                  onclick={() => toggleGroup(group)}
-                >
-                  {#if collapsed}
-                    <ChevronRight class="h-4 w-4 text-gray-400" />
-                  {:else}
-                    <ChevronDown class="h-4 w-4 text-gray-400" />
-                  {/if}
-                  <span>{label}</span>
-                  <span class="ml-auto text-xs text-gray-400"
-                    >{totalCount} asset{totalCount !== 1 ? 's' : ''}</span
-                  >
-                </button>
-                {#if !collapsed}
-                  <div class="mt-1 space-y-0.5">
-                    {#each groupTags as tag (tag.id)}
-                      {@render tagRow(tag)}
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          {/if}
-        {/if}
-      </div>
-
-      <!-- Duplicate suggestions slide-in panel -->
-      {#if showDupPanel}
-        <div
-          class="w-80 shrink-0 overflow-y-auto border-l border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
-        >
-          <div
-            class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800"
-          >
-            <span class="text-sm font-semibold text-gray-900 dark:text-gray-100"
-              >{m.tags_possible_duplicates()}</span
-            >
-            <ButtonCancel
-              x
-              title="Close"
-              onclick={() => (showDupPanel = false)}
+      <!-- Main content -->
+      <div
+        class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+      >
+        <div class="px-6 py-4">
+          {#if tagsManagementStore.loading}
+            <div class="flex justify-center py-16"><Spinner size="md" /></div>
+          {:else if sorted.length === 0}
+            <EmptyState
+              title={search ? 'No tags match your search' : 'No tags yet'}
+              description={search
+                ? 'Try a different search term.'
+                : 'Tags are created automatically when added to assets, or manually with the New Tag button.'}
             />
-          </div>
-          <div class="divide-y divide-gray-100 dark:divide-gray-800">
-            {#each tagsManagementStore.duplicates as pair (pair.a + pair.b)}
-              <div class="flex items-center gap-2 px-4 py-3">
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-1.5 text-sm">
-                    <span
-                      class="truncate font-medium text-gray-900 dark:text-gray-100"
-                      >{pair.a}</span
-                    >
-                    <span class="text-gray-400">↔</span>
-                    <span
-                      class="truncate font-medium text-gray-900 dark:text-gray-100"
-                      >{pair.b}</span
-                    >
-                  </div>
-                  <div class="mt-0.5 text-xs text-gray-400">
-                    {Math.round(pair.score * 100)}% different
-                  </div>
-                </div>
-                <ButtonEdit
-                  title={m.merge()}
-                  class="text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-                  onclick={() => openMergeForPair(pair.a, pair.b)}
+          {:else}
+            <!-- Column headers (flat view) -->
+            {#if viewMode === 'flat'}
+              <div
+                class="mb-1 grid grid-cols-[24px_16px_1fr_160px_80px_100px_80px] items-center gap-3 px-3 py-1.5 text-xs font-medium tracking-wide text-gray-400 dark:text-gray-500"
+              >
+                <span></span>
+                <span></span>
+                <button
+                  class="flex items-center gap-1 text-left hover:text-gray-600 dark:hover:text-gray-300"
+                  onclick={() => toggleSort('name')}
                 >
-                  {m.merge()}
-                </ButtonEdit>
-                <ButtonCancel
-                  x
-                  title={m.dismiss()}
-                  onclick={() =>
-                    tagsManagementStore.dismissDuplicate(pair.a, pair.b)}
-                />
+                  {m.name()}
+                  {#if sortKey === 'name'}<ArrowUpDown class="h-3 w-3" />{/if}
+                </button>
+                <span>{m.group()}</span>
+                <button
+                  class="flex items-center gap-1 text-right hover:text-gray-600 dark:hover:text-gray-300"
+                  onclick={() => toggleSort('asset_count')}
+                >
+                  {m.assets()}
+                  {#if sortKey === 'asset_count'}<ArrowUpDown
+                      class="h-3 w-3"
+                    />{/if}
+                </button>
+                <button
+                  class="flex items-center gap-1 hover:text-gray-600 dark:hover:text-gray-300"
+                  onclick={() => toggleSort('last_used_at')}
+                >
+                  {m.last_used()}
+                  {#if sortKey === 'last_used_at'}<ArrowUpDown
+                      class="h-3 w-3"
+                    />{/if}
+                </button>
+                <span></span>
               </div>
+            {/if}
+
+            {#if viewMode === 'flat'}
+              {#each sorted as tag (tag.id)}
+                {@render tagRow(tag)}
+              {/each}
             {:else}
-              <div class="px-4 py-8 text-center text-sm text-gray-400">
-                {m.tags_duplicates_resolved()}
-              </div>
-            {/each}
-          </div>
+              {#each groupedTags() as [group, groupTags] (group)}
+                {@const label = group === '__ungrouped__' ? 'Ungrouped' : group}
+                {@const totalCount = groupTags.reduce(
+                  (s, t) => s + t.asset_count,
+                  0
+                )}
+                {@const collapsed = collapsedGroups.has(group)}
+                <div class="mb-4">
+                  <button
+                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    onclick={() => toggleGroup(group)}
+                  >
+                    {#if collapsed}
+                      <ChevronRight class="h-4 w-4 text-gray-400" />
+                    {:else}
+                      <ChevronDown class="h-4 w-4 text-gray-400" />
+                    {/if}
+                    <span>{label}</span>
+                    <span class="ml-auto text-xs text-gray-400"
+                      >{totalCount} asset{totalCount !== 1 ? 's' : ''}</span
+                    >
+                  </button>
+                  {#if !collapsed}
+                    <div class="mt-1 space-y-0.5">
+                      {#each groupTags as tag (tag.id)}
+                        {@render tagRow(tag)}
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            {/if}
+          {/if}
         </div>
-      {/if}
+
+        <!-- Duplicate suggestions slide-in panel -->
+        {#if showDupPanel}
+          <div
+            class="w-80 shrink-0 overflow-y-auto border-l border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+          >
+            <div
+              class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800"
+            >
+              <span
+                class="text-sm font-semibold text-gray-900 dark:text-gray-100"
+                >{m.tags_possible_duplicates()}</span
+              >
+              <ButtonCancel
+                x
+                title="Close"
+                onclick={() => (showDupPanel = false)}
+              />
+            </div>
+            <div class="divide-y divide-gray-100 dark:divide-gray-800">
+              {#each tagsManagementStore.duplicates as pair (pair.a + pair.b)}
+                <div class="flex items-center gap-2 px-4 py-3">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5 text-sm">
+                      <span
+                        class="truncate font-medium text-gray-900 dark:text-gray-100"
+                        >{pair.a}</span
+                      >
+                      <span class="text-gray-400">↔</span>
+                      <span
+                        class="truncate font-medium text-gray-900 dark:text-gray-100"
+                        >{pair.b}</span
+                      >
+                    </div>
+                    <div class="mt-0.5 text-xs text-gray-400">
+                      {Math.round(pair.score * 100)}% different
+                    </div>
+                  </div>
+                  <ButtonEdit
+                    title={m.merge()}
+                    class="text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                    onclick={() => openMergeForPair(pair.a, pair.b)}
+                  >
+                    {m.merge()}
+                  </ButtonEdit>
+                  <ButtonCancel
+                    x
+                    title={m.dismiss()}
+                    onclick={() =>
+                      tagsManagementStore.dismissDuplicate(pair.a, pair.b)}
+                  />
+                </div>
+              {:else}
+                <div class="px-4 py-8 text-center text-sm text-gray-400">
+                  {m.tags_duplicates_resolved()}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
-</PageContainer>
+</div>
 
 <TagsBulkActionBar
   {selected}
