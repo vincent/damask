@@ -79,7 +79,7 @@ func TestMaker_VerifyToken_Expired(t *testing.T) {
 		t.Fatalf("CreateToken: %v", err)
 	}
 
-	if _, err := m.VerifyToken(tok); err == nil {
+	if _, vErr := m.VerifyToken(tok); vErr == nil {
 		t.Fatal("expected error for expired token")
 	}
 }
@@ -97,7 +97,7 @@ func TestMaker_VerifyToken_WrongSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewMaker: %v", err)
 	}
-	if _, err := other.VerifyToken(tok); err == nil {
+	if _, vErr := other.VerifyToken(tok); vErr == nil {
 		t.Fatal("expected error for wrong secret")
 	}
 }
@@ -118,7 +118,7 @@ func TestMaker_VerifyToken_Tampered(t *testing.T) {
 	}
 	tampered := parts[0] + ".ZmFrZXBheWxvYWQ." + parts[2]
 
-	if _, err := m.VerifyToken(tampered); err == nil {
+	if _, vErr := m.VerifyToken(tampered); vErr == nil {
 		t.Fatal("expected error for tampered token")
 	}
 }
@@ -165,7 +165,7 @@ func TestMaker_ShareToken_Expired(t *testing.T) {
 		t.Fatalf("CreateShareToken: %v", err)
 	}
 
-	if _, err := m.VerifyShareToken(tok); err == nil {
+	if _, vErr := m.VerifyShareToken(tok); vErr == nil {
 		t.Fatal("expected error for expired share token")
 	}
 }

@@ -32,7 +32,6 @@ func TestTriggerNodes_SchemaAndExecute(t *testing.T) {
 		"control.fan_out",
 	}
 	for _, nodeType := range types {
-		nodeType := nodeType
 		t.Run(nodeType, func(t *testing.T) {
 			t.Parallel()
 			node, err := Build(Deps{}, nodeType)
@@ -293,7 +292,7 @@ type stubShareManager struct {
 	lastShareID string
 }
 
-func (s *stubShareManager) Create(_ context.Context, _ string, p ShareCreateParams) (string, error) {
+func (s *stubShareManager) Create(_ context.Context, _ string, _ ShareCreateParams) (string, error) {
 	s.lastShareID = "sh_new"
 	return s.lastShareID, nil
 }
@@ -356,7 +355,11 @@ func TestActionShare_Execute_OK(t *testing.T) {
 			mustConfigSchema(`{"type":"object","properties":{}}`)),
 	}
 	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1", "workflow_created_by", "usr_1")
-	port, updates, err := node.Execute(context.Background(), triggerRC, cfg(`{"label":"My Share","allow_download":true}`))
+	port, updates, err := node.Execute(
+		context.Background(),
+		triggerRC,
+		cfg(`{"label":"My Share","allow_download":true}`),
+	)
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}

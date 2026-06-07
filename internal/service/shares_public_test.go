@@ -17,6 +17,7 @@ import (
 // userRepoWithOwner wraps memory.UserRepo but returns a fixed user for GetByID.
 type userRepoWithOwner struct {
 	*memory.UserRepo
+
 	ownerEmail string
 }
 
@@ -42,6 +43,7 @@ func (m *spyCommentMailer) SendCommentPosted(_ context.Context, _, _, ownerEmail
 // shareRepoWithAsset wraps memory.ShareRepo and returns a fixed PublicAsset for GetPublicAsset.
 type shareRepoWithAsset struct {
 	*memory.ShareRepo
+
 	asset repository.PublicAsset
 }
 
@@ -50,16 +52,20 @@ func (r *shareRepoWithAsset) GetPublicAsset(_ context.Context, _ string) (reposi
 }
 
 // newPublicSvc builds a SharePublicService wired with real memory share repo.
-func newPublicSvc(t *testing.T, ownerEmail string) (service.SharePublicService, *memory.ShareRepo) {
+func newPublicSvc(t *testing.T) (service.SharePublicService, *memory.ShareRepo) {
 	t.Helper()
 	shares := memory.NewRealShareRepo()
-	users := &userRepoWithOwner{UserRepo: memory.NewUserRepo(), ownerEmail: ownerEmail}
+	users := &userRepoWithOwner{UserRepo: memory.NewUserRepo(), ownerEmail: "owner@example.com"}
 	svc := service.NewSharePublicService(shares, users, stubVariantResolver{}, &spyCommentMailer{})
 	return svc, shares
 }
 
 // newPublicSvcWithAsset builds a service where GetPublicAsset returns a fixed asset.
-func newPublicSvcWithAsset(t *testing.T, ownerEmail string, asset repository.PublicAsset) (service.SharePublicService, *memory.ShareRepo) {
+func newPublicSvcWithAsset(
+	t *testing.T,
+	ownerEmail string,
+	asset repository.PublicAsset,
+) (service.SharePublicService, *memory.ShareRepo) {
 	t.Helper()
 	base := memory.NewRealShareRepo()
 	wrapped := &shareRepoWithAsset{ShareRepo: base, asset: asset}
@@ -68,7 +74,7 @@ func newPublicSvcWithAsset(t *testing.T, ownerEmail string, asset repository.Pub
 	return svc, base
 }
 
-func seedShare(shares *memory.ShareRepo, sh repository.Share) repository.Share {
+func seedShare(shares *memory.ShareRepo, sh repository.Share) {
 	if sh.ID == "" {
 		sh.ID = "sh_1"
 	}
@@ -79,7 +85,6 @@ func seedShare(shares *memory.ShareRepo, sh repository.Share) repository.Share {
 		sh.CreatedBy = "usr_owner"
 	}
 	shares.Seed(sh)
-	return sh
 }
 
 func TestIsShareExpiredDomain(t *testing.T) {
@@ -191,7 +196,7 @@ func TestToCommentDTO(t *testing.T) {
 
 func TestSharePublicSvc_GetActive_OK(t *testing.T) {
 	t.Parallel()
-	svc, shares := newPublicSvc(t, "owner@example.com")
+	svc, shares := newPublicSvc(t)
 	seedShare(shares, repository.Share{TargetType: "asset", TargetID: "ast_1"})
 
 	dto, err := svc.GetActive(context.Background(), "sh_1")
@@ -205,7 +210,7 @@ func TestSharePublicSvc_GetActive_OK(t *testing.T) {
 
 func TestSharePublicSvc_GetActive_Revoked(t *testing.T) {
 	t.Parallel()
-	svc, shares := newPublicSvc(t, "owner@example.com")
+	svc, shares := newPublicSvc(t)
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	seedShare(shares, repository.Share{RevokedAt: &now})
 
@@ -217,7 +222,7 @@ func TestSharePublicSvc_GetActive_Revoked(t *testing.T) {
 
 func TestSharePublicSvc_GetActive_Expired(t *testing.T) {
 	t.Parallel()
-	svc, shares := newPublicSvc(t, "owner@example.com")
+	svc, shares := newPublicSvc(t)
 	past := time.Now().Add(-24 * time.Hour).UTC().Format("2006-01-02T15:04:05Z")
 	seedShare(shares, repository.Share{ExpiresAt: &past})
 
@@ -229,7 +234,7 @@ func TestSharePublicSvc_GetActive_Expired(t *testing.T) {
 
 func TestSharePublicSvc_GetActive_NotFound(t *testing.T) {
 	t.Parallel()
-	svc, _ := newPublicSvc(t, "owner@example.com")
+	svc, _ := newPublicSvc(t)
 
 	_, err := svc.GetActive(context.Background(), "sh_unknown")
 	if err == nil {
@@ -239,7 +244,7 @@ func TestSharePublicSvc_GetActive_NotFound(t *testing.T) {
 
 func TestSharePublicSvc_IncrementViewCount(t *testing.T) {
 	t.Parallel()
-	svc, shares := newPublicSvc(t, "owner@example.com")
+	svc, shares := newPublicSvc(t)
 	seedShare(shares, repository.Share{})
 
 	if err := svc.IncrementViewCount(context.Background(), "sh_1"); err != nil {
@@ -249,7 +254,7 @@ func TestSharePublicSvc_IncrementViewCount(t *testing.T) {
 
 func TestSharePublicSvc_GetOwnerShare_OK(t *testing.T) {
 	t.Parallel()
-	svc, shares := newPublicSvc(t, "owner@example.com")
+	svc, shares := newPublicSvc(t)
 	seedShare(shares, repository.Share{})
 
 	dto, err := svc.GetOwnerShare(context.Background(), "ws_1", "sh_1")
@@ -263,7 +268,7 @@ func TestSharePublicSvc_GetOwnerShare_OK(t *testing.T) {
 
 func TestSharePublicSvc_GetOwnerShare_WrongWorkspace(t *testing.T) {
 	t.Parallel()
-	svc, shares := newPublicSvc(t, "owner@example.com")
+	svc, shares := newPublicSvc(t)
 	seedShare(shares, repository.Share{})
 
 	_, err := svc.GetOwnerShare(context.Background(), "ws_other", "sh_1")
@@ -297,7 +302,7 @@ func TestSharePublicSvc_CreateComment_OK(t *testing.T) {
 
 func TestSharePublicSvc_ListCommentsByShare(t *testing.T) {
 	t.Parallel()
-	svc, shares := newPublicSvc(t, "owner@example.com")
+	svc, shares := newPublicSvc(t)
 	seedShare(shares, repository.Share{})
 
 	// memory repo returns nil — just verify no error

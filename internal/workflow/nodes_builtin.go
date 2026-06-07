@@ -23,6 +23,7 @@ const (
 	portError             = "error"
 	portOut               = "out"
 	portMatch             = "match"
+	portNoMatch           = "no_match"
 	labelError            = "Error"
 	labelOut              = "Out"
 	nodeTypeCreateVariant = "action.create_variant"
@@ -63,7 +64,7 @@ func filterSchema(nodeType, label, desc string, configSchema json.RawMessage) No
 		Inputs:      []Port{{ID: "in", Label: "In"}},
 		Outputs: []Port{
 			{ID: portMatch, Label: "Match"},
-			{ID: "no_match", Label: "No match"},
+			{ID: portNoMatch, Label: "No match"},
 			{ID: portError, Label: labelError},
 		},
 		ConfigSchema: configSchema,
@@ -557,7 +558,7 @@ func (n filterNode) Execute(_ context.Context, rc *RunContext, cfg json.RawMessa
 	if match {
 		return portMatch, nil, nil
 	}
-	return "no_match", nil, nil
+	return portNoMatch, nil, nil
 }
 
 func matchMime(rc *RunContext, cfg json.RawMessage) (bool, error) {

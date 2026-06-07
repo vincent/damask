@@ -59,8 +59,10 @@ func Templates() []Template {
 	return templates
 }
 
+const triggerTypeManual = "trigger.manual"
+
 func newTemplate(id, name, description, graph string) Template {
-	triggerType := "trigger.manual"
+	triggerType := triggerTypeManual
 	var g Graph
 	if err := json.Unmarshal([]byte(graph), &g); err == nil {
 		if trigger, triggerErr := g.TriggerNode(); triggerErr == nil {

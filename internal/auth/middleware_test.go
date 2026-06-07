@@ -23,10 +23,10 @@ func fiberApp(middleware ...fiber.Handler) *fiber.App {
 }
 
 // fiberAppCapture builds a Fiber app that captures claims via a final handler.
-func fiberAppCapture(route string, middleware fiber.Handler, capture func(fiber.Ctx) error) *fiber.App {
+func fiberAppCapture(middleware fiber.Handler, capture func(fiber.Ctx) error) *fiber.App {
 	app := fiber.New()
-	app.Get(route, middleware, capture)
-	app.Post(route, middleware, capture)
+	app.Get("/", middleware, capture)
+	app.Post("/", middleware, capture)
 	return app
 }
 
@@ -48,8 +48,8 @@ func validToken(t *testing.T, m *Maker) string {
 	return tok
 }
 
-func doGet(app *fiber.App, path string, setup func(*http.Request)) *http.Response {
-	req := httptest.NewRequest(http.MethodGet, path, nil)
+func doGet(app *fiber.App, setup func(*http.Request)) *http.Response {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	if setup != nil {
 		setup(req)
 	}
@@ -66,7 +66,7 @@ func TestRequireAuth_MissingToken(t *testing.T) {
 	m := newTestMakerMiddleware(t)
 	app := fiberApp(RequireAuth(m))
 
-	resp := doGet(app, "/", nil)
+	resp := doGet(app, nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.StatusCode)
 	}
@@ -77,12 +77,12 @@ func TestRequireAuth_BearerToken(t *testing.T) {
 	tok := validToken(t, m)
 
 	var captured *Claims
-	app := fiberAppCapture("/", RequireAuth(m), func(c fiber.Ctx) error {
+	app := fiberAppCapture(RequireAuth(m), func(c fiber.Ctx) error {
 		captured = GetClaims(c)
 		return c.SendStatus(200)
 	})
 
-	resp := doGet(app, "/", func(req *http.Request) {
+	resp := doGet(app, func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -98,12 +98,12 @@ func TestRequireAuth_Cookie(t *testing.T) {
 	tok := validToken(t, m)
 
 	var captured *Claims
-	app := fiberAppCapture("/", RequireAuth(m), func(c fiber.Ctx) error {
+	app := fiberAppCapture(RequireAuth(m), func(c fiber.Ctx) error {
 		captured = GetClaims(c)
 		return c.SendStatus(200)
 	})
 
-	resp := doGet(app, "/", func(req *http.Request) {
+	resp := doGet(app, func(req *http.Request) {
 		req.AddCookie(&http.Cookie{Name: "auth_token", Value: tok})
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -118,7 +118,7 @@ func TestRequireAuth_InvalidToken(t *testing.T) {
 	m := newTestMakerMiddleware(t)
 	app := fiberApp(RequireAuth(m))
 
-	resp := doGet(app, "/", func(req *http.Request) {
+	resp := doGet(app, func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer not-a-token")
 	})
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -134,7 +134,7 @@ func TestRequireAuth_ExpiredToken(t *testing.T) {
 	}
 
 	app := fiberApp(RequireAuth(m))
-	resp := doGet(app, "/", func(req *http.Request) {
+	resp := doGet(app, func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	})
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -148,12 +148,12 @@ func TestOptionalAuth_NoToken(t *testing.T) {
 	m := newTestMakerMiddleware(t)
 
 	var captured *Claims
-	app := fiberAppCapture("/", OptionalAuth(m), func(c fiber.Ctx) error {
+	app := fiberAppCapture(OptionalAuth(m), func(c fiber.Ctx) error {
 		captured = GetClaims(c)
 		return c.SendStatus(200)
 	})
 
-	resp := doGet(app, "/", nil)
+	resp := doGet(app, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
@@ -167,12 +167,12 @@ func TestOptionalAuth_ValidToken(t *testing.T) {
 	tok := validToken(t, m)
 
 	var captured *Claims
-	app := fiberAppCapture("/", OptionalAuth(m), func(c fiber.Ctx) error {
+	app := fiberAppCapture(OptionalAuth(m), func(c fiber.Ctx) error {
 		captured = GetClaims(c)
 		return c.SendStatus(200)
 	})
 
-	resp := doGet(app, "/", func(req *http.Request) {
+	resp := doGet(app, func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -198,7 +198,7 @@ func TestRequireRole_InsufficientRole(t *testing.T) {
 		return c.SendStatus(200)
 	})
 
-	resp := doGet(app, "/", func(req *http.Request) {
+	resp := doGet(app, func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	})
 	if resp.StatusCode != http.StatusForbidden {
@@ -215,7 +215,7 @@ func TestRequireRole_SufficientRole(t *testing.T) {
 		return c.SendStatus(200)
 	})
 
-	resp := doGet(app, "/", func(req *http.Request) {
+	resp := doGet(app, func(req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	})
 	if resp.StatusCode != http.StatusOK {
