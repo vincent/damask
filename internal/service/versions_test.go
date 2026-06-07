@@ -395,3 +395,129 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 		t.Fatalf("UploadNewVersion should ignore dispatch errors: %v", uploadErr)
 	}
 }
+
+// --- GetCurrentByAsset ---
+
+func TestVersionService_GetCurrentByAsset_NotFound(t *testing.T) {
+	t.Parallel()
+	svc, _ := newVersionSvc(t)
+	_, err := svc.GetCurrentByAsset(context.Background(), "ast_nope")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestVersionService_GetCurrentByAsset_OK(t *testing.T) {
+	t.Parallel()
+	svc, repo := newVersionSvc(t)
+	repo.Seed(
+		repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1", IsCurrent: true},
+		repository.AssetVersion{ID: "v2", AssetID: "ast_1", WorkspaceID: "ws_1", IsCurrent: false},
+	)
+	dto, err := svc.GetCurrentByAsset(context.Background(), "ast_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.ID != "v1" {
+		t.Errorf("ID: got %q, want v1", dto.ID)
+	}
+}
+
+// --- GetFirstByAsset ---
+
+func TestVersionService_GetFirstByAsset_NotFound(t *testing.T) {
+	t.Parallel()
+	svc, _ := newVersionSvc(t)
+	_, err := svc.GetFirstByAsset(context.Background(), "ast_nope")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestVersionService_GetFirstByAsset_OK(t *testing.T) {
+	t.Parallel()
+	svc, repo := newVersionSvc(t)
+	repo.Seed(
+		repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1", VersionNum: 1},
+		repository.AssetVersion{ID: "v2", AssetID: "ast_1", WorkspaceID: "ws_1", VersionNum: 2},
+	)
+	dto, err := svc.GetFirstByAsset(context.Background(), "ast_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.ID != "v1" {
+		t.Errorf("ID: got %q, want v1 (lowest version num)", dto.ID)
+	}
+}
+
+// --- ListWithVariantCount ---
+
+func TestVersionService_ListWithVariantCount_OK(t *testing.T) {
+	t.Parallel()
+	svc, repo := newVersionSvc(t)
+	repo.Seed(
+		repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1"},
+		repository.AssetVersion{ID: "v2", AssetID: "ast_1", WorkspaceID: "ws_1"},
+	)
+	rows, err := svc.ListWithVariantCount(context.Background(), "ast_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Errorf("expected 2 versions, got %d", len(rows))
+	}
+}
+
+// --- GetByHash ---
+
+func TestVersionService_GetByHash_NotFound(t *testing.T) {
+	t.Parallel()
+	svc, _ := newVersionSvc(t)
+	_, err := svc.GetByHash(context.Background(), "ast_1", "deadbeef")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestVersionService_GetByHash_OK(t *testing.T) {
+	t.Parallel()
+	svc, repo := newVersionSvc(t)
+	repo.Seed(repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1", ContentHash: "abc123"})
+	dto, err := svc.GetByHash(context.Background(), "ast_1", "abc123")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.ID != "v1" {
+		t.Errorf("ID: got %q, want v1", dto.ID)
+	}
+}
+
+// --- NextVersionNum ---
+
+func TestVersionService_NextVersionNum_Empty(t *testing.T) {
+	t.Parallel()
+	svc, _ := newVersionSvc(t)
+	n, err := svc.NextVersionNum(context.Background(), "ast_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("expected 1 for empty asset, got %d", n)
+	}
+}
+
+func TestVersionService_NextVersionNum_WithExisting(t *testing.T) {
+	t.Parallel()
+	svc, repo := newVersionSvc(t)
+	repo.Seed(
+		repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1", VersionNum: 1},
+		repository.AssetVersion{ID: "v2", AssetID: "ast_1", WorkspaceID: "ws_1", VersionNum: 2},
+	)
+	n, err := svc.NextVersionNum(context.Background(), "ast_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("expected 3, got %d", n)
+	}
+}

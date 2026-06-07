@@ -229,3 +229,33 @@ func TestProjectService_Delete_EmitsAuditEvent(t *testing.T) {
 		t.Errorf("ProjectID: got %q, want %q", e.ProjectID, "p1")
 	}
 }
+
+// --- List ---
+
+func TestProjectService_List_OK(t *testing.T) {
+	t.Parallel()
+	svc, _ := newProjectSvc(t)
+	svc.Create(context.Background(), "ws_1", service.CreateProjectParams{Name: "Alpha"})
+	svc.Create(context.Background(), "ws_1", service.CreateProjectParams{Name: "Beta"})
+	svc.Create(context.Background(), "ws_2", service.CreateProjectParams{Name: "Gamma"})
+
+	projects, err := svc.List(context.Background(), "ws_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(projects) != 2 {
+		t.Errorf("expected 2 projects for ws_1, got %d", len(projects))
+	}
+}
+
+func TestProjectService_List_Empty(t *testing.T) {
+	t.Parallel()
+	svc, _ := newProjectSvc(t)
+	projects, err := svc.List(context.Background(), "ws_none")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(projects) != 0 {
+		t.Errorf("expected empty list, got %d", len(projects))
+	}
+}

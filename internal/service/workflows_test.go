@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
@@ -13,6 +14,7 @@ import (
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
+	"damask/server/internal/workflow"
 )
 
 type workflowQueueStub struct {
@@ -32,23 +34,24 @@ func (q *workflowQueueStub) Enqueue(_ context.Context, _, jobType, _ string) (db
 
 func newWorkflowSvc(
 	t *testing.T,
-) (service.WorkflowService, *memory.WorkflowRepo, *memory.WorkflowRunRepo, *workflowQueueStub) {
+) (service.WorkflowService, *memory.WorkflowRepo, *memory.WorkflowRunRepo, *memory.WorkflowWebhookRepo, *workflowQueueStub) {
 	t.Helper()
 	workflows := memory.NewWorkflowRepo()
 	runs := memory.NewWorkflowRunRepo()
+	webhooks := memory.NewWorkflowWebhookRepo()
 	queue := &workflowQueueStub{}
 	svc := service.NewWorkflowService(
 		workflows,
 		runs,
-		memory.NewWorkflowWebhookRepo(),
+		webhooks,
 		queue,
 		service.WorkflowServiceDeps{},
 	)
-	return svc, workflows, runs, queue
+	return svc, workflows, runs, webhooks, queue
 }
 
 func TestWorkflowServiceGetWrongWorkspace(t *testing.T) {
-	svc, repo, _, _ := newWorkflowSvc(t)
+	svc, repo, _, _, _ := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_a"})
 	_, err := svc.Get(context.Background(), "ws_b", "wf_1")
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -57,7 +60,7 @@ func TestWorkflowServiceGetWrongWorkspace(t *testing.T) {
 }
 
 func TestWorkflowServiceCreateOK(t *testing.T) {
-	svc, _, _, _ := newWorkflowSvc(t)
+	svc, _, _, _, _ := newWorkflowSvc(t)
 	dto, err := svc.Create(context.Background(), "ws_1", "usr_1", service.CreateWorkflowParams{
 		Name:                 "My Workflow",
 		Graph:                `{"nodes":[{"id":"n1","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
@@ -75,7 +78,7 @@ func TestWorkflowServiceCreateOK(t *testing.T) {
 }
 
 func TestWorkflowServiceTriggerManualEnqueuesRun(t *testing.T) {
-	svc, repo, _, queue := newWorkflowSvc(t)
+	svc, repo, _, _, queue := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{
 		ID:          "wf_1",
 		WorkspaceID: "ws_1",
@@ -93,7 +96,7 @@ func TestWorkflowServiceTriggerManualEnqueuesRun(t *testing.T) {
 }
 
 func TestWorkflowServiceTriggerManual_NoAsset_TriggerDataIsManualOnly(t *testing.T) {
-	svc, repo, runs, _ := newWorkflowSvc(t)
+	svc, repo, runs, _, _ := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{
 		ID:          "wf_1",
 		WorkspaceID: "ws_1",
@@ -195,7 +198,7 @@ func TestWorkflowServiceTriggerManual_UnknownAsset_ReturnsNotFound(t *testing.T)
 }
 
 func TestWorkflowServiceListFilterManualEnabled(t *testing.T) {
-	svc, repo, _, _ := newWorkflowSvc(t)
+	svc, repo, _, _, _ := newWorkflowSvc(t)
 	repo.Seed(
 		repository.Workflow{
 			ID:          "wf_1",
@@ -436,7 +439,7 @@ func TestWorkflowServiceTriggerManualBulkPartialSuccess(t *testing.T) {
 }
 
 func TestWorkflowServiceTriggerManualBulkDisabledWorkflow(t *testing.T) {
-	svc, repo, _, queue := newWorkflowSvc(t)
+	svc, repo, _, _, queue := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: false, TriggerType: "trigger.manual"})
 	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_1"})
 	if !errors.Is(err, apperr.ErrConflict) || queue.enqueued != 0 {
@@ -445,7 +448,7 @@ func TestWorkflowServiceTriggerManualBulkDisabledWorkflow(t *testing.T) {
 }
 
 func TestWorkflowServiceTriggerManualBulkWrongTriggerType(t *testing.T) {
-	svc, repo, _, queue := newWorkflowSvc(t)
+	svc, repo, _, _, queue := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.asset_created"})
 	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", []string{"ast_1"})
 	if !errors.Is(err, apperr.ErrConflict) || queue.enqueued != 0 {
@@ -454,7 +457,7 @@ func TestWorkflowServiceTriggerManualBulkWrongTriggerType(t *testing.T) {
 }
 
 func TestWorkflowServiceTriggerManualBulkEmptyAssetIDs(t *testing.T) {
-	svc, _, _, _ := newWorkflowSvc(t)
+	svc, _, _, _, _ := newWorkflowSvc(t)
 	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", nil)
 	if !errors.Is(err, apperr.ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
@@ -462,7 +465,7 @@ func TestWorkflowServiceTriggerManualBulkEmptyAssetIDs(t *testing.T) {
 }
 
 func TestWorkflowServiceTriggerManualBulkTooManyAssets(t *testing.T) {
-	svc, _, _, _ := newWorkflowSvc(t)
+	svc, _, _, _, _ := newWorkflowSvc(t)
 	assetIDs := make([]string, 501)
 	_, err := svc.TriggerManualBulk(context.Background(), "ws_1", "wf_1", assetIDs)
 	if !errors.Is(err, apperr.ErrInvalidInput) {
@@ -471,7 +474,7 @@ func TestWorkflowServiceTriggerManualBulkTooManyAssets(t *testing.T) {
 }
 
 func TestWorkflowServiceTriggerManualBulkWorkspaceIsolation(t *testing.T) {
-	svc, repo, _, queue := newWorkflowSvc(t)
+	svc, repo, _, _, queue := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_a", Enabled: true, TriggerType: "trigger.manual"})
 	_, err := svc.TriggerManualBulk(context.Background(), "ws_b", "wf_1", []string{"ast_1"})
 	if !errors.Is(err, apperr.ErrNotFound) || queue.enqueued != 0 {
@@ -480,7 +483,7 @@ func TestWorkflowServiceTriggerManualBulkWorkspaceIsolation(t *testing.T) {
 }
 
 func TestWorkflowServiceTemplates(t *testing.T) {
-	svc, _, _, _ := newWorkflowSvc(t)
+	svc, _, _, _, _ := newWorkflowSvc(t)
 	templates := svc.Templates()
 	if len(templates) < 5 {
 		t.Fatalf("expected embedded templates, got %d", len(templates))
@@ -491,7 +494,7 @@ func TestWorkflowServiceTemplates(t *testing.T) {
 }
 
 func TestWorkflowServiceFindCoveringWorkflowScope(t *testing.T) {
-	svc, repo, _, _ := newWorkflowSvc(t)
+	svc, repo, _, _, _ := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{
 		ID:            "wf_1",
 		WorkspaceID:   "ws_1",
@@ -584,7 +587,7 @@ func TestWorkflowServiceCreateFromVariantsAssetScopeTriggerConfig(t *testing.T) 
 }
 
 func TestWorkflowServiceFindCoveringWorkflowAssetScope(t *testing.T) {
-	svc, repo, _, _ := newWorkflowSvc(t)
+	svc, repo, _, _, _ := newWorkflowSvc(t)
 	repo.Seed(repository.Workflow{
 		ID:            "wf_asset",
 		WorkspaceID:   "ws_1",
@@ -607,5 +610,467 @@ func TestWorkflowServiceFindCoveringWorkflowAssetScope(t *testing.T) {
 	}
 	if none != nil {
 		t.Fatalf("expected no workflow for different asset, got %#v", none)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Update
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_Update_OK(t *testing.T) {
+	svc, repo, _, _, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Name: "Old", TriggerType: "trigger.manual"})
+	newName := "New Name"
+	newEmail := "ops@example.com"
+	dto, err := svc.Update(context.Background(), "ws_1", "wf_1", service.UpdateWorkflowParams{
+		Name:                 &newName,
+		NotifyOnFailureEmail: &newEmail,
+	})
+	if err != nil {
+		t.Fatalf("Update() unexpected error: %v", err)
+	}
+	if dto.Name != "New Name" {
+		t.Fatalf("Name = %q, want %q", dto.Name, "New Name")
+	}
+	if dto.NotifyOnFailureEmail != "ops@example.com" {
+		t.Fatalf("NotifyOnFailureEmail = %q, want %q", dto.NotifyOnFailureEmail, "ops@example.com")
+	}
+}
+
+func TestWorkflowService_Update_InvalidParams(t *testing.T) {
+	svc, _, _, _, _ := newWorkflowSvc(t)
+	emptyName := ""
+	_, err := svc.Update(context.Background(), "ws_1", "wf_1", service.UpdateWorkflowParams{Name: &emptyName})
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestWorkflowService_Update_ExtractsTriggerType(t *testing.T) {
+	svc, repo, _, _, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", TriggerType: "trigger.manual"})
+	webhookGraph := `{"nodes":[{"id":"n1","type":"trigger.webhook","config":{},"position":{"x":0,"y":0}}],"edges":[]}`
+	dto, err := svc.Update(context.Background(), "ws_1", "wf_1", service.UpdateWorkflowParams{Graph: &webhookGraph})
+	if err != nil {
+		t.Fatalf("Update() unexpected error: %v", err)
+	}
+	if dto.TriggerType != "trigger.webhook" {
+		t.Fatalf("TriggerType = %q, want trigger.webhook", dto.TriggerType)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SetEnabled
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_SetEnabled_OK(t *testing.T) {
+	svc, repo, _, _, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true})
+
+	if err := svc.SetEnabled(context.Background(), "ws_1", "wf_1", false); err != nil {
+		t.Fatalf("SetEnabled(false) unexpected error: %v", err)
+	}
+	got, _ := repo.GetByID(context.Background(), "ws_1", "wf_1")
+	if got.Enabled {
+		t.Fatal("expected workflow to be disabled")
+	}
+
+	if err := svc.SetEnabled(context.Background(), "ws_1", "wf_1", true); err != nil {
+		t.Fatalf("SetEnabled(true) unexpected error: %v", err)
+	}
+	got, _ = repo.GetByID(context.Background(), "ws_1", "wf_1")
+	if !got.Enabled {
+		t.Fatal("expected workflow to be enabled")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Delete
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_Delete_OK(t *testing.T) {
+	svc, repo, _, _, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1"})
+
+	if err := svc.Delete(context.Background(), "ws_1", "wf_1"); err != nil {
+		t.Fatalf("Delete() unexpected error: %v", err)
+	}
+	_, err := repo.GetByID(context.Background(), "ws_1", "wf_1")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TriggerWebhook
+// ---------------------------------------------------------------------------
+
+const webhookGraph = `{"nodes":[{"id":"n1","type":"trigger.webhook","config":{},"position":{"x":0,"y":0}}],"edges":[]}`
+
+func TestWorkflowService_TriggerWebhook_OK(t *testing.T) {
+	svc, repo, _, webhooks, q := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	plaintext := "mysecrettoken"
+	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex(plaintext))
+
+	runID, err := svc.TriggerWebhook(context.Background(), "wf_1", plaintext, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("TriggerWebhook() unexpected error: %v", err)
+	}
+	if runID == "" {
+		t.Fatal("expected non-empty run ID")
+	}
+	if q.enqueued != 1 {
+		t.Fatalf("expected 1 enqueued job, got %d", q.enqueued)
+	}
+}
+
+func TestWorkflowService_TriggerWebhook_NotFound(t *testing.T) {
+	svc, _, _, _, _ := newWorkflowSvc(t)
+	_, err := svc.TriggerWebhook(context.Background(), "wf_unknown", "token", []byte(`{}`))
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestWorkflowService_TriggerWebhook_BadToken(t *testing.T) {
+	svc, repo, _, webhooks, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex("correcttoken"))
+
+	_, err := svc.TriggerWebhook(context.Background(), "wf_1", "wrongtoken", []byte(`{}`))
+	if !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
+	}
+}
+
+func TestWorkflowService_TriggerWebhook_JSONBody(t *testing.T) {
+	svc, repo, runs, webhooks, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	plaintext := "tok"
+	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex(plaintext))
+
+	runID, err := svc.TriggerWebhook(context.Background(), "wf_1", plaintext, []byte(`{"foo":"bar"}`))
+	if err != nil {
+		t.Fatalf("TriggerWebhook() unexpected error: %v", err)
+	}
+	run, _ := runs.GetByID(context.Background(), runID)
+	var td map[string]any
+	_ = json.Unmarshal([]byte(run.TriggerData), &td)
+	body, ok := td["body"]
+	if !ok {
+		t.Fatal("expected trigger_data to contain 'body' key for JSON body")
+	}
+	bodyMap, ok := body.(map[string]any)
+	if !ok || bodyMap["foo"] != "bar" {
+		t.Fatalf("unexpected body value: %#v", body)
+	}
+}
+
+func TestWorkflowService_TriggerWebhook_NonJSONBody(t *testing.T) {
+	svc, repo, runs, webhooks, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	plaintext := "tok"
+	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex(plaintext))
+
+	runID, err := svc.TriggerWebhook(context.Background(), "wf_1", plaintext, []byte(`not-json`))
+	if err != nil {
+		t.Fatalf("TriggerWebhook() unexpected error: %v", err)
+	}
+	run, _ := runs.GetByID(context.Background(), runID)
+	var td map[string]any
+	_ = json.Unmarshal([]byte(run.TriggerData), &td)
+	if td["raw_body"] != "not-json" {
+		t.Fatalf("expected raw_body=not-json, got %v", td["raw_body"])
+	}
+	if _, ok := td["body"]; ok {
+		t.Fatal("expected no 'body' key for non-JSON body")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GetRun
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_GetRun_OK(t *testing.T) {
+	svc, _, runs, _, _ := newWorkflowSvc(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	run, _ := runs.Create(ctx, repository.CreateWorkflowRunParams{
+		ID:          "run_1",
+		WorkflowID:  "wf_1",
+		WorkspaceID: "ws_1",
+		Status:      "completed",
+		TriggerData: `{"trigger":"manual"}`,
+	})
+	_ = run
+	_, _ = runs.CreateStep(ctx, repository.CreateWorkflowRunStepParams{
+		ID:       "step_1",
+		RunID:    "run_1",
+		NodeID:   "n1",
+		NodeType: "trigger.manual",
+		Status:   "completed",
+		InputCtx: `{"k":"v"}`,
+		StartedAt: &now,
+	})
+
+	dto, err := svc.GetRun(ctx, "ws_1", "run_1")
+	if err != nil {
+		t.Fatalf("GetRun() unexpected error: %v", err)
+	}
+	if dto.ID != "run_1" || dto.WorkflowID != "wf_1" {
+		t.Fatalf("unexpected run DTO: %+v", dto)
+	}
+	if len(dto.Steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(dto.Steps))
+	}
+	if dto.Steps[0].NodeID != "n1" {
+		t.Fatalf("unexpected step node_id: %q", dto.Steps[0].NodeID)
+	}
+	if dto.TriggerData["trigger"] != "manual" {
+		t.Fatalf("unexpected trigger_data: %v", dto.TriggerData)
+	}
+}
+
+func TestWorkflowService_GetRun_WrongWorkspace(t *testing.T) {
+	svc, _, runs, _, _ := newWorkflowSvc(t)
+	ctx := context.Background()
+	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
+		ID:          "run_1",
+		WorkflowID:  "wf_1",
+		WorkspaceID: "ws_a",
+		Status:      "completed",
+		TriggerData: `{}`,
+	})
+
+	_, err := svc.GetRun(ctx, "ws_b", "run_1")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ListRuns
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_ListRuns_OK(t *testing.T) {
+	svc, _, runs, _, _ := newWorkflowSvc(t)
+	ctx := context.Background()
+	for _, id := range []string{"run_1", "run_2", "run_3"} {
+		_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
+			ID:          id,
+			WorkflowID:  "wf_1",
+			WorkspaceID: "ws_1",
+			Status:      "completed",
+			TriggerData: `{}`,
+		})
+	}
+
+	dtos, err := svc.ListRuns(ctx, "wf_1", 2, "")
+	if err != nil {
+		t.Fatalf("ListRuns() unexpected error: %v", err)
+	}
+	if len(dtos) != 2 {
+		t.Fatalf("expected 2 runs (limit), got %d", len(dtos))
+	}
+	for _, dto := range dtos {
+		if len(dto.Steps) != 0 {
+			t.Fatal("expected no steps in ListRuns result")
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ListAllRuns
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_ListAllRuns_OK(t *testing.T) {
+	svc, _, runs, _, _ := newWorkflowSvc(t)
+	ctx := context.Background()
+	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
+		ID: "run_1", WorkflowID: "wf_1", WorkspaceID: "ws_1", Status: "completed", TriggerData: `{}`,
+	})
+	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
+		ID: "run_2", WorkflowID: "wf_2", WorkspaceID: "ws_1", Status: "completed", TriggerData: `{}`,
+	})
+	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
+		ID: "run_3", WorkflowID: "wf_other", WorkspaceID: "ws_2", Status: "completed", TriggerData: `{}`,
+	})
+
+	got, err := svc.ListAllRuns(ctx, "ws_1", 10, "")
+	if err != nil {
+		t.Fatalf("ListAllRuns() unexpected error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 runs for ws_1, got %d: %v", len(got), got)
+	}
+	ids := map[string]bool{got[0].ID: true, got[1].ID: true}
+	if !ids["run_1"] || !ids["run_2"] {
+		t.Fatalf("expected run_1 and run_2, got %v", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GetWebhookToken
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_GetWebhookToken_CreatesWhenMissing(t *testing.T) {
+	svc, repo, _, _, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1"})
+
+	token, err := svc.GetWebhookToken(context.Background(), "ws_1", "wf_1")
+	if err != nil {
+		t.Fatalf("GetWebhookToken() unexpected error: %v", err)
+	}
+	if token == "" {
+		t.Fatal("expected non-empty token when none existed")
+	}
+}
+
+func TestWorkflowService_GetWebhookToken_ReturnsEmptyWhenExists(t *testing.T) {
+	svc, repo, _, webhooks, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1"})
+	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex("existing"))
+
+	token, err := svc.GetWebhookToken(context.Background(), "ws_1", "wf_1")
+	if err != nil {
+		t.Fatalf("GetWebhookToken() unexpected error: %v", err)
+	}
+	if token != "" {
+		t.Fatalf("expected empty token when hash already exists, got %q", token)
+	}
+}
+
+func TestWorkflowService_GetWebhookToken_NotFound(t *testing.T) {
+	svc, _, _, _, _ := newWorkflowSvc(t)
+	_, err := svc.GetWebhookToken(context.Background(), "ws_1", "wf_unknown")
+	if err == nil {
+		t.Fatal("expected error for unknown workflow")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RegenerateWebhookToken
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_RegenerateWebhookToken_OK(t *testing.T) {
+	svc, repo, _, webhooks, _ := newWorkflowSvc(t)
+	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	ctx := context.Background()
+
+	tok1, err := svc.RegenerateWebhookToken(ctx, "ws_1", "wf_1")
+	if err != nil {
+		t.Fatalf("RegenerateWebhookToken() first call unexpected error: %v", err)
+	}
+	if tok1 == "" {
+		t.Fatal("expected non-empty token")
+	}
+
+	tok2, err := svc.RegenerateWebhookToken(ctx, "ws_1", "wf_1")
+	if err != nil {
+		t.Fatalf("RegenerateWebhookToken() second call unexpected error: %v", err)
+	}
+	if tok2 == "" || tok2 == tok1 {
+		t.Fatalf("expected different non-empty token on regeneration, tok1=%q tok2=%q", tok1, tok2)
+	}
+
+	// tok1 must no longer work
+	_, err = svc.TriggerWebhook(ctx, "wf_1", tok1, []byte(`{}`))
+	if !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden with old token after regeneration, got %v", err)
+	}
+
+	// tok2 must still work
+	_ = webhooks // already verified via TriggerWebhook
+	_, err = svc.TriggerWebhook(ctx, "wf_1", tok2, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("TriggerWebhook with new token unexpected error: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// NodeSchemas
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_NodeSchemas_OK(t *testing.T) {
+	svc, _, _, _, _ := newWorkflowSvc(t)
+	schemas := svc.NodeSchemas()
+	if len(schemas) == 0 {
+		t.Fatal("expected non-empty node schemas")
+	}
+	for _, s := range schemas {
+		if s.Type == "" || s.Label == "" {
+			t.Errorf("schema missing Type or Label: %+v", s)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// parseMap / parseMapPtr / toWorkflowNodePorts via public API
+// ---------------------------------------------------------------------------
+
+func TestWorkflowService_GetRun_ParseMapFallbacks(t *testing.T) {
+	svc, _, runs, _, _ := newWorkflowSvc(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	// invalid JSON trigger_data → should produce empty map, not panic
+	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
+		ID:          "run_bad",
+		WorkflowID:  "wf_1",
+		WorkspaceID: "ws_1",
+		Status:      "pending",
+		TriggerData: `not-json`,
+	})
+	_ = now
+	dto, err := svc.GetRun(ctx, "ws_1", "run_bad")
+	if err != nil {
+		t.Fatalf("GetRun() unexpected error: %v", err)
+	}
+	if dto.TriggerData == nil || len(dto.TriggerData) != 0 {
+		t.Fatalf("expected empty map for invalid trigger_data, got %v", dto.TriggerData)
+	}
+
+	// step with nil OutputCtx → parseMapPtr(nil) should produce empty map
+	_, _ = runs.CreateStep(ctx, repository.CreateWorkflowRunStepParams{
+		ID:        "step_nil",
+		RunID:     "run_bad",
+		NodeID:    "n1",
+		NodeType:  "trigger.manual",
+		Status:    "pending",
+		InputCtx:  `{}`,
+		OutputCtx: nil,
+		StartedAt: &now,
+	})
+	dto2, err := svc.GetRun(ctx, "ws_1", "run_bad")
+	if err != nil {
+		t.Fatalf("GetRun() unexpected error: %v", err)
+	}
+	if len(dto2.Steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(dto2.Steps))
+	}
+	if dto2.Steps[0].OutputCtx == nil {
+		t.Fatal("expected non-nil OutputCtx map even for nil pointer")
+	}
+	if len(dto2.Steps[0].OutputCtx) != 0 {
+		t.Fatalf("expected empty OutputCtx map, got %v", dto2.Steps[0].OutputCtx)
+	}
+}
+
+func TestWorkflowService_NodeSchemas_PortsAreMapped(t *testing.T) {
+	svc, _, _, _, _ := newWorkflowSvc(t)
+	schemas := svc.NodeSchemas()
+	// find any schema that has inputs or outputs and verify mapping
+	for _, s := range schemas {
+		for _, p := range s.Inputs {
+			if p.ID == "" {
+				t.Errorf("schema %q: input port missing ID", s.Type)
+			}
+		}
+		for _, p := range s.Outputs {
+			if p.ID == "" {
+				t.Errorf("schema %q: output port missing ID", s.Type)
+			}
+		}
 	}
 }

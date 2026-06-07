@@ -187,3 +187,100 @@ func TestFieldService_Delete_NotFound(t *testing.T) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
+
+// --- List ---
+
+func TestFieldService_List_OK(t *testing.T) {
+	t.Parallel()
+	svc := newFieldSvc(t)
+	svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Rating", Key: "rating", FieldType: "number"})
+	svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Color", Key: "color", FieldType: "text"})
+	svc.Create(context.Background(), "ws_2", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Size", Key: "size", FieldType: "number"})
+
+	fields, err := svc.List(context.Background(), "ws_1", "asset")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(fields) != 2 {
+		t.Errorf("expected 2 fields for ws_1, got %d", len(fields))
+	}
+}
+
+func TestFieldService_List_Empty(t *testing.T) {
+	t.Parallel()
+	svc := newFieldSvc(t)
+	fields, err := svc.List(context.Background(), "ws_none", "asset")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(fields) != 0 {
+		t.Errorf("expected empty, got %d", len(fields))
+	}
+}
+
+// --- GetStats ---
+
+func TestFieldService_GetStats_OK(t *testing.T) {
+	t.Parallel()
+	svc := newFieldSvc(t)
+	f, _ := svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Rating", Key: "rating", FieldType: "number"})
+
+	stats, err := svc.GetStats(context.Background(), "ws_1", f.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stats.AssetCount < 0 {
+		t.Errorf("expected non-negative AssetCount, got %d", stats.AssetCount)
+	}
+}
+
+func TestFieldService_GetStats_NotFound(t *testing.T) {
+	t.Parallel()
+	svc := newFieldSvc(t)
+	_, err := svc.GetStats(context.Background(), "ws_1", "nope")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- Reorder ---
+
+func TestFieldService_Reorder_OK(t *testing.T) {
+	t.Parallel()
+	svc := newFieldSvc(t)
+	f1, _ := svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Alpha", Key: "alpha", FieldType: "text"})
+	f2, _ := svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Beta", Key: "beta", FieldType: "text"})
+
+	err := svc.Reorder(context.Background(), "ws_1", []service.ReorderFieldItem{
+		{ID: f1.ID, Position: 2},
+		{ID: f2.ID, Position: 1},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- InheritProjectFields ---
+
+func TestFieldService_InheritProjectFields_OK(t *testing.T) {
+	t.Parallel()
+	svc := newFieldSvc(t)
+	err := svc.InheritProjectFields(context.Background(), "ws_1", "ast_1", "proj_1", "u1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- PurgeExpiredFields ---
+
+func TestFieldService_PurgeExpiredFields_OK(t *testing.T) {
+	t.Parallel()
+	svc := newFieldSvc(t)
+	n, err := svc.PurgeExpiredFields(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n < 0 {
+		t.Errorf("expected non-negative purge count, got %d", n)
+	}
+}

@@ -211,3 +211,51 @@ func TestFolderService_Delete_CascadesChildren(t *testing.T) {
 		t.Error("child should be deleted")
 	}
 }
+
+// --- List ---
+
+func TestFolderService_List_OK(t *testing.T) {
+	t.Parallel()
+	svc, _ := newFolderSvc(t)
+	svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Alpha"})
+	svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Beta"})
+	svc.Create(context.Background(), "ws_1", "proj_2", service.CreateFolderParams{Name: "Gamma"})
+
+	folders, err := svc.List(context.Background(), "ws_1", "proj_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(folders) != 2 {
+		t.Errorf("expected 2 folders for proj_1, got %d", len(folders))
+	}
+}
+
+func TestFolderService_List_Empty(t *testing.T) {
+	t.Parallel()
+	svc, _ := newFolderSvc(t)
+	folders, err := svc.List(context.Background(), "ws_1", "proj_none")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(folders) != 0 {
+		t.Errorf("expected empty, got %d", len(folders))
+	}
+}
+
+// --- ListTree ---
+
+func TestFolderService_ListTree_OK(t *testing.T) {
+	t.Parallel()
+	svc, _ := newFolderSvc(t)
+	parent, _ := svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Parent"})
+	svc.Create(context.Background(), "ws_1", "proj_1", service.CreateFolderParams{Name: "Child", ParentID: &parent.ID})
+
+	tree, err := svc.ListTree(context.Background(), "ws_1", "proj_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Tree should have at least 1 root node
+	if len(tree) == 0 {
+		t.Error("expected non-empty tree")
+	}
+}

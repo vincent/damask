@@ -178,3 +178,247 @@ func TestUserService_GetByID_NotFound(t *testing.T) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
+
+// --- GetProfile ---
+
+func TestUserService_GetProfile_OK(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(repository.User{ID: "u_1", Email: "alice@example.com", Name: "Alice"})
+
+	dto, err := svc.GetProfile(context.Background(), "u_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.Email != "alice@example.com" {
+		t.Errorf("Email: got %q, want alice@example.com", dto.Email)
+	}
+}
+
+func TestUserService_GetProfile_NotFound(t *testing.T) {
+	t.Parallel()
+	svc, _, _, _ := newUserSvc(t)
+	_, err := svc.GetProfile(context.Background(), "u_nope")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- GetProfileByEmail ---
+
+func TestUserService_GetProfileByEmail_OK(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(repository.User{ID: "u_1", Email: "bob@example.com", Name: "Bob"})
+
+	dto, err := svc.GetProfileByEmail(context.Background(), "bob@example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.ID != "u_1" {
+		t.Errorf("ID: got %q, want u_1", dto.ID)
+	}
+}
+
+func TestUserService_GetProfileByEmail_NotFound(t *testing.T) {
+	t.Parallel()
+	svc, _, _, _ := newUserSvc(t)
+	_, err := svc.GetProfileByEmail(context.Background(), "nobody@example.com")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- UpdateProfile ---
+
+func TestUserService_UpdateProfile_OK(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(repository.User{ID: "u_1", Email: "carol@example.com", Name: "Carol"})
+
+	dto, err := svc.UpdateProfile(context.Background(), "u_1", "Caz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.DisplayName != "Caz" {
+		t.Errorf("DisplayName: got %q, want Caz", dto.DisplayName)
+	}
+}
+
+// --- ResetPassword ---
+
+func TestUserService_ResetPassword_AddsPasswordMethod(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	// User with no auth methods
+	users.Seed(repository.User{ID: "u_1", Email: "x@x.com", Name: "X", AuthMethods: "[]"})
+
+	err := svc.ResetPassword(context.Background(), "u_1", hashPassword(t, "newpass"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	u, _ := users.GetByID(context.Background(), "u_1")
+	if u.AuthMethods != `["password"]` {
+		t.Errorf("AuthMethods: got %q, want [\"password\"]", u.AuthMethods)
+	}
+}
+
+func TestUserService_ResetPassword_AlreadyHasPasswordMethod(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(repository.User{ID: "u_1", Email: "x@x.com", Name: "X", AuthMethods: `["password"]`})
+
+	err := svc.ResetPassword(context.Background(), "u_1", hashPassword(t, "newpass"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- ChangePassword ---
+
+func TestUserService_ChangePassword_OK(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	plain := "oldpass"
+	users.Seed(repository.User{
+		ID:           "u_1",
+		Email:        "x@x.com",
+		Name:         "X",
+		AuthMethods:  `["password"]`,
+		PasswordHash: hashPassword(t, plain),
+	})
+
+	err := svc.ChangePassword(context.Background(), "u_1", plain, hashPassword(t, "newpass"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUserService_ChangePassword_WrongCurrentPassword(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(repository.User{
+		ID:           "u_1",
+		Email:        "x@x.com",
+		Name:         "X",
+		AuthMethods:  `["password"]`,
+		PasswordHash: hashPassword(t, "correct"),
+	})
+
+	err := svc.ChangePassword(context.Background(), "u_1", "wrong", hashPassword(t, "new"))
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for wrong password, got %v", err)
+	}
+}
+
+// --- RequestEmailChange ---
+
+func TestUserService_RequestEmailChange_OK(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(repository.User{ID: "u_1", Email: "old@example.com", Name: "X"})
+
+	err := svc.RequestEmailChange(context.Background(), "u_1", "new@example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	u, _ := users.GetByID(context.Background(), "u_1")
+	if u.PendingEmail == nil || *u.PendingEmail != "new@example.com" {
+		t.Error("expected PendingEmail to be set")
+	}
+}
+
+func TestUserService_RequestEmailChange_SameEmail(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(repository.User{ID: "u_1", Email: "same@example.com", Name: "X"})
+
+	err := svc.RequestEmailChange(context.Background(), "u_1", "same@example.com")
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for same email, got %v", err)
+	}
+}
+
+func TestUserService_RequestEmailChange_EmailTaken(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	users.Seed(
+		repository.User{ID: "u_1", Email: "alice@example.com", Name: "Alice"},
+		repository.User{ID: "u_2", Email: "bob@example.com", Name: "Bob"},
+	)
+
+	err := svc.RequestEmailChange(context.Background(), "u_1", "bob@example.com")
+	if !errors.Is(err, apperr.ErrConflict) {
+		t.Fatalf("expected ErrConflict for taken email, got %v", err)
+	}
+}
+
+// --- CancelEmailChange ---
+
+func TestUserService_CancelEmailChange_OK(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	pending := "new@example.com"
+	users.Seed(repository.User{ID: "u_1", Email: "old@example.com", Name: "X", PendingEmail: &pending})
+
+	err := svc.CancelEmailChange(context.Background(), "u_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	u, _ := users.GetByID(context.Background(), "u_1")
+	if u.PendingEmail != nil {
+		t.Errorf("expected PendingEmail to be nil after cancel, got %q", *u.PendingEmail)
+	}
+}
+
+// --- ConfirmEmailChange ---
+
+func TestUserService_ConfirmEmailChange_OK(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	pending := "new@example.com"
+	users.Seed(repository.User{ID: "u_1", Email: "old@example.com", Name: "X", PendingEmail: &pending})
+
+	dto, err := svc.ConfirmEmailChange(context.Background(), "u_1", "new@example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.Email != "new@example.com" {
+		t.Errorf("Email: got %q, want new@example.com", dto.Email)
+	}
+}
+
+func TestUserService_ConfirmEmailChange_StalePendingEmail(t *testing.T) {
+	t.Parallel()
+	svc, users, _, _ := newUserSvc(t)
+	pending := "actual@example.com"
+	users.Seed(repository.User{ID: "u_1", Email: "old@example.com", Name: "X", PendingEmail: &pending})
+
+	_, err := svc.ConfirmEmailChange(context.Background(), "u_1", "wrong@example.com")
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for stale token, got %v", err)
+	}
+}
+
+// --- CreateWorkspace ---
+
+func TestUserService_CreateWorkspace_OK(t *testing.T) {
+	t.Parallel()
+	svc, _, wsRepo, _ := newUserSvc(t)
+
+	dto, err := svc.CreateWorkspace(context.Background(), "u_1", "My New Workspace")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.Name != "My New Workspace" {
+		t.Errorf("Name: got %q, want My New Workspace", dto.Name)
+	}
+	// member should exist in the repo
+	m, err := wsRepo.GetMember(context.Background(), dto.ID, "u_1")
+	if err != nil {
+		t.Fatalf("expected member to be created: %v", err)
+	}
+	if m.Role != "owner" {
+		t.Errorf("Role: got %q, want owner", m.Role)
+	}
+}

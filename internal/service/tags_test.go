@@ -322,3 +322,147 @@ func TestTagService_AddToAsset_AuditOnEveryCall(t *testing.T) {
 		t.Errorf("expected 2 audit events (one per call), got %d", spy.assetCount())
 	}
 }
+
+// --- GetByName ---
+
+func TestTagService_GetByName_OK(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	_, _ = svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "nature"})
+
+	dto, err := svc.GetByName(context.Background(), "ws_1", "nature")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.Name != "nature" {
+		t.Errorf("Name: got %q, want nature", dto.Name)
+	}
+}
+
+func TestTagService_GetByName_NormalizesCase(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	_, _ = svc.Create(context.Background(), "ws_1", service.CreateTagParams{Name: "nature"})
+
+	dto, err := svc.GetByName(context.Background(), "ws_1", "  NATURE  ")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.Name != "nature" {
+		t.Errorf("Name: got %q, want nature", dto.Name)
+	}
+}
+
+func TestTagService_GetByName_NotFound(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	_, err := svc.GetByName(context.Background(), "ws_1", "missing")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- TouchLastUsed ---
+
+func TestTagService_TouchLastUsed_OK(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	err := svc.TouchLastUsed(context.Background(), "ws_1", "nature")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- BatchTagsForAssets ---
+
+func TestTagService_BatchTagsForAssets_OK(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	// Seed via AddToAsset so the links are stored correctly
+	_, _ = svc.AddToAsset(context.Background(), "ws_1", "ast_1", "alpha")
+	_, _ = svc.AddToAsset(context.Background(), "ws_1", "ast_1", "beta")
+	_, _ = svc.AddToAsset(context.Background(), "ws_1", "ast_2", "gamma")
+
+	result, err := svc.BatchTagsForAssets(context.Background(), []string{"ast_1", "ast_2"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result["ast_1"]) != 2 {
+		t.Errorf("ast_1 tags: got %d, want 2", len(result["ast_1"]))
+	}
+	if len(result["ast_2"]) != 1 {
+		t.Errorf("ast_2 tags: got %d, want 1", len(result["ast_2"]))
+	}
+}
+
+func TestTagService_BatchTagsForAssets_Empty(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	result, err := svc.BatchTagsForAssets(context.Background(), []string{"ast_none"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result["ast_none"]) != 0 {
+		t.Errorf("expected empty tags for unknown asset, got %d", len(result["ast_none"]))
+	}
+}
+
+// --- UpsertForAsset ---
+
+func TestTagService_UpsertForAsset_OK(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	err := svc.UpsertForAsset(context.Background(), "ws_1", "ast_1", "photo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTagService_UpsertForAsset_Idempotent(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	_ = svc.UpsertForAsset(context.Background(), "ws_1", "ast_1", "photo")
+	err := svc.UpsertForAsset(context.Background(), "ws_1", "ast_1", "photo")
+	if err != nil {
+		t.Fatalf("unexpected error on second call: %v", err)
+	}
+}
+
+func TestTagService_UpsertForAsset_SystemTag(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	err := svc.UpsertForAsset(context.Background(), "ws_1", "ast_1", systemtags.Watermark)
+	if err != nil {
+		t.Fatalf("unexpected error for system tag: %v", err)
+	}
+}
+
+func TestTagService_UpsertForAsset_EmptyName(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	err := svc.UpsertForAsset(context.Background(), "ws_1", "ast_1", "")
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for empty name, got %v", err)
+	}
+}
+
+// --- ResolveSystemTag ---
+
+func TestTagService_ResolveSystemTag_InvalidTag(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	_, err := svc.ResolveSystemTag(context.Background(), "ws_1", "not-a-system-tag", service.SystemTagScope{})
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for non-system tag, got %v", err)
+	}
+}
+
+func TestTagService_ResolveSystemTag_NotFound(t *testing.T) {
+	t.Parallel()
+	svc, _ := newTagSvc(t)
+	// memory repo always returns ErrNotFound for FindAsset* methods
+	_, err := svc.ResolveSystemTag(context.Background(), "ws_1", systemtags.Watermark, service.SystemTagScope{})
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound when no asset tagged, got %v", err)
+	}
+}

@@ -158,3 +158,54 @@ func TestParseTypesFilter_Multiple(t *testing.T) {
 		t.Errorf("expected 2 types, got %d: %v", len(got), got)
 	}
 }
+
+// --- ParseLimit ---
+
+func TestParseLimit_Default(t *testing.T) {
+	t.Parallel()
+	got := service.ParseLimit("", 25, 100)
+	if got != 25 {
+		t.Errorf("expected 25 for empty input, got %d", got)
+	}
+}
+
+func TestParseLimit_ValidValue(t *testing.T) {
+	t.Parallel()
+	got := service.ParseLimit("50", 25, 100)
+	if got != 50 {
+		t.Errorf("expected 50, got %d", got)
+	}
+}
+
+func TestParseLimit_ClampedToMax(t *testing.T) {
+	t.Parallel()
+	got := service.ParseLimit("999", 25, 100)
+	if got != 100 {
+		t.Errorf("expected 100 (clamped), got %d", got)
+	}
+}
+
+func TestParseLimit_ZeroReturnsDefault(t *testing.T) {
+	t.Parallel()
+	// zero is invalid (n <= 0), so returns defaultVal
+	got := service.ParseLimit("0", 25, 100)
+	if got != 25 {
+		t.Errorf("expected default 25 for zero input, got %d", got)
+	}
+}
+
+func TestParseLimit_NegativeReturnsDefault(t *testing.T) {
+	t.Parallel()
+	got := service.ParseLimit("-1", 25, 100)
+	if got != 25 {
+		t.Errorf("expected default 25 for negative input, got %d", got)
+	}
+}
+
+func TestParseLimit_InvalidString(t *testing.T) {
+	t.Parallel()
+	got := service.ParseLimit("abc", 25, 100)
+	if got != 25 {
+		t.Errorf("expected default 25 for invalid string, got %d", got)
+	}
+}

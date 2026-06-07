@@ -253,6 +253,36 @@ func (r *WorkflowRunRepo) List(
 	return out, nil
 }
 
+func (r *WorkflowRunRepo) ListByWorkspace(
+	_ context.Context,
+	workspaceID string,
+	limit int,
+	cursor string,
+) ([]repository.WorkflowRun, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.WorkflowRun
+	for _, run := range r.runs {
+		if run.WorkspaceID != workspaceID {
+			continue
+		}
+		if cursor != "" && run.CreatedAt.Format(time.RFC3339Nano)+"|"+run.ID >= cursor {
+			continue
+		}
+		out = append(out, run)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].ID > out[j].ID
+		}
+		return out[i].CreatedAt.After(out[j].CreatedAt)
+	})
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
 func (r *WorkflowRunRepo) Create(
 	_ context.Context,
 	p repository.CreateWorkflowRunParams,

@@ -294,7 +294,7 @@ func (s *workflowService) ListAllRuns(
 	limit int,
 	cursor string,
 ) ([]WorkflowRunDTO, error) {
-	rows, err := s.runs.List(ctx, workspaceID, limit, cursor)
+	rows, err := s.runs.ListByWorkspace(ctx, workspaceID, limit, cursor)
 	if err != nil {
 		return nil, err
 	}

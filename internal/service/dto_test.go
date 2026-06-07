@@ -108,3 +108,124 @@ func TestCreateVariantAutomationParamsValidate(t *testing.T) {
 		}
 	}
 }
+
+// --- CreateExportConfigParams.Validate ---
+
+func ptr[T any](v T) *T { return &v }
+
+func TestCreateExportConfigParams_Validate_OK(t *testing.T) {
+	t.Parallel()
+	p := service.CreateExportConfigParams{
+		Label:        "My Export",
+		DestType:     "sftp",
+		DestConfig:   []byte(`{"host":"sftp.example.com"}`),
+		Versions:     "current",
+		ScheduleType: "manual",
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCreateExportConfigParams_Validate_EmptyLabel(t *testing.T) {
+	t.Parallel()
+	p := service.CreateExportConfigParams{
+		Label:        "",
+		DestType:     "sftp",
+		DestConfig:   []byte(`{}`),
+		Versions:     "current",
+		ScheduleType: "manual",
+	}
+	if err := p.Validate(); !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for empty label, got %v", err)
+	}
+}
+
+func TestCreateExportConfigParams_Validate_BadDestType(t *testing.T) {
+	t.Parallel()
+	p := service.CreateExportConfigParams{
+		Label:        "Export",
+		DestType:     "ftp",
+		DestConfig:   []byte(`{}`),
+		Versions:     "current",
+		ScheduleType: "manual",
+	}
+	if err := p.Validate(); !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for bad dest_type, got %v", err)
+	}
+}
+
+func TestCreateExportConfigParams_Validate_AfterQuietRequiresMinutes(t *testing.T) {
+	t.Parallel()
+	p := service.CreateExportConfigParams{
+		Label:        "Export",
+		DestType:     "sftp",
+		DestConfig:   []byte(`{}`),
+		Versions:     "current",
+		ScheduleType: "after_quiet",
+		// QuietMinutes not set
+	}
+	if err := p.Validate(); !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput when quiet_minutes missing, got %v", err)
+	}
+}
+
+func TestCreateExportConfigParams_Validate_AfterQuiet_ValidMinutes(t *testing.T) {
+	t.Parallel()
+	p := service.CreateExportConfigParams{
+		Label:        "Export",
+		DestType:     "gdrive",
+		DestConfig:   []byte(`{}`),
+		Versions:     "all",
+		ScheduleType: "after_quiet",
+		QuietMinutes: ptr(60),
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCreateExportConfigParams_Validate_AfterQuiet_TooManyMinutes(t *testing.T) {
+	t.Parallel()
+	p := service.CreateExportConfigParams{
+		Label:        "Export",
+		DestType:     "sftp",
+		DestConfig:   []byte(`{}`),
+		Versions:     "current",
+		ScheduleType: "after_quiet",
+		QuietMinutes: ptr(99999),
+	}
+	if err := p.Validate(); !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for too-large quiet_minutes, got %v", err)
+	}
+}
+
+// --- UpdateExportConfigParams.Validate ---
+
+func TestUpdateExportConfigParams_Validate_OK(t *testing.T) {
+	t.Parallel()
+	p := service.UpdateExportConfigParams{
+		Label:        "Updated Export",
+		DestType:     "gdrive",
+		DestConfig:   []byte(`{"folder":"abc"}`),
+		Versions:     "all",
+		ScheduleType: "manual",
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUpdateExportConfigParams_Validate_BadVersions(t *testing.T) {
+	t.Parallel()
+	p := service.UpdateExportConfigParams{
+		Label:        "Export",
+		DestType:     "sftp",
+		DestConfig:   []byte(`{}`),
+		Versions:     "latest",
+		ScheduleType: "manual",
+	}
+	if err := p.Validate(); !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for bad versions, got %v", err)
+	}
+}

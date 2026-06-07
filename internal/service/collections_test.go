@@ -187,3 +187,66 @@ func TestCollectionService_AddAsset_CollectionNotFound(t *testing.T) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
+
+// --- ListForAsset ---
+
+func TestCollectionService_ListForAsset_OK(t *testing.T) {
+	t.Parallel()
+	svc := newCollectionSvc(t)
+	col, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "Picks", CreatedBy: "u1"})
+	svc.AddAsset(context.Background(), "ws_1", col.ID, "ast_1")
+
+	cols, err := svc.ListForAsset(context.Background(), "ws_1", "ast_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cols) != 1 || cols[0].ID != col.ID {
+		t.Errorf("expected [%s], got %v", col.ID, cols)
+	}
+}
+
+func TestCollectionService_ListForAsset_Empty(t *testing.T) {
+	t.Parallel()
+	svc := newCollectionSvc(t)
+	cols, err := svc.ListForAsset(context.Background(), "ws_1", "ast_none")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cols) != 0 {
+		t.Errorf("expected empty, got %d", len(cols))
+	}
+}
+
+// --- ListAssets ---
+
+func TestCollectionService_ListAssets_OK(t *testing.T) {
+	t.Parallel()
+	repo := memory.NewRealCollectionRepo()
+	assetRepo := memory.NewAssetRepo()
+	assetRepo.Seed(
+		repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", OriginalFilename: "a.jpg", MimeType: "image/jpeg"},
+		repository.Asset{ID: "ast_2", WorkspaceID: "ws_1", OriginalFilename: "b.jpg", MimeType: "image/jpeg"},
+	)
+	svc := service.NewCollectionService(repo, assetRepo)
+
+	col, _ := svc.Create(context.Background(), "ws_1", service.CreateCollectionParams{Name: "All", CreatedBy: "u1"})
+	svc.AddAsset(context.Background(), "ws_1", col.ID, "ast_1")
+	svc.AddAsset(context.Background(), "ws_1", col.ID, "ast_2")
+
+	assets, err := svc.ListAssets(context.Background(), "ws_1", col.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(assets) != 2 {
+		t.Errorf("expected 2 assets, got %d", len(assets))
+	}
+}
+
+func TestCollectionService_ListAssets_CollectionNotFound(t *testing.T) {
+	t.Parallel()
+	svc := newCollectionSvc(t)
+	_, err := svc.ListAssets(context.Background(), "ws_1", "col_nope")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
