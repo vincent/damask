@@ -1,10 +1,32 @@
-# Damask
+<p align="center">
+  <h1>Damask</h1>
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/damask.logo.webp" alt="Damask" width="200" />
+</p>
 
-A self-hosted Digital Asset Management (DAM) system. Single binary, local-first, multi-tenant. [Try the demo](https://staging.damask.studio/login)
+<p align="center">
+  <a href="https://opensource.org/licenses/Apache-2.0">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0" />
+  </a>
+</p>
 
-![Assets grid & folders](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_folders_drop.png)
-![Open asset](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_open.dark.png)
-![Workflow editor](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_workflows_editor.png)
+<h2 align="center">Self-hosted Digital Asset Management</h2>
+
+<p align="center">
+  Single binary · local-first · multi-tenant
+  <br />
+  <a href="https://staging.damask.studio/login"><strong>Try the demo »</strong></a>
+</p>
+
+<br />
+
+|                                                                                                                                                         |                                                                                                                                           |
+| :-----------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------: |
+| ![Assets grid & folders](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_folders_drop.png) | ![Open asset](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_asset_open.dark.png) |
+|     ![Workflow editor](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_workflows_editor.png)     |      ![Share](https://raw.githubusercontent.com/vincent/damask/refs/heads/main/cmd/server/web/static/docs/screenshot_share_new.png)       |
+
+---
 
 ## Features
 
@@ -34,9 +56,10 @@ A self-hosted Digital Asset Management (DAM) system. Single binary, local-first,
 - Multiple output variants per asset: resize, crop, format conversion, background removal, AI prompt
 - Promote variant to main asset or set as thumbnail
 - Variant thumbnails and rerun support
-- Variant drafts — preview-and-pick before committing
-- Shared variants — per-variant public links with visitor name gate and ZIP export
+- Variant drafts: preview-and-pick before committing
+- Shared variants: per-variant public links with visitor name gate and ZIP export
 - Lightroom-style creation sidebar in the asset lightbox
+- Bulk operations: apply one or more workflow on multiple assets
 
 **Sharing**
 
@@ -112,7 +135,7 @@ docker run --name damask -h damask \
            -e JWT_SECRET=change-me-to-a-long-random-secret \
            -e BASE_URL=https://your.own.damask.com \
            --expose 2525 \
-           -p 80:8080 -p 25:2525 \ 
+           -p 80:8080 -p 25:2525 \
            -v /srv/damask/data:/data \
            ghcr.io/vincent/damask:latest
 ```
@@ -225,6 +248,31 @@ Web: http://localhost:5173
 | `make test`     | Run Go tests                           |
 | `make lint`     | Run golangci-lint + ESLint             |
 | `make generate` | Run sqlc code generation               |
+
+## Code Generation
+
+The project uses four code generators. Run all backend generators with:
+
+```bash
+make generate
+```
+
+Run i18n separately with:
+
+```bash
+make i18n
+```
+
+### Pipeline
+
+| Tool          | Input                                                  | Output                                    | When to re-run                                          |
+| ------------- | ------------------------------------------------------ | ----------------------------------------- | ------------------------------------------------------- |
+| **sqlc**      | `internal/db/schema.sql` + `internal/db/queries/*.sql` | `internal/db/gen/*.go`                    | After editing SQL schema or queries                     |
+| **swag**      | Go source Swagger annotations                          | `internal/docs/{docs,swagger.yaml}`       | After adding/changing API handler annotations           |
+| **openapi**   | `internal/docs/swagger.json`                           | `cmd/server/web/src/lib/api/types.gen.ts` | Runs automatically after swag (part of `make generate`) |
+| **paraglide** | `cmd/server/web/messages/*.json`                       | `cmd/server/web/src/lib/paraglide/`       | After editing translation files                         |
+
+Never edit generated files directly — they are overwritten on the next `make generate` / `make i18n` run.
 
 ## Structure
 
