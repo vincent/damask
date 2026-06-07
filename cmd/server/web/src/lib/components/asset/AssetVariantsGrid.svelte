@@ -4,11 +4,11 @@
 
   interface Props {
     asset: Asset
-    variants: Variant[]
+    variants: readonly Variant[]
     selectedVariant: Variant | null
     onSelectVariant: (v: Variant) => void
     onVariantUpdated: (variant: Variant) => void
-    onVariantsUpdated: (variants: Variant[]) => void
+    onVariantsUpdated: (variants: readonly Variant[]) => void
     deleteVariant: (variantId: string) => void
     promoteVariant: (variant: Variant) => void
     thumbnailUpdated: () => void

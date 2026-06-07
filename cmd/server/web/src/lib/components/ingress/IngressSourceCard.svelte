@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Clock } from '@lucide/svelte'
-  import type { IngressSource } from '$lib/api/models'
+  import type { IngressSource, IngressSourceType } from '$lib/api'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import SourceTypeIcon from './SourceTypeIcon.svelte'
@@ -63,7 +63,7 @@
     <div
       class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400"
     >
-      <SourceTypeIcon type={source.type} class="h-5 w-5" />
+      <SourceTypeIcon type={source.type as IngressSourceType} class="h-5 w-5" />
     </div>
 
     <!-- Meta -->
@@ -89,7 +89,7 @@
         {/if}
         <span class="inline-flex items-center gap-1">
           <Clock class="h-3 w-3" />
-          {formatRelative(source.last_polled_at)}
+          {formatRelative(source.last_polled_at ?? null)}
         </span>
         <span>Every {source.poll_interval_min}m</span>
       </div>

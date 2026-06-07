@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Eye, EyeOff } from '@lucide/svelte'
-  import type { IngressSourceType } from '$lib/api/models'
+  import type { IngressSourceType } from '$lib/api'
   import { integrationsApi, type OAuthConnection } from '$lib/api'
   import Input from '$lib/components/ui/Input.svelte'
   import { m } from '$lib/paraglide/messages'

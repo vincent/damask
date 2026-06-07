@@ -14,7 +14,7 @@ export const selectionStore = {
   handleCardClick(
     asset: Asset,
     index: number,
-    assets: Asset[],
+    assets: readonly Asset[],
     event: MouseEvent,
     isEditor: boolean
   ): boolean {
@@ -80,12 +80,12 @@ export const selectionStore = {
     lastSelectedIndex = -1
   },
 
-  selectAll(assets: Asset[]) {
+  selectAll(assets: readonly Asset[]) {
     selectedIds = new Set(assets.map((a) => a.id))
     lastSelectedIndex = assets.length - 1
   },
 
-  invertSelection(assets: Asset[]) {
+  invertSelection(assets: readonly Asset[]) {
     const next = new Set<string>()
     for (const a of assets) {
       if (!selectedIds.has(a.id)) next.add(a.id)
@@ -94,7 +94,7 @@ export const selectionStore = {
     lastSelectedIndex = -1
   },
 
-  moveSelectionTo(index: number, assets: Asset[]) {
+  moveSelectionTo(index: number, assets: readonly Asset[]) {
     const clamped = Math.max(0, Math.min(assets.length - 1, index))
     selectedIds = new Set([assets[clamped].id])
     lastSelectedIndex = clamped

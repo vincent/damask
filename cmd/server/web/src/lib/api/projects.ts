@@ -1,5 +1,7 @@
 import { apiFetch } from './client'
-import type { Project } from './models'
+import type { definitions } from './types.gen'
+
+export type Project = definitions['api.ProjectResponse']
 
 export const projectApi = {
   /** GET /api/v1/projects — list projects in current workspace. */

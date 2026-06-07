@@ -1,9 +1,9 @@
 import { ApiError, apiFetch } from './client'
-import type {
-  AssetVersion,
-  RestoreVersionResponse,
-  UploadVersionResponse,
-} from './models'
+import type { definitions } from './types.gen'
+
+export type AssetVersion = definitions['api.VersionResponse']
+export type UploadVersionResponse = definitions['api.VersionWithAssetResponse']
+export type RestoreVersionResponse = definitions['api.VersionWithAssetResponse']
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 

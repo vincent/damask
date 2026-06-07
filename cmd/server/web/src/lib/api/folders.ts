@@ -1,5 +1,7 @@
 import { apiFetch } from './client'
-import type { Folder } from './models'
+import type { definitions } from './types.gen'
+
+export type Folder = definitions['api.FolderResponse']
 
 export const folderApi = {
   /** GET /api/v1/projects/:id/folders — list folders (hierarchy tree) in a project. */

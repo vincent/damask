@@ -13,10 +13,10 @@ type ProjectResponse struct {
 	ID             string    `json:"id"`
 	WorkspaceID    string    `json:"workspace_id"`
 	Name           string    `json:"name"`
-	Description    *string   `json:"description"`
-	Color          *string   `json:"color"`
-	CoverAssetID   *string   `json:"cover_asset_id"`
-	CoverVersionID *string   `json:"cover_version_id"`
+	Description    *string   `json:"description,omitempty"`
+	Color          *string   `json:"color,omitempty"`
+	CoverAssetID   *string   `json:"cover_asset_id,omitempty"`
+	CoverVersionID *string   `json:"cover_version_id,omitempty"`
 	AssetCount     int64     `json:"asset_count"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`

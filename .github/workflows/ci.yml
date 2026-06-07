@@ -74,6 +74,25 @@ jobs:
         working-directory: cmd/server/web
         run: npm run check
 
+  check-types-gen:
+    name: Check (types.gen.ts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install swag
+        run: go install github.com/swaggo/swag/cmd/swag@latest
+      - name: Regenerate
+        run: make codegen
+      - name: Assert no drift
+        run: git diff --exit-code cmd/server/web/src/lib/api/types.gen.ts
+
   build-frontend:
     name: Build (SvelteKit)
     runs-on: ubuntu-latest

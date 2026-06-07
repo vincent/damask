@@ -23,7 +23,7 @@
     isSelected: boolean
     onSelect: () => void
     onVariantUpdated: (variant: Variant) => void
-    onVariantsUpdated: (variants: Variant[]) => void
+    onVariantsUpdated: (variants: readonly Variant[]) => void
     onDelete: () => void
     onPromote: () => void
     onThumbnailUpdated: () => void
@@ -63,7 +63,7 @@
   let pollTimer: ReturnType<typeof setTimeout> | null = null
 
   $effect(() => {
-    thumbUrl = variant.thumbnail_url
+    thumbUrl = variant.thumbnail_url ?? null
     thumbContentType = variant.thumbnail_content_type || 'image/jpeg'
     noPreview = false
     draftTitle = variant.title

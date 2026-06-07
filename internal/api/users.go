@@ -66,7 +66,7 @@ func (l *emailRateLimiter) Allow(email string) bool {
 	return true
 }
 
-func resolveAvatarURL(baseURL string, dto *meResponse) *string {
+func resolveAvatarURL(baseURL string, dto *MeResponse) *string {
 	if dto.AvatarStorageKey != nil && *dto.AvatarStorageKey != "" {
 		resolved := strings.TrimRight(baseURL, "/") + "/api/v1/users/" + dto.ID + "/avatar"
 		return &resolved
@@ -77,8 +77,8 @@ func resolveAvatarURL(baseURL string, dto *meResponse) *string {
 	return nil
 }
 
-func meResponseFromDTO(baseURL string, dto *service.OIDCUserDTO) meResponse {
-	resp := meResponse{
+func meResponseFromDTO(baseURL string, dto *service.OIDCUserDTO) MeResponse {
+	resp := MeResponse{
 		ID:               dto.ID,
 		Name:             dto.Name,
 		DisplayName:      dto.DisplayName,

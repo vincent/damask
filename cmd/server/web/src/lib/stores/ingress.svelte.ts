@@ -1,9 +1,5 @@
+import type { IngressLogEntry, IngressRule, IngressSource } from '$lib/api'
 import { ingressApi } from '$lib/api'
-import type {
-  IngressLogEntry,
-  IngressRule,
-  IngressSource,
-} from '$lib/api/models'
 import { toastStore } from './toast.svelte'
 
 // ---- Sources ----

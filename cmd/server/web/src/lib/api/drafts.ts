@@ -1,9 +1,7 @@
-import { apiFetch } from './client'
-import type { Variant } from './models'
+import { apiFetch, type Variant } from './client'
+import type { definitions } from './types.gen'
 
-export interface DraftGenerateResponse {
-  draft_key: string
-}
+export type DraftGenerateResponse = definitions['api.DraftGenerateResponse']
 
 export interface DraftReadyEvent {
   type: 'variant_draft.ready'

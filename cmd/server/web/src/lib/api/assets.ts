@@ -1,26 +1,20 @@
 import { ApiError, apiFetch } from './client'
-import type {
-  Asset,
-  FieldFilter,
-  ImageRouterModelsResponse,
-  ShareComment,
-  VisualSimilarResult,
-} from './models'
+import type { FieldFilter } from './models'
+import type { definitions } from './types.gen'
+import type { ImageRouterModelsResponse } from './workspace'
+
+export type AssetListResponse = definitions['api.AssetListResponse']
+export type ShareComment = definitions['api.CommentResponse']
+export type VisualSimilarResult = definitions['api.VisualSimilarResult']
+export type SharedVariant = definitions['api.SharedVariantResponse']
+
+export type Asset = definitions['api.AssetResponse'] & {
+  created_by?: { id: string; name: string } | null
+  authors?: { id: string; name: string }[]
+}
+export type PublicAsset = Asset
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
-
-export interface AssetListResponse {
-  assets: Asset[]
-  next_cursor: string | null
-  total?: number
-  similar_to_not_indexed?: boolean
-  similar_to_no_matches?: boolean
-  similarity?: {
-    anchor_asset_id: string
-    anchor_filename: string
-    result_count: number
-  }
-}
 
 let imageRouterModelsCache: ImageRouterModelsResponse | null = null
 let imageRouterModelsPromise: Promise<ImageRouterModelsResponse> | null = null

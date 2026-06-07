@@ -27,7 +27,7 @@
 
   interface Props {
     asset: Asset
-    variants: Variant[]
+    variants: readonly Variant[]
     coveringWorkflow: CoveringWorkflow | null
     variantsLoading: boolean
     isImage: boolean
@@ -177,7 +177,7 @@
       selectedVariant = updatedVariant
   }
 
-  function replaceVariants(nextVariants: Variant[]) {
+  function replaceVariants(nextVariants: readonly Variant[]) {
     variants = nextVariants
     if (selectedVariant) {
       selectedVariant =
@@ -369,8 +369,8 @@
 {#if showAutomationModal}
   <CreateVariantAutomationModal
     assetId={asset.id}
-    assetProjectId={asset.project_id}
-    assetFolderId={asset.folder_id}
+    assetProjectId={asset.project_id ?? null}
+    assetFolderId={asset.folder_id ?? null}
     assetVariants={automatableVariants}
     onClose={() => {
       showAutomationModal = false

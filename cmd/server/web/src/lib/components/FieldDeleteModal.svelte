@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fieldDefinitionApi } from '$lib/api'
-  import type { FieldDefinition } from '$lib/api/models'
+  import type { FieldDefinition } from '$lib/api'
   import Modal from '$lib/components/ui/Modal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'

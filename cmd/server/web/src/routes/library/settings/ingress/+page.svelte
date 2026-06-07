@@ -3,7 +3,7 @@
   import { Plus, Rss } from '@lucide/svelte'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
-  import type { IngressSource } from '$lib/api/models'
+  import type { IngressSource } from '$lib/api'
   import IngressSourceCard from '$lib/components/ingress/IngressSourceCard.svelte'
   import AddSourceModal from '$lib/components/ingress/AddSourceModal.svelte'
   import SourceDetailPanel from '$lib/components/ingress/SourceDetailPanel.svelte'

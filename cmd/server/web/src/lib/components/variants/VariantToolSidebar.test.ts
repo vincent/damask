@@ -7,25 +7,17 @@ import VariantToolSidebar from './VariantToolSidebar.svelte'
 const baseAsset: Asset = {
   id: 'asset-1',
   workspace_id: 'workspace-1',
-  project_id: null,
-  folder_id: null,
-  derived_from_asset_id: null,
   original_filename: 'image.jpg',
   mime_type: 'image/jpeg',
   size: 1024,
   width: 1200,
   height: 800,
-  thumbnail_key: null,
-  thumbnail_content_type: null,
-  metadata: null,
   tags: [],
   version_count: 1,
   variant_count: 0,
   variants_rebuilding: false,
   created_at: '2026-05-19T00:00:00Z',
   updated_at: '2026-05-19T00:00:00Z',
-  created_by: null,
-  authors: [],
 }
 
 beforeAll(() => {

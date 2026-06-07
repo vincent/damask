@@ -223,7 +223,7 @@
     </div>
 
     {#if store.selectedAsset.shared_variants?.length}
-      {@const sharedVariants = store.selectedAsset.shared_variants}
+      {@const sharedVariants = [...(store.selectedAsset.shared_variants ?? [])]}
       <div
         class="desktop-filmstrip px-8 py-5 pt-0"
         role="presentation"
@@ -318,7 +318,7 @@
     </div>
 
     {#if viewportStore.isMobile && store.selectedAsset.shared_variants?.length}
-      {@const sharedVariants = store.selectedAsset.shared_variants}
+      {@const sharedVariants = [...(store.selectedAsset.shared_variants ?? [])]}
       <div class="px-4 py-4">
         <SharedVariantList
           {shareId}

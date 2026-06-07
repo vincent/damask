@@ -6,8 +6,8 @@ import { projectsStore } from '$lib/stores/projects.svelte'
 import type { Command } from './types'
 
 type Membership = {
-  project_id: string | null
-  folder_id: string | null
+  project_id: string | null | undefined
+  folder_id: string | null | undefined
   assetIds: string[]
 }
 
@@ -28,20 +28,20 @@ export class BulkAssignAssetToFolder implements Command {
       {}
     )
     this.assetIdsByFolder = assets.reduce((acc, a) => {
-      let group = acc.find(
+      const existing = acc.find(
         (b) =>
           (b.project_id ?? null) === (a.project_id ?? null) &&
           (b.folder_id ?? null) === (a.folder_id ?? null)
       )
-      if (!group) {
-        group = {
-          assetIds: [],
+      if (existing) {
+        existing.assetIds.push(a.id)
+      } else {
+        acc.push({
+          assetIds: [a.id],
           folder_id: a.folder_id,
           project_id: a.project_id,
-        }
-        acc.push(group)
+        })
       }
-      group.assetIds.push(a.id)
       return acc
     }, [] as Membership[])
   }
@@ -80,12 +80,12 @@ export class BulkAssignAssetToFolder implements Command {
       if (before.project_id) {
         await foldersStore.moveAssets(
           before.assetIds,
-          before.folder_id,
+          before.folder_id ?? null,
           before.project_id
         )
         invalidatedProjects.add(before.project_id)
       } else {
-        await assetApi.bulkProject(before.assetIds, before.project_id)
+        await assetApi.bulkProject(before.assetIds, before.project_id ?? null)
       }
       for (const id of before.assetIds) {
         assetsStore.patchAsset(id, { ...before })

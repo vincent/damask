@@ -19,8 +19,7 @@ const variants: SharedVariant[] = [
     title: 'Print image',
     type: 'convert',
     mime_type: 'image/png',
-    size: null,
-    thumbnail_url: null,
+    thumbnail_url: undefined,
     thumbnail_content_type: 'image/jpeg',
   },
 ]

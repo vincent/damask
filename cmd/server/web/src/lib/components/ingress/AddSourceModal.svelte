@@ -9,7 +9,7 @@
     FolderOpen,
     Palette,
   } from '@lucide/svelte'
-  import type { IngressSource, IngressSourceType } from '$lib/api/models'
+  import type { IngressSource, IngressSourceType } from '$lib/api'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { ingressApi } from '$lib/api'
@@ -147,7 +147,7 @@
         type: selectedType!,
         label: label.trim(),
         config: sourceConfig,
-        dest_project_id: destProjectId || null,
+        dest_project_id: destProjectId || undefined,
         poll_interval_min: pollIntervalMin,
         enabled: false, // not enabled until user finishes
       })
@@ -183,7 +183,7 @@
         src = await ingressStore.updateSource(createdSourceId, {
           label: label.trim(),
           config: sourceConfig,
-          dest_project_id: destProjectId || null,
+          dest_project_id: destProjectId || undefined,
           poll_interval_min: pollIntervalMin,
           enabled: true,
         })
@@ -192,7 +192,7 @@
           type: selectedType!,
           label: label.trim(),
           config: sourceConfig,
-          dest_project_id: destProjectId || null,
+          dest_project_id: destProjectId || undefined,
           poll_interval_min: pollIntervalMin,
           enabled: true,
         })

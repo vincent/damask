@@ -5,9 +5,9 @@
   import { toastStore } from '$lib/stores/toast.svelte'
 
   interface Props {
-    variants: Variant[]
+    variants: readonly Variant[]
     assetId: string
-    onUpdate: (updated: Variant[]) => void
+    onUpdate: (updated: readonly Variant[]) => void
   }
 
   let { variants, assetId, onUpdate }: Props = $props()

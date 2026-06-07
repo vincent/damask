@@ -1,7 +1,7 @@
 <script lang="ts">
   import { m } from '$lib/paraglide/messages'
   import { assetFieldApi } from '$lib/api/custom_fields'
-  import type { AssetFieldValue } from '$lib/api/models'
+  import type { AssetFieldValue } from '$lib/api'
   import MetaTagsGroup from './MetaTagsGroup.svelte'
   import MetaTagRow from './MetaTagRow.svelte'
 
@@ -46,7 +46,7 @@
   })
 
   function val(key: string): string | number | boolean | null {
-    return tags?.get(key)?.value ?? null
+    return (tags?.get(key)?.value ?? null) as string | number | boolean | null
   }
 
   function fmtBitrate(bps: number | null): string | null {

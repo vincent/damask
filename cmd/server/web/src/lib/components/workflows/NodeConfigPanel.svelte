@@ -6,7 +6,7 @@
     WorkflowNodeSchema,
   } from '$lib/api/workflows'
   import { folderApi, tagApi, type Folder } from '$lib/api'
-  import type { Tag } from '$lib/api/models'
+  import type { Tag } from '$lib/api'
   import Input from '$lib/components/ui/Input.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { variantTypes, variantTypeMap } from '$lib/stores/variantTypes.svelte'
@@ -90,11 +90,11 @@
   }
 
   // Project / folder selectors
-  let folders = $state<Folder[]>([])
+  let folders = $state<readonly Folder[]>([])
   let foldersLoading = $state(false)
 
   // Tag selector
-  let tags = $state<Tag[]>([])
+  let tags = $state<readonly Tag[]>([])
 
   onMount(() => {
     if (projectsStore.projects.length === 0) projectsStore.load()
@@ -130,7 +130,7 @@
   })
 
   function flattenFolders(
-    list: Folder[],
+    list: readonly Folder[],
     depth = 0
   ): { folder: Folder; depth: number }[] {
     return list.flatMap((f) => [

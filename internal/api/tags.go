@@ -25,11 +25,30 @@ type TagResponse struct {
 	ID         string  `json:"id"`
 	Name       string  `json:"name"`
 	AssetCount int64   `json:"asset_count"`
-	Color      *string `json:"color"`
-	GroupName  *string `json:"group_name"`
+	Color      *string `json:"color,omitempty"`
+	GroupName  *string `json:"group_name,omitempty"`
 	IsSystem   bool    `json:"is_system"`
 	CreatedAt  string  `json:"created_at"`
-	LastUsedAt *string `json:"last_used_at"`
+	LastUsedAt *string `json:"last_used_at,omitempty"`
+}
+
+// BulkDeleteTagsResponse is the result of a bulk tag delete operation.
+type BulkDeleteTagsResponse struct {
+	Deleted           int   `json:"deleted"`
+	RemovedFromAssets int64 `json:"removed_from_assets"`
+}
+
+// MergeTagsResponse is the result of a tag merge operation.
+type MergeTagsResponse struct {
+	MergedAssets int64       `json:"merged_assets"`
+	Target       TagResponse `json:"target"`
+}
+
+// DuplicateTagPairResponse is a pair of near-duplicate tag names with a similarity score.
+type DuplicateTagPairResponse struct {
+	A     string  `json:"a"`
+	B     string  `json:"b"`
+	Score float64 `json:"score"`
 }
 
 func tagDTOToResponse(d *service.TagDTO) TagResponse {
@@ -182,7 +201,7 @@ func (s *Server) handlePatchTag(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param body body bulkDeleteTagsRequest true "Tag names to delete"
-// @Success 200 {object} map[string]int
+// @Success 200 {object} BulkDeleteTagsResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
 // @Router /api/v1/tags [delete].
@@ -202,9 +221,9 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	return c.JSON(fiber.Map{
-		"deleted":             result.Deleted,
-		"removed_from_assets": result.RemovedFromAssets,
+	return c.JSON(BulkDeleteTagsResponse{
+		Deleted:           result.Deleted,
+		RemovedFromAssets: result.RemovedFromAssets,
 	})
 }
 
@@ -217,7 +236,7 @@ func (s *Server) handleBulkDeleteTags(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param body body mergeTagsRequest true "Source tag names and target tag name"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} MergeTagsResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 422 {object} ValidationErrorResponse "Validation failed"
 // @Router /api/v1/tags/merge [post].
@@ -237,9 +256,9 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	return c.JSON(fiber.Map{
-		"merged_assets": result.MergedAssets,
-		"target":        tagDTOToResponse(result.Target),
+	return c.JSON(MergeTagsResponse{
+		MergedAssets: result.MergedAssets,
+		Target:       tagDTOToResponse(result.Target),
 	})
 }
 
@@ -250,7 +269,7 @@ func (s *Server) handleMergeTags(c fiber.Ctx) error {
 // @Tags Tags
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} map[string]interface{}
+// @Success 200 {array} DuplicateTagPairResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Router /api/v1/tags/suggestions/duplicates [get].
 func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
@@ -268,12 +287,7 @@ func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 		}
 	}
 
-	type pair struct {
-		A     string  `json:"a"`
-		B     string  `json:"b"`
-		Score float64 `json:"score"`
-	}
-	var pairs []pair
+	var pairs []DuplicateTagPairResponse
 
 	for i := 0; i < len(active) && len(pairs) < 20; i++ {
 		for j := i + 1; j < len(active) && len(pairs) < 20; j++ {
@@ -286,7 +300,7 @@ func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 			dist := levenshtein.ComputeDistance(a, b)
 			score := float64(dist) / maxLen
 			if score < maxSimilarityScore {
-				pairs = append(pairs, pair{
+				pairs = append(pairs, DuplicateTagPairResponse{
 					A:     active[i].Name,
 					B:     active[j].Name,
 					Score: math.Round(score*100) / 100, //nolint:mnd // round to 2 decimals
@@ -298,7 +312,7 @@ func (s *Server) handleTagDuplicateSuggestions(c fiber.Ctx) error {
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].Score < pairs[j].Score })
 
 	if pairs == nil {
-		pairs = []pair{}
+		pairs = []DuplicateTagPairResponse{}
 	}
 	return c.JSON(pairs)
 }

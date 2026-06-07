@@ -1,5 +1,5 @@
+import type { DuplicateTagPair, Tag } from '$lib/api'
 import { tagApi } from '$lib/api'
-import type { DuplicateTagPair, Tag } from '$lib/api/models'
 
 function createTagsManagementStore() {
   let tags = $state<Tag[]>([])
@@ -48,10 +48,17 @@ function createTagsManagementStore() {
     name: string,
     fields: { name?: string; color?: string | null; group_name?: string | null }
   ) {
-    // Optimistic update
+    // Optimistic update (null → undefined: server omits absent pointer fields with omitempty)
     const prev = tags.find((t) => t.name === name)
     if (prev) {
-      tags = tags.map((t) => (t.name === name ? { ...t, ...fields } : t))
+      const patch: Partial<Tag> = {
+        ...(fields.name !== undefined && { name: fields.name }),
+        ...(fields.color !== undefined && { color: fields.color ?? undefined }),
+        ...(fields.group_name !== undefined && {
+          group_name: fields.group_name ?? undefined,
+        }),
+      }
+      tags = tags.map((t) => (t.name === name ? { ...t, ...patch } : t))
     }
     try {
       const updated = await tagApi.patch(name, fields)

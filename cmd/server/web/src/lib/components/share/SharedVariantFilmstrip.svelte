@@ -47,7 +47,7 @@
       : m.share_variants_count_plural({ count })
   }
 
-  function formatSize(size: number | null): string {
+  function formatSize(size: number | null | undefined): string {
     if (!size) return ''
     if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
     return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`

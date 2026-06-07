@@ -40,17 +40,17 @@ type AssetDetailResponse struct {
 type AssetResponse struct {
 	ID                   string                  `json:"id"`
 	WorkspaceID          string                  `json:"workspace_id"`
-	ProjectID            *string                 `json:"project_id"`
-	FolderID             *string                 `json:"folder_id"`
-	DerivedFromAssetID   *string                 `json:"derived_from_asset_id"`
+	ProjectID            *string                 `json:"project_id,omitempty"`
+	FolderID             *string                 `json:"folder_id,omitempty"`
+	DerivedFromAssetID   *string                 `json:"derived_from_asset_id,omitempty"`
 	OriginalFilename     string                  `json:"original_filename"`
 	MimeType             string                  `json:"mime_type"`
 	Size                 int64                   `json:"size"`
-	Width                *int64                  `json:"width"`
-	Height               *int64                  `json:"height"`
-	ThumbnailKey         *string                 `json:"thumbnail_key"`
-	ThumbnailContentType *string                 `json:"thumbnail_content_type"`
-	Metadata             *string                 `json:"metadata"`
+	Width                *int64                  `json:"width,omitempty"`
+	Height               *int64                  `json:"height,omitempty"`
+	ThumbnailKey         *string                 `json:"thumbnail_key,omitempty"`
+	ThumbnailContentType *string                 `json:"thumbnail_content_type,omitempty"`
+	Metadata             *string                 `json:"metadata,omitempty"`
 	Tags                 []string                `json:"tags"`
 	VersionCount         int64                   `json:"version_count"`
 	VariantCount         int64                   `json:"variant_count"`
@@ -62,7 +62,7 @@ type AssetResponse struct {
 
 type AssetListResponse struct {
 	Assets              []AssetResponse      `json:"assets"`
-	NextCursor          *string              `json:"next_cursor"`
+	NextCursor          *string              `json:"next_cursor,omitempty"`
 	Total               *int                 `json:"total,omitempty"`
 	Similarity          *AssetSimilarityMeta `json:"similarity,omitempty"`
 	SimilarToNotIndexed bool                 `json:"similar_to_not_indexed,omitempty"`

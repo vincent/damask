@@ -1,4 +1,4 @@
-.PHONY: dev dev-server dev-web build build-web build-demo build-dev test test-integration lint generate migrate admin admin-run admin-install swagger check-i18n
+.PHONY: dev dev-server dev-web build build-web build-demo build-dev test test-integration lint generate migrate admin admin-run admin-install swagger codegen check-i18n
 
 # Run both server and web dev servers concurrently
 dev:
@@ -30,7 +30,15 @@ build-dev: build-web
 
 # Update Swagger docs
 swagger:
-	swag init -g cmd/server/main.go -o internal/docs
+	swag init -g cmd/server/main.go -o internal/docs --requiredByDefault
+
+# Generate TypeScript types from the Swagger spec.
+# Run after: make swagger
+.PHONY: codegen
+codegen: swagger
+	npx --yes openapi-typescript@5 internal/docs/swagger.json \
+	    --output cmd/server/web/src/lib/api/types.gen.ts \
+	    --immutable-types
 
 # Run all tests (excludes integration tests)
 test:

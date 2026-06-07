@@ -1,6 +1,6 @@
 <script lang="ts">
   import { assetFieldApi, fieldDefinitionApi } from '$lib/api/custom_fields'
-  import type { Asset, AssetFieldValue, FieldDefinition } from '$lib/api/models'
+  import type { Asset, AssetFieldValue, FieldDefinition } from '$lib/api'
   import { ChevronDown, ChevronRight, Camera } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
@@ -16,8 +16,8 @@
 
   let { asset }: Props = $props()
 
-  let definitions = $state<FieldDefinition[]>([])
-  let values = $state<AssetFieldValue[]>([])
+  let definitions = $state<readonly FieldDefinition[]>([])
+  let values = $state<readonly AssetFieldValue[]>([])
   let loading = $state(true)
   let showDeprecated = $state(false)
   let showAllExif = $state(false)
@@ -55,7 +55,7 @@
     return values.find((v) => v.field_id === fieldId)
   }
 
-  function userValuesOnly(items: AssetFieldValue[]) {
+  function userValuesOnly(items: readonly AssetFieldValue[]) {
     return items.filter((field) => !field.source || field.source === 'user')
   }
 
@@ -118,7 +118,11 @@
         parsedValue = editValue
       }
 
-      const before = valueFor(def.id)?.value ?? null
+      const before = (valueFor(def.id)?.value ?? null) as
+        | string
+        | number
+        | boolean
+        | null
       if (parsedValue === null) {
         const result = await assetFieldApi.patch(asset.id, [
           { field_id: def.id, value: null },

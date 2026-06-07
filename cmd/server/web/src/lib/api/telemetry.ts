@@ -1,10 +1,7 @@
 import { apiFetch } from './client'
+import type { definitions } from './types.gen'
 
-export interface TelemetryStatus {
-  enabled: boolean
-  service_name: string
-  env: string
-}
+export type TelemetryStatus = definitions['api.TelemetryStatusResponse']
 
 export const telemetryApi = {
   getStatus: () => apiFetch<TelemetryStatus>('/api/admin/telemetry'),

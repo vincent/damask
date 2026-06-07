@@ -1,10 +1,10 @@
 import { apiFetch } from './client'
-import type {
-  BulkDeleteTagsResult,
-  DuplicateTagPair,
-  MergeTagsResult,
-  Tag,
-} from './models'
+import type { definitions } from './types.gen'
+
+export type Tag = definitions['api.TagResponse']
+export type DuplicateTagPair = definitions['api.DuplicateTagPairResponse']
+export type MergeTagsResult = definitions['api.MergeTagsResponse']
+export type BulkDeleteTagsResult = definitions['api.BulkDeleteTagsResponse']
 
 export const tagApi = {
   /** GET /api/v1/tags — list all tags in the workspace (with usage counts). */

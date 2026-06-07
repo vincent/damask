@@ -15,8 +15,8 @@ import (
 // EventActor is the actor embedded in each event response.
 type EventActor struct {
 	Type string  `json:"type"`
-	ID   *string `json:"id"`
-	Name *string `json:"name"`
+	ID   *string `json:"id,omitempty"`
+	Name *string `json:"name,omitempty"`
 }
 
 // EventResponse is a single event in the API response. Exported for test access.
@@ -32,16 +32,23 @@ type EventResponse struct {
 // EventListResponse wraps paginated events. Exported for test access.
 type EventListResponse struct {
 	Events     []EventResponse `json:"events"`
-	NextCursor *string         `json:"next_cursor"`
+	NextCursor *string         `json:"next_cursor,omitempty"`
 	HasMore    bool            `json:"has_more"`
 }
 
-// activityEvent is a unified event for the workspace feed.
-type activityEvent struct {
+// ActivityEventResponse is a unified event for the workspace activity feed.
+type ActivityEventResponse struct {
 	EventResponse
 
 	EntityType string `json:"entity_type"`
 	EntityID   string `json:"entity_id"`
+}
+
+// ActivityFeedResponse is the paginated workspace activity feed.
+type ActivityFeedResponse struct {
+	Events     []ActivityEventResponse `json:"events"`
+	NextCursor *string                 `json:"next_cursor,omitempty"`
+	HasMore    bool                    `json:"has_more"`
 }
 
 func auditDTOToEventResponse(d service.AuditEventDTO) EventResponse {
@@ -142,7 +149,7 @@ func (s *Server) handleListProjectEvents(c fiber.Ctx) error {
 // @Param cursor query string false "Pagination cursor"
 // @Param user_id query string false "Filter by actor user ID"
 // @Param types query string false "Comma-separated event type filter"
-// @Success 200 {object} EventListResponse
+// @Success 200 {object} ActivityFeedResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Router /api/v1/activity [get].
 func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
@@ -162,19 +169,19 @@ func (s *Server) handleListWorkspaceActivity(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	events := make([]activityEvent, len(result.Events))
+	events := make([]ActivityEventResponse, len(result.Events))
 	for i, d := range result.Events {
-		events[i] = activityEvent{
+		events[i] = ActivityEventResponse{
 			EventResponse: auditDTOToEventResponse(d.AuditEventDTO),
 			EntityType:    d.EntityType,
 			EntityID:      d.EntityID,
 		}
 	}
 
-	return c.JSON(fiber.Map{
-		"events":      events,
-		"next_cursor": result.NextCursor,
-		"has_more":    result.HasMore,
+	return c.JSON(ActivityFeedResponse{
+		Events:     events,
+		NextCursor: result.NextCursor,
+		HasMore:    result.HasMore,
 	})
 }
 

@@ -1,10 +1,10 @@
+import type { AssetFieldValue } from '$lib/api'
 import { assetFieldApi } from '$lib/api'
-import type { AssetFieldValue } from '$lib/api/models'
 import { m } from '$lib/paraglide/messages'
 import { customFieldsStore } from '$lib/stores/customFields.svelte'
 import type { Command } from './types'
 
-function userFields(fields: AssetFieldValue[]) {
+function userFields(fields: readonly AssetFieldValue[]) {
   return fields.filter((field) => !field.source || field.source === 'user')
 }
 

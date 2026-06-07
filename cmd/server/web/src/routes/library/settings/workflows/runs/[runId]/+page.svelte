@@ -11,6 +11,7 @@
     workflowsApi,
     type Workflow,
     type WorkflowGraph,
+    type WorkflowNodeSchema,
     type WorkflowRun,
   } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
@@ -22,9 +23,7 @@
   let loading = $state(true)
   let run = $state<WorkflowRun | null>(null)
   let workflow = $state<Workflow | null>(null)
-  let nodeSchemas = $state<import('$lib/api/workflows').WorkflowNodeSchema[]>(
-    []
-  )
+  let nodeSchemas = $state<WorkflowNodeSchema[]>([])
 
   onMount(() => {
     load()

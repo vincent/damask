@@ -7,11 +7,59 @@ definitions:
         type: string
       token:
         type: string
+    required:
+    - name
+    - password
+    - token
+    type: object
+  api.ActivityEventResponse:
+    properties:
+      actor:
+        $ref: '#/definitions/api.EventActor'
+      created_at:
+        type: string
+      entity_id:
+        type: string
+      entity_type:
+        type: string
+      event_type:
+        type: string
+      human_readable:
+        type: string
+      id:
+        type: string
+      payload:
+        type: object
+    required:
+    - actor
+    - created_at
+    - entity_id
+    - entity_type
+    - event_type
+    - human_readable
+    - id
+    - payload
+    type: object
+  api.ActivityFeedResponse:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/api.ActivityEventResponse'
+        type: array
+      has_more:
+        type: boolean
+      next_cursor:
+        type: string
+    required:
+    - events
+    - has_more
     type: object
   api.AddTagRequest:
     properties:
       name:
         type: string
+    required:
+    - name
     type: object
   api.AssetListResponse:
     properties:
@@ -21,6 +69,16 @@ definitions:
         type: array
       next_cursor:
         type: string
+      similar_to_no_matches:
+        type: boolean
+      similar_to_not_indexed:
+        type: boolean
+      similarity:
+        $ref: '#/definitions/api.AssetSimilarityMeta'
+      total:
+        type: integer
+    required:
+    - assets
     type: object
   api.AssetResponse:
     properties:
@@ -42,6 +100,10 @@ definitions:
         type: string
       project_id:
         type: string
+      shared_variants:
+        items:
+          $ref: '#/definitions/api.SharedVariantResponse'
+        type: array
       size:
         type: integer
       tags:
@@ -64,6 +126,31 @@ definitions:
         type: integer
       workspace_id:
         type: string
+    required:
+    - created_at
+    - id
+    - mime_type
+    - original_filename
+    - size
+    - tags
+    - updated_at
+    - variant_count
+    - variants_rebuilding
+    - version_count
+    - workspace_id
+    type: object
+  api.AssetSimilarityMeta:
+    properties:
+      anchor_asset_id:
+        type: string
+      anchor_filename:
+        type: string
+      result_count:
+        type: integer
+    required:
+    - anchor_asset_id
+    - anchor_filename
+    - result_count
     type: object
   api.AuthResponse:
     properties:
@@ -73,6 +160,19 @@ definitions:
         $ref: '#/definitions/api.UserResponse'
       workspace:
         $ref: '#/definitions/api.WorkspaceResponse'
+    required:
+    - token
+    - user
+    type: object
+  api.AutomateVariantsResponse:
+    properties:
+      workflow_id:
+        type: string
+      workflow_url:
+        type: string
+    required:
+    - workflow_id
+    - workflow_url
     type: object
   api.BulkDeleteRequest:
     properties:
@@ -80,6 +180,18 @@ definitions:
         items:
           type: string
         type: array
+    required:
+    - asset_ids
+    type: object
+  api.BulkDeleteTagsResponse:
+    properties:
+      deleted:
+        type: integer
+      removed_from_assets:
+        type: integer
+    required:
+    - deleted
+    - removed_from_assets
     type: object
   api.BulkFieldPreviewEntry:
     properties:
@@ -95,6 +207,12 @@ definitions:
         type: string
       field_type:
         type: string
+    required:
+    - assets_with_value
+    - distinct_values
+    - field_id
+    - field_name
+    - field_type
     type: object
   api.BulkFieldsPreviewRequest:
     properties:
@@ -107,6 +225,9 @@ definitions:
         items:
           type: string
         type: array
+    required:
+    - asset_ids
+    - field_ids
     type: object
   api.BulkFieldsPreviewResponse:
     properties:
@@ -114,6 +235,22 @@ definitions:
         items:
           $ref: '#/definitions/api.BulkFieldPreviewEntry'
         type: array
+    required:
+    - fields
+    type: object
+  api.BulkManualRunResponse:
+    properties:
+      count:
+        type: integer
+      error:
+        type: string
+      run_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - count
+    - run_ids
     type: object
   api.BulkPatchAssetFieldsRequest:
     properties:
@@ -125,6 +262,9 @@ definitions:
         items:
           $ref: '#/definitions/api.FieldValueInput'
         type: array
+    required:
+    - asset_ids
+    - values
     type: object
   api.BulkPatchAssetFieldsResponse:
     properties:
@@ -132,6 +272,9 @@ definitions:
         type: integer
       updated:
         type: integer
+    required:
+    - cleared
+    - updated
     type: object
   api.BulkProjectRequest:
     properties:
@@ -142,6 +285,9 @@ definitions:
       project_id:
         description: null = unassign
         type: string
+    required:
+    - asset_ids
+    - project_id
     type: object
   api.BulkTagRequest:
     properties:
@@ -154,6 +300,10 @@ definitions:
         type: string
       tag_name:
         type: string
+    required:
+    - asset_ids
+    - mode
+    - tag_name
     type: object
   api.CollectionResponse:
     properties:
@@ -173,6 +323,15 @@ definitions:
         type: string
       workspace_id:
         type: string
+    required:
+    - asset_count
+    - created_at
+    - created_by
+    - description
+    - id
+    - name
+    - updated_at
+    - workspace_id
     type: object
   api.CommentResponse:
     properties:
@@ -190,6 +349,44 @@ definitions:
         type: string
       share_id:
         type: string
+    required:
+    - asset_id
+    - author_name
+    - body
+    - created_at
+    - id
+    - share_id
+    type: object
+  api.ConfigResponse:
+    properties:
+      demo:
+        type: boolean
+      exif_keep:
+        type: boolean
+      mailHost:
+        type: string
+    required:
+    - demo
+    type: object
+  api.ConnectionResponse:
+    properties:
+      connected_at:
+        type: string
+      id:
+        type: string
+      provider:
+        type: string
+      provider_email:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    required:
+    - connected_at
+    - id
+    - provider
+    - scopes
     type: object
   api.CreateCommentRequest:
     properties:
@@ -201,6 +398,11 @@ definitions:
         type: string
       body:
         type: string
+    required:
+    - asset_id
+    - author_email
+    - author_name
+    - body
     type: object
   api.CreateFieldDefinitionRequest:
     properties:
@@ -216,10 +418,19 @@ definitions:
         type: string
       position:
         type: integer
-      required:
-        type: boolean
       scope:
         type: string
+      validationRequired:
+        type: boolean
+    required:
+    - field_type
+    - inherit_from_project
+    - key
+    - name
+    - options
+    - position
+    - scope
+    - validationRequired
     type: object
   api.CreateFolderRequest:
     properties:
@@ -229,6 +440,10 @@ definitions:
         type: string
       position:
         type: integer
+    required:
+    - name
+    - parent_id
+    - position
     type: object
   api.CreateIngressSourceReq:
     properties:
@@ -251,6 +466,9 @@ definitions:
         type: array
       type:
         type: string
+    required:
+    - label
+    - type
     type: object
   api.CreateInviteRequest:
     properties:
@@ -259,6 +477,9 @@ definitions:
       role:
         description: '"editor" or "viewer"'
         type: string
+    required:
+    - email
+    - role
     type: object
   api.CreateProjectRequest:
     properties:
@@ -268,6 +489,10 @@ definitions:
         type: string
       name:
         type: string
+    required:
+    - color
+    - description
+    - name
     type: object
   api.CreateShareRequest:
     properties:
@@ -285,6 +510,16 @@ definitions:
         type: string
       target_type:
         type: string
+    required:
+    - target_id
+    - target_type
+    type: object
+  api.CreateTextTrackResponse:
+    properties:
+      text_track:
+        $ref: '#/definitions/api.TextTrackResponse'
+    required:
+    - text_track
     type: object
   api.CreateVariantRequest:
     properties:
@@ -292,6 +527,9 @@ definitions:
         type: object
       type:
         type: string
+    required:
+    - params
+    - type
     type: object
   api.CreateVariantResponse:
     properties:
@@ -301,16 +539,44 @@ definitions:
         type: string
       status:
         type: string
+    required:
+    - job_id
+    - message
+    - status
     type: object
   api.CreateWorkspaceRequest:
     properties:
       name:
         type: string
+    required:
+    - name
+    type: object
+  api.DraftGenerateResponse:
+    properties:
+      draft_key:
+        type: string
+    required:
+    - draft_key
+    type: object
+  api.DuplicateTagPairResponse:
+    properties:
+      a:
+        type: string
+      b:
+        type: string
+      score:
+        type: number
+    required:
+    - a
+    - b
+    - score
     type: object
   api.ErrorResponse:
     properties:
       error:
         type: string
+    required:
+    - error
     type: object
   api.EventActor:
     properties:
@@ -320,6 +586,8 @@ definitions:
         type: string
       type:
         type: string
+    required:
+    - type
     type: object
   api.EventListResponse:
     properties:
@@ -331,6 +599,9 @@ definitions:
         type: boolean
       next_cursor:
         type: string
+    required:
+    - events
+    - has_more
     type: object
   api.EventResponse:
     properties:
@@ -346,6 +617,13 @@ definitions:
         type: string
       payload:
         type: object
+    required:
+    - actor
+    - created_at
+    - event_type
+    - human_readable
+    - id
+    - payload
     type: object
   api.FieldDefinitionResponse:
     properties:
@@ -375,6 +653,18 @@ definitions:
         type: string
       workspace_id:
         type: string
+    required:
+    - created_at
+    - field_type
+    - id
+    - inherit_from_project
+    - key
+    - name
+    - position
+    - required
+    - scope
+    - updated_at
+    - workspace_id
     type: object
   api.FieldDefinitionStatsResponse:
     properties:
@@ -382,12 +672,18 @@ definitions:
         type: integer
       project_count:
         type: integer
+    required:
+    - asset_count
+    - project_count
     type: object
   api.FieldValueInput:
     properties:
       field_id:
         type: string
       value: {}
+    required:
+    - field_id
+    - value
     type: object
   api.FolderResponse:
     properties:
@@ -413,6 +709,15 @@ definitions:
         type: string
       workspace_id:
         type: string
+    required:
+    - asset_count
+    - children
+    - created_at
+    - id
+    - name
+    - position
+    - project_id
+    - workspace_id
     type: object
   api.GetAssetFieldsResponse:
     properties:
@@ -420,6 +725,8 @@ definitions:
         items:
           $ref: '#/definitions/api.assetFieldValueResponse'
         type: array
+    required:
+    - fields
     type: object
   api.GetProjectFieldsResponse:
     properties:
@@ -427,491 +734,44 @@ definitions:
         items:
           $ref: '#/definitions/api.projectFieldValueResponse'
         type: array
+    required:
+    - fields
     type: object
-  api.IngressRuleReq:
-    properties:
-      action:
-        type: string
-      field:
-        type: string
-      operator:
-        type: string
-      position:
-        type: integer
-      value:
-        type: string
-    type: object
-  api.InviteResponse:
-    properties:
-      created_at:
-        type: string
-      email:
-        type: string
-      expires_at:
-        type: string
-      id:
-        type: string
-      invite_token:
-        type: string
-      role:
-        type: string
-    type: object
-  api.ListVariantsResponse:
-    properties:
-      rebuilding:
-        type: boolean
-      variants:
-        items:
-          $ref: '#/definitions/api.VariantResponse'
-        type: array
-    type: object
-  api.LoginRequest:
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-    type: object
-  api.MemberResponse:
-    properties:
-      email:
-        type: string
-      joined_at:
-        type: string
-      name:
-        type: string
-      role:
-        type: string
-      user_id:
-        type: string
-    type: object
-  api.PatchAssetFieldsRequest:
-    properties:
-      values:
-        items:
-          $ref: '#/definitions/api.FieldValueInput'
-        type: array
-    type: object
-  api.PatchProjectFieldsRequest:
-    properties:
-      values:
-        items:
-          $ref: '#/definitions/api.FieldValueInput'
-        type: array
-    type: object
-  api.ProjectResponse:
-    properties:
-      asset_count:
-        type: integer
-      color:
-        type: string
-      cover_asset_id:
-        type: string
-      cover_version_id:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
-        type: string
-      workspace_id:
-        type: string
-    type: object
-  api.RegisterRequest:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      password:
-        type: string
-    type: object
-  api.RenameAssetRequest:
-    properties:
-      name:
-        type: string
-    type: object
-  api.ReorderFieldDefinitionsRequest:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/api.ReorderFieldEntry'
-        type: array
-    type: object
-  api.ReorderFieldEntry:
-    properties:
-      id:
-        type: string
-      position:
-        type: integer
-    type: object
-  api.ShareAccessRequest:
-    properties:
-      password:
-        type: string
-    type: object
-  api.ShareAccessResponse:
-    properties:
-      token:
-        type: string
-    type: object
-  api.ShareInfoResponse:
-    properties:
-      has_password:
-        type: boolean
-      label:
-        type: string
-    type: object
-  api.ShareResponse:
-    properties:
-      allow_comments:
-        type: boolean
-      allow_download:
-        type: boolean
-      created_at:
-        type: string
-      created_by:
-        type: string
-      expires_at:
-        type: string
-      has_password:
-        type: boolean
-      id:
-        type: string
-      is_expired:
-        type: boolean
-      label:
-        type: string
-      public_url:
-        type: string
-      revoked_at:
-        type: string
-      target_id:
-        type: string
-      target_type:
-        type: string
-      view_count:
-        type: integer
-      workspace_id:
-        type: string
-    type: object
-  api.SwitchWorkspaceRequest:
-    properties:
-      workspace_id:
-        type: string
-    type: object
-  api.SwitchWorkspaceResponse:
-    properties:
-      role:
-        type: string
-      token:
-        type: string
-      workspace:
-        $ref: '#/definitions/api.WorkspaceResponse'
-    type: object
-  api.TagResponse:
-    properties:
-      asset_count:
-        type: integer
-      color:
-        type: string
-      created_at:
-        type: string
-      group_name:
-        type: string
-      id:
-        type: string
-      is_system:
-        type: boolean
-      last_used_at:
-        type: string
-      name:
-        type: string
-    type: object
-  api.UpdateAssetFolderRequest:
-    properties:
-      folder_id:
-        type: string
-    type: object
-  api.UpdateFieldDefinitionRequest:
-    properties:
-      field_type:
-        type: string
-      inherit_from_project:
-        type: boolean
-      key:
-        type: string
-      name:
-        type: string
-      options:
-        type: string
-      position:
-        type: integer
-      required:
-        type: boolean
-    type: object
-  api.UpdateFolderRequest:
-    properties:
-      name:
-        type: string
-      position:
-        type: integer
-    type: object
-  api.UpdateIngressSourceReq:
-    properties:
-      config:
-        additionalProperties: {}
-        type: object
-      dest_folder_id:
-        type: string
-      dest_project_id:
-        type: string
-      enabled:
-        type: boolean
-      label:
-        type: string
-      poll_interval_min:
-        type: integer
-    type: object
-  api.UpdateMemberRoleRequest:
-    properties:
-      role:
-        type: string
-    type: object
-  api.UpdateProjectRequest:
-    properties:
-      color:
-        type: string
-      cover_asset_id:
-        type: string
-      description:
-        type: string
-      name:
-        type: string
-    type: object
-  api.UpdateShareRequest:
-    properties:
-      allow_comments:
-        type: boolean
-      allow_download:
-        type: boolean
-      clear_expiry:
-        type: boolean
-      clear_password:
-        description: explicit flag to remove password
-        type: boolean
-      expires_at:
-        description: ISO string or null to clear
-        type: string
-      label:
-        type: string
-      password:
-        description: empty string = remove password
-        type: string
-    type: object
-  api.UpdateWorkspaceSettingsRequest:
-    properties:
-      exif_keep:
-        type: boolean
-      exif_keep_gps:
-        type: boolean
-      locked_taxonomy:
-        type: boolean
-      version_retention_count:
-        type: integer
-    type: object
-  api.UserResponse:
-    properties:
-      created_at:
-        type: string
-      email:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-    type: object
-  api.ValidationErrorResponse:
-    properties:
-      error:
-        type: string
-      fields:
-        additionalProperties:
-          type: string
-        type: object
-    type: object
-  api.VariantResponse:
-    properties:
-      asset_version_id:
-        type: string
-      created_at:
-        type: string
-      download_url:
-        type: string
-      id:
-        type: string
-      size:
-        type: integer
-      status:
-        type: string
-      storage_key:
-        type: string
-      thumbnail_content_type:
-        type: string
-      thumbnail_url:
-        type: string
-      transform_params:
-        type: string
-      type:
-        type: string
-    type: object
-  api.VersionCreatedByResponse:
+  api.ImageRouterModel:
     properties:
       id:
         type: string
       name:
         type: string
-    type: object
-  api.VersionResponse:
-    properties:
-      comment:
-        type: string
-      created_at:
-        type: string
-      created_by:
-        $ref: '#/definitions/api.VersionCreatedByResponse'
-      duration_sec:
+      price_per_image:
         type: number
-      height:
-        type: integer
-      id:
+      provider:
         type: string
-      is_current:
+    required:
+    - id
+    - name
+    - price_per_image
+    - provider
+    type: object
+  api.ImageRouterModelsResponse:
+    properties:
+      configured:
         type: boolean
-      mime_type:
+      default_bg_remove_model:
         type: string
-      size:
-        type: integer
-      thumbnail_url:
+      default_model:
         type: string
-      variant_count:
-        type: integer
-      version_num:
-        type: integer
-      width:
-        type: integer
-    type: object
-  api.VersionWithAssetResponse:
-    properties:
-      asset:
-        $ref: '#/definitions/api.AssetResponse'
-      version:
-        $ref: '#/definitions/api.VersionResponse'
-    type: object
-  api.WorkspaceMeResponse:
-    properties:
-      role:
-        type: string
-      total_asset_count:
-        type: integer
-      user:
-        $ref: '#/definitions/api.UserResponse'
-      workspace:
-        $ref: '#/definitions/api.WorkspaceResponse'
-    type: object
-  api.WorkspaceResponse:
-    properties:
-      created_at:
-        type: string
-      download_log_retention_days:
-        type: integer
-      event_log_retention_days:
-        type: integer
-      exif_keep:
-        type: boolean
-      exif_keep_gps:
-        type: boolean
-      icon_asset_id:
-        type: string
-      icon_version_id:
-        type: string
-      id:
-        type: string
-      locked_taxonomy:
-        type: boolean
-      name:
-        type: string
-      updated_at:
-        type: string
-      version_retention_count:
-        type: integer
-    type: object
-  api.WorkspaceWithRoleResponse:
-    properties:
-      asset_count:
-        type: integer
-      created_at:
-        type: string
-      id:
-        type: string
-      member_count:
-        type: integer
-      name:
-        type: string
-      role:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  api.assetFieldValueResponse:
-    properties:
-      definition_deleted:
-        type: boolean
-      field_id:
-        type: string
-      field_type:
-        type: string
-      key:
-        type: string
-      name:
-        type: string
-      source:
-        type: string
-      value: {}
-    type: object
-  api.bulkDeleteTagsRequest:
-    properties:
-      names:
+      models:
         items:
-          type: string
+          $ref: '#/definitions/api.ImageRouterModel'
         type: array
+    required:
+    - configured
+    - default_bg_remove_model
+    - default_model
+    - models
     type: object
-  api.createCollectionRequest:
-    properties:
-      asset_ids:
-        items:
-          type: string
-        type: array
-      description:
-        type: string
-      name:
-        type: string
-    type: object
-  api.createTagRequest:
-    properties:
-      color:
-        type: string
-      group_name:
-        type: string
-      name:
-        type: string
-    type: object
-  api.ingressLogResponse:
+  api.IngressLogResponse:
     properties:
       asset_id:
         type: string
@@ -929,8 +789,59 @@ definitions:
         type: string
       status:
         type: string
+    required:
+    - filename
+    - id
+    - imported_at
+    - remote_id
+    - source_id
+    - status
     type: object
-  api.ingressSourceResponse:
+  api.IngressRuleReq:
+    properties:
+      action:
+        type: string
+      field:
+        type: string
+      operator:
+        type: string
+      position:
+        type: integer
+      value:
+        type: string
+    required:
+    - action
+    - field
+    - operator
+    - position
+    - value
+    type: object
+  api.IngressRuleResponse:
+    properties:
+      action:
+        type: string
+      field:
+        type: string
+      id:
+        type: string
+      operator:
+        type: string
+      position:
+        type: integer
+      source_id:
+        type: string
+      value:
+        type: string
+    required:
+    - action
+    - field
+    - id
+    - operator
+    - position
+    - source_id
+    - value
+    type: object
+  api.IngressSourceResponse:
     properties:
       config:
         additionalProperties: {}
@@ -965,8 +876,75 @@ definitions:
         type: string
       workspace_id:
         type: string
+    required:
+    - config
+    - created_at
+    - created_by
+    - enabled
+    - error_count
+    - id
+    - label
+    - poll_interval_min
+    - public_token
+    - type
+    - updated_at
+    - workspace_id
     type: object
-  api.meResponse:
+  api.InviteResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      invite_token:
+        type: string
+      role:
+        type: string
+    required:
+    - created_at
+    - email
+    - expires_at
+    - id
+    - role
+    type: object
+  api.ListTextTracksResponse:
+    properties:
+      text_tracks:
+        items:
+          $ref: '#/definitions/api.TextTrackResponse'
+        type: array
+    required:
+    - text_tracks
+    type: object
+  api.ListVariantsResponse:
+    properties:
+      covering_workflow:
+        $ref: '#/definitions/service.CoveringWorkflowDTO'
+      rebuilding:
+        type: boolean
+      variants:
+        items:
+          $ref: '#/definitions/api.VariantResponse'
+        type: array
+    required:
+    - rebuilding
+    - variants
+    type: object
+  api.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  api.MeResponse:
     properties:
       auth_methods:
         type: string
@@ -990,6 +968,1031 @@ definitions:
         type: boolean
       pending_email:
         type: string
+    required:
+    - auth_methods
+    - canva_linked
+    - display_name
+    - email
+    - google_linked
+    - has_password
+    - id
+    - name
+    - oidc_linked
+    type: object
+  api.MemberResponse:
+    properties:
+      email:
+        type: string
+      joined_at:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+      user_id:
+        type: string
+    required:
+    - email
+    - joined_at
+    - name
+    - role
+    - user_id
+    type: object
+  api.MergeTagsResponse:
+    properties:
+      merged_assets:
+        type: integer
+      target:
+        $ref: '#/definitions/api.TagResponse'
+    required:
+    - merged_assets
+    - target
+    type: object
+  api.PatchAssetFieldsRequest:
+    properties:
+      values:
+        items:
+          $ref: '#/definitions/api.FieldValueInput'
+        type: array
+    required:
+    - values
+    type: object
+  api.PatchProjectFieldsRequest:
+    properties:
+      values:
+        items:
+          $ref: '#/definitions/api.FieldValueInput'
+        type: array
+    required:
+    - values
+    type: object
+  api.ProjectResponse:
+    properties:
+      asset_count:
+        type: integer
+      color:
+        type: string
+      cover_asset_id:
+        type: string
+      cover_version_id:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - asset_count
+    - created_at
+    - id
+    - name
+    - updated_at
+    - workspace_id
+    type: object
+  api.PromoteVariantResponse:
+    properties:
+      asset_id:
+        type: string
+      asset_url:
+        type: string
+    required:
+    - asset_id
+    - asset_url
+    type: object
+  api.PublicShareView:
+    properties:
+      allow_comments:
+        type: boolean
+      allow_download:
+        type: boolean
+      expires_at:
+        type: string
+      has_password:
+        type: boolean
+      id:
+        type: string
+      label:
+        type: string
+    required:
+    - allow_comments
+    - allow_download
+    - has_password
+    - id
+    - label
+    type: object
+  api.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  api.RenameAssetRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  api.ReorderFieldDefinitionsRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/api.ReorderFieldEntry'
+        type: array
+    type: object
+  api.ReorderFieldEntry:
+    properties:
+      id:
+        type: string
+      position:
+        type: integer
+    required:
+    - id
+    - position
+    type: object
+  api.ReorderRuleEntry:
+    properties:
+      id:
+        type: string
+      position:
+        type: integer
+    required:
+    - id
+    - position
+    type: object
+  api.RerunVariantResponse:
+    properties:
+      status:
+        type: string
+      variant_id:
+        type: string
+    required:
+    - status
+    - variant_id
+    type: object
+  api.SetVariantThumbnailResponse:
+    properties:
+      thumbnail_url:
+        type: string
+    required:
+    - thumbnail_url
+    type: object
+  api.ShareAccessRequest:
+    properties:
+      password:
+        type: string
+      visitor_name:
+        type: string
+    required:
+    - password
+    - visitor_name
+    type: object
+  api.ShareAccessResponse:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
+  api.ShareAssetsResponse:
+    properties:
+      assets:
+        items:
+          $ref: '#/definitions/api.AssetResponse'
+        type: array
+      share:
+        $ref: '#/definitions/api.PublicShareView'
+    required:
+    - assets
+    - share
+    type: object
+  api.ShareInfoResponse:
+    properties:
+      has_password:
+        type: boolean
+      label:
+        type: string
+    required:
+    - has_password
+    - label
+    type: object
+  api.ShareResponse:
+    properties:
+      allow_comments:
+        type: boolean
+      allow_download:
+        type: boolean
+      created_at:
+        type: string
+      created_by:
+        type: string
+      expires_at:
+        type: string
+      has_password:
+        type: boolean
+      id:
+        type: string
+      is_expired:
+        type: boolean
+      label:
+        type: string
+      public_url:
+        type: string
+      revoked_at:
+        type: string
+      target_id:
+        type: string
+      target_type:
+        type: string
+      view_count:
+        type: integer
+      workspace_id:
+        type: string
+    required:
+    - allow_comments
+    - allow_download
+    - created_at
+    - created_by
+    - has_password
+    - id
+    - is_expired
+    - label
+    - public_url
+    - target_id
+    - target_type
+    - view_count
+    - workspace_id
+    type: object
+  api.SharedVariantResponse:
+    properties:
+      id:
+        type: string
+      mime_type:
+        type: string
+      size:
+        type: integer
+      thumbnail_content_type:
+        type: string
+      thumbnail_url:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    required:
+    - id
+    - mime_type
+    - thumbnail_content_type
+    - title
+    - type
+    type: object
+  api.SwitchWorkspaceRequest:
+    properties:
+      workspace_id:
+        type: string
+    required:
+    - workspace_id
+    type: object
+  api.SwitchWorkspaceResponse:
+    properties:
+      role:
+        type: string
+      token:
+        type: string
+      workspace:
+        $ref: '#/definitions/api.WorkspaceResponse'
+    required:
+    - role
+    - token
+    - workspace
+    type: object
+  api.TagResponse:
+    properties:
+      asset_count:
+        type: integer
+      color:
+        type: string
+      created_at:
+        type: string
+      group_name:
+        type: string
+      id:
+        type: string
+      is_system:
+        type: boolean
+      last_used_at:
+        type: string
+      name:
+        type: string
+    required:
+    - asset_count
+    - created_at
+    - id
+    - is_system
+    - name
+    type: object
+  api.TelemetryStatusResponse:
+    properties:
+      enabled:
+        type: boolean
+      env:
+        type: string
+      service_name:
+        type: string
+    required:
+    - enabled
+    - env
+    - service_name
+    type: object
+  api.TextTrackResponse:
+    properties:
+      asset_id:
+        type: string
+      asset_version_id:
+        type: string
+      content:
+        type: string
+      content_truncated:
+        type: boolean
+      created_at:
+        type: string
+      download_url:
+        type: string
+      error:
+        type: string
+      has_file:
+        type: boolean
+      id:
+        type: string
+      lang:
+        type: string
+      meta:
+        additionalProperties: {}
+        type: object
+      source:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - asset_id
+    - content
+    - content_truncated
+    - created_at
+    - has_file
+    - id
+    - meta
+    - source
+    - status
+    - updated_at
+    type: object
+  api.UpdateAssetFolderRequest:
+    properties:
+      folder_id:
+        type: string
+    required:
+    - folder_id
+    type: object
+  api.UpdateFieldDefinitionRequest:
+    properties:
+      field_type:
+        type: string
+      inherit_from_project:
+        type: boolean
+      key:
+        type: string
+      name:
+        type: string
+      options:
+        type: string
+      position:
+        type: integer
+      validationRequired:
+        type: boolean
+    required:
+    - field_type
+    - inherit_from_project
+    - key
+    - name
+    - options
+    - position
+    - validationRequired
+    type: object
+  api.UpdateFolderRequest:
+    properties:
+      name:
+        type: string
+      position:
+        type: integer
+    required:
+    - name
+    - position
+    type: object
+  api.UpdateIngressSourceReq:
+    properties:
+      config:
+        additionalProperties: {}
+        type: object
+      dest_folder_id:
+        type: string
+      dest_project_id:
+        type: string
+      enabled:
+        type: boolean
+      label:
+        type: string
+      poll_interval_min:
+        type: integer
+    type: object
+  api.UpdateMemberRoleRequest:
+    properties:
+      role:
+        type: string
+    required:
+    - role
+    type: object
+  api.UpdateProjectRequest:
+    properties:
+      color:
+        type: string
+      cover_asset_id:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - color
+    - cover_asset_id
+    - description
+    - name
+    type: object
+  api.UpdateShareRequest:
+    properties:
+      allow_comments:
+        type: boolean
+      allow_download:
+        type: boolean
+      clear_expiry:
+        type: boolean
+      clear_password:
+        type: boolean
+      expires_at:
+        type: string
+      label:
+        type: string
+      password:
+        type: string
+    type: object
+  api.UpdateWorkspaceSettingsRequest:
+    properties:
+      exif_keep:
+        type: boolean
+      exif_keep_gps:
+        type: boolean
+      locked_taxonomy:
+        type: boolean
+      version_retention_count:
+        type: integer
+    required:
+    - exif_keep
+    - exif_keep_gps
+    - locked_taxonomy
+    - version_retention_count
+    type: object
+  api.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    required:
+    - created_at
+    - email
+    - id
+    - name
+    type: object
+  api.ValidationErrorResponse:
+    properties:
+      error:
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - error
+    - fields
+    type: object
+  api.VariantResponse:
+    properties:
+      asset_version_id:
+        type: string
+      created_at:
+        type: string
+      download_url:
+        type: string
+      id:
+        type: string
+      is_shared:
+        type: boolean
+      size:
+        type: integer
+      status:
+        type: string
+      storage_key:
+        type: string
+      thumbnail_content_type:
+        type: string
+      thumbnail_url:
+        type: string
+      title:
+        type: string
+      transform_params:
+        type: string
+      type:
+        type: string
+    required:
+    - asset_version_id
+    - created_at
+    - download_url
+    - id
+    - is_shared
+    - status
+    - storage_key
+    - thumbnail_content_type
+    - title
+    - type
+    type: object
+  api.VersionCreatedByResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    required:
+    - id
+    - name
+    type: object
+  api.VersionResponse:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        $ref: '#/definitions/api.VersionCreatedByResponse'
+      duration_sec:
+        type: number
+      height:
+        type: integer
+      id:
+        type: string
+      is_current:
+        type: boolean
+      mime_type:
+        type: string
+      size:
+        type: integer
+      thumbnail_url:
+        type: string
+      variant_count:
+        type: integer
+      version_num:
+        type: integer
+      width:
+        type: integer
+    required:
+    - created_at
+    - id
+    - is_current
+    - mime_type
+    - size
+    - variant_count
+    - version_num
+    type: object
+  api.VersionWithAssetResponse:
+    properties:
+      asset:
+        $ref: '#/definitions/api.AssetResponse'
+      version:
+        $ref: '#/definitions/api.VersionResponse'
+    required:
+    - asset
+    - version
+    type: object
+  api.VisualSimilarResult:
+    properties:
+      asset_id:
+        type: string
+      asset_version_id:
+        type: string
+      height:
+        type: integer
+      mime_type:
+        type: string
+      original_filename:
+        type: string
+      thumbnail_url:
+        type: string
+      width:
+        type: integer
+    required:
+    - asset_id
+    - asset_version_id
+    - mime_type
+    - original_filename
+    type: object
+  api.WatermarkAssetResponse:
+    properties:
+      id:
+        type: string
+      mime_type:
+        type: string
+      name:
+        type: string
+      scope:
+        type: string
+      storage_key:
+        type: string
+      thumbnail_url:
+        type: string
+    required:
+    - id
+    - mime_type
+    - name
+    - scope
+    - storage_key
+    type: object
+  api.WorkflowListRunsResponse:
+    properties:
+      next_cursor:
+        type: string
+      runs:
+        items:
+          $ref: '#/definitions/api.WorkflowRunResponse'
+        type: array
+    required:
+    - next_cursor
+    - runs
+    type: object
+  api.WorkflowNodePortResponse:
+    properties:
+      id:
+        type: string
+      label:
+        type: string
+    required:
+    - id
+    - label
+    type: object
+  api.WorkflowNodeSchemaResponse:
+    properties:
+      category:
+        type: string
+      config_schema:
+        additionalProperties: {}
+        type: object
+      description:
+        type: string
+      inputs:
+        items:
+          $ref: '#/definitions/api.WorkflowNodePortResponse'
+        type: array
+      label:
+        type: string
+      outputs:
+        items:
+          $ref: '#/definitions/api.WorkflowNodePortResponse'
+        type: array
+      type:
+        type: string
+    required:
+    - category
+    - config_schema
+    - description
+    - inputs
+    - label
+    - outputs
+    - type
+    type: object
+  api.WorkflowResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      graph:
+        type: string
+      id:
+        type: string
+      last_run_at:
+        type: string
+      name:
+        type: string
+      notify_on_failure_email:
+        type: string
+      trigger_type:
+        type: string
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - created_at
+    - description
+    - enabled
+    - graph
+    - id
+    - name
+    - notify_on_failure_email
+    - trigger_type
+    - updated_at
+    - workspace_id
+    type: object
+  api.WorkflowRunResponse:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      error:
+        type: string
+      id:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+      steps:
+        items:
+          $ref: '#/definitions/api.WorkflowRunStepResponse'
+        type: array
+      trigger_data:
+        additionalProperties: {}
+        type: object
+      workflow_id:
+        type: string
+    required:
+    - created_at
+    - id
+    - status
+    - steps
+    - trigger_data
+    - workflow_id
+    type: object
+  api.WorkflowRunStepResponse:
+    properties:
+      attempt:
+        type: integer
+      completed_at:
+        type: string
+      error:
+        type: string
+      input_ctx:
+        additionalProperties: {}
+        type: object
+      node_id:
+        type: string
+      node_type:
+        type: string
+      output_ctx:
+        additionalProperties: {}
+        type: object
+      started_at:
+        type: string
+      status:
+        type: string
+    required:
+    - attempt
+    - input_ctx
+    - node_id
+    - node_type
+    - output_ctx
+    - status
+    type: object
+  api.WorkflowTemplateResponse:
+    properties:
+      description:
+        type: string
+      graph:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      trigger_type:
+        type: string
+    required:
+    - description
+    - graph
+    - id
+    - name
+    - trigger_type
+    type: object
+  api.WorkflowTokenResponse:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
+  api.WorkflowTriggerResponse:
+    properties:
+      run_id:
+        type: string
+      status:
+        type: string
+    required:
+    - run_id
+    - status
+    type: object
+  api.WorkspaceImageRouterStatusResponse:
+    properties:
+      key_set:
+        type: boolean
+      source:
+        type: string
+    required:
+    - key_set
+    - source
+    type: object
+  api.WorkspaceMeResponse:
+    properties:
+      role:
+        type: string
+      total_asset_count:
+        type: integer
+      user:
+        $ref: '#/definitions/api.UserResponse'
+      workspace:
+        $ref: '#/definitions/api.WorkspaceResponse'
+    required:
+    - role
+    - total_asset_count
+    - user
+    - workspace
+    type: object
+  api.WorkspaceResponse:
+    properties:
+      created_at:
+        type: string
+      download_log_retention_days:
+        type: integer
+      event_log_retention_days:
+        type: integer
+      exif_keep:
+        type: boolean
+      exif_keep_gps:
+        type: boolean
+      icon_asset_id:
+        type: string
+      icon_version_id:
+        type: string
+      id:
+        type: string
+      locked_taxonomy:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+      version_retention_count:
+        type: integer
+    required:
+    - created_at
+    - download_log_retention_days
+    - event_log_retention_days
+    - exif_keep
+    - exif_keep_gps
+    - id
+    - locked_taxonomy
+    - name
+    - updated_at
+    - version_retention_count
+    type: object
+  api.WorkspaceWithRoleResponse:
+    properties:
+      asset_count:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: string
+      member_count:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - asset_count
+    - created_at
+    - id
+    - member_count
+    - name
+    - role
+    - updated_at
+    type: object
+  api.assetFieldValueResponse:
+    properties:
+      definition_deleted:
+        type: boolean
+      field_id:
+        type: string
+      field_type:
+        type: string
+      key:
+        type: string
+      name:
+        type: string
+      source:
+        type: string
+      value: {}
+    required:
+    - definition_deleted
+    - field_id
+    - field_type
+    - key
+    - name
+    - source
+    - value
+    type: object
+  api.automateVariantsRequest:
+    properties:
+      scope:
+        type: string
+    required:
+    - scope
+    type: object
+  api.bulkDeleteTagsRequest:
+    properties:
+      names:
+        items:
+          type: string
+        type: array
+    required:
+    - names
+    type: object
+  api.bulkManualRunRequest:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - asset_ids
+    type: object
+  api.createCollectionRequest:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - asset_ids
+    - description
+    - name
+    type: object
+  api.createTagRequest:
+    properties:
+      color:
+        type: string
+      group_name:
+        type: string
+      name:
+        type: string
+    required:
+    - color
+    - group_name
+    - name
     type: object
   api.mergeTagsRequest:
     properties:
@@ -999,6 +2002,9 @@ definitions:
         type: array
       target:
         type: string
+    required:
+    - sources
+    - target
     type: object
   api.patchTagRequest:
     properties:
@@ -1008,6 +2014,10 @@ definitions:
         type: string
       name:
         type: string
+    required:
+    - color
+    - group_name
+    - name
     type: object
   api.projectFieldValueResponse:
     properties:
@@ -1022,6 +2032,13 @@ definitions:
       name:
         type: string
       value: {}
+    required:
+    - definition_deleted
+    - field_id
+    - field_type
+    - key
+    - name
+    - value
     type: object
   api.stackExportRequest:
     properties:
@@ -1031,6 +2048,9 @@ definitions:
         type: array
       filename:
         type: string
+    required:
+    - asset_ids
+    - filename
     type: object
   api.stackMergeRequest:
     properties:
@@ -1044,6 +2064,11 @@ definitions:
         type: integer
       output_type:
         type: string
+    required:
+    - asset_ids
+    - filename
+    - gif_frame_ms
+    - output_type
     type: object
   api.updateCollectionRequest:
     properties:
@@ -1051,6 +2076,41 @@ definitions:
         type: string
       name:
         type: string
+    required:
+    - description
+    - name
+    type: object
+  api.workflowRequest:
+    properties:
+      description:
+        type: string
+      graph:
+        type: string
+      name:
+        type: string
+      notify_on_failure_email:
+        type: string
+    required:
+    - description
+    - graph
+    - name
+    - notify_on_failure_email
+    type: object
+  service.CoveringWorkflowDTO:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      scope:
+        type: string
+      workflow_url:
+        type: string
+    required:
+    - id
+    - name
+    - scope
+    - workflow_url
     type: object
 info:
   contact: {}
@@ -1082,7 +2142,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.EventListResponse'
+            $ref: '#/definitions/api.ActivityFeedResponse'
         "401":
           description: Not authenticated
           schema:
@@ -1128,6 +2188,20 @@ paths:
       summary: Export workspace activity
       tags:
       - Audit
+  /api/v1/admin/telemetry:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.TelemetryStatusResponse'
+      security:
+      - BearerAuth: []
+      summary: Get telemetry status
+      tags:
+      - Admin
   /api/v1/assets:
     get:
       description: 'Returns a paginated list of assets. The behaviour is controlled
@@ -1661,6 +2735,44 @@ paths:
       summary: Rename an asset
       tags:
       - Assets
+  /api/v1/assets/{id}/similar:
+    get:
+      description: Returns asset versions that are visually similar to the current
+        version of the given image asset.
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/api.VisualSimilarResult'
+              type: array
+            type: object
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: not_an_image
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Find similar images
+      tags:
+      - Assets
   /api/v1/assets/{id}/tags:
     get:
       parameters:
@@ -1763,6 +2875,130 @@ paths:
       summary: Remove tag from an asset
       tags:
       - Assets
+  /api/v1/assets/{id}/text-tracks:
+    get:
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ListTextTracksResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List text tracks for an asset
+      tags:
+      - Text Tracks
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.CreateTextTrackResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/api.CreateTextTrackResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a text track for an asset
+      tags:
+      - Text Tracks
+  /api/v1/assets/{id}/text-tracks/{tid}:
+    delete:
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Text Track ID
+        in: path
+        name: tid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Text track not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a text track
+      tags:
+      - Text Tracks
+    get:
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Text Track ID
+        in: path
+        name: tid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.TextTrackResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Text track not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a text track
+      tags:
+      - Text Tracks
   /api/v1/assets/{id}/thumb:
     get:
       description: Streams the JPEG thumbnail for the asset. Thumbnails are generated
@@ -1963,6 +3199,167 @@ paths:
       summary: Download variant file
       tags:
       - Variants
+  /api/v1/assets/{id}/variants/{vid}/promote:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Variant ID
+        in: path
+        name: vid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.PromoteVariantResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset or variant not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Promote a variant to a new asset
+      tags:
+      - Variants
+  /api/v1/assets/{id}/variants/{vid}/rerun:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Variant ID
+        in: path
+        name: vid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/api.RerunVariantResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset or variant not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Rerun a variant job
+      tags:
+      - Variants
+  /api/v1/assets/{id}/variants/{vid}/set-thumbnail:
+    post:
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Variant ID
+        in: path
+        name: vid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.SetVariantThumbnailResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset or variant not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Set a variant as the asset thumbnail
+      tags:
+      - Variants
+  /api/v1/assets/{id}/variants/automate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Automation scope
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.automateVariantsRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.AutomateVariantsResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Automate variant creation
+      tags:
+      - Variants
+  /api/v1/assets/{id}/variants/draft:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/api.DraftGenerateResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate a draft variant
+      tags:
+      - Variants
   /api/v1/assets/{id}/variants/upload:
     post:
       consumes:
@@ -2010,6 +3407,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Upload a manual variant
+      tags:
+      - Variants
+  /api/v1/assets/{id}/variants/watermark:
+    get:
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WatermarkAssetResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: No watermark asset configured
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Resolve watermark asset for an asset
       tags:
       - Variants
   /api/v1/assets/{id}/versions:
@@ -3001,6 +4430,24 @@ paths:
       summary: Update a folder
       tags:
       - Folders
+  /api/v1/imagerouter/models:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ImageRouterModelsResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List available image router models
+      tags:
+      - ImageRouter
   /api/v1/ingress/log:
     get:
       parameters:
@@ -3015,7 +4462,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/api.ingressLogResponse'
+              $ref: '#/definitions/api.IngressLogResponse'
             type: array
       security:
       - BearerAuth: []
@@ -3072,7 +4519,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/api.ingressSourceResponse'
+              $ref: '#/definitions/api.IngressSourceResponse'
             type: array
       security:
       - BearerAuth: []
@@ -3095,7 +4542,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/api.ingressSourceResponse'
+            $ref: '#/definitions/api.IngressSourceResponse'
       security:
       - BearerAuth: []
       summary: Create an ingress source
@@ -3132,7 +4579,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.ingressSourceResponse'
+            $ref: '#/definitions/api.IngressSourceResponse'
       security:
       - BearerAuth: []
       summary: Get an ingress source
@@ -3159,7 +4606,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.ingressSourceResponse'
+            $ref: '#/definitions/api.IngressSourceResponse'
       security:
       - BearerAuth: []
       summary: Update an ingress source
@@ -3180,7 +4627,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/api.ingressLogResponse'
+              $ref: '#/definitions/api.IngressLogResponse'
             type: array
       security:
       - BearerAuth: []
@@ -3210,6 +4657,140 @@ paths:
       summary: Trigger a poll
       tags:
       - Ingress
+  /api/v1/ingress/sources/{id}/rules:
+    get:
+      parameters:
+      - description: Source ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.IngressRuleResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List ingress rules
+      tags:
+      - Ingress
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Source ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rule definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.IngressRuleReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.IngressRuleResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an ingress rule
+      tags:
+      - Ingress
+  /api/v1/ingress/sources/{id}/rules/{rid}:
+    delete:
+      parameters:
+      - description: Source ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rule ID
+        in: path
+        name: rid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete an ingress rule
+      tags:
+      - Ingress
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Source ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rule ID
+        in: path
+        name: rid
+        required: true
+        type: string
+      - description: Rule definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.IngressRuleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.IngressRuleResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an ingress rule
+      tags:
+      - Ingress
+  /api/v1/ingress/sources/{id}/rules/reorder:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Source ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reorder entries
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/api.ReorderRuleEntry'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.IngressRuleResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Reorder ingress rules
+      tags:
+      - Ingress
   /api/v1/ingress/sources/{id}/test:
     post:
       parameters:
@@ -3233,6 +4814,22 @@ paths:
       summary: Test an ingress source
       tags:
       - Ingress
+  /api/v1/integrations/connections:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.ConnectionResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List OAuth connections
+      tags:
+      - Integrations
   /api/v1/projects:
     get:
       description: Returns all projects in the workspace, each with an <code>asset_count</code>
@@ -3907,9 +5504,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: integer
-            type: object
+            $ref: '#/definitions/api.BulkDeleteTagsResponse'
         "401":
           description: Not authenticated
           schema:
@@ -4037,8 +5632,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/api.MergeTagsResponse'
         "401":
           description: Not authenticated
           schema:
@@ -4061,8 +5655,7 @@ paths:
           description: OK
           schema:
             items:
-              additionalProperties: true
-              type: object
+              $ref: '#/definitions/api.DuplicateTagPairResponse'
             type: array
         "401":
           description: Not authenticated
@@ -4073,6 +5666,147 @@ paths:
       summary: Get duplicate tag suggestions
       tags:
       - Tags
+  /api/v1/workflows:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.WorkflowResponse'
+            type: array
+      summary: List workflows
+    post:
+      parameters:
+      - description: Workflow definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.workflowRequest'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.WorkflowResponse'
+      summary: Create a workflow
+  /api/v1/workflows/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+      summary: Delete a workflow
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WorkflowResponse'
+      summary: Get a workflow
+    put:
+      parameters:
+      - description: Workflow definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.workflowRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WorkflowResponse'
+      summary: Update a workflow
+  /api/v1/workflows/{id}/enabled:
+    patch:
+      responses:
+        "204":
+          description: No Content
+      summary: Enable or disable a workflow
+  /api/v1/workflows/{id}/runs:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.WorkflowRunResponse'
+            type: array
+      summary: List runs for a workflow
+    post:
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/api.WorkflowTriggerResponse'
+      summary: Trigger a manual workflow run
+  /api/v1/workflows/{id}/runs/{rid}:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WorkflowRunResponse'
+      summary: Get a specific workflow run
+  /api/v1/workflows/{id}/runs/bulk:
+    post:
+      parameters:
+      - description: Asset IDs to trigger
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.bulkManualRunRequest'
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/api.BulkManualRunResponse'
+      summary: Bulk trigger manual workflow runs
+  /api/v1/workflows/{id}/webhook-token:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WorkflowTokenResponse'
+      summary: Get workflow webhook token
+  /api/v1/workflows/{id}/webhook-token/regenerate:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WorkflowTokenResponse'
+      summary: Regenerate workflow webhook token
+  /api/v1/workflows/node-schemas:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.WorkflowNodeSchemaResponse'
+            type: array
+      summary: List workflow node schemas
+  /api/v1/workflows/runs:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WorkflowListRunsResponse'
+      summary: List all workflow runs (paginated)
+  /api/v1/workflows/templates:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.WorkflowTemplateResponse'
+            type: array
+      summary: List workflow templates
   /api/v1/workspace:
     post:
       consumes:
@@ -4381,6 +6115,20 @@ paths:
       summary: Update workspace settings
       tags:
       - Workspace
+  /api/v1/workspace/settings/imagerouter:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WorkspaceImageRouterStatusResponse'
+      security:
+      - BearerAuth: []
+      summary: Get ImageRouter key status
+      tags:
+      - Workspace
   /api/v1/workspace/switch:
     post:
       consumes:
@@ -4669,7 +6417,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.meResponse'
+            $ref: '#/definitions/api.MeResponse'
         "401":
           description: Not authenticated
           schema:
@@ -4822,12 +6570,7 @@ paths:
         "200":
           description: OK
           schema:
-            properties:
-              ' mailHost':
-                type: string
-              demo:
-                type: boolean
-            type: object
+            $ref: '#/definitions/api.ConfigResponse'
       summary: Get server config
       tags:
       - Config
@@ -4891,9 +6634,10 @@ paths:
         name: id
         required: true
         type: string
-      - description: Password (if required)
+      - description: Visitor name (required) and password (if required)
         in: body
         name: body
+        required: true
         schema:
           $ref: '#/definitions/api.ShareAccessRequest'
       produces:
@@ -4903,6 +6647,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/api.ShareAccessResponse'
+        "400":
+          description: visitor_name missing or too long
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
         "401":
           description: Password required or incorrect
           schema:
@@ -4935,10 +6683,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: share metadata and assets array
+          description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/api.ShareAssetsResponse'
         "401":
           description: Not authenticated (share token required)
           schema:

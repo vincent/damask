@@ -34,23 +34,30 @@ func (s *Server) handleSSEEvents(c fiber.Ctx) error {
 	return s.hub.EventHandler(c)
 }
 
+// ConfigResponse is the public server configuration returned to the frontend.
+type ConfigResponse struct {
+	Demo     bool   `json:"demo"`
+	MailHost string `json:"mailHost,omitempty"`
+	ExifKeep *bool  `json:"exif_keep,omitempty"`
+}
+
 // handleConfig returns public server configuration for the frontend.
 //
 // @Summary Get server config
 // @Description Returns public feature flags and configuration values that the frontend needs before authentication. Currently exposes the <code>demo</code> boolean which, when true, puts the server into read-only demonstration mode.
 // @Tags Config
 // @Produce json
-// @Success 200 {object} object{demo=bool, mailHost=string}
+// @Success 200 {object} ConfigResponse
 // @Router /config [get]
 // GET /config.
 func (s *Server) handleConfig(c fiber.Ctx) error {
-	out := fiber.Map{
-		"demo": s.cfg.Demo.DemoMode,
+	out := ConfigResponse{
+		Demo: s.cfg.Demo.DemoMode,
 	}
 	if claims := auth.GetClaims(c); claims != nil {
-		out["mailHost"] = s.cfg.MailServerHost
+		out.MailHost = s.cfg.MailServerHost
 		if ws, err := s.workspace.Get(c.Context(), claims.WorkspaceID); err == nil {
-			out["exif_keep"] = ws.ExifKeep
+			out.ExifKeep = &ws.ExifKeep
 		}
 	}
 	return c.JSON(out)

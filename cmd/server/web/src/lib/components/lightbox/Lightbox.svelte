@@ -103,7 +103,7 @@
 
   // --- Variant relay state (written by LightboxVariantsTab, read by LightboxPreviewPane) ---
   let selectedVariant = $state<Variant | null>(null)
-  let variants = $state<Variant[]>([])
+  let variants = $state<readonly Variant[]>([])
   let coveringWorkflow = $state<CoveringWorkflow | null>(null)
   let variantsLoading = $state(false)
   let selectedTool = $state<VariantTab | null>(null)

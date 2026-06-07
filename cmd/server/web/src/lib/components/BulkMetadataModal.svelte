@@ -1,6 +1,6 @@
 <script lang="ts">
   import { assetFieldApi, fieldDefinitionApi } from '$lib/api'
-  import type { BulkFieldPreviewEntry, FieldDefinition } from '$lib/api/models'
+  import type { BulkFieldPreviewEntry, FieldDefinition } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
   import { undoStore } from '$lib/stores/undo.svelte'
   import {

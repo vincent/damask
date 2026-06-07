@@ -20,7 +20,7 @@ const variants: SharedVariant[] = [
     type: 'convert',
     mime_type: 'image/png',
     size: 2.5 * 1024 * 1024,
-    thumbnail_url: null,
+    thumbnail_url: undefined,
     thumbnail_content_type: 'image/jpeg',
   },
 ]

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fieldDefinitionApi } from '$lib/api'
-  import type { FieldDefinition, FieldScope, FieldType } from '$lib/api/models'
+  import type { FieldDefinition, FieldScope, FieldType } from '$lib/api'
   import Modal from '$lib/components/ui/Modal.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import Input from '$lib/components/ui/Input.svelte'
@@ -51,10 +51,10 @@
 
   $effect(() => {
     if (editing) {
-      selectedType = editing.field_type
+      selectedType = editing.field_type as FieldType
       name = editing.name
       generatedKey = editing.key
-      required = editing.validationRequired
+      required = editing.required
       inheritFromProject = editing.inherit_from_project
       optionItems = editing.options
         ? (JSON.parse(editing.options) as string[])

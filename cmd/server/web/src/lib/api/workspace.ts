@@ -1,28 +1,20 @@
 import { apiFetch } from './client'
-import type {
-  AuthResponse,
-  Workspace,
-  WorkspaceInvite,
-  WorkspaceMeResponse,
-  WorkspaceMember,
-} from './models'
+import type { definitions } from './types.gen'
 
-export interface ImageRouterKeyStatus {
-  key_set: boolean
-  source: 'workspace' | 'env' | 'none'
-}
+export type Workspace = definitions['api.WorkspaceResponse']
+export type WorkspaceMeResponse = definitions['api.WorkspaceMeResponse']
+export type WorkspaceMember = definitions['api.MemberResponse']
+export type WorkspaceInvite = definitions['api.InviteResponse']
+export type AuthResponse = definitions['api.AuthResponse']
+export type WorkspaceWithRole = definitions['api.WorkspaceWithRoleResponse']
+export type SwitchWorkspaceResponse = definitions['api.SwitchWorkspaceResponse']
+export type User = definitions['api.UserResponse']
+export type ImageRouterModel = definitions['api.ImageRouterModel']
+export type ImageRouterModelsResponse =
+  definitions['api.ImageRouterModelsResponse']
 
-export interface WorkspaceWithRole extends Workspace {
-  role: string
-  member_count: number
-  asset_count: number
-}
-
-export interface SwitchWorkspaceResponse {
-  token: string
-  workspace: Workspace
-  role: string
-}
+export type ImageRouterKeyStatus =
+  definitions['api.WorkspaceImageRouterStatusResponse']
 
 export const workspaceApi = {
   fetch: window.fetch,

@@ -5,7 +5,7 @@
     actor = null,
     class: extraClass,
   }: {
-    actor: { id: string | null; name: string | null } | null
+    actor: { id?: string | null; name?: string | null } | null
     class?: string
   } = $props()
 </script>

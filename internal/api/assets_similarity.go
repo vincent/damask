@@ -18,10 +18,10 @@ type VisualSimilarResult struct {
 	AssetID          string  `json:"asset_id"`
 	AssetVersionID   string  `json:"asset_version_id"`
 	OriginalFilename string  `json:"original_filename"`
-	ThumbnailURL     *string `json:"thumbnail_url"`
+	ThumbnailURL     *string `json:"thumbnail_url,omitempty"`
 	MimeType         string  `json:"mime_type"`
-	Width            *int64  `json:"width"`
-	Height           *int64  `json:"height"`
+	Width            *int64  `json:"width,omitempty"`
+	Height           *int64  `json:"height,omitempty"`
 }
 
 // handleGetSimilarAssets returns visually similar images for the current version of an asset.

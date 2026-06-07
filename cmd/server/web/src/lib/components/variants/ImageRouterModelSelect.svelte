@@ -49,7 +49,7 @@
       try {
         const res = await assetApi.fetchImageRouterModels()
         if (cancelled) return
-        models = res.models
+        models = [...res.models]
         configured = res.configured
         onloaded?.(res)
       } catch {

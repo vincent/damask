@@ -47,8 +47,8 @@
         limit: 20,
         types: typeFilter ? typesParam[typeFilter] : undefined,
       })
-      events = res.events
-      nextCursor = res.next_cursor
+      events = [...res.events]
+      nextCursor = res.next_cursor ?? null
       hasMore = res.has_more
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : m.activity_load_failed()
@@ -67,7 +67,7 @@
         types: typeFilter ? typesParam[typeFilter] : undefined,
       })
       events = [...events, ...res.events]
-      nextCursor = res.next_cursor
+      nextCursor = res.next_cursor ?? null
       hasMore = res.has_more
     } catch {
       /* silently ignore */

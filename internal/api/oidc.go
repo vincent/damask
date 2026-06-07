@@ -349,19 +349,19 @@ func (s *Server) handleCanvaCallback(c fiber.Ctx) error {
 
 // --- me handler ---
 
-type meResponse struct {
+type MeResponse struct {
 	ID               string  `json:"id"`
 	Name             string  `json:"name"`
 	DisplayName      string  `json:"display_name"`
 	Email            string  `json:"email"`
-	AvatarURL        *string `json:"avatar_url"`
+	AvatarURL        *string `json:"avatar_url,omitempty"`
 	AvatarStorageKey *string `json:"-"`
 	HasPassword      bool    `json:"has_password"`
 	AuthMethods      string  `json:"auth_methods"`
 	OIDCLinked       bool    `json:"oidc_linked"`
 	GoogleLinked     bool    `json:"google_linked"`
 	CanvaLinked      bool    `json:"canva_linked"`
-	PendingEmail     *string `json:"pending_email"`
+	PendingEmail     *string `json:"pending_email,omitempty"`
 }
 
 // handleGetMe returns the authenticated user's profile.
@@ -371,7 +371,7 @@ type meResponse struct {
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} meResponse
+// @Success 200 {object} MeResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated"
 // @Failure 500 {object} ErrorResponse "Could not load user"
 // @Router /auth/me [get]

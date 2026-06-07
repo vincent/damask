@@ -134,7 +134,7 @@ type FieldDefinitionResponse struct {
 	Name               string  `json:"name"`
 	Key                string  `json:"key"`
 	FieldType          string  `json:"field_type"`
-	Options            *string `json:"options"`
+	Options            *string `json:"options,omitempty"`
 	Required           bool    `json:"required"`
 	Position           int64   `json:"position"`
 	InheritFromProject bool    `json:"inherit_from_project"`

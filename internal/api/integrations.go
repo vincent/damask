@@ -19,8 +19,8 @@ import (
 const nonceLength = 16
 const verifierLength = 64
 
-// connectionResponse is the safe public shape — tokens are never included.
-type connectionResponse struct {
+// ConnectionResponse is the safe public shape — tokens are never included.
+type ConnectionResponse struct {
 	ID            string   `json:"id"`
 	Provider      string   `json:"provider"`
 	ProviderEmail string   `json:"provider_email,omitempty"`
@@ -28,8 +28,8 @@ type connectionResponse struct {
 	ConnectedAt   string   `json:"connected_at"`
 }
 
-func toConnectionResponse(dto *service.ConnectionDTO) connectionResponse {
-	return connectionResponse{
+func toConnectionResponse(dto *service.ConnectionDTO) ConnectionResponse {
+	return ConnectionResponse{
 		ID:            dto.ID,
 		Provider:      dto.Provider,
 		ProviderEmail: dto.ProviderEmail,
@@ -38,14 +38,19 @@ func toConnectionResponse(dto *service.ConnectionDTO) connectionResponse {
 	}
 }
 
-// GET /integrations/connections.
+// @Summary List OAuth connections
+// @Tags Integrations
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} ConnectionResponse
+// @Router /api/v1/integrations/connections [get].
 func (s *Server) handleListConnections(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	conns, err := s.integrations.ListConnections(c.Context(), claims.WorkspaceID)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not list connections")
 	}
-	out := make([]connectionResponse, len(conns))
+	out := make([]ConnectionResponse, len(conns))
 	for i, conn := range conns {
 		out[i] = toConnectionResponse(conn)
 	}

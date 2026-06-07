@@ -1,5 +1,5 @@
+import type { BulkFieldsPreviewResponse } from '$lib/api'
 import { assetFieldApi, tagApi } from '$lib/api'
-import type { BulkFieldsPreviewResponse } from '$lib/api/models'
 import { m } from '$lib/paraglide/messages'
 import { assetsStore } from '$lib/stores/assets.svelte'
 import type { Command } from './types'

@@ -83,7 +83,7 @@
       >
         <span class="inline-flex items-center gap-1">
           <Clock class="h-3 w-3" />
-          {formatRelative(workflow.last_run_at)}
+          {formatRelative(workflow.last_run_at ?? null)}
         </span>
         {#if workflow.description}
           <span class="truncate">{workflow.description}</span>

@@ -31,7 +31,7 @@ func RawToNullableString(r *json.RawMessage) (value *string, present bool) {
 	return &s, true
 }
 
-type ingressSourceResponse struct {
+type IngressSourceResponse struct {
 	ID              string         `json:"id"`
 	WorkspaceID     string         `json:"workspace_id"`
 	CreatedBy       string         `json:"created_by"`
@@ -39,29 +39,29 @@ type ingressSourceResponse struct {
 	Label           string         `json:"label"`
 	PublicToken     string         `json:"public_token"`
 	Config          map[string]any `json:"config"`
-	DestFolderID    *string        `json:"dest_folder_id"`
-	DestProjectID   *string        `json:"dest_project_id"`
+	DestFolderID    *string        `json:"dest_folder_id,omitempty"`
+	DestProjectID   *string        `json:"dest_project_id,omitempty"`
 	Enabled         bool           `json:"enabled"`
 	PollIntervalMin int64          `json:"poll_interval_min"`
-	LastPolledAt    *time.Time     `json:"last_polled_at"`
-	LastError       *string        `json:"last_error"`
+	LastPolledAt    *time.Time     `json:"last_polled_at,omitempty"`
+	LastError       *string        `json:"last_error,omitempty"`
 	ErrorCount      int64          `json:"error_count"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
-type ingressLogResponse struct {
+type IngressLogResponse struct {
 	ID         string    `json:"id"`
 	SourceID   string    `json:"source_id"`
 	RemoteID   string    `json:"remote_id"`
 	Filename   string    `json:"filename"`
-	AssetID    *string   `json:"asset_id"`
+	AssetID    *string   `json:"asset_id,omitempty"`
 	Status     string    `json:"status"`
-	Error      *string   `json:"error"`
+	Error      *string   `json:"error,omitempty"`
 	ImportedAt time.Time `json:"imported_at"`
 }
 
-type ingressRuleResponse struct {
+type IngressRuleResponse struct {
 	ID       string `json:"id"`
 	SourceID string `json:"source_id"`
 	Position int64  `json:"position"`
@@ -93,8 +93,8 @@ func RedactConfig(raw map[string]any) map[string]any {
 	return out
 }
 
-func sourceDTOToResponse(d *service.IngressSourceDTO) ingressSourceResponse {
-	return ingressSourceResponse{
+func sourceDTOToResponse(d *service.IngressSourceDTO) IngressSourceResponse {
+	return IngressSourceResponse{
 		ID:              d.ID,
 		WorkspaceID:     d.WorkspaceID,
 		CreatedBy:       d.CreatedBy,
@@ -114,8 +114,8 @@ func sourceDTOToResponse(d *service.IngressSourceDTO) ingressSourceResponse {
 	}
 }
 
-func ruleDTOToResponse(d *service.IngressRuleDTO) ingressRuleResponse {
-	return ingressRuleResponse{
+func ruleDTOToResponse(d *service.IngressRuleDTO) IngressRuleResponse {
+	return IngressRuleResponse{
 		ID:       d.ID,
 		SourceID: d.SourceID,
 		Position: d.Position,
@@ -126,8 +126,8 @@ func ruleDTOToResponse(d *service.IngressRuleDTO) ingressRuleResponse {
 	}
 }
 
-func logEntryDTOToResponse(d *service.IngressLogEntryDTO) ingressLogResponse {
-	return ingressLogResponse{
+func logEntryDTOToResponse(d *service.IngressLogEntryDTO) IngressLogResponse {
+	return IngressLogResponse{
 		ID:         d.ID,
 		SourceID:   d.SourceID,
 		RemoteID:   d.RemoteID,
@@ -141,7 +141,13 @@ func logEntryDTOToResponse(d *service.IngressLogEntryDTO) ingressLogResponse {
 
 // -- Rules CRUD
 
-// GET /api/v1/ingress/sources/:id/rules.
+// @Summary List ingress rules
+// @Tags Ingress
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Success 200 {array} IngressRuleResponse
+// @Router /api/v1/ingress/sources/{id}/rules [get].
 func (s *Server) handleListIngressRules(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -150,14 +156,22 @@ func (s *Server) handleListIngressRules(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	result := make([]ingressRuleResponse, len(rules))
+	result := make([]IngressRuleResponse, len(rules))
 	for i, r := range rules {
 		result[i] = ruleDTOToResponse(r)
 	}
 	return c.JSON(result)
 }
 
-// POST /api/v1/ingress/sources/:id/rules.
+// @Summary Create an ingress rule
+// @Tags Ingress
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Param body body IngressRuleReq true "Rule definition"
+// @Success 201 {object} IngressRuleResponse
+// @Router /api/v1/ingress/sources/{id}/rules [post].
 func (s *Server) handleCreateIngressRule(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -180,7 +194,16 @@ func (s *Server) handleCreateIngressRule(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(ruleDTOToResponse(r))
 }
 
-// PUT /api/v1/ingress/sources/:id/rules/:rid.
+// @Summary Update an ingress rule
+// @Tags Ingress
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Param rid path string true "Rule ID"
+// @Param body body IngressRuleReq true "Rule definition"
+// @Success 200 {object} IngressRuleResponse
+// @Router /api/v1/ingress/sources/{id}/rules/{rid} [put].
 func (s *Server) handleUpdateIngressRule(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -209,7 +232,13 @@ func (s *Server) handleUpdateIngressRule(c fiber.Ctx) error {
 	return c.JSON(ruleDTOToResponse(r))
 }
 
-// DELETE /api/v1/ingress/sources/:id/rules/:rid.
+// @Summary Delete an ingress rule
+// @Tags Ingress
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Param rid path string true "Rule ID"
+// @Success 204
+// @Router /api/v1/ingress/sources/{id}/rules/{rid} [delete].
 func (s *Server) handleDeleteIngressRule(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -220,7 +249,15 @@ func (s *Server) handleDeleteIngressRule(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// PUT /api/v1/ingress/sources/:id/rules/reorder.
+// @Summary Reorder ingress rules
+// @Tags Ingress
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Source ID"
+// @Param body body []ReorderRuleEntry true "Reorder entries"
+// @Success 200 {array} IngressRuleResponse
+// @Router /api/v1/ingress/sources/{id}/rules/reorder [put].
 func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 
@@ -239,7 +276,7 @@ func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	result := make([]ingressRuleResponse, len(rules))
+	result := make([]IngressRuleResponse, len(rules))
 	for i, r := range rules {
 		result[i] = ruleDTOToResponse(r)
 	}
@@ -254,7 +291,7 @@ func (s *Server) handleReorderIngressRules(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param body body CreateIngressSourceReq true "Source configuration"
-// @Success 201 {object} ingressSourceResponse
+// @Success 201 {object} IngressSourceResponse
 // @Router /api/v1/ingress/sources [post].
 func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -301,7 +338,7 @@ func (s *Server) handleCreateIngressSource(c fiber.Ctx) error {
 // @Tags Ingress
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} ingressSourceResponse
+// @Success 200 {array} IngressSourceResponse
 // @Router /api/v1/ingress/sources [get].
 func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -311,7 +348,7 @@ func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	result := make([]ingressSourceResponse, len(sources))
+	result := make([]IngressSourceResponse, len(sources))
 	for i, src := range sources {
 		result[i] = sourceDTOToResponse(src)
 	}
@@ -323,7 +360,7 @@ func (s *Server) handleListIngressSources(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Source ID"
-// @Success 200 {object} ingressSourceResponse
+// @Success 200 {object} IngressSourceResponse
 // @Router /api/v1/ingress/sources/{id} [get].
 func (s *Server) handleGetIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -343,7 +380,7 @@ func (s *Server) handleGetIngressSource(c fiber.Ctx) error {
 // @Security BearerAuth
 // @Param id path string true "Source ID"
 // @Param body body UpdateIngressSourceReq true "Fields to update"
-// @Success 200 {object} ingressSourceResponse
+// @Success 200 {object} IngressSourceResponse
 // @Router /api/v1/ingress/sources/{id} [put].
 func (s *Server) handleUpdateIngressSource(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -447,7 +484,7 @@ func (s *Server) handlePollIngressSource(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Source ID"
-// @Success 200 {array} ingressLogResponse
+// @Success 200 {array} IngressLogResponse
 // @Router /api/v1/ingress/sources/{id}/log [get].
 func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -457,7 +494,7 @@ func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	result := make([]ingressLogResponse, len(entries))
+	result := make([]IngressLogResponse, len(entries))
 	for i, e := range entries {
 		result[i] = logEntryDTOToResponse(e)
 	}
@@ -469,7 +506,7 @@ func (s *Server) handleListIngressSourceLog(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param status query string false "Filter by status"
-// @Success 200 {array} ingressLogResponse
+// @Success 200 {array} IngressLogResponse
 // @Router /api/v1/ingress/log [get].
 func (s *Server) handleListIngressLog(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
@@ -479,7 +516,7 @@ func (s *Server) handleListIngressLog(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	result := make([]ingressLogResponse, len(entries))
+	result := make([]IngressLogResponse, len(entries))
 	for i, e := range entries {
 		result[i] = logEntryDTOToResponse(e)
 	}

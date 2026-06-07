@@ -37,7 +37,7 @@
   }: Props = $props()
 
   const hasRequiredFields = $derived(
-    customFieldsStore.assetFields.some((f) => f.validationRequired)
+    customFieldsStore.assetFields.some((f) => f.required)
   )
   const showRequiredNudge = $derived(requiresFields && hasRequiredFields)
   const category = $derived(mimeCategory(asset.mime_type))

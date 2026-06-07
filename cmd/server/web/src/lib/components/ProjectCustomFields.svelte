@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fieldDefinitionApi, projectFieldApi } from '$lib/api'
-  import type { FieldDefinition, ProjectFieldValue } from '$lib/api/models'
+  import type { FieldDefinition, ProjectFieldValue } from '$lib/api'
   import { ChevronDown, ChevronRight } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import SubSectionTitle from './ui/SubSectionTitle.svelte'
@@ -13,8 +13,8 @@
 
   let { projectId }: Props = $props()
 
-  let definitions = $state<FieldDefinition[]>([])
-  let values = $state<ProjectFieldValue[]>([])
+  let definitions = $state<readonly FieldDefinition[]>([])
+  let values = $state<readonly ProjectFieldValue[]>([])
   let loading = $state(true)
   let showDeprecated = $state(false)
 

@@ -1,9 +1,5 @@
+import type { AssetFieldValue, FieldDefinition, FieldScope } from '$lib/api'
 import { fieldDefinitionApi } from '$lib/api'
-import type {
-  AssetFieldValue,
-  FieldDefinition,
-  FieldScope,
-} from '$lib/api/models'
 
 class CustomFieldsStore {
   assetFields = $state<FieldDefinition[]>([])
@@ -33,8 +29,8 @@ class CustomFieldsStore {
     this.patchField(assetId, fieldId, null)
   }
 
-  setFieldValues(assetId: string, values: AssetFieldValue[]) {
-    this.fieldValues = new Map(this.fieldValues).set(assetId, values)
+  setFieldValues(assetId: string, values: readonly AssetFieldValue[]) {
+    this.fieldValues = new Map(this.fieldValues).set(assetId, [...values])
   }
 
   async load(scope: FieldScope) {
@@ -42,9 +38,9 @@ class CustomFieldsStore {
     try {
       const defs = await fieldDefinitionApi.list(scope)
       if (scope === 'asset') {
-        this.assetFields = defs
+        this.assetFields = [...defs]
       } else {
-        this.projectFields = defs
+        this.projectFields = [...defs]
       }
     } finally {
       this.loading = false
@@ -58,8 +54,8 @@ class CustomFieldsStore {
         fieldDefinitionApi.list('asset'),
         fieldDefinitionApi.list('project'),
       ])
-      this.assetFields = asset
-      this.projectFields = project
+      this.assetFields = [...asset]
+      this.projectFields = [...project]
     } finally {
       this.loading = false
     }

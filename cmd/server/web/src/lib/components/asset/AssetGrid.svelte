@@ -186,7 +186,7 @@
     <GeometricBackground />
   {/if}
 
-  {#snippet assetCardGrid(assets: Asset[], withSentinel = false)}
+  {#snippet assetCardGrid(assets: readonly Asset[], withSentinel = false)}
     <div
       class="grid pt-2 {gridMode == 'compact'
         ? viewportStore.isMobile
@@ -235,7 +235,7 @@
     </div>
   {/snippet}
 
-  {#snippet assetTable(assets: Asset[], withSentinel = false)}
+  {#snippet assetTable(assets: readonly Asset[], withSentinel = false)}
     <table
       class="asset-table w-full border-separate border-spacing-0 pt-2 text-left text-sm"
     >

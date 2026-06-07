@@ -3,7 +3,7 @@
   import { GripVertical, Plus } from '@lucide/svelte'
   import { customFieldsStore } from '$lib/stores/customFields.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
-  import type { FieldDefinition, FieldScope } from '$lib/api/models'
+  import type { FieldDefinition, FieldScope } from '$lib/api'
   import FieldCreateEditModal from '$lib/components/FieldCreateEditModal.svelte'
   import FieldDeleteModal from '$lib/components/FieldDeleteModal.svelte'
   import Badge from '$lib/components/ui/Badge.svelte'
@@ -197,7 +197,7 @@
                 <span class="font-mono text-xs text-[var(--text-muted)]"
                   >{field.key}</span
                 >
-                {#if field.validationRequired}
+                {#if field.required}
                   <span
                     class="text-xs font-medium text-orange-500 dark:text-orange-400"
                     >{m.required()}</span

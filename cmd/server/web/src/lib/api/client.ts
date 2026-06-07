@@ -1,17 +1,30 @@
-import type {
-  AuthResponse,
-  Config,
-  CreateIngressRuleParams,
-  CreateIngressSourceParams,
-  CreateVariantResponse,
-  IngressLogEntry,
-  IngressRule,
-  IngressSource,
-  ListVariantsResponse,
-  UpdateIngressSourceParams,
-  Variant,
-  WatermarkAsset,
-} from './models'
+import type { definitions } from './types.gen'
+import type { AuthResponse } from './workspace'
+
+export type Config = definitions['api.ConfigResponse']
+export type Variant = definitions['api.VariantResponse']
+export type ListVariantsResponse = definitions['api.ListVariantsResponse']
+export type CreateVariantResponse = definitions['api.CreateVariantResponse']
+export type CoveringWorkflow = definitions['service.CoveringWorkflowDTO']
+export type IngressSource = definitions['api.IngressSourceResponse']
+export type IngressLogEntry = definitions['api.IngressLogResponse']
+export type IngressRule = definitions['api.IngressRuleResponse']
+export type AutomateVariantsResponse =
+  definitions['api.AutomateVariantsResponse']
+export type CreateIngressSourceParams =
+  definitions['api.CreateIngressSourceReq']
+export type UpdateIngressSourceParams =
+  definitions['api.UpdateIngressSourceReq']
+export type CreateIngressRuleParams = definitions['api.IngressRuleReq']
+export type WatermarkAsset = definitions['api.WatermarkAssetResponse']
+export type PromoteVariantResponse = definitions['api.PromoteVariantResponse']
+export type SetVariantThumbnailResponse =
+  definitions['api.SetVariantThumbnailResponse']
+export type RerunVariantResponse = definitions['api.RerunVariantResponse']
+export type AuditLogResponse = definitions['api.EventListResponse']
+export type ActivityFeedResponse = definitions['api.ActivityFeedResponse']
+export type AuditEvent = definitions['api.EventResponse']
+export type ActivityEvent = definitions['api.ActivityEventResponse']
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -181,19 +194,7 @@ export const authApi = {
   unlinkCanva: () => apiFetch('/auth/canva/link', { method: 'DELETE' }),
 }
 
-export interface MeResponse {
-  id: string
-  name: string
-  display_name: string
-  email: string
-  avatar_url?: string
-  has_password: boolean
-  auth_methods: string
-  oidc_linked: boolean
-  google_linked: boolean
-  canva_linked: boolean
-  pending_email?: string | null
-}
+export type MeResponse = definitions['api.MeResponse']
 
 /**
  * Ingress (asset import from external sources) endpoints.
@@ -326,7 +327,7 @@ export const variantApi = {
     assetId: string,
     scope: 'workspace' | 'project' | 'folder' | 'asset'
   ) =>
-    apiFetch<import('./models').AutomateVariantsResponse>(
+    apiFetch<AutomateVariantsResponse>(
       `/api/v1/assets/${assetId}/variants/automate`,
       {
         method: 'POST',
@@ -374,7 +375,7 @@ export const variantApi = {
 
   /** POST /api/v1/assets/:id/variants/:vid/promote (editor+) — create a new asset from a variant. */
   promote: (assetId: string, variantId: string, name: string) =>
-    apiFetch<import('./models').PromoteVariantResponse>(
+    apiFetch<PromoteVariantResponse>(
       `/api/v1/assets/${assetId}/variants/${variantId}/promote`,
       {
         method: 'POST',
@@ -384,7 +385,7 @@ export const variantApi = {
 
   /** POST /api/v1/assets/:id/variants/:vid/set-thumbnail (editor+) — set the variant file as the asset thumbnail source. */
   setThumbnail: (assetId: string, variantId: string) =>
-    apiFetch<import('./models').SetVariantThumbnailResponse>(
+    apiFetch<SetVariantThumbnailResponse>(
       `/api/v1/assets/${assetId}/variants/${variantId}/set-thumbnail`,
       { method: 'POST' }
     ),
@@ -395,7 +396,7 @@ export const variantApi = {
     variantId: string,
     params?: Record<string, unknown>
   ) =>
-    apiFetch<import('./models').RerunVariantResponse>(
+    apiFetch<RerunVariantResponse>(
       `/api/v1/assets/${assetId}/variants/${variantId}/rerun`,
       {
         method: 'POST',
@@ -449,7 +450,7 @@ export const activityApi = {
     if (params.cursor) q.set('cursor', params.cursor)
     if (params.types) q.set('types', params.types)
     const qs = q.toString()
-    return apiFetch<import('./models').AuditLogResponse>(
+    return apiFetch<AuditLogResponse>(
       `/api/v1/assets/${assetId}/events${qs ? '?' + qs : ''}`
     )
   },
@@ -464,7 +465,7 @@ export const activityApi = {
     if (params.cursor) q.set('cursor', params.cursor)
     if (params.types) q.set('types', params.types)
     const qs = q.toString()
-    return apiFetch<import('./models').AuditLogResponse>(
+    return apiFetch<AuditLogResponse>(
       `/api/v1/projects/${projectId}/events${qs ? '?' + qs : ''}`
     )
   },
@@ -484,7 +485,7 @@ export const activityApi = {
     if (params.types) q.set('types', params.types)
     if (params.user_id) q.set('user_id', params.user_id)
     const qs = q.toString()
-    return apiFetch<import('./models').ActivityFeedResponse>(
+    return apiFetch<ActivityFeedResponse>(
       `/api/v1/activity${qs ? '?' + qs : ''}`
     )
   },
@@ -545,13 +546,7 @@ export const stackApi = {
   },
 }
 
-export interface OAuthConnection {
-  id: string
-  provider: string
-  provider_email?: string
-  scopes: string[]
-  connected_at: string
-}
+export type OAuthConnection = definitions['api.ConnectionResponse']
 
 export const integrationsApi = {
   list: (): Promise<OAuthConnection[]> =>

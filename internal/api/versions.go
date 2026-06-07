@@ -25,12 +25,12 @@ type VersionResponse struct {
 	VersionNum   int64                     `json:"version_num"`
 	MimeType     string                    `json:"mime_type"`
 	Size         int64                     `json:"size"`
-	Width        *int64                    `json:"width"`
-	Height       *int64                    `json:"height"`
-	DurationSec  *float64                  `json:"duration_sec"`
-	ThumbnailURL *string                   `json:"thumbnail_url"`
-	Comment      *string                   `json:"comment"`
-	CreatedBy    *VersionCreatedByResponse `json:"created_by"`
+	Width        *int64                    `json:"width,omitempty"`
+	Height       *int64                    `json:"height,omitempty"`
+	DurationSec  *float64                  `json:"duration_sec,omitempty"`
+	ThumbnailURL *string                   `json:"thumbnail_url,omitempty"`
+	Comment      *string                   `json:"comment,omitempty"`
+	CreatedBy    *VersionCreatedByResponse `json:"created_by,omitempty"`
 	CreatedAt    string                    `json:"created_at"`
 	IsCurrent    bool                      `json:"is_current"`
 	VariantCount int64                     `json:"variant_count"`

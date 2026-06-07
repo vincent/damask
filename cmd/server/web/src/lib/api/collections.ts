@@ -1,5 +1,8 @@
+import type { Asset } from './assets'
 import { apiFetch } from './client'
-import type { Asset, Collection } from './models'
+import type { definitions } from './types.gen'
+
+export type Collection = definitions['api.CollectionResponse']
 
 export const collectionApi = {
   /** GET /api/v1/collections — list collections in the workspace. */

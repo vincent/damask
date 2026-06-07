@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FieldDefinition } from '$lib/api/models'
+  import type { FieldDefinition } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
 
   interface Props {

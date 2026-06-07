@@ -516,13 +516,13 @@ func (r *mergeTagsRequest) Valid(_ context.Context) map[string]string {
 // -- shares.go ----------------------------------------------------------------
 
 type CreateShareRequest struct {
-	Label         string  `json:"label"`
+	Label         string  `json:"label,omitempty"`
 	TargetType    string  `json:"target_type"`
 	TargetID      string  `json:"target_id"`
-	Password      *string `json:"password"`
-	ExpiresInDays *int    `json:"expires_in_days"`
-	AllowComments bool    `json:"allow_comments"`
-	AllowDownload *bool   `json:"allow_download"`
+	Password      *string `json:"password,omitempty"`
+	ExpiresInDays *int    `json:"expires_in_days,omitempty"`
+	AllowComments bool    `json:"allow_comments,omitempty"`
+	AllowDownload *bool   `json:"allow_download,omitempty"`
 }
 
 func (r *CreateShareRequest) Valid(_ context.Context) map[string]string {
@@ -538,13 +538,13 @@ func (r *CreateShareRequest) Valid(_ context.Context) map[string]string {
 }
 
 type UpdateShareRequest struct {
-	Label         *string `json:"label"`
-	Password      *string `json:"password"`       // empty string = remove password
-	ClearPassword *bool   `json:"clear_password"` // explicit flag to remove password
-	ExpiresAt     *string `json:"expires_at"`     // ISO string or null to clear
-	ClearExpiry   *bool   `json:"clear_expiry"`
-	AllowComments *bool   `json:"allow_comments"`
-	AllowDownload *bool   `json:"allow_download"`
+	Label         *string `json:"label,omitempty"`
+	Password      *string `json:"password,omitempty"`
+	ClearPassword *bool   `json:"clear_password,omitempty"`
+	ExpiresAt     *string `json:"expires_at,omitempty"`
+	ClearExpiry   *bool   `json:"clear_expiry,omitempty"`
+	AllowComments *bool   `json:"allow_comments,omitempty"`
+	AllowDownload *bool   `json:"allow_download,omitempty"`
 }
 
 func (r *UpdateShareRequest) Valid(_ context.Context) map[string]string {
@@ -687,12 +687,12 @@ func (r *IngressRuleReq) Valid(_ context.Context) map[string]string {
 type CreateIngressSourceReq struct {
 	Type            string           `json:"type"`
 	Label           string           `json:"label"`
-	Config          map[string]any   `json:"config"`
-	DestFolderID    *string          `json:"dest_folder_id"`
-	DestProjectID   *string          `json:"dest_project_id"`
-	Enabled         *bool            `json:"enabled"`
-	PollIntervalMin int64            `json:"poll_interval_min"`
-	Rules           []IngressRuleReq `json:"rules"`
+	Config          map[string]any   `json:"config,omitempty"`
+	DestFolderID    *string          `json:"dest_folder_id,omitempty"`
+	DestProjectID   *string          `json:"dest_project_id,omitempty"`
+	Enabled         *bool            `json:"enabled,omitempty"`
+	PollIntervalMin int64            `json:"poll_interval_min,omitempty"`
+	Rules           []IngressRuleReq `json:"rules,omitempty"`
 }
 
 func (r *CreateIngressSourceReq) Valid(_ context.Context) map[string]string {
@@ -707,12 +707,12 @@ func (r *CreateIngressSourceReq) Valid(_ context.Context) map[string]string {
 }
 
 type UpdateIngressSourceReq struct {
-	Label           string           `json:"label"`
-	Config          map[string]any   `json:"config"`
-	DestFolderID    *json.RawMessage `json:"dest_folder_id"    swaggertype:"string"`
-	DestProjectID   *json.RawMessage `json:"dest_project_id"   swaggertype:"string"`
-	Enabled         *bool            `json:"enabled"`
-	PollIntervalMin int64            `json:"poll_interval_min"`
+	Label           string           `json:"label,omitempty"`
+	Config          map[string]any   `json:"config,omitempty"`
+	DestFolderID    *json.RawMessage `json:"dest_folder_id,omitempty"    swaggertype:"string"`
+	DestProjectID   *json.RawMessage `json:"dest_project_id,omitempty"   swaggertype:"string"`
+	Enabled         *bool            `json:"enabled,omitempty"`
+	PollIntervalMin int64            `json:"poll_interval_min,omitempty"`
 }
 
 func (r *UpdateIngressSourceReq) Valid(_ context.Context) map[string]string {

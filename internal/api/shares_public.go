@@ -34,13 +34,29 @@ type ShareAccessResponse struct {
 	Token string `json:"token"`
 }
 
+// PublicShareView is the share metadata embedded in share asset list responses.
+type PublicShareView struct {
+	ID            string  `json:"id"`
+	Label         string  `json:"label"`
+	AllowComments bool    `json:"allow_comments"`
+	AllowDownload bool    `json:"allow_download"`
+	ExpiresAt     *string `json:"expires_at,omitempty"`
+	HasPassword   bool    `json:"has_password"`
+}
+
+// ShareAssetsResponse is returned by GET /shared/:id/assets.
+type ShareAssetsResponse struct {
+	Share  PublicShareView `json:"share"`
+	Assets []AssetResponse `json:"assets"`
+}
+
 // CommentResponse is the JSON shape for a share comment.
 type CommentResponse struct {
 	ID          string  `json:"id"`
 	ShareID     string  `json:"share_id"`
 	AssetID     string  `json:"asset_id"`
 	AuthorName  string  `json:"author_name"`
-	AuthorEmail *string `json:"author_email"`
+	AuthorEmail *string `json:"author_email,omitempty"`
 	Body        string  `json:"body"`
 	CreatedAt   string  `json:"created_at"`
 }
@@ -177,7 +193,7 @@ func (s *Server) handleShareAccess(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Share ID"
-// @Success 200 {object} map[string]interface{} "share metadata and assets array"
+// @Success 200 {object} ShareAssetsResponse
 // @Failure 401 {object} ErrorResponse "Not authenticated (share token required)"
 // @Failure 404 {object} ErrorResponse "Share not found"
 // @Failure 410 {object} ErrorResponse "Share has expired or been revoked"
@@ -225,15 +241,7 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load share")
 	}
 
-	type shareView struct {
-		ID            string  `json:"id"`
-		Label         string  `json:"label"`
-		AllowComments bool    `json:"allow_comments"`
-		AllowDownload bool    `json:"allow_download"`
-		ExpiresAt     *string `json:"expires_at"`
-		HasPassword   bool    `json:"has_password"`
-	}
-	sv := shareView{
+	sv := PublicShareView{
 		ID:            sh.ID,
 		Label:         sh.Label,
 		AllowComments: sh.AllowComments,
@@ -242,9 +250,9 @@ func (s *Server) handleShareListAssets(c fiber.Ctx) error {
 		ExpiresAt:     sh.ExpiresAt,
 	}
 
-	return c.JSON(fiber.Map{
-		"share":  sv,
-		"assets": items,
+	return c.JSON(ShareAssetsResponse{
+		Share:  sv,
+		Assets: items,
 	})
 }
 

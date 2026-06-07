@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { X, Save, RefreshCw, RotateCcw, ExternalLink } from '@lucide/svelte'
-  import type { IngressSource } from '$lib/api/models'
+  import type { IngressSource, IngressSourceType } from '$lib/api'
   import { ingressStore } from '$lib/stores/ingress.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
@@ -62,7 +62,7 @@
     const updated = await ingressStore.updateSource(src.id, {
       label: label.trim() || src.label,
       config: sourceConfig,
-      dest_project_id: destProjectId || null,
+      dest_project_id: destProjectId || undefined,
       poll_interval_min: pollIntervalMin,
     })
     if (updated) onupdated(updated)
@@ -269,7 +269,10 @@
             >
               Connection settings
             </p>
-            <SourceConfigForm type={src.type} bind:config={sourceConfig} />
+            <SourceConfigForm
+              type={src.type as IngressSourceType}
+              bind:config={sourceConfig}
+            />
           </div>
         </div>
 

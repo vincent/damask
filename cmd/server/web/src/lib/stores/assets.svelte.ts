@@ -1,3 +1,4 @@
+import type { FieldFilter } from '$lib/api'
 import {
   assetApi,
   mimeCategory,
@@ -5,12 +6,11 @@ import {
   type Asset,
   type AssetListResponse,
 } from '$lib/api'
-import type { FieldFilter } from '$lib/api/models'
 import { navigationStore } from './navigation.svelte'
 import { uploadsStore } from './uploads.svelte'
 
-let assets = $state<Asset[]>([])
-let nextCursor = $state<string | null>(null)
+let assets = $state<readonly Asset[]>([])
+let nextCursor = $state<string | null | undefined>(null)
 let loading = $state(false)
 let initialLoad = $state(true)
 let stale = $state(false)
@@ -59,8 +59,13 @@ export const sseEvents = $state<{
   } | null
 }>({ last: null })
 
-function patchAsset(assetId: string, patch: Partial<Asset>) {
-  assets = assets.map((a) => (a.id === assetId ? { ...a, ...patch } : a))
+function patchAsset(
+  assetId: string,
+  patch: Partial<Record<keyof Asset, unknown>>
+) {
+  assets = assets.map((a) =>
+    a.id === assetId ? ({ ...a, ...patch } as Asset) : a
+  )
 }
 
 function reloadAssetResources(assetId: string) {

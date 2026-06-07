@@ -10,6 +10,12 @@ type TelemetryStatusResponse struct {
 	Env         string `json:"env"`
 }
 
+// @Summary Get telemetry status
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} TelemetryStatusResponse
+// @Router /api/v1/admin/telemetry [get].
 func (s *Server) handleTelemetryStatus(c fiber.Ctx) error {
 	return c.JSON(TelemetryStatusResponse{
 		Enabled:     s.cfg.Telemetry.Enabled,

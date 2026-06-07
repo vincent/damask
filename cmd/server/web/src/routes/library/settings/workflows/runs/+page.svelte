@@ -21,7 +21,7 @@
     loading = true
     try {
       const { runs: allRuns } = await workflowsApi.listAllRuns()
-      runs = allRuns
+      runs = [...allRuns]
       // Resolve workflow names lazily — one request per unique workflow_id.
       // Deleted workflows resolve to null and show a fallback label.
       const ids = [...new Set(allRuns.map((r) => r.workflow_id))]

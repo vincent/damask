@@ -1,5 +1,9 @@
 <script lang="ts">
-  import type { BulkFieldPreviewEntry, FieldDefinition } from '$lib/api/models'
+  import type {
+    BulkFieldPreviewEntry,
+    FieldDefinition,
+    FieldType,
+  } from '$lib/api'
   import FieldValueInput from './FieldValueInput.svelte'
   import { m } from '$lib/paraglide/messages'
   import { Trash2, Undo2 } from '@lucide/svelte'
@@ -69,7 +73,7 @@
       <span class="text-xs text-gray-400 dark:text-gray-500">=</span>
       <div class="flex-1">
         <FieldValueInput
-          fieldType={selectedDef.field_type}
+          fieldType={selectedDef.field_type as FieldType}
           value={action === 'noop' ? null : value}
           options={selectedDef.options}
           allowClear={true}

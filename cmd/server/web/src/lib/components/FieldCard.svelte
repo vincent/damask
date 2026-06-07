@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FieldDefinition } from '$lib/api/models'
+  import type { FieldDefinition } from '$lib/api'
   import { Check, ArrowDownToLine } from '@lucide/svelte'
   import Feedback from './ui/Feedback.svelte'
   import { m } from '$lib/paraglide/messages'
@@ -7,7 +7,7 @@
   type FieldValue = {
     field_id: string
     field_type: string
-    value: string | number | boolean | null
+    value: unknown
     definition_deleted: boolean
   }
 
@@ -65,7 +65,7 @@
         class="text-xs font-semibold tracking-widest text-gray-400 uppercase dark:text-gray-500"
       >
         {label}
-        {#if def.validationRequired && (!fv || fv.value === null)}
+        {#if def.required && (!fv || fv.value === null)}
           <span class="ml-1 text-orange-400">*</span>
         {/if}
       </p>

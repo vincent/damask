@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Mail } from '@lucide/svelte'
-  import type { IngressSource, Folder } from '$lib/api/models'
+  import type { IngressSource, Folder } from '$lib/api'
   import { configStore } from '$lib/stores/config.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import Hint from '../ui/Hint.svelte'

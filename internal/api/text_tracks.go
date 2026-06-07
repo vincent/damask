@@ -23,13 +23,13 @@ var tesseractAvailable = transform.TesseractAvailable
 type TextTrackResponse struct {
 	ID               string         `json:"id"`
 	AssetID          string         `json:"asset_id"`
-	AssetVersionID   *string        `json:"asset_version_id"`
+	AssetVersionID   *string        `json:"asset_version_id,omitempty"`
 	Source           string         `json:"source"`
-	Lang             *string        `json:"lang"`
+	Lang             *string        `json:"lang,omitempty"`
 	Content          string         `json:"content"`
 	ContentTruncated bool           `json:"content_truncated"`
 	HasFile          bool           `json:"has_file"`
-	DownloadURL      *string        `json:"download_url"`
+	DownloadURL      *string        `json:"download_url,omitempty"`
 	Meta             map[string]any `json:"meta"`
 	Status           string         `json:"status"`
 	Error            *string        `json:"error,omitempty"`
@@ -39,6 +39,11 @@ type TextTrackResponse struct {
 
 type ListTextTracksResponse struct {
 	TextTracks []TextTrackResponse `json:"text_tracks"`
+}
+
+// CreateTextTrackResponse wraps a single text track returned after creation.
+type CreateTextTrackResponse struct {
+	TextTrack TextTrackResponse `json:"text_track"`
 }
 
 func textTrackDTOToResponse(dto service.TextTrackDTO, truncate bool) TextTrackResponse {
@@ -71,6 +76,17 @@ func textTrackDTOToResponse(dto service.TextTrackDTO, truncate bool) TextTrackRe
 	}
 }
 
+// handleListTextTracks handles GET /api/v1/assets/:id/text-tracks
+//
+// @Summary List text tracks for an asset
+// @Tags Text Tracks
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {object} ListTextTracksResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/text-tracks [get].
 func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -139,6 +155,18 @@ func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 	return c.JSON(ListTextTracksResponse{TextTracks: out})
 }
 
+// handleGetTextTrack handles GET /api/v1/assets/:id/text-tracks/:tid
+//
+// @Summary Get a text track
+// @Tags Text Tracks
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param tid path string true "Text Track ID"
+// @Success 200 {object} TextTrackResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Text track not found"
+// @Router /api/v1/assets/{id}/text-tracks/{tid} [get].
 func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -217,6 +245,19 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 	return c.JSON(textTrackDTOToResponse(track, false))
 }
 
+// handleCreateTextTrack handles POST /api/v1/assets/:id/text-tracks
+//
+// @Summary Create a text track for an asset
+// @Tags Text Tracks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {object} CreateTextTrackResponse
+// @Success 202 {object} CreateTextTrackResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/text-tracks [post].
 func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -349,8 +390,8 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	if track.Status == "ready" {
 		status = fiber.StatusOK
 	}
-	return c.Status(status).JSON(map[string]TextTrackResponse{
-		"text_track": textTrackDTOToResponse(track, false),
+	return c.Status(status).JSON(CreateTextTrackResponse{
+		TextTrack: textTrackDTOToResponse(track, false),
 	})
 }
 
@@ -434,6 +475,18 @@ func (s *Server) prepareOCRParams(
 	return nil
 }
 
+// handleDeleteTextTrack handles DELETE /api/v1/assets/:id/text-tracks/:tid
+//
+// @Summary Delete a text track
+// @Tags Text Tracks
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param tid path string true "Text Track ID"
+// @Success 204
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Text track not found"
+// @Router /api/v1/assets/{id}/text-tracks/{tid} [delete].
 func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")

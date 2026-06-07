@@ -1,5 +1,11 @@
 import { apiFetch } from './client'
-import type { CreateShareParams, Share, UpdateShareParams } from './models'
+import type { definitions } from './types.gen'
+
+export type Share = definitions['api.ShareResponse']
+export type PublicShare = definitions['api.PublicShareView']
+export type ShareAssetsResponse = definitions['api.ShareAssetsResponse']
+export type CreateShareParams = definitions['api.CreateShareRequest']
+export type UpdateShareParams = definitions['api.UpdateShareRequest']
 
 export const shareApi = {
   /** GET /api/v1/shares — list all shares in the workspace. */

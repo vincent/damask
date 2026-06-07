@@ -33,12 +33,12 @@ type VariantResponse struct {
 	ID                   string    `json:"id"`
 	AssetVersionID       string    `json:"asset_version_id"`
 	Type                 string    `json:"type"`
-	TransformParams      *string   `json:"transform_params"`
-	Size                 *int64    `json:"size"`
+	TransformParams      *string   `json:"transform_params,omitempty"`
+	Size                 *int64    `json:"size,omitempty"`
 	Status               string    `json:"status"`
 	StorageKey           string    `json:"storage_key"`
 	DownloadURL          string    `json:"download_url"`
-	ThumbnailURL         *string   `json:"thumbnail_url"`
+	ThumbnailURL         *string   `json:"thumbnail_url,omitempty"`
 	ThumbnailContentType string    `json:"thumbnail_content_type"`
 	Title                string    `json:"title"`
 	IsShared             bool      `json:"is_shared"`
@@ -50,8 +50,8 @@ type SharedVariantResponse struct {
 	Title                string  `json:"title"`
 	Type                 string  `json:"type"`
 	MimeType             string  `json:"mime_type"`
-	Size                 *int64  `json:"size"`
-	ThumbnailURL         *string `json:"thumbnail_url"`
+	Size                 *int64  `json:"size,omitempty"`
+	ThumbnailURL         *string `json:"thumbnail_url,omitempty"`
 	ThumbnailContentType string  `json:"thumbnail_content_type"`
 }
 
@@ -72,7 +72,7 @@ type WatermarkAssetResponse struct {
 	Name         string  `json:"name"`
 	StorageKey   string  `json:"storage_key"`
 	MimeType     string  `json:"mime_type"`
-	ThumbnailURL *string `json:"thumbnail_url"`
+	ThumbnailURL *string `json:"thumbnail_url,omitempty"`
 	Scope        string  `json:"scope"`
 }
 
@@ -94,7 +94,8 @@ type automateVariantsRequest struct {
 	Scope string `json:"scope"`
 }
 
-type automateVariantsResponse struct {
+// AutomateVariantsResponse is returned when a workflow is created from asset variants.
+type AutomateVariantsResponse struct {
 	WorkflowID  string `json:"workflow_id"`
 	WorkflowURL string `json:"workflow_url"`
 }
@@ -242,6 +243,19 @@ func (s *Server) handleListVariants(c fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
+// handleAutomateVariants handles POST /api/v1/assets/:id/variants/automate
+//
+// @Summary Automate variant creation
+// @Tags Variants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param body body automateVariantsRequest true "Automation scope"
+// @Success 201 {object} AutomateVariantsResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Router /api/v1/assets/{id}/variants/automate [post].
 func (s *Server) handleAutomateVariants(c fiber.Ctx) error {
 	var req automateVariantsRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -256,12 +270,24 @@ func (s *Server) handleAutomateVariants(c fiber.Ctx) error {
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	return c.Status(fiber.StatusCreated).JSON(automateVariantsResponse{
+	return c.Status(fiber.StatusCreated).JSON(AutomateVariantsResponse{
 		WorkflowID:  dto.ID,
 		WorkflowURL: "/library/settings/workflows?workflow=" + dto.ID,
 	})
 }
 
+// handleResolveWatermarkAsset handles GET /api/v1/assets/:id/variants/watermark
+//
+// @Summary Resolve watermark asset for an asset
+// @Tags Variants
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 200 {object} WatermarkAssetResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset not found"
+// @Failure 422 {object} ErrorResponse "No watermark asset configured"
+// @Router /api/v1/assets/{id}/variants/watermark [get].
 func (s *Server) handleResolveWatermarkAsset(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -400,6 +426,19 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 	})
 }
 
+// handlePromoteVariant handles POST /api/v1/assets/:id/variants/:vid/promote
+//
+// @Summary Promote a variant to a new asset
+// @Tags Variants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param vid path string true "Variant ID"
+// @Success 201 {object} PromoteVariantResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset or variant not found"
+// @Router /api/v1/assets/{id}/variants/{vid}/promote [post].
 func (s *Server) handlePromoteVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -426,6 +465,18 @@ func (s *Server) handlePromoteVariant(c fiber.Ctx) error {
 	})
 }
 
+// handleSetVariantThumbnail handles POST /api/v1/assets/:id/variants/:vid/set-thumbnail
+//
+// @Summary Set a variant as the asset thumbnail
+// @Tags Variants
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param vid path string true "Variant ID"
+// @Success 200 {object} SetVariantThumbnailResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset or variant not found"
+// @Router /api/v1/assets/{id}/variants/{vid}/set-thumbnail [post].
 func (s *Server) handleSetVariantThumbnail(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
@@ -440,6 +491,19 @@ func (s *Server) handleSetVariantThumbnail(c fiber.Ctx) error {
 	})
 }
 
+// handleRerunVariant handles POST /api/v1/assets/:id/variants/:vid/rerun
+//
+// @Summary Rerun a variant job
+// @Tags Variants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Param vid path string true "Variant ID"
+// @Success 202 {object} RerunVariantResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Failure 404 {object} ErrorResponse "Asset or variant not found"
+// @Router /api/v1/assets/{id}/variants/{vid}/rerun [post].
 func (s *Server) handleRerunVariant(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")

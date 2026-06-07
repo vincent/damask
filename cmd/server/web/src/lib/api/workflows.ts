@@ -1,4 +1,19 @@
 import { apiFetch } from './client'
+import type { definitions } from './types.gen'
+
+export type Workflow = definitions['api.WorkflowResponse']
+export type WorkflowRun = definitions['api.WorkflowRunResponse']
+export type WorkflowRunStep = definitions['api.WorkflowRunStepResponse']
+export type WorkflowTemplate = definitions['api.WorkflowTemplateResponse']
+export type WorkflowTriggerResponse = definitions['api.WorkflowTriggerResponse']
+export type BulkManualRunResponse = definitions['api.BulkManualRunResponse']
+export type WorkflowListRunsResponse =
+  definitions['api.WorkflowListRunsResponse']
+export type WorkflowTokenResponse = definitions['api.WorkflowTokenResponse']
+
+// Graph sub-types are not generated (graph is serialized as a JSON string in the API).
+// Node schema config_schema is a recursive JSON Schema structure not expressible in swagger.
+// Both sets of types are kept hand-written.
 
 export interface WorkflowGraphPosition {
   x: number
@@ -25,57 +40,9 @@ export interface WorkflowGraph {
   edges: WorkflowGraphEdge[]
 }
 
-export interface Workflow {
-  id: string
-  workspace_id: string
-  name: string
-  description: string
-  enabled: boolean
-  trigger_type: string
-  graph: string
-  notify_on_failure_email: string
-  last_run_at: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface WorkflowRunStep {
-  node_id: string
-  node_type: string
-  status: string
-  attempt: number
-  input_ctx: Record<string, unknown>
-  output_ctx: Record<string, unknown>
-  error: string | null
-  started_at: string | null
-  completed_at: string | null
-}
-
-export interface WorkflowRun {
-  id: string
-  workflow_id: string
-  status: string
-  trigger_data: Record<string, unknown>
-  error: string | null
-  started_at: string | null
-  completed_at: string | null
-  steps: WorkflowRunStep[]
-  created_at: string
-}
-
 export interface WorkflowNodePort {
   id: string
   label: string
-}
-
-export interface WorkflowNodeSchema {
-  type: string
-  label: string
-  category: string
-  description: string
-  inputs: WorkflowNodePort[]
-  outputs: WorkflowNodePort[]
-  config_schema: WorkflowNodeConfigSchema
 }
 
 export interface WorkflowNodeConfigSchema {
@@ -90,12 +57,14 @@ export interface WorkflowNodeConfigSchema {
   additionalProperties?: boolean
 }
 
-export interface WorkflowTemplate {
-  id: string
-  name: string
+export interface WorkflowNodeSchema {
+  type: string
+  label: string
+  category: string
   description: string
-  trigger_type: string
-  graph: string
+  inputs: WorkflowNodePort[]
+  outputs: WorkflowNodePort[]
+  config_schema: WorkflowNodeConfigSchema
 }
 
 export interface CreateWorkflowBody {
@@ -149,22 +118,16 @@ export const workflowsApi = {
       method: 'DELETE',
     }),
   triggerManual: (id: string) =>
-    apiFetch<{ run_id: string; status: string }>(
-      `/api/v1/workflows/${id}/runs`,
-      {
-        method: 'POST',
-      }
-    ),
+    apiFetch<WorkflowTriggerResponse>(`/api/v1/workflows/${id}/runs`, {
+      method: 'POST',
+    }),
   triggerBulk: (id: string, assetIds: string[]) =>
-    apiFetch<{ run_ids: string[]; count: number; error?: string }>(
-      `/api/v1/workflows/${id}/runs/bulk`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ asset_ids: assetIds }),
-      }
-    ),
+    apiFetch<BulkManualRunResponse>(`/api/v1/workflows/${id}/runs/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ asset_ids: assetIds }),
+    }),
   listAllRuns: (cursor?: string) =>
-    apiFetch<{ runs: WorkflowRun[]; next_cursor: string }>(
+    apiFetch<WorkflowListRunsResponse>(
       `/api/v1/workflows/runs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`
     ),
   listRuns: (id: string, cursor?: string) =>
@@ -178,9 +141,9 @@ export const workflowsApi = {
   getTemplates: () =>
     apiFetch<WorkflowTemplate[]>('/api/v1/workflows/templates'),
   getWebhookToken: (id: string) =>
-    apiFetch<{ token: string }>(`/api/v1/workflows/${id}/webhook-token`),
+    apiFetch<WorkflowTokenResponse>(`/api/v1/workflows/${id}/webhook-token`),
   regenerateWebhook: (id: string) =>
-    apiFetch<{ token: string }>(
+    apiFetch<WorkflowTokenResponse>(
       `/api/v1/workflows/${id}/webhook-token/regenerate`,
       {
         method: 'POST',

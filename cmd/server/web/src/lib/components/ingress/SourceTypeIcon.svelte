@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Mail, Server, HardDrive, Cloud, Inbox } from '@lucide/svelte'
-  import type { IngressSourceType } from '$lib/api/models'
+  import type { IngressSourceType } from '$lib/api'
   import GoogleIcon from '../ui/GoogleIcon.svelte'
 
   interface Props {

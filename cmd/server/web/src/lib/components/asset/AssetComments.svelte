@@ -11,7 +11,7 @@
     onVariantSelect,
   }: {
     asset: Asset
-    variants: Variant[]
+    variants: readonly Variant[]
     onVariantSelect?: (variant: Variant) => void
   } = $props()
 

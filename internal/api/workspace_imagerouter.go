@@ -12,8 +12,8 @@ import (
 )
 
 type WorkspaceImageRouterStatusResponse struct {
-	KeySet bool                  `json:"key_set"`
-	Source imagerouter.KeySource `json:"source"`
+	KeySet bool   `json:"key_set"`
+	Source string `json:"source"`
 }
 
 type UpdateWorkspaceImageRouterKeyRequest struct {
@@ -27,6 +27,12 @@ func (r *UpdateWorkspaceImageRouterKeyRequest) Valid(_ context.Context) map[stri
 	return nil
 }
 
+// @Summary Get ImageRouter key status
+// @Tags Workspace
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} WorkspaceImageRouterStatusResponse
+// @Router /api/v1/workspace/settings/imagerouter [get].
 func (s *Server) handleGetWorkspaceImageRouterStatus(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	status, err := s.workspace.GetImageRouterKeyStatus(c.Context(), claims.WorkspaceID)
@@ -35,7 +41,7 @@ func (s *Server) handleGetWorkspaceImageRouterStatus(c fiber.Ctx) error {
 	}
 	return c.JSON(WorkspaceImageRouterStatusResponse{
 		KeySet: status.KeySet,
-		Source: status.Source,
+		Source: string(status.Source),
 	})
 }
 

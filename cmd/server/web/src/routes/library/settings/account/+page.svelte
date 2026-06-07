@@ -120,8 +120,8 @@
     }
     avatarUploading = true
     try {
-      me = await authApi.uploadAvatar(file)
-      me.avatar_url = `${me.avatar_url}?t=${Date.now()}`
+      const uploaded = await authApi.uploadAvatar(file)
+      me = { ...uploaded, avatar_url: `${uploaded.avatar_url}?t=${Date.now()}` }
       toastStore.show(m.settings_account_avatar_updated())
     } catch (err) {
       toastStore.show(
@@ -157,7 +157,7 @@
     emailError = ''
     try {
       const result = await authApi.requestEmailChange(emailDraft.trim())
-      if (me) me.pending_email = result.pending_email
+      if (me) me = { ...me, pending_email: result.pending_email }
       toastStore.show(m.settings_account_email_confirmation_sent())
     } catch (err) {
       emailError =
@@ -172,7 +172,7 @@
   async function cancelEmailChange() {
     try {
       await authApi.cancelPendingEmail()
-      if (me) me.pending_email = null
+      if (me) me = { ...me, pending_email: undefined }
       emailDraft = ''
     } catch (err) {
       emailError =
@@ -198,7 +198,7 @@
       passwordCurrent = ''
       passwordNext = ''
       passwordConfirm = ''
-      if (me) me.has_password = true
+      if (me) me = { ...me, has_password: true }
       toastStore.show(m.settings_account_password_updated())
     } catch (err) {
       passwordError =

@@ -13,9 +13,9 @@ type FolderResponse struct {
 	ID          string           `json:"id"`
 	WorkspaceID string           `json:"workspace_id"`
 	ProjectID   string           `json:"project_id"`
-	ParentID    *string          `json:"parent_id"`
+	ParentID    *string          `json:"parent_id,omitempty"`
 	Name        string           `json:"name"`
-	Slug        *string          `json:"slug"`
+	Slug        *string          `json:"slug,omitempty"`
 	Position    int64            `json:"position"`
 	AssetCount  int64            `json:"asset_count"`
 	Children    []FolderResponse `json:"children"`

@@ -23,8 +23,8 @@ type WorkspaceResponse struct {
 	VersionRetentionCount    int64     `json:"version_retention_count"`
 	EventLogRetentionDays    int64     `json:"event_log_retention_days"`
 	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`
-	IconAssetID              *string   `json:"icon_asset_id"`
-	IconVersionID            *string   `json:"icon_version_id"`
+	IconAssetID              *string   `json:"icon_asset_id,omitempty"`
+	IconVersionID            *string   `json:"icon_version_id,omitempty"`
 	ExifKeep                 bool      `json:"exif_keep"`
 	ExifKeepGps              bool      `json:"exif_keep_gps"`
 	LockedTaxonomy           bool      `json:"locked_taxonomy"`

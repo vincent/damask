@@ -1,13 +1,19 @@
 import { apiFetch } from './client'
-import type {
-  AssetFieldsResponse,
-  BulkFieldsPreviewResponse,
-  BulkPatchAssetFieldsResponse,
-  FieldDefinition,
-  FieldDefinitionStats,
-  FieldScope,
-  ProjectFieldsResponse,
-} from './models'
+import type { FieldScope } from './models'
+import type { definitions } from './types.gen'
+
+export type FieldDefinition = definitions['api.FieldDefinitionResponse']
+export type FieldDefinitionStats =
+  definitions['api.FieldDefinitionStatsResponse']
+export type AssetFieldsResponse = definitions['api.GetAssetFieldsResponse']
+export type AssetFieldValue = definitions['api.assetFieldValueResponse']
+export type BulkFieldPreviewEntry = definitions['api.BulkFieldPreviewEntry']
+export type BulkFieldsPreviewResponse =
+  definitions['api.BulkFieldsPreviewResponse']
+export type BulkPatchAssetFieldsResponse =
+  definitions['api.BulkPatchAssetFieldsResponse']
+export type ProjectFieldsResponse = definitions['api.GetProjectFieldsResponse']
+export type ProjectFieldValue = definitions['api.projectFieldValueResponse']
 
 export const fieldDefinitionApi = {
   /** GET /api/v1/field-definitions — list field definitions by scope (workspace or project). */

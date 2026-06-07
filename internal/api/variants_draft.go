@@ -40,7 +40,14 @@ func (r *CommitDraftRequest) Valid(_ context.Context) map[string]string {
 
 // ---- Handlers ----
 
-// handleGenerateDraft handles POST /api/v1/assets/:id/variants/draft.
+// @Summary Generate a draft variant
+// @Tags Variants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Asset ID"
+// @Success 202 {object} DraftGenerateResponse
+// @Router /api/v1/assets/{id}/variants/draft [post].
 func (s *Server) handleGenerateDraft(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")

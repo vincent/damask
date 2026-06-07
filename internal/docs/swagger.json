@@ -49,7 +49,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.EventListResponse"
+                            "$ref": "#/definitions/api.ActivityFeedResponse"
                         }
                     },
                     "401": {
@@ -113,6 +113,30 @@
                         "description": "Not authenticated",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/telemetry": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get telemetry status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.TelemetryStatusResponse"
                         }
                     }
                 }
@@ -1121,6 +1145,64 @@
                 }
             }
         },
+        "/api/v1/assets/{id}/similar": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns asset versions that are visually similar to the current version of the given image asset.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Assets"
+                ],
+                "summary": "Find similar images",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/api.VisualSimilarResult"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "not_an_image",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/assets/{id}/tags": {
             "get": {
                 "security": [
@@ -1275,6 +1357,202 @@
                     },
                     "404": {
                         "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/assets/{id}/text-tracks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Text Tracks"
+                ],
+                "summary": "List text tracks for an asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.ListTextTracksResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Text Tracks"
+                ],
+                "summary": "Create a text track for an asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.CreateTextTrackResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/api.CreateTextTrackResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/assets/{id}/text-tracks/{tid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Text Tracks"
+                ],
+                "summary": "Get a text track",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Text Track ID",
+                        "name": "tid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.TextTrackResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Text track not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Text Tracks"
+                ],
+                "summary": "Delete a text track",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Text Track ID",
+                        "name": "tid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Text track not found",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -1448,6 +1726,99 @@
                 }
             }
         },
+        "/api/v1/assets/{id}/variants/automate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "Automate variant creation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Automation scope",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.automateVariantsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api.AutomateVariantsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/assets/{id}/variants/draft": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "Generate a draft variant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/api.DraftGenerateResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/assets/{id}/variants/upload": {
             "post": {
                 "security": [
@@ -1509,6 +1880,57 @@
                     },
                     "422": {
                         "description": "Asset has no current version",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/assets/{id}/variants/watermark": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "Resolve watermark asset for an asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WatermarkAssetResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "No watermark asset configured",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -1618,6 +2040,168 @@
                     },
                     "404": {
                         "description": "Asset, variant, or file not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/assets/{id}/variants/{vid}/promote": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "Promote a variant to a new asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Variant ID",
+                        "name": "vid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api.PromoteVariantResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset or variant not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/assets/{id}/variants/{vid}/rerun": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "Rerun a variant job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Variant ID",
+                        "name": "vid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/api.RerunVariantResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset or variant not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/assets/{id}/variants/{vid}/set-thumbnail": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "Set a variant as the asset thumbnail",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Variant ID",
+                        "name": "vid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.SetVariantThumbnailResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset or variant not found",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -2833,6 +3417,36 @@
                 }
             }
         },
+        "/api/v1/imagerouter/models": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ImageRouter"
+                ],
+                "summary": "List available image router models",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.ImageRouterModelsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/ingress/log": {
             "get": {
                 "security": [
@@ -2861,7 +3475,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api.ingressLogResponse"
+                                "$ref": "#/definitions/api.IngressLogResponse"
                             }
                         }
                     }
@@ -2956,7 +3570,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api.ingressSourceResponse"
+                                "$ref": "#/definitions/api.IngressSourceResponse"
                             }
                         }
                     }
@@ -2993,7 +3607,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/api.ingressSourceResponse"
+                            "$ref": "#/definitions/api.IngressSourceResponse"
                         }
                     }
                 }
@@ -3026,7 +3640,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.ingressSourceResponse"
+                            "$ref": "#/definitions/api.IngressSourceResponse"
                         }
                     }
                 }
@@ -3069,7 +3683,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.ingressSourceResponse"
+                            "$ref": "#/definitions/api.IngressSourceResponse"
                         }
                     }
                 }
@@ -3132,7 +3746,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api.ingressLogResponse"
+                                "$ref": "#/definitions/api.IngressLogResponse"
                             }
                         }
                     }
@@ -3177,6 +3791,220 @@
                 }
             }
         },
+        "/api/v1/ingress/sources/{id}/rules": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ingress"
+                ],
+                "summary": "List ingress rules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Source ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.IngressRuleResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ingress"
+                ],
+                "summary": "Create an ingress rule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Source ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rule definition",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.IngressRuleReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api.IngressRuleResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ingress/sources/{id}/rules/reorder": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ingress"
+                ],
+                "summary": "Reorder ingress rules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Source ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reorder entries",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.ReorderRuleEntry"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.IngressRuleResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ingress/sources/{id}/rules/{rid}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ingress"
+                ],
+                "summary": "Update an ingress rule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Source ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rule ID",
+                        "name": "rid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rule definition",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.IngressRuleReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.IngressRuleResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Ingress"
+                ],
+                "summary": "Delete an ingress rule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Source ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rule ID",
+                        "name": "rid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/api/v1/ingress/sources/{id}/test": {
             "post": {
                 "security": [
@@ -3209,6 +4037,33 @@
                                 "ok": {
                                     "type": "boolean"
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/connections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "List OAuth connections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.ConnectionResponse"
                             }
                         }
                     }
@@ -4313,10 +5168,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "integer"
-                            }
+                            "$ref": "#/definitions/api.BulkDeleteTagsResponse"
                         }
                     },
                     "401": {
@@ -4366,8 +5218,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/api.MergeTagsResponse"
                         }
                     },
                     "401": {
@@ -4405,8 +5256,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "type": "object",
-                                "additionalProperties": true
+                                "$ref": "#/definitions/api.DuplicateTagPairResponse"
                             }
                         }
                     },
@@ -4483,6 +5333,232 @@
                         "description": "Validation failed",
                         "schema": {
                             "$ref": "#/definitions/api.ValidationErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows": {
+            "get": {
+                "summary": "List workflows",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.WorkflowResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "summary": "Create a workflow",
+                "parameters": [
+                    {
+                        "description": "Workflow definition",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.workflowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/node-schemas": {
+            "get": {
+                "summary": "List workflow node schemas",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.WorkflowNodeSchemaResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/runs": {
+            "get": {
+                "summary": "List all workflow runs (paginated)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowListRunsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/templates": {
+            "get": {
+                "summary": "List workflow templates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.WorkflowTemplateResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/{id}": {
+            "get": {
+                "summary": "Get a workflow",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "summary": "Update a workflow",
+                "parameters": [
+                    {
+                        "description": "Workflow definition",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.workflowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete a workflow",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/{id}/enabled": {
+            "patch": {
+                "summary": "Enable or disable a workflow",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/{id}/runs": {
+            "get": {
+                "summary": "List runs for a workflow",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.WorkflowRunResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "summary": "Trigger a manual workflow run",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowTriggerResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/{id}/runs/bulk": {
+            "post": {
+                "summary": "Bulk trigger manual workflow runs",
+                "parameters": [
+                    {
+                        "description": "Asset IDs to trigger",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.bulkManualRunRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/api.BulkManualRunResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/{id}/runs/{rid}": {
+            "get": {
+                "summary": "Get a specific workflow run",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowRunResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/{id}/webhook-token": {
+            "get": {
+                "summary": "Get workflow webhook token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowTokenResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workflows/{id}/webhook-token/regenerate": {
+            "post": {
+                "summary": "Regenerate workflow webhook token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkflowTokenResponse"
                         }
                     }
                 }
@@ -4938,6 +6014,30 @@
                 }
             }
         },
+        "/api/v1/workspace/settings/imagerouter": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workspace"
+                ],
+                "summary": "Get ImageRouter key status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.WorkspaceImageRouterStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/workspace/switch": {
             "post": {
                 "security": [
@@ -5349,7 +6449,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.meResponse"
+                            "$ref": "#/definitions/api.MeResponse"
                         }
                     },
                     "401": {
@@ -5560,15 +6660,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                " mailHost": {
-                                    "type": "string"
-                                },
-                                "demo": {
-                                    "type": "boolean"
-                                }
-                            }
+                            "$ref": "#/definitions/api.ConfigResponse"
                         }
                     }
                 }
@@ -5659,9 +6751,10 @@
                         "required": true
                     },
                     {
-                        "description": "Password (if required)",
+                        "description": "Visitor name (required) and password (if required)",
                         "name": "body",
                         "in": "body",
+                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/api.ShareAccessRequest"
                         }
@@ -5672,6 +6765,12 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api.ShareAccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "visitor_name missing or too long",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     },
                     "401": {
@@ -5721,10 +6820,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "share metadata and assets array",
+                        "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/api.ShareAssetsResponse"
                         }
                     },
                     "401": {
@@ -6137,6 +7235,11 @@
     "definitions": {
         "api.AcceptInviteRequest": {
             "type": "object",
+            "required": [
+                "name",
+                "password",
+                "token"
+            ],
             "properties": {
                 "name": {
                     "type": "string"
@@ -6149,8 +7252,71 @@
                 }
             }
         },
+        "api.ActivityEventResponse": {
+            "type": "object",
+            "required": [
+                "actor",
+                "created_at",
+                "entity_id",
+                "entity_type",
+                "event_type",
+                "human_readable",
+                "id",
+                "payload"
+            ],
+            "properties": {
+                "actor": {
+                    "$ref": "#/definitions/api.EventActor"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "string"
+                },
+                "entity_type": {
+                    "type": "string"
+                },
+                "event_type": {
+                    "type": "string"
+                },
+                "human_readable": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object"
+                }
+            }
+        },
+        "api.ActivityFeedResponse": {
+            "type": "object",
+            "required": [
+                "events",
+                "has_more"
+            ],
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ActivityEventResponse"
+                    }
+                },
+                "has_more": {
+                    "type": "boolean"
+                },
+                "next_cursor": {
+                    "type": "string"
+                }
+            }
+        },
         "api.AddTagRequest": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
                 "name": {
                     "type": "string"
@@ -6159,6 +7325,9 @@
         },
         "api.AssetListResponse": {
             "type": "object",
+            "required": [
+                "assets"
+            ],
             "properties": {
                 "assets": {
                     "type": "array",
@@ -6168,11 +7337,36 @@
                 },
                 "next_cursor": {
                     "type": "string"
+                },
+                "similar_to_no_matches": {
+                    "type": "boolean"
+                },
+                "similar_to_not_indexed": {
+                    "type": "boolean"
+                },
+                "similarity": {
+                    "$ref": "#/definitions/api.AssetSimilarityMeta"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
         "api.AssetResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "mime_type",
+                "original_filename",
+                "size",
+                "tags",
+                "updated_at",
+                "variant_count",
+                "variants_rebuilding",
+                "version_count",
+                "workspace_id"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"
@@ -6200,6 +7394,12 @@
                 },
                 "project_id": {
                     "type": "string"
+                },
+                "shared_variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.SharedVariantResponse"
+                    }
                 },
                 "size": {
                     "type": "integer"
@@ -6236,8 +7436,31 @@
                 }
             }
         },
+        "api.AssetSimilarityMeta": {
+            "type": "object",
+            "required": [
+                "anchor_asset_id",
+                "anchor_filename",
+                "result_count"
+            ],
+            "properties": {
+                "anchor_asset_id": {
+                    "type": "string"
+                },
+                "anchor_filename": {
+                    "type": "string"
+                },
+                "result_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "api.AuthResponse": {
             "type": "object",
+            "required": [
+                "token",
+                "user"
+            ],
             "properties": {
                 "token": {
                     "type": "string"
@@ -6250,8 +7473,26 @@
                 }
             }
         },
+        "api.AutomateVariantsResponse": {
+            "type": "object",
+            "required": [
+                "workflow_id",
+                "workflow_url"
+            ],
+            "properties": {
+                "workflow_id": {
+                    "type": "string"
+                },
+                "workflow_url": {
+                    "type": "string"
+                }
+            }
+        },
         "api.BulkDeleteRequest": {
             "type": "object",
+            "required": [
+                "asset_ids"
+            ],
             "properties": {
                 "asset_ids": {
                     "type": "array",
@@ -6261,8 +7502,30 @@
                 }
             }
         },
+        "api.BulkDeleteTagsResponse": {
+            "type": "object",
+            "required": [
+                "deleted",
+                "removed_from_assets"
+            ],
+            "properties": {
+                "deleted": {
+                    "type": "integer"
+                },
+                "removed_from_assets": {
+                    "type": "integer"
+                }
+            }
+        },
         "api.BulkFieldPreviewEntry": {
             "type": "object",
+            "required": [
+                "assets_with_value",
+                "distinct_values",
+                "field_id",
+                "field_name",
+                "field_type"
+            ],
             "properties": {
                 "assets_with_value": {
                     "type": "integer"
@@ -6286,6 +7549,10 @@
         },
         "api.BulkFieldsPreviewRequest": {
             "type": "object",
+            "required": [
+                "asset_ids",
+                "field_ids"
+            ],
             "properties": {
                 "asset_ids": {
                     "type": "array",
@@ -6304,6 +7571,9 @@
         },
         "api.BulkFieldsPreviewResponse": {
             "type": "object",
+            "required": [
+                "fields"
+            ],
             "properties": {
                 "fields": {
                     "type": "array",
@@ -6313,8 +7583,33 @@
                 }
             }
         },
+        "api.BulkManualRunResponse": {
+            "type": "object",
+            "required": [
+                "count",
+                "run_ids"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "run_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "api.BulkPatchAssetFieldsRequest": {
             "type": "object",
+            "required": [
+                "asset_ids",
+                "values"
+            ],
             "properties": {
                 "asset_ids": {
                     "type": "array",
@@ -6332,6 +7627,10 @@
         },
         "api.BulkPatchAssetFieldsResponse": {
             "type": "object",
+            "required": [
+                "cleared",
+                "updated"
+            ],
             "properties": {
                 "cleared": {
                     "type": "integer"
@@ -6343,6 +7642,10 @@
         },
         "api.BulkProjectRequest": {
             "type": "object",
+            "required": [
+                "asset_ids",
+                "project_id"
+            ],
             "properties": {
                 "asset_ids": {
                     "type": "array",
@@ -6358,6 +7661,11 @@
         },
         "api.BulkTagRequest": {
             "type": "object",
+            "required": [
+                "asset_ids",
+                "mode",
+                "tag_name"
+            ],
             "properties": {
                 "asset_ids": {
                     "type": "array",
@@ -6376,6 +7684,16 @@
         },
         "api.CollectionResponse": {
             "type": "object",
+            "required": [
+                "asset_count",
+                "created_at",
+                "created_by",
+                "description",
+                "id",
+                "name",
+                "updated_at",
+                "workspace_id"
+            ],
             "properties": {
                 "asset_count": {
                     "type": "integer"
@@ -6405,6 +7723,14 @@
         },
         "api.CommentResponse": {
             "type": "object",
+            "required": [
+                "asset_id",
+                "author_name",
+                "body",
+                "created_at",
+                "id",
+                "share_id"
+            ],
             "properties": {
                 "asset_id": {
                     "type": "string"
@@ -6429,8 +7755,60 @@
                 }
             }
         },
+        "api.ConfigResponse": {
+            "type": "object",
+            "required": [
+                "demo"
+            ],
+            "properties": {
+                "demo": {
+                    "type": "boolean"
+                },
+                "exif_keep": {
+                    "type": "boolean"
+                },
+                "mailHost": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ConnectionResponse": {
+            "type": "object",
+            "required": [
+                "connected_at",
+                "id",
+                "provider",
+                "scopes"
+            ],
+            "properties": {
+                "connected_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "provider_email": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "api.CreateCommentRequest": {
             "type": "object",
+            "required": [
+                "asset_id",
+                "author_email",
+                "author_name",
+                "body"
+            ],
             "properties": {
                 "asset_id": {
                     "type": "string"
@@ -6448,6 +7826,16 @@
         },
         "api.CreateFieldDefinitionRequest": {
             "type": "object",
+            "required": [
+                "field_type",
+                "inherit_from_project",
+                "key",
+                "name",
+                "options",
+                "position",
+                "scope",
+                "validationRequired"
+            ],
             "properties": {
                 "field_type": {
                     "type": "string"
@@ -6467,16 +7855,21 @@
                 "position": {
                     "type": "integer"
                 },
-                "required": {
-                    "type": "boolean"
-                },
                 "scope": {
                     "type": "string"
+                },
+                "validationRequired": {
+                    "type": "boolean"
                 }
             }
         },
         "api.CreateFolderRequest": {
             "type": "object",
+            "required": [
+                "name",
+                "parent_id",
+                "position"
+            ],
             "properties": {
                 "name": {
                     "type": "string"
@@ -6491,6 +7884,10 @@
         },
         "api.CreateIngressSourceReq": {
             "type": "object",
+            "required": [
+                "label",
+                "type"
+            ],
             "properties": {
                 "config": {
                     "type": "object",
@@ -6524,6 +7921,10 @@
         },
         "api.CreateInviteRequest": {
             "type": "object",
+            "required": [
+                "email",
+                "role"
+            ],
             "properties": {
                 "email": {
                     "type": "string"
@@ -6536,6 +7937,11 @@
         },
         "api.CreateProjectRequest": {
             "type": "object",
+            "required": [
+                "color",
+                "description",
+                "name"
+            ],
             "properties": {
                 "color": {
                     "type": "string"
@@ -6550,6 +7956,10 @@
         },
         "api.CreateShareRequest": {
             "type": "object",
+            "required": [
+                "target_id",
+                "target_type"
+            ],
             "properties": {
                 "allow_comments": {
                     "type": "boolean"
@@ -6574,8 +7984,23 @@
                 }
             }
         },
+        "api.CreateTextTrackResponse": {
+            "type": "object",
+            "required": [
+                "text_track"
+            ],
+            "properties": {
+                "text_track": {
+                    "$ref": "#/definitions/api.TextTrackResponse"
+                }
+            }
+        },
         "api.CreateVariantRequest": {
             "type": "object",
+            "required": [
+                "params",
+                "type"
+            ],
             "properties": {
                 "params": {
                     "type": "object"
@@ -6587,6 +8012,11 @@
         },
         "api.CreateVariantResponse": {
             "type": "object",
+            "required": [
+                "job_id",
+                "message",
+                "status"
+            ],
             "properties": {
                 "job_id": {
                     "type": "string"
@@ -6601,14 +8031,50 @@
         },
         "api.CreateWorkspaceRequest": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
                 "name": {
                     "type": "string"
                 }
             }
         },
+        "api.DraftGenerateResponse": {
+            "type": "object",
+            "required": [
+                "draft_key"
+            ],
+            "properties": {
+                "draft_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.DuplicateTagPairResponse": {
+            "type": "object",
+            "required": [
+                "a",
+                "b",
+                "score"
+            ],
+            "properties": {
+                "a": {
+                    "type": "string"
+                },
+                "b": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "number"
+                }
+            }
+        },
         "api.ErrorResponse": {
             "type": "object",
+            "required": [
+                "error"
+            ],
             "properties": {
                 "error": {
                     "type": "string"
@@ -6617,6 +8083,9 @@
         },
         "api.EventActor": {
             "type": "object",
+            "required": [
+                "type"
+            ],
             "properties": {
                 "id": {
                     "type": "string"
@@ -6631,6 +8100,10 @@
         },
         "api.EventListResponse": {
             "type": "object",
+            "required": [
+                "events",
+                "has_more"
+            ],
             "properties": {
                 "events": {
                     "type": "array",
@@ -6648,6 +8121,14 @@
         },
         "api.EventResponse": {
             "type": "object",
+            "required": [
+                "actor",
+                "created_at",
+                "event_type",
+                "human_readable",
+                "id",
+                "payload"
+            ],
             "properties": {
                 "actor": {
                     "$ref": "#/definitions/api.EventActor"
@@ -6671,6 +8152,19 @@
         },
         "api.FieldDefinitionResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "field_type",
+                "id",
+                "inherit_from_project",
+                "key",
+                "name",
+                "position",
+                "required",
+                "scope",
+                "updated_at",
+                "workspace_id"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"
@@ -6715,6 +8209,10 @@
         },
         "api.FieldDefinitionStatsResponse": {
             "type": "object",
+            "required": [
+                "asset_count",
+                "project_count"
+            ],
             "properties": {
                 "asset_count": {
                     "type": "integer"
@@ -6726,6 +8224,10 @@
         },
         "api.FieldValueInput": {
             "type": "object",
+            "required": [
+                "field_id",
+                "value"
+            ],
             "properties": {
                 "field_id": {
                     "type": "string"
@@ -6735,6 +8237,16 @@
         },
         "api.FolderResponse": {
             "type": "object",
+            "required": [
+                "asset_count",
+                "children",
+                "created_at",
+                "id",
+                "name",
+                "position",
+                "project_id",
+                "workspace_id"
+            ],
             "properties": {
                 "asset_count": {
                     "type": "integer"
@@ -6773,6 +8285,9 @@
         },
         "api.GetAssetFieldsResponse": {
             "type": "object",
+            "required": [
+                "fields"
+            ],
             "properties": {
                 "fields": {
                     "type": "array",
@@ -6784,6 +8299,9 @@
         },
         "api.GetProjectFieldsResponse": {
             "type": "object",
+            "required": [
+                "fields"
+            ],
             "properties": {
                 "fields": {
                     "type": "array",
@@ -6793,750 +8311,65 @@
                 }
             }
         },
-        "api.IngressRuleReq": {
+        "api.ImageRouterModel": {
             "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string"
-                },
-                "field": {
-                    "type": "string"
-                },
-                "operator": {
-                    "type": "string"
-                },
-                "position": {
-                    "type": "integer"
-                },
-                "value": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.InviteResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "invite_token": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ListVariantsResponse": {
-            "type": "object",
-            "properties": {
-                "rebuilding": {
-                    "type": "boolean"
-                },
-                "variants": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api.VariantResponse"
-                    }
-                }
-            }
-        },
-        "api.LoginRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.MemberResponse": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "joined_at": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.PatchAssetFieldsRequest": {
-            "type": "object",
-            "properties": {
-                "values": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api.FieldValueInput"
-                    }
-                }
-            }
-        },
-        "api.PatchProjectFieldsRequest": {
-            "type": "object",
-            "properties": {
-                "values": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api.FieldValueInput"
-                    }
-                }
-            }
-        },
-        "api.ProjectResponse": {
-            "type": "object",
-            "properties": {
-                "asset_count": {
-                    "type": "integer"
-                },
-                "color": {
-                    "type": "string"
-                },
-                "cover_asset_id": {
-                    "type": "string"
-                },
-                "cover_version_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.RegisterRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.RenameAssetRequest": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ReorderFieldDefinitionsRequest": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api.ReorderFieldEntry"
-                    }
-                }
-            }
-        },
-        "api.ReorderFieldEntry": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "position": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.ShareAccessRequest": {
-            "type": "object",
-            "properties": {
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ShareAccessResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ShareInfoResponse": {
-            "type": "object",
-            "properties": {
-                "has_password": {
-                    "type": "boolean"
-                },
-                "label": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ShareResponse": {
-            "type": "object",
-            "properties": {
-                "allow_comments": {
-                    "type": "boolean"
-                },
-                "allow_download": {
-                    "type": "boolean"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "has_password": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_expired": {
-                    "type": "boolean"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "public_url": {
-                    "type": "string"
-                },
-                "revoked_at": {
-                    "type": "string"
-                },
-                "target_id": {
-                    "type": "string"
-                },
-                "target_type": {
-                    "type": "string"
-                },
-                "view_count": {
-                    "type": "integer"
-                },
-                "workspace_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.SwitchWorkspaceRequest": {
-            "type": "object",
-            "properties": {
-                "workspace_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.SwitchWorkspaceResponse": {
-            "type": "object",
-            "properties": {
-                "role": {
-                    "type": "string"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "workspace": {
-                    "$ref": "#/definitions/api.WorkspaceResponse"
-                }
-            }
-        },
-        "api.TagResponse": {
-            "type": "object",
-            "properties": {
-                "asset_count": {
-                    "type": "integer"
-                },
-                "color": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "group_name": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_system": {
-                    "type": "boolean"
-                },
-                "last_used_at": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.UpdateAssetFolderRequest": {
-            "type": "object",
-            "properties": {
-                "folder_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.UpdateFieldDefinitionRequest": {
-            "type": "object",
-            "properties": {
-                "field_type": {
-                    "type": "string"
-                },
-                "inherit_from_project": {
-                    "type": "boolean"
-                },
-                "key": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "options": {
-                    "type": "string"
-                },
-                "position": {
-                    "type": "integer"
-                },
-                "required": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "api.UpdateFolderRequest": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "position": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.UpdateIngressSourceReq": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "dest_folder_id": {
-                    "type": "string"
-                },
-                "dest_project_id": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "poll_interval_min": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.UpdateMemberRoleRequest": {
-            "type": "object",
-            "properties": {
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.UpdateProjectRequest": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "cover_asset_id": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.UpdateShareRequest": {
-            "type": "object",
-            "properties": {
-                "allow_comments": {
-                    "type": "boolean"
-                },
-                "allow_download": {
-                    "type": "boolean"
-                },
-                "clear_expiry": {
-                    "type": "boolean"
-                },
-                "clear_password": {
-                    "description": "explicit flag to remove password",
-                    "type": "boolean"
-                },
-                "expires_at": {
-                    "description": "ISO string or null to clear",
-                    "type": "string"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "password": {
-                    "description": "empty string = remove password",
-                    "type": "string"
-                }
-            }
-        },
-        "api.UpdateWorkspaceSettingsRequest": {
-            "type": "object",
-            "properties": {
-                "exif_keep": {
-                    "type": "boolean"
-                },
-                "exif_keep_gps": {
-                    "type": "boolean"
-                },
-                "locked_taxonomy": {
-                    "type": "boolean"
-                },
-                "version_retention_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.UserResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ValidationErrorResponse": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "api.VariantResponse": {
-            "type": "object",
-            "properties": {
-                "asset_version_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "download_url": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "storage_key": {
-                    "type": "string"
-                },
-                "thumbnail_content_type": {
-                    "type": "string"
-                },
-                "thumbnail_url": {
-                    "type": "string"
-                },
-                "transform_params": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.VersionCreatedByResponse": {
-            "type": "object",
+            "required": [
+                "id",
+                "name",
+                "price_per_image",
+                "provider"
+            ],
             "properties": {
                 "id": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
-                }
-            }
-        },
-        "api.VersionResponse": {
-            "type": "object",
-            "properties": {
-                "comment": {
-                    "type": "string"
                 },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "$ref": "#/definitions/api.VersionCreatedByResponse"
-                },
-                "duration_sec": {
+                "price_per_image": {
                     "type": "number"
                 },
-                "height": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_current": {
-                    "type": "boolean"
-                },
-                "mime_type": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                },
-                "thumbnail_url": {
-                    "type": "string"
-                },
-                "variant_count": {
-                    "type": "integer"
-                },
-                "version_num": {
-                    "type": "integer"
-                },
-                "width": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.VersionWithAssetResponse": {
-            "type": "object",
-            "properties": {
-                "asset": {
-                    "$ref": "#/definitions/api.AssetResponse"
-                },
-                "version": {
-                    "$ref": "#/definitions/api.VersionResponse"
-                }
-            }
-        },
-        "api.WorkspaceMeResponse": {
-            "type": "object",
-            "properties": {
-                "role": {
-                    "type": "string"
-                },
-                "total_asset_count": {
-                    "type": "integer"
-                },
-                "user": {
-                    "$ref": "#/definitions/api.UserResponse"
-                },
-                "workspace": {
-                    "$ref": "#/definitions/api.WorkspaceResponse"
-                }
-            }
-        },
-        "api.WorkspaceResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "download_log_retention_days": {
-                    "type": "integer"
-                },
-                "event_log_retention_days": {
-                    "type": "integer"
-                },
-                "exif_keep": {
-                    "type": "boolean"
-                },
-                "exif_keep_gps": {
-                    "type": "boolean"
-                },
-                "icon_asset_id": {
-                    "type": "string"
-                },
-                "icon_version_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "locked_taxonomy": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "version_retention_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.WorkspaceWithRoleResponse": {
-            "type": "object",
-            "properties": {
-                "asset_count": {
-                    "type": "integer"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "member_count": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "updated_at": {
+                "provider": {
                     "type": "string"
                 }
             }
         },
-        "api.assetFieldValueResponse": {
+        "api.ImageRouterModelsResponse": {
             "type": "object",
+            "required": [
+                "configured",
+                "default_bg_remove_model",
+                "default_model",
+                "models"
+            ],
             "properties": {
-                "definition_deleted": {
+                "configured": {
                     "type": "boolean"
                 },
-                "field_id": {
+                "default_bg_remove_model": {
                     "type": "string"
                 },
-                "field_type": {
+                "default_model": {
                     "type": "string"
                 },
-                "key": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "value": {}
-            }
-        },
-        "api.bulkDeleteTagsRequest": {
-            "type": "object",
-            "properties": {
-                "names": {
+                "models": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/api.ImageRouterModel"
                     }
                 }
             }
         },
-        "api.createCollectionRequest": {
+        "api.IngressLogResponse": {
             "type": "object",
-            "properties": {
-                "asset_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.createTagRequest": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "group_name": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ingressLogResponse": {
-            "type": "object",
+            "required": [
+                "filename",
+                "id",
+                "imported_at",
+                "remote_id",
+                "source_id",
+                "status"
+            ],
             "properties": {
                 "asset_id": {
                     "type": "string"
@@ -7564,8 +8397,84 @@
                 }
             }
         },
-        "api.ingressSourceResponse": {
+        "api.IngressRuleReq": {
             "type": "object",
+            "required": [
+                "action",
+                "field",
+                "operator",
+                "position",
+                "value"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "field": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IngressRuleResponse": {
+            "type": "object",
+            "required": [
+                "action",
+                "field",
+                "id",
+                "operator",
+                "position",
+                "source_id",
+                "value"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "field": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.IngressSourceResponse": {
+            "type": "object",
+            "required": [
+                "config",
+                "created_at",
+                "created_by",
+                "enabled",
+                "error_count",
+                "id",
+                "label",
+                "poll_interval_min",
+                "public_token",
+                "type",
+                "updated_at",
+                "workspace_id"
+            ],
             "properties": {
                 "config": {
                     "type": "object",
@@ -7618,8 +8527,99 @@
                 }
             }
         },
-        "api.meResponse": {
+        "api.InviteResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "email",
+                "expires_at",
+                "id",
+                "role"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invite_token": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ListTextTracksResponse": {
+            "type": "object",
+            "required": [
+                "text_tracks"
+            ],
+            "properties": {
+                "text_tracks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.TextTrackResponse"
+                    }
+                }
+            }
+        },
+        "api.ListVariantsResponse": {
+            "type": "object",
+            "required": [
+                "rebuilding",
+                "variants"
+            ],
+            "properties": {
+                "covering_workflow": {
+                    "$ref": "#/definitions/service.CoveringWorkflowDTO"
+                },
+                "rebuilding": {
+                    "type": "boolean"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.VariantResponse"
+                    }
+                }
+            }
+        },
+        "api.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.MeResponse": {
+            "type": "object",
+            "required": [
+                "auth_methods",
+                "canva_linked",
+                "display_name",
+                "email",
+                "google_linked",
+                "has_password",
+                "id",
+                "name",
+                "oidc_linked"
+            ],
             "properties": {
                 "auth_methods": {
                     "type": "string"
@@ -7656,8 +8656,1482 @@
                 }
             }
         },
+        "api.MemberResponse": {
+            "type": "object",
+            "required": [
+                "email",
+                "joined_at",
+                "name",
+                "role",
+                "user_id"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.MergeTagsResponse": {
+            "type": "object",
+            "required": [
+                "merged_assets",
+                "target"
+            ],
+            "properties": {
+                "merged_assets": {
+                    "type": "integer"
+                },
+                "target": {
+                    "$ref": "#/definitions/api.TagResponse"
+                }
+            }
+        },
+        "api.PatchAssetFieldsRequest": {
+            "type": "object",
+            "required": [
+                "values"
+            ],
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.FieldValueInput"
+                    }
+                }
+            }
+        },
+        "api.PatchProjectFieldsRequest": {
+            "type": "object",
+            "required": [
+                "values"
+            ],
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.FieldValueInput"
+                    }
+                }
+            }
+        },
+        "api.ProjectResponse": {
+            "type": "object",
+            "required": [
+                "asset_count",
+                "created_at",
+                "id",
+                "name",
+                "updated_at",
+                "workspace_id"
+            ],
+            "properties": {
+                "asset_count": {
+                    "type": "integer"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "cover_asset_id": {
+                    "type": "string"
+                },
+                "cover_version_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.PromoteVariantResponse": {
+            "type": "object",
+            "required": [
+                "asset_id",
+                "asset_url"
+            ],
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "asset_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.PublicShareView": {
+            "type": "object",
+            "required": [
+                "allow_comments",
+                "allow_download",
+                "has_password",
+                "id",
+                "label"
+            ],
+            "properties": {
+                "allow_comments": {
+                    "type": "boolean"
+                },
+                "allow_download": {
+                    "type": "boolean"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "has_password": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.RenameAssetRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ReorderFieldDefinitionsRequest": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ReorderFieldEntry"
+                    }
+                }
+            }
+        },
+        "api.ReorderFieldEntry": {
+            "type": "object",
+            "required": [
+                "id",
+                "position"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.ReorderRuleEntry": {
+            "type": "object",
+            "required": [
+                "id",
+                "position"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.RerunVariantResponse": {
+            "type": "object",
+            "required": [
+                "status",
+                "variant_id"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.SetVariantThumbnailResponse": {
+            "type": "object",
+            "required": [
+                "thumbnail_url"
+            ],
+            "properties": {
+                "thumbnail_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ShareAccessRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "visitor_name"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "visitor_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ShareAccessResponse": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ShareAssetsResponse": {
+            "type": "object",
+            "required": [
+                "assets",
+                "share"
+            ],
+            "properties": {
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.AssetResponse"
+                    }
+                },
+                "share": {
+                    "$ref": "#/definitions/api.PublicShareView"
+                }
+            }
+        },
+        "api.ShareInfoResponse": {
+            "type": "object",
+            "required": [
+                "has_password",
+                "label"
+            ],
+            "properties": {
+                "has_password": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ShareResponse": {
+            "type": "object",
+            "required": [
+                "allow_comments",
+                "allow_download",
+                "created_at",
+                "created_by",
+                "has_password",
+                "id",
+                "is_expired",
+                "label",
+                "public_url",
+                "target_id",
+                "target_type",
+                "view_count",
+                "workspace_id"
+            ],
+            "properties": {
+                "allow_comments": {
+                    "type": "boolean"
+                },
+                "allow_download": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "has_password": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_expired": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "public_url": {
+                    "type": "string"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "type": "string"
+                },
+                "view_count": {
+                    "type": "integer"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.SharedVariantResponse": {
+            "type": "object",
+            "required": [
+                "id",
+                "mime_type",
+                "thumbnail_content_type",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "thumbnail_content_type": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.SwitchWorkspaceRequest": {
+            "type": "object",
+            "required": [
+                "workspace_id"
+            ],
+            "properties": {
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.SwitchWorkspaceResponse": {
+            "type": "object",
+            "required": [
+                "role",
+                "token",
+                "workspace"
+            ],
+            "properties": {
+                "role": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "workspace": {
+                    "$ref": "#/definitions/api.WorkspaceResponse"
+                }
+            }
+        },
+        "api.TagResponse": {
+            "type": "object",
+            "required": [
+                "asset_count",
+                "created_at",
+                "id",
+                "is_system",
+                "name"
+            ],
+            "properties": {
+                "asset_count": {
+                    "type": "integer"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.TelemetryStatusResponse": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "env",
+                "service_name"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "env": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.TextTrackResponse": {
+            "type": "object",
+            "required": [
+                "asset_id",
+                "content",
+                "content_truncated",
+                "created_at",
+                "has_file",
+                "id",
+                "meta",
+                "source",
+                "status",
+                "updated_at"
+            ],
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "asset_version_id": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "content_truncated": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "download_url": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "has_file": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lang": {
+                    "type": "string"
+                },
+                "meta": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "source": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.UpdateAssetFolderRequest": {
+            "type": "object",
+            "required": [
+                "folder_id"
+            ],
+            "properties": {
+                "folder_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.UpdateFieldDefinitionRequest": {
+            "type": "object",
+            "required": [
+                "field_type",
+                "inherit_from_project",
+                "key",
+                "name",
+                "options",
+                "position",
+                "validationRequired"
+            ],
+            "properties": {
+                "field_type": {
+                    "type": "string"
+                },
+                "inherit_from_project": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                },
+                "validationRequired": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "api.UpdateFolderRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "position"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.UpdateIngressSourceReq": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "dest_folder_id": {
+                    "type": "string"
+                },
+                "dest_project_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "poll_interval_min": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.UpdateMemberRoleRequest": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "properties": {
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.UpdateProjectRequest": {
+            "type": "object",
+            "required": [
+                "color",
+                "cover_asset_id",
+                "description",
+                "name"
+            ],
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "cover_asset_id": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.UpdateShareRequest": {
+            "type": "object",
+            "properties": {
+                "allow_comments": {
+                    "type": "boolean"
+                },
+                "allow_download": {
+                    "type": "boolean"
+                },
+                "clear_expiry": {
+                    "type": "boolean"
+                },
+                "clear_password": {
+                    "type": "boolean"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.UpdateWorkspaceSettingsRequest": {
+            "type": "object",
+            "required": [
+                "exif_keep",
+                "exif_keep_gps",
+                "locked_taxonomy",
+                "version_retention_count"
+            ],
+            "properties": {
+                "exif_keep": {
+                    "type": "boolean"
+                },
+                "exif_keep_gps": {
+                    "type": "boolean"
+                },
+                "locked_taxonomy": {
+                    "type": "boolean"
+                },
+                "version_retention_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.UserResponse": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "email",
+                "id",
+                "name"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ValidationErrorResponse": {
+            "type": "object",
+            "required": [
+                "error",
+                "fields"
+            ],
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.VariantResponse": {
+            "type": "object",
+            "required": [
+                "asset_version_id",
+                "created_at",
+                "download_url",
+                "id",
+                "is_shared",
+                "status",
+                "storage_key",
+                "thumbnail_content_type",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "asset_version_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "download_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_shared": {
+                    "type": "boolean"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "storage_key": {
+                    "type": "string"
+                },
+                "thumbnail_content_type": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "transform_params": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.VersionCreatedByResponse": {
+            "type": "object",
+            "required": [
+                "id",
+                "name"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.VersionResponse": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "is_current",
+                "mime_type",
+                "size",
+                "variant_count",
+                "version_num"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "$ref": "#/definitions/api.VersionCreatedByResponse"
+                },
+                "duration_sec": {
+                    "type": "number"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_current": {
+                    "type": "boolean"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "variant_count": {
+                    "type": "integer"
+                },
+                "version_num": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.VersionWithAssetResponse": {
+            "type": "object",
+            "required": [
+                "asset",
+                "version"
+            ],
+            "properties": {
+                "asset": {
+                    "$ref": "#/definitions/api.AssetResponse"
+                },
+                "version": {
+                    "$ref": "#/definitions/api.VersionResponse"
+                }
+            }
+        },
+        "api.VisualSimilarResult": {
+            "type": "object",
+            "required": [
+                "asset_id",
+                "asset_version_id",
+                "mime_type",
+                "original_filename"
+            ],
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "asset_version_id": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "original_filename": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.WatermarkAssetResponse": {
+            "type": "object",
+            "required": [
+                "id",
+                "mime_type",
+                "name",
+                "scope",
+                "storage_key"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "storage_key": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowListRunsResponse": {
+            "type": "object",
+            "required": [
+                "next_cursor",
+                "runs"
+            ],
+            "properties": {
+                "next_cursor": {
+                    "type": "string"
+                },
+                "runs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.WorkflowRunResponse"
+                    }
+                }
+            }
+        },
+        "api.WorkflowNodePortResponse": {
+            "type": "object",
+            "required": [
+                "id",
+                "label"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowNodeSchemaResponse": {
+            "type": "object",
+            "required": [
+                "category",
+                "config_schema",
+                "description",
+                "inputs",
+                "label",
+                "outputs",
+                "type"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "config_schema": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "description": {
+                    "type": "string"
+                },
+                "inputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.WorkflowNodePortResponse"
+                    }
+                },
+                "label": {
+                    "type": "string"
+                },
+                "outputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.WorkflowNodePortResponse"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowResponse": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "description",
+                "enabled",
+                "graph",
+                "id",
+                "name",
+                "notify_on_failure_email",
+                "trigger_type",
+                "updated_at",
+                "workspace_id"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "graph": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_run_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notify_on_failure_email": {
+                    "type": "string"
+                },
+                "trigger_type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowRunResponse": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "status",
+                "steps",
+                "trigger_data",
+                "workflow_id"
+            ],
+            "properties": {
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.WorkflowRunStepResponse"
+                    }
+                },
+                "trigger_data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "workflow_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowRunStepResponse": {
+            "type": "object",
+            "required": [
+                "attempt",
+                "input_ctx",
+                "node_id",
+                "node_type",
+                "output_ctx",
+                "status"
+            ],
+            "properties": {
+                "attempt": {
+                    "type": "integer"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "input_ctx": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "node_type": {
+                    "type": "string"
+                },
+                "output_ctx": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowTemplateResponse": {
+            "type": "object",
+            "required": [
+                "description",
+                "graph",
+                "id",
+                "name",
+                "trigger_type"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "graph": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "trigger_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowTokenResponse": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkflowTriggerResponse": {
+            "type": "object",
+            "required": [
+                "run_id",
+                "status"
+            ],
+            "properties": {
+                "run_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkspaceImageRouterStatusResponse": {
+            "type": "object",
+            "required": [
+                "key_set",
+                "source"
+            ],
+            "properties": {
+                "key_set": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.WorkspaceMeResponse": {
+            "type": "object",
+            "required": [
+                "role",
+                "total_asset_count",
+                "user",
+                "workspace"
+            ],
+            "properties": {
+                "role": {
+                    "type": "string"
+                },
+                "total_asset_count": {
+                    "type": "integer"
+                },
+                "user": {
+                    "$ref": "#/definitions/api.UserResponse"
+                },
+                "workspace": {
+                    "$ref": "#/definitions/api.WorkspaceResponse"
+                }
+            }
+        },
+        "api.WorkspaceResponse": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "download_log_retention_days",
+                "event_log_retention_days",
+                "exif_keep",
+                "exif_keep_gps",
+                "id",
+                "locked_taxonomy",
+                "name",
+                "updated_at",
+                "version_retention_count"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "download_log_retention_days": {
+                    "type": "integer"
+                },
+                "event_log_retention_days": {
+                    "type": "integer"
+                },
+                "exif_keep": {
+                    "type": "boolean"
+                },
+                "exif_keep_gps": {
+                    "type": "boolean"
+                },
+                "icon_asset_id": {
+                    "type": "string"
+                },
+                "icon_version_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "locked_taxonomy": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version_retention_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.WorkspaceWithRoleResponse": {
+            "type": "object",
+            "required": [
+                "asset_count",
+                "created_at",
+                "id",
+                "member_count",
+                "name",
+                "role",
+                "updated_at"
+            ],
+            "properties": {
+                "asset_count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "member_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.assetFieldValueResponse": {
+            "type": "object",
+            "required": [
+                "definition_deleted",
+                "field_id",
+                "field_type",
+                "key",
+                "name",
+                "source",
+                "value"
+            ],
+            "properties": {
+                "definition_deleted": {
+                    "type": "boolean"
+                },
+                "field_id": {
+                    "type": "string"
+                },
+                "field_type": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "api.automateVariantsRequest": {
+            "type": "object",
+            "required": [
+                "scope"
+            ],
+            "properties": {
+                "scope": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.bulkDeleteTagsRequest": {
+            "type": "object",
+            "required": [
+                "names"
+            ],
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.bulkManualRunRequest": {
+            "type": "object",
+            "required": [
+                "asset_ids"
+            ],
+            "properties": {
+                "asset_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.createCollectionRequest": {
+            "type": "object",
+            "required": [
+                "asset_ids",
+                "description",
+                "name"
+            ],
+            "properties": {
+                "asset_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.createTagRequest": {
+            "type": "object",
+            "required": [
+                "color",
+                "group_name",
+                "name"
+            ],
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "api.mergeTagsRequest": {
             "type": "object",
+            "required": [
+                "sources",
+                "target"
+            ],
             "properties": {
                 "sources": {
                     "type": "array",
@@ -7672,6 +10146,11 @@
         },
         "api.patchTagRequest": {
             "type": "object",
+            "required": [
+                "color",
+                "group_name",
+                "name"
+            ],
             "properties": {
                 "color": {
                     "type": "string"
@@ -7686,6 +10165,14 @@
         },
         "api.projectFieldValueResponse": {
             "type": "object",
+            "required": [
+                "definition_deleted",
+                "field_id",
+                "field_type",
+                "key",
+                "name",
+                "value"
+            ],
             "properties": {
                 "definition_deleted": {
                     "type": "boolean"
@@ -7707,6 +10194,10 @@
         },
         "api.stackExportRequest": {
             "type": "object",
+            "required": [
+                "asset_ids",
+                "filename"
+            ],
             "properties": {
                 "asset_ids": {
                     "type": "array",
@@ -7721,6 +10212,12 @@
         },
         "api.stackMergeRequest": {
             "type": "object",
+            "required": [
+                "asset_ids",
+                "filename",
+                "gif_frame_ms",
+                "output_type"
+            ],
             "properties": {
                 "asset_ids": {
                     "type": "array",
@@ -7741,11 +10238,61 @@
         },
         "api.updateCollectionRequest": {
             "type": "object",
+            "required": [
+                "description",
+                "name"
+            ],
             "properties": {
                 "description": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.workflowRequest": {
+            "type": "object",
+            "required": [
+                "description",
+                "graph",
+                "name",
+                "notify_on_failure_email"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "graph": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "notify_on_failure_email": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.CoveringWorkflowDTO": {
+            "type": "object",
+            "required": [
+                "id",
+                "name",
+                "scope",
+                "workflow_url"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "workflow_url": {
                     "type": "string"
                 }
             }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Project } from '$lib/api/models'
+  import type { Project } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { ChevronDown, ChevronRight, Box } from '@lucide/svelte'
   import ProjectCustomFields from './ProjectCustomFields.svelte'

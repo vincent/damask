@@ -20,12 +20,12 @@ type ShareResponse struct {
 	TargetType    string  `json:"target_type"`
 	TargetID      string  `json:"target_id"`
 	HasPassword   bool    `json:"has_password"`
-	ExpiresAt     *string `json:"expires_at"`
+	ExpiresAt     *string `json:"expires_at,omitempty"`
 	AllowComments bool    `json:"allow_comments"`
 	AllowDownload bool    `json:"allow_download"`
 	ViewCount     int64   `json:"view_count"`
 	CreatedAt     string  `json:"created_at"`
-	RevokedAt     *string `json:"revoked_at"`
+	RevokedAt     *string `json:"revoked_at,omitempty"`
 	IsExpired     bool    `json:"is_expired"`
 	PublicURL     string  `json:"public_url"`
 }

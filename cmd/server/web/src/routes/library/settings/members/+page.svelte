@@ -5,7 +5,7 @@
   import { workspaceApi } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
-  import type { WorkspaceMember, WorkspaceInvite } from '$lib/api/models'
+  import type { WorkspaceMember, WorkspaceInvite } from '$lib/api'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
