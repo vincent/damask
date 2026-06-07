@@ -25,15 +25,14 @@ func SetupMetrics(cfg Config) {
 	if err != nil {
 		panic(err)
 	}
-	go collectMachineResourceMetrics(meter)
+	go CollectMachineResourceMetrics(meter, time.NewTicker(5*time.Second))
 }
 
-// collectMachineResourceMetrics registers resource usage metrics.
-func collectMachineResourceMetrics(meter metric.Meter) {
+// CollectMachineResourceMetrics registers resource usage metrics.
+func CollectMachineResourceMetrics(meter metric.Meter, ticker *time.Ticker) {
 	var cpuMu sync.Mutex
 	var previousCPUTimes *cpuTimes
 
-	ticker := time.NewTicker(5 * time.Second)
 	for range ticker.C {
 		registerMemMetrics(meter)
 		registerCPUMetrics(meter, &cpuMu, &previousCPUTimes)
