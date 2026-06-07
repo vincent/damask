@@ -1,4 +1,3 @@
-// @ts-expect-error — tinykeys ships types under a non-standard exports path
 import { tinykeys } from 'tinykeys'
 import { ACTION_CONTEXT, DEFAULT_KEYMAP } from './registry'
 import { activateGMode } from './sequence'
