@@ -89,8 +89,8 @@ jobs:
       - name: Install swag
         run: go install github.com/swaggo/swag/cmd/swag@latest
       - name: Regenerate
-        run: make generate
-      - name: Assert no drift
+        run: swag init -g cmd/server/main.go -o internal/docs --requiredByDefault && npx --yes openapi-typescript@5 internal/docs/swagger.json --output cmd/server/web/src/lib/api/types.gen.ts --immutable-types
+      - name: Assert backend and frontend types are in sync
         run: git diff --exit-code cmd/server/web/src/lib/api/types.gen.ts
 
   build-frontend:
