@@ -1,6 +1,7 @@
 <script lang="ts">
   import { stackStore } from '$lib/stores/stack.svelte'
   import {
+    apiFetch,
     stackApi,
     collectionApi,
     shareApi,
@@ -74,8 +75,8 @@
         new AddAssetsToCollection(stackStore.ids, col.id, col.name)
       )
       showAddToCollection = false
-    } catch (e: any) {
-      toastStore.show(e?.message ?? m.save_failed(), 'error')
+    } catch (e: unknown) {
+      toastStore.show((e as Error)?.message ?? m.save_failed(), 'error')
     } finally {
       addingToCollection = null
     }
@@ -133,8 +134,8 @@
         stackStore.ids,
         stackStore.label ?? 'stack-export'
       )
-    } catch (e: any) {
-      toastStore.show(e?.message ?? m.download_failed(), 'error')
+    } catch (e: unknown) {
+      toastStore.show((e as Error)?.message ?? m.download_failed(), 'error')
     } finally {
       downloading = false
     }
@@ -148,8 +149,8 @@
       toastStore.show(m.collection_saved(), 'success')
       showCollectionForm = false
       collectionName = ''
-    } catch (e: any) {
-      toastStore.show(e?.message ?? m.save_failed(), 'error')
+    } catch (e: unknown) {
+      toastStore.show((e as Error)?.message ?? m.save_failed(), 'error')
     } finally {
       savingCollection = false
     }
@@ -180,8 +181,8 @@
         allow_download: true,
       })
       shareUrl = share.public_url
-    } catch (e: any) {
-      toastStore.show(e?.message ?? m.share_failed(), 'error')
+    } catch (e: unknown) {
+      toastStore.show((e as Error)?.message ?? m.share_failed(), 'error')
     } finally {
       sharing = false
     }
@@ -213,10 +214,8 @@
     showProjectPicker = false
     movingToProject = true
     try {
-      await fetch(`/api/v1/assets/bulk/project`, {
+      await apiFetch('/api/v1/assets/bulk/project', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           asset_ids: stackStore.ids,
           project_id: project.id,
@@ -226,8 +225,8 @@
         m.assets_moved_to({ count: stackStore.count, name: project.name }),
         'success'
       )
-    } catch (e: any) {
-      toastStore.show(e?.message ?? m.move_failed(), 'error')
+    } catch (e: unknown) {
+      toastStore.show((e as Error)?.message ?? m.move_failed(), 'error')
     } finally {
       movingToProject = false
     }
@@ -252,8 +251,8 @@
           toastStore.show(m.merge_timed_out(), 'error')
         }
       }, 30000)
-    } catch (e: any) {
-      toastStore.show(e?.message ?? m.merge_failed(), 'error')
+    } catch (e: unknown) {
+      toastStore.show((e as Error)?.message ?? m.merge_failed(), 'error')
       merging = false
       mergeStatus = null
     }

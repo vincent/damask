@@ -1,11 +1,5 @@
 <script lang="ts">
-  import {
-    ZoomIn,
-    ZoomOut,
-    Languages,
-    KeySquare,
-    Keyboard,
-  } from '@lucide/svelte'
+  import { ZoomIn, ZoomOut, Languages, Keyboard } from '@lucide/svelte'
   import { setLocale, getLocale, locales } from '$lib/paraglide/runtime'
   import { statusBarStore as s } from '$lib/stores/bottomStatusBar.svelte'
   import Hint from './ui/Hint.svelte'

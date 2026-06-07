@@ -55,6 +55,21 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 /**
+ * Like apiFetch but returns the raw Response without throwing or redirecting.
+ * Use when you need to inspect status codes, read headers, or handle blobs.
+ */
+export async function apiFetchRaw(
+  path: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  return fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...init.headers },
+    ...init,
+  })
+}
+
+/**
  * Base fetch wrapper that injects credentials and Content-Type headers.
  * Redirects to /login on 401 responses. Throws ApiError on non-ok responses.
  * @param path API path (relative to API_BASE)
@@ -506,10 +521,8 @@ export const stackApi = {
     assetIds: string[],
     filename = 'stack-export'
   ): Promise<void> => {
-    const res = await fetch(`${API_BASE}/api/v1/stack/export`, {
+    const res = await apiFetchRaw('/api/v1/stack/export', {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ asset_ids: assetIds, filename }),
     })
     if (!res.ok) {

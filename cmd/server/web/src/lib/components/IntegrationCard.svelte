@@ -3,7 +3,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte'
   import GoogleIcon from '$lib/components/ui/GoogleIcon.svelte'
-  import { Cross, Trash, X } from '@lucide/svelte'
+  import { X } from '@lucide/svelte'
 
   interface Props {
     provider: string

@@ -15,8 +15,8 @@
   }
 
   let {
-    assetId,
-    nonce,
+    assetId: _assetId,
+    nonce: _nonce,
     previewUrl,
     expiresAt,
     errorMsg,

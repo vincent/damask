@@ -8,7 +8,6 @@
   import GeometricBackground from '$lib/components/ui/GeometricBackground.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import { onMount } from 'svelte'
-  import Divider from '$lib/components/ui/Divider.svelte'
   import { m } from '$lib/paraglide/messages'
 
   let password = $state('')

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet } from 'svelte'
   import { onNavigate } from '$app/navigation'
-  import { authStore } from '$lib/stores/auth.svelte'
   import { assetsStore } from '$lib/stores/assets.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
@@ -19,7 +18,7 @@
   import { viewportStore } from '$lib/stores/viewport.svelte'
   import { goto } from '$app/navigation'
 
-  let { children }: { data: any; children: Snippet } = $props()
+  let { children: pageChildren }: { children: Snippet } = $props()
 
   useShortcuts({
     'search.focus': () =>
@@ -113,7 +112,7 @@
       class="relative flex flex-1 flex-col overflow-hidden"
       style="view-transition-name: main-content;"
     >
-      {@render children?.()}
+      {@render pageChildren?.()}
 
       {#if !viewportStore.isMobile}
         <BottomStatusBar />

@@ -6,7 +6,6 @@
   import Hint from '../ui/Hint.svelte'
   import ButtonCopy from '../ui/ButtonCopy.svelte'
   import Button from '../ui/Button.svelte'
-  import { configApi } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
 
   interface Props {

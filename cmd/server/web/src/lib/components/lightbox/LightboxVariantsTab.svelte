@@ -54,7 +54,7 @@
     onThumbnailUpdated,
     onNavigate,
     loadVariants,
-    onDraftStarted,
+    onDraftStarted: _onDraftStarted,
     selectedVariant = $bindable<Variant | null>(null),
     selectedTool = $bindable<VariantTab | null>(null),
     showDraftOverlay = $bindable(false),

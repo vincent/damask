@@ -10,7 +10,7 @@
     handleCreate: (kind: string, params: Record<string, unknown>) => void
   }
 
-  let { asset, creating, handleCreate }: Props = $props()
+  let { asset: _asset, creating, handleCreate }: Props = $props()
 
   const kind = 'image_convert'
 

@@ -32,7 +32,7 @@
   let inviting = $state(false)
 
   let updatingRole = $state<string | null>(null)
-  let removingID = $state<string | null>(null)
+  let _removingID = $state<string | null>(null)
   let deletingInviteID = $state<string | null>(null)
 
   async function load() {
@@ -73,7 +73,7 @@
   }
 
   async function removeMember(userId: string) {
-    removingID = userId
+    _removingID = userId
     try {
       await workspaceApi.removeMember(userId)
       members = members.filter((mb) => mb.user_id !== userId)
@@ -84,7 +84,7 @@
         'error'
       )
     } finally {
-      removingID = null
+      _removingID = null
       confirmRemoveID = null
     }
   }

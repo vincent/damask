@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type SharedVariant } from '$lib/api'
+  import { type SharedVariant, publicShareApi } from '$lib/api'
   import Button from '$lib/components/ui/Button.svelte'
   import { m } from '$lib/paraglide/messages'
   import { toastStore } from '$lib/stores/toast.svelte'
@@ -37,9 +37,10 @@
   async function downloadVariant(variant: SharedVariant) {
     downloadingId = variant.id
     try {
-      const res = await fetch(getDownloadUrl(shareId, assetId, variant.id), {
-        headers: authHeaders(),
-      })
+      const res = await publicShareApi.downloadFile(
+        getDownloadUrl(shareId, assetId, variant.id),
+        authHeaders()['X-Share-Token']
+      )
       if (!res.ok) {
         toastStore.show('Download failed.', 'error')
         return

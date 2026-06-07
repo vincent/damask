@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Download } from '@lucide/svelte'
-  import { type SharedVariant } from '$lib/api'
+  import { type SharedVariant, publicShareApi } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { extFromMime } from '$lib/utils/mime'
@@ -94,9 +94,10 @@
     event.stopPropagation()
     downloadingId = variant.id
     try {
-      const res = await fetch(getDownloadUrl(shareId, assetId, variant.id), {
-        headers: authHeaders(),
-      })
+      const res = await publicShareApi.downloadFile(
+        getDownloadUrl(shareId, assetId, variant.id),
+        authHeaders()['X-Share-Token']
+      )
       if (!res.ok) {
         toastStore.show(m.download_failed(), 'error')
         return

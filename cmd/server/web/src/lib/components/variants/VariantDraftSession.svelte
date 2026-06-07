@@ -135,7 +135,7 @@
         await commitDraft(assetId, draft.nonce)
         committed.push(draft.nonce)
         onVariantCommitted?.()
-      } catch (e) {
+      } catch (_e) {
         toastStore.show(m.variants_draft_commit_error(), 'error')
         keepAllProgress = null
         committingNonces = new Set(

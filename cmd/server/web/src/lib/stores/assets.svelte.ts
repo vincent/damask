@@ -382,9 +382,7 @@ export const assetsStore = {
    * Signature kept so BulkMetadataCommand compiles and future caching is easy to add.
    */
   patchFieldValues(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _assetId: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _edits: { fieldId: string; value: string | number | boolean | null }[]
   ) {},
 }

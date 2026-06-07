@@ -37,7 +37,6 @@
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
   import { viewportStore } from '$lib/stores/viewport.svelte'
   import { configStore } from '$lib/stores/config.svelte'
-  import GeometricBackground from '$lib/components/ui/GeometricBackground.svelte'
 
   let selectedAsset = $state<Asset | null>(null)
   let showPalette = $state(false)

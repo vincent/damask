@@ -40,9 +40,11 @@
 </script>
 
 <form class="flex items-center gap-1" onsubmit={handleSubmit}>
+  <!-- svelte-ignore a11y_autofocus -->
   <input
     bind:value
     {placeholder}
+    {autofocus}
     disabled={busy}
     onblur={handleBlur}
     onkeydown={handleKeydown}

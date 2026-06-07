@@ -7,9 +7,9 @@
   import Input from '$lib/components/ui/Input.svelte'
   import PoweredByDamask from '$lib/components/PoweredByDamask.svelte'
 
-  const API_BASE = import.meta.env.VITE_API_URL ?? ''
+  import { publicShareApi } from '$lib/api'
 
-  let shareId = $derived(page.params.shareId)
+  let shareId = $derived(page.params.shareId!)
   let visitorName = $state('')
   let password = $state('')
   let error = $state('')
@@ -22,7 +22,7 @@
     visitorName =
       sessionStorage.getItem(`damask_share_visitor_${shareId}`) ?? ''
     try {
-      const res = await fetch(`${API_BASE}/shared/${shareId}/access`)
+      const res = await publicShareApi.getAccess(shareId)
       if (res.ok) {
         const data = await res.json()
         shareLabel = data.label ?? 'Shared gallery'
@@ -45,14 +45,11 @@
     loading = true
     error = ''
     try {
-      const res = await fetch(`${API_BASE}/shared/${shareId}/access`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          visitor_name: visitorName.trim(),
-          password: password || '',
-        }),
-      })
+      const res = await publicShareApi.postAccess(
+        shareId,
+        visitorName.trim(),
+        password || ''
+      )
       if (!res.ok) {
         error = requiresPassword
           ? 'Incorrect password or missing name.'

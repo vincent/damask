@@ -8,7 +8,13 @@
     Pencil,
     X,
   } from '@lucide/svelte'
-  import { formatBytes, mimeCategory, variantApi, type Variant } from '$lib/api'
+  import {
+    apiFetchRaw,
+    formatBytes,
+    mimeCategory,
+    variantApi,
+    type Variant,
+  } from '$lib/api'
   import AssetThumbnail from '$lib/components/asset/AssetThumbnail.svelte'
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
@@ -84,9 +90,10 @@
     }
     pollCount++
     try {
-      const res = await fetch(variantApi.thumbUrl(assetId, variant.id), {
-        credentials: 'include',
-      })
+      const res = await apiFetchRaw(
+        `/api/v1/assets/${assetId}/variants/${variant.id}/thumb`,
+        { headers: {} }
+      )
       if (res.status === 202) {
         pollTimer = setTimeout(poll, 2000)
       } else if (res.ok) {

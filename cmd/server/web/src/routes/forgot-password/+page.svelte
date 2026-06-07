@@ -6,7 +6,6 @@
   import Feedback from '$lib/components/ui/Feedback.svelte'
   import Input from '$lib/components/ui/Input.svelte'
   import GeometricBackground from '$lib/components/ui/GeometricBackground.svelte'
-  import Divider from '$lib/components/ui/Divider.svelte'
 
   let email = $state('')
   let loading = $state(false)

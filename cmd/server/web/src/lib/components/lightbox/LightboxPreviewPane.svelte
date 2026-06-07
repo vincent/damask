@@ -174,7 +174,7 @@
           sessionActive={showDraftOverlay}
           onApplied={(results) => {
             onToolSelect(null)
-            for (const { workflowId, workflowName, runIds } of results) {
+            for (const { workflowName, runIds } of results) {
               toastStore.show(
                 m.workflows_library_run_started({
                   name: workflowName,

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { assetApi } from '$lib/api'
   import { m } from '$lib/paraglide/messages'
-  import { Search, X } from '@lucide/svelte'
+  import { X } from '@lucide/svelte'
 
   type Props = {
     anchorFilename: string

@@ -26,7 +26,7 @@
 
   let {
     asset,
-    class: extraClass = '',
+    class: _extraClass = '',
     zoom = 5,
     gridMode = 'compact',
     onclick,

@@ -6,7 +6,7 @@
     type AssetVersion,
   } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
-  import { Clock, Download, RotateCcw, Trash2, Inbox } from '@lucide/svelte'
+  import { Clock, Download, RotateCcw, Inbox } from '@lucide/svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
   import Feedback from './ui/Feedback.svelte'

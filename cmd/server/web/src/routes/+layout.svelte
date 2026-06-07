@@ -9,9 +9,13 @@
   import { useShortcuts } from '$lib/shortcuts/context'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { themeStore } from '$lib/stores/theme.svelte'
+  import type { Snippet } from 'svelte'
   import type { LayoutData } from './$types'
 
-  let { children, data }: { children: any; data: LayoutData } = $props()
+  let {
+    children: pageChildren,
+    data,
+  }: { children: Snippet; data: LayoutData } = $props()
 
   // Referencing the store ensures the module loads and $effect.root fires on first render.
   keymap.current
@@ -44,7 +48,7 @@
 
 <ActionSheet>
   {#snippet children()}
-    {@render children?.()}
+    {@render pageChildren?.()}
     <Toast />
     <ShortcutHelp />
   {/snippet}

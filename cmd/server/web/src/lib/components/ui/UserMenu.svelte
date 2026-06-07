@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation'
   import { authStore } from '$lib/stores/auth.svelte'
   import { LogOut, Settings } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages.js'

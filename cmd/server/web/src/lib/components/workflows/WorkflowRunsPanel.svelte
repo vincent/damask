@@ -7,7 +7,6 @@
     type Workflow,
     type WorkflowRun,
   } from '$lib/api/workflows'
-  import RunHistory from './RunHistory.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import GridSkeleton from '$lib/components/ui/GridSkeleton.svelte'
   import Hint from '$lib/components/ui/Hint.svelte'

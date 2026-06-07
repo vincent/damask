@@ -49,10 +49,6 @@
       onUpdate(fieldId, v, 'set')
     }
   }
-
-  function handleClear() {
-    onUpdate(fieldId, null, 'clear')
-  }
 </script>
 
 <div class="flex flex-col gap-1.5">

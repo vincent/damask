@@ -4,6 +4,7 @@ import type {
   ShareComment,
   SharedVariant,
 } from '$lib/api'
+import { publicShareApi } from '$lib/api'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -68,10 +69,6 @@ function createPublicViewStore() {
   })
 
   // ---- Helpers ----
-  function authHeaders(): Record<string, string> {
-    return sessionToken ? { 'X-Share-Token': sessionToken } : {}
-  }
-
   function thumbUrl(shareId: string, assetId: string) {
     return `${API_BASE}/shared/${shareId}/assets/${assetId}/thumb`
   }
@@ -112,9 +109,7 @@ function createPublicViewStore() {
     loadingGallery = true
     galleryError = ''
     try {
-      const res = await fetch(`${API_BASE}/shared/${shareId}/assets`, {
-        headers: authHeaders(),
-      })
+      const res = await publicShareApi.getAssets(shareId, sessionToken)
       if (res.status === 401 || res.status === 403) {
         onNeedsPassword()
         return
@@ -136,17 +131,16 @@ function createPublicViewStore() {
   async function loadComments(shareId: string, assetId: string) {
     loadingComments = true
     try {
-      const res = await fetch(
-        `${API_BASE}/shared/${shareId}/comments?asset_id=${assetId}`,
-        {
-          headers: authHeaders(),
-        }
+      const res = await publicShareApi.getComments(
+        shareId,
+        assetId,
+        sessionToken
       )
       comments = res.ok
         ? await res
             .json()
             .then(
-              (data: any[]) =>
+              (data: { asset_id: string; comments: ShareComment[] }[]) =>
                 data.find((d) => d.asset_id === assetId)?.comments ?? []
             )
         : []
@@ -195,18 +189,18 @@ function createPublicViewStore() {
 
     postingComment = true
     try {
-      const res = await fetch(`${API_BASE}/shared/${shareId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({
+      const res = await publicShareApi.postComment(
+        shareId,
+        {
           asset_id: selectedAsset?.id,
           author_name: visitorName.trim(),
           author_email: commentEmail.trim() || undefined,
           body:
             (selectedVariant ? `@${selectedVariant.id} ` : '') +
             commentBody.trim(),
-        }),
-      })
+        },
+        sessionToken
+      )
       if (res.ok) {
         const newComment = await res.json()
         comments = [...comments, newComment]
@@ -223,9 +217,7 @@ function createPublicViewStore() {
   }
 
   async function downloadAll(shareId: string) {
-    const res = await fetch(`${API_BASE}/shared/${shareId}/export`, {
-      headers: authHeaders(),
-    })
+    const res = await publicShareApi.downloadExport(shareId, sessionToken)
     if (!res.ok) return
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)

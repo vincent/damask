@@ -15,7 +15,7 @@
   } from '@lucide/svelte'
   import { tagsManagementStore } from '$lib/stores/tagsManagement.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
-  import { workspaceApi } from '$lib/api'
+  import { workspaceApi, ApiError } from '$lib/api'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { undoStore } from '$lib/stores/undo.svelte'
   import { RenameTag } from '$lib/commands/RenameTag'
@@ -143,8 +143,9 @@
     }
     try {
       await undoStore.execute(new RenameTag(original, trimmed))
-    } catch (e: any) {
-      if (e?.status === 409) editNameError = m.tag_already_exists()
+    } catch (e: unknown) {
+      if ((e as ApiError)?.status === 409)
+        editNameError = m.tag_already_exists()
       else toastStore.show(m.tag_rename_failed(), 'error')
       return
     }
@@ -218,9 +219,11 @@
       newTagName = ''
       newTagColor = null
       newTagGroup = null
-    } catch (e: any) {
+    } catch (e: unknown) {
       newTagError =
-        e?.status === 409 ? m.tag_already_exists() : m.tag_create_failed()
+        (e as ApiError)?.status === 409
+          ? m.tag_already_exists()
+          : m.tag_create_failed()
     } finally {
       newTagSaving = false
     }

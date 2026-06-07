@@ -4,7 +4,6 @@
   import { onMount } from 'svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
   import FieldFilterInput from '$lib/components/FieldFilterInput.svelte'
-  import { ChevronDown, ChevronRight } from '@lucide/svelte'
   import { m } from '$lib/paraglide/messages'
 
   interface Props {

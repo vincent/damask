@@ -10,7 +10,7 @@
     placeholder?: string
     disabled?: boolean
     required?: boolean
-    autocomplete?: string
+    autocomplete?: AutoFill
     id?: string
     autofocus?: boolean
     leading?: Snippet
@@ -58,12 +58,15 @@
         {@render leading()}
       </div>
     {/if}
+    <!-- svelte-ignore a11y_autofocus -->
     <input
       {id}
       {type}
       {placeholder}
       {disabled}
       {required}
+      {autocomplete}
+      {autofocus}
       bind:value
       {onchange}
       {oninput}

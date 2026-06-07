@@ -1,7 +1,7 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import { foldersStore } from '$lib/stores/folders.svelte'
-  import { configApi, type Folder } from '$lib/api'
+  import { type Folder } from '$lib/api'
   import { ChevronRight, Dot, EllipsisVertical } from '@lucide/svelte'
   import InlineEditForm from '$lib/components/ui/InlineEditForm.svelte'
   import ContextMenu from '$lib/components/ui/ContextMenu.svelte'

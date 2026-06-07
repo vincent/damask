@@ -5,12 +5,6 @@
 
   let { source }: Props = $props()
 
-  interface Heading {
-    level: 2 | 3
-    text: string
-    anchor: string
-  }
-
   const headings = $derived(
     [...source.matchAll(/^(#{2,3})\s+(.+)$/gm)].map((m) => ({
       level: m[1].length as 2 | 3,

@@ -1,14 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import { page } from '$app/state'
-  import {
-    Bookmark,
-    LibraryBig,
-    Menu,
-    Search,
-    Settings,
-    Share2,
-  } from '@lucide/svelte'
+  import { LibraryBig, Menu, Search, Settings, Share2 } from '@lucide/svelte'
   import { getContext } from 'svelte'
   import { m } from '$lib/paraglide/messages'
   import {
