@@ -709,7 +709,15 @@ const webhookGraph = `{"nodes":[{"id":"n1","type":"trigger.webhook","config":{},
 
 func TestWorkflowService_TriggerWebhook_OK(t *testing.T) {
 	svc, repo, _, webhooks, q := newWorkflowSvc(t)
-	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	repo.Seed(
+		repository.Workflow{
+			ID:          "wf_1",
+			WorkspaceID: "ws_1",
+			Enabled:     true,
+			TriggerType: "trigger.webhook",
+			Graph:       webhookGraph,
+		},
+	)
 	plaintext := "mysecrettoken"
 	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex(plaintext))
 
@@ -735,7 +743,15 @@ func TestWorkflowService_TriggerWebhook_NotFound(t *testing.T) {
 
 func TestWorkflowService_TriggerWebhook_BadToken(t *testing.T) {
 	svc, repo, _, webhooks, _ := newWorkflowSvc(t)
-	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	repo.Seed(
+		repository.Workflow{
+			ID:          "wf_1",
+			WorkspaceID: "ws_1",
+			Enabled:     true,
+			TriggerType: "trigger.webhook",
+			Graph:       webhookGraph,
+		},
+	)
 	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex("correcttoken"))
 
 	_, err := svc.TriggerWebhook(context.Background(), "wf_1", "wrongtoken", []byte(`{}`))
@@ -746,7 +762,15 @@ func TestWorkflowService_TriggerWebhook_BadToken(t *testing.T) {
 
 func TestWorkflowService_TriggerWebhook_JSONBody(t *testing.T) {
 	svc, repo, runs, webhooks, _ := newWorkflowSvc(t)
-	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	repo.Seed(
+		repository.Workflow{
+			ID:          "wf_1",
+			WorkspaceID: "ws_1",
+			Enabled:     true,
+			TriggerType: "trigger.webhook",
+			Graph:       webhookGraph,
+		},
+	)
 	plaintext := "tok"
 	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex(plaintext))
 
@@ -769,7 +793,15 @@ func TestWorkflowService_TriggerWebhook_JSONBody(t *testing.T) {
 
 func TestWorkflowService_TriggerWebhook_NonJSONBody(t *testing.T) {
 	svc, repo, runs, webhooks, _ := newWorkflowSvc(t)
-	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	repo.Seed(
+		repository.Workflow{
+			ID:          "wf_1",
+			WorkspaceID: "ws_1",
+			Enabled:     true,
+			TriggerType: "trigger.webhook",
+			Graph:       webhookGraph,
+		},
+	)
 	plaintext := "tok"
 	_ = webhooks.Upsert(context.Background(), "wf_1", workflow.Sha256Hex(plaintext))
 
@@ -805,12 +837,12 @@ func TestWorkflowService_GetRun_OK(t *testing.T) {
 	})
 	_ = run
 	_, _ = runs.CreateStep(ctx, repository.CreateWorkflowRunStepParams{
-		ID:       "step_1",
-		RunID:    "run_1",
-		NodeID:   "n1",
-		NodeType: "trigger.manual",
-		Status:   "completed",
-		InputCtx: `{"k":"v"}`,
+		ID:        "step_1",
+		RunID:     "run_1",
+		NodeID:    "n1",
+		NodeType:  "trigger.manual",
+		Status:    "completed",
+		InputCtx:  `{"k":"v"}`,
 		StartedAt: &now,
 	})
 
@@ -866,7 +898,7 @@ func TestWorkflowService_ListRuns_OK(t *testing.T) {
 		})
 	}
 
-	dtos, err := svc.ListRuns(ctx, "wf_1", 2, "")
+	dtos, err := svc.ListRuns(ctx, "ws_1", "wf_1", 2, "")
 	if err != nil {
 		t.Fatalf("ListRuns() unexpected error: %v", err)
 	}
@@ -955,7 +987,15 @@ func TestWorkflowService_GetWebhookToken_NotFound(t *testing.T) {
 
 func TestWorkflowService_RegenerateWebhookToken_OK(t *testing.T) {
 	svc, repo, _, webhooks, _ := newWorkflowSvc(t)
-	repo.Seed(repository.Workflow{ID: "wf_1", WorkspaceID: "ws_1", Enabled: true, TriggerType: "trigger.webhook", Graph: webhookGraph})
+	repo.Seed(
+		repository.Workflow{
+			ID:          "wf_1",
+			WorkspaceID: "ws_1",
+			Enabled:     true,
+			TriggerType: "trigger.webhook",
+			Graph:       webhookGraph,
+		},
+	)
 	ctx := context.Background()
 
 	tok1, err := svc.RegenerateWebhookToken(ctx, "ws_1", "wf_1")

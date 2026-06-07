@@ -273,11 +273,11 @@ func (s *workflowService) GetRun(ctx context.Context, workspaceID, runID string)
 
 func (s *workflowService) ListRuns(
 	ctx context.Context,
-	workflowID string,
+	workspaceID, workflowID string,
 	limit int,
 	cursor string,
 ) ([]WorkflowRunDTO, error) {
-	rows, err := s.runs.List(ctx, workflowID, limit, cursor)
+	rows, err := s.runs.List(ctx, workspaceID, workflowID, limit, cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +294,7 @@ func (s *workflowService) ListAllRuns(
 	limit int,
 	cursor string,
 ) ([]WorkflowRunDTO, error) {
-	rows, err := s.runs.ListByWorkspace(ctx, workspaceID, limit, cursor)
+	rows, err := s.runs.List(ctx, workspaceID, "", limit, cursor)
 	if err != nil {
 		return nil, err
 	}

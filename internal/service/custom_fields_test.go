@@ -193,9 +193,39 @@ func TestFieldService_Delete_NotFound(t *testing.T) {
 func TestFieldService_List_OK(t *testing.T) {
 	t.Parallel()
 	svc := newFieldSvc(t)
-	svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Rating", Key: "rating", FieldType: "number"})
-	svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Color", Key: "color", FieldType: "text"})
-	svc.Create(context.Background(), "ws_2", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Size", Key: "size", FieldType: "number"})
+	svc.Create(
+		context.Background(),
+		"ws_1",
+		service.CreateFieldDefinitionParams{
+			CreatedBy: "u1",
+			Scope:     "asset",
+			Name:      "Rating",
+			Key:       "rating",
+			FieldType: "number",
+		},
+	)
+	svc.Create(
+		context.Background(),
+		"ws_1",
+		service.CreateFieldDefinitionParams{
+			CreatedBy: "u1",
+			Scope:     "asset",
+			Name:      "Color",
+			Key:       "color",
+			FieldType: "text",
+		},
+	)
+	svc.Create(
+		context.Background(),
+		"ws_2",
+		service.CreateFieldDefinitionParams{
+			CreatedBy: "u1",
+			Scope:     "asset",
+			Name:      "Size",
+			Key:       "size",
+			FieldType: "number",
+		},
+	)
 
 	fields, err := svc.List(context.Background(), "ws_1", "asset")
 	if err != nil {
@@ -223,7 +253,17 @@ func TestFieldService_List_Empty(t *testing.T) {
 func TestFieldService_GetStats_OK(t *testing.T) {
 	t.Parallel()
 	svc := newFieldSvc(t)
-	f, _ := svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Rating", Key: "rating", FieldType: "number"})
+	f, _ := svc.Create(
+		context.Background(),
+		"ws_1",
+		service.CreateFieldDefinitionParams{
+			CreatedBy: "u1",
+			Scope:     "asset",
+			Name:      "Rating",
+			Key:       "rating",
+			FieldType: "number",
+		},
+	)
 
 	stats, err := svc.GetStats(context.Background(), "ws_1", f.ID)
 	if err != nil {
@@ -248,8 +288,28 @@ func TestFieldService_GetStats_NotFound(t *testing.T) {
 func TestFieldService_Reorder_OK(t *testing.T) {
 	t.Parallel()
 	svc := newFieldSvc(t)
-	f1, _ := svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Alpha", Key: "alpha", FieldType: "text"})
-	f2, _ := svc.Create(context.Background(), "ws_1", service.CreateFieldDefinitionParams{CreatedBy: "u1", Scope: "asset", Name: "Beta", Key: "beta", FieldType: "text"})
+	f1, _ := svc.Create(
+		context.Background(),
+		"ws_1",
+		service.CreateFieldDefinitionParams{
+			CreatedBy: "u1",
+			Scope:     "asset",
+			Name:      "Alpha",
+			Key:       "alpha",
+			FieldType: "text",
+		},
+	)
+	f2, _ := svc.Create(
+		context.Background(),
+		"ws_1",
+		service.CreateFieldDefinitionParams{
+			CreatedBy: "u1",
+			Scope:     "asset",
+			Name:      "Beta",
+			Key:       "beta",
+			FieldType: "text",
+		},
+	)
 
 	err := svc.Reorder(context.Background(), "ws_1", []service.ReorderFieldItem{
 		{ID: f1.ID, Position: 2},

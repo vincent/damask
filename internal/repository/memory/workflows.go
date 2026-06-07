@@ -225,37 +225,7 @@ func (r *WorkflowRunRepo) GetByID(_ context.Context, id string) (repository.Work
 
 func (r *WorkflowRunRepo) List(
 	_ context.Context,
-	workflowID string,
-	limit int,
-	cursor string,
-) ([]repository.WorkflowRun, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	var out []repository.WorkflowRun
-	for _, run := range r.runs {
-		if run.WorkflowID != workflowID {
-			continue
-		}
-		if cursor != "" && run.CreatedAt.Format(time.RFC3339Nano)+"|"+run.ID >= cursor {
-			continue
-		}
-		out = append(out, run)
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
-			return out[i].ID > out[j].ID
-		}
-		return out[i].CreatedAt.After(out[j].CreatedAt)
-	})
-	if limit > 0 && len(out) > limit {
-		out = out[:limit]
-	}
-	return out, nil
-}
-
-func (r *WorkflowRunRepo) ListByWorkspace(
-	_ context.Context,
-	workspaceID string,
+	workspaceID, workflowID string,
 	limit int,
 	cursor string,
 ) ([]repository.WorkflowRun, error) {
@@ -264,6 +234,9 @@ func (r *WorkflowRunRepo) ListByWorkspace(
 	var out []repository.WorkflowRun
 	for _, run := range r.runs {
 		if run.WorkspaceID != workspaceID {
+			continue
+		}
+		if workflowID != "" && run.WorkflowID != workflowID {
 			continue
 		}
 		if cursor != "" && run.CreatedAt.Format(time.RFC3339Nano)+"|"+run.ID >= cursor {

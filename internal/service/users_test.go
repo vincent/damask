@@ -402,6 +402,120 @@ func TestUserService_ConfirmEmailChange_StalePendingEmail(t *testing.T) {
 
 // --- CreateWorkspace ---
 
+// --- UpdateAvatarKey / ClearAvatar ---
+
+func seedUserForAvatar(t *testing.T, users *memory.RealUserRepo, wsRepo *memory.RealWorkspaceRepo) string {
+	t.Helper()
+	uid := "u_avatar_1"
+	_, err := users.Create(context.Background(), repository.User{
+		ID:           uid,
+		Email:        "avatar@example.com",
+		PasswordHash: "hash",
+		AuthMethods:  `["password"]`,
+		Name:         "Avatar User",
+	})
+	if err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	ws, wsErr := wsRepo.Create(context.Background(), repository.Workspace{ID: "ws_avatar_1", Name: "WS"})
+	if wsErr != nil {
+		t.Fatalf("seed workspace: %v", wsErr)
+	}
+	if err = wsRepo.CreateMember(context.Background(), repository.Member{
+		WorkspaceID: ws.ID, UserID: uid, Role: "owner",
+	}); err != nil {
+		t.Fatalf("seed member: %v", err)
+	}
+	return uid
+}
+
+func TestUserService_UpdateAvatarKey(t *testing.T) {
+	t.Parallel()
+	svc, users, wsRepo, _ := newUserSvc(t)
+	uid := seedUserForAvatar(t, users, wsRepo)
+
+	dto, err := svc.UpdateAvatarKey(context.Background(), uid, "storage/avatar.png")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.AvatarStorageKey == nil || *dto.AvatarStorageKey != "storage/avatar.png" {
+		t.Errorf("AvatarStorageKey: got %v, want %q", dto.AvatarStorageKey, "storage/avatar.png")
+	}
+}
+
+func TestUserService_ClearAvatar(t *testing.T) {
+	t.Parallel()
+	svc, users, wsRepo, _ := newUserSvc(t)
+	uid := seedUserForAvatar(t, users, wsRepo)
+
+	if _, err := svc.UpdateAvatarKey(context.Background(), uid, "storage/avatar.png"); err != nil {
+		t.Fatalf("setup UpdateAvatarKey: %v", err)
+	}
+
+	dto, err := svc.ClearAvatar(context.Background(), uid)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dto.AvatarStorageKey != nil {
+		t.Errorf("AvatarStorageKey should be nil after ClearAvatar, got %v", dto.AvatarStorageKey)
+	}
+}
+
+// --- DeleteAccount ---
+
+func seedUserForDelete(
+	t *testing.T,
+	users *memory.RealUserRepo,
+	wsRepo *memory.RealWorkspaceRepo,
+	userID, wsID string,
+	role string,
+) {
+	t.Helper()
+	hash, _ := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.MinCost)
+	_, err := users.Create(context.Background(), repository.User{
+		ID:           userID,
+		Email:        userID + "@example.com",
+		PasswordHash: string(hash),
+		AuthMethods:  `["password"]`,
+		Name:         userID,
+	})
+	if err != nil {
+		t.Fatalf("seed user %s: %v", userID, err)
+	}
+	if _, wsErr := wsRepo.Create(context.Background(), repository.Workspace{ID: wsID, Name: wsID}); wsErr != nil {
+		// workspace may already exist — ignore conflict
+		_ = wsErr
+	}
+	if err = wsRepo.CreateMember(context.Background(), repository.Member{
+		WorkspaceID: wsID, UserID: userID, Role: role,
+	}); err != nil {
+		t.Fatalf("seed member %s/%s: %v", wsID, userID, err)
+	}
+}
+
+func TestUserService_DeleteAccount_SoleOwner(t *testing.T) {
+	t.Parallel()
+	svc, users, wsRepo, _ := newUserSvc(t)
+	seedUserForDelete(t, users, wsRepo, "u_sole", "ws_sole", "owner")
+
+	err := svc.DeleteAccount(context.Background(), "u_sole", "secret", false)
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Errorf("expected ErrInvalidInput for sole owner, got %v", err)
+	}
+}
+
+func TestUserService_DeleteAccount_WithSecondOwner(t *testing.T) {
+	t.Parallel()
+	svc, users, wsRepo, _ := newUserSvc(t)
+	seedUserForDelete(t, users, wsRepo, "u_del", "ws_multi", "owner")
+	seedUserForDelete(t, users, wsRepo, "u_other", "ws_multi", "owner")
+
+	err := svc.DeleteAccount(context.Background(), "u_del", "secret", false)
+	if err != nil {
+		t.Errorf("unexpected error when second owner exists: %v", err)
+	}
+}
+
 func TestUserService_CreateWorkspace_OK(t *testing.T) {
 	t.Parallel()
 	svc, _, wsRepo, _ := newUserSvc(t)

@@ -285,7 +285,7 @@ type WorkflowService interface {
 	TriggerManualBulk(ctx context.Context, workspaceID, workflowID string, assetIDs []string) ([]string, error)
 	TriggerWebhook(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRun(ctx context.Context, workspaceID, runID string) (*WorkflowRunDTO, error)
-	ListRuns(ctx context.Context, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error)
+	ListRuns(ctx context.Context, workspaceID, workflowID string, limit int, cursor string) ([]WorkflowRunDTO, error)
 	ListAllRuns(ctx context.Context, workspaceID string, limit int, cursor string) ([]WorkflowRunDTO, error)
 	FindCoveringWorkflow(
 		ctx context.Context,

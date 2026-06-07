@@ -400,7 +400,7 @@ func (s *Server) handleListWorkflowRuns(c fiber.Ctx) error {
 	if _, err := s.workflows.Get(c.Context(), claims.WorkspaceID, workflowID); err != nil {
 		return ErrorStatusResponse(c, err)
 	}
-	rows, err := s.workflows.ListRuns(c.Context(), workflowID, maxRunPageSize, c.Query("cursor"))
+	rows, err := s.workflows.ListRuns(c.Context(), claims.WorkspaceID, workflowID, maxRunPageSize, c.Query("cursor"))
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}

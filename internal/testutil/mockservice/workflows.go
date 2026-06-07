@@ -17,7 +17,7 @@ type MockWorkflowService struct {
 	TriggerManualBulkFn  func(ctx context.Context, workspaceID, workflowID string, assetIDs []string) ([]string, error)
 	TriggerWebhookFn     func(ctx context.Context, id, token string, body []byte) (string, error)
 	GetRunFn             func(ctx context.Context, workspaceID, runID string) (*service.WorkflowRunDTO, error)
-	ListRunsFn           func(ctx context.Context, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
+	ListRunsFn           func(ctx context.Context, workspaceID, workflowID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
 	ListAllRunsFn        func(ctx context.Context, workspaceID string, limit int, cursor string) ([]service.WorkflowRunDTO, error)
 	FindCoveringFn       func(ctx context.Context, workspaceID, assetID, assetProjectID, assetFolderID string) (*service.CoveringWorkflowDTO, error)
 	CreateFromVariantsFn func(ctx context.Context, workspaceID string, p service.CreateVariantAutomationParams) (*service.WorkflowDTO, error)
@@ -117,12 +117,12 @@ func (m *MockWorkflowService) GetRun(ctx context.Context, workspaceID, runID str
 
 func (m *MockWorkflowService) ListRuns(
 	ctx context.Context,
-	workflowID string,
+	workspaceID, workflowID string,
 	limit int,
 	cursor string,
 ) ([]service.WorkflowRunDTO, error) {
 	if m.ListRunsFn != nil {
-		return m.ListRunsFn(ctx, workflowID, limit, cursor)
+		return m.ListRunsFn(ctx, workspaceID, workflowID, limit, cursor)
 	}
 	return nil, nil
 }

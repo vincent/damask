@@ -572,7 +572,15 @@ func TestAssetService_BulkMoveProject_ClearProject(t *testing.T) {
 	t.Parallel()
 	svc, repo := newAssetSvc(t)
 	proj := "proj_1"
-	repo.Seed(repository.Asset{ID: "a1", WorkspaceID: "ws_1", OriginalFilename: "a.jpg", MimeType: "image/jpeg", ProjectID: &proj})
+	repo.Seed(
+		repository.Asset{
+			ID:               "a1",
+			WorkspaceID:      "ws_1",
+			OriginalFilename: "a.jpg",
+			MimeType:         "image/jpeg",
+			ProjectID:        &proj,
+		},
+	)
 
 	err := svc.BulkMoveProject(context.Background(), "ws_1", []string{"a1"}, nil)
 	if err != nil {

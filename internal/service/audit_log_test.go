@@ -209,3 +209,96 @@ func TestParseLimit_InvalidString(t *testing.T) {
 		t.Errorf("expected default 25 for invalid string, got %d", got)
 	}
 }
+
+func TestCSVEscape(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"plain", "plain"},
+		{"", ""},
+		{"with,comma", `"with,comma"`},
+		{`with"quote`, `"with""quote"`},
+		{"with\nnewline", "\"with\nnewline\""},
+		{`both,"`, `"both,"""`},
+	}
+	for _, c := range cases {
+		got := service.CSVEscape(c.in)
+		if got != c.want {
+			t.Errorf("CSVEscape(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestClampLimit(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		v, def, max, want int64
+	}{
+		{0, 20, 100, 20},
+		{-1, 20, 100, 20},
+		{150, 20, 100, 100},
+		{50, 20, 100, 50},
+		{100, 20, 100, 100},
+	}
+	for _, c := range cases {
+		got := service.ClampLimit(c.v, c.def, c.max)
+		if got != c.want {
+			t.Errorf("ClampLimit(%d,%d,%d) = %d, want %d", c.v, c.def, c.max, got, c.want)
+		}
+	}
+}
+
+func TestMakeTypesFilter(t *testing.T) {
+	t.Parallel()
+
+	if service.MakeTypesFilter(nil) != nil {
+		t.Error("nil input should return nil")
+	}
+	if service.MakeTypesFilter([]string{"  ", ""}) != nil {
+		t.Error("all-blank input should return nil")
+	}
+
+	m := service.MakeTypesFilter([]string{"a", "b", "  a  "})
+	if len(m) != 2 || !m["a"] || !m["b"] {
+		t.Errorf("unexpected map: %v", m)
+	}
+}
+
+func TestPaginateAuditEvents(t *testing.T) {
+	t.Parallel()
+
+	makeEvents := func(n int) []service.AuditEventDTO {
+		out := make([]service.AuditEventDTO, n)
+		for i := range out {
+			out[i] = service.AuditEventDTO{CreatedAt: string(rune('A' + i))}
+		}
+		return out
+	}
+
+	// empty slice
+	res := service.PaginateAuditEvents(nil, 5)
+	if res.HasMore || len(res.Events) != 0 || res.NextCursor != nil {
+		t.Errorf("empty: unexpected result %+v", res)
+	}
+
+	// under limit — no cursor
+	res = service.PaginateAuditEvents(makeEvents(3), 5)
+	if res.HasMore || len(res.Events) != 3 || res.NextCursor != nil {
+		t.Errorf("under limit: unexpected result %+v", res)
+	}
+
+	// over limit — cursor set to last retained item's CreatedAt
+	events := makeEvents(5)
+	res = service.PaginateAuditEvents(events, 3)
+	if !res.HasMore {
+		t.Error("expected HasMore=true")
+	}
+	if len(res.Events) != 3 {
+		t.Errorf("expected 3 events, got %d", len(res.Events))
+	}
+	if res.NextCursor == nil || *res.NextCursor != events[2].CreatedAt {
+		t.Errorf("expected cursor %q, got %v", events[2].CreatedAt, res.NextCursor)
+	}
+}

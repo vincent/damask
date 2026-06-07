@@ -248,34 +248,16 @@ func (r *workflowRunRepo) GetByID(ctx context.Context, id string) (repository.Wo
 
 func (r *workflowRunRepo) List(
 	ctx context.Context,
-	workflowID string,
-	limit int,
-	cursor string,
-) ([]repository.WorkflowRun, error) {
-	query := `SELECT id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at, created_at FROM workflow_runs WHERE workflow_id = ?`
-	args := []any{workflowID}
-	if cursor != "" {
-		query += ` AND (created_at || '|' || id) < ?`
-		args = append(args, cursor)
-	}
-	query += ` ORDER BY created_at DESC, id DESC LIMIT ?`
-	args = append(args, limit)
-	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanWorkflowRunRows(rows)
-}
-
-func (r *workflowRunRepo) ListByWorkspace(
-	ctx context.Context,
-	workspaceID string,
+	workspaceID, workflowID string,
 	limit int,
 	cursor string,
 ) ([]repository.WorkflowRun, error) {
 	query := `SELECT id, workflow_id, workspace_id, status, trigger_data, context, error, started_at, completed_at, created_at FROM workflow_runs WHERE workspace_id = ?`
 	args := []any{workspaceID}
+	if workflowID != "" {
+		query += ` AND workflow_id = ?`
+		args = append(args, workflowID)
+	}
 	if cursor != "" {
 		query += ` AND (created_at || '|' || id) < ?`
 		args = append(args, cursor)

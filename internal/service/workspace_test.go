@@ -87,7 +87,9 @@ func TestWorkspaceService_Update_NotFound(t *testing.T) {
 
 // --- Me ---
 
-func newWorkspaceSvcWithUsers(t *testing.T) (service.WorkspaceService, *memory.RealWorkspaceRepo, *memory.RealUserRepo) {
+func newWorkspaceSvcWithUsers(
+	t *testing.T,
+) (service.WorkspaceService, *memory.RealWorkspaceRepo, *memory.RealUserRepo) {
 	t.Helper()
 	wsRepo := memory.NewRealWorkspaceRepo()
 	userRepo := memory.NewRealUserRepo()
@@ -140,8 +142,14 @@ func TestWorkspaceService_ListForUser_OK(t *testing.T) {
 		repository.Workspace{ID: "ws_1", Name: "Alpha"},
 		repository.Workspace{ID: "ws_2", Name: "Beta"},
 	)
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_1", Role: string(auth.Owner)})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_2", UserID: "u_1", Role: string(auth.Editor)})
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_1", Role: string(auth.Owner)},
+	)
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_2", UserID: "u_1", Role: string(auth.Editor)},
+	)
 
 	list, err := svc.ListForUser(context.Background(), "u_1")
 	if err != nil {
@@ -217,8 +225,14 @@ func TestWorkspaceService_ListMembers_OK(t *testing.T) {
 	t.Parallel()
 	svc, wsRepo, _ := newWorkspaceSvcWithUsers(t)
 	wsRepo.Seed(repository.Workspace{ID: "ws_1", Name: "Test"})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_1", Role: string(auth.Owner)})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_2", Role: string(auth.Editor)})
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_1", Role: string(auth.Owner)},
+	)
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_2", Role: string(auth.Editor)},
+	)
 
 	members, err := svc.ListMembers(context.Background(), "ws_1")
 	if err != nil {
@@ -235,8 +249,14 @@ func TestWorkspaceService_RemoveMember_OK(t *testing.T) {
 	t.Parallel()
 	svc, wsRepo, _ := newWorkspaceSvcWithUsers(t)
 	wsRepo.Seed(repository.Workspace{ID: "ws_1", Name: "Test"})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_editor", Role: string(auth.Editor)})
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)},
+	)
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_editor", Role: string(auth.Editor)},
+	)
 
 	err := svc.RemoveMember(context.Background(), "ws_1", "u_owner", "u_editor")
 	if err != nil {
@@ -252,7 +272,10 @@ func TestWorkspaceService_RemoveMember_CannotRemoveSelf(t *testing.T) {
 	t.Parallel()
 	svc, wsRepo, _ := newWorkspaceSvcWithUsers(t)
 	wsRepo.Seed(repository.Workspace{ID: "ws_1", Name: "Test"})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_1", Role: string(auth.Owner)})
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_1", Role: string(auth.Owner)},
+	)
 
 	err := svc.RemoveMember(context.Background(), "ws_1", "u_1", "u_1")
 	if !errors.Is(err, apperr.ErrInvalidInput) {
@@ -264,8 +287,14 @@ func TestWorkspaceService_RemoveMember_CannotRemoveLastOwner(t *testing.T) {
 	t.Parallel()
 	svc, wsRepo, _ := newWorkspaceSvcWithUsers(t)
 	wsRepo.Seed(repository.Workspace{ID: "ws_1", Name: "Test"})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_caller", Role: string(auth.Editor)})
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)},
+	)
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_caller", Role: string(auth.Editor)},
+	)
 
 	err := svc.RemoveMember(context.Background(), "ws_1", "u_caller", "u_owner")
 	if !errors.Is(err, apperr.ErrInvalidInput) {
@@ -279,8 +308,14 @@ func TestWorkspaceService_UpdateMemberRole_OK(t *testing.T) {
 	t.Parallel()
 	svc, wsRepo, _ := newWorkspaceSvcWithUsers(t)
 	wsRepo.Seed(repository.Workspace{ID: "ws_1", Name: "Test"})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_editor", Role: string(auth.Editor)})
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)},
+	)
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_editor", Role: string(auth.Editor)},
+	)
 
 	err := svc.UpdateMemberRole(context.Background(), "ws_1", "u_owner", "u_editor", string(auth.Owner))
 	if err != nil {
@@ -296,7 +331,10 @@ func TestWorkspaceService_UpdateMemberRole_CannotDemoteLastOwner(t *testing.T) {
 	t.Parallel()
 	svc, wsRepo, _ := newWorkspaceSvcWithUsers(t)
 	wsRepo.Seed(repository.Workspace{ID: "ws_1", Name: "Test"})
-	_ = wsRepo.CreateMember(context.Background(), repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)})
+	_ = wsRepo.CreateMember(
+		context.Background(),
+		repository.Member{WorkspaceID: "ws_1", UserID: "u_owner", Role: string(auth.Owner)},
+	)
 
 	err := svc.UpdateMemberRole(context.Background(), "ws_1", "u_owner", "u_owner", string(auth.Editor))
 	if !errors.Is(err, apperr.ErrInvalidInput) {
