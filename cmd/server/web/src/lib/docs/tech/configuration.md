@@ -58,6 +58,21 @@ Damask includes a built-in SMTP server that receives inbound emails for the [ema
 | `FFMPEG_PATH`     | -       | Path to the `ffmpeg` binary. If unset, Damask looks for it in `$PATH`          |
 | `FFMPEG_HW_ACCEL` | -       | Hardware acceleration backend. Options: `videotoolbox`, `vaapi`, `qsv`, `cuda` |
 
+## AI providers
+
+Configure API keys for AI image editing. See the [AI providers guide](ai-providers) for setup details.
+
+| Variable                              | Default                                    | Description                          |
+| ------------------------------------- | ------------------------------------------ | ------------------------------------ |
+| `IMAGEROUTER_API_KEY`                 | -                                          | Server-wide ImageRouter API key      |
+| `IMAGEROUTER_DEFAULT_MODEL`           | `black-forest-labs/FLUX-2-klein-4b:free`   | Default model for image editing      |
+| `IMAGEROUTER_DEFAULT_BG_REMOVE_MODEL` | `bria/remove-background:free`              | Default model for background removal |
+| `OPENROUTER_API_KEY`                  | -                                          | Server-wide OpenRouter API key       |
+| `OPENROUTER_DEFAULT_MODEL`            | `openai/dall-e-2`                          | Default model for image editing      |
+| `OPENROUTER_DEFAULT_BG_REMOVE_MODEL`  | `stability-ai/stable-diffusion-xl-refiner` | Default model for background removal |
+
+Workspace owners can also set per-workspace keys in **Settings → Integrations → AI services**, which take priority over these environment variables.
+
 ## Telemetry
 
 Damask supports OpenTelemetry for observability. Disabled by default.
