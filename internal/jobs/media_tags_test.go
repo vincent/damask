@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
-	"damask/server/internal/imagerouter"
 	"damask/server/internal/mail"
 	"damask/server/internal/media/contentmeta"
 	"damask/server/internal/queue"
@@ -87,9 +87,11 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		tmb,
 		&config.Config{},
 		nil,
-		imagerouter.KeyResolver(func(context.Context, string) (string, imagerouter.KeySource, error) {
+		ai.KeyResolver(func(context.Context, string, string) (string, ai.KeySource, error) {
 			return "", "", nil
 		}),
+		nil,
+		repomemory.NewRealWorkspaceRepo(),
 		workflow.NewExecutor(workflow.Deps{}),
 		newMemExportSvc(repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo()),
 		noopExifSvc{},

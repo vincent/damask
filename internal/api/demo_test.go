@@ -19,7 +19,7 @@ import (
 	dbpkg "damask/server/internal/db"
 	"damask/server/internal/demo"
 	"damask/server/internal/events"
-	"damask/server/internal/imagerouter"
+	"damask/server/internal/ai"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/media/ingest"
@@ -84,7 +84,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	media := ingest.NewRegistry(trf)
 	ingester := service.NewAssetIngester(queries, rawDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, rawDB)
-	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
 	exportConfigsRepo := reposqlc.NewExportConfigRepo(queries, sqlDB)
 	exportRunsRepo := reposqlc.NewExportRunRepo(queries, sqlDB)

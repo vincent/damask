@@ -71,17 +71,27 @@ type UpdateShareParams struct {
 	AllowDownload *bool
 }
 
-// ShareBcryptCost is the cost used for password hashing. Overridden to MinCost in tests.
-var ShareBcryptCost = bcrypt.DefaultCost
-
 type shareService struct {
-	shares repository.ShareRepository
-	audit  audit.Writer
+	shares     repository.ShareRepository
+	audit      audit.Writer
+	bcryptCost int
+}
+
+// ShareServiceOption configures a shareService.
+type ShareServiceOption func(*shareService)
+
+// WithShareBcryptCost overrides the bcrypt work factor. Use bcrypt.MinCost in tests.
+func WithShareBcryptCost(cost int) ShareServiceOption {
+	return func(s *shareService) { s.bcryptCost = cost }
 }
 
 // NewShareService returns a ShareService.
-func NewShareService(shares repository.ShareRepository, aw audit.Writer) ShareService {
-	return &shareService{shares: shares, audit: aw}
+func NewShareService(shares repository.ShareRepository, aw audit.Writer, opts ...ShareServiceOption) ShareService {
+	svc := &shareService{shares: shares, audit: aw, bcryptCost: bcrypt.DefaultCost}
+	for _, o := range opts {
+		o(svc)
+	}
+	return svc
 }
 
 func (s *shareService) List(ctx context.Context, workspaceID string) ([]*ShareDTO, error) {
@@ -111,7 +121,7 @@ func (s *shareService) Create(ctx context.Context, workspaceID string, p CreateS
 
 	var passwordHash *string
 	if p.Password != nil && *p.Password != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(*p.Password), ShareBcryptCost)
+		hash, err := bcrypt.GenerateFromPassword([]byte(*p.Password), s.bcryptCost)
 		if err != nil {
 			return nil, err
 		}
@@ -177,7 +187,7 @@ func (s *shareService) Update(ctx context.Context, workspaceID, id string, p Upd
 		if *p.Password == "" {
 			existing.PasswordHash = nil
 		} else {
-			hash, hashErr := bcrypt.GenerateFromPassword([]byte(*p.Password), ShareBcryptCost)
+			hash, hashErr := bcrypt.GenerateFromPassword([]byte(*p.Password), s.bcryptCost)
 			if hashErr != nil {
 				return nil, hashErr
 			}

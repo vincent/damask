@@ -21,12 +21,12 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/api"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	"damask/server/internal/events"
-	"damask/server/internal/imagerouter"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/media/ingest"
@@ -43,7 +43,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	api.BcryptCost = bcrypt.MinCost //nolint:reassign // tests only
 	m.Run()
 }
 
@@ -58,51 +57,79 @@ type TestEnv struct {
 	Config     *config.Config
 }
 
+type testSetup struct {
+	cfg               *config.Config
+	aiProviderFactory ai.ProviderFactory
+	bcryptCost        int
+}
+
 // TestOption configures a test environment.
-type TestOption func(*config.Config)
+type TestOption func(*testSetup)
+
+// WithBcryptMinCost sets bcrypt work factor to MinCost so registration tests run fast.
+func WithBcryptMinCost() TestOption {
+	return func(s *testSetup) { s.bcryptCost = bcrypt.MinCost }
+}
 
 // WithBodyLimit sets a custom BodyLimit on the test app's config.
 func WithBodyLimit(n int) TestOption {
-	return func(cfg *config.Config) { cfg.BodyLimit = n }
+	return func(s *testSetup) { s.cfg.BodyLimit = n }
 }
 
 func WithImageRouterAPIKey(key string) TestOption {
-	return func(cfg *config.Config) { cfg.ImageRouter.APIKey = key }
+	return func(s *testSetup) { s.cfg.ImageRouter.APIKey = key }
 }
 
 func WithImageRouterDefaults(model, bgRemoveModel string) TestOption {
-	return func(cfg *config.Config) {
+	return func(s *testSetup) {
 		if model != "" {
-			cfg.ImageRouter.DefaultModel = model
+			s.cfg.ImageRouter.DefaultModel = model
 		}
 		if bgRemoveModel != "" {
-			cfg.ImageRouter.DefaultBgRemoveModel = bgRemoveModel
+			s.cfg.ImageRouter.DefaultBgRemoveModel = bgRemoveModel
 		}
 	}
 }
 
 func WithImageRouterRetryPaidOnFreeLimit(enabled bool) TestOption {
-	return func(cfg *config.Config) { cfg.ImageRouter.RetryPaidOnFreeLimit = enabled }
+	return func(s *testSetup) { s.cfg.ImageRouter.RetryPaidOnFreeLimit = enabled }
+}
+
+// WithImageRouterBaseURL injects a custom imagerouter base URL into the job server's
+// provider factory, redirecting calls to an [httptest.Server].
+func WithImageRouterBaseURL(baseURL string) TestOption {
+	return func(s *testSetup) {
+		s.aiProviderFactory = func(id ai.ProviderID, apiKey string, src ai.KeySource) (ai.Provider, error) {
+			if id == ai.ProviderImageRouter {
+				return ai.NewImageRouterProviderForTest(apiKey, src, true, baseURL), nil
+			}
+			return ai.NewProvider(id, apiKey, src)
+		}
+	}
 }
 
 func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	t.Helper()
 	u, _ := url.Parse("http://localhost")
-	cfg := &config.Config{
-		JWTSecret:    "test-app-secret-for-tests!!",
-		AppSecret:    "test-app-secret-for-tests!!",
-		AppEnv:       "development",
-		BaseURL:      u,
-		EnableSignup: true,
-		ImageRouter: config.ImageRouterConfig{
-			DefaultModel:         "black-forest-labs/FLUX.1-fill-dev",
-			DefaultBgRemoveModel: "bria/remove-background",
-			RetryPaidOnFreeLimit: false,
+	setup := &testSetup{
+		bcryptCost: bcrypt.MinCost,
+		cfg: &config.Config{
+			JWTSecret:    "test-app-secret-for-tests!!",
+			AppSecret:    "test-app-secret-for-tests!!",
+			AppEnv:       "development",
+			BaseURL:      u,
+			EnableSignup: true,
+			ImageRouter: config.ImageRouterConfig{
+				DefaultModel:         "black-forest-labs/FLUX.1-fill-dev",
+				DefaultBgRemoveModel: "bria/remove-background",
+				RetryPaidOnFreeLimit: false,
+			},
 		},
 	}
 	for _, o := range opts {
-		o(cfg)
+		o(setup)
 	}
+	cfg := setup.cfg
 
 	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
 	if err != nil {
@@ -134,9 +161,22 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	media := ingest.NewRegistry(trf)
 	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
-	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
 	storageSvc := service.NewStorageService(queries)
-	h := api.NewHTTPServer(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, storageSvc)
+	h := api.NewHTTPServer(
+		queries,
+		sqlDB,
+		maker,
+		stor,
+		eventsHub,
+		q,
+		noopMailer,
+		trf,
+		cfg,
+		nil,
+		storageSvc,
+		setup.bcryptCost,
+	)
 	workflowExec := workflow.NewExecutor(
 		workflow.Deps{
 			Workflows: reposqlc.NewWorkflowRepo(queries, sqlDB),
@@ -169,6 +209,8 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		cfg,
 		ingester,
 		resolveImageRouterKey,
+		setup.aiProviderFactory,
+		workspaceRepo,
 		workflowExec,
 		exportSvc,
 		exifSvc,

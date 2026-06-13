@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { workspaceApi, type ImageRouterKeyStatus } from '$lib/api/workspace'
-  import { invalidateImageRouterModelsCache } from '$lib/api/assets'
   import { ApiError } from '$lib/api/client'
   import { m } from '$lib/paraglide/messages'
   import Button from '$lib/components/ui/Button.svelte'
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte'
   import { Eye, EyeOff } from '@lucide/svelte'
+  import { aiProvidersApi, type ProviderKeyStatus } from '$lib/api/ai_providers'
 
   interface Props {
-    status: ImageRouterKeyStatus
+    status: ProviderKeyStatus
     isOwner: boolean
   }
 
@@ -25,7 +24,7 @@
 
   async function refreshStatus() {
     try {
-      status = await workspaceApi.getImageRouterKeyStatus()
+      status = await aiProvidersApi.getAIProviderKeyStatus('openrouter')
     } catch {}
   }
 
@@ -34,10 +33,9 @@
     saving = true
     testResult = null
     try {
-      await workspaceApi.setImageRouterKey(keyInput.trim())
+      await aiProvidersApi.setAIProviderKey('openrouter', keyInput.trim())
       keyInput = ''
       showForm = false
-      invalidateImageRouterModelsCache()
       await refreshStatus()
     } finally {
       saving = false
@@ -48,9 +46,8 @@
     clearing = true
     testResult = null
     try {
-      await workspaceApi.clearImageRouterKey()
+      await aiProvidersApi.clearAIProviderKey('openrouter')
       confirmClear = false
-      invalidateImageRouterModelsCache()
       await refreshStatus()
     } finally {
       clearing = false
@@ -61,7 +58,7 @@
     testing = true
     testResult = null
     try {
-      await workspaceApi.testImageRouterKey()
+      await aiProvidersApi.testAIProviderKey('openrouter')
       testResult = 'success'
     } catch (e) {
       testResult =
@@ -79,35 +76,35 @@
   <div
     class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
   >
-    <img src="/imagerouter.logo.svg" alt="ImageRouter.io" class="h-6 w-6" />
+    <img src="/openrouter.logo.svg" alt="OpenRouter.ai" class="h-6 w-6" />
   </div>
 
   <!-- Content -->
   <div class="min-w-0 flex-1">
     <div class="flex flex-wrap items-center gap-2">
       <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        {m.integrations_imagerouter_label()}
+        {m.integrations_openrouter_label()}
       </p>
       {#if status.source === 'workspace'}
         <StatusBadge
           status="healthy"
-          text={m.integrations_imagerouter_status_workspace()}
+          text={m.integrations_openrouter_status_workspace()}
         />
       {:else if status.source === 'env'}
         <StatusBadge
           status="healthy"
-          text={m.integrations_imagerouter_status_env()}
+          text={m.integrations_openrouter_status_env()}
         />
       {:else}
         <StatusBadge
           status="disabled"
-          text={m.integrations_imagerouter_status_none()}
+          text={m.integrations_openrouter_status_none()}
         />
       {/if}
     </div>
 
     <p class="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-      {m.integrations_imagerouter_desc()}
+      {m.integrations_openrouter_desc()}
     </p>
 
     {#if isOwner}
@@ -122,26 +119,26 @@
                 loading={testing}
                 onclick={test}
               >
-                {m.integrations_imagerouter_test()}
+                {m.integrations_openrouter_test()}
               </Button>
               <button
                 onclick={() => (confirmClear = true)}
                 class="text-sm text-red-500 hover:underline"
               >
-                {m.integrations_imagerouter_clear()}
+                {m.integrations_openrouter_clear()}
               </button>
             </div>
           {:else}
             <div class="flex flex-wrap items-center gap-3">
               <span class="text-sm text-zinc-500 dark:text-zinc-400">
-                {m.integrations_imagerouter_clear_confirm()}
+                {m.integrations_openrouter_clear_confirm()}
               </span>
               <button
                 onclick={clear}
                 disabled={clearing}
                 class="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
               >
-                {m.integrations_imagerouter_clear()}
+                {m.integrations_openrouter_clear()}
               </button>
               <button
                 onclick={() => (confirmClear = false)}
@@ -151,19 +148,15 @@
               </button>
             </div>
           {/if}
-
-          <!-- Actions for env fallback — offer to override -->
         {:else if status.source === 'env'}
           {#if !showForm}
             <button
               onclick={() => (showForm = true)}
               class="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
             >
-              {m.integrations_imagerouter_override()}
+              {m.integrations_openrouter_override()}
             </button>
           {/if}
-
-          <!-- No key — show form immediately -->
         {/if}
 
         <!-- Key input form (env override or no-key state) -->
@@ -179,7 +172,7 @@
               <input
                 type={showKey ? 'text' : 'password'}
                 bind:value={keyInput}
-                placeholder={m.integrations_imagerouter_key_placeholder()}
+                placeholder={m.integrations_openrouter_key_placeholder()}
                 class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 pr-9 text-sm text-zinc-900 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
               />
               <button
@@ -202,7 +195,7 @@
               loading={saving}
               disabled={!keyInput.trim()}
             >
-              {m.integrations_imagerouter_save()}
+              {m.integrations_openrouter_save()}
             </Button>
             {#if showForm && status.source === 'env'}
               <button
@@ -222,28 +215,25 @@
         <!-- Test result feedback -->
         {#if testResult === 'success'}
           <p class="text-sm font-medium text-green-600 dark:text-green-400">
-            ✓ {m.integrations_imagerouter_test_success()}
+            ✓ {m.integrations_openrouter_test_success()}
           </p>
         {:else if testResult === 'failure'}
           <p class="text-sm font-medium text-red-600 dark:text-red-400">
-            {m.integrations_imagerouter_test_failure()}
+            {m.integrations_openrouter_test_failure()}
           </p>
         {:else if testResult === 'error'}
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            {m.integrations_imagerouter_test_error()}
+            {m.integrations_openrouter_test_error()}
           </p>
         {/if}
       </div>
     {/if}
   </div>
 
-  <!-- Action button -->
+  <!-- External link -->
   <div class="shrink-0">
-    <a
-      href="https://imagerouter.io/?utm_source=damask_integration"
-      target="_blank"
-    >
-      <Button variant="secondary" size="sm">imagerouter.io →</Button>
+    <a href="https://openrouter.ai" target="_blank">
+      <Button variant="secondary" size="sm">openrouter.ai →</Button>
     </a>
   </div>
 </div>

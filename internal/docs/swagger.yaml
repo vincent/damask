@@ -1,4 +1,67 @@
 definitions:
+  api.AIProviderKeyStatusResponse:
+    properties:
+      key_set:
+        type: boolean
+      source:
+        type: string
+    required:
+    - key_set
+    - source
+    type: object
+  api.AIProviderModelResponse:
+    properties:
+      capabilities:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      price_per_image:
+        type: number
+      provider_id:
+        type: string
+    required:
+    - capabilities
+    - id
+    - name
+    - price_per_image
+    - provider_id
+    type: object
+  api.AIProviderStatusResponse:
+    properties:
+      capabilities:
+        items:
+          type: string
+        type: array
+      configured:
+        type: boolean
+      id:
+        type: string
+      key_source:
+        type: string
+      models:
+        items:
+          $ref: '#/definitions/api.AIProviderModelResponse'
+        type: array
+    required:
+    - capabilities
+    - configured
+    - id
+    - key_source
+    - models
+    type: object
+  api.AIProvidersListResponse:
+    properties:
+      providers:
+        items:
+          $ref: '#/definitions/api.AIProviderStatusResponse'
+        type: array
+    required:
+    - providers
+    type: object
   api.AcceptInviteRequest:
     properties:
       name:
@@ -737,40 +800,6 @@ definitions:
     required:
     - fields
     type: object
-  api.ImageRouterModel:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-      price_per_image:
-        type: number
-      provider:
-        type: string
-    required:
-    - id
-    - name
-    - price_per_image
-    - provider
-    type: object
-  api.ImageRouterModelsResponse:
-    properties:
-      configured:
-        type: boolean
-      default_bg_remove_model:
-        type: string
-      default_model:
-        type: string
-      models:
-        items:
-          $ref: '#/definitions/api.ImageRouterModel'
-        type: array
-    required:
-    - configured
-    - default_bg_remove_model
-    - default_model
-    - models
-    type: object
   api.IngressLogResponse:
     properties:
       asset_id:
@@ -1361,6 +1390,13 @@ definitions:
     - status
     - updated_at
     type: object
+  api.UpdateAIProviderKeyRequest:
+    properties:
+      key:
+        type: string
+    required:
+    - key
+    type: object
   api.UpdateAssetFolderRequest:
     properties:
       folder_id:
@@ -1828,16 +1864,6 @@ definitions:
     - run_id
     - status
     type: object
-  api.WorkspaceImageRouterStatusResponse:
-    properties:
-      key_set:
-        type: boolean
-      source:
-        type: string
-    required:
-    - key_set
-    - source
-    type: object
   api.WorkspaceMeResponse:
     properties:
       role:
@@ -2202,6 +2228,26 @@ paths:
       summary: Get telemetry status
       tags:
       - Admin
+  /api/v1/aiproviders:
+    get:
+      description: Returns all supported AI providers and their configuration status
+        for the current workspace, including available models and capabilities.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.AIProvidersListResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List AI providers
+      tags:
+      - AIProviders
   /api/v1/assets:
     get:
       description: 'Returns a paginated list of assets. The behaviour is controlled
@@ -4430,24 +4476,6 @@ paths:
       summary: Update a folder
       tags:
       - Folders
-  /api/v1/imagerouter/models:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api.ImageRouterModelsResponse'
-        "401":
-          description: Not authenticated
-          schema:
-            $ref: '#/definitions/api.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: List available image router models
-      tags:
-      - ImageRouter
   /api/v1/ingress/log:
     get:
       parameters:
@@ -6115,20 +6143,128 @@ paths:
       summary: Update workspace settings
       tags:
       - Workspace
-  /api/v1/workspace/settings/imagerouter:
+  /api/v1/workspace/settings/aiproviders/{provider}:
+    delete:
+      description: Removes the workspace-scoped API key for the given provider. Falls
+        back to environment key if one exists.
+      parameters:
+      - description: Provider ID
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Provider not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Clear AI provider API key
+      tags:
+      - AIProviders
     get:
+      description: Returns whether an API key is configured for the given provider
+        and its source (workspace or environment).
+      parameters:
+      - description: Provider ID (e.g. openrouter)
+        in: path
+        name: provider
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.WorkspaceImageRouterStatusResponse'
+            $ref: '#/definitions/api.AIProviderKeyStatusResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Provider not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get ImageRouter key status
+      summary: Get AI provider key status
       tags:
-      - Workspace
+      - AIProviders
+    put:
+      consumes:
+      - application/json
+      description: Stores an API key for the given provider at workspace scope, overriding
+        any environment-level key.
+      parameters:
+      - description: Provider ID
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: API key
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateAIProviderKeyRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Provider not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Set AI provider API key
+      tags:
+      - AIProviders
+  /api/v1/workspace/settings/aiproviders/{provider}/test:
+    post:
+      description: Validates the configured API key for the given provider by making
+        a live request. Returns 422 if the key is missing or rejected.
+      parameters:
+      - description: Provider ID
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Provider not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "422":
+          description: Key invalid or unreachable
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Test AI provider API key
+      tags:
+      - AIProviders
   /api/v1/workspace/switch:
     post:
       consumes:

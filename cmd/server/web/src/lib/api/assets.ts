@@ -1,7 +1,7 @@
+import type { AIProvider } from './ai_providers'
 import { ApiError, apiFetch } from './client'
 import type { FieldFilter } from './models'
 import type { definitions } from './types.gen'
-import type { ImageRouterModelsResponse } from './workspace'
 
 export type AssetListResponse = definitions['api.AssetListResponse']
 export type ShareComment = definitions['api.CommentResponse']
@@ -16,32 +16,32 @@ export type PublicAsset = Asset
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
-let imageRouterModelsCache: ImageRouterModelsResponse | null = null
-let imageRouterModelsPromise: Promise<ImageRouterModelsResponse> | null = null
+let aiProvidersCache: AIProvider[] | null = null
+let aiProvidersPromise: Promise<AIProvider[]> | null = null
 
-export function invalidateImageRouterModelsCache() {
-  imageRouterModelsCache = null
-  imageRouterModelsPromise = null
+export function invalidateAIProviderModelsCache() {
+  aiProvidersCache = null
+  aiProvidersPromise = null
 }
 
-async function fetchImageRouterModelsCached(): Promise<ImageRouterModelsResponse> {
-  if (imageRouterModelsCache) return imageRouterModelsCache
-  if (imageRouterModelsPromise) return imageRouterModelsPromise
+async function fetchProvidersCached(): Promise<AIProvider[]> {
+  if (aiProvidersCache) return aiProvidersCache
+  if (aiProvidersPromise) return aiProvidersPromise
 
-  imageRouterModelsPromise = apiFetch<ImageRouterModelsResponse>(
-    '/api/v1/imagerouter/models'
-  )
+  aiProvidersPromise = apiFetch<{ providers: AIProvider[] }>(
+    '/api/v1/aiproviders'
+  ).then((r) => r.providers)
 
   try {
-    const response = await imageRouterModelsPromise
-    imageRouterModelsCache = response
+    const response = await aiProvidersPromise
+    aiProvidersCache = response
     return response
   } catch (error) {
-    imageRouterModelsPromise = null
+    aiProvidersPromise = null
     throw error
   } finally {
-    if (imageRouterModelsCache) {
-      imageRouterModelsPromise = null
+    if (aiProvidersCache) {
+      aiProvidersPromise = null
     }
   }
 }
@@ -201,8 +201,8 @@ export const assetApi = {
       }
     ),
 
-  /** GET /api/v1/imagerouter/models — list image-to-image models via the authenticated backend proxy. */
-  fetchImageRouterModels: () => fetchImageRouterModelsCached(),
+  /** GET /api/v1/aiprovides — list image-to-image models via the authenticated backend proxy. */
+  fetchProviders: () => fetchProvidersCached(),
 
   /** GET /api/v1/assets/:id/similar — find visually similar image assets. */
   findSimilar: (id: string) =>

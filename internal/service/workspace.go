@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/apperr"
 	"damask/server/internal/auth"
-	"damask/server/internal/imagerouter"
 	"damask/server/internal/ingress"
 	"damask/server/internal/repository"
 )
@@ -105,15 +105,10 @@ type AcceptInviteResult struct {
 }
 
 type workspaceService struct {
-	workspaces  repository.WorkspaceRepository
-	users       repository.UserRepository
-	appSecret   string
-	envIRKey    string
-	newIRClient func(apiKey string) imageRouterValidator
-}
-
-type imageRouterValidator interface {
-	Validate(ctx context.Context) error
+	workspaces       repository.WorkspaceRepository
+	users            repository.UserRepository
+	appSecret        string
+	aiAPIKeyResolver ai.KeyResolver
 }
 
 // NewWorkspaceService returns a WorkspaceService.
@@ -121,16 +116,13 @@ func NewWorkspaceService(
 	workspaces repository.WorkspaceRepository,
 	users repository.UserRepository,
 	appSecret string,
-	envIRKey string,
+	aiProviderKeyResolver ai.KeyResolver,
 ) WorkspaceService {
 	return &workspaceService{
-		workspaces: workspaces,
-		users:      users,
-		appSecret:  appSecret,
-		envIRKey:   envIRKey,
-		newIRClient: func(apiKey string) imageRouterValidator {
-			return imagerouter.NewClient(apiKey, false)
-		},
+		workspaces:       workspaces,
+		users:            users,
+		appSecret:        appSecret,
+		aiAPIKeyResolver: aiProviderKeyResolver,
 	}
 }
 
@@ -224,61 +216,98 @@ func (s *workspaceService) CountAssets(ctx context.Context, workspaceID string) 
 	return s.workspaces.CountAssets(ctx, workspaceID)
 }
 
-func (s *workspaceService) ListImageRouterModels(
+func (s *workspaceService) ListAIProviders(
 	ctx context.Context,
 	workspaceID string,
-) ([]imagerouter.Model, imagerouter.KeyStatus, error) {
-	status, err := imagerouter.GetKeyStatus(ctx, workspaceID, s.workspaces, s.appSecret, s.envIRKey)
-	if err != nil {
-		return nil, imagerouter.KeyStatus{}, err
+	capabilities ai.Capability,
+) ([]AIProviderStatusDTO, error) {
+	providers, pErr := ai.AllProviders(ctx, workspaceID, s.aiAPIKeyResolver, capabilities)
+	if pErr != nil {
+		return nil, pErr
 	}
-	if !status.KeySet {
-		return append([]imagerouter.Model(nil), imagerouter.HardcodedModels...), status, nil
+	pDTOs := []AIProviderStatusDTO{}
+	for _, p := range providers {
+		entry := AIProviderStatusDTO{
+			ID:           string(p.ID()),
+			Configured:   p.IsConfigured(),
+			KeySource:    string(p.KeySource()),
+			Capabilities: p.Capabilities().Names(),
+			Models:       []AIProviderModelDTO{},
+		}
+		if entry.Configured {
+			for _, m := range p.Models {
+				entry.Models = append(entry.Models, AIProviderModelDTO{
+					ID:            m.ID,
+					Name:          m.Name,
+					ProviderID:    string(m.ProviderID),
+					PricePerImage: m.PricePerImage,
+					Capabilities:  m.Capabilities,
+				})
+			}
+		}
+		pDTOs = append(pDTOs, entry)
 	}
-
-	key, _, err := imagerouter.ResolveKey(ctx, workspaceID, s.workspaces, s.appSecret, s.envIRKey)
-	if err != nil {
-		return nil, imagerouter.KeyStatus{}, err
-	}
-	models, err := imagerouter.FetchModels(ctx, key)
-	if err != nil {
-		return nil, imagerouter.KeyStatus{}, err
-	}
-	return models, status, nil
+	return pDTOs, nil
 }
 
-func (s *workspaceService) GetImageRouterKeyStatus(
+func (s *workspaceService) GetAIProviderKeyStatus(
 	ctx context.Context,
-	workspaceID string,
-) (imagerouter.KeyStatus, error) {
-	return imagerouter.GetKeyStatus(ctx, workspaceID, s.workspaces, s.appSecret, s.envIRKey)
+	workspaceID, providerName string,
+) (*ai.KeyStatus, error) {
+	key, source, keyErr := s.aiAPIKeyResolver(ctx, workspaceID, providerName)
+	if keyErr != nil {
+		return nil, keyErr
+	}
+	return &ai.KeyStatus{
+		KeySet: key != "",
+		Source: source,
+	}, nil
 }
 
-func (s *workspaceService) SetImageRouterKey(ctx context.Context, workspaceID, plainKey string) error {
+func validateAIProviderName(name string) error {
+	switch ai.ProviderID(name) {
+	case ai.ProviderImageRouter, ai.ProviderOpenRouter:
+		return nil
+	default:
+		return fmt.Errorf("unknown ai provider %q: %w", name, apperr.ErrNotFound)
+	}
+}
+
+func (s *workspaceService) SetAIProviderKey(ctx context.Context, workspaceID, providerName, plainKey string) error {
+	if err := validateAIProviderName(providerName); err != nil {
+		return err
+	}
 	plainKey = strings.TrimSpace(plainKey)
 	if plainKey == "" {
-		return fmt.Errorf("empty imagerouter api key: %w", apperr.ErrInvalidInput)
+		return fmt.Errorf("empty %s api key: %w", providerName, apperr.ErrInvalidInput)
 	}
 	encKey, err := ingress.EncryptConfig(s.appSecret, []byte(plainKey))
 	if err != nil {
 		return err
 	}
-	return s.workspaces.SetImageRouterKey(ctx, workspaceID, encKey)
+	return s.workspaces.SetAIProviderKey(ctx, workspaceID, providerName, encKey)
 }
 
-func (s *workspaceService) ClearImageRouterKey(ctx context.Context, workspaceID string) error {
-	return s.workspaces.ClearImageRouterKey(ctx, workspaceID)
+func (s *workspaceService) ClearAIProviderKey(ctx context.Context, workspaceID, providerName string) error {
+	if err := validateAIProviderName(providerName); err != nil {
+		return err
+	}
+	return s.workspaces.ClearAIProviderKey(ctx, workspaceID, providerName)
 }
 
-func (s *workspaceService) TestImageRouterKey(ctx context.Context, workspaceID string) error {
-	key, source, err := imagerouter.ResolveKey(ctx, workspaceID, s.workspaces, s.appSecret, s.envIRKey)
+func (s *workspaceService) TestAIProviderKey(ctx context.Context, workspaceID, providerName string) error {
+	key, source, keyErr := s.aiAPIKeyResolver(ctx, workspaceID, providerName)
+	if keyErr != nil {
+		return keyErr
+	}
+	if source == ai.SourceNone || strings.TrimSpace(key) == "" {
+		return fmt.Errorf("no api key configured: %w", apperr.ErrInvalidInput)
+	}
+	p, err := ai.NewProvider(ai.ProviderID(providerName), key, source)
 	if err != nil {
 		return err
 	}
-	if source == imagerouter.SourceNone || strings.TrimSpace(key) == "" {
-		return fmt.Errorf("no imagerouter api key configured: %w", apperr.ErrInvalidInput)
-	}
-	return s.newIRClient(key).Validate(ctx)
+	return p.ValidateKey(ctx)
 }
 
 func (s *workspaceService) GetMember(ctx context.Context, workspaceID, userID string) (*MemberDTO, error) {

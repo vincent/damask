@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/apperr"
 	"damask/server/internal/auth"
 	"damask/server/internal/repository"
@@ -13,10 +14,14 @@ import (
 	"damask/server/internal/service"
 )
 
+var stubResolver ai.KeyResolver = func(_ context.Context, _, _ string) (string, ai.KeySource, error) {
+	return "", "", nil
+}
+
 func newWorkspaceSvc(t *testing.T) (service.WorkspaceService, *memory.RealWorkspaceRepo) {
 	t.Helper()
 	repo := memory.NewRealWorkspaceRepo()
-	return service.NewWorkspaceService(repo, memory.NewUserRepo(), "test-app-secret", ""), repo
+	return service.NewWorkspaceService(repo, memory.NewUserRepo(), "test-app-secret", stubResolver), repo
 }
 
 // --- Get ---
@@ -94,7 +99,7 @@ func newWorkspaceSvcWithUsers(
 	wsRepo := memory.NewRealWorkspaceRepo()
 	userRepo := memory.NewRealUserRepo()
 	wsRepo.SetUserRepo(userRepo)
-	return service.NewWorkspaceService(wsRepo, userRepo, "test-app-secret", ""), wsRepo, userRepo
+	return service.NewWorkspaceService(wsRepo, userRepo, "test-app-secret", stubResolver), wsRepo, userRepo
 }
 
 func TestWorkspaceService_Me_OK(t *testing.T) {

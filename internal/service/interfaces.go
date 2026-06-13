@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"damask/server/internal/imagerouter"
+	"damask/server/internal/ai"
 	"damask/server/internal/repository"
 )
 
@@ -201,6 +201,24 @@ type TextTrackService interface {
 	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
 }
 
+// AIProviderModelDTO is a model entry returned for an AI provider.
+type AIProviderModelDTO struct {
+	ID            string
+	Name          string
+	ProviderID    string
+	PricePerImage float64
+	Capabilities  ai.Capability
+}
+
+// AIProviderStatusDTO holds the status and available models for a single AI provider.
+type AIProviderStatusDTO struct {
+	ID           string
+	Configured   bool
+	KeySource    string
+	Capabilities []string
+	Models       []AIProviderModelDTO
+}
+
 // WorkspaceService handles business logic for workspace settings, members, and invites.
 type WorkspaceService interface {
 	Get(ctx context.Context, workspaceID string) (*WorkspaceDTO, error)
@@ -208,11 +226,11 @@ type WorkspaceService interface {
 	Me(ctx context.Context, workspaceID, userID string) (*WorkspaceMeDTO, error)
 	ListForUser(ctx context.Context, userID string) ([]WorkspaceWithRoleDTO, error)
 	CountAssets(ctx context.Context, workspaceID string) (int64, error)
-	ListImageRouterModels(ctx context.Context, workspaceID string) ([]imagerouter.Model, imagerouter.KeyStatus, error)
-	GetImageRouterKeyStatus(ctx context.Context, workspaceID string) (imagerouter.KeyStatus, error)
-	SetImageRouterKey(ctx context.Context, workspaceID, plainKey string) error
-	ClearImageRouterKey(ctx context.Context, workspaceID string) error
-	TestImageRouterKey(ctx context.Context, workspaceID string) error
+	ListAIProviders(ctx context.Context, workspaceID string, capabilities ai.Capability) ([]AIProviderStatusDTO, error)
+	GetAIProviderKeyStatus(ctx context.Context, workspaceID, providerName string) (*ai.KeyStatus, error)
+	SetAIProviderKey(ctx context.Context, workspaceID, providerName, plainKey string) error
+	ClearAIProviderKey(ctx context.Context, workspaceID, providerName string) error
+	TestAIProviderKey(ctx context.Context, workspaceID, providerName string) error
 	// Members
 	GetMember(ctx context.Context, workspaceID, userID string) (*MemberDTO, error)
 	ListMembers(ctx context.Context, workspaceID string) ([]MemberDTO, error)

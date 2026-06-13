@@ -70,6 +70,21 @@ export interface paths {
       };
     };
   };
+  readonly "/api/v1/aiproviders": {
+    /** Returns all supported AI providers and their configuration status for the current workspace, including available models and capabilities. */
+    readonly get: {
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: definitions["api.AIProvidersListResponse"];
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
   readonly "/api/v1/assets": {
     /** Returns a paginated list of assets. The behaviour is controlled by query parameters: <ul> <li><strong>q</strong> — Full-text search across filenames and custom field text values.</li> <li><strong>tags</strong> — Comma-separated tag names. Returns only assets that have ALL listed tags (AND logic).</li> <li><strong>folder_id</strong> — Filter by folder. Use <code>root</code> to list assets with no folder in a project.</li> <li><strong>project_id</strong> — Filter by project (required when folder_id=root).</li> <li><strong>mime</strong> — Filter by MIME type prefix (e.g. <code>image/</code> or <code>video/mp4</code>).</li> <li><strong>sort</strong> — Sort order: <code>created_at_desc</code> (default), <code>created_at_asc</code>, <code>size_asc</code>, <code>size_desc</code>, <code>id_asc</code>, <code>id_desc</code>, <code>taken_at</code>, <code>taken_at_desc</code>.</li> <li><strong>limit</strong> — Page size, 1–100 (default 50).</li> <li><strong>cursor</strong> — Opaque cursor from the previous page's <code>next_cursor</code> field.</li> <li><strong>field[key]</strong> — Filter by custom field value, e.g. <code>field[status]=published</code>.</li> </ul> */
     readonly get: {
@@ -1732,20 +1747,6 @@ export interface paths {
       };
     };
   };
-  readonly "/api/v1/imagerouter/models": {
-    readonly get: {
-      readonly responses: {
-        /** OK */
-        readonly 200: {
-          readonly schema: definitions["api.ImageRouterModelsResponse"];
-        };
-        /** Not authenticated */
-        readonly 401: {
-          readonly schema: definitions["api.ErrorResponse"];
-        };
-      };
-    };
-  };
   readonly "/api/v1/ingress/log": {
     readonly get: {
       readonly parameters: {
@@ -3025,12 +3026,104 @@ export interface paths {
       };
     };
   };
-  readonly "/api/v1/workspace/settings/imagerouter": {
+  readonly "/api/v1/workspace/settings/aiproviders/{provider}": {
+    /** Returns whether an API key is configured for the given provider and its source (workspace or environment). */
     readonly get: {
+      readonly parameters: {
+        readonly path: {
+          /** Provider ID (e.g. openrouter) */
+          readonly provider: string;
+        };
+      };
       readonly responses: {
         /** OK */
         readonly 200: {
-          readonly schema: definitions["api.WorkspaceImageRouterStatusResponse"];
+          readonly schema: definitions["api.AIProviderKeyStatusResponse"];
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Provider not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+    /** Stores an API key for the given provider at workspace scope, overriding any environment-level key. */
+    readonly put: {
+      readonly parameters: {
+        readonly path: {
+          /** Provider ID */
+          readonly provider: string;
+        };
+        readonly body: {
+          /** API key */
+          readonly body: definitions["api.UpdateAIProviderKeyRequest"];
+        };
+      };
+      readonly responses: {
+        /** No Content */
+        readonly 204: never;
+        /** Validation error */
+        readonly 400: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Provider not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+    /** Removes the workspace-scoped API key for the given provider. Falls back to environment key if one exists. */
+    readonly delete: {
+      readonly parameters: {
+        readonly path: {
+          /** Provider ID */
+          readonly provider: string;
+        };
+      };
+      readonly responses: {
+        /** No Content */
+        readonly 204: never;
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Provider not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
+  readonly "/api/v1/workspace/settings/aiproviders/{provider}/test": {
+    /** Validates the configured API key for the given provider by making a live request. Returns 422 if the key is missing or rejected. */
+    readonly post: {
+      readonly parameters: {
+        readonly path: {
+          /** Provider ID */
+          readonly provider: string;
+        };
+      };
+      readonly responses: {
+        /** No Content */
+        readonly 204: never;
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Provider not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Key invalid or unreachable */
+        readonly 422: {
+          readonly schema: definitions["api.ErrorResponse"];
         };
       };
     };
@@ -3679,6 +3772,27 @@ export interface paths {
 }
 
 export interface definitions {
+  readonly "api.AIProviderKeyStatusResponse": {
+    readonly key_set: boolean;
+    readonly source: string;
+  };
+  readonly "api.AIProviderModelResponse": {
+    readonly capabilities: readonly string[];
+    readonly id: string;
+    readonly name: string;
+    readonly price_per_image: number;
+    readonly provider_id: string;
+  };
+  readonly "api.AIProviderStatusResponse": {
+    readonly capabilities: readonly string[];
+    readonly configured: boolean;
+    readonly id: string;
+    readonly key_source: string;
+    readonly models: readonly definitions["api.AIProviderModelResponse"][];
+  };
+  readonly "api.AIProvidersListResponse": {
+    readonly providers: readonly definitions["api.AIProviderStatusResponse"][];
+  };
   readonly "api.AcceptInviteRequest": {
     readonly name: string;
     readonly password: string;
@@ -3958,18 +4072,6 @@ export interface definitions {
   readonly "api.GetProjectFieldsResponse": {
     readonly fields: readonly definitions["api.projectFieldValueResponse"][];
   };
-  readonly "api.ImageRouterModel": {
-    readonly id: string;
-    readonly name: string;
-    readonly price_per_image: number;
-    readonly provider: string;
-  };
-  readonly "api.ImageRouterModelsResponse": {
-    readonly configured: boolean;
-    readonly default_bg_remove_model: string;
-    readonly default_model: string;
-    readonly models: readonly definitions["api.ImageRouterModel"][];
-  };
   readonly "api.IngressLogResponse": {
     readonly asset_id?: string;
     readonly error?: string;
@@ -4194,6 +4296,9 @@ export interface definitions {
     readonly status: string;
     readonly updated_at: string;
   };
+  readonly "api.UpdateAIProviderKeyRequest": {
+    readonly key: string;
+  };
   readonly "api.UpdateAssetFolderRequest": {
     readonly folder_id: string;
   };
@@ -4372,10 +4477,6 @@ export interface definitions {
   readonly "api.WorkflowTriggerResponse": {
     readonly run_id: string;
     readonly status: string;
-  };
-  readonly "api.WorkspaceImageRouterStatusResponse": {
-    readonly key_set: boolean;
-    readonly source: string;
   };
   readonly "api.WorkspaceMeResponse": {
     readonly role: string;

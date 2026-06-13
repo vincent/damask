@@ -56,29 +56,34 @@ func (r *workspaceRepo) CountAssets(ctx context.Context, workspaceID string) (in
 	return r.q.CountWorkspaceAssets(ctx, workspaceID)
 }
 
-func (r *workspaceRepo) GetImageRouterKey(ctx context.Context, workspaceID string) (string, error) {
-	key, err := r.q.GetWorkspaceImageRouterKey(ctx, workspaceID)
+func (r *workspaceRepo) GetAIProviderKey(ctx context.Context, workspaceID, providerName string) (string, error) {
+	key, err := r.q.GetWorkspaceAIProviderKey(ctx, dbgen.GetWorkspaceAIProviderKeyParams{
+		ProviderName: providerName,
+		ID:           workspaceID,
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", apperr.ErrNotFound
 		}
 		return "", err
 	}
-	if key == nil {
-		return "", nil
-	}
-	return *key, nil
+	return key, nil
 }
 
-func (r *workspaceRepo) SetImageRouterKey(ctx context.Context, workspaceID, encKey string) error {
-	return r.q.SetWorkspaceImageRouterKey(ctx, dbgen.SetWorkspaceImageRouterKeyParams{
-		ImagerouterApiKeyEnc: &encKey,
-		ID:                   workspaceID,
+func (r *workspaceRepo) SetAIProviderKey(ctx context.Context, workspaceID, providerName, encKey string) error {
+	return r.q.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
+		ProviderName: providerName,
+		Value:        &encKey,
+		ID:           workspaceID,
 	})
 }
 
-func (r *workspaceRepo) ClearImageRouterKey(ctx context.Context, workspaceID string) error {
-	return r.q.ClearWorkspaceImageRouterKey(ctx, workspaceID)
+func (r *workspaceRepo) ClearAIProviderKey(ctx context.Context, workspaceID, providerName string) error {
+	return r.q.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
+		ProviderName: providerName,
+		Value:        nil,
+		ID:           workspaceID,
+	})
 }
 
 func (r *workspaceRepo) GetMember(ctx context.Context, workspaceID, userID string) (repository.Member, error) {

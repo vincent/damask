@@ -1,4 +1,4 @@
-package imagerouter
+package ai
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const tracerName = "damask/imagerouter"
+const tracerName = "damask/ai"
 
 func startGenAISpan(ctx context.Context, operation, model, prompt string) (context.Context, trace.Span) {
-	ctx, span := otel.Tracer(tracerName).Start(ctx, "imagerouter "+operation,
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "ai "+operation,
 		trace.WithSpanKind(trace.SpanKindClient),
 	)
 	span.SetAttributes(
@@ -32,20 +32,17 @@ func startGenAISpan(ctx context.Context, operation, model, prompt string) (conte
 	return ctx, span
 }
 
-func endGenAISpan(span trace.Span, responseModel string, envelope *imageResponseEnvelope, err error) {
+func endGenAISpan(span trace.Span, responseModel string, cost float64, err error) {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		span.End()
 		return
 	}
-	attrs := []attribute.KeyValue{
+	span.SetAttributes(
 		attribute.String("gen_ai.response.model", responseModel),
 		attribute.String("gen_ai.response.finish_reason", "stop"),
-	}
-	if envelope != nil {
-		attrs = append(attrs, attribute.Float64("gen_ai.usage.total_cost", envelope.Cost))
-	}
-	span.SetAttributes(attrs...)
+		attribute.Float64("gen_ai.usage.total_cost", cost),
+	)
 	span.End()
 }

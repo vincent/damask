@@ -6,13 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
-	"damask/server/internal/imagerouter"
+	"damask/server/internal/ai"
 	"damask/server/internal/telemetry"
 
 	"go.opentelemetry.io/otel/attribute"
 )
+
+type aiVariantParams struct {
+	Model    string `json:"model"`
+	Prompt   string `json:"prompt"`
+	Provider string `json:"provider"`
+}
 
 // imageBgRemoveBuild is the variantBuildFn for background removal.
 func (s *JobServer) imageBgRemoveBuild(_, _, workspaceID string, params json.RawMessage) (variantTransformer, error) {
@@ -21,26 +26,20 @@ func (s *JobServer) imageBgRemoveBuild(_, _, workspaceID string, params json.Raw
 
 // imageBgRemoveTransformer returns a variantTransformer for background removal.
 func (s *JobServer) imageBgRemoveTransformer(workspaceID string, params json.RawMessage) (variantTransformer, error) {
-	var p struct {
-		Model  string `json:"model"`
-		Prompt string `json:"prompt"`
-	}
+	var p aiVariantParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("parse bg remove params: %w", err)
 	}
-	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+	return func(ctx context.Context, storedSourceKey string) ([]byte, string, error) {
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "image_bg_remove"),
 		)
-		result, err := s.runImageRouterJob(ctx, workspaceID, sourceKey,
-			func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-				return client.BgRemove(ctx, imageData, imagerouter.BgRemoveParams{
-					Model:  p.Model,
-					Prompt: p.Prompt,
-				})
+		result, err := s.runAIProviderJob(ctx, workspaceID, storedSourceKey, p.Provider, ai.CapBgRemove,
+			func(provider ai.Provider, imageData []byte) ([]byte, error) {
+				return provider.BgRemove(ctx, imageData, p.Model)
 			},
 		)
-		if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
+		if errors.Is(err, ai.ErrModelNotSupported) {
 			err = errors.New(
 				"the selected model is not available for background removal. please choose another model and try again",
 			)
@@ -63,10 +62,7 @@ func (s *JobServer) imageWithPromptBuild(_, _, workspaceID string, params json.R
 
 // imageWithPromptTransformer returns a variantTransformer for AI image-with-prompt.
 func (s *JobServer) imageWithPromptTransformer(workspaceID string, params json.RawMessage) (variantTransformer, error) {
-	var p struct {
-		Prompt string `json:"prompt"`
-		Model  string `json:"model"`
-	}
+	var p aiVariantParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("parse image prompt params: %w", err)
 	}
@@ -74,12 +70,9 @@ func (s *JobServer) imageWithPromptTransformer(workspaceID string, params json.R
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "image_with_prompt"),
 		)
-		result, err := s.runImageRouterJob(ctx, workspaceID, sourceKey,
-			func(client *imagerouter.Client, imageData []byte) ([]byte, error) {
-				return client.Transform(ctx, imageData, imagerouter.PromptParams{
-					Prompt: p.Prompt,
-					Model:  p.Model,
-				})
+		result, err := s.runAIProviderJob(ctx, workspaceID, sourceKey, p.Provider, ai.CapImageToImage,
+			func(provider ai.Provider, imageData []byte) ([]byte, error) {
+				return provider.Transform(ctx, imageData, p.Prompt, p.Model)
 			},
 		)
 		if err != nil {
@@ -91,17 +84,25 @@ func (s *JobServer) imageWithPromptTransformer(workspaceID string, params json.R
 	}, nil
 }
 
-func (s *JobServer) runImageRouterJob(
+func (s *JobServer) runAIProviderJob(
 	ctx context.Context,
 	workspaceID string,
-	sourceKey string,
-	callFn func(*imagerouter.Client, []byte) ([]byte, error),
+	storedSourceKey string,
+	aiProvider string,
+	capability ai.Capability,
+	callFn func(ai.Provider, []byte) ([]byte, error),
 ) ([]byte, error) {
-	ctx, span := telemetry.StartBackgroundSpan(ctx, "imagerouter.job",
+	ctx, span := telemetry.StartBackgroundSpan(ctx, "ai.job",
 		attribute.String("damask.workspace_id", workspaceID),
 	)
 
-	rc, err := s.storage.Get(sourceKey)
+	provider, err := s.resolveProvider(ctx, workspaceID, aiProvider, capability)
+	if err != nil {
+		telemetry.EndSpan(span, err)
+		return nil, err
+	}
+
+	rc, err := s.storage.Get(storedSourceKey)
 	if err != nil {
 		telemetry.EndSpan(span, err)
 		return nil, fmt.Errorf("get source: %w", err)
@@ -114,21 +115,48 @@ func (s *JobServer) runImageRouterJob(
 		return nil, fmt.Errorf("read source: %w", err)
 	}
 
-	key, source, err := s.imgKeyResolver(ctx, workspaceID)
-	if err != nil {
-		telemetry.EndSpan(span, err)
-		return nil, err
-	}
-	if source == imagerouter.SourceNone {
-		telemetry.EndSpan(span, imagerouter.ErrNotConfigured)
-		return nil, imagerouter.ErrNotConfigured
-	}
-
-	client := imagerouter.NewClient(key, s.cfg.ImageRouter.RetryPaidOnFreeLimit)
-	result, err := callFn(client, imageData)
+	result, err := callFn(provider, imageData)
 	telemetry.EndSpan(span, err)
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
+}
+
+// resolveProvider returns the first available provider that supports the required capability.
+// When aiProvider is set, only that provider is tried. When empty, all known providers are
+// tried in order and the first with a configured key is used.
+func (s *JobServer) resolveProvider(
+	ctx context.Context,
+	workspaceID, aiProvider string,
+	capability ai.Capability,
+) (ai.Provider, error) {
+	candidates := []string{aiProvider}
+	if aiProvider == "" {
+		candidates = []string{string(ai.ProviderImageRouter), string(ai.ProviderOpenRouter)}
+	}
+
+	for _, providerID := range candidates {
+		apiKey, apiKeySource, err := s.aiAPIKeyResolver(ctx, workspaceID, providerID)
+		if err != nil || apiKey == "" {
+			continue
+		}
+		provider, err := s.aiProviderFactory(ai.ProviderID(providerID), apiKey, apiKeySource)
+		if err != nil {
+			continue
+		}
+		if provider.Capabilities()&capability == 0 {
+			continue
+		}
+		return provider, nil
+	}
+
+	if aiProvider != "" {
+		return nil, fmt.Errorf(
+			"%w: provider %q not configured or lacks required capability",
+			ai.ErrNotConfigured,
+			aiProvider,
+		)
+	}
+	return nil, fmt.Errorf("%w: no configured provider supports this operation", ai.ErrNotConfigured)
 }

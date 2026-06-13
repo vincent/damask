@@ -234,24 +234,24 @@ func buildTestApp(s *Server) *fiber.App {
 		s.handleUpdateWorkspaceSettings,
 	)
 	api.Get(
-		"/workspace/settings/imagerouter",
+		"/workspace/settings/aiproviders/:provider",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handleGetWorkspaceImageRouterStatus,
+		s.handleGetAIProviderKeyStatus,
 	)
 	api.Put(
-		"/workspace/settings/imagerouter",
+		"/workspace/settings/aiproviders/:provider",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handlePutWorkspaceImageRouterKey,
+		s.handleSetAIProviderKey,
 	)
 	api.Delete(
-		"/workspace/settings/imagerouter",
+		"/workspace/settings/aiproviders/:provider",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handleDeleteWorkspaceImageRouterKey,
+		s.handleClearAIProviderKey,
 	)
 	api.Post(
-		"/workspace/settings/imagerouter/test",
+		"/workspace/settings/aiproviders/:provider/test",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handleTestWorkspaceImageRouterKey,
+		s.handleTestAIProviderKey,
 	)
 
 	// Generic job trigger — owner only
@@ -400,8 +400,10 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Post("/assets/:id/tags", auth.RequireRole(getRoleFn, auth.Editor), s.handleAddTagToAsset)
 	api.Delete("/assets/:id/tags/:name", auth.RequireRole(getRoleFn, auth.Editor), s.handleRemoveTagFromAsset)
 
+	// AI providers
+	api.Get("/aiproviders", s.handleListAIProviders)
+
 	// Variants
-	api.Get("/imagerouter/models", s.handleListImageRouterModels)
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateVariant)

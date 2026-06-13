@@ -9,12 +9,12 @@ import (
 	"os"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/assetio"
 	"damask/server/internal/audit"
 	"damask/server/internal/config"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
-	"damask/server/internal/imagerouter"
 	"damask/server/internal/ingress"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
@@ -61,26 +61,28 @@ type textTrackService interface {
 
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {
-	queries          *dbgen.Queries
-	sqlDB            *sql.DB
-	storage          storage.Storage
-	queue            queue.JobQueue
-	mailer           mail.Mailer
-	hub              events.EventHub
-	cfg              *config.Config
-	audit            *audit.EventWriter
-	handlers         map[string]queue.HandlerFunc
-	trf              transform.Transformer
-	tmb              transform.Thumbnailer
-	ingester         assetio.Ingester
-	imgKeyResolver   imagerouter.KeyResolver
-	workflowExec     *workflow.Executor
-	exportSvc        exportService
-	exifSvc          exifService
-	fieldSvc         fieldPurgeService
-	textTrackSvc     textTrackService
-	storageSvc       ingress.StorageLimitChecker
-	visualSimilarity *visualsimilarity.Service
+	queries           *dbgen.Queries
+	sqlDB             *sql.DB
+	storage           storage.Storage
+	queue             queue.JobQueue
+	mailer            mail.Mailer
+	hub               events.EventHub
+	cfg               *config.Config
+	audit             *audit.EventWriter
+	handlers          map[string]queue.HandlerFunc
+	trf               transform.Transformer
+	tmb               transform.Thumbnailer
+	ingester          assetio.Ingester
+	aiAPIKeyResolver  ai.KeyResolver
+	aiProviderFactory ai.ProviderFactory
+	workspaceRepo     repository.WorkspaceRepository
+	workflowExec      *workflow.Executor
+	exportSvc         exportService
+	exifSvc           exifService
+	fieldSvc          fieldPurgeService
+	textTrackSvc      textTrackService
+	storageSvc        ingress.StorageLimitChecker
+	visualSimilarity  *visualsimilarity.Service
 }
 
 func NewJobServer(
@@ -94,7 +96,9 @@ func NewJobServer(
 	tmb transform.Thumbnailer,
 	cfg *config.Config,
 	ingester assetio.Ingester,
-	imgKeyResolver imagerouter.KeyResolver,
+	aiAPIKeyResolver ai.KeyResolver,
+	aiProviderFactory ai.ProviderFactory,
+	workspaceRepo repository.WorkspaceRepository,
 	workflowExec *workflow.Executor,
 	exportSvc exportService,
 	exifSvc exifService,
@@ -102,33 +106,38 @@ func NewJobServer(
 	textTrackSvc textTrackService,
 	storageSvc ingress.StorageLimitChecker,
 ) *JobServer {
-	if imgKeyResolver == nil {
-		panic("jobs: NewJobServer requires a non-nil imagerouter key resolver")
+	if aiAPIKeyResolver == nil {
+		panic("jobs: NewJobServer requires a non-nil ai api key resolver")
+	}
+	if aiProviderFactory == nil {
+		aiProviderFactory = ai.NewProvider
 	}
 	if workflowExec == nil {
 		panic("jobs: NewJobServer requires a non-nil workflow executor")
 	}
 	return &JobServer{
-		audit:            audit.New(sqlDB),
-		cfg:              cfg,
-		queries:          queries,
-		exportSvc:        exportSvc,
-		exifSvc:          exifSvc,
-		fieldSvc:         fieldSvc,
-		textTrackSvc:     textTrackSvc,
-		handlers:         make(map[string]queue.HandlerFunc),
-		hub:              hub,
-		imgKeyResolver:   imgKeyResolver,
-		ingester:         ingester,
-		mailer:           mailer,
-		queue:            q,
-		sqlDB:            sqlDB,
-		storage:          stor,
-		storageSvc:       storageSvc,
-		tmb:              tmb,
-		trf:              trf,
-		workflowExec:     workflowExec,
-		visualSimilarity: visualsimilarity.NewService(queries, sqlDB),
+		audit:             audit.New(sqlDB),
+		cfg:               cfg,
+		queries:           queries,
+		exportSvc:         exportSvc,
+		exifSvc:           exifSvc,
+		fieldSvc:          fieldSvc,
+		textTrackSvc:      textTrackSvc,
+		handlers:          make(map[string]queue.HandlerFunc),
+		hub:               hub,
+		aiAPIKeyResolver:  aiAPIKeyResolver,
+		aiProviderFactory: aiProviderFactory,
+		workspaceRepo:     workspaceRepo,
+		ingester:          ingester,
+		mailer:            mailer,
+		queue:             q,
+		sqlDB:             sqlDB,
+		storage:           stor,
+		storageSvc:        storageSvc,
+		tmb:               tmb,
+		trf:               trf,
+		workflowExec:      workflowExec,
+		visualSimilarity:  visualsimilarity.NewService(queries, sqlDB),
 	}
 }
 

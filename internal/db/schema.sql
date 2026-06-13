@@ -3,6 +3,7 @@ CREATE TABLE workspaces (
     name                        TEXT NOT NULL,
     ingest_token                TEXT UNIQUE,
     imagerouter_api_key_enc     TEXT,
+    openrouter_api_key_enc      TEXT,
     version_retention_count     INTEGER NOT NULL DEFAULT 0,
     event_log_retention_days    INTEGER NOT NULL DEFAULT 365,
     download_log_retention_days INTEGER NOT NULL DEFAULT 30,

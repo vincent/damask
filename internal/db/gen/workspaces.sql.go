@@ -9,19 +9,10 @@ import (
 	"context"
 )
 
-const clearWorkspaceImageRouterKey = `-- name: ClearWorkspaceImageRouterKey :exec
-UPDATE workspaces
-SET imagerouter_api_key_enc = NULL, updated_at = datetime('now')
-WHERE id = ?
-`
-
-func (q *Queries) ClearWorkspaceImageRouterKey(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, clearWorkspaceImageRouterKey, id)
-	return err
-}
-
 const countWorkspaceAssets = `-- name: CountWorkspaceAssets :one
-SELECT COUNT(*) FROM assets WHERE workspace_id = ?
+SELECT COUNT(*)
+FROM assets
+WHERE workspace_id = ?
 `
 
 func (q *Queries) CountWorkspaceAssets(ctx context.Context, workspaceID string) (int64, error) {
@@ -32,9 +23,11 @@ func (q *Queries) CountWorkspaceAssets(ctx context.Context, workspaceID string) 
 }
 
 const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (id, name, created_at, updated_at)
-VALUES (?, ?, datetime('now'), datetime('now'))
-RETURNING id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at
+INSERT INTO workspaces
+  (id, name, created_at, updated_at)
+VALUES
+  (?, ?, datetime('now'), datetime('now'))
+RETURNING id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at
 `
 
 type CreateWorkspaceParams struct {
@@ -50,6 +43,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.Name,
 		&i.IngestToken,
 		&i.ImagerouterApiKeyEnc,
+		&i.OpenrouterApiKeyEnc,
 		&i.VersionRetentionCount,
 		&i.EventLogRetentionDays,
 		&i.DownloadLogRetentionDays,
@@ -68,7 +62,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 const getFolderCountsByProject = `-- name: GetFolderCountsByProject :many
 SELECT a.project_id, COUNT(DISTINCT a.folder_id) AS folder_count
 FROM assets a
-JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
+  JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
 WHERE a.workspace_id = ?
 GROUP BY a.project_id
 `
@@ -108,9 +102,9 @@ SELECT
   COALESCE(SUM(av.size), 0)                                 AS versions_bytes,
   COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)           AS variants_bytes
 FROM asset_versions av
-JOIN assets a ON a.id = av.asset_id
-LEFT JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
-LEFT JOIN (
+  JOIN assets a ON a.id = av.asset_id
+  LEFT JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
+  LEFT JOIN (
   SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
   FROM variants vv
   WHERE vv.workspace_id = ? AND vv.size IS NOT NULL
@@ -175,9 +169,9 @@ SELECT
   COALESCE(SUM(av.size), 0)                              AS versions_bytes,
   COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
 FROM asset_versions av
-JOIN assets a ON a.id = av.asset_id
-LEFT JOIN projects p ON p.id = a.project_id
-LEFT JOIN (
+  JOIN assets a ON a.id = av.asset_id
+  LEFT JOIN projects p ON p.id = a.project_id
+  LEFT JOIN (
   SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
   FROM variants vv
   WHERE vv.workspace_id = ? AND vv.size IS NOT NULL
@@ -229,8 +223,33 @@ func (q *Queries) GetStorageByProjectAndType(ctx context.Context, arg GetStorage
 	return items, nil
 }
 
+const getWorkspaceAIProviderKey = `-- name: GetWorkspaceAIProviderKey :one
+SELECT CASE
+    WHEN  ?2 = 'imagerouter'  THEN COALESCE(imagerouter_api_key_enc, '')
+    WHEN  ?2 = 'openrouter'   THEN COALESCE(openrouter_api_key_enc, '')
+    ELSE ''
+END AS api_key_enc
+FROM workspaces
+WHERE id = ?1
+LIMIT 1
+`
+
+type GetWorkspaceAIProviderKeyParams struct {
+	ID           string      `json:"id"`
+	ProviderName interface{} `json:"provider_name"`
+}
+
+func (q *Queries) GetWorkspaceAIProviderKey(ctx context.Context, arg GetWorkspaceAIProviderKeyParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getWorkspaceAIProviderKey, arg.ID, arg.ProviderName)
+	var api_key_enc string
+	err := row.Scan(&api_key_enc)
+	return api_key_enc, err
+}
+
 const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at FROM workspaces WHERE id = ? LIMIT 1
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at
+FROM workspaces
+WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, error) {
@@ -241,6 +260,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 		&i.Name,
 		&i.IngestToken,
 		&i.ImagerouterApiKeyEnc,
+		&i.OpenrouterApiKeyEnc,
 		&i.VersionRetentionCount,
 		&i.EventLogRetentionDays,
 		&i.DownloadLogRetentionDays,
@@ -257,7 +277,9 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 }
 
 const getWorkspaceByIconAsset = `-- name: GetWorkspaceByIconAsset :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at
+FROM workspaces
+WHERE icon_asset_id = ? AND id = ? LIMIT 1
 `
 
 type GetWorkspaceByIconAssetParams struct {
@@ -273,6 +295,7 @@ func (q *Queries) GetWorkspaceByIconAsset(ctx context.Context, arg GetWorkspaceB
 		&i.Name,
 		&i.IngestToken,
 		&i.ImagerouterApiKeyEnc,
+		&i.OpenrouterApiKeyEnc,
 		&i.VersionRetentionCount,
 		&i.EventLogRetentionDays,
 		&i.DownloadLogRetentionDays,
@@ -288,22 +311,10 @@ func (q *Queries) GetWorkspaceByIconAsset(ctx context.Context, arg GetWorkspaceB
 	return i, err
 }
 
-const getWorkspaceImageRouterKey = `-- name: GetWorkspaceImageRouterKey :one
-SELECT imagerouter_api_key_enc
+const getWorkspaceStorageLimitBytes = `-- name: GetWorkspaceStorageLimitBytes :one
+SELECT storage_limit_bytes
 FROM workspaces
 WHERE id = ?
-LIMIT 1
-`
-
-func (q *Queries) GetWorkspaceImageRouterKey(ctx context.Context, id string) (*string, error) {
-	row := q.db.QueryRowContext(ctx, getWorkspaceImageRouterKey, id)
-	var imagerouter_api_key_enc *string
-	err := row.Scan(&imagerouter_api_key_enc)
-	return imagerouter_api_key_enc, err
-}
-
-const getWorkspaceStorageLimitBytes = `-- name: GetWorkspaceStorageLimitBytes :one
-SELECT storage_limit_bytes FROM workspaces WHERE id = ?
 `
 
 func (q *Queries) GetWorkspaceStorageLimitBytes(ctx context.Context, id string) (*int64, error) {
@@ -340,7 +351,9 @@ func (q *Queries) GetWorkspaceStorageVersionsBytes(ctx context.Context, workspac
 }
 
 const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
-SELECT id, name, ingest_token, imagerouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at FROM workspaces WHERE version_retention_count > 0
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at
+FROM workspaces
+WHERE version_retention_count > 0
 `
 
 func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace, error) {
@@ -357,6 +370,7 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 			&i.Name,
 			&i.IngestToken,
 			&i.ImagerouterApiKeyEnc,
+			&i.OpenrouterApiKeyEnc,
 			&i.VersionRetentionCount,
 			&i.EventLogRetentionDays,
 			&i.DownloadLogRetentionDays,
@@ -382,19 +396,23 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 	return items, nil
 }
 
-const setWorkspaceImageRouterKey = `-- name: SetWorkspaceImageRouterKey :exec
+const setWorkspaceAIProviderKey = `-- name: SetWorkspaceAIProviderKey :exec
 UPDATE workspaces
-SET imagerouter_api_key_enc = ?, updated_at = datetime('now')
+SET
+  openrouter_api_key_enc =  CASE WHEN  ? = 'openrouter'  THEN ? ELSE openrouter_api_key_enc  END,
+  imagerouter_api_key_enc = CASE WHEN  ? = 'imagerouter' THEN ? ELSE imagerouter_api_key_enc END,
+  updated_at = datetime('now')
 WHERE id = ?
 `
 
-type SetWorkspaceImageRouterKeyParams struct {
-	ImagerouterApiKeyEnc *string `json:"imagerouter_api_key_enc"`
-	ID                   string  `json:"id"`
+type SetWorkspaceAIProviderKeyParams struct {
+	ProviderName interface{} `json:"provider_name"`
+	Value        *string     `json:"value"`
+	ID           string      `json:"id"`
 }
 
-func (q *Queries) SetWorkspaceImageRouterKey(ctx context.Context, arg SetWorkspaceImageRouterKeyParams) error {
-	_, err := q.db.ExecContext(ctx, setWorkspaceImageRouterKey, arg.ImagerouterApiKeyEnc, arg.ID)
+func (q *Queries) SetWorkspaceAIProviderKey(ctx context.Context, arg SetWorkspaceAIProviderKeyParams) error {
+	_, err := q.db.ExecContext(ctx, setWorkspaceAIProviderKey, arg.ProviderName, arg.Value, arg.ID)
 	return err
 }
 

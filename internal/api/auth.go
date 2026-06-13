@@ -13,12 +13,8 @@ import (
 
 const sessionDuration = 7 * 24 * time.Hour
 
-// BcryptCost is the work factor used for password hashing.
-// Tests override this to bcrypt.MinCost for speed.
-var BcryptCost = bcrypt.DefaultCost
-
-func bcryptHash(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), BcryptCost)
+func (s *Server) bcryptHash(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), s.bcryptCost)
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +58,7 @@ func (s *Server) handleRegister(c fiber.Ctx) error {
 		return nil
 	}
 
-	hash, err := bcryptHash(req.Password)
+	hash, err := s.bcryptHash(req.Password)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}

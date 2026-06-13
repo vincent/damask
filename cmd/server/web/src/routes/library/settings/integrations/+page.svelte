@@ -1,24 +1,38 @@
 <script lang="ts">
   import { integrationsApi, type OAuthConnection } from '$lib/api'
-  import { workspaceApi, type ImageRouterKeyStatus } from '$lib/api/workspace'
+  import { aiProvidersApi, type ProviderKeyStatus } from '$lib/api/ai_providers'
   import { authStore } from '$lib/stores/auth.svelte'
   import IntegrationCard from '$lib/components/IntegrationCard.svelte'
-  import ImageRouterCard from '$lib/components/ImageRouterCard.svelte'
+  import ImageRouterCard from '$lib/components/AIImageRouterCard.svelte'
+  import OpenRouterCard from '$lib/components/AIOpenRouterCard.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import { m } from '$lib/paraglide/messages'
 
   let connections = $state<OAuthConnection[]>([])
-  let irStatus = $state<ImageRouterKeyStatus | null>(null)
+  let irStatus = $state<ProviderKeyStatus | null>(null)
+  let orStatus = $state<ProviderKeyStatus | null>(null)
   let loading = $state(true)
 
   $effect(() => {
-    Promise.all([
-      integrationsApi.list(),
-      workspaceApi.getImageRouterKeyStatus(),
-    ])
-      .then(([c, ir]) => {
+    Promise.all([integrationsApi.list(), aiProvidersApi.listAIProviders()])
+      .then(([c, prs]) => {
         connections = c
+
+        const ir = prs.providers.find((p) => p.id === 'imagerouter')
         irStatus = ir
+          ? ({
+              key_set: ir?.configured,
+              source: ir?.key_source,
+            } as unknown as ProviderKeyStatus)
+          : null
+
+        const or = prs.providers.find((p) => p.id === 'openrouter')
+        orStatus = or
+          ? ({
+              key_set: or?.configured,
+              source: or?.key_source,
+            } as unknown as ProviderKeyStatus)
+          : null
       })
       .catch(() => {})
       .finally(() => {
@@ -124,14 +138,20 @@
           {/if}
         </div>
 
-        {#if irStatus !== null}
+        {#if orStatus !== null || irStatus !== null}
           <div class="space-y-3">
             <h2
               class="text-xs font-semibold tracking-wider text-zinc-400 uppercase dark:text-zinc-500"
             >
               {m.integrations_ai_section_title()}
             </h2>
-            <ImageRouterCard bind:status={irStatus} {isOwner} />
+            <!-- OpenRouter first — preferred provider -->
+            {#if orStatus !== null}
+              <OpenRouterCard bind:status={orStatus} {isOwner} />
+            {/if}
+            {#if irStatus !== null}
+              <ImageRouterCard bind:status={irStatus} {isOwner} />
+            {/if}
           </div>
         {/if}
       </div>

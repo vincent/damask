@@ -1,5 +1,4 @@
-// Package imagerouter integrates with external image routing services.
-package imagerouter
+package ai
 
 import (
 	"bytes"
@@ -20,33 +19,22 @@ import (
 )
 
 var (
-	ErrNotConfigured = errors.New("imagerouter: API key not configured")
-	ErrInvalidKey    = errors.New("imagerouter: invalid API key")
-	ErrInvalidModel  = errors.New("imagerouter: model not found or not image2image")
-	ErrAPIError      = errors.New("imagerouter: API returned non-2xx")
+	errIRNotConfigured = errors.New("imagerouter: API key not configured")
+	errIRInvalidModel  = errors.New("imagerouter: model not found or not image2image")
+	errIRAPI           = errors.New("imagerouter: API returned non-2xx")
 )
-
-var apiBaseURL = "https://api.imagerouter.io/v1"
 
 const (
-	clientTimeout                   = 120 * time.Second
-	imageRouterGenerationFailedText = "ImageRouter generation failed"
+	imageRouterDefaultBaseURL = "https://api.imagerouter.io/v1"
+	irClientTimeout           = 120 * time.Second
+	irGenerationFailedText    = "ImageRouter generation failed"
 )
 
-type Client struct {
+type imageRouterClient struct {
 	apiKey                  string
+	baseURL                 string
 	httpClient              *http.Client
 	retryPaidOnFreeLimit429 bool
-}
-
-type BgRemoveParams struct {
-	Model  string
-	Prompt string
-}
-
-type PromptParams struct {
-	Prompt string
-	Model  string
 }
 
 type imageResponseEnvelope struct {
@@ -69,61 +57,57 @@ type errorResponseEnvelope struct {
 	} `json:"error"`
 }
 
-type apiError struct {
+type irError struct {
 	cause   error
 	message string
 }
 
-func (e *apiError) Error() string {
+func (e *irError) Error() string {
 	return e.message
 }
 
-func (e *apiError) Unwrap() error {
+func (e *irError) Unwrap() error {
 	return e.cause
 }
 
-func NewClient(apiKey string, retryPaidOnFreeLimit429 bool) *Client {
-	return &Client{
+func newImageRouterClient(apiKey, baseURL string, retryPaidOnFreeLimit429 bool) *imageRouterClient {
+	return &imageRouterClient{
 		apiKey:                  apiKey,
+		baseURL:                 strings.TrimRight(baseURL, "/"),
 		retryPaidOnFreeLimit429: retryPaidOnFreeLimit429,
 		httpClient: &http.Client{
-			Timeout: clientTimeout,
+			Timeout: irClientTimeout,
 		},
 	}
 }
 
-// SetBaseURLForTest overrides the API base URL and returns a restore function.
-func SetBaseURLForTest(raw string) func() {
-	prev := apiBaseURL
-	apiBaseURL = strings.TrimRight(raw, "/")
-	return func() {
-		apiBaseURL = prev
+func (c *imageRouterClient) bgRemove(ctx context.Context, imageData []byte, model string) ([]byte, error) {
+	if strings.TrimSpace(model) == "" {
+		return nil, fmt.Errorf("%w: empty model", errIRInvalidModel)
 	}
+	result, err := c.editImage(ctx, imageData, model, "")
+	if err != nil && strings.Contains(err.Error(), "Prompt must be a string") {
+		return nil, fmt.Errorf("%w: %w", ErrModelNotSupported, err)
+	}
+	return result, err
 }
 
-func (c *Client) BgRemove(ctx context.Context, imageData []byte, p BgRemoveParams) ([]byte, error) {
-	if strings.TrimSpace(p.Model) == "" {
-		return nil, fmt.Errorf("%w: empty model", ErrInvalidModel)
+func (c *imageRouterClient) transform(ctx context.Context, imageData []byte, prompt, model string) ([]byte, error) {
+	if strings.TrimSpace(model) == "" {
+		return nil, fmt.Errorf("%w: empty model", errIRInvalidModel)
 	}
-	return c.editImage(ctx, imageData, p.Model, strings.TrimSpace(p.Prompt))
-}
-
-func (c *Client) Transform(ctx context.Context, imageData []byte, p PromptParams) ([]byte, error) {
-	if strings.TrimSpace(p.Model) == "" {
-		return nil, fmt.Errorf("%w: empty model", ErrInvalidModel)
-	}
-	if strings.TrimSpace(p.Prompt) == "" {
+	if strings.TrimSpace(prompt) == "" {
 		return nil, errors.New("imagerouter: prompt is required")
 	}
-	return c.editImage(ctx, imageData, p.Model, p.Prompt)
+	return c.editImage(ctx, imageData, model, prompt)
 }
 
-func (c *Client) Validate(ctx context.Context) error {
+func (c *imageRouterClient) validate(ctx context.Context) error {
 	if strings.TrimSpace(c.apiKey) == "" {
-		return ErrNotConfigured
+		return errIRNotConfigured
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, modelsEndpointURL(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageRouterModelsEndpointURL(c.baseURL), nil)
 	if err != nil {
 		return fmt.Errorf("imagerouter: build request: %w", err)
 	}
@@ -140,14 +124,14 @@ func (c *Client) Validate(ctx context.Context) error {
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		payload, _ := io.ReadAll(resp.Body)
-		return wrapImageRouterAPIError(ErrAPIError, payload)
+		return wrapIRError(errIRAPI, payload)
 	}
 	return nil
 }
 
-func (c *Client) editImage(ctx context.Context, imageData []byte, model, prompt string) ([]byte, error) {
+func (c *imageRouterClient) editImage(ctx context.Context, imageData []byte, model, prompt string) ([]byte, error) {
 	if strings.TrimSpace(c.apiKey) == "" {
-		return nil, ErrNotConfigured
+		return nil, errIRNotConfigured
 	}
 
 	result, statusCode, payload, err := c.performEditImage(ctx, imageData, model, prompt)
@@ -161,10 +145,8 @@ func (c *Client) editImage(ctx context.Context, imageData []byte, model, prompt 
 	retryModel := strings.TrimSuffix(model, ":free")
 	slog.InfoContext(ctx,
 		"imagerouter retrying without free suffix after free-tier limit",
-		"model",
-		model,
-		"retry_model",
-		retryModel,
+		"model", model,
+		"retry_model", retryModel,
 	)
 	result, _, _, retryErr := c.performEditImage(ctx, imageData, retryModel, prompt)
 	if retryErr != nil {
@@ -173,16 +155,16 @@ func (c *Client) editImage(ctx context.Context, imageData []byte, model, prompt 
 	return result, nil
 }
 
-func (c *Client) performEditImage(
+func (c *imageRouterClient) performEditImage(
 	ctx context.Context,
 	imageData []byte,
 	model, prompt string,
 ) ([]byte, int, string, error) {
 	ctx, span := startGenAISpan(ctx, "edit-image", model, prompt)
 
-	filename, contentType, err := detectImageUpload(imageData)
+	filename, contentType, err := detectIRImageUpload(imageData)
 	if err != nil {
-		endGenAISpan(span, model, nil, err)
+		endGenAISpan(span, model, 0, err)
 		return nil, 0, "", err
 	}
 
@@ -208,7 +190,7 @@ func (c *Client) performEditImage(
 		return nil, 0, "", fmt.Errorf("imagerouter: close multipart: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBaseURL+"/openai/images/edits", body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/openai/images/edits", body)
 	if err != nil {
 		return nil, 0, "", fmt.Errorf("imagerouter: build request: %w", err)
 	}
@@ -228,28 +210,28 @@ func (c *Client) performEditImage(
 	payloadText := strings.TrimSpace(string(payload))
 
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity {
-		apiErr := wrapImageRouterAPIError(ErrInvalidModel, payload)
-		endGenAISpan(span, model, nil, apiErr)
+		apiErr := wrapIRError(errIRInvalidModel, payload)
+		endGenAISpan(span, model, 0, apiErr)
 		return nil, resp.StatusCode, payloadText, apiErr
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		apiErr := wrapImageRouterAPIError(ErrAPIError, payload)
-		endGenAISpan(span, model, nil, apiErr)
+		apiErr := wrapIRError(errIRAPI, payload)
+		endGenAISpan(span, model, 0, apiErr)
 		return nil, resp.StatusCode, payloadText, apiErr
 	}
 
 	var envelope imageResponseEnvelope
 	if err = json.Unmarshal(payload, &envelope); err != nil {
-		decodeErr := parseImageRouterAPIError(ErrAPIError, payload, fmt.Errorf("imagerouter: decode response: %w", err))
-		endGenAISpan(span, model, nil, decodeErr)
+		decodeErr := parseIRError(errIRAPI, payload, fmt.Errorf("imagerouter: decode response: %w", err))
+		endGenAISpan(span, model, 0, decodeErr)
 		return nil, resp.StatusCode, payloadText, decodeErr
 	}
 	if len(envelope.Data) == 0 {
-		emptyErr := parseImageRouterAPIError(ErrAPIError, payload, &apiError{
-			cause:   ErrAPIError,
-			message: imageRouterGenerationFailedText,
+		emptyErr := parseIRError(errIRAPI, payload, &irError{
+			cause:   errIRAPI,
+			message: irGenerationFailedText,
 		})
-		endGenAISpan(span, model, nil, emptyErr)
+		endGenAISpan(span, model, 0, emptyErr)
 		return nil, resp.StatusCode, payloadText, emptyErr
 	}
 
@@ -257,49 +239,49 @@ func (c *Client) performEditImage(
 	if strings.TrimSpace(item.URL) != "" {
 		downloaded, fetchErr := c.fetchImageURL(ctx, item.URL)
 		if fetchErr != nil {
-			endGenAISpan(span, model, nil, fetchErr)
+			endGenAISpan(span, model, 0, fetchErr)
 			return nil, resp.StatusCode, payloadText, fetchErr
 		}
-		endGenAISpan(span, model, &envelope, nil)
+		endGenAISpan(span, model, envelope.Cost, nil)
 		return downloaded, resp.StatusCode, payloadText, nil
 	}
 	if strings.TrimSpace(item.B64JSON) == "" {
 		missingErr := errors.New("imagerouter: response missing image url")
-		endGenAISpan(span, model, nil, missingErr)
+		endGenAISpan(span, model, 0, missingErr)
 		return nil, resp.StatusCode, payloadText, missingErr
 	}
 	decoded, err := base64.StdEncoding.DecodeString(item.B64JSON)
 	if err != nil {
 		decodeErr := fmt.Errorf("imagerouter: decode image: %w", err)
-		endGenAISpan(span, model, nil, decodeErr)
+		endGenAISpan(span, model, 0, decodeErr)
 		return nil, resp.StatusCode, payloadText, decodeErr
 	}
-	endGenAISpan(span, model, &envelope, nil)
+	endGenAISpan(span, model, envelope.Cost, nil)
 	return decoded, resp.StatusCode, payloadText, nil
 }
 
-func wrapImageRouterAPIError(base error, payload []byte) error {
-	return parseImageRouterAPIError(base, payload, nil)
+func wrapIRError(base error, payload []byte) error {
+	return parseIRError(base, payload, nil)
 }
 
-func parseImageRouterAPIError(base error, payload []byte, fallback error) error {
+func parseIRError(base error, payload []byte, fallback error) error {
 	var envelope errorResponseEnvelope
 	if err := json.Unmarshal(payload, &envelope); err != nil {
 		if fallback != nil {
 			return fallback
 		}
-		return &apiError{cause: base, message: "ImageRouter generation failed"}
+		return &irError{cause: base, message: irGenerationFailedText}
 	}
 	if msg := strings.TrimSpace(envelope.Error.Message); msg != "" {
-		return &apiError{cause: base, message: msg}
+		return &irError{cause: base, message: msg}
 	}
 	if fallback != nil {
 		return fallback
 	}
-	return &apiError{cause: base, message: "ImageRouter generation failed"}
+	return &irError{cause: base, message: irGenerationFailedText}
 }
 
-func (c *Client) fetchImageURL(ctx context.Context, rawURL string) ([]byte, error) {
+func (c *imageRouterClient) fetchImageURL(ctx context.Context, rawURL string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("imagerouter: build image download request: %w", err)
@@ -330,7 +312,7 @@ func (c *Client) fetchImageURL(ctx context.Context, rawURL string) ([]byte, erro
 	return downloaded, nil
 }
 
-func detectImageUpload(imageData []byte) (filename string, contentType string, err error) {
+func detectIRImageUpload(imageData []byte) (filename string, contentType string, err error) {
 	if len(imageData) == 0 {
 		return "", "", errors.New("imagerouter: source image is empty")
 	}
@@ -352,7 +334,7 @@ func detectImageUpload(imageData []byte) (filename string, contentType string, e
 	}
 }
 
-func (c *Client) shouldRetryWithoutFreeSuffix(statusCode int, model, payload string) bool {
+func (c *imageRouterClient) shouldRetryWithoutFreeSuffix(statusCode int, model, payload string) bool {
 	if !c.retryPaidOnFreeLimit429 {
 		return false
 	}
@@ -366,4 +348,91 @@ func (c *Client) shouldRetryWithoutFreeSuffix(statusCode int, model, payload str
 	lowerPayload := strings.ToLower(payload)
 	return strings.Contains(lowerPayload, "remove \":free\"") ||
 		(strings.Contains(lowerPayload, "free requests reached") && strings.Contains(lowerPayload, "daily limit"))
+}
+
+// --- Provider implementation ---
+
+type imageRouterProvider struct {
+	client     *imageRouterClient
+	apiKey     string
+	keySource  KeySource
+	configured bool
+}
+
+// NewImageRouterProvider returns a Provider backed by imagerouter.io.
+// Pass apiKey="" and keySource="none" when not configured;
+// the provider will be registered but skipped by the resolver.
+func NewImageRouterProvider(apiKey string, keySource KeySource, retryPaidOnFreeLimit bool) Provider {
+	return newImageRouterProviderWithBaseURL(apiKey, keySource, retryPaidOnFreeLimit, imageRouterDefaultBaseURL)
+}
+
+// NewImageRouterProviderForTest constructs an imageRouterProvider with a custom base URL,
+// allowing tests to point at a local [httptest.Server] without a package-level mutable var.
+func NewImageRouterProviderForTest(
+	apiKey string,
+	keySource KeySource,
+	retryPaidOnFreeLimit bool,
+	baseURL string,
+) Provider {
+	return newImageRouterProviderWithBaseURL(apiKey, keySource, retryPaidOnFreeLimit, baseURL)
+}
+
+func newImageRouterProviderWithBaseURL(
+	apiKey string,
+	keySource KeySource,
+	retryPaidOnFreeLimit bool,
+	baseURL string,
+) Provider {
+	configured := apiKey != ""
+	return &imageRouterProvider{
+		client:     newImageRouterClient(apiKey, baseURL, retryPaidOnFreeLimit),
+		apiKey:     apiKey,
+		keySource:  keySource,
+		configured: configured,
+	}
+}
+
+func (p *imageRouterProvider) ID() ProviderID { return ProviderImageRouter }
+
+func (p *imageRouterProvider) Capabilities() Capability {
+	return CapBgRemove | CapImageToImage
+}
+
+func (p *imageRouterProvider) IsConfigured() bool   { return p.configured }
+func (p *imageRouterProvider) KeySource() KeySource { return p.keySource }
+
+func (p *imageRouterProvider) BgRemove(ctx context.Context, imageData []byte, model string) ([]byte, error) {
+	return p.client.bgRemove(ctx, imageData, model)
+}
+
+func (p *imageRouterProvider) Transform(ctx context.Context, imageData []byte, prompt, model string) ([]byte, error) {
+	return p.client.transform(ctx, imageData, prompt, model)
+}
+
+func (p *imageRouterProvider) ValidateKey(ctx context.Context) error {
+	return p.client.validate(ctx)
+}
+
+func (p *imageRouterProvider) ListModels(ctx context.Context) ([]Model, error) {
+	const cacheKey = string(ProviderImageRouter)
+	if cached, ok := modelCache.Get(cacheKey); ok {
+		return cached, nil
+	}
+
+	irModels, err := fetchImageRouterModels(ctx, p.apiKey, p.client.baseURL)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Model, len(irModels))
+	for i, m := range irModels {
+		out[i] = Model{
+			ID:            m.ID,
+			Name:          m.Name,
+			ProviderID:    ProviderImageRouter,
+			PricePerImage: m.PricePerImage,
+			Capabilities:  m.Capabilities,
+		}
+	}
+	modelCache.Set(cacheKey, out, 0)
+	return out, nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/repository"
 	"damask/server/internal/service"
 	"damask/server/internal/workflow"
@@ -159,7 +160,7 @@ func newWorkspaceManager(svc service.WorkspaceService) workflow.WorkspaceManager
 }
 
 func (a workspaceAdapter) GetImageRouterKeyStatus(ctx context.Context, workspaceID string) (bool, error) {
-	status, err := a.svc.GetImageRouterKeyStatus(ctx, workspaceID)
+	status, err := a.svc.GetAIProviderKeyStatus(ctx, workspaceID, string(ai.ProviderImageRouter))
 	if err != nil {
 		return false, err
 	}

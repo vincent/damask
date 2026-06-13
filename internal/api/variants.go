@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/events"
@@ -370,7 +371,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not load current version")
 	}
 
-	irStatus, err := s.workspace.GetImageRouterKeyStatus(c.Context(), claims.WorkspaceID)
+	irStatus, err := s.workspace.GetAIProviderKeyStatus(c.Context(), claims.WorkspaceID, string(ai.ProviderImageRouter))
 	if err != nil {
 		return ErrorStatusResponse(c, err)
 	}

@@ -58,7 +58,7 @@ coverage:
 	    } \
 	    END { for(i=1;i<=n;i++) print order[i], hit[order[i]] }' \
 	  >> coverage/merged.out
-	@grep -vE '^(damask/server/internal/db/gen|damask/server/internal/docs|damask/server/internal/testutil|damask/server/internal/testhelpers|damask/server/internal/repository/memory|damask/server/cmd/server/web/node_modules)/' \
+	@grep -vE '^(damask/server/internal/admin|damask/server/internal/db/gen|damask/server/internal/docs|damask/server/internal/testutil|damask/server/internal/testhelpers|damask/server/internal/repository/memory|damask/server/cmd/server/web/node_modules)/' \
 	  coverage/merged.out > coverage/merged.filtered.out && mv coverage/merged.filtered.out coverage/merged.out
 	go tool cover -html=coverage/merged.out -o coverage/report.html
 	@go tool cover -func=coverage/merged.out | tail -1

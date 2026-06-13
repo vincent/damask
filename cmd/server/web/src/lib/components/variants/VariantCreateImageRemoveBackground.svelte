@@ -1,12 +1,13 @@
 <script lang="ts">
   import { m } from '$lib/paraglide/messages'
-  import { type Asset, type ImageRouterModelsResponse } from '$lib/api'
+  import { type Asset } from '$lib/api'
   import { generateDraft } from '$lib/api/drafts'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import ImageRouterModelSelect from './ImageRouterModelSelect.svelte'
+  import AIModelSelect from './AIModelSelect.svelte'
   import VariantDraftSession from './VariantDraftSession.svelte'
+  import type { AIProvider, ProviderId } from '$lib/api/ai_providers'
 
   interface Props {
     asset: Asset
@@ -22,6 +23,7 @@
   const kind = 'image_bg_remove'
   let phase = $state<Phase>('form')
   let model = $state('')
+  let provider = $state<ProviderId>('imagerouter')
   let defaultModelId = $state('')
   let configured = $state(true)
   let submitting = $state(false)
@@ -29,16 +31,16 @@
     undefined
   )
 
-  function handleModelsLoaded(res: ImageRouterModelsResponse) {
-    configured = res.configured
-    defaultModelId = res.default_bg_remove_model
-    if (!model) model = res.default_bg_remove_model
+  function handleModelsLoaded(res: AIProvider | undefined) {
+    configured = !!res?.configured
+    // defaultModelId = res?.default_bg_remove_model
+    if (!model) model = res?.models.find((m) => m.name.match(/bg/))?.name ?? ''
   }
 
   async function handlePreview() {
     submitting = true
     try {
-      const res = await generateDraft(asset.id, kind, { model })
+      const res = await generateDraft(asset.id, kind, { model, provider })
       if (onDraftStarted) {
         onDraftStarted(res.draft_key)
       } else {
@@ -76,7 +78,8 @@
       <p class="notice-body">{m.image_bg_remove_description()}</p>
     </div>
 
-    <ImageRouterModelSelect
+    <AIModelSelect
+      bind:selectedProviderName={provider}
       bind:value={model}
       {defaultModelId}
       disabled={submitting}

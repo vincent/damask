@@ -125,11 +125,11 @@ func (r *WorkspaceRepo) Update(_ context.Context, _ repository.Workspace) (repos
 func (r *WorkspaceRepo) UpdateLockedTaxonomy(_ context.Context, _ string, _ bool) (repository.Workspace, error) {
 	panic("memory: WorkspaceRepo.UpdateLockedTaxonomy not implemented")
 }
-func (r *WorkspaceRepo) GetImageRouterKey(_ context.Context, _ string) (string, error) {
-	return "", nil // sentinel: empty key
+func (r *WorkspaceRepo) GetAIProviderKey(_ context.Context, _, _ string) (string, error) {
+	return "", nil
 }
-func (r *WorkspaceRepo) SetImageRouterKey(_ context.Context, _, _ string) error { return nil }
-func (r *WorkspaceRepo) ClearImageRouterKey(_ context.Context, _ string) error  { return nil }
+func (r *WorkspaceRepo) SetAIProviderKey(_ context.Context, _, _, _ string) error { return nil }
+func (r *WorkspaceRepo) ClearAIProviderKey(_ context.Context, _, _ string) error  { return nil }
 func (r *WorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) {
 	return 0, nil // sentinel
 }

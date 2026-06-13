@@ -32,3 +32,31 @@ func TestToSlug(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSubaddress(t *testing.T) {
+	tests := []struct {
+		name      string
+		localPart string
+		token     string
+		tag       string
+	}{
+		{
+			"happy path",
+			"ws_abc123+brand-assets",
+			"ws_abc123",
+			"brand-assets",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got2 := slug.ParseSubaddress(tt.localPart)
+			// TODO: update the condition below to compare got with tt.want.
+			if got != tt.token {
+				t.Errorf("ParseSubaddress() = %v, want %v", got, tt.token)
+			}
+			if got2 != tt.tag {
+				t.Errorf("ParseSubaddress() = %v, want %v", got2, tt.tag)
+			}
+		})
+	}
+}

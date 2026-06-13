@@ -1,22 +1,34 @@
 -- name: CreateWorkspace :one
-INSERT INTO workspaces (id, name, created_at, updated_at)
-VALUES (?, ?, datetime('now'), datetime('now'))
+INSERT INTO workspaces
+  (id, name, created_at, updated_at)
+VALUES
+  (?, ?, datetime('now'), datetime('now'))
 RETURNING *;
 
 -- name: GetWorkspaceByID :one
-SELECT * FROM workspaces WHERE id = ? LIMIT 1;
-
--- name: GetWorkspaceImageRouterKey :one
-SELECT imagerouter_api_key_enc
+SELECT *
 FROM workspaces
-WHERE id = ?
+WHERE id = ? LIMIT 1;
+
+-- name: GetWorkspaceAIProviderKey :one
+SELECT CASE
+    WHEN  @provider_name = 'imagerouter'  THEN COALESCE(imagerouter_api_key_enc, '')
+    WHEN  @provider_name = 'openrouter'   THEN COALESCE(openrouter_api_key_enc, '')
+    ELSE ''
+END AS api_key_enc
+FROM workspaces
+WHERE id = ?1
 LIMIT 1;
 
 -- name: ListWorkspacesWithRetention :many
-SELECT * FROM workspaces WHERE version_retention_count > 0;
+SELECT *
+FROM workspaces
+WHERE version_retention_count > 0;
 
 -- name: GetWorkspaceByIconAsset :one
-SELECT * FROM workspaces WHERE icon_asset_id = ? AND id = ? LIMIT 1;
+SELECT *
+FROM workspaces
+WHERE icon_asset_id = ? AND id = ? LIMIT 1;
 
 -- name: UpdateWorkspaceVersionRetention :exec
 UPDATE workspaces SET version_retention_count = ?, updated_at = datetime('now') WHERE id = ?;
@@ -27,21 +39,24 @@ UPDATE workspaces SET exif_keep = ?, exif_keep_gps = ?, updated_at = datetime('n
 -- name: UpdateWorkspaceLockedTaxonomy :exec
 UPDATE workspaces SET locked_taxonomy = ?, updated_at = datetime('now') WHERE id = ?;
 
--- name: SetWorkspaceImageRouterKey :exec
+-- name: SetWorkspaceAIProviderKey :exec
 UPDATE workspaces
-SET imagerouter_api_key_enc = ?, updated_at = datetime('now')
+SET
+  openrouter_api_key_enc =  CASE WHEN  @provider_name = 'openrouter'  THEN @value ELSE openrouter_api_key_enc  END,
+  imagerouter_api_key_enc = CASE WHEN  @provider_name = 'imagerouter' THEN @value ELSE imagerouter_api_key_enc END,
+  updated_at = datetime('now')
 WHERE id = ?;
 
--- name: ClearWorkspaceImageRouterKey :exec
-UPDATE workspaces
-SET imagerouter_api_key_enc = NULL, updated_at = datetime('now')
-WHERE id = ?;
 
 -- name: CountWorkspaceAssets :one
-SELECT COUNT(*) FROM assets WHERE workspace_id = ?;
+SELECT COUNT(*)
+FROM assets
+WHERE workspace_id = ?;
 
 -- name: GetWorkspaceStorageLimitBytes :one
-SELECT storage_limit_bytes FROM workspaces WHERE id = ?;
+SELECT storage_limit_bytes
+FROM workspaces
+WHERE id = ?;
 
 -- name: GetWorkspaceStorageVersionsBytes :one
 SELECT COALESCE(SUM(av.size), 0) AS total
@@ -67,9 +82,9 @@ SELECT
   COALESCE(SUM(av.size), 0)                              AS versions_bytes,
   COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)        AS variants_bytes
 FROM asset_versions av
-JOIN assets a ON a.id = av.asset_id
-LEFT JOIN projects p ON p.id = a.project_id
-LEFT JOIN (
+  JOIN assets a ON a.id = av.asset_id
+  LEFT JOIN projects p ON p.id = a.project_id
+  LEFT JOIN (
   SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
   FROM variants vv
   WHERE vv.workspace_id = ? AND vv.size IS NOT NULL
@@ -81,7 +96,7 @@ GROUP BY a.project_id, asset_type;
 -- name: GetFolderCountsByProject :many
 SELECT a.project_id, COUNT(DISTINCT a.folder_id) AS folder_count
 FROM assets a
-JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
+  JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
 WHERE a.workspace_id = ?
 GROUP BY a.project_id;
 
@@ -92,9 +107,9 @@ SELECT
   COALESCE(SUM(av.size), 0)                                 AS versions_bytes,
   COALESCE(SUM(COALESCE(vs.variant_bytes, 0)), 0)           AS variants_bytes
 FROM asset_versions av
-JOIN assets a ON a.id = av.asset_id
-LEFT JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
-LEFT JOIN (
+  JOIN assets a ON a.id = av.asset_id
+  LEFT JOIN folders f ON f.id = a.folder_id AND f.project_id = a.project_id
+  LEFT JOIN (
   SELECT vv.asset_version_id, SUM(vv.size) AS variant_bytes
   FROM variants vv
   WHERE vv.workspace_id = ? AND vv.size IS NOT NULL

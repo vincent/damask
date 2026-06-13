@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"damask/server/internal/config"
-	"damask/server/internal/imagerouter"
+	"damask/server/internal/ai"
 	"damask/server/internal/jobs"
 	th "damask/server/internal/testhelpers"
 )
@@ -46,7 +46,7 @@ func startFakeImageRouter(t *testing.T, outputPNG []byte, statusCode int) (*http
 			"data": []map[string]string{{"b64_json": base64.StdEncoding.EncodeToString(outputPNG)}},
 		})
 	}))
-	restore := imagerouter.SetBaseURLForTest(srv.URL + "/v1")
+	restore := ai.SetImageRouterBaseURLForTest(srv.URL + "/v1")
 	return srv, func() {
 		restore()
 		srv.Close()

@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/api"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
@@ -17,7 +18,6 @@ import (
 	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
-	"damask/server/internal/imagerouter"
 	"damask/server/internal/ingress"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
@@ -159,7 +159,7 @@ func main() {
 
 	// --- services ---
 	auditWriter := audit.New(sqlDB)
-	resolveImageRouterKey := imagerouter.NewKeyResolver(workspaceRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	aiAPIKeyResolver := ai.NewKeyResolver(workspaceRepo, *cfg)
 	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
@@ -179,7 +179,12 @@ func main() {
 	assetSvc := service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q)
 	assetFieldSvc := service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter)
 	shareSvc := service.NewShareService(reposqlc.NewShareRepo(queries, sqlDB), auditWriter)
-	workspaceSvc := service.NewWorkspaceService(workspaceRepo, userRepo, cfg.AppSecret, cfg.ImageRouter.APIKey)
+	workspaceSvc := service.NewWorkspaceService(
+		workspaceRepo,
+		userRepo,
+		cfg.AppSecret,
+		aiAPIKeyResolver,
+	)
 	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
 	exifSvc := service.NewExifService(queries, stor)
 	textTrackSvc := service.NewTextTrackService(queries, q, stor)
@@ -216,7 +221,9 @@ func main() {
 		tmb,
 		cfg,
 		ingester,
-		resolveImageRouterKey,
+		aiAPIKeyResolver,
+		ai.NewProvider,
+		workspaceRepo,
 		workflowExec,
 		exportSvc,
 		exifSvc,

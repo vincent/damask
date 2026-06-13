@@ -12,7 +12,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"damask/server/internal/imagerouter"
 	th "damask/server/internal/testhelpers"
 )
 
@@ -36,10 +35,10 @@ func TestImageBgRemoveJobCreatesVariantAndThumbnail(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	restore := imagerouter.SetBaseURLForTest(srv.URL + "/v1")
-	defer restore()
-
-	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	env := th.SetupTestApp(t,
+		th.WithImageRouterAPIKey("test-key"),
+		th.WithImageRouterBaseURL(srv.URL+"/v1"),
+	)
 	res := th.Register(t, env, "Worker User", "worker@test.com", "password123")
 	assetID := env.UploadTestAsset(t, res.Cookie)
 
@@ -80,10 +79,10 @@ func TestImageWithPromptJobFailureDoesNotCreateVariant(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	restore := imagerouter.SetBaseURLForTest(srv.URL + "/v1")
-	defer restore()
-
-	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	env := th.SetupTestApp(t,
+		th.WithImageRouterAPIKey("test-key"),
+		th.WithImageRouterBaseURL(srv.URL+"/v1"),
+	)
 	res := th.Register(t, env, "Worker User 2", "worker2@test.com", "password123")
 	assetID := env.UploadTestAsset(t, res.Cookie)
 
@@ -145,13 +144,11 @@ func TestImageWithPromptJobRetriesPaidModelWhenConfigured(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	restore := imagerouter.SetBaseURLForTest(srv.URL + "/v1")
-	defer restore()
-
 	env := th.SetupTestApp(
 		t,
 		th.WithImageRouterAPIKey("test-key"),
 		th.WithImageRouterRetryPaidOnFreeLimit(true),
+		th.WithImageRouterBaseURL(srv.URL+"/v1"),
 	)
 	res := th.Register(t, env, "Worker User 3", "worker3@test.com", "password123")
 	assetID := env.UploadTestAsset(t, res.Cookie)

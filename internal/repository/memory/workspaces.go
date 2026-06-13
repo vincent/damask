@@ -12,11 +12,14 @@ import (
 	"github.com/google/uuid"
 )
 
+const providerImageRouter = "imagerouter"
+
 // RealWorkspaceRepo is a map-backed WorkspaceRepository for unit tests.
 type RealWorkspaceRepo struct {
 	mu         sync.RWMutex
 	workspaces map[string]repository.Workspace
 	irKeys     map[string]string
+	orKeys     map[string]string
 	members    map[string]repository.Member // key: workspaceID+":"+userID
 	invites    map[string]repository.Invite // key: invite ID
 	userWS     map[string][]string          // userID -> []workspaceID
@@ -27,6 +30,7 @@ func NewRealWorkspaceRepo() *RealWorkspaceRepo {
 	return &RealWorkspaceRepo{
 		workspaces: make(map[string]repository.Workspace),
 		irKeys:     make(map[string]string),
+		orKeys:     make(map[string]string),
 		members:    make(map[string]repository.Member),
 		invites:    make(map[string]repository.Invite),
 		userWS:     make(map[string][]string),
@@ -93,32 +97,43 @@ func (r *RealWorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, err
 	return 0, nil
 }
 
-func (r *RealWorkspaceRepo) GetImageRouterKey(_ context.Context, workspaceID string) (string, error) {
+func (r *RealWorkspaceRepo) GetAIProviderKey(_ context.Context, workspaceID, providerName string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if _, ok := r.workspaces[workspaceID]; !ok {
 		return "", fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
 	}
-	return r.irKeys[workspaceID], nil
+	if providerName == providerImageRouter {
+		return r.irKeys[workspaceID], nil
+	}
+	return r.orKeys[workspaceID], nil
 }
 
-func (r *RealWorkspaceRepo) SetImageRouterKey(_ context.Context, workspaceID, encKey string) error {
+func (r *RealWorkspaceRepo) SetAIProviderKey(_ context.Context, workspaceID, providerName, encKey string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.workspaces[workspaceID]; !ok {
 		return fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
 	}
-	r.irKeys[workspaceID] = encKey
+	if providerName == providerImageRouter {
+		r.irKeys[workspaceID] = encKey
+	} else {
+		r.orKeys[workspaceID] = encKey
+	}
 	return nil
 }
 
-func (r *RealWorkspaceRepo) ClearImageRouterKey(_ context.Context, workspaceID string) error {
+func (r *RealWorkspaceRepo) ClearAIProviderKey(_ context.Context, workspaceID, providerName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.workspaces[workspaceID]; !ok {
 		return fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
 	}
-	delete(r.irKeys, workspaceID)
+	if providerName == providerImageRouter {
+		delete(r.irKeys, workspaceID)
+	} else {
+		delete(r.orKeys, workspaceID)
+	}
 	return nil
 }
 

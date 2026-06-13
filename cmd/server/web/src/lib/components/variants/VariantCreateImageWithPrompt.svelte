@@ -1,12 +1,13 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
-  import { type Asset, type ImageRouterModelsResponse } from '$lib/api'
+  import { type Asset } from '$lib/api'
   import { generateDraft } from '$lib/api/drafts'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
-  import ImageRouterModelSelect from './ImageRouterModelSelect.svelte'
+  import AIModelSelect from './AIModelSelect.svelte'
   import VariantDraftSession from './VariantDraftSession.svelte'
+  import type { AIProvider, ProviderId } from '$lib/api/ai_providers'
 
   interface Props {
     asset: Asset
@@ -24,6 +25,7 @@
   let phase = $state<Phase>('form')
   let prompt = $state('')
   let model = $state('')
+  let provider = $state<ProviderId>('imagerouter')
   let modelsMulti = $state<string[]>([])
   let defaultModelId = $state('')
   let configured = $state(true)
@@ -32,10 +34,10 @@
     undefined
   )
 
-  function handleModelsLoaded(res: ImageRouterModelsResponse) {
-    configured = res.configured
-    defaultModelId = res.default_model
-    if (!model) model = res.default_model
+  function handleModelsLoaded(res: AIProvider | undefined) {
+    configured = !!res?.configured
+    // defaultModelId = res?.default_bg_remove_model
+    if (!model) model = res?.models.find(Boolean)?.name ?? ''
   }
 
   async function handlePreview() {
@@ -45,6 +47,7 @@
       for (const target of targets) {
         const res = await generateDraft(asset.id, kind, {
           prompt: prompt.trim(),
+          provider: provider,
           model: target,
         })
         if (onDraftStarted) {
@@ -100,8 +103,9 @@
       ></textarea>
     </div>
 
-    <ImageRouterModelSelect
+    <AIModelSelect
       bind:value={model}
+      bind:selectedProviderName={provider}
       bind:values={modelsMulti}
       {defaultModelId}
       disabled={submitting}

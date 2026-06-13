@@ -142,6 +142,37 @@
                 }
             }
         },
+        "/api/v1/aiproviders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all supported AI providers and their configuration status for the current workspace, including available models and capabilities.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AIProviders"
+                ],
+                "summary": "List AI providers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.AIProvidersListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/assets": {
             "get": {
                 "security": [
@@ -3417,36 +3448,6 @@
                 }
             }
         },
-        "/api/v1/imagerouter/models": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ImageRouter"
-                ],
-                "summary": "List available image router models",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/api.ImageRouterModelsResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/ingress/log": {
             "get": {
                 "security": [
@@ -6014,25 +6015,187 @@
                 }
             }
         },
-        "/api/v1/workspace/settings/imagerouter": {
+        "/api/v1/workspace/settings/aiproviders/{provider}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "description": "Returns whether an API key is configured for the given provider and its source (workspace or environment).",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Workspace"
+                    "AIProviders"
                 ],
-                "summary": "Get ImageRouter key status",
+                "summary": "Get AI provider key status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID (e.g. openrouter)",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.WorkspaceImageRouterStatusResponse"
+                            "$ref": "#/definitions/api.AIProviderKeyStatusResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stores an API key for the given provider at workspace scope, overriding any environment-level key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AIProviders"
+                ],
+                "summary": "Set AI provider API key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "API key",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.UpdateAIProviderKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes the workspace-scoped API key for the given provider. Falls back to environment key if one exists.",
+                "tags": [
+                    "AIProviders"
+                ],
+                "summary": "Clear AI provider API key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/workspace/settings/aiproviders/{provider}/test": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Validates the configured API key for the given provider by making a live request. Returns 422 if the key is missing or rejected.",
+                "tags": [
+                    "AIProviders"
+                ],
+                "summary": "Test AI provider API key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "provider",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Key invalid or unreachable",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -7233,6 +7396,98 @@
         }
     },
     "definitions": {
+        "api.AIProviderKeyStatusResponse": {
+            "type": "object",
+            "required": [
+                "key_set",
+                "source"
+            ],
+            "properties": {
+                "key_set": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AIProviderModelResponse": {
+            "type": "object",
+            "required": [
+                "capabilities",
+                "id",
+                "name",
+                "price_per_image",
+                "provider_id"
+            ],
+            "properties": {
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price_per_image": {
+                    "type": "number"
+                },
+                "provider_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.AIProviderStatusResponse": {
+            "type": "object",
+            "required": [
+                "capabilities",
+                "configured",
+                "id",
+                "key_source",
+                "models"
+            ],
+            "properties": {
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "configured": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key_source": {
+                    "type": "string"
+                },
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.AIProviderModelResponse"
+                    }
+                }
+            }
+        },
+        "api.AIProvidersListResponse": {
+            "type": "object",
+            "required": [
+                "providers"
+            ],
+            "properties": {
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.AIProviderStatusResponse"
+                    }
+                }
+            }
+        },
         "api.AcceptInviteRequest": {
             "type": "object",
             "required": [
@@ -8311,55 +8566,6 @@
                 }
             }
         },
-        "api.ImageRouterModel": {
-            "type": "object",
-            "required": [
-                "id",
-                "name",
-                "price_per_image",
-                "provider"
-            ],
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price_per_image": {
-                    "type": "number"
-                },
-                "provider": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.ImageRouterModelsResponse": {
-            "type": "object",
-            "required": [
-                "configured",
-                "default_bg_remove_model",
-                "default_model",
-                "models"
-            ],
-            "properties": {
-                "configured": {
-                    "type": "boolean"
-                },
-                "default_bg_remove_model": {
-                    "type": "string"
-                },
-                "default_model": {
-                    "type": "string"
-                },
-                "models": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api.ImageRouterModel"
-                    }
-                }
-            }
-        },
         "api.IngressLogResponse": {
             "type": "object",
             "required": [
@@ -9213,6 +9419,17 @@
                 }
             }
         },
+        "api.UpdateAIProviderKeyRequest": {
+            "type": "object",
+            "required": [
+                "key"
+            ],
+            "properties": {
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
         "api.UpdateAssetFolderRequest": {
             "type": "object",
             "required": [
@@ -9883,21 +10100,6 @@
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.WorkspaceImageRouterStatusResponse": {
-            "type": "object",
-            "required": [
-                "key_set",
-                "source"
-            ],
-            "properties": {
-                "key_set": {
-                    "type": "boolean"
-                },
-                "source": {
                     "type": "string"
                 }
             }

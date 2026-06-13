@@ -213,7 +213,7 @@ func (s *Server) handleResetPassword(c fiber.Ctx) error {
 	if claims.Purpose != auth.PurposePasswordReset {
 		return errRes(c, fiber.StatusBadRequest, "invalid_or_expired_token")
 	}
-	hash, err := bcryptHash(req.Password)
+	hash, err := s.bcryptHash(req.Password)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}
@@ -231,7 +231,7 @@ func (s *Server) handleChangePassword(c fiber.Ctx) error {
 	if !ok {
 		return nil
 	}
-	hash, err := bcryptHash(req.NewPassword)
+	hash, err := s.bcryptHash(req.NewPassword)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}

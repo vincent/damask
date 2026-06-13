@@ -430,6 +430,7 @@ type Workspace struct {
 	Name                     string    `json:"name"`
 	IngestToken              *string   `json:"ingest_token"`
 	ImagerouterApiKeyEnc     *string   `json:"imagerouter_api_key_enc"`
+	OpenrouterApiKeyEnc      *string   `json:"openrouter_api_key_enc"`
 	VersionRetentionCount    int64     `json:"version_retention_count"`
 	EventLogRetentionDays    int64     `json:"event_log_retention_days"`
 	DownloadLogRetentionDays int64     `json:"download_log_retention_days"`

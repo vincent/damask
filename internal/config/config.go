@@ -51,6 +51,25 @@ type ImageRouterConfig struct {
 	RetryPaidOnFreeLimit bool
 }
 
+// OpenRouterConfig holds credentials and default model selection for the
+// openrouter.ai API.
+type OpenRouterConfig struct {
+	APIKey         string
+	DefaultModel   string
+	DefaultBgModel string
+}
+
+// IsConfigured reports whether an OpenRouter API key is set.
+func (c OpenRouterConfig) IsConfigured() bool { return c.APIKey != "" }
+
+func loadOpenRouterConfig() OpenRouterConfig {
+	return OpenRouterConfig{
+		APIKey:         os.Getenv("OPENROUTER_API_KEY"),
+		DefaultModel:   getEnv("OPENROUTER_DEFAULT_MODEL", "openai/dall-e-2"),
+		DefaultBgModel: getEnv("OPENROUTER_DEFAULT_BG_REMOVE_MODEL", "stability-ai/stable-diffusion-xl-refiner"),
+	}
+}
+
 type FFmpegConfig struct {
 	Path    string
 	HWAccel string
@@ -90,6 +109,7 @@ type Config struct {
 	Canva  CanvaConfig
 
 	ImageRouter ImageRouterConfig
+	OpenRouter  OpenRouterConfig
 	FFmpeg      FFmpegConfig
 	Scratch     ScratchConfig
 
@@ -201,6 +221,7 @@ func Load() (*Config, error) {
 				true,
 			),
 		},
+		OpenRouter: loadOpenRouterConfig(),
 		FFmpeg: FFmpegConfig{
 			Path:    strings.TrimSpace(os.Getenv("FFMPEG_PATH")),
 			HWAccel: strings.ToLower(strings.TrimSpace(os.Getenv("FFMPEG_HW_ACCEL"))),

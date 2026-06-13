@@ -543,7 +543,7 @@ func (s *Server) handleAcceptInvite(c fiber.Ctx) error {
 		return nil
 	}
 
-	hash, err := bcryptHash(req.Password)
+	hash, err := s.bcryptHash(req.Password)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not hash password")
 	}

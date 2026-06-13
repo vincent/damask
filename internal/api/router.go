@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
@@ -22,6 +23,8 @@ import (
 	"damask/server/internal/transform"
 	"damask/server/internal/visualsimilarity"
 	"damask/server/internal/workflow"
+
+	"golang.org/x/crypto/bcrypt"
 
 	swaggo "github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
@@ -69,6 +72,7 @@ type Server struct {
 	workflows           service.WorkflowService
 	storageSvc          service.StorageService
 	visualSimilaritySvc *visualsimilarity.Service
+	bcryptCost          int
 }
 
 func NewHTTPServer(
@@ -83,6 +87,7 @@ func NewHTTPServer(
 	cfg *config.Config,
 	demoSeeder DemoSeeder,
 	storageSvc service.StorageService,
+	bcryptCost int,
 ) *Server {
 	auditWriter := audit.New(sqlDB)
 	assetRepo := reposqlc.NewAssetRepo(queries, sqlDB)
@@ -173,13 +178,14 @@ func NewHTTPServer(
 			Triggers:   triggerDispatcher,
 			Invalidate: storageSvc,
 		}),
+		bcryptCost:          bcryptCost,
 		storageSvc:          storageSvc,
 		visualSimilaritySvc: visualsimilarity.NewService(queries, sqlDB),
 		workspace: service.NewWorkspaceService(
 			workspaceRepo,
 			userRepo,
 			cfg.AppSecret,
-			cfg.ImageRouter.APIKey,
+			ai.NewKeyResolver(workspaceRepo, *cfg),
 		),
 		workflows: service.NewWorkflowService(
 			workflowRepo,
@@ -219,7 +225,20 @@ func NewRouter(
 	uiFS fs.FS,
 	storageSvc service.StorageService,
 ) *fiber.App {
-	s := NewHTTPServer(queries, sqlDB, tokenMaker, stor, hub, q, mailer, trf, cfg, demoSeeder, storageSvc)
+	s := NewHTTPServer(
+		queries,
+		sqlDB,
+		tokenMaker,
+		stor,
+		hub,
+		q,
+		mailer,
+		trf,
+		cfg,
+		demoSeeder,
+		storageSvc,
+		bcrypt.DefaultCost,
+	)
 
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {
@@ -280,6 +299,9 @@ func NewRouter(
 		return auth.Role(member.Role), nil
 	}
 
+	// AI providers
+	api.Get("/aiproviders", s.handleListAIProviders)
+
 	// Workspace settings — owner only; blocked in demo mode
 	api.Put(
 		"/workspace/settings",
@@ -287,25 +309,45 @@ func NewRouter(
 		auth.RequireRole(getRoleFn, auth.Owner),
 		s.handleUpdateWorkspaceSettings,
 	)
+	// api.Get(
+	// 	"/workspace/settings/imagerouter",
+	// 	auth.RequireRole(getRoleFn, auth.Owner),
+	// 	s.handleGetWorkspaceImageRouterStatus,
+	// )
+	// api.Put(
+	// 	"/workspace/settings/imagerouter",
+	// 	auth.RequireRole(getRoleFn, auth.Owner),
+	// 	s.handlePutWorkspaceImageRouterKey,
+	// )
+	// api.Delete(
+	// 	"/workspace/settings/imagerouter",
+	// 	auth.RequireRole(getRoleFn, auth.Owner),
+	// 	s.handleDeleteWorkspaceImageRouterKey,
+	// )
+	// api.Post(
+	// 	"/workspace/settings/imagerouter/test",
+	// 	auth.RequireRole(getRoleFn, auth.Owner),
+	// 	s.handleTestWorkspaceImageRouterKey,
+	// )
 	api.Get(
-		"/workspace/settings/imagerouter",
+		"/workspace/settings/aiproviders/:provider",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handleGetWorkspaceImageRouterStatus,
+		s.handleGetAIProviderKeyStatus,
 	)
 	api.Put(
-		"/workspace/settings/imagerouter",
+		"/workspace/settings/aiproviders/:provider",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handlePutWorkspaceImageRouterKey,
+		s.handleSetAIProviderKey,
 	)
 	api.Delete(
-		"/workspace/settings/imagerouter",
+		"/workspace/settings/aiproviders/:provider",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handleDeleteWorkspaceImageRouterKey,
+		s.handleClearAIProviderKey,
 	)
 	api.Post(
-		"/workspace/settings/imagerouter/test",
+		"/workspace/settings/aiproviders/:provider/test",
 		auth.RequireRole(getRoleFn, auth.Owner),
-		s.handleTestWorkspaceImageRouterKey,
+		s.handleTestAIProviderKey,
 	)
 
 	// Generic job trigger — owner only
@@ -512,7 +554,6 @@ func NewRouter(
 	)
 
 	// Variants
-	api.Get("/imagerouter/models", s.handleListImageRouterModels)
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateVariant)
