@@ -519,11 +519,16 @@ export const stackApi = {
   /** POST /api/v1/stack/export — download stacked assets as a ZIP file. */
   exportZip: async (
     assetIds: string[],
-    filename = 'stack-export'
+    filename = 'stack-export',
+    variantMode?: 'none' | 'shared' | 'all'
   ): Promise<void> => {
     const res = await apiFetchRaw('/api/v1/stack/export', {
       method: 'POST',
-      body: JSON.stringify({ asset_ids: assetIds, filename }),
+      body: JSON.stringify({
+        asset_ids: assetIds,
+        filename,
+        variant_mode: variantMode,
+      }),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({ error: res.statusText }))

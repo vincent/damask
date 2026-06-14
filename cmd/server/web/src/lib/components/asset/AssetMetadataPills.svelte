@@ -1,8 +1,10 @@
 <script lang="ts">
   import { assetApi, formatBytes, type Asset } from '$lib/api'
-  import { Download } from '@lucide/svelte'
+  import { stackApi } from '$lib/api/client'
+  import { Download, ChevronDown } from '@lucide/svelte'
   import Badge from '$lib/components/ui/Badge.svelte'
   import { DOWNLOAD_BUTTON_COLORS } from '$lib/stores/assetView'
+  import { m } from '$lib/paraglide/messages'
 
   const typeLabel: Record<string, string> = {
     image: 'IMAGE',
@@ -24,6 +26,17 @@
       day: 'numeric',
       year: 'numeric',
     })
+  }
+
+  let details: HTMLDetailsElement | undefined = $state()
+
+  function closeDropdown() {
+    details?.removeAttribute('open')
+  }
+
+  async function downloadZip(variantMode: 'shared' | 'all') {
+    closeDropdown()
+    await stackApi.exportZip([asset.id], asset.original_filename, variantMode)
   }
 </script>
 
@@ -60,15 +73,46 @@
       {formatDate(asset.created_at)}
     </p>
   </div>
-  <!-- Download button -->
-  <a
-    href={assetApi.fileUrl(asset.id)}
-    download={asset.original_filename}
-    class="flex shrink-0 items-center justify-center rounded-xl p-2.5 text-white transition-colors {DOWNLOAD_BUTTON_COLORS[
-      category
-    ] ?? 'bg-indigo-600 hover:bg-indigo-700'}"
-    aria-label="Download original"
-  >
-    <Download class="h-4 w-4" />
-  </a>
+
+  <!-- Download dropdown -->
+  <details bind:this={details} class="group relative shrink-0">
+    <summary
+      class="flex cursor-pointer list-none items-center gap-0.5 rounded-xl p-2.5 text-white transition-colors {DOWNLOAD_BUTTON_COLORS[
+        category
+      ] ?? 'bg-indigo-600 hover:bg-indigo-700'}"
+      aria-label="Download options"
+    >
+      <Download class="h-4 w-4" />
+    </summary>
+
+    <div
+      class="absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900"
+    >
+      <a
+        href={assetApi.fileUrl(asset.id)}
+        download={asset.original_filename}
+        class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+        onclick={closeDropdown}
+      >
+        <Download class="h-3.5 w-3.5 shrink-0" />
+        {m.download_original()}
+      </a>
+      <button
+        type="button"
+        class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+        onclick={() => downloadZip('shared')}
+      >
+        <Download class="h-3.5 w-3.5 shrink-0" />
+        {m.with_shared_variants()}
+      </button>
+      <button
+        type="button"
+        class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+        onclick={() => downloadZip('all')}
+      >
+        <Download class="h-3.5 w-3.5 shrink-0" />
+        {m.with_all_variants()}
+      </button>
+    </div>
+  </details>
 </div>

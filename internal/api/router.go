@@ -157,7 +157,7 @@ func NewHTTPServer(
 		queue:         q,
 		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, variantRepo, mailer),
 		shares:        service.NewShareService(shareRepo, auditWriter),
-		stack:         service.NewStackService(assetRepo, versionRepo, stor, q),
+		stack:         service.NewStackService(assetRepo, versionRepo, variantRepo, stor, q),
 		storage:       stor,
 		tags:          tagSvc,
 		trf:           trf,

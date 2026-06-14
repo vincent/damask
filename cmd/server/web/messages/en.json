@@ -1173,5 +1173,9 @@
   "ai_provider": "Provider",
   "ai_model": "Model",
   "multi": "multi",
-  "ai_cannot_reload": "Could not refresh the model list. Using defaults."
+  "ai_cannot_reload": "Could not refresh the model list. Using defaults.",
+  "download_original": "Download original",
+  "with_shared_assets": "with shared assets",
+  "with_shared_variants": "with shared variants",
+  "with_all_variants": "with all variants"
 }

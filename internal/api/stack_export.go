@@ -51,7 +51,7 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 	)
 
 	workspaceID := claims.WorkspaceID
-	params := service.ExportZipParams{AssetIDs: body.AssetIDs, Filename: body.Filename}
+	params := service.ExportZipParams{AssetIDs: body.AssetIDs, Filename: body.Filename, VariantMode: body.VariantMode}
 
 	pr, pw := io.Pipe()
 	go func() { //nolint:gosec // writer only for stack export

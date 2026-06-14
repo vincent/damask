@@ -854,8 +854,9 @@ func (r *BulkPatchAssetFieldsRequest) Valid(_ context.Context) map[string]string
 // -- stack_export.go ----------------------------------------------------------
 
 type stackExportRequest struct {
-	AssetIDs []string `json:"asset_ids"`
-	Filename string   `json:"filename"`
+	AssetIDs    []string `json:"asset_ids"`
+	Filename    string   `json:"filename"`
+	VariantMode string   `json:"variant_mode"` // "" | "none" | "shared" | "all"
 }
 
 func (r *stackExportRequest) Valid(_ context.Context) map[string]string {
@@ -866,6 +867,11 @@ func (r *stackExportRequest) Valid(_ context.Context) map[string]string {
 	}
 	if len(r.AssetIDs) == 0 {
 		p["asset_ids"] = validationRequired
+	}
+	switch r.VariantMode {
+	case "", "none", "shared", "all":
+	default:
+		p["variant_mode"] = "must be one of: none, shared, all"
 	}
 	return p
 }

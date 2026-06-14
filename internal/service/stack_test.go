@@ -19,12 +19,13 @@ func newStackSvc(t *testing.T) (service.StackService, *memory.AssetRepo) {
 	t.Helper()
 	assetRepo := memory.NewAssetRepo()
 	versionRepo := memory.NewRealVersionRepo()
+	variantRepo := memory.NewRealVariantRepo()
 	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {
 		t.Fatalf("storage: %v", err)
 	}
 	// nil queue: EnqueueMerge tests that need the queue use their own setup
-	svc := service.NewStackService(assetRepo, versionRepo, stor, nil)
+	svc := service.NewStackService(assetRepo, versionRepo, variantRepo, stor, nil)
 	return svc, assetRepo
 }
 
@@ -68,7 +69,7 @@ func TestStackService_ExportZip_OK(t *testing.T) {
 	// (version not found) and produce a zip with _missing_files.txt.
 	// That is the expected behavior when no version row exists.
 	_ = stor
-	svc := service.NewStackService(assetRepo, memory.NewRealVersionRepo(), stor, nil)
+	svc := service.NewStackService(assetRepo, memory.NewRealVersionRepo(), memory.NewRealVariantRepo(), stor, nil)
 
 	var buf bytes.Buffer
 	err := svc.ExportZip(context.Background(), "ws_1", service.ExportZipParams{
@@ -159,7 +160,7 @@ func TestStackService_ExportZip_DuplicateFilenames(t *testing.T) {
 		t.Fatalf("stor.Put key2: %v", err)
 	}
 
-	svc := service.NewStackService(assetRepo, versionRepo, stor, nil)
+	svc := service.NewStackService(assetRepo, versionRepo, memory.NewRealVariantRepo(), stor, nil)
 
 	var buf bytes.Buffer
 	if err := svc.ExportZip(context.Background(), "ws_1", service.ExportZipParams{
@@ -193,7 +194,7 @@ func TestStackService_ExportZip_FilenameDefault(t *testing.T) {
 	assetRepo := memory.NewAssetRepo()
 	stor, _ := storage.NewAferoMemoryStorage()
 	assetRepo.Seed(repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", OriginalFilename: "f.jpg"})
-	svc := service.NewStackService(assetRepo, memory.NewRealVersionRepo(), stor, nil)
+	svc := service.NewStackService(assetRepo, memory.NewRealVersionRepo(), memory.NewRealVariantRepo(), stor, nil)
 
 	var buf bytes.Buffer
 	err := svc.ExportZip(context.Background(), "ws_1", service.ExportZipParams{
