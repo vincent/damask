@@ -4555,6 +4555,8 @@ export interface definitions {
   readonly "api.stackExportRequest": {
     readonly asset_ids: readonly string[];
     readonly filename: string;
+    /** @description "" | "none" | "shared" | "all" */
+    readonly variant_mode: string;
   };
   readonly "api.stackMergeRequest": {
     readonly asset_ids: readonly string[];

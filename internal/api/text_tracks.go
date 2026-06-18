@@ -11,7 +11,7 @@ import (
 
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
-	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
 	"github.com/gofiber/fiber/v3"
@@ -90,12 +90,12 @@ func textTrackDTOToResponse(dto service.TextTrackDTO, truncate bool) TextTrackRe
 func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
-	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.list",
+	ctx, span := telemetry.StartSpan(c.Context(), "api.text_tracks.list",
 		attribute.String("damask.workspace_id", claims.WorkspaceID),
 		attribute.String("damask.asset_id", assetID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -110,9 +110,9 @@ func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 		}
 	}()
 
-	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.list.load_asset")
+	assetCtx, assetSpan := telemetry.StartSpan(ctx, "api.text_tracks.list.load_asset")
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
-		apptelemetry.EndSpan(assetSpan, loadErr)
+		telemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
 		slog.ErrorContext(
 			ctx,
@@ -127,11 +127,11 @@ func (s *Server) handleListTextTracks(c fiber.Ctx) (err error) {
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
-	apptelemetry.EndSpan(assetSpan, nil)
+	telemetry.EndSpan(assetSpan, nil)
 
-	listCtx, listSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.list.fetch_tracks")
+	listCtx, listSpan := telemetry.StartSpan(ctx, "api.text_tracks.list.fetch_tracks")
 	tracks, err := s.textTracks.List(listCtx, claims.WorkspaceID, assetID)
-	apptelemetry.EndSpan(listSpan, err)
+	telemetry.EndSpan(listSpan, err)
 	if err != nil {
 		span.RecordError(err)
 		slog.ErrorContext(
@@ -171,13 +171,13 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	trackID := c.Params("tid")
-	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.get",
+	ctx, span := telemetry.StartSpan(c.Context(), "api.text_tracks.get",
 		attribute.String("damask.workspace_id", claims.WorkspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.text_track_id", trackID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -194,9 +194,9 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 		}
 	}()
 
-	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.get.load_asset")
+	assetCtx, assetSpan := telemetry.StartSpan(ctx, "api.text_tracks.get.load_asset")
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
-		apptelemetry.EndSpan(assetSpan, loadErr)
+		telemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
 		slog.ErrorContext(
 			ctx,
@@ -213,11 +213,11 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
-	apptelemetry.EndSpan(assetSpan, nil)
+	telemetry.EndSpan(assetSpan, nil)
 
-	trackCtx, trackSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.get.fetch_track")
+	trackCtx, trackSpan := telemetry.StartSpan(ctx, "api.text_tracks.get.fetch_track")
 	track, err := s.textTracks.Get(trackCtx, claims.WorkspaceID, trackID)
-	apptelemetry.EndSpan(trackSpan, err)
+	telemetry.EndSpan(trackSpan, err)
 	if err != nil {
 		span.RecordError(err)
 		slog.ErrorContext(
@@ -261,12 +261,12 @@ func (s *Server) handleGetTextTrack(c fiber.Ctx) (err error) {
 func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
-	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.create",
+	ctx, span := telemetry.StartSpan(c.Context(), "api.text_tracks.create",
 		attribute.String("damask.workspace_id", claims.WorkspaceID),
 		attribute.String("damask.asset_id", assetID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -281,9 +281,9 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 		}
 	}()
 
-	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.load_asset")
+	assetCtx, assetSpan := telemetry.StartSpan(ctx, "api.text_tracks.create.load_asset")
 	asset, assetErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID)
-	apptelemetry.EndSpan(assetSpan, assetErr)
+	telemetry.EndSpan(assetSpan, assetErr)
 	if assetErr != nil {
 		span.RecordError(assetErr)
 		slog.ErrorContext(
@@ -332,11 +332,7 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 			params,
 			&createParams,
 		); err != nil {
-			var ve *ocrValidationError
-			if errors.As(err, &ve) {
-				return errRes(c, ve.status, ve.msg)
-			}
-			return err
+			return validationErrRes(c, err)
 		}
 	case "manual":
 		content, _ := params["content"].(string)
@@ -359,13 +355,26 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 			transform.IsDocumentMime, "asset is not a supported document type", true, params); err != nil {
 			return err
 		}
+	case "ai_image_description":
+		if err = s.prepareAIImageDescriptionParams(
+			ctx,
+			c,
+			claims.WorkspaceID,
+			assetID,
+			asset,
+			body.Lang,
+			params,
+			&createParams,
+		); err != nil {
+			return validationErrRes(c, err)
+		}
 	default:
 		return errRes(c, fiber.StatusUnprocessableEntity, "unsupported_source")
 	}
 
-	createCtx, createSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.persist")
+	createCtx, createSpan := telemetry.StartSpan(ctx, "api.text_tracks.create.persist")
 	track, err := s.textTracks.Create(createCtx, createParams)
-	apptelemetry.EndSpan(createSpan, err)
+	telemetry.EndSpan(createSpan, err)
 	if err != nil {
 		span.RecordError(err)
 		slog.ErrorContext(
@@ -422,12 +431,22 @@ func (s *Server) prepareExtractParams(
 	return nil
 }
 
-type ocrValidationError struct {
+type apiValidationError struct {
 	status int
 	msg    string
 }
 
-func (e *ocrValidationError) Error() string { return e.msg }
+func (e *apiValidationError) Error() string { return e.msg }
+
+// validationErrRes converts an *apiValidationError into its HTTP response,
+// passing through any other error unchanged for the caller to handle.
+func validationErrRes(c fiber.Ctx, err error) error {
+	var ve *apiValidationError
+	if errors.As(err, &ve) {
+		return errRes(c, ve.status, ve.msg)
+	}
+	return err
+}
 
 func (s *Server) prepareOCRParams(
 	ctx context.Context,
@@ -439,28 +458,28 @@ func (s *Server) prepareOCRParams(
 	createParams *service.CreateTextTrackParams,
 ) error {
 	if !transform.SupportedOCRMIMEs[asset.MimeType] {
-		return &ocrValidationError{fiber.StatusUnprocessableEntity, "unsupported OCR asset MIME type"}
+		return &apiValidationError{fiber.StatusUnprocessableEntity, "unsupported OCR asset MIME type"}
 	}
 	if !tesseractAvailable() {
-		return &ocrValidationError{fiber.StatusServiceUnavailable, "Tesseract is not installed on this server"}
+		return &apiValidationError{fiber.StatusServiceUnavailable, "Tesseract is not installed on this server"}
 	}
 	if asset.CurrentVersionID == nil {
-		return &ocrValidationError{fiber.StatusUnprocessableEntity, "asset has no current version"}
+		return &apiValidationError{fiber.StatusUnprocessableEntity, "asset has no current version"}
 	}
 	outputFormat := "txt"
 	if raw, ok := params["output_format"].(string); ok && strings.TrimSpace(raw) != "" {
 		outputFormat = raw
 	}
 	if outputFormat != "txt" && outputFormat != "hocr" {
-		return &ocrValidationError{fiber.StatusUnprocessableEntity, "unsupported OCR output format"}
+		return &apiValidationError{fiber.StatusUnprocessableEntity, "unsupported OCR output format"}
 	}
 	resolvedLang := "eng"
 	if lang != nil && strings.TrimSpace(*lang) != "" {
 		resolvedLang = strings.TrimSpace(*lang)
 	}
-	versionCtx, versionSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.create.load_current_version")
+	versionCtx, versionSpan := telemetry.StartSpan(ctx, "api.text_tracks.create.load_current_version")
 	currentVersion, versionErr := s.versions.GetCurrentByAsset(versionCtx, assetID)
-	apptelemetry.EndSpan(versionSpan, versionErr)
+	telemetry.EndSpan(versionSpan, versionErr)
 	if versionErr != nil {
 		slog.ErrorContext(ctx, "create text track: load current version",
 			"workspace_id", workspaceID, "asset_id", assetID, apiErrorKey, versionErr)
@@ -491,13 +510,13 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	trackID := c.Params("tid")
-	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.delete",
+	ctx, span := telemetry.StartSpan(c.Context(), "api.text_tracks.delete",
 		attribute.String("damask.workspace_id", claims.WorkspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.text_track_id", trackID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -514,9 +533,9 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 		}
 	}()
 
-	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.delete.load_asset")
+	assetCtx, assetSpan := telemetry.StartSpan(ctx, "api.text_tracks.delete.load_asset")
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
-		apptelemetry.EndSpan(assetSpan, loadErr)
+		telemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
 		slog.ErrorContext(
 			ctx,
@@ -533,11 +552,11 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
-	apptelemetry.EndSpan(assetSpan, nil)
+	telemetry.EndSpan(assetSpan, nil)
 
-	trackCtx, trackSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.delete.fetch_track")
+	trackCtx, trackSpan := telemetry.StartSpan(ctx, "api.text_tracks.delete.fetch_track")
 	track, err := s.textTracks.Get(trackCtx, claims.WorkspaceID, trackID)
-	apptelemetry.EndSpan(trackSpan, err)
+	telemetry.EndSpan(trackSpan, err)
 	if err != nil {
 		span.RecordError(err)
 		slog.ErrorContext(
@@ -561,9 +580,9 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 	if track.AssetID != assetID {
 		return errRes(c, fiber.StatusNotFound, "text track not found")
 	}
-	deleteCtx, deleteSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.delete.remove")
+	deleteCtx, deleteSpan := telemetry.StartSpan(ctx, "api.text_tracks.delete.remove")
 	if deleteErr := s.textTracks.Delete(deleteCtx, claims.WorkspaceID, trackID); deleteErr != nil {
-		apptelemetry.EndSpan(deleteSpan, deleteErr)
+		telemetry.EndSpan(deleteSpan, deleteErr)
 		span.RecordError(deleteErr)
 		slog.ErrorContext(
 			ctx,
@@ -580,7 +599,7 @@ func (s *Server) handleDeleteTextTrack(c fiber.Ctx) (err error) {
 		err = ErrorStatusResponse(c, deleteErr)
 		return err
 	}
-	apptelemetry.EndSpan(deleteSpan, nil)
+	telemetry.EndSpan(deleteSpan, nil)
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -588,13 +607,13 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 	claims := auth.GetClaims(c)
 	assetID := c.Params("id")
 	trackID := c.Params("tid")
-	ctx, span := apptelemetry.StartSpan(c.Context(), "api.text_tracks.download",
+	ctx, span := telemetry.StartSpan(c.Context(), "api.text_tracks.download",
 		attribute.String("damask.workspace_id", claims.WorkspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.text_track_id", trackID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -611,9 +630,9 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 		}
 	}()
 
-	assetCtx, assetSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.download.load_asset")
+	assetCtx, assetSpan := telemetry.StartSpan(ctx, "api.text_tracks.download.load_asset")
 	if _, loadErr := s.assets.Get(assetCtx, claims.WorkspaceID, assetID); loadErr != nil {
-		apptelemetry.EndSpan(assetSpan, loadErr)
+		telemetry.EndSpan(assetSpan, loadErr)
 		span.RecordError(loadErr)
 		slog.ErrorContext(
 			ctx,
@@ -630,11 +649,11 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 		err = ErrorStatusResponse(c, loadErr)
 		return err
 	}
-	apptelemetry.EndSpan(assetSpan, nil)
+	telemetry.EndSpan(assetSpan, nil)
 
-	trackCtx, trackSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.download.fetch_track")
+	trackCtx, trackSpan := telemetry.StartSpan(ctx, "api.text_tracks.download.fetch_track")
 	track, err := s.textTracks.Get(trackCtx, claims.WorkspaceID, trackID)
-	apptelemetry.EndSpan(trackSpan, err)
+	telemetry.EndSpan(trackSpan, err)
 	if err != nil {
 		span.RecordError(err)
 		slog.ErrorContext(
@@ -661,11 +680,11 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 		attribute.String("damask.text_track.source", track.Source),
 		attribute.Bool("damask.text_track.has_file", true),
 	)
-	_, fileSpan := apptelemetry.StartSpan(ctx, "api.text_tracks.download.open_storage",
+	_, fileSpan := telemetry.StartSpan(ctx, "api.text_tracks.download.open_storage",
 		attribute.String("damask.storage_key", *track.StorageKey),
 	)
 	rc, err := s.storage.Get(*track.StorageKey)
-	apptelemetry.EndSpan(fileSpan, err)
+	telemetry.EndSpan(fileSpan, err)
 	if err != nil {
 		span.RecordError(err)
 		slog.ErrorContext(

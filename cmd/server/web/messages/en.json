@@ -1177,5 +1177,19 @@
   "download_original": "Download original",
   "with_shared_assets": "with shared assets",
   "with_shared_variants": "with shared variants",
-  "with_all_variants": "with all variants"
+  "with_all_variants": "with all variants",
+
+  "text_tracks_source_ai_image_description": "AI description",
+  "text_tracks_ai_description_description": "Generate a detailed description of this image using an AI vision model via OpenRouter. The result is indexed for full-text search.",
+  "text_tracks_ai_description_lang_label": "Output language",
+  "text_tracks_ai_description_model_label": "Vision model",
+  "text_tracks_ai_description_prompt_label": "Prompt",
+  "text_tracks_ai_description_prompt_expand": "Edit prompt",
+  "text_tracks_ai_description_prompt_collapse": "Collapse",
+  "text_tracks_ai_description_prompt_reset": "Reset to default",
+  "text_tracks_ai_description_default_prompt": "Describe this image in detail, including its subject, composition, colors, and any visible text. Be thorough.",
+  "text_tracks_ai_description_submit": "Generate description",
+  "text_tracks_ai_description_openrouter_not_configured_hint": "OpenRouter is not configured. <a href=\"/settings/integrations\" class=\"underline\">Add an API key in Integrations</a>.",
+  "text_tracks_ai_description_error_not_configured": "OpenRouter is not configured. Add an API key in Settings → Integrations.",
+  "text_tracks_ai_description_error_unsupported_mime": "AI description is only available for image assets."
 }

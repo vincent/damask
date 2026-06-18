@@ -22,6 +22,7 @@ func startGenAISpan(ctx context.Context, operation, model, prompt string) (conte
 		attribute.String("gen_ai.request.model", model),
 	)
 	if prompt != "" {
+		//nolint:goconst // JSON map keys; shared with openrouter.go
 		promptJSON, _ := json.Marshal(map[string]any{
 			"messages": []map[string]any{
 				{"role": "user", "content": prompt},

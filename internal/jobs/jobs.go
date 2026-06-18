@@ -199,6 +199,7 @@ func (s *JobServer) RegisterJobHandlers() {
 		reg(jobType, variantHandler)
 	}
 	reg(queue.JobTypeOCRTextTrack, s.wrapSimpleJob(s.jobOCRTextTrack))
+	reg(queue.JobTypeAIImageDescriptionTextTrack, s.jobAIImageDescriptionTextTrack)
 	reg(queue.JobTypeExtractPDFTextTrack, s.jobExtractPDFTextTrack)
 	reg(queue.JobTypeExtractPlainTextTrack, s.jobExtractPlainTextTrack)
 	reg(queue.JobTypeExtractDocumentTextTrack, s.jobExtractDocumentTextTrack)

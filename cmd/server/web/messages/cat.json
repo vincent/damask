@@ -1177,5 +1177,19 @@
   "workspace_settings_tag_taxonomy_section": "Taxonomia d'etiquetes",
   "workspaces": "Espais de treball",
   "yes": "Sí",
-  "your_name": "El teu nom"
+  "your_name": "El teu nom",
+
+  "text_tracks_source_ai_image_description": "Descripció IA",
+  "text_tracks_ai_description_description": "Genera una descripció detallada d'aquesta imatge amb un model de visió IA via OpenRouter. El resultat s'indexa per a la cerca de text complet.",
+  "text_tracks_ai_description_lang_label": "Idioma de sortida",
+  "text_tracks_ai_description_model_label": "Model de visió",
+  "text_tracks_ai_description_prompt_label": "Instrucció",
+  "text_tracks_ai_description_prompt_expand": "Editar instrucció",
+  "text_tracks_ai_description_prompt_collapse": "Col·lapsar",
+  "text_tracks_ai_description_prompt_reset": "Restablir per defecte",
+  "text_tracks_ai_description_default_prompt": "Descriu aquesta imatge en detall, incloent-hi el tema, la composició, els colors i qualsevol text visible. Sigues exhaustiu.",
+  "text_tracks_ai_description_submit": "Generar descripció",
+  "text_tracks_ai_description_openrouter_not_configured_hint": "OpenRouter no està configurat. <a href=\"/settings/integrations\" class=\"underline\">Afegeix una clau API a Integracions</a>.",
+  "text_tracks_ai_description_error_not_configured": "OpenRouter no està configurat. Afegeix una clau API a Configuració → Integracions.",
+  "text_tracks_ai_description_error_unsupported_mime": "La descripció IA només està disponible per a imatges."
 }

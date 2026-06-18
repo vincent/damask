@@ -10409,7 +10409,8 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "asset_ids",
-                "filename"
+                "filename",
+                "variant_mode"
             ],
             "properties": {
                 "asset_ids": {
@@ -10419,6 +10420,10 @@ const docTemplate = `{
                     }
                 },
                 "filename": {
+                    "type": "string"
+                },
+                "variant_mode": {
+                    "description": "\"\" | \"none\" | \"shared\" | \"all\"",
                     "type": "string"
                 }
             }

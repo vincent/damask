@@ -285,12 +285,13 @@ func (q *Queue) processNext(ctx context.Context) {
 
 // Job type constants used throughout the application.
 const (
-	JobTypeVersionThumbnail         = "version_thumbnail"
-	JobTypeVariantThumbnail         = "generate_variant_thumbnail"
-	JobTypeOCRTextTrack             = "ocr_text_track"
-	JobTypeExtractPDFTextTrack      = "document_pdf_extract_text_track"
-	JobTypeExtractPlainTextTrack    = "document_plain_extract_text_track"
-	JobTypeExtractDocumentTextTrack = "document_office_extract_text_track"
+	JobTypeVersionThumbnail            = "version_thumbnail"
+	JobTypeVariantThumbnail            = "generate_variant_thumbnail"
+	JobTypeOCRTextTrack                = "ocr_text_track"
+	JobTypeAIImageDescriptionTextTrack = "ai_image_description_text_track"
+	JobTypeExtractPDFTextTrack         = "document_pdf_extract_text_track"
+	JobTypeExtractPlainTextTrack       = "document_plain_extract_text_track"
+	JobTypeExtractDocumentTextTrack    = "document_office_extract_text_track"
 
 	JobTypeVideoCaptureImage = "video_capture_image"
 	JobTypeVideoTranscode    = "video_transcode"

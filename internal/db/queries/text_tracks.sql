@@ -15,6 +15,11 @@ SELECT * FROM asset_text_tracks
 WHERE asset_id = ? AND workspace_id = ?
 ORDER BY created_at DESC;
 
+-- name: SetTextTrackProcessing :exec
+UPDATE asset_text_tracks
+SET status = 'processing', updated_at = datetime('now')
+WHERE id = ? AND workspace_id = ?;
+
 -- name: SetTextTrackReady :exec
 UPDATE asset_text_tracks
 SET content = ?, storage_key = ?, content_type = ?,

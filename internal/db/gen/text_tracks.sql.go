@@ -282,6 +282,22 @@ func (q *Queries) SetTextTrackFailed(ctx context.Context, arg SetTextTrackFailed
 	return err
 }
 
+const setTextTrackProcessing = `-- name: SetTextTrackProcessing :exec
+UPDATE asset_text_tracks
+SET status = 'processing', updated_at = datetime('now')
+WHERE id = ? AND workspace_id = ?
+`
+
+type SetTextTrackProcessingParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) SetTextTrackProcessing(ctx context.Context, arg SetTextTrackProcessingParams) error {
+	_, err := q.db.ExecContext(ctx, setTextTrackProcessing, arg.ID, arg.WorkspaceID)
+	return err
+}
+
 const setTextTrackReady = `-- name: SetTextTrackReady :exec
 UPDATE asset_text_tracks
 SET content = ?, storage_key = ?, content_type = ?,

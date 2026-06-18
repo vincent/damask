@@ -15,7 +15,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
-	apptelemetry "damask/server/internal/telemetry"
+	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
@@ -24,6 +24,7 @@ import (
 
 const textTrackSourceManual = "manual"
 const textTrackSourceOCR = "ocr"
+const textTrackSourceAIImageDescription = "ai_image_description"
 const textTrackSourceExtractPDF = "extract_pdf"
 const textTrackSourceExtractPlain = "extract_plain"
 const textTrackSourceExtractDocument = "extract_document"
@@ -54,7 +55,7 @@ func NewTextTrackService(queries *dbgen.Queries, q queue.JobQueue, stor storage.
 }
 
 func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string) (out []TextTrackDTO, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.text_tracks.list",
+	ctx, span := telemetry.StartSpan(ctx, "service.text_tracks.list",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
 	)
@@ -62,7 +63,7 @@ func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string
 		if out != nil {
 			span.SetAttributes(attribute.Int("damask.text_tracks.result_count", len(out)))
 		}
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -92,7 +93,7 @@ func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string
 }
 
 func (s *textTrackService) Get(ctx context.Context, workspaceID, trackID string) (dto TextTrackDTO, err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.text_tracks.get",
+	ctx, span := telemetry.StartSpan(ctx, "service.text_tracks.get",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.text_track_id", trackID),
 	)
@@ -104,7 +105,7 @@ func (s *textTrackService) Get(ctx context.Context, workspaceID, trackID string)
 				attribute.String("damask.text_track.status", dto.Status),
 			)
 		}
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -135,7 +136,7 @@ func (s *textTrackService) Get(ctx context.Context, workspaceID, trackID string)
 
 func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) (dto TextTrackDTO, err error) {
 	p.Source = strings.TrimSpace(p.Source)
-	ctx, span := apptelemetry.StartSpan(ctx, "service.text_tracks.create",
+	ctx, span := telemetry.StartSpan(ctx, "service.text_tracks.create",
 		attribute.String("damask.workspace_id", p.WorkspaceID),
 		attribute.String("damask.asset_id", p.AssetID),
 		attribute.String("damask.text_track.source", p.Source),
@@ -147,7 +148,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 				attribute.String("damask.text_track.status", dto.Status),
 			)
 		}
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -177,6 +178,16 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	case textTrackSourceOCR:
 		if stringParam(p.Params, "storage_key", "") == "" {
 			return TextTrackDTO{}, fmt.Errorf("missing OCR storage key: %w", apperr.ErrInvalidInput)
+		}
+	case textTrackSourceAIImageDescription:
+		if stringParam(p.Params, "storage_key", "") == "" {
+			return TextTrackDTO{}, fmt.Errorf(
+				"missing storage key for ai_image_description: %w",
+				apperr.ErrInvalidInput,
+			)
+		}
+		if stringParam(p.Params, "model", "") == "" {
+			return TextTrackDTO{}, fmt.Errorf("missing model for ai_image_description: %w", apperr.ErrInvalidInput)
 		}
 	case textTrackSourceExtractPDF, textTrackSourceExtractPlain, textTrackSourceExtractDocument:
 		if stringParam(p.Params, "storage_key", "") == "" {
@@ -215,69 +226,117 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	}
 
 	dto = toTextTrackDTO(row)
-	if p.Source == textTrackSourceManual {
-		if ftsErr := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
-			TrackID:     row.ID,
-			AssetID:     row.AssetID,
-			WorkspaceID: row.WorkspaceID,
-			Source:      row.Source,
-			Lang: func() string {
-				if row.Lang != nil {
-					return *row.Lang
-				}
-				return ""
-			}(),
-			Content: content,
-		}); ftsErr != nil {
-			return TextTrackDTO{}, ftsErr
-		}
-		return dto, nil
-	}
-
-	if p.Source == textTrackSourceOCR {
-		payload, marshalErr := json.Marshal(struct {
-			WorkspaceID    string `json:"workspace_id"`
-			AssetID        string `json:"asset_id"`
-			TrackID        string `json:"track_id"`
-			AssetVersionID string `json:"asset_version_id"`
-			StorageKey     string `json:"storage_key"`
-			MimeType       string `json:"mime_type"`
-			Lang           string `json:"lang"`
-			OutputFormat   string `json:"output_format"`
-		}{
-			WorkspaceID:    p.WorkspaceID,
-			AssetID:        p.AssetID,
-			TrackID:        row.ID,
-			AssetVersionID: stringValue(p.AssetVersionID),
-			StorageKey:     stringParam(p.Params, "storage_key", ""),
-			MimeType:       stringParam(p.Params, "mime_type", ""),
-			Lang:           stringValue(p.Lang, "eng"),
-			OutputFormat:   stringParam(p.Params, "output_format", "txt"),
-		})
-		if marshalErr != nil {
-			return TextTrackDTO{}, fmt.Errorf("marshal OCR payload: %w", marshalErr)
-		}
-		job, enqErr := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeOCRTextTrack, string(payload))
+	switch p.Source {
+	case textTrackSourceManual:
+		return s.finalizeManualTrack(ctx, row, content, dto)
+	case textTrackSourceOCR:
+		jobID, enqErr := s.enqueueOCR(ctx, p, row.ID)
 		if enqErr != nil {
 			return TextTrackDTO{}, enqErr
 		}
-		span.SetAttributes(attribute.String("damask.job_id", job.ID))
-		slog.DebugContext(
-			ctx,
-			"text track OCR enqueued",
-			"workspace_id",
-			p.WorkspaceID,
-			"asset_id",
-			p.AssetID,
-			"track_id",
-			row.ID,
-			"job_id",
-			job.ID,
-		)
+		span.SetAttributes(attribute.String("damask.job_id", jobID))
+		return dto, nil
+	case textTrackSourceAIImageDescription:
+		jobID, enqErr := s.enqueueAIImageDescription(ctx, p, row.ID)
+		if enqErr != nil {
+			return TextTrackDTO{}, enqErr
+		}
+		span.SetAttributes(attribute.String("damask.job_id", jobID))
 		return dto, nil
 	}
 
 	return TextTrackDTO{}, ErrUnsupportedTextTrackSource
+}
+
+func (s *textTrackService) finalizeManualTrack(
+	ctx context.Context,
+	row dbgen.AssetTextTrack,
+	content string,
+	dto TextTrackDTO,
+) (TextTrackDTO, error) {
+	lang := ""
+	if row.Lang != nil {
+		lang = *row.Lang
+	}
+	if ftsErr := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
+		TrackID:     row.ID,
+		AssetID:     row.AssetID,
+		WorkspaceID: row.WorkspaceID,
+		Source:      row.Source,
+		Lang:        lang,
+		Content:     content,
+	}); ftsErr != nil {
+		return TextTrackDTO{}, ftsErr
+	}
+	return dto, nil
+}
+
+func (s *textTrackService) enqueueOCR(ctx context.Context, p CreateTextTrackParams, trackID string) (string, error) {
+	payload, err := json.Marshal(struct {
+		WorkspaceID    string `json:"workspace_id"`
+		AssetID        string `json:"asset_id"`
+		TrackID        string `json:"track_id"`
+		AssetVersionID string `json:"asset_version_id"`
+		StorageKey     string `json:"storage_key"`
+		MimeType       string `json:"mime_type"`
+		Lang           string `json:"lang"`
+		OutputFormat   string `json:"output_format"`
+	}{
+		WorkspaceID:    p.WorkspaceID,
+		AssetID:        p.AssetID,
+		TrackID:        trackID,
+		AssetVersionID: stringValue(p.AssetVersionID),
+		StorageKey:     stringParam(p.Params, "storage_key", ""),
+		MimeType:       stringParam(p.Params, "mime_type", ""),
+		Lang:           stringValue(p.Lang, "eng"),
+		OutputFormat:   stringParam(p.Params, "output_format", "txt"),
+	})
+	if err != nil {
+		return "", fmt.Errorf("marshal OCR payload: %w", err)
+	}
+	job, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeOCRTextTrack, string(payload))
+	if err != nil {
+		return "", err
+	}
+	slog.DebugContext(ctx, "text track OCR enqueued",
+		"workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "track_id", trackID, "job_id", job.ID)
+	return job.ID, nil
+}
+
+func (s *textTrackService) enqueueAIImageDescription(
+	ctx context.Context,
+	p CreateTextTrackParams,
+	trackID string,
+) (string, error) {
+	payload, err := json.Marshal(struct {
+		WorkspaceID string `json:"workspace_id"`
+		AssetID     string `json:"asset_id"`
+		TrackID     string `json:"track_id"`
+		StorageKey  string `json:"storage_key"`
+		MimeType    string `json:"mime_type"`
+		Model       string `json:"model"`
+		Prompt      string `json:"prompt"`
+		Lang        string `json:"lang"`
+	}{
+		WorkspaceID: p.WorkspaceID,
+		AssetID:     p.AssetID,
+		TrackID:     trackID,
+		StorageKey:  stringParam(p.Params, "storage_key", ""),
+		MimeType:    stringParam(p.Params, "mime_type", ""),
+		Model:       stringParam(p.Params, "model", ""),
+		Prompt:      stringParam(p.Params, "prompt", ""),
+		Lang:        stringValue(p.Lang, "en"),
+	})
+	if err != nil {
+		return "", fmt.Errorf("marshal ai_image_description payload: %w", err)
+	}
+	job, err := s.queue.Enqueue(ctx, p.WorkspaceID, queue.JobTypeAIImageDescriptionTextTrack, string(payload))
+	if err != nil {
+		return "", err
+	}
+	slog.DebugContext(ctx, "text track ai_image_description enqueued",
+		"workspace_id", p.WorkspaceID, "asset_id", p.AssetID, "track_id", trackID, "job_id", job.ID)
+	return job.ID, nil
 }
 
 func (s *textTrackService) enqueueExtract(
@@ -323,12 +382,12 @@ func (s *textTrackService) enqueueExtract(
 }
 
 func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID string) (err error) {
-	ctx, span := apptelemetry.StartSpan(ctx, "service.text_tracks.delete",
+	ctx, span := telemetry.StartSpan(ctx, "service.text_tracks.delete",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.text_track_id", trackID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -433,13 +492,13 @@ func (s *textTrackService) RunExtractPDF(
 	ctx context.Context,
 	workspaceID, assetID, trackID, storageKey string,
 ) (err error) {
-	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_pdf",
+	ctx, span := telemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_pdf",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.text_track_id", trackID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(ctx, "text track PDF extract job failed",
 				"workspace_id", workspaceID,
@@ -478,13 +537,13 @@ func (s *textTrackService) RunExtractPlain(
 	ctx context.Context,
 	workspaceID, assetID, trackID, storageKey string,
 ) (err error) {
-	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_plain",
+	ctx, span := telemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_plain",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.text_track_id", trackID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(ctx, "text track plain extract job failed",
 				"workspace_id", workspaceID,
@@ -512,13 +571,13 @@ func (s *textTrackService) RunExtractDocument(
 	ctx context.Context,
 	workspaceID, assetID, trackID, storageKey, mimeType string,
 ) (err error) {
-	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_document",
+	ctx, span := telemetry.StartBackgroundSpan(ctx, "service.text_tracks.extract_document",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.text_track_id", trackID),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(ctx, "text track document extract job failed",
 				"workspace_id", workspaceID,
@@ -590,7 +649,7 @@ func (s *textTrackService) RunOCR(
 	ctx context.Context,
 	workspaceID, assetID, trackID, _, storageKey, mimeType, lang, outputFormat string,
 ) (err error) {
-	ctx, span := apptelemetry.StartBackgroundSpan(ctx, "service.text_tracks.ocr",
+	ctx, span := telemetry.StartBackgroundSpan(ctx, "service.text_tracks.ocr",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.asset_mime_type", mimeType),
@@ -599,7 +658,7 @@ func (s *textTrackService) RunOCR(
 		attribute.String("damask.text_track.output_format", outputFormat),
 	)
 	defer func() {
-		apptelemetry.EndSpan(span, err)
+		telemetry.EndSpan(span, err)
 		if err != nil {
 			slog.ErrorContext(
 				ctx,
@@ -612,11 +671,11 @@ func (s *textTrackService) RunOCR(
 		}
 	}()
 
-	_, readSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.read_source",
+	_, readSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.read_source",
 		attribute.String("damask.storage_key", storageKey),
 	)
 	rc, err := s.storage.Get(storageKey)
-	apptelemetry.EndSpan(readSpan, err)
+	telemetry.EndSpan(readSpan, err)
 	if err != nil {
 		return fmt.Errorf("RunOCR: read source: %w", err)
 	}
@@ -627,12 +686,12 @@ func (s *textTrackService) RunOCR(
 	}
 	span.SetAttributes(attribute.Int("damask.source_bytes", len(imageBytes)))
 
-	ocrCtx, ocrSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.run")
+	ocrCtx, ocrSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.run")
 	result, err := transform.RunOCR(ocrCtx, imageBytes, transform.OCRParams{
 		Lang:         lang,
 		OutputFormat: outputFormat,
 	})
-	apptelemetry.EndSpan(ocrSpan, err)
+	telemetry.EndSpan(ocrSpan, err)
 	if err != nil {
 		errMsg := err.Error()
 		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
@@ -647,14 +706,14 @@ func (s *textTrackService) RunOCR(
 	var contentType *string
 	if outputFormat == "hocr" {
 		key := fmt.Sprintf("%s/%s/text-tracks/%s%s", workspaceID, assetID, trackID, result.Extension)
-		_, storeSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.store_companion",
+		_, storeSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.store_companion",
 			attribute.String("damask.storage_key", key),
 		)
 		if err = s.storage.Put(key, bytes.NewReader(result.FileContent)); err != nil {
-			apptelemetry.EndSpan(storeSpan, err)
+			telemetry.EndSpan(storeSpan, err)
 			return fmt.Errorf("RunOCR: store companion file: %w", err)
 		}
-		apptelemetry.EndSpan(storeSpan, nil)
+		telemetry.EndSpan(storeSpan, nil)
 		resultStorageKey = &key
 		ct := result.ContentType
 		contentType = &ct
@@ -670,7 +729,7 @@ func (s *textTrackService) RunOCR(
 	})
 	meta := string(metaBytes)
 
-	writeCtx, writeSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.mark_ready")
+	writeCtx, writeSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.mark_ready")
 	if err = s.queries.SetTextTrackReady(writeCtx, dbgen.SetTextTrackReadyParams{
 		Content:     plainText,
 		StorageKey:  resultStorageKey,
@@ -679,12 +738,12 @@ func (s *textTrackService) RunOCR(
 		ID:          trackID,
 		WorkspaceID: workspaceID,
 	}); err != nil {
-		apptelemetry.EndSpan(writeSpan, err)
+		telemetry.EndSpan(writeSpan, err)
 		return fmt.Errorf("RunOCR: update track: %w", err)
 	}
-	apptelemetry.EndSpan(writeSpan, nil)
+	telemetry.EndSpan(writeSpan, nil)
 
-	ftsCtx, ftsSpan := apptelemetry.StartSpan(ctx, "service.text_tracks.ocr.index_fts")
+	ftsCtx, ftsSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.index_fts")
 	if err = s.queries.InsertTextFTS(ftsCtx, dbgen.InsertTextFTSParams{
 		TrackID:     trackID,
 		AssetID:     assetID,
@@ -693,10 +752,10 @@ func (s *textTrackService) RunOCR(
 		Lang:        lang,
 		Content:     plainText,
 	}); err != nil {
-		apptelemetry.EndSpan(ftsSpan, err)
+		telemetry.EndSpan(ftsSpan, err)
 		slog.WarnContext(ctx, "text track FTS insert failed", "track_id", trackID, "error", err)
 	} else {
-		apptelemetry.EndSpan(ftsSpan, nil)
+		telemetry.EndSpan(ftsSpan, nil)
 	}
 	span.SetAttributes(
 		attribute.Int("damask.text_track.word_count", wordCount),

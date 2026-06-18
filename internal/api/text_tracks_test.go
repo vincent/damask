@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/api"
 	"damask/server/internal/service"
 	"damask/server/internal/testutil"
@@ -123,4 +125,64 @@ func TestCreateOCRUnsupportedMIMEReturns422(t *testing.T) {
 		t.Fatal(err)
 	}
 	testutil.AssertStatus(t, resp, http.StatusUnprocessableEntity)
+}
+
+func TestCreateAIImageDescriptionRejectsUncuratedModel(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	token := env.MintToken(t, "usr_1", "ws_1")
+	asset := textTrackTestAsset()
+	env.Assets.GetFn = func(_ context.Context, _, _ string) (*service.AssetDTO, error) {
+		return asset, nil
+	}
+	env.Workspace.GetAIProviderKeyStatusFn = func(_ context.Context, _, _ string) (*ai.KeyStatus, error) {
+		return &ai.KeyStatus{KeySet: true}, nil
+	}
+	env.Versions.GetCurrentByAssetFn = func(_ context.Context, _ string) (*service.VersionDTO, error) {
+		return &service.VersionDTO{ID: "ver_1", StorageKey: asset.StorageKey, MimeType: asset.MimeType}, nil
+	}
+
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/assets/ast_1/text-tracks",
+		testutil.JSONBody(api.CreateTextTrackRequest{
+			Source: "ai_image_description",
+			Params: map[string]any{"model": "not-a-curated-model"},
+		}),
+		token,
+	)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusBadRequest)
+}
+
+func TestCreateAIImageDescriptionRejectsOverlongPrompt(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	token := env.MintToken(t, "usr_1", "ws_1")
+	asset := textTrackTestAsset()
+	env.Assets.GetFn = func(_ context.Context, _, _ string) (*service.AssetDTO, error) {
+		return asset, nil
+	}
+	env.Workspace.GetAIProviderKeyStatusFn = func(_ context.Context, _, _ string) (*ai.KeyStatus, error) {
+		return &ai.KeyStatus{KeySet: true}, nil
+	}
+	env.Versions.GetCurrentByAssetFn = func(_ context.Context, _ string) (*service.VersionDTO, error) {
+		return &service.VersionDTO{ID: "ver_1", StorageKey: asset.StorageKey, MimeType: asset.MimeType}, nil
+	}
+
+	req := testutil.BearerRequest(
+		http.MethodPost,
+		"/api/v1/assets/ast_1/text-tracks",
+		testutil.JSONBody(api.CreateTextTrackRequest{
+			Source: "ai_image_description",
+			Params: map[string]any{"prompt": strings.Repeat("a", ai.MaxImageDescriptionPromptLen+1)},
+		}),
+		token,
+	)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusBadRequest)
 }

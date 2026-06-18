@@ -26,7 +26,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	swaggo "github.com/gofiber/contrib/v3/swaggo"
+	"github.com/gofiber/contrib/v3/swaggo"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 
@@ -301,6 +301,7 @@ func NewRouter(
 
 	// AI providers
 	api.Get("/aiproviders", s.handleListAIProviders)
+	api.Get("/ai/vision-models", s.handleListVisionModels)
 
 	// Workspace settings — owner only; blocked in demo mode
 	api.Put(

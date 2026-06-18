@@ -54,10 +54,11 @@ const (
 type Capability uint32
 
 var capNames = map[Capability]string{
-	CapBgRemove:     "background removal",
-	CapImageToImage: "image to image",
-	CapTextToImage:  "text to image",
-	CapImageToText:  "image to text",
+	CapBgRemove:         "background removal",
+	CapImageToImage:     "image to image",
+	CapTextToImage:      "text to image",
+	CapImageToText:      "image to text",
+	CapImageDescription: "image description",
 }
 
 func (c Capability) Names() []string {
@@ -71,10 +72,11 @@ func (c Capability) Names() []string {
 }
 
 const (
-	CapBgRemove     Capability = 1 << iota // image → image, background removal
-	CapImageToImage                        // image + prompt → image
-	CapTextToImage                         // prompt → image (reserved)
-	CapImageToText                         // image → text (reserved)
+	CapBgRemove         Capability = 1 << iota // image → image, background removal
+	CapImageToImage                            // image + prompt → image
+	CapTextToImage                             // prompt → image (reserved)
+	CapImageToText                             // image → text (reserved)
+	CapImageDescription                        // image → text description via vision model
 )
 
 // Provider is a configured, ready-to-use AI provider.

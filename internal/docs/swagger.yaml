@@ -2074,9 +2074,13 @@ definitions:
         type: array
       filename:
         type: string
+      variant_mode:
+        description: '"" | "none" | "shared" | "all"'
+        type: string
     required:
     - asset_ids
     - filename
+    - variant_mode
     type: object
   api.stackMergeRequest:
     properties:

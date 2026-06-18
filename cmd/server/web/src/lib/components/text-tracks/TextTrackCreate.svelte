@@ -3,6 +3,7 @@
   import { m } from '$lib/paraglide/messages'
   import { isImage, isPdf, isDocument } from '$lib/utils/mime'
   import TextTrackCreateOCR from './TextTrackCreateOCR.svelte'
+  import TextTrackCreateAIDescription from './TextTrackCreateAIDescription.svelte'
 
   interface Props {
     asset: Asset
@@ -21,13 +22,36 @@
           : null
   )
 
-  let selectedSource = $state<'ocr' | 'manual' | 'extract'>(
+  let selectedSource = $state<
+    'ocr' | 'ai_image_description' | 'manual' | 'extract'
+  >(
     // svelte-ignore state_referenced_locally
     isImage(asset.mime_type) ? 'ocr' : extractSource ? 'extract' : 'manual'
   )
   let creating = $state(false)
   let error = $state('')
   let manualContent = $state('')
+
+  async function createAIDescription(params: {
+    model: string
+    lang: string
+    prompt: string
+  }) {
+    creating = true
+    error = ''
+    try {
+      await textTrackApi.create(asset.id, {
+        source: 'ai_image_description',
+        lang: params.lang,
+        params,
+      })
+      await onCreated()
+    } catch (e) {
+      error = e instanceof Error ? e.message : m.text_tracks_error_generic()
+    } finally {
+      creating = false
+    }
+  }
 
   async function createOCR(params: { lang: string; output_format: string }) {
     creating = true
@@ -92,6 +116,9 @@
       >
         {#if isImage(asset.mime_type)}
           <option value="ocr">{m.text_tracks_source_ocr()}</option>
+          <option value="ai_image_description"
+            >{m.text_tracks_source_ai_image_description()}</option
+          >
         {/if}
         {#if extractSource}
           <option value="extract">{m.text_tracks_source_extract()}</option>
@@ -103,6 +130,8 @@
 
   {#if selectedSource === 'ocr'}
     <TextTrackCreateOCR {creating} onCreate={createOCR} />
+  {:else if selectedSource === 'ai_image_description'}
+    <TextTrackCreateAIDescription {creating} onCreate={createAIDescription} />
   {:else if selectedSource === 'extract'}
     <button
       type="button"

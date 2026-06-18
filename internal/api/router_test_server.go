@@ -402,6 +402,7 @@ func buildTestApp(s *Server) *fiber.App {
 
 	// AI providers
 	api.Get("/aiproviders", s.handleListAIProviders)
+	api.Get("/ai/vision-models", s.handleListVisionModels)
 
 	// Variants
 	api.Get("/assets/:id/variants", s.handleListVariants)
