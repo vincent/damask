@@ -121,6 +121,66 @@ func TestImageWithPromptJobFailureDoesNotCreateVariant(t *testing.T) {
 	}
 }
 
+func TestImageWithPromptJobStripsLeadingDescriptionLine(t *testing.T) {
+	outputPNG := encodeTinyPNG(t)
+	var sentPrompt string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(1024); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		sentPrompt = r.FormValue("prompt")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]string{{"b64_json": base64.StdEncoding.EncodeToString(outputPNG)}},
+		})
+	}))
+	defer srv.Close()
+
+	env := th.SetupTestApp(t,
+		th.WithImageRouterAPIKey("test-key"),
+		th.WithImageRouterBaseURL(srv.URL+"/v1"),
+	)
+	res := th.Register(t, env, "Worker User 4", "worker4@test.com", "password123")
+	assetID := env.UploadTestAsset(t, res.Cookie)
+
+	const fullPrompt = "# vintage filter\nadd a warm vintage film grain"
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JSONBody(map[string]any{
+			"type": "image_with_prompt",
+			"params": map[string]any{
+				"prompt": fullPrompt,
+				"model":  "black-forest-labs/FLUX.1-fill-dev",
+			},
+		}), res.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", resp.StatusCode)
+	}
+
+	env.JobServer.DrainForTest(context.Background())
+
+	if sentPrompt != "add a warm vintage film grain" {
+		t.Fatalf("expected description line stripped from prompt sent to provider, got %q", sentPrompt)
+	}
+
+	var storedParams string
+	if e := env.Database.QueryRow(`SELECT transform_params FROM variants WHERE type = 'image_with_prompt' LIMIT 1`).
+		Scan(&storedParams); e != nil {
+		t.Fatalf("load transform_params: %v", e)
+	}
+	var decoded struct {
+		Prompt string `json:"prompt"`
+	}
+	if e := json.Unmarshal([]byte(storedParams), &decoded); e != nil {
+		t.Fatalf("decode stored params: %v", e)
+	}
+	if decoded.Prompt != fullPrompt {
+		t.Fatalf("expected stored prompt to retain the description line, got %q", decoded.Prompt)
+	}
+}
+
 func TestImageWithPromptJobRetriesPaidModelWhenConfigured(t *testing.T) {
 	outputPNG := encodeTinyPNG(t)
 	var models []string

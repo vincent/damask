@@ -70,20 +70,40 @@ var pathLikePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\b(amovie|movie)\s*=`),
 }
 
+// StripLeadingDescription splits raw into an optional leading "# ..." label
+// line and the remaining content. The label, if present, is for display only
+// (e.g. the variant param reuse-history menu) — content is what's actually
+// sent to an AI provider or interpreted as an ffmpeg command.
+func StripLeadingDescription(raw string) (description, content string) {
+	first := raw
+	rest := ""
+	if before, after, ok := strings.Cut(raw, "\n"); ok {
+		first, rest = before, after
+	}
+	trimmedFirst := strings.TrimSpace(first)
+	if after, ok := strings.CutPrefix(trimmedFirst, "#"); ok {
+		return strings.TrimSpace(after), strings.TrimSpace(rest)
+	}
+	return "", strings.TrimSpace(raw)
+}
+
 // ValidateCustomCommand checks a user-supplied ffmpeg command for length,
 // the presence of exactly one {input} and one {output} token, and the
-// absence of blacklisted patterns. It performs no I/O.
+// absence of blacklisted patterns. It performs no I/O. A leading "# ..."
+// description line (see [StripLeadingDescription]) is ignored for all of
+// these checks.
 func ValidateCustomCommand(cmd string) error {
 	if len(cmd) > maxCustomCommandLen {
 		return fmt.Errorf("%w: command exceeds %d characters", ErrCustomFFmpegTooLong, maxCustomCommandLen)
 	}
-	if strings.Count(cmd, "{input}") != 1 {
+	_, content := StripLeadingDescription(cmd)
+	if strings.Count(content, "{input}") != 1 {
 		return ErrCustomFFmpegNoInputToken
 	}
-	if strings.Count(cmd, "{output}") != 1 {
+	if strings.Count(content, "{output}") != 1 {
 		return ErrCustomFFmpegNoOutputToken
 	}
-	tokens, quoted, err := splitCommandTokensWithQuoting(cmd)
+	tokens, quoted, err := splitCommandTokensWithQuoting(content)
 	if err != nil {
 		return err
 	}
@@ -194,7 +214,8 @@ func (t *transformer) RunCustomFFmpeg(ctx context.Context, cmd, srcPath, outDir 
 	// commands that specify their own format.
 	outputPath := filepath.Join(outDir, "custom_ffmpeg_output.mp4")
 
-	tokens, err := splitCommandTokens(cmd)
+	_, content := StripLeadingDescription(cmd)
+	tokens, err := splitCommandTokens(content)
 	if err != nil {
 		return "", err
 	}

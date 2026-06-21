@@ -137,6 +137,38 @@ func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID s
 	return v
 }
 
+// insertVariantWithParams inserts a variant row of the given type+params into the
+// asset's current version, bypassing the queue. Unlike insertVariantDirectly, the
+// type and transform_params are caller-controlled, for param-history tests.
+func insertVariantWithParams(
+	t *testing.T,
+	env *th.TestEnv,
+	assetID, workspaceID, variantID, variantType, paramsJSON string,
+) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var versionID string
+	row := env.Database.QueryRowContext(ctx,
+		`SELECT id FROM asset_versions WHERE asset_id = ? AND is_current = 1 LIMIT 1`, assetID)
+	if err := row.Scan(&versionID); err != nil {
+		t.Fatalf("resolve current version for asset %s: %v", assetID, err)
+	}
+
+	storageKey := fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID)
+	_ = env.Storage.Put(storageKey, bytes.NewReader([]byte("dummy variant content")))
+
+	_, err := env.Database.ExecContext(ctx, `
+		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)
+		VALUES (?, ?, ?, ?, ?, ?, 1024)
+	`, variantID, workspaceID, versionID, variantType, storageKey, paramsJSON)
+	if err != nil {
+		t.Fatalf("insert variant: %v", err)
+	}
+}
+
 // ---- Tests ----
 
 func TestListVariants_Empty(t *testing.T) {
@@ -903,5 +935,140 @@ func TestVariant_ViewerCannotDelete(t *testing.T) {
 	delResp, _ := env.App.Test(delReq)
 	if delResp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for viewer delete, got %d", delResp.StatusCode)
+	}
+}
+
+func TestGetVariantParamHistory_HappyPath(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, cookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, cookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	insertVariantWithParams(t, env, assetID, a.WorkspaceID, "ph-1", "image_with_prompt", `{"prompt":"a cat"}`)
+	insertVariantWithParams(t, env, assetID, a.WorkspaceID, "ph-2", "image_with_prompt", `{"prompt":"a dog"}`)
+
+	histReq := th.AuthRequest(http.MethodGet, "/api/v1/variant-param-history?type=image_with_prompt", nil, cookie)
+	histResp, err := env.App.Test(histReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if histResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", histResp.StatusCode)
+	}
+	var result api.VariantParamHistoryResponse
+	if err := json.NewDecoder(histResp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(result.Entries))
+	}
+}
+
+func TestGetVariantParamHistory_MissingType(t *testing.T) {
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "U", "u-missing-type@test.com", "password123")
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/variant-param-history", nil, res.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetVariantParamHistory_UnknownType(t *testing.T) {
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "U", "u-unknown-type@test.com", "password123")
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/variant-param-history?type=image_bg_remove", nil, res.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result api.VariantParamHistoryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != 0 {
+		t.Fatalf("expected empty entries for a non-restorable type, got %d", len(result.Entries))
+	}
+}
+
+func TestGetVariantParamHistory_Unauthenticated(t *testing.T) {
+	env := th.SetupTestApp(t)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/variant-param-history?type=image_resize", nil, nil)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetVariantParamHistory_ViewerCanRead(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, ownerCookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ownerCookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	insertVariantWithParams(t, env, assetID, a.WorkspaceID, "ph-viewer", "image_resize", `{"width":800,"height":600}`)
+
+	viewerToken := th.MintEditorToken(t, env, a.WorkspaceID, auth.Viewer)
+	histReq := th.BearerRequest(http.MethodGet, "/api/v1/variant-param-history?type=image_resize", nil, viewerToken)
+	histResp, _ := env.App.Test(histReq)
+	if histResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for viewer read, got %d", histResp.StatusCode)
+	}
+}
+
+// TestGetVariantParamHistory_CrossWorkspaceIsolation guards against the bug flagged in
+// ROADMAP_64: the workspace must come from the JWT claims, never a caller-controlled
+// parameter, otherwise one workspace's prompts/commands/watermark settings would leak
+// to any authenticated user of another workspace.
+func TestGetVariantParamHistory_CrossWorkspaceIsolation(t *testing.T) {
+	env := th.SetupTestApp(t)
+	assetID, ownerCookie := createTestAsset(t, env)
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID, nil, ownerCookie)
+	resp, _ := env.App.Test(req)
+	var a api.AssetResponse
+	_ = json.NewDecoder(resp.Body).Decode(&a)
+
+	insertVariantWithParams(t, env, assetID, a.WorkspaceID, "ph-secret", "custom_ffmpeg", `{"command":"ffmpeg -i {input} -secret-flag {output}"}`)
+
+	other := th.Register(t, env, "Other", "other-ws@test.com", "password123")
+	histReq := th.AuthRequest(http.MethodGet, "/api/v1/variant-param-history?type=custom_ffmpeg", nil, other.Cookie)
+	histResp, _ := env.App.Test(histReq)
+	if histResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", histResp.StatusCode)
+	}
+	var result api.VariantParamHistoryResponse
+	if err := json.NewDecoder(histResp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != 0 {
+		t.Fatalf("expected no entries leaked from another workspace, got %d", len(result.Entries))
+	}
+}
+
+func TestGetVariantParamHistory_EmptyWorkspace(t *testing.T) {
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "U", "u-empty-ws@test.com", "password123")
+
+	req := th.AuthRequest(http.MethodGet, "/api/v1/variant-param-history?type=image_resize", nil, res.Cookie)
+	resp, _ := env.App.Test(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result api.VariantParamHistoryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != 0 {
+		t.Fatalf("expected empty entries for a workspace with no variants, got %d", len(result.Entries))
 	}
 }

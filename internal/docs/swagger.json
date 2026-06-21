@@ -5339,6 +5339,52 @@
                 }
             }
         },
+        "/api/v1/variant-param-history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns up to 10 distinct previous \u003ccode\u003etransform_params\u003c/code\u003e used for the given variant type in the current workspace, ordered most-recently-used first. Lets the UI offer a \"reuse previous settings\" shortcut for variant tool forms. Unrecognized or non-restorable types (e.g. \u003ccode\u003eimage_bg_remove\u003c/code\u003e) always return an empty list, never an error.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "List variant param history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Variant type, e.g. image_resize, custom_ffmpeg",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.VariantParamHistoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "type query param is required",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/variants/validate-command": {
             "get": {
                 "security": [
@@ -8944,6 +8990,18 @@
                 }
             }
         },
+        "api.ParamHistoryEntryResponse": {
+            "type": "object",
+            "required": [
+                "params"
+            ],
+            "properties": {
+                "params": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
         "api.PatchAssetFieldsRequest": {
             "type": "object",
             "required": [
@@ -9692,6 +9750,20 @@
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
+                    }
+                }
+            }
+        },
+        "api.VariantParamHistoryResponse": {
+            "type": "object",
+            "required": [
+                "entries"
+            ],
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ParamHistoryEntryResponse"
                     }
                 }
             }

@@ -2648,6 +2648,31 @@ export interface paths {
       };
     };
   };
+  readonly "/api/v1/variant-param-history": {
+    /** Returns up to 10 distinct previous <code>transform_params</code> used for the given variant type in the current workspace, ordered most-recently-used first. Lets the UI offer a "reuse previous settings" shortcut for variant tool forms. Unrecognized or non-restorable types (e.g. <code>image_bg_remove</code>) always return an empty list, never an error. */
+    readonly get: {
+      readonly parameters: {
+        readonly query: {
+          /** Variant type, e.g. image_resize, custom_ffmpeg */
+          readonly type: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: definitions["api.VariantParamHistoryResponse"];
+        };
+        /** type query param is required */
+        readonly 400: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
   readonly "/api/v1/variants/validate-command": {
     /** Synchronously validates a custom_ffmpeg command (length, {input}/{output} tokens, blacklisted patterns) without enqueueing a job or touching storage. Always returns 200 — the <code>valid</code> field carries the result. */
     readonly get: {
@@ -4181,6 +4206,9 @@ export interface definitions {
     readonly merged_assets: number;
     readonly target: definitions["api.TagResponse"];
   };
+  readonly "api.ParamHistoryEntryResponse": {
+    readonly params: { readonly [key: string]: unknown };
+  };
   readonly "api.PatchAssetFieldsRequest": {
     readonly values: readonly definitions["api.FieldValueInput"][];
   };
@@ -4382,6 +4410,9 @@ export interface definitions {
   readonly "api.ValidationErrorResponse": {
     readonly error: string;
     readonly fields: { readonly [key: string]: string };
+  };
+  readonly "api.VariantParamHistoryResponse": {
+    readonly entries: readonly definitions["api.ParamHistoryEntryResponse"][];
   };
   readonly "api.VariantResponse": {
     readonly asset_version_id: string;

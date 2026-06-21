@@ -135,6 +135,7 @@ type MockVariantService struct {
 	PromoteFn        func(ctx context.Context, p service.PromoteVariantParams) (service.PromoteVariantResult, error)
 	SetAsThumbnailFn func(ctx context.Context, workspaceID, assetID, variantID string) error
 	RerunFn          func(ctx context.Context, p service.RerunVariantParams) error
+	GetParamHistFn   func(ctx context.Context, workspaceID, variantType string) ([]service.ParamHistoryEntry, error)
 }
 
 func NewVariantService() *MockVariantService { return &MockVariantService{} }
@@ -246,6 +247,16 @@ func (m *MockVariantService) Rerun(ctx context.Context, p service.RerunVariantPa
 		return m.RerunFn(ctx, p)
 	}
 	return nil
+}
+
+func (m *MockVariantService) GetParamHistory(
+	ctx context.Context,
+	workspaceID, variantType string,
+) ([]service.ParamHistoryEntry, error) {
+	if m.GetParamHistFn != nil {
+		return m.GetParamHistFn(ctx, workspaceID, variantType)
+	}
+	return nil, nil
 }
 
 func (m *MockVariantService) WriteVariantQueued(_ context.Context, _, _, _ string) {}

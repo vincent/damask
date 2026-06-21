@@ -91,6 +91,33 @@ type RerunVariantResponse struct {
 	Status    string `json:"status"`
 }
 
+// ParamHistoryEntryResponse is one distinct previous transform_params set.
+type ParamHistoryEntryResponse struct {
+	Params map[string]any `json:"params"`
+}
+
+// VariantParamHistoryResponse is the response for GET /api/v1/variant-param-history.
+type VariantParamHistoryResponse struct {
+	Entries []ParamHistoryEntryResponse `json:"entries"`
+}
+
+// paramHistoryAllowedTypes lists the variant types with user-authored settings worth
+// restoring. image_bg_remove and video_capture_image are intentionally excluded — their
+// params carry no creative choice worth surfacing as history.
+var paramHistoryAllowedTypes = map[string]bool{
+	queue.JobTypeImageWithPrompt: true,
+	queue.JobTypeImageWatermark:  true,
+	queue.JobTypeVideoWatermark:  true,
+	queue.JobTypeImageResize:     true,
+	queue.JobTypeImageConvert:    true,
+	queue.JobTypeImageSmartCrop:  true,
+	queue.JobTypeImageCrop:       true,
+	queue.JobTypeVideoTranscode:  true,
+	queue.JobTypeTranscodeAudio:  true,
+	queue.JobTypeNormalizeAudio:  true,
+	queue.JobTypeCustomFFmpeg:    true,
+}
+
 type automateVariantsRequest struct {
 	Scope string `json:"scope"`
 }
@@ -371,6 +398,42 @@ func (s *Server) handleValidateCustomFFmpegCommand(c fiber.Ctx) error {
 	default:
 		return c.JSON(ValidateCommandResponse{Valid: false, Error: err.Error()})
 	}
+}
+
+// handleGetVariantParamHistory returns distinct previous transform_params for a variant type.
+//
+// @Summary List variant param history
+// @Description Returns up to 10 distinct previous <code>transform_params</code> used for the given variant type in the current workspace, ordered most-recently-used first. Lets the UI offer a "reuse previous settings" shortcut for variant tool forms. Unrecognized or non-restorable types (e.g. <code>image_bg_remove</code>) always return an empty list, never an error.
+// @Tags Variants
+// @Produce json
+// @Security BearerAuth
+// @Param type query string true "Variant type, e.g. image_resize, custom_ffmpeg"
+// @Success 200 {object} VariantParamHistoryResponse
+// @Failure 400 {object} ErrorResponse "type query param is required"
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/variant-param-history [get]
+// handleGetVariantParamHistory handles GET /api/v1/variant-param-history?type=.
+func (s *Server) handleGetVariantParamHistory(c fiber.Ctx) error {
+	claims := auth.GetClaims(c)
+	variantType := c.Query("type")
+	if variantType == "" {
+		return errRes(c, fiber.StatusBadRequest, "type query param is required")
+	}
+
+	if !paramHistoryAllowedTypes[variantType] {
+		return c.JSON(VariantParamHistoryResponse{Entries: []ParamHistoryEntryResponse{}})
+	}
+
+	entries, err := s.variants.GetParamHistory(c.Context(), claims.WorkspaceID, variantType)
+	if err != nil {
+		return ErrorStatusResponse(c, err)
+	}
+
+	out := make([]ParamHistoryEntryResponse, len(entries))
+	for i, e := range entries {
+		out[i] = ParamHistoryEntryResponse{Params: e.Params}
+	}
+	return c.JSON(VariantParamHistoryResponse{Entries: out})
 }
 
 // handleCreateVariant enqueues a transform job to produce a new variant.

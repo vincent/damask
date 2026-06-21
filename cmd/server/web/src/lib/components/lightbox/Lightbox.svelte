@@ -212,6 +212,11 @@
 
   const KNOWN_TABS = new Set(ALL_VARIANT_TOOLS.map((t) => t.key))
 
+  function applyReuseParams(params: Record<string, unknown> | null) {
+    reuseParams = params
+    reuseNonce += 1
+  }
+
   function onReuse(variant: Variant) {
     if (!KNOWN_TABS.has(variant.type as VariantTab)) return
     let params: Record<string, unknown> | null = null
@@ -223,8 +228,7 @@
       }
     }
     selectedTool = variant.type as VariantTab
-    reuseParams = params
-    reuseNonce += 1
+    applyReuseParams(params)
   }
 
   async function handleCreate(type: string, params: object) {
@@ -275,6 +279,7 @@
     {selectedTool}
     {reuseParams}
     {reuseNonce}
+    onReuseParams={applyReuseParams}
     {showDraftOverlay}
     draftAssetId={asset.id}
     creating={false}
@@ -364,6 +369,7 @@
           {reuseParams}
           {reuseNonce}
           {onReuse}
+          onReuseParams={applyReuseParams}
           {onThumbnailUpdated}
           onNavigate={(tab) => (activeTab = tab)}
           {onDraftStarted}

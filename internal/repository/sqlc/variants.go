@@ -194,6 +194,40 @@ func (r *variantRepo) GetSharedByVariantAndAsset(
 	return scanVariant(row)
 }
 
+// ListVariantParamHistory returns the most recent non-empty transform_params rows for the
+// given workspace + variant type, capped at `limit`. Distinctness across rows with the same
+// canonical content is computed by the caller, not here — see VariantRepository docs.
+func (r *variantRepo) ListVariantParamHistory(
+	ctx context.Context,
+	workspaceID, variantType string,
+	limit int,
+) ([]string, error) {
+	rows, err := r.sqlDB.QueryContext(ctx, `
+		SELECT transform_params
+		FROM variants
+		WHERE workspace_id = ?
+		  AND type = ?
+		  AND transform_params IS NOT NULL
+		  AND transform_params != ''
+		  AND transform_params != '{}'
+		ORDER BY created_at DESC
+		LIMIT ?`, workspaceID, variantType, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var p string
+		if err = rows.Scan(&p); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 func scanVariant(row interface {
 	Scan(dest ...any) error
 }) (repository.Variant, error) {

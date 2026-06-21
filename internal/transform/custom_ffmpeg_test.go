@@ -16,11 +16,67 @@ import (
 
 const validCustomCmd = "ffmpeg -i {input} -vf scale=320:-2 -c:v libx264 {output}"
 
+// ---- StripLeadingDescription — no ffmpeg needed ----
+
+func TestStripLeadingDescription_NoHashLine(t *testing.T) {
+	desc, content := StripLeadingDescription(validCustomCmd)
+	if desc != "" {
+		t.Fatalf("expected no description, got %q", desc)
+	}
+	if content != validCustomCmd {
+		t.Fatalf("expected content unchanged, got %q", content)
+	}
+}
+
+func TestStripLeadingDescription_HashLineStripped(t *testing.T) {
+	desc, content := StripLeadingDescription("# downscale for web\n" + validCustomCmd)
+	if desc != "downscale for web" {
+		t.Fatalf("expected description %q, got %q", "downscale for web", desc)
+	}
+	if content != validCustomCmd {
+		t.Fatalf("expected content %q, got %q", validCustomCmd, content)
+	}
+}
+
+func TestStripLeadingDescription_HashLineOnly(t *testing.T) {
+	desc, content := StripLeadingDescription("# just a label")
+	if desc != "just a label" {
+		t.Fatalf("expected description %q, got %q", "just a label", desc)
+	}
+	if content != "" {
+		t.Fatalf("expected empty content, got %q", content)
+	}
+}
+
+func TestStripLeadingDescription_HashMidStringNotStripped(t *testing.T) {
+	raw := "ffmpeg -i {input} # not a leading line\n -c copy {output}"
+	desc, content := StripLeadingDescription(raw)
+	if desc != "" {
+		t.Fatalf("expected no description, got %q", desc)
+	}
+	if content != strings.TrimSpace(raw) {
+		t.Fatalf("expected content unchanged (trimmed), got %q", content)
+	}
+}
+
 // ---- ValidateCustomCommand — no ffmpeg needed ----
 
 func TestValidateCustomCommand_HappyPath(t *testing.T) {
 	if err := ValidateCustomCommand(validCustomCmd); err != nil {
 		t.Fatalf("expected valid command, got error: %v", err)
+	}
+}
+
+func TestValidateCustomCommand_DescriptionLineIgnored(t *testing.T) {
+	if err := ValidateCustomCommand("# downscale for web\n" + validCustomCmd); err != nil {
+		t.Fatalf("expected valid command with description line, got error: %v", err)
+	}
+}
+
+func TestValidateCustomCommand_DescriptionLineOnlyMissingTokens(t *testing.T) {
+	err := ValidateCustomCommand("# just a label")
+	if !errors.Is(err, ErrCustomFFmpegNoInputToken) {
+		t.Fatalf("expected ErrCustomFFmpegNoInputToken for description-only command, got %v", err)
 	}
 }
 
@@ -293,6 +349,25 @@ func TestRunCustomFFmpeg_HappyPath(t *testing.T) {
 	outputPath, err := tr.RunCustomFFmpeg(
 		context.Background(),
 		"ffmpeg -i {input} -t 1 -c copy {output}",
+		src,
+		outDir,
+	)
+	if err != nil {
+		t.Fatalf("RunCustomFFmpeg: %v", err)
+	}
+	assertFileWritten(t, outputPath)
+}
+
+func TestRunCustomFFmpeg_DescriptionLineIgnored(t *testing.T) {
+	requireFFmpeg(t)
+
+	src := testdataPath(t, "sample_video_with_audio.mp4")
+	outDir := t.TempDir()
+
+	tr := NewTransformer()
+	outputPath, err := tr.RunCustomFFmpeg(
+		context.Background(),
+		"# trim to 1s\nffmpeg -i {input} -t 1 -c copy {output}",
 		src,
 		outDir,
 	)

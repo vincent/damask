@@ -689,7 +689,7 @@ func prepareImageRouterPromptParams(raw json.RawMessage, defaultModel string) (j
 	}
 	params.Prompt = strings.TrimSpace(params.Prompt)
 	params.Model = strings.TrimSpace(params.Model)
-	if params.Prompt == "" {
+	if _, content := transform.StripLeadingDescription(params.Prompt); content == "" {
 		return nil, invalidVariantRequestError("prompt_required")
 	}
 	if params.Model == "" {
@@ -815,6 +815,51 @@ func (s *variantService) Delete(ctx context.Context, workspaceID, assetID, varia
 		s.invalidate.Invalidate(workspaceID)
 	}
 	return nil
+}
+
+const (
+	paramHistoryLimit = 10
+	// paramHistoryFetchLimit over-fetches raw rows before deduplication: several variant
+	// types store transform_params with whatever key order the client sent (see
+	// internal/jobs/variant_common.go canonicalJSON, nil for 6 of 11 types), so the same
+	// logical params can appear multiple times with different raw JSON strings.
+	paramHistoryFetchLimit = 100
+)
+
+// GetParamHistory returns distinct previous transform_params for the given workspace and
+// variant type, ordered most-recent first, capped at paramHistoryLimit.
+func (s *variantService) GetParamHistory(
+	ctx context.Context,
+	workspaceID, variantType string,
+) ([]ParamHistoryEntry, error) {
+	raw, err := s.variants.ListVariantParamHistory(ctx, workspaceID, variantType, paramHistoryFetchLimit)
+	if err != nil {
+		return nil, fmt.Errorf("param history: %w", err)
+	}
+
+	seen := make(map[string]struct{}, len(raw))
+	entries := make([]ParamHistoryEntry, 0, paramHistoryLimit)
+	for _, jsonStr := range raw {
+		var params map[string]any
+		if unmarshalErr := json.Unmarshal([]byte(jsonStr), &params); unmarshalErr != nil {
+			continue // skip malformed rows — don't fail the whole request
+		}
+		// encoding/json marshals map keys in sorted order, so this re-marshal gives a
+		// canonical form regardless of how the original row's keys were ordered.
+		canonical, marshalErr := json.Marshal(params)
+		if marshalErr != nil {
+			continue
+		}
+		if _, dup := seen[string(canonical)]; dup {
+			continue
+		}
+		seen[string(canonical)] = struct{}{}
+		entries = append(entries, ParamHistoryEntry{Params: params})
+		if len(entries) == paramHistoryLimit {
+			break
+		}
+	}
+	return entries, nil
 }
 
 func toVariantDTO(v repository.Variant, position int) *VariantDTO {

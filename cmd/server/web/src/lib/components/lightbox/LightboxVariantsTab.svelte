@@ -17,6 +17,9 @@
   import VariantsTool, {
     type VariantTab,
   } from '$lib/components/variants/VariantsTool.svelte'
+  import ParamHistoryButton from '$lib/components/variants/ParamHistoryButton.svelte'
+  import { formatParamSummary } from '$lib/components/variants/paramHistorySummary'
+  import { PARAM_HISTORY_TOOLS } from '$lib/components/variants/toolDefs'
   import VariantSharingHeader from '$lib/components/variants/VariantSharingHeader.svelte'
   import VariantPromoteForm from '$lib/components/variants/VariantPromoteForm.svelte'
   import CoveringWorkflowBanner from '$lib/components/variants/CoveringWorkflowBanner.svelte'
@@ -44,6 +47,7 @@
     reuseParams?: Record<string, unknown> | null
     reuseNonce?: number
     onReuse: (variant: Variant) => void
+    onReuseParams?: (params: Record<string, unknown>) => void
   }
 
   let {
@@ -64,6 +68,7 @@
     reuseParams = null,
     reuseNonce = 0,
     onReuse,
+    onReuseParams,
   }: Props = $props()
 
   // --- Variant list state ---
@@ -368,6 +373,21 @@
         />
       {/if}
     {:else}
+      {#if onReuseParams && PARAM_HISTORY_TOOLS.has(activeVariantTab)}
+        <div class="mb-2 flex justify-end">
+          <ParamHistoryButton
+            variantType={activeVariantTab}
+            disabled={creating}
+            onSelect={onReuseParams}
+            formatEntry={(params) =>
+              formatParamSummary(activeVariantTab, params)}
+            dropdownWidthClass={activeVariantTab === 'custom_ffmpeg'
+              ? 'w-96'
+              : 'w-64'}
+            monospaceEntries={activeVariantTab === 'custom_ffmpeg'}
+          />
+        </div>
+      {/if}
       {#key `${activeVariantTab}-${reuseNonce}`}
         <VariantsTool
           {asset}

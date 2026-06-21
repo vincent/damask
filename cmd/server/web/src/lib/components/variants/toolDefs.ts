@@ -133,3 +133,22 @@ export const ALL_VARIANT_TOOLS: VariantToolDef[] = [
     showFor: () => true,
   },
 ]
+
+/**
+ * Variant types with user-authored settings worth surfacing as param history.
+ * image_bg_remove and video_capture_image are excluded — their params carry no
+ * creative choice (model selection is a workspace default, not a per-use decision).
+ */
+export const PARAM_HISTORY_TOOLS = new Set<VariantTab>([
+  'image_with_prompt',
+  'image_watermark',
+  'video_watermark',
+  'image_resize',
+  'image_convert',
+  'image_smart_crop',
+  'image_crop',
+  'video_transcode',
+  'audio_transcode',
+  'audio_normalize',
+  'custom_ffmpeg',
+])

@@ -1209,5 +1209,8 @@
   "text_tracks_ai_description_submit": "Generar descripció",
   "text_tracks_ai_description_openrouter_not_configured_hint": "OpenRouter no està configurat. <a href=\"/settings/integrations\" class=\"underline\">Afegeix una clau API a Integracions</a>.",
   "text_tracks_ai_description_error_not_configured": "OpenRouter no està configurat. Afegeix una clau API a Configuració → Integracions.",
-  "text_tracks_ai_description_error_unsupported_mime": "La descripció IA només està disponible per a imatges."
+  "text_tracks_ai_description_error_unsupported_mime": "La descripció IA només està disponible per a imatges.",
+  "variant_param_history_button_label": "Configuració anterior",
+  "variant_param_history_empty": "Sense configuració anterior",
+  "variant_param_history_load_error": "No s'ha pogut carregar la configuració anterior"
 }

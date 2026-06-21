@@ -9,6 +9,7 @@ import (
 
 	"damask/server/internal/ai"
 	"damask/server/internal/telemetry"
+	"damask/server/internal/transform"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -70,9 +71,10 @@ func (s *JobServer) imageWithPromptTransformer(workspaceID string, params json.R
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "image_with_prompt"),
 		)
+		_, prompt := transform.StripLeadingDescription(p.Prompt)
 		result, err := s.runAIProviderJob(ctx, workspaceID, sourceKey, p.Provider, ai.CapImageToImage,
 			func(provider ai.Provider, imageData []byte) ([]byte, error) {
-				return provider.Transform(ctx, imageData, p.Prompt, p.Model)
+				return provider.Transform(ctx, imageData, prompt, p.Model)
 			},
 		)
 		if err != nil {

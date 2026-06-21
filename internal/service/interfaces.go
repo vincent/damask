@@ -120,6 +120,11 @@ type WatermarkAssetDTO struct {
 	Scope        string  `json:"scope"`
 }
 
+// ParamHistoryEntry is one distinct previous transform_params set for a variant type.
+type ParamHistoryEntry struct {
+	Params map[string]any
+}
+
 // CommitDraftParams is the input for VariantService.CommitDraft.
 type CommitDraftParams struct {
 	WorkspaceID     string
@@ -148,6 +153,9 @@ type VariantService interface {
 	Promote(ctx context.Context, p PromoteVariantParams) (PromoteVariantResult, error)
 	SetAsThumbnail(ctx context.Context, workspaceID, assetID, variantID string) error
 	Rerun(ctx context.Context, p RerunVariantParams) error
+	// GetParamHistory returns distinct previous transform_params for the given workspace and
+	// variant type, ordered most-recent first, capped at 10.
+	GetParamHistory(ctx context.Context, workspaceID, variantType string) ([]ParamHistoryEntry, error)
 	// WriteVariantQueued emits asset_variant_created for job-queued variants.
 	WriteVariantQueued(ctx context.Context, workspaceID, assetID, variantType string)
 	// WriteVariantDownloadedAsync emits asset_variant_downloaded in a background goroutine.

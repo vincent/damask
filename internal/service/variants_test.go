@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -554,6 +555,42 @@ func TestVariantService_PrepareCreate_ImageWithPromptRequiresPrompt(t *testing.T
 	}
 }
 
+func TestVariantService_PrepareCreate_ImageWithPromptDescriptionOnlyRejected(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:                  queue.JobTypeImageWithPrompt,
+		Params:                json.RawMessage(`{"prompt":"# just a label"}`),
+		AssetMimeType:         "image/png",
+		ImageRouterConfigured: true,
+		DefaultImageModel:     "black-forest-labs/FLUX.1-fill-dev",
+	})
+	if !errors.Is(err, service.ErrInvalidVariantReq) || !strings.Contains(err.Error(), "prompt_required") {
+		t.Fatalf("expected prompt_required invalid request for description-only prompt, got %v", err)
+	}
+}
+
+func TestVariantService_PrepareCreate_ImageWithPromptPreservesDescriptionLine(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:                  queue.JobTypeImageWithPrompt,
+		Params:                json.RawMessage(`{"prompt":"# vintage filter\nadd a warm vintage film grain"}`),
+		AssetMimeType:         "image/png",
+		ImageRouterConfigured: true,
+		DefaultImageModel:     "black-forest-labs/FLUX.1-fill-dev",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var params map[string]string
+	if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+		t.Fatalf("decode params: %v", decodeErr)
+	}
+	const want = "# vintage filter\nadd a warm vintage film grain"
+	if params["prompt"] != want {
+		t.Fatalf("expected description line preserved in stored prompt, got %#v", params["prompt"])
+	}
+}
+
 func TestVariantService_PrepareCreate_ImageRouterRequiresConfig(t *testing.T) {
 	svc, _, _ := newVariantSvc(t)
 	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
@@ -805,5 +842,172 @@ func TestVariantService_Delete_EmitsAuditEvent(t *testing.T) {
 	}
 	if e.AssetID != "ast_1" {
 		t.Errorf("AssetID: got %q, want %q", e.AssetID, "ast_1")
+	}
+}
+
+// --- GetParamHistory ---
+
+func seedParamHistoryVariant(
+	t *testing.T,
+	repo *memory.VariantRepo,
+	id, workspaceID, variantType, params string,
+	createdAt time.Time,
+) {
+	t.Helper()
+	repo.Seed(repository.Variant{
+		ID:              id,
+		WorkspaceID:     workspaceID,
+		AssetVersionID:  "v1",
+		Type:            variantType,
+		TransformParams: &params,
+		CreatedAt:       createdAt,
+	})
+}
+
+func TestVariantService_GetParamHistory_DistinctOrderedByDate(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	now := time.Now()
+	seedParamHistoryVariant(
+		t, varRepo, "v1", "ws_1", "image_resize", `{"width":800,"height":600}`, now.Add(-2*time.Hour),
+	)
+	seedParamHistoryVariant(
+		t, varRepo, "v2", "ws_1", "image_resize", `{"width":1920,"height":1080}`, now.Add(-1*time.Hour),
+	)
+	seedParamHistoryVariant(t, varRepo, "v3", "ws_1", "image_resize", `{"width":800,"height":600}`, now)
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "image_resize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 distinct entries, got %d", len(entries))
+	}
+	if entries[0].Params["width"] != float64(800) {
+		t.Errorf("expected most-recently-used entry first, got %+v", entries[0].Params)
+	}
+}
+
+func TestVariantService_GetParamHistory_ExcludesEmptyParams(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	now := time.Now()
+	seedParamHistoryVariant(t, varRepo, "v1", "ws_1", "image_resize", "{}", now)
+	varRepo.Seed(repository.Variant{
+		ID: "v2", WorkspaceID: "ws_1", AssetVersionID: "v1", Type: "image_resize", CreatedAt: now,
+	})
+	seedParamHistoryVariant(t, varRepo, "v3", "ws_1", "image_resize", `{"width":800,"height":600}`, now)
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "image_resize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected only the non-empty entry, got %d", len(entries))
+	}
+}
+
+func TestVariantService_GetParamHistory_CrossWorkspaceIsolation(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	now := time.Now()
+	seedParamHistoryVariant(t, varRepo, "v1", "ws_other", "image_resize", `{"width":800,"height":600}`, now)
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "image_resize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected no entries from another workspace, got %d", len(entries))
+	}
+}
+
+func TestVariantService_GetParamHistory_CrossTypeIsolation(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	now := time.Now()
+	seedParamHistoryVariant(t, varRepo, "v1", "ws_1", "image_convert", `{"format":"webp"}`, now)
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "image_resize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected no entries from a different variant type, got %d", len(entries))
+	}
+}
+
+func TestVariantService_GetParamHistory_CapAtTen(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	now := time.Now()
+	for i := range 15 {
+		params := fmt.Sprintf(`{"width":%d,"height":600}`, i)
+		seedParamHistoryVariant(
+			t, varRepo, fmt.Sprintf("v%d", i), "ws_1", "image_resize", params, now.Add(time.Duration(i)*time.Minute),
+		)
+	}
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "image_resize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 10 {
+		t.Fatalf("expected cap of 10 entries, got %d", len(entries))
+	}
+}
+
+func TestVariantService_GetParamHistory_MalformedJSONSkipped(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	now := time.Now()
+	seedParamHistoryVariant(t, varRepo, "v1", "ws_1", "image_resize", "not json", now.Add(time.Minute))
+	seedParamHistoryVariant(t, varRepo, "v2", "ws_1", "image_resize", `{"width":800,"height":600}`, now)
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "image_resize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected the malformed row to be skipped, got %d entries", len(entries))
+	}
+}
+
+// TestVariantService_GetParamHistory_CanonicalizesUnsortedKeys guards against the bug
+// flagged in ROADMAP_64: canonicalJSON is nil for several variant types (see
+// internal/jobs/variant_common.go), so transform_params is stored with whatever key
+// order the client sent. The same logical params with two different key orderings must
+// still collapse into a single history entry.
+func TestVariantService_GetParamHistory_CanonicalizesUnsortedKeys(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	now := time.Now()
+	seedParamHistoryVariant(
+		t, varRepo, "v1", "ws_1", "image_resize", `{"width":800,"height":600,"fit":"cover"}`, now.Add(-time.Minute),
+	)
+	seedParamHistoryVariant(
+		t, varRepo, "v2", "ws_1", "image_resize", `{"fit":"cover","height":600,"width":800}`, now,
+	)
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "image_resize")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected unsorted-key duplicates to collapse into 1 entry, got %d", len(entries))
+	}
+}
+
+func TestVariantService_GetParamHistory_LongCommandRoundTrips(t *testing.T) {
+	svc, varRepo, _ := newVariantSvc(t)
+	longCommand := "ffmpeg -i {input} " + strings.Repeat("-vf scale=1280:-2 ", 90) + "{output}"
+	params, err := json.Marshal(map[string]string{"command": longCommand})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	seedParamHistoryVariant(t, varRepo, "v1", "ws_1", "custom_ffmpeg", string(params), time.Now())
+
+	entries, err := svc.GetParamHistory(context.Background(), "ws_1", "custom_ffmpeg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].Params["command"] != longCommand {
+		t.Errorf("command was truncated or modified in transit")
 	}
 }

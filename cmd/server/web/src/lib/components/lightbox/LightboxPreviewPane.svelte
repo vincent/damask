@@ -24,6 +24,7 @@
     selectedTool: VariantTab | null
     reuseParams?: Record<string, unknown> | null
     reuseNonce?: number
+    onReuseParams?: (params: Record<string, unknown>) => void
     showDraftOverlay: boolean
     draftAssetId: string | null
     creating: boolean
@@ -48,6 +49,7 @@
     selectedTool,
     reuseParams = null,
     reuseNonce = 0,
+    onReuseParams,
     showDraftOverlay,
     draftAssetId,
     creating,
@@ -184,6 +186,7 @@
           {creating}
           {reuseParams}
           {reuseNonce}
+          {onReuseParams}
           {handleCreate}
           onClose={() => {
             onToolSelect(null)

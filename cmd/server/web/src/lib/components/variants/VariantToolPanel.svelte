@@ -3,10 +3,12 @@
   import { m } from '$lib/paraglide/messages'
   import { X } from '@lucide/svelte'
   import { fly } from 'svelte/transition'
-  import { ALL_VARIANT_TOOLS } from './toolDefs'
+  import { ALL_VARIANT_TOOLS, PARAM_HISTORY_TOOLS } from './toolDefs'
   import VariantsTool from './VariantsTool.svelte'
   import type { VariantTab } from './VariantsTool.svelte'
   import ApplyWorkflowPicker from '$lib/components/workflows/ApplyWorkflowPicker.svelte'
+  import ParamHistoryButton from './ParamHistoryButton.svelte'
+  import { formatParamSummary } from './paramHistorySummary'
 
   interface AppliedWorkflow {
     workflowId: string
@@ -26,6 +28,7 @@
     onApplied?: (results: AppliedWorkflow[]) => void
     reuseParams?: Record<string, unknown> | null
     reuseNonce?: number
+    onReuseParams?: (params: Record<string, unknown>) => void
   }
 
   let {
@@ -39,7 +42,12 @@
     onApplied,
     reuseParams = null,
     reuseNonce = 0,
+    onReuseParams,
   }: Props = $props()
+
+  const showHistoryButton = $derived(
+    onReuseParams && PARAM_HISTORY_TOOLS.has(tool)
+  )
 
   function handleDraftDone() {
     onClose()
@@ -65,18 +73,30 @@
         <p>{msg(toolDef.sublabel)}</p>
       {/if}
     </div>
-    <button
-      type="button"
-      class="close-button"
-      disabled={creating}
-      onclick={() => {
-        if (!creating) onClose()
-      }}
-      aria-label={msg('variant_tool_panel_close')}
-      title={msg('variant_tool_panel_close')}
-    >
-      <X size={18} strokeWidth={1.75} />
-    </button>
+    <div class="panel-header-actions">
+      {#if showHistoryButton}
+        <ParamHistoryButton
+          variantType={tool}
+          disabled={creating}
+          onSelect={(params) => onReuseParams?.(params)}
+          formatEntry={(params) => formatParamSummary(tool, params)}
+          dropdownWidthClass={tool === 'custom_ffmpeg' ? 'w-96' : 'w-64'}
+          monospaceEntries={tool === 'custom_ffmpeg'}
+        />
+      {/if}
+      <button
+        type="button"
+        class="close-button"
+        disabled={creating}
+        onclick={() => {
+          if (!creating) onClose()
+        }}
+        aria-label={msg('variant_tool_panel_close')}
+        title={msg('variant_tool_panel_close')}
+      >
+        <X size={18} strokeWidth={1.75} />
+      </button>
+    </div>
   </header>
 
   <div class="panel-body">
@@ -114,7 +134,6 @@
     border-right: 1px solid var(--border-subtle, rgb(229 231 235 / 0.72));
     background: var(--surface-panel, rgb(255 255 255 / 0.96));
     box-shadow: 16px 0 36px rgb(15 23 42 / 0.12);
-    overflow: auto;
     backdrop-filter: blur(18px);
   }
 
@@ -165,6 +184,13 @@
     color: var(--dark-text-muted, rgb(156 163 175));
   }
 
+  .panel-header-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+  }
+
   .close-button {
     display: flex;
     width: 32px;
@@ -205,6 +231,7 @@
   .panel-body {
     min-height: 0;
     flex: 1;
+    overflow: auto;
     padding: 16px 18px 20px;
   }
 </style>

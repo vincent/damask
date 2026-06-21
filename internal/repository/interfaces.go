@@ -222,6 +222,11 @@ type VariantRepository interface {
 	UpdateSharedBatch(ctx context.Context, workspaceID string, ids []string, isShared bool) error
 	ListSharedByAssetIDs(ctx context.Context, assetIDs []string) ([]VariantWithAssetID, error)
 	GetSharedByVariantAndAsset(ctx context.Context, variantID, assetID string) (Variant, error)
+	// ListVariantParamHistory returns up to `limit` non-empty transform_params JSON strings
+	// for the given workspace + variant type, most recently created first. Rows are NOT
+	// deduplicated here — raw transform_params may have unsorted JSON keys for some variant
+	// types, so distinctness must be computed by the caller after canonicalizing each entry.
+	ListVariantParamHistory(ctx context.Context, workspaceID, variantType string, limit int) ([]string, error)
 }
 
 // WorkspaceRepository handles persistence for Workspace records.

@@ -128,6 +128,43 @@ func (r *VariantRepo) ListSharedByAssetIDs(
 	return out, nil
 }
 
+// ListVariantParamHistory returns non-empty transform_params for workspaceID+variantType,
+// most recently created first, capped at limit. Mirrors the raw (non-deduplicated) contract
+// of the sqlc-backed repository.
+func (r *VariantRepo) ListVariantParamHistory(
+	_ context.Context,
+	workspaceID, variantType string,
+	limit int,
+) ([]string, error) {
+	var matches []repository.Variant
+	for _, v := range r.mapStore.all() {
+		if v.WorkspaceID != workspaceID || v.Type != variantType {
+			continue
+		}
+		if v.TransformParams == nil || *v.TransformParams == "" || *v.TransformParams == "{}" {
+			continue
+		}
+		matches = append(matches, v)
+	}
+	slices.SortFunc(matches, func(a, b repository.Variant) int {
+		if a.CreatedAt.Before(b.CreatedAt) {
+			return 1
+		}
+		if a.CreatedAt.After(b.CreatedAt) {
+			return -1
+		}
+		return 0
+	})
+	if len(matches) > limit {
+		matches = matches[:limit]
+	}
+	out := make([]string, len(matches))
+	for i, v := range matches {
+		out[i] = *v.TransformParams
+	}
+	return out, nil
+}
+
 func (r *VariantRepo) GetSharedByVariantAndAsset(
 	_ context.Context,
 	variantID, assetID string,

@@ -22,6 +22,9 @@ export type SetVariantThumbnailResponse =
   definitions['api.SetVariantThumbnailResponse']
 export type RerunVariantResponse = definitions['api.RerunVariantResponse']
 export type ValidateCommandResponse = definitions['api.ValidateCommandResponse']
+export type ParamHistoryEntry = definitions['api.ParamHistoryEntryResponse']
+export type VariantParamHistoryResponse =
+  definitions['api.VariantParamHistoryResponse']
 export type AuditLogResponse = definitions['api.EventListResponse']
 export type ActivityFeedResponse = definitions['api.ActivityFeedResponse']
 export type AuditEvent = definitions['api.EventResponse']
@@ -394,6 +397,18 @@ export const variantApi = {
     apiFetch<ValidateCommandResponse>(
       `/api/v1/variants/validate-command?q=${encodeURIComponent(command)}`
     ),
+
+  /**
+   * GET /api/v1/variant-param-history — distinct previous transform_params for a variant
+   * type, most-recent first (workspace scope comes from the auth token). Never throws —
+   * history is a convenience feature, so a failed fetch resolves to an empty list.
+   */
+  paramHistory: (variantType: string): Promise<readonly ParamHistoryEntry[]> =>
+    apiFetch<VariantParamHistoryResponse>(
+      `/api/v1/variant-param-history?type=${encodeURIComponent(variantType)}`
+    )
+      .then((res) => res.entries ?? [])
+      .catch(() => []),
 
   /** POST /api/v1/assets/:id/variants/:vid/promote (editor+) — create a new asset from a variant. */
   promote: (assetId: string, variantId: string, name: string) =>

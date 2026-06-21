@@ -556,6 +556,7 @@ func NewRouter(
 
 	// Variants
 	api.Get("/variants/validate-command", s.handleValidateCustomFFmpegCommand)
+	api.Get("/variant-param-history", s.handleGetVariantParamHistory)
 	api.Get("/assets/:id/variants", s.handleListVariants)
 	api.Get("/assets/:id/variants/watermark", s.handleResolveWatermarkAsset)
 	api.Post("/assets/:id/variants", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateVariant)
