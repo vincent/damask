@@ -13,6 +13,7 @@
   import VariantCreateVideoExtract from './VariantCreateVideoExtract.svelte'
   import VariantCreateAudioTranscode from './VariantCreateAudioTranscode.svelte'
   import VariantCreateAudioNormalize from './VariantCreateAudioNormalize.svelte'
+  import VariantCreateCustomFFmpeg from './VariantCreateCustomFFmpeg.svelte'
 
   export type VariantTab =
     | 'all'
@@ -29,6 +30,7 @@
     | 'video_extract'
     | 'audio_transcode'
     | 'audio_normalize'
+    | 'custom_ffmpeg'
     | 'trigger_workflow'
 
   interface Props {
@@ -37,7 +39,7 @@
     creating?: boolean
     handleCreate: (type: string, params: object) => void
     onDone?: () => void
-    onDraftStarted?: (nonce: string) => void
+    onDraftStarted?: (nonce: string, meta?: Record<string, unknown>) => void
     sessionActive?: boolean
   }
   let {
@@ -92,4 +94,12 @@
   <VariantCreateAudioTranscode {asset} {creating} {handleCreate} />
 {:else if tool === 'audio_normalize'}
   <VariantCreateAudioNormalize {asset} {creating} {handleCreate} />
+{:else if tool === 'custom_ffmpeg'}
+  <VariantCreateCustomFFmpeg
+    {asset}
+    {creating}
+    {handleCreate}
+    {onDraftStarted}
+    {sessionActive}
+  />
 {/if}

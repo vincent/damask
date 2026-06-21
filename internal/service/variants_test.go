@@ -371,6 +371,77 @@ func TestVariantService_PrepareCreate_RejectsUnsupportedAudioBitrate(t *testing.
 	}
 }
 
+func TestVariantService_PrepareCreate_CustomFFmpegHappyPath(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	for _, mimeType := range []string{"image/jpeg", "video/mp4", "audio/mpeg", "application/pdf"} {
+		prepared, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+			Type:          queue.JobTypeCustomFFmpeg,
+			Params:        json.RawMessage(`{"command":"ffmpeg -i {input} -c copy {output}"}`),
+			AssetMimeType: mimeType,
+		})
+		if err != nil {
+			t.Fatalf("mime=%s: unexpected error: %v", mimeType, err)
+		}
+		var params struct {
+			Command string `json:"command"`
+		}
+		if decodeErr := json.Unmarshal(prepared.Params, &params); decodeErr != nil {
+			t.Fatalf("decode params: %v", decodeErr)
+		}
+		if params.Command != "ffmpeg -i {input} -c copy {output}" {
+			t.Fatalf("unexpected command: %q", params.Command)
+		}
+	}
+}
+
+func TestVariantService_PrepareCreate_CustomFFmpegRequiresCommand(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeCustomFFmpeg,
+		Params:        json.RawMessage(`{"command":""}`),
+		AssetMimeType: "video/mp4",
+	})
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "command_required") {
+		t.Fatalf("expected command_required invalid input, got %v", err)
+	}
+}
+
+func TestVariantService_PrepareCreate_CustomFFmpegMissingInputToken(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeCustomFFmpeg,
+		Params:        json.RawMessage(`{"command":"ffmpeg -i src.mp4 -c copy {output}"}`),
+		AssetMimeType: "video/mp4",
+	})
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "missing_input_token") {
+		t.Fatalf("expected missing_input_token invalid input, got %v", err)
+	}
+}
+
+func TestVariantService_PrepareCreate_CustomFFmpegMissingOutputToken(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeCustomFFmpeg,
+		Params:        json.RawMessage(`{"command":"ffmpeg -i {input} -c copy out.mp4"}`),
+		AssetMimeType: "video/mp4",
+	})
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "missing_output_token") {
+		t.Fatalf("expected missing_output_token invalid input, got %v", err)
+	}
+}
+
+func TestVariantService_PrepareCreate_CustomFFmpegBlacklistedCommand(t *testing.T) {
+	svc, _, _ := newVariantSvc(t)
+	_, err := svc.PrepareCreate(context.Background(), service.PrepareCreateVariantParams{
+		Type:          queue.JobTypeCustomFFmpeg,
+		Params:        json.RawMessage(`{"command":"ffmpeg -i {input} -c copy {output}; rm -rf /"}`),
+		AssetMimeType: "video/mp4",
+	})
+	if !errors.Is(err, apperr.ErrInvalidInput) || !strings.Contains(err.Error(), "command_blacklisted") {
+		t.Fatalf("expected command_blacklisted invalid input, got %v", err)
+	}
+}
+
 func TestVariantService_PrepareCreate_RejectsWrongMimeFamilies(t *testing.T) {
 	svc, _, _ := newVariantSvc(t)
 	tests := []struct {

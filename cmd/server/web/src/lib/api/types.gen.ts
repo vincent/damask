@@ -843,7 +843,7 @@ export interface paths {
         };
       };
     };
-    /** Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code> (WebP output is lossless; quality only affects JPEG)</li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong> — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress. */
+    /** Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code> (WebP output is lossless; quality only affects JPEG)</li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong> — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> <li><strong>custom_ffmpeg</strong> — <code>{"command": "ffmpeg -i {input} ... {output}"}</code> (any MIME type; output format auto-detected via ffprobe)</li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress. */
     readonly post: {
       readonly parameters: {
         readonly path: {
@@ -2648,6 +2648,27 @@ export interface paths {
       };
     };
   };
+  readonly "/api/v1/variants/validate-command": {
+    /** Synchronously validates a custom_ffmpeg command (length, {input}/{output} tokens, blacklisted patterns) without enqueueing a job or touching storage. Always returns 200 — the <code>valid</code> field carries the result. */
+    readonly get: {
+      readonly parameters: {
+        readonly query: {
+          /** Command to validate */
+          readonly q: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: definitions["api.ValidateCommandResponse"];
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
   readonly "/api/v1/workflows": {
     readonly get: {
       readonly responses: {
@@ -4352,6 +4373,11 @@ export interface definitions {
     readonly email: string;
     readonly id: string;
     readonly name: string;
+  };
+  readonly "api.ValidateCommandResponse": {
+    readonly detail?: string;
+    readonly error?: string;
+    readonly valid: boolean;
   };
   readonly "api.ValidationErrorResponse": {
     readonly error: string;

@@ -21,7 +21,7 @@
     creating: boolean
     handleCreate: (type: string, params: object) => void
     onClose: () => void
-    onDraftStarted?: (nonce: string) => void
+    onDraftStarted?: (nonce: string, meta?: Record<string, unknown>) => void
     sessionActive?: boolean
     onApplied?: (results: AppliedWorkflow[]) => void
   }

@@ -317,10 +317,66 @@ func (s *Server) handleResolveWatermarkAsset(c fiber.Ctx) error {
 	return c.JSON(systemTagAssetToWatermarkResponse(wm, scope))
 }
 
+// ValidateCommandResponse is the response for GET /api/v1/variants/validate-command.
+type ValidateCommandResponse struct {
+	Valid  bool   `json:"valid"`
+	Error  string `json:"error,omitempty"`
+	Detail string `json:"detail,omitempty"`
+}
+
+// handleValidateCustomFFmpegCommand handles GET /api/v1/variants/validate-command.
+//
+// @Summary Validate a custom ffmpeg command
+// @Description Synchronously validates a custom_ffmpeg command (length, {input}/{output} tokens, blacklisted patterns) without enqueueing a job or touching storage. Always returns 200 — the <code>valid</code> field carries the result.
+// @Tags Variants
+// @Produce json
+// @Security BearerAuth
+// @Param q query string true "Command to validate"
+// @Success 200 {object} ValidateCommandResponse
+// @Failure 401 {object} ErrorResponse "Not authenticated"
+// @Router /api/v1/variants/validate-command [get].
+func (s *Server) handleValidateCustomFFmpegCommand(c fiber.Ctx) error {
+	cmd := c.Query("q")
+	if strings.TrimSpace(cmd) == "" {
+		return c.JSON(ValidateCommandResponse{Valid: false, Error: "command_required"})
+	}
+
+	err := transform.ValidateCustomCommand(cmd)
+	if err == nil {
+		return c.JSON(ValidateCommandResponse{Valid: true})
+	}
+
+	switch {
+	case errors.Is(err, transform.ErrCustomFFmpegNoInputToken):
+		return c.JSON(ValidateCommandResponse{
+			Valid: false,
+			Error: "missing_input_token",
+		})
+	case errors.Is(err, transform.ErrCustomFFmpegNoOutputToken):
+		return c.JSON(ValidateCommandResponse{
+			Valid: false,
+			Error: "missing_output_token",
+		})
+	case errors.Is(err, transform.ErrCustomFFmpegTooLong):
+		return c.JSON(ValidateCommandResponse{
+			Valid: false,
+			Error: "command_too_long",
+		})
+	case errors.Is(err, transform.ErrCustomFFmpegBlacklisted):
+		return c.JSON(ValidateCommandResponse{
+			Valid:  false,
+			Error:  "command_blacklisted",
+			Detail: err.Error(),
+		})
+	default:
+		return c.JSON(ValidateCommandResponse{Valid: false, Error: err.Error()})
+	}
+}
+
 // handleCreateVariant enqueues a transform job to produce a new variant.
 //
 // @Summary Create a variant
-// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code> (WebP output is lossless; quality only affects JPEG)</li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong> — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
+// @Description Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: <ul> <li><strong>image_resize</strong> — <code>{"width": N, "height": N, "fit": "contain|cover|fill"}</code></li> <li><strong>image_convert</strong> — <code>{"format": "jpeg|png|webp|avif"}</code> (WebP output is lossless; quality only affects JPEG)</li> <li><strong>image_crop</strong> — <code>{"x": N, "y": N, "width": N, "height": N}</code></li> <li><strong>image_watermark</strong> — <code>{"opacity": 0.5}</code></li> <li><strong>image_smart_crop</strong> — <code>{"width": N, "height": N}</code> (AI-assisted)</li> <li><strong>image_bg_remove</strong> — <code>{"model": "bria/remove-background"}</code></li> <li><strong>image_with_prompt</strong> — <code>{"prompt": "...", "model": "black-forest-labs/FLUX.1-fill-dev"}</code></li> <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li> <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li> <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li> <li><strong>custom_ffmpeg</strong> — <code>{"command": "ffmpeg -i {input} ... {output}"}</code> (any MIME type; output format auto-detected via ffprobe)</li> </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code> to check completion. Returns 409 if a variant rebuild is already in progress.
 // @Tags Variants
 // @Accept json
 // @Produce json

@@ -1699,7 +1699,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: \u003cul\u003e \u003cli\u003e\u003cstrong\u003eimage_resize\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N, \"fit\": \"contain|cover|fill\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_convert\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"jpeg|png|webp|avif\"}\u003c/code\u003e (WebP output is lossless; quality only affects JPEG)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_crop\u003c/strong\u003e — \u003ccode\u003e{\"x\": N, \"y\": N, \"width\": N, \"height\": N}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_watermark\u003c/strong\u003e — \u003ccode\u003e{\"opacity\": 0.5}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_smart_crop\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N}\u003c/code\u003e (AI-assisted)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_bg_remove\u003c/strong\u003e — \u003ccode\u003e{\"model\": \"bria/remove-background\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_with_prompt\u003c/strong\u003e — \u003ccode\u003e{\"prompt\": \"...\", \"model\": \"black-forest-labs/FLUX.1-fill-dev\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_transcode\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"mp4\", \"codec\": \"h264\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_watermark\u003c/strong\u003e — \u003ccode\u003e{\"opacity\": 0.5, \"format\": \"mp4\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_capture_image\u003c/strong\u003e — \u003ccode\u003e{\"time_sec\": N}\u003c/code\u003e\u003c/li\u003e \u003c/ul\u003e Returns a job ID immediately; poll \u003ccode\u003eGET /api/v1/assets/:id/variants\u003c/code\u003e to check completion. Returns 409 if a variant rebuild is already in progress.",
+                "description": "Enqueues a background job to generate a transformed variant of the asset's current version. Supported types and their required params: \u003cul\u003e \u003cli\u003e\u003cstrong\u003eimage_resize\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N, \"fit\": \"contain|cover|fill\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_convert\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"jpeg|png|webp|avif\"}\u003c/code\u003e (WebP output is lossless; quality only affects JPEG)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_crop\u003c/strong\u003e — \u003ccode\u003e{\"x\": N, \"y\": N, \"width\": N, \"height\": N}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_watermark\u003c/strong\u003e — \u003ccode\u003e{\"opacity\": 0.5}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_smart_crop\u003c/strong\u003e — \u003ccode\u003e{\"width\": N, \"height\": N}\u003c/code\u003e (AI-assisted)\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_bg_remove\u003c/strong\u003e — \u003ccode\u003e{\"model\": \"bria/remove-background\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003eimage_with_prompt\u003c/strong\u003e — \u003ccode\u003e{\"prompt\": \"...\", \"model\": \"black-forest-labs/FLUX.1-fill-dev\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_transcode\u003c/strong\u003e — \u003ccode\u003e{\"format\": \"mp4\", \"codec\": \"h264\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_watermark\u003c/strong\u003e — \u003ccode\u003e{\"opacity\": 0.5, \"format\": \"mp4\"}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003evideo_capture_image\u003c/strong\u003e — \u003ccode\u003e{\"time_sec\": N}\u003c/code\u003e\u003c/li\u003e \u003cli\u003e\u003cstrong\u003ecustom_ffmpeg\u003c/strong\u003e — \u003ccode\u003e{\"command\": \"ffmpeg -i {input} ... {output}\"}\u003c/code\u003e (any MIME type; output format auto-detected via ffprobe)\u003c/li\u003e \u003c/ul\u003e Returns a job ID immediately; poll \u003ccode\u003eGET /api/v1/assets/:id/variants\u003c/code\u003e to check completion. Returns 409 if a variant rebuild is already in progress.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5345,6 +5345,46 @@ const docTemplate = `{
                         "description": "Validation failed",
                         "schema": {
                             "$ref": "#/definitions/api.ValidationErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/variants/validate-command": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Synchronously validates a custom_ffmpeg command (length, {input}/{output} tokens, blacklisted patterns) without enqueueing a job or touching storage. Always returns 200 — the \u003ccode\u003evalid\u003c/code\u003e field carries the result.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variants"
+                ],
+                "summary": "Validate a custom ffmpeg command",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Command to validate",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.ValidateCommandResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -9629,6 +9669,23 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "api.ValidateCommandResponse": {
+            "type": "object",
+            "required": [
+                "valid"
+            ],
+            "properties": {
+                "detail": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "valid": {
+                    "type": "boolean"
                 }
             }
         },

@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +19,10 @@ import (
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 )
+
+// customFFmpegDraftTrimSeconds is how much of the source the "Test" preview
+// runs against. Kept short so the draft job timeout (110s) comfortably covers it.
+const customFFmpegDraftTrimSeconds = 5
 
 const (
 	scratchPrefix   = "scratch/"
@@ -176,9 +182,58 @@ func (s *JobServer) draftTransformer(
 			return data, contentType, nil
 		}, nil
 
+	case queue.JobTypeCustomFFmpeg:
+		return s.customFFmpegDraftTransformer(params)
+
 	default:
 		return nil, fmt.Errorf("unsupported draft type: %s", variantType)
 	}
+}
+
+// customFFmpegDraftTransformer returns a variantTransformer that trims the
+// source to a short preview clip before running the user's command, so the
+// "Test" dry-run stays fast regardless of source file length.
+func (s *JobServer) customFFmpegDraftTransformer(params json.RawMessage) (variantTransformer, error) {
+	var p CustomFFmpegParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return nil, errors.New("invalid params")
+	}
+	if err := transform.ValidateCustomCommand(p.Command); err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+		rc, err := s.storage.Get(sourceKey)
+		if err != nil {
+			return nil, "", errors.New("failed to load asset file")
+		}
+		srcPath, cleanSrc, err := writeToTempFile(ctx, rc, filepath.Ext(sourceKey))
+		_ = rc.Close()
+		if err != nil {
+			return nil, "", fmt.Errorf("write src temp: %w", err)
+		}
+		defer cleanSrc()
+
+		outDir, err := os.MkdirTemp("", "damask-custom-ffmpeg-draft-*")
+		if err != nil {
+			return nil, "", fmt.Errorf("create temp dir: %w", err)
+		}
+		defer os.RemoveAll(outDir)
+
+		// Trim to a short preview clip; falls back to the full file if
+		// trimming fails so the test never errors out for that reason.
+		trimmed, _ := s.trf.TrimToSeconds(ctx, srcPath, customFFmpegDraftTrimSeconds, outDir)
+
+		outputPath, runErr := s.trf.RunCustomFFmpeg(ctx, p.Command, trimmed, outDir)
+		if runErr != nil {
+			return nil, "", runErr
+		}
+		data, readErr := os.ReadFile(outputPath)
+		if readErr != nil {
+			return nil, "", fmt.Errorf("read output: %w", readErr)
+		}
+		mimeType := s.trf.DetectOutputMIME(ctx, outputPath)
+		return data, mimeType, nil
+	}, nil
 }
 
 // nextPurgeTime returns today's purge time if it hasn't passed yet, otherwise tomorrow's.

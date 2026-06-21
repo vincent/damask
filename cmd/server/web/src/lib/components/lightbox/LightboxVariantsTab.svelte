@@ -115,6 +115,10 @@
           },
         ]
       : []),
+    {
+      id: 'custom_ffmpeg' as VariantTab,
+      label: m.variant_tool_custom_ffmpeg(),
+    },
   ])
 
   // Reset state when asset changes

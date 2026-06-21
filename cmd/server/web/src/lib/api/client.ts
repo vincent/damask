@@ -21,6 +21,7 @@ export type PromoteVariantResponse = definitions['api.PromoteVariantResponse']
 export type SetVariantThumbnailResponse =
   definitions['api.SetVariantThumbnailResponse']
 export type RerunVariantResponse = definitions['api.RerunVariantResponse']
+export type ValidateCommandResponse = definitions['api.ValidateCommandResponse']
 export type AuditLogResponse = definitions['api.EventListResponse']
 export type ActivityFeedResponse = definitions['api.ActivityFeedResponse']
 export type AuditEvent = definitions['api.EventResponse']
@@ -387,6 +388,12 @@ export const variantApi = {
     apiFetch<void>(`/api/v1/assets/${assetId}/variants/${variantId}`, {
       method: 'DELETE',
     }),
+
+  /** GET /api/v1/variants/validate-command — synchronously validate a custom_ffmpeg command. */
+  validateCommand: (command: string) =>
+    apiFetch<ValidateCommandResponse>(
+      `/api/v1/variants/validate-command?q=${encodeURIComponent(command)}`
+    ),
 
   /** POST /api/v1/assets/:id/variants/:vid/promote (editor+) — create a new asset from a variant. */
   promote: (assetId: string, variantId: string, name: string) =>

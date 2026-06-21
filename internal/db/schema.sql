@@ -139,6 +139,9 @@ CREATE TABLE asset_tags (
 );
 
 -- variants: bound to asset_versions (versioned, VV-M3)
+-- type is freeform TEXT; "custom_ffmpeg" is a valid value (raw user-supplied
+-- ffmpeg command, see internal/transform/custom_ffmpeg.go) alongside the
+-- other structured variant types.
 CREATE TABLE variants (
     id               TEXT PRIMARY KEY,
     workspace_id     TEXT NOT NULL REFERENCES workspaces(id),

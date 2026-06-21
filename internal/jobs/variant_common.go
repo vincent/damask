@@ -78,6 +78,12 @@ func (s *JobServer) variantRegistry() map[string]variantEntry {
 		queue.JobTypeExtractAudio:   {build: s.audioBuild, canonicalJSON: audioCanonical},
 		queue.JobTypeTranscodeAudio: {build: s.audioBuild, canonicalJSON: audioCanonical},
 		queue.JobTypeNormalizeAudio: {build: s.audioBuild, canonicalJSON: audioCanonical},
+
+		// Custom ffmpeg command — works on any MIME type.
+		queue.JobTypeCustomFFmpeg: {
+			build:         s.customFFmpegBuild,
+			canonicalJSON: customFFmpegCanonical,
+		},
 	}
 }
 

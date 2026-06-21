@@ -1527,6 +1527,17 @@ definitions:
     - id
     - name
     type: object
+  api.ValidateCommandResponse:
+    properties:
+      detail:
+        type: string
+      error:
+        type: string
+      valid:
+        type: boolean
+    required:
+    - valid
+    type: object
   api.ValidationErrorResponse:
     properties:
       error:
@@ -3128,6 +3139,8 @@ paths:
         <li><strong>video_transcode</strong> — <code>{"format": "mp4", "codec": "h264"}</code></li>
         <li><strong>video_watermark</strong> — <code>{"opacity": 0.5, "format": "mp4"}</code></li>
         <li><strong>video_capture_image</strong> — <code>{"time_sec": N}</code></li>
+        <li><strong>custom_ffmpeg</strong> — <code>{"command": "ffmpeg -i {input}
+        ... {output}"}</code> (any MIME type; output format auto-detected via ffprobe)</li>
         </ul> Returns a job ID immediately; poll <code>GET /api/v1/assets/:id/variants</code>
         to check completion. Returns 409 if a variant rebuild is already in progress.'
       parameters:
@@ -5698,6 +5711,33 @@ paths:
       summary: Get duplicate tag suggestions
       tags:
       - Tags
+  /api/v1/variants/validate-command:
+    get:
+      description: Synchronously validates a custom_ffmpeg command (length, {input}/{output}
+        tokens, blacklisted patterns) without enqueueing a job or touching storage.
+        Always returns 200 — the <code>valid</code> field carries the result.
+      parameters:
+      - description: Command to validate
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ValidateCommandResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Validate a custom ffmpeg command
+      tags:
+      - Variants
   /api/v1/workflows:
     get:
       responses:

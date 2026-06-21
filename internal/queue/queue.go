@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	transcodeSemaphoreLimit = 2
-	rebuildSemaphoreLimit   = 2
-	tickerInterval          = 2 * time.Second
+	transcodeSemaphoreLimit    = 2
+	rebuildSemaphoreLimit      = 2
+	customFFmpegSemaphoreLimit = 2
+	tickerInterval             = 2 * time.Second
 )
 
 // HandlerFunc processes a job payload and returns an error on failure.
@@ -52,6 +53,10 @@ type Queue struct {
 	transcodeSem chan struct{}
 	// Semaphore limiting concurrent rebuild_variants jobs.
 	rebuildSem chan struct{}
+	// Semaphore limiting concurrent custom_ffmpeg jobs, separate from
+	// transcodeSem so a slow/hanging user-supplied command can't starve
+	// real video transcode/watermark jobs.
+	customFFmpegSem chan struct{}
 }
 
 // New creates a new Queue. Call Start() to begin processing.
@@ -60,13 +65,14 @@ func New(queries *dbgen.Queries, workers int) *Queue {
 		workers = 4
 	}
 	return &Queue{
-		queries:      queries,
-		workers:      workers,
-		handlers:     make(map[string]HandlerFunc),
-		notify:       make(chan struct{}, workers),
-		done:         make(chan struct{}),
-		transcodeSem: make(chan struct{}, transcodeSemaphoreLimit),
-		rebuildSem:   make(chan struct{}, rebuildSemaphoreLimit),
+		queries:         queries,
+		workers:         workers,
+		handlers:        make(map[string]HandlerFunc),
+		notify:          make(chan struct{}, workers),
+		done:            make(chan struct{}),
+		transcodeSem:    make(chan struct{}, transcodeSemaphoreLimit),
+		rebuildSem:      make(chan struct{}, rebuildSemaphoreLimit),
+		customFFmpegSem: make(chan struct{}, customFFmpegSemaphoreLimit),
 	}
 }
 
@@ -181,6 +187,13 @@ func (q *Queue) processNext(ctx context.Context) {
 	if job.Type == JobTypeVideoTranscode || job.Type == JobTypeVideoWatermark {
 		q.transcodeSem <- struct{}{}
 		defer func() { <-q.transcodeSem }()
+	}
+
+	// custom_ffmpeg runs user-supplied commands and gets its own semaphore so
+	// a slow/hanging one can't starve the real transcode/watermark jobs above.
+	if job.Type == JobTypeCustomFFmpeg {
+		q.customFFmpegSem <- struct{}{}
+		defer func() { <-q.customFFmpegSem }()
 	}
 
 	// For rebuild_variants jobs, enforce concurrency limit of 2.
@@ -306,6 +319,7 @@ const (
 	JobTypeExtractAudio      = "video_extract"
 	JobTypeTranscodeAudio    = "audio_transcode"
 	JobTypeNormalizeAudio    = "audio_normalize"
+	JobTypeCustomFFmpeg      = "custom_ffmpeg"
 
 	JobTypeIngestPoll  = "ingest_poll"
 	JobTypeIngestFetch = "ingest_fetch"

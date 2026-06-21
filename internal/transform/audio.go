@@ -22,10 +22,13 @@ const (
 	audioFormatAAC      = "aac"
 	audioFormatFLAC     = "flac"
 	audioFormatMP3      = "mp3"
+	audioFormatOGG      = "ogg"
 	audioFormatOpus     = "opus"
 	audioFormatWAV      = "wav"
 	audioMimeMPEG       = "audio/mpeg"
 	audioMimeOGG        = "audio/ogg"
+	audioMimeWAV        = "audio/wav"
+	audioMimeFLAC       = "audio/flac"
 	ffmpegArgAudioCodec = "-c:a"
 )
 
@@ -48,9 +51,9 @@ var audioCodecs = map[string]audioCodec{
 	audioFormatMP3:  {codec: "libmp3lame", ext: ".mp3", mimeType: audioMimeMPEG},
 	audioFormatAAC:  {codec: audioFormatAAC, ext: ".m4a", mimeType: "audio/mp4"},
 	audioFormatOpus: {codec: "libopus", ext: ".opus", mimeType: audioMimeOGG},
-	"ogg":           {codec: "libvorbis", ext: ".ogg", mimeType: audioMimeOGG},
-	audioFormatFLAC: {codec: audioFormatFLAC, ext: ".flac", mimeType: "audio/flac", lossless: true},
-	audioFormatWAV:  {codec: "pcm_s16le", ext: ".wav", mimeType: "audio/wav", lossless: true},
+	audioFormatOGG:  {codec: "libvorbis", ext: ".ogg", mimeType: audioMimeOGG},
+	audioFormatFLAC: {codec: audioFormatFLAC, ext: ".flac", mimeType: audioMimeFLAC, lossless: true},
+	audioFormatWAV:  {codec: "pcm_s16le", ext: ".wav", mimeType: audioMimeWAV, lossless: true},
 }
 
 func (t *transformer) AudioWaveform(ctx context.Context, src io.Reader, mimeType string) ([]byte, string, error) {
@@ -241,12 +244,12 @@ func AudioFormatFromMimeType(mimeType string) string {
 		return audioFormatMP3
 	case "audio/aac", "audio/mp4", "audio/x-m4a":
 		return "aac"
-	case "audio/ogg", "audio/opus":
-		return "ogg"
-	case "audio/flac":
-		return "flac"
-	case "audio/wav", "audio/x-wav":
-		return "wav"
+	case audioMimeOGG, "audio/opus":
+		return audioFormatOGG
+	case audioMimeFLAC:
+		return audioFormatFLAC
+	case audioMimeWAV, "audio/x-wav":
+		return audioFormatWAV
 	default:
 		return audioFormatMP3
 	}

@@ -8,8 +8,10 @@
     previewUrl: string
     expiresAt: string
     errorMsg: string
-    phase: 'generating' | 'ready' | 'error'
+    phase: 'generating' | 'ready' | 'error' | 'queued'
     isCommitting: boolean
+    mediaKind?: 'image' | 'video' | 'audio' | 'other'
+    mediaUrl?: string
     onKeep: () => void
     onDiscard: () => void
   }
@@ -22,6 +24,8 @@
     errorMsg,
     phase,
     isCommitting,
+    mediaKind = 'image',
+    mediaUrl,
     onKeep,
     onDiscard,
   }: Props = $props()
@@ -39,7 +43,9 @@
   )
 
   const API_BASE = import.meta.env.VITE_API_URL ?? ''
-  const fullPreviewUrl = $derived(previewUrl ? `${API_BASE}${previewUrl}` : '')
+  const fullPreviewUrl = $derived(
+    mediaUrl || (previewUrl ? `${API_BASE}${previewUrl}` : '')
+  )
 
   $effect(() => {
     if (dialogEl && !dialogEl.open) {
@@ -56,6 +62,16 @@
     <div class="card-footer">
       <span class="status-text">{m.variants_draft_generating()}</span>
     </div>
+  {:else if phase === 'queued'}
+    <div
+      class="preview-skeleton"
+      aria-label={m.variants_draft_running_full_job()}
+    >
+      <div class="skeleton-shimmer"></div>
+    </div>
+    <div class="card-footer">
+      <span class="status-text">{m.variants_draft_running_full_job()}</span>
+    </div>
   {:else if phase === 'error'}
     <div class="preview-error">
       <X size={28} class="error-icon" />
@@ -67,19 +83,26 @@
       </button>
     </div>
   {:else}
-    <button
-      type="button"
-      class="preview-button"
-      onclick={() => (lightboxOpen = true)}
-      aria-label="Open full-size preview"
-    >
-      <img
-        src={fullPreviewUrl}
-        alt="Draft preview"
-        class="preview-img"
-        loading="lazy"
-      />
-    </button>
+    {#if mediaKind === 'video'}
+      <!-- svelte-ignore a11y_media_has_caption -->
+      <video src={fullPreviewUrl} controls class="preview-img"></video>
+    {:else if mediaKind === 'audio'}
+      <audio src={fullPreviewUrl} controls class="preview-audio"></audio>
+    {:else}
+      <button
+        type="button"
+        class="preview-button"
+        onclick={() => (lightboxOpen = true)}
+        aria-label="Open full-size preview"
+      >
+        <img
+          src={fullPreviewUrl}
+          alt="Draft preview"
+          class="preview-img"
+          loading="lazy"
+        />
+      </button>
+    {/if}
 
     {#if expiresInHours !== null}
       <p class="expires-hint">
@@ -206,6 +229,11 @@
     background: none;
     cursor: zoom-in;
     overflow: hidden;
+  }
+
+  .preview-audio {
+    width: 100%;
+    margin: 16px 12px;
   }
 
   .preview-img {

@@ -83,9 +83,17 @@
     )
   })
 
-  function handleDraftStarted(nonce: string) {
+  function handleDraftStarted(nonce: string, meta?: Record<string, unknown>) {
     onDraftStarted(nonce)
-    Promise.resolve().then(() => draftSessionRef?.addDraft(nonce))
+    Promise.resolve().then(() => draftSessionRef?.addDraft(nonce, meta))
+  }
+
+  async function handleFfmpegKeep(
+    _nonce: string,
+    meta: Record<string, unknown> | undefined
+  ): Promise<void> {
+    const command = (meta?.command as string | undefined) ?? ''
+    await handleCreate('custom_ffmpeg', { command })
   }
 
   function handleDraftDone() {
@@ -129,6 +137,10 @@
                 bind:this={draftSessionRef}
                 assetId={draftAssetId}
                 gridMode={true}
+                detectMediaKind={selectedTool === 'custom_ffmpeg'}
+                onKeepDraft={selectedTool === 'custom_ffmpeg'
+                  ? handleFfmpegKeep
+                  : undefined}
                 onDone={handleDraftDone}
                 onAddMore={() => {}}
                 {onVariantCommitted}

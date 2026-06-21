@@ -11,6 +11,7 @@ import {
   Shapes,
   Sparkles,
   Stamp,
+  Terminal,
   Video,
   Workflow,
 } from '@lucide/svelte'
@@ -116,6 +117,13 @@ export const ALL_VARIANT_TOOLS: VariantToolDef[] = [
     sublabel: 'variant_tool_audio_normalize_sub',
     icon: AudioLines,
     showFor: isAudio,
+  },
+  {
+    key: 'custom_ffmpeg',
+    label: 'variant_tool_custom_ffmpeg',
+    sublabel: 'variant_tool_custom_ffmpeg_sub',
+    icon: Terminal,
+    showFor: () => true,
   },
   {
     key: 'trigger_workflow',

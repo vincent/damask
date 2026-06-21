@@ -152,3 +152,15 @@ func (t *mockTransformer) VideoWatermark(
 ) error {
 	return nil
 }
+
+func (t *mockTransformer) RunCustomFFmpeg(_ context.Context, _, _, _ string) (string, error) {
+	return "", nil
+}
+
+func (t *mockTransformer) DetectOutputMIME(_ context.Context, _ string) string {
+	return transform.MimeApplicationOctetStream
+}
+
+func (t *mockTransformer) TrimToSeconds(_ context.Context, srcPath string, _ int, _ string) (string, error) {
+	return srcPath, nil
+}

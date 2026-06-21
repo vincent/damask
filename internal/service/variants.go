@@ -238,12 +238,55 @@ func (s *variantService) PrepareCreate(
 		return meta(p.Type, normalized), nil
 	}
 
+	if p.Type == queue.JobTypeCustomFFmpeg {
+		normalized, err := prepareCustomFFmpegParams(params)
+		if err != nil {
+			return PreparedCreateVariant{}, err
+		}
+		return meta(p.Type, normalized), nil
+	}
+
 	normalized, err := prepareAudioVariantParams(p.Type, p.AssetMimeType, params)
 	if err != nil {
 		return PreparedCreateVariant{}, err
 	}
 
 	return meta(p.Type, normalized), nil
+}
+
+// prepareCustomFFmpegParams validates the user-supplied command and returns
+// canonical params JSON. Validation errors are mapped to short codes the
+// frontend can map to translated messages.
+func prepareCustomFFmpegParams(raw json.RawMessage) (json.RawMessage, error) {
+	var p struct {
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return nil, invalidVariantInputError("invalid command params")
+	}
+	p.Command = strings.TrimSpace(p.Command)
+	if p.Command == "" {
+		return nil, invalidVariantInputError("command_required")
+	}
+	if err := transform.ValidateCustomCommand(p.Command); err != nil {
+		return nil, customFFmpegValidationError(err)
+	}
+	return marshalRaw(p), nil
+}
+
+// customFFmpegValidationError maps a transform.ValidateCustomCommand error to
+// a short, stable code suitable for frontend i18n lookups.
+func customFFmpegValidationError(err error) error {
+	switch {
+	case errors.Is(err, transform.ErrCustomFFmpegNoInputToken):
+		return invalidVariantInputError("missing_input_token")
+	case errors.Is(err, transform.ErrCustomFFmpegNoOutputToken):
+		return invalidVariantInputError("missing_output_token")
+	case errors.Is(err, transform.ErrCustomFFmpegBlacklisted):
+		return invalidVariantInputError("command_blacklisted")
+	default:
+		return invalidVariantInputError(err.Error())
+	}
 }
 
 func (s *variantService) prepareImageWatermarkParams(
@@ -518,7 +561,8 @@ func validVariantType(variantType string) bool {
 		queue.JobTypeImageSmartCrop,
 		queue.JobTypeExtractAudio,
 		queue.JobTypeTranscodeAudio,
-		queue.JobTypeNormalizeAudio:
+		queue.JobTypeNormalizeAudio,
+		queue.JobTypeCustomFFmpeg:
 		return true
 	default:
 		return false
