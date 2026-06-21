@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -9,9 +10,15 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset: _asset, creating, handleCreate }: Props = $props()
+  let {
+    asset: _asset,
+    creating,
+    handleCreate,
+    initialParams = null,
+  }: Props = $props()
 
   const kind = 'audio_normalize'
   const formats = [
@@ -26,8 +33,12 @@
     { value: -23, label: m.audio_target_broadcast() },
   ]
 
-  let targetLUFS = $state(-16)
-  let format = $state('source')
+  let targetLUFS = $state(
+    untrack(() => (initialParams?.target_lufs as number) ?? -16)
+  )
+  let format = $state(
+    untrack(() => (initialParams?.format as string) ?? 'source')
+  )
 </script>
 
 <div class="space-y-5">

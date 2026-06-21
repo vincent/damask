@@ -34,6 +34,7 @@
     onPromote: () => void
     onThumbnailUpdated: () => void
     onRerun: () => void
+    onReuse: (variant: Variant) => void
   }
 
   let {
@@ -48,6 +49,7 @@
     onPromote,
     onThumbnailUpdated,
     onRerun,
+    onReuse,
   }: Props = $props()
 
   const category = $derived(mimeCategory(assetMimeType))
@@ -260,6 +262,17 @@
         >
           Create new asset
         </button>
+        {#if variant.type !== 'manual'}
+          <button
+            type="button"
+            onclick={() => {
+              menuOpen = false
+              onReuse(variant)
+            }}
+          >
+            Reuse
+          </button>
+        {/if}
         {#if variant.type === 'image_bg_remove' || variant.type === 'image_with_prompt'}
           <button type="button" onclick={rerunVariant}>Re-run</button>
         {/if}

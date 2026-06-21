@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import ResolutionOptions from '../ResolutionOptions.svelte'
@@ -14,15 +15,30 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset, creating, handleCreate }: Props = $props()
+  let { asset, creating, handleCreate, initialParams = null }: Props = $props()
 
   const kind = 'video_watermark'
-  let opacity = $state(50)
-  let videoFormat = $state<'mp4' | 'webm'>('mp4')
-  let videoResolution = $state<'' | '1080p' | '720p' | '480p'>('')
-  let stripAudio = $state(false)
+  let opacity = $state(
+    untrack(() =>
+      initialParams?.opacity != null
+        ? (initialParams.opacity as number) * 100
+        : 50
+    )
+  )
+  let videoFormat = $state<'mp4' | 'webm'>(
+    untrack(() => (initialParams?.format as 'mp4' | 'webm') ?? 'mp4')
+  )
+  let videoResolution = $state<'' | '1080p' | '720p' | '480p'>(
+    untrack(
+      () => (initialParams?.resolution as '' | '1080p' | '720p' | '480p') ?? ''
+    )
+  )
+  let stripAudio = $state(
+    untrack(() => (initialParams?.strip_audio as boolean) ?? false)
+  )
   let watermarkAsset = $state<WatermarkAsset | null>(null)
   let resolveError = $state('')
   let resolving = $state(false)

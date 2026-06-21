@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -14,6 +15,7 @@
     handleCreate: (kind: string, params: Record<string, unknown>) => void
     onDraftStarted?: (nonce: string, meta?: Record<string, unknown>) => void
     sessionActive?: boolean
+    initialParams?: Record<string, unknown> | null
   }
 
   let {
@@ -22,13 +24,14 @@
     handleCreate,
     onDraftStarted,
     sessionActive = false,
+    initialParams = null,
   }: Props = $props()
 
   const kind = 'custom_ffmpeg'
 
   type Phase = 'form' | 'drafting'
   let phase = $state<Phase>('form')
-  let command = $state('')
+  let command = $state(untrack(() => (initialParams?.command as string) ?? ''))
   let submitting = $state(false)
   let sessionRef = $state<ReturnType<typeof VariantDraftSession> | undefined>(
     undefined

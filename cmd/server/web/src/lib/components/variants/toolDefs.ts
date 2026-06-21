@@ -28,28 +28,28 @@ export interface VariantToolDef {
 
 export const ALL_VARIANT_TOOLS: VariantToolDef[] = [
   {
-    key: 'resize',
+    key: 'image_resize',
     label: 'variant_tool_resize',
     sublabel: 'variant_tool_resize_sub',
     icon: Maximize2,
     showFor: isImage,
   },
   {
-    key: 'crop',
+    key: 'image_crop',
     label: 'variant_tool_crop',
     sublabel: 'variant_tool_crop_sub',
     icon: Crop,
     showFor: isImage,
   },
   {
-    key: 'smart_crop',
+    key: 'image_smart_crop',
     label: 'variant_tool_smart_crop',
     sublabel: 'variant_tool_smart_crop_sub',
     icon: Scissors,
     showFor: isImage,
   },
   {
-    key: 'convert',
+    key: 'image_convert',
     label: 'variant_tool_convert',
     sublabel: 'variant_tool_convert_sub',
     icon: Shapes,
@@ -63,14 +63,14 @@ export const ALL_VARIANT_TOOLS: VariantToolDef[] = [
     showFor: isImage,
   },
   {
-    key: 'watermark',
+    key: 'image_watermark',
     label: 'variant_tool_watermark',
     sublabel: 'variant_tool_watermark_sub',
     icon: Stamp,
     showFor: isImage,
   },
   {
-    key: 'bg_remove',
+    key: 'image_bg_remove',
     label: 'variant_tool_bg_remove',
     sublabel: 'variant_tool_bg_remove_sub',
     icon: EraserIcon,

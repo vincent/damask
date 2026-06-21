@@ -63,7 +63,7 @@ function renderPanel(
   }> = {}
 ) {
   return render(VariantToolPanel, {
-    tool: 'resize',
+    tool: 'image_resize',
     asset,
     creating: false,
     handleCreate: vi.fn(),
@@ -74,12 +74,12 @@ function renderPanel(
 
 describe('VariantToolPanel', () => {
   it('renders the tool label in the header', () => {
-    renderPanel({ tool: 'resize' })
+    renderPanel({ tool: 'image_resize' })
     expect(screen.getByRole('heading', { name: 'Resize' })).toBeInTheDocument()
   })
 
   it('renders the tool subtitle in the header', () => {
-    renderPanel({ tool: 'resize' })
+    renderPanel({ tool: 'image_resize' })
     expect(screen.getByText('Change dimensions')).toBeInTheDocument()
   })
 
@@ -91,7 +91,7 @@ describe('VariantToolPanel', () => {
   })
 
   it('renders the VariantsTool component', () => {
-    renderPanel({ tool: 'resize' })
+    renderPanel({ tool: 'image_resize' })
     expect(screen.getByLabelText('Width (px)')).toBeInTheDocument()
   })
 

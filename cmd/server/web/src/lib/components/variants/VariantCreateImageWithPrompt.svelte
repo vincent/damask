@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { type Asset } from '$lib/api'
@@ -14,18 +15,27 @@
     onDone?: () => void
     onDraftStarted?: (nonce: string) => void
     sessionActive?: boolean
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset, onDone, onDraftStarted, sessionActive = false }: Props = $props()
+  let {
+    asset,
+    onDone,
+    onDraftStarted,
+    sessionActive = false,
+    initialParams = null,
+  }: Props = $props()
 
   type Phase = 'form' | 'drafting'
 
   const kind = 'image_with_prompt'
 
   let phase = $state<Phase>('form')
-  let prompt = $state('')
-  let model = $state('')
-  let provider = $state<ProviderId>('imagerouter')
+  let prompt = $state(untrack(() => (initialParams?.prompt as string) ?? ''))
+  let model = $state(untrack(() => (initialParams?.model as string) ?? ''))
+  let provider = $state<ProviderId>(
+    untrack(() => (initialParams?.provider as ProviderId) ?? 'imagerouter')
+  )
   let modelsMulti = $state<string[]>([])
   let defaultModelId = $state('')
   let configured = $state(true)

@@ -24,6 +24,8 @@
     onDraftStarted?: (nonce: string, meta?: Record<string, unknown>) => void
     sessionActive?: boolean
     onApplied?: (results: AppliedWorkflow[]) => void
+    reuseParams?: Record<string, unknown> | null
+    reuseNonce?: number
   }
 
   let {
@@ -35,6 +37,8 @@
     onDraftStarted,
     sessionActive,
     onApplied,
+    reuseParams = null,
+    reuseNonce = 0,
   }: Props = $props()
 
   function handleDraftDone() {
@@ -79,15 +83,18 @@
     {#if tool === 'trigger_workflow'}
       <ApplyWorkflowPicker assetIds={[asset.id]} {onApplied} />
     {:else}
-      <VariantsTool
-        {tool}
-        {asset}
-        {creating}
-        {handleCreate}
-        onDone={handleDraftDone}
-        {onDraftStarted}
-        {sessionActive}
-      />
+      {#key `${tool}-${reuseNonce}`}
+        <VariantsTool
+          {tool}
+          {asset}
+          {creating}
+          initialParams={reuseParams}
+          {handleCreate}
+          onDone={handleDraftDone}
+          {onDraftStarted}
+          {sessionActive}
+        />
+      {/key}
     {/if}
   </div>
 </div>

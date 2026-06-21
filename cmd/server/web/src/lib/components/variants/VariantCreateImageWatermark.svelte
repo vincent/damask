@@ -7,6 +7,7 @@
     type Asset,
     type WatermarkAsset,
   } from '$lib/api'
+  import { untrack } from 'svelte'
   import { generateDraft } from '$lib/api/drafts'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { m } from '$lib/paraglide/messages'
@@ -17,15 +18,28 @@
     onDone?: () => void
     onDraftStarted?: (nonce: string) => void
     sessionActive?: boolean
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset, onDone, onDraftStarted, sessionActive = false }: Props = $props()
+  let {
+    asset,
+    onDone,
+    onDraftStarted,
+    sessionActive = false,
+    initialParams = null,
+  }: Props = $props()
 
   type Phase = 'form' | 'drafting'
 
   const kind = 'image_watermark'
   let phase = $state<Phase>('form')
-  let opacity = $state(50)
+  let opacity = $state(
+    untrack(() =>
+      initialParams?.opacity != null
+        ? (initialParams.opacity as number) * 100
+        : 50
+    )
+  )
   let watermarkAsset = $state<WatermarkAsset | null>(null)
   let resolveError = $state('')
   let resolving = $state(false)

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import { assetApi, type Asset } from '$lib/api'
@@ -8,13 +9,16 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset, creating, handleCreate }: Props = $props()
+  let { asset, creating, handleCreate, initialParams = null }: Props = $props()
 
   const kind = 'image_crop'
 
-  let cropFormat = $state<'jpeg' | 'png'>('png')
+  let cropFormat = $state<'jpeg' | 'png'>(
+    untrack(() => (initialParams?.format as 'jpeg' | 'png') ?? 'png')
+  )
 
   let img = $state<HTMLImageElement>()
   let imgLoaded = $state(false)
@@ -73,6 +77,18 @@
   function onImgLoad() {
     updateScale()
     imgLoaded = true
+    if (initialParams) {
+      const x = initialParams.x as number
+      const y = initialParams.y as number
+      const w = initialParams.width as number
+      const h = initialParams.height as number
+      if ([x, y, w, h].every((n) => typeof n === 'number')) {
+        startX = x * scaleX
+        startY = y * scaleY
+        endX = (x + w) * scaleX
+        endY = (y + h) * scaleY
+      }
+    }
   }
 
   function pos(e: MouseEvent | TouchEvent | PointerEvent): {

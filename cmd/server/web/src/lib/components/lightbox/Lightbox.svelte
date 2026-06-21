@@ -28,6 +28,7 @@
   import LightboxHistoryTab from './LightboxHistoryTab.svelte'
   import LightboxActionsTab from './LightboxActionsTab.svelte'
   import { type VariantTab } from '$lib/components/variants/VariantsTool.svelte'
+  import { ALL_VARIANT_TOOLS } from '$lib/components/variants/toolDefs'
   import { ASSET_BACKGROUND_COLORS } from '$lib/stores/assetView'
   import { useShortcuts } from '$lib/shortcuts'
   import {
@@ -107,6 +108,8 @@
   let coveringWorkflow = $state<CoveringWorkflow | null>(null)
   let variantsLoading = $state(false)
   let selectedTool = $state<VariantTab | null>(null)
+  let reuseParams = $state<Record<string, unknown> | null>(null)
+  let reuseNonce = $state(0)
   let showDraftOverlay = $state(false)
   let variantsTabRef = $state<
     ReturnType<typeof LightboxVariantsTab> | undefined
@@ -203,7 +206,25 @@
 
   function onToolSelect(tool: VariantTab | null) {
     selectedTool = tool
+    reuseParams = null
     if (tool === null) showDraftOverlay = false
+  }
+
+  const KNOWN_TABS = new Set(ALL_VARIANT_TOOLS.map((t) => t.key))
+
+  function onReuse(variant: Variant) {
+    if (!KNOWN_TABS.has(variant.type as VariantTab)) return
+    let params: Record<string, unknown> | null = null
+    if (variant.transform_params) {
+      try {
+        params = JSON.parse(variant.transform_params) as Record<string, unknown>
+      } catch {
+        params = null
+      }
+    }
+    selectedTool = variant.type as VariantTab
+    reuseParams = params
+    reuseNonce += 1
   }
 
   async function handleCreate(type: string, params: object) {
@@ -252,6 +273,8 @@
     {previewThumbUrl}
     {previewFileUrl}
     {selectedTool}
+    {reuseParams}
+    {reuseNonce}
     {showDraftOverlay}
     draftAssetId={asset.id}
     creating={false}
@@ -338,6 +361,9 @@
           bind:selectedTool
           bind:selectedVariant
           bind:showDraftOverlay
+          {reuseParams}
+          {reuseNonce}
+          {onReuse}
           {onThumbnailUpdated}
           onNavigate={(tab) => (activeTab = tab)}
           {onDraftStarted}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { m } from '$lib/paraglide/messages'
   import { type Asset } from '$lib/api'
   import { generateDraft } from '$lib/api/drafts'
@@ -14,16 +15,25 @@
     onDone?: () => void
     onDraftStarted?: (nonce: string) => void
     sessionActive?: boolean
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset, onDone, onDraftStarted, sessionActive = false }: Props = $props()
+  let {
+    asset,
+    onDone,
+    onDraftStarted,
+    sessionActive = false,
+    initialParams = null,
+  }: Props = $props()
 
   type Phase = 'form' | 'drafting'
 
   const kind = 'image_bg_remove'
   let phase = $state<Phase>('form')
-  let model = $state('')
-  let provider = $state<ProviderId>('imagerouter')
+  let model = $state(untrack(() => (initialParams?.model as string) ?? ''))
+  let provider = $state<ProviderId>(
+    untrack(() => (initialParams?.provider as ProviderId) ?? 'imagerouter')
+  )
   let defaultModelId = $state('')
   let configured = $state(true)
   let submitting = $state(false)

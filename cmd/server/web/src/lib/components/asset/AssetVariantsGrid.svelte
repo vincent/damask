@@ -13,6 +13,7 @@
     promoteVariant: (variant: Variant) => void
     thumbnailUpdated: () => void
     rerunVariant: () => void
+    reuseVariant: (variant: Variant) => void
   }
 
   let {
@@ -26,6 +27,7 @@
     promoteVariant,
     thumbnailUpdated,
     rerunVariant,
+    reuseVariant,
   }: Props = $props()
 </script>
 
@@ -43,6 +45,7 @@
       onPromote={() => promoteVariant(v)}
       onThumbnailUpdated={thumbnailUpdated}
       onRerun={rerunVariant}
+      onReuse={() => reuseVariant(v)}
     />
   {/each}
 </div>

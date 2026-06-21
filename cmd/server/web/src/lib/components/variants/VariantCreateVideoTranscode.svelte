@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -9,15 +10,29 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset: _asset, creating, handleCreate }: Props = $props()
+  let {
+    asset: _asset,
+    creating,
+    handleCreate,
+    initialParams = null,
+  }: Props = $props()
 
   const kind = 'video_transcode'
 
-  let transcodeFormat = $state<'mp4' | 'webm'>('mp4')
-  let transcodeResolution = $state<'' | '1080p' | '720p' | '480p'>('')
-  let transcodeStripAudio = $state(false)
+  let transcodeFormat = $state<'mp4' | 'webm'>(
+    untrack(() => (initialParams?.format as 'mp4' | 'webm') ?? 'mp4')
+  )
+  let transcodeResolution = $state<'' | '1080p' | '720p' | '480p'>(
+    untrack(
+      () => (initialParams?.resolution as '' | '1080p' | '720p' | '480p') ?? ''
+    )
+  )
+  let transcodeStripAudio = $state(
+    untrack(() => (initialParams?.strip_audio as boolean) ?? false)
+  )
 </script>
 
 <div class="space-y-5">

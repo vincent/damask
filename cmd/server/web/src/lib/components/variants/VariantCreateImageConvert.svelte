@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { m } from '$lib/paraglide/messages'
@@ -8,14 +9,26 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset: _asset, creating, handleCreate }: Props = $props()
+  let {
+    asset: _asset,
+    creating,
+    handleCreate,
+    initialParams = null,
+  }: Props = $props()
 
   const kind = 'image_convert'
 
-  let convertFormat = $state<'jpeg' | 'png' | 'tiff' | 'webp'>('png')
-  let convertQuality = $state(90)
+  let convertFormat = $state<'jpeg' | 'png' | 'tiff' | 'webp'>(
+    untrack(
+      () => (initialParams?.format as 'jpeg' | 'png' | 'tiff' | 'webp') ?? 'png'
+    )
+  )
+  let convertQuality = $state(
+    untrack(() => (initialParams?.quality as number) ?? 90)
+  )
 </script>
 
 <div class="space-y-5">

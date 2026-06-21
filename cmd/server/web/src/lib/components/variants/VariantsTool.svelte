@@ -17,12 +17,12 @@
 
   export type VariantTab =
     | 'all'
-    | 'resize'
-    | 'watermark'
-    | 'convert'
-    | 'smart_crop'
-    | 'crop'
-    | 'bg_remove'
+    | 'image_resize'
+    | 'image_watermark'
+    | 'image_convert'
+    | 'image_smart_crop'
+    | 'image_crop'
+    | 'image_bg_remove'
     | 'image_with_prompt'
     | 'video_transcode'
     | 'video_watermark'
@@ -41,6 +41,7 @@
     onDone?: () => void
     onDraftStarted?: (nonce: string, meta?: Record<string, unknown>) => void
     sessionActive?: boolean
+    initialParams?: Record<string, unknown> | null
   }
   let {
     asset,
@@ -50,28 +51,36 @@
     onDone,
     onDraftStarted,
     sessionActive,
+    initialParams = null,
   }: Props = $props()
 </script>
 
-{#if tool === 'resize'}
-  <VariantCreateImageResize {asset} {creating} {handleCreate} />
-{:else if tool === 'watermark'}
+{#if tool === 'image_resize'}
+  <VariantCreateImageResize {asset} {creating} {handleCreate} {initialParams} />
+{:else if tool === 'image_watermark'}
   <VariantCreateImageWatermark
     {asset}
     {onDone}
     {onDraftStarted}
     {sessionActive}
+    {initialParams}
   />
-{:else if tool === 'convert'}
-  <VariantCreateImageConvert {asset} {creating} {handleCreate} />
-{:else if tool === 'crop'}
-  <VariantCreateImageCrop {asset} {creating} {handleCreate} />
-{:else if tool === 'bg_remove'}
+{:else if tool === 'image_convert'}
+  <VariantCreateImageConvert
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
+{:else if tool === 'image_crop'}
+  <VariantCreateImageCrop {asset} {creating} {handleCreate} {initialParams} />
+{:else if tool === 'image_bg_remove'}
   <VariantCreateImageRemoveBackground
     {asset}
     {onDone}
     {onDraftStarted}
     {sessionActive}
+    {initialParams}
   />
 {:else if tool === 'image_with_prompt'}
   <VariantCreateImageWithPrompt
@@ -79,21 +88,57 @@
     {onDone}
     {onDraftStarted}
     {sessionActive}
+    {initialParams}
   />
-{:else if tool === 'smart_crop'}
-  <VariantCreateImageSmartCrop {asset} {creating} {handleCreate} />
+{:else if tool === 'image_smart_crop'}
+  <VariantCreateImageSmartCrop
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
 {:else if tool === 'video_transcode'}
-  <VariantCreateVideoTranscode {asset} {creating} {handleCreate} />
+  <VariantCreateVideoTranscode
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
 {:else if tool === 'video_watermark'}
-  <VariantCreateVideoWatermark {asset} {creating} {handleCreate} />
+  <VariantCreateVideoWatermark
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
 {:else if tool === 'video_capture_image'}
-  <VariantCreateVideoThumbnail {asset} {creating} {handleCreate} />
+  <VariantCreateVideoThumbnail
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
 {:else if tool === 'video_extract'}
-  <VariantCreateVideoExtract {asset} {creating} {handleCreate} />
+  <VariantCreateVideoExtract
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
 {:else if tool === 'audio_transcode'}
-  <VariantCreateAudioTranscode {asset} {creating} {handleCreate} />
+  <VariantCreateAudioTranscode
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
 {:else if tool === 'audio_normalize'}
-  <VariantCreateAudioNormalize {asset} {creating} {handleCreate} />
+  <VariantCreateAudioNormalize
+    {asset}
+    {creating}
+    {handleCreate}
+    {initialParams}
+  />
 {:else if tool === 'custom_ffmpeg'}
   <VariantCreateCustomFFmpeg
     {asset}
@@ -101,5 +146,6 @@
     {handleCreate}
     {onDraftStarted}
     {sessionActive}
+    {initialParams}
   />
 {/if}

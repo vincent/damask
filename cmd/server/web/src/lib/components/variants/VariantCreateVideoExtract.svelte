@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -10,9 +11,15 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset: _asset, creating, handleCreate }: Props = $props()
+  let {
+    asset: _asset,
+    creating,
+    handleCreate,
+    initialParams = null,
+  }: Props = $props()
 
   const kind = 'video_extract'
   const formats = [
@@ -22,8 +29,10 @@
     { value: 'flac', label: 'FLAC' },
   ]
 
-  let format = $state('aac')
-  let bitrate = $state('192k')
+  let format = $state(untrack(() => (initialParams?.format as string) ?? 'aac'))
+  let bitrate = $state(
+    untrack(() => (initialParams?.bitrate as string) ?? '192k')
+  )
 </script>
 
 <div class="space-y-5">

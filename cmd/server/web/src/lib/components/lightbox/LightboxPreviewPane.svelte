@@ -22,6 +22,8 @@
     previewThumbUrl: string
     previewFileUrl: string
     selectedTool: VariantTab | null
+    reuseParams?: Record<string, unknown> | null
+    reuseNonce?: number
     showDraftOverlay: boolean
     draftAssetId: string | null
     creating: boolean
@@ -44,6 +46,8 @@
     previewThumbUrl,
     previewFileUrl,
     selectedTool,
+    reuseParams = null,
+    reuseNonce = 0,
     showDraftOverlay,
     draftAssetId,
     creating,
@@ -178,6 +182,8 @@
           tool={selectedTool}
           {asset}
           {creating}
+          {reuseParams}
+          {reuseNonce}
           {handleCreate}
           onClose={() => {
             onToolSelect(null)

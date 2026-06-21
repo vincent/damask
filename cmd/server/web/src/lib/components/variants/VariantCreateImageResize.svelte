@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { variantApi, type Asset } from '$lib/api'
@@ -10,17 +11,30 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset, creating, handleCreate }: Props = $props()
+  let { asset, creating, handleCreate, initialParams = null }: Props = $props()
 
   const kind = 'image_resize'
 
-  let resizeWidth = $state(800)
-  let resizeHeight = $state(0)
-  let resizeFit = $state<'contain' | 'cover' | 'fill'>('contain')
-  let resizeQuality = $state(85)
-  let resizeFormat = $state<'jpeg' | 'png' | 'tiff'>('jpeg')
+  let resizeWidth = $state(
+    untrack(() => (initialParams?.width as number) ?? 800)
+  )
+  let resizeHeight = $state(
+    untrack(() => (initialParams?.height as number) ?? 0)
+  )
+  let resizeFit = $state<'contain' | 'cover' | 'fill'>(
+    untrack(
+      () => (initialParams?.fit as 'contain' | 'cover' | 'fill') ?? 'contain'
+    )
+  )
+  let resizeQuality = $state(
+    untrack(() => (initialParams?.quality as number) ?? 85)
+  )
+  let resizeFormat = $state<'jpeg' | 'png' | 'tiff'>(
+    untrack(() => (initialParams?.format as 'jpeg' | 'png' | 'tiff') ?? 'jpeg')
+  )
 
   let previewUrl = $state('')
   let previewTimeout: ReturnType<typeof setTimeout>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import { type Asset } from '$lib/api'
@@ -8,13 +9,21 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset: _asset, creating, handleCreate }: Props = $props()
+  let {
+    asset: _asset,
+    creating,
+    handleCreate,
+    initialParams = null,
+  }: Props = $props()
 
   const kind = 'video_capture_image'
 
-  let videoTimestamp = $state(1)
+  let videoTimestamp = $state(
+    untrack(() => (initialParams?.timestamp as number) ?? 1)
+  )
 </script>
 
 <div class="space-y-5">

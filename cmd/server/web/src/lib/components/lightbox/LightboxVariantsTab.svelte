@@ -41,6 +41,9 @@
     selectedVariant?: Variant | null
     selectedTool?: VariantTab | null
     showDraftOverlay?: boolean
+    reuseParams?: Record<string, unknown> | null
+    reuseNonce?: number
+    onReuse: (variant: Variant) => void
   }
 
   let {
@@ -58,6 +61,9 @@
     selectedVariant = $bindable<Variant | null>(null),
     selectedTool = $bindable<VariantTab | null>(null),
     showDraftOverlay = $bindable(false),
+    reuseParams = null,
+    reuseNonce = 0,
+    onReuse,
   }: Props = $props()
 
   // --- Variant list state ---
@@ -86,12 +92,12 @@
     { id: 'all' as VariantTab, label: m.all() },
     ...(isImage
       ? [
-          { id: 'resize' as VariantTab, label: m.resize() },
-          { id: 'watermark' as VariantTab, label: m.watermark() },
-          { id: 'convert' as VariantTab, label: m.convert() },
-          { id: 'smart_crop' as VariantTab, label: m.smart_crop() },
-          { id: 'crop' as VariantTab, label: m.crop() },
-          { id: 'bg_remove' as VariantTab, label: m.bg_remove() },
+          { id: 'image_resize' as VariantTab, label: m.resize() },
+          { id: 'image_watermark' as VariantTab, label: m.watermark() },
+          { id: 'image_convert' as VariantTab, label: m.convert() },
+          { id: 'image_smart_crop' as VariantTab, label: m.smart_crop() },
+          { id: 'image_crop' as VariantTab, label: m.crop() },
+          { id: 'image_bg_remove' as VariantTab, label: m.bg_remove() },
           { id: 'image_with_prompt' as VariantTab, label: 'AI Transform' },
         ]
       : []),
@@ -249,6 +255,11 @@
     variantPanelState = { mode: 'promote', variant }
   }
 
+  function handleReuse(variant: Variant) {
+    onReuse(variant)
+    activeVariantTab = variant.type as VariantTab
+  }
+
   export function notifyDraftDone() {
     showDraftOverlay = false
     selectedTool = null
@@ -353,19 +364,23 @@
           promoteVariant={openPromoteVariant}
           thumbnailUpdated={onThumbnailUpdated}
           rerunVariant={loadVariants}
+          reuseVariant={handleReuse}
         />
       {/if}
     {:else}
-      <VariantsTool
-        {asset}
-        creating={creating || pendingVariantAssetId === asset.id}
-        tool={activeVariantTab}
-        {handleCreate}
-        onDone={async () => {
-          activeVariantTab = 'all'
-          await loadVariants()
-        }}
-      />
+      {#key `${activeVariantTab}-${reuseNonce}`}
+        <VariantsTool
+          {asset}
+          creating={creating || pendingVariantAssetId === asset.id}
+          tool={activeVariantTab}
+          initialParams={reuseParams}
+          {handleCreate}
+          onDone={async () => {
+            activeVariantTab = 'all'
+            await loadVariants()
+          }}
+        />
+      {/key}
     {/if}
   </div>
 </div>

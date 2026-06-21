@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fly } from 'svelte/transition'
+  import { untrack } from 'svelte'
   import { type Asset } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Button from '$lib/components/ui/Button.svelte'
@@ -11,9 +12,15 @@
     asset: Asset
     creating: boolean
     handleCreate: (kind: string, params: Record<string, unknown>) => void
+    initialParams?: Record<string, unknown> | null
   }
 
-  let { asset: _asset, creating, handleCreate }: Props = $props()
+  let {
+    asset: _asset,
+    creating,
+    handleCreate,
+    initialParams = null,
+  }: Props = $props()
 
   const kind = 'audio_transcode'
   const formats = [
@@ -25,9 +32,11 @@
     { value: 'wav', label: 'WAV' },
   ]
 
-  let format = $state('mp3')
-  let bitrate = $state('192k')
-  let mono = $state(false)
+  let format = $state(untrack(() => (initialParams?.format as string) ?? 'mp3'))
+  let bitrate = $state(
+    untrack(() => (initialParams?.bitrate as string) ?? '192k')
+  )
+  let mono = $state(untrack(() => (initialParams?.mono as boolean) ?? false))
   const lossless = $derived(format === 'flac' || format === 'wav')
 </script>
 

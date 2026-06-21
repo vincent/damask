@@ -101,7 +101,7 @@ describe('VariantToolSidebar', () => {
   })
 
   it('marks the active button as pressed', () => {
-    renderSidebar({ activeTool: 'crop' })
+    renderSidebar({ activeTool: 'image_crop' })
     expect(screen.getByRole('button', { name: 'Crop' })).toHaveAttribute(
       'aria-pressed',
       'true'
@@ -119,23 +119,23 @@ describe('VariantToolSidebar', () => {
     const onSelect = vi.fn()
     renderSidebar({ onSelect })
     await fireEvent.click(screen.getByRole('button', { name: 'Convert' }))
-    expect(onSelect).toHaveBeenCalledWith('convert')
+    expect(onSelect).toHaveBeenCalledWith('image_convert')
   })
 
   it('clicking the active tool fires onSelect with null', async () => {
     const onSelect = vi.fn()
-    renderSidebar({ activeTool: 'convert', onSelect })
+    renderSidebar({ activeTool: 'image_convert', onSelect })
     await fireEvent.click(screen.getByRole('button', { name: 'Convert' }))
     expect(onSelect).toHaveBeenCalledWith(null)
   })
 
   it('disables non-active buttons while creating', () => {
-    renderSidebar({ activeTool: 'resize', creating: true })
+    renderSidebar({ activeTool: 'image_resize', creating: true })
     expect(screen.getByRole('button', { name: 'Crop' })).toBeDisabled()
   })
 
   it('keeps the active button enabled while creating', () => {
-    renderSidebar({ activeTool: 'resize', creating: true })
+    renderSidebar({ activeTool: 'image_resize', creating: true })
     expect(screen.getByRole('button', { name: 'Resize' })).not.toBeDisabled()
   })
 
@@ -165,6 +165,6 @@ describe('VariantToolSidebar', () => {
     await fireEvent.keyDown(screen.getByRole('button', { name: 'Resize' }), {
       key: 'Enter',
     })
-    expect(onSelect).toHaveBeenCalledWith('resize')
+    expect(onSelect).toHaveBeenCalledWith('image_resize')
   })
 })
