@@ -114,3 +114,47 @@ func TestCustomFFmpegJob_BlacklistedCommand_NoVariantCreated(t *testing.T) {
 		t.Fatalf("expected no variant created, got %d", count)
 	}
 }
+
+func TestCustomFFmpegJob_WithAssetRef_HappyPath(t *testing.T) {
+	requireFFmpegForJobsTest(t)
+
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "FFmpeg Ref Worker", "ffmpegrefworker@test.com", "password123")
+	assetID := uploadCustomFFmpegVideoAsset(t, env, res.Cookie)
+	refAssetID := uploadCustomFFmpegVideoAsset(t, env, res.Cookie)
+	env.JobServer.DrainForTest(context.Background())
+
+	req := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/variants",
+		th.JSONBody(map[string]any{
+			"type": "custom_ffmpeg",
+			"params": map[string]any{
+				"command": "ffmpeg -i {input} -i {asset:" + refAssetID +
+					"} -filter_complex amix=inputs=2 -t 1 {output}",
+			},
+		}), res.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", resp.StatusCode)
+	}
+
+	env.JobServer.DrainForTest(context.Background())
+
+	var storageKey string
+	row := env.Database.QueryRow(
+		`SELECT storage_key FROM variants WHERE type = 'custom_ffmpeg' ORDER BY created_at DESC LIMIT 1`)
+	if scanErr := row.Scan(&storageKey); scanErr != nil {
+		t.Fatalf("load custom_ffmpeg variant: %v", scanErr)
+	}
+	if storageKey == "" {
+		t.Fatal("expected non-empty storage key")
+	}
+
+	rc, err := env.Storage.Get(storageKey)
+	if err != nil {
+		t.Fatalf("read stored variant: %v", err)
+	}
+	rc.Close()
+}

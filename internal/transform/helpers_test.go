@@ -153,7 +153,7 @@ func (t *mockTransformer) VideoWatermark(
 	return nil
 }
 
-func (t *mockTransformer) RunCustomFFmpeg(_ context.Context, _, _, _ string) (string, error) {
+func (t *mockTransformer) RunCustomFFmpeg(_ context.Context, _, _, _ string, _ map[string]string) (string, error) {
 	return "", nil
 }
 

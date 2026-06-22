@@ -40,7 +40,7 @@ type Transformer interface {
 	VideoTranscode(ctx context.Context, srcPath, dstPath string, p TranscodeParams) error
 	VideoWatermark(ctx context.Context, srcPath, dstPath string, wm io.Reader, p VideoWatermarkParams) error
 
-	RunCustomFFmpeg(ctx context.Context, cmd, srcPath, outDir string) (string, error)
+	RunCustomFFmpeg(ctx context.Context, cmd, srcPath, outDir string, refs map[string]string) (string, error)
 	DetectOutputMIME(ctx context.Context, outputPath string) string
 	TrimToSeconds(ctx context.Context, srcPath string, n int, outDir string) (string, error)
 }

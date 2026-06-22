@@ -3,6 +3,8 @@
   import { m } from '$lib/paraglide/messages'
   import Actor from '$lib/components/ui/Actor.svelte'
   import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
+  import ButtonCopy from '$lib/components/ui/ButtonCopy.svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
 
   interface Props {
     asset: Asset
@@ -10,10 +12,31 @@
   }
 
   let { asset, onOpenAsset }: Props = $props()
+
+  let copied = $state(false)
+
+  async function copyId() {
+    try {
+      await navigator.clipboard.writeText(asset.id)
+      copied = true
+      setTimeout(() => {
+        copied = false
+      }, 2000)
+      toastStore.show(m.id_copied())
+    } catch {
+      toastStore.show(m.cannot_copy(), 'error')
+    }
+  }
 </script>
 
 <div>
   <SubSectionTitle>{m.metadata()}</SubSectionTitle>
+  <div class="mb-3 flex items-center gap-1.5">
+    <span class="font-mono text-xs text-gray-500 dark:text-gray-400"
+      >{asset.id}</span
+    >
+    <ButtonCopy onclick={copyId} {copied} title={m.copy_id()} />
+  </div>
   <div class="grid grid-cols-3 gap-3">
     <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-gray-800">
       <p

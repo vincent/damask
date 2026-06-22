@@ -70,6 +70,9 @@
             m.variants_custom_ffmpeg_error_missing_output_token(TOKEN_PARAMS),
           command_blacklisted:
             m.variants_custom_ffmpeg_error_command_blacklisted({ detail }),
+          bad_ref_token: m.variants_custom_ffmpeg_error_bad_ref_token({
+            detail,
+          }),
         }
         serverResult = {
           ok: false,
@@ -107,6 +110,9 @@
 
   <p class="command-hint">
     {m.variants_custom_ffmpeg_command_hint(TOKEN_PARAMS)}
+  </p>
+  <p class="command-hint">
+    {m.variants_custom_ffmpeg_refs_hint()}
   </p>
 
   {#if localError}

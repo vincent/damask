@@ -183,7 +183,7 @@ func (s *JobServer) draftTransformer(
 		}, nil
 
 	case queue.JobTypeCustomFFmpeg:
-		return s.customFFmpegDraftTransformer(params)
+		return s.customFFmpegDraftTransformer(workspaceID, params)
 
 	default:
 		return nil, fmt.Errorf("unsupported draft type: %s", variantType)
@@ -193,7 +193,10 @@ func (s *JobServer) draftTransformer(
 // customFFmpegDraftTransformer returns a variantTransformer that trims the
 // source to a short preview clip before running the user's command, so the
 // "Test" dry-run stays fast regardless of source file length.
-func (s *JobServer) customFFmpegDraftTransformer(params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) customFFmpegDraftTransformer(
+	workspaceID string,
+	params json.RawMessage,
+) (variantTransformer, error) {
 	var p CustomFFmpegParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, errors.New("invalid params")
@@ -223,7 +226,12 @@ func (s *JobServer) customFFmpegDraftTransformer(params json.RawMessage) (varian
 		// trimming fails so the test never errors out for that reason.
 		trimmed, _ := s.trf.TrimToSeconds(ctx, srcPath, customFFmpegDraftTrimSeconds, outDir)
 
-		outputPath, runErr := s.trf.RunCustomFFmpeg(ctx, p.Command, trimmed, outDir)
+		refs, refErr := s.resolveCommandRefs(ctx, p.Command, workspaceID, outDir)
+		if refErr != nil {
+			return nil, "", refErr
+		}
+
+		outputPath, runErr := s.trf.RunCustomFFmpeg(ctx, p.Command, trimmed, outDir, refs)
 		if runErr != nil {
 			return nil, "", runErr
 		}

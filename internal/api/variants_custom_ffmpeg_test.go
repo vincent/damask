@@ -242,6 +242,49 @@ func TestValidateCommand_TooLong_Returns200WithCommandTooLong(t *testing.T) {
 	}
 }
 
+func TestValidateCommand_MalformedRefToken_Returns200WithValidFalse(t *testing.T) {
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "Validate User 5", "validate5@test.com", "password123")
+
+	req := th.AuthRequest(http.MethodGet,
+		"/api/v1/variants/validate-command?q="+urlQueryEscapeForTest("ffmpeg -i {input} -i {asset:} {output}"),
+		nil, res.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result api.ValidateCommandResponse
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if result.Valid || result.Error != "bad_ref_token" {
+		t.Fatalf("unexpected response: %+v", result)
+	}
+}
+
+func TestValidateCommand_WellFormedRefToken_Returns200WithValidTrue(t *testing.T) {
+	env := th.SetupTestApp(t)
+	res := th.Register(t, env, "Validate User 6", "validate6@test.com", "password123")
+
+	req := th.AuthRequest(http.MethodGet,
+		"/api/v1/variants/validate-command?q="+
+			urlQueryEscapeForTest("ffmpeg -i {input} -i {asset:01ARZ3NDEKTSV4RRFFQ69G5FAV} {output}"),
+		nil, res.Cookie)
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result api.ValidateCommandResponse
+	_ = json.NewDecoder(resp.Body).Decode(&result)
+	if !result.Valid {
+		t.Fatalf("expected valid=true, got %+v", result)
+	}
+}
+
 func TestValidateCommand_Unauthenticated_Returns401(t *testing.T) {
 	env := th.SetupTestApp(t)
 

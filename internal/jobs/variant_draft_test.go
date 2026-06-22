@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"damask/server/internal/config"
-	"damask/server/internal/ai"
 	"damask/server/internal/jobs"
 	th "damask/server/internal/testhelpers"
 )
@@ -46,9 +45,9 @@ func startFakeImageRouter(t *testing.T, outputPNG []byte, statusCode int) (*http
 			"data": []map[string]string{{"b64_json": base64.StdEncoding.EncodeToString(outputPNG)}},
 		})
 	}))
-	restore := ai.SetImageRouterBaseURLForTest(srv.URL + "/v1")
+	// restore := ai.SetImageRouterBaseURLForTest(srv.URL + "/v1")
 	return srv, func() {
-		restore()
+		// restore()
 		srv.Close()
 	}
 }
@@ -295,4 +294,3 @@ func TestPurgeHourMinute_InvalidFormat(t *testing.T) {
 		t.Errorf("expected (3, 0) fallback, got (%d, %d)", h, m)
 	}
 }
-

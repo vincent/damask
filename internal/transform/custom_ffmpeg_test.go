@@ -294,6 +294,115 @@ func TestValidateCustomCommand_TooLong(t *testing.T) {
 	}
 }
 
+// ---- Asset/variant ref tokens — no ffmpeg needed ----
+
+func TestExtractRefTokens_Asset(t *testing.T) {
+	got := ExtractRefTokens("ffmpeg -i {input} -i {asset:abc123} {output}")
+	want := []RefToken{{Token: "{asset:abc123}", Kind: "asset", ID: "abc123"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ExtractRefTokens = %+v, want %+v", got, want)
+	}
+}
+
+func TestExtractRefTokens_Variant(t *testing.T) {
+	got := ExtractRefTokens("ffmpeg -i {input} -i {variant:xyz789} {output}")
+	want := []RefToken{{Token: "{variant:xyz789}", Kind: "variant", ID: "xyz789"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ExtractRefTokens = %+v, want %+v", got, want)
+	}
+}
+
+func TestExtractRefTokens_Mixed(t *testing.T) {
+	got := ExtractRefTokens("ffmpeg -i {input} -i {asset:A} -i {variant:B} {output}")
+	want := []RefToken{
+		{Token: "{asset:A}", Kind: "asset", ID: "A"},
+		{Token: "{variant:B}", Kind: "variant", ID: "B"},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ExtractRefTokens = %+v, want %+v", got, want)
+	}
+}
+
+func TestExtractRefTokens_None(t *testing.T) {
+	got := ExtractRefTokens("ffmpeg -i {input} -vf scale=1280:-2 {output}")
+	if got != nil {
+		t.Fatalf("ExtractRefTokens = %+v, want nil", got)
+	}
+}
+
+func TestExtractRefTokens_Deduplication(t *testing.T) {
+	got := ExtractRefTokens("ffmpeg -i {input} -i {asset:abc123} -i {asset:abc123} {output}")
+	want := []RefToken{{Token: "{asset:abc123}", Kind: "asset", ID: "abc123"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ExtractRefTokens = %+v, want %+v", got, want)
+	}
+}
+
+func TestExtractRefTokens_EmbeddedInFilterArg(t *testing.T) {
+	got := ExtractRefTokens("ffmpeg -i {input} -vf subtitles={asset:abc123} {output}")
+	want := []RefToken{{Token: "{asset:abc123}", Kind: "asset", ID: "abc123"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ExtractRefTokens = %+v, want %+v", got, want)
+	}
+}
+
+func TestExtractRefTokens_MultipleEmbeddedInSameToken(t *testing.T) {
+	got := ExtractRefTokens(
+		"ffmpeg -i {input} -filter_complex subtitles={asset:A},subtitles={variant:B} {output}",
+	)
+	want := []RefToken{
+		{Token: "{asset:A}", Kind: "asset", ID: "A"},
+		{Token: "{variant:B}", Kind: "variant", ID: "B"},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ExtractRefTokens = %+v, want %+v", got, want)
+	}
+}
+
+func TestValidateCustomCommand_AssetRefPassesBlacklist(t *testing.T) {
+	cmd := "ffmpeg -i {input} -i {asset:01ARZ3NDEKTSV4RRFFQ69G5FAV} {output}"
+	if err := ValidateCustomCommand(cmd); err != nil {
+		t.Fatalf("expected well-formed ref token to pass validation, got %v", err)
+	}
+}
+
+func TestValidateCustomCommand_MalformedRefToken_ReturnsErr(t *testing.T) {
+	err := ValidateCustomCommand("ffmpeg -i {input} -i {asset:} {output}")
+	if !errors.Is(err, ErrCustomFFmpegBadRefToken) {
+		t.Fatalf("expected ErrCustomFFmpegBadRefToken, got %v", err)
+	}
+}
+
+func TestValidateCustomCommand_RefTokenIDTooLong_ReturnsErr(t *testing.T) {
+	cmd := "ffmpeg -i {input} -i {asset:" + strings.Repeat("a", 101) + "} {output}"
+	err := ValidateCustomCommand(cmd)
+	if !errors.Is(err, ErrCustomFFmpegBadRefToken) {
+		t.Fatalf("expected ErrCustomFFmpegBadRefToken, got %v", err)
+	}
+}
+
+func TestValidateCustomCommand_EmbeddedRefPassesBlacklist(t *testing.T) {
+	cmd := "ffmpeg -i {input} -vf subtitles={asset:01ARZ3NDEKTSV4RRFFQ69G5FAV} {output}"
+	if err := ValidateCustomCommand(cmd); err != nil {
+		t.Fatalf("expected well-formed embedded ref token to pass validation, got %v", err)
+	}
+}
+
+func TestValidateCustomCommand_MalformedEmbeddedRefToken_ReturnsErr(t *testing.T) {
+	err := ValidateCustomCommand("ffmpeg -i {input} -vf subtitles={asset:} {output}")
+	if !errors.Is(err, ErrCustomFFmpegBadRefToken) {
+		t.Fatalf("expected ErrCustomFFmpegBadRefToken, got %v", err)
+	}
+}
+
+func TestValidateCustomCommand_EmbeddedRefTokenIDTooLong_ReturnsErr(t *testing.T) {
+	cmd := "ffmpeg -i {input} -vf subtitles={asset:" + strings.Repeat("a", 101) + "} {output}"
+	err := ValidateCustomCommand(cmd)
+	if !errors.Is(err, ErrCustomFFmpegBadRefToken) {
+		t.Fatalf("expected ErrCustomFFmpegBadRefToken, got %v", err)
+	}
+}
+
 // ---- RunCustomFFmpeg / DetectOutputMIME — integration, skip if no ffmpeg ----
 
 // generateTestImage writes a tiny JPEG to dir via ffmpeg's lavfi color
@@ -332,6 +441,7 @@ func TestRunCustomFFmpeg_QuotedZoompanCommand(t *testing.T) {
 		`ffmpeg -loop 1 -i {input} -vf "zoompan=z='if(lte(zoom,1.0),1.5,max(1.001,zoom-0.0015))':d=125" -c:v libx264 -t 5 -s "800x450" {output}`,
 		src,
 		outDir,
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("RunCustomFFmpeg: %v", err)
@@ -351,6 +461,84 @@ func TestRunCustomFFmpeg_HappyPath(t *testing.T) {
 		"ffmpeg -i {input} -t 1 -c copy {output}",
 		src,
 		outDir,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("RunCustomFFmpeg: %v", err)
+	}
+	assertFileWritten(t, outputPath)
+}
+
+// TestRunCustomFFmpeg_NilRefs_NoSubstitutionError verifies a command with no
+// {asset:}/{variant:} tokens still runs fine when refs is nil — ranging over
+// a nil map is a no-op.
+func TestRunCustomFFmpeg_NilRefs_NoSubstitutionError(t *testing.T) {
+	requireFFmpeg(t)
+
+	src := testdataPath(t, "sample_video_with_audio.mp4")
+	outDir := t.TempDir()
+
+	tr := NewTransformer()
+	outputPath, err := tr.RunCustomFFmpeg(
+		context.Background(),
+		"ffmpeg -i {input} -t 1 -c copy {output}",
+		src,
+		outDir,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("RunCustomFFmpeg: %v", err)
+	}
+	assertFileWritten(t, outputPath)
+}
+
+// TestRunCustomFFmpeg_RefSubstitution verifies a {asset:ID} token in the
+// command is replaced with the local path supplied via refs.
+func TestRunCustomFFmpeg_RefSubstitution(t *testing.T) {
+	requireFFmpeg(t)
+
+	src := testdataPath(t, "sample_video_with_audio.mp4")
+	refSrc, err := filepath.Abs(testdataPath(t, "sample_video_with_audio.mp4"))
+	if err != nil {
+		t.Fatalf("abs ref path: %v", err)
+	}
+	outDir := t.TempDir()
+
+	tr := NewTransformer()
+	outputPath, err := tr.RunCustomFFmpeg(
+		context.Background(),
+		"ffmpeg -i {input} -i {asset:REF_ID} -filter_complex amix=inputs=2 -t 1 {output}",
+		src,
+		outDir,
+		map[string]string{"{asset:REF_ID}": refSrc},
+	)
+	if err != nil {
+		t.Fatalf("RunCustomFFmpeg: %v", err)
+	}
+	assertFileWritten(t, outputPath)
+}
+
+// TestRunCustomFFmpeg_RefSubstitution_Embedded verifies a {asset:ID} token
+// embedded inside a larger argument (e.g. -metadata comment={asset:ID}, the
+// same shape as -vf subtitles={asset:ID}) is substituted correctly, not just
+// a ref token that is the entire argument by itself.
+func TestRunCustomFFmpeg_RefSubstitution_Embedded(t *testing.T) {
+	requireFFmpeg(t)
+
+	src := testdataPath(t, "sample_video_with_audio.mp4")
+	refSrc, err := filepath.Abs(testdataPath(t, "sample_video_with_audio.mp4"))
+	if err != nil {
+		t.Fatalf("abs ref path: %v", err)
+	}
+	outDir := t.TempDir()
+
+	tr := NewTransformer()
+	outputPath, err := tr.RunCustomFFmpeg(
+		context.Background(),
+		"ffmpeg -i {input} -metadata comment=ref:{asset:REF_ID} -t 1 -c copy {output}",
+		src,
+		outDir,
+		map[string]string{"{asset:REF_ID}": refSrc},
 	)
 	if err != nil {
 		t.Fatalf("RunCustomFFmpeg: %v", err)
@@ -370,6 +558,7 @@ func TestRunCustomFFmpeg_DescriptionLineIgnored(t *testing.T) {
 		"# trim to 1s\nffmpeg -i {input} -t 1 -c copy {output}",
 		src,
 		outDir,
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("RunCustomFFmpeg: %v", err)
@@ -389,6 +578,7 @@ func TestRunCustomFFmpeg_BadCommand_ReturnsFFmpegFailed(t *testing.T) {
 		"ffmpeg -i {input} -vf not_a_real_filter {output}",
 		src,
 		outDir,
+		nil,
 	)
 	if !errors.Is(err, ErrCustomFFmpegFailed) {
 		t.Fatalf("expected ErrCustomFFmpegFailed, got %v", err)
@@ -410,6 +600,7 @@ func TestRunCustomFFmpeg_ProtocolWhitelistBlocksNonFileProtocol(t *testing.T) {
 		"ffmpeg -v error -i {input} -i tcp://127.0.0.1:9 -map 0:v -c copy {output}",
 		src,
 		outDir,
+		nil,
 	)
 	if !errors.Is(err, ErrCustomFFmpegFailed) {
 		t.Fatalf("expected ErrCustomFFmpegFailed, got %v", err)
@@ -431,6 +622,7 @@ func TestRunCustomFFmpeg_UserProtocolWhitelistOverrideStripped(t *testing.T) {
 		"ffmpeg -v error -protocol_whitelist file,tcp -i {input} -i tcp://127.0.0.1:9 -map 0:v -c copy {output}",
 		src,
 		outDir,
+		nil,
 	)
 	if !errors.Is(err, ErrCustomFFmpegFailed) {
 		t.Fatalf("expected user-supplied -protocol_whitelist override to be stripped, got %v", err)
@@ -464,6 +656,7 @@ func TestRunCustomFFmpeg_SafeFlagStripped(t *testing.T) {
 		"ffmpeg -v error -f concat -safe 0 -i {input} -c copy {output}",
 		src,
 		outDir,
+		nil,
 	)
 	if !errors.Is(err, ErrCustomFFmpegFailed) {
 		t.Fatalf("expected ErrCustomFFmpegFailed (stripped -safe falls back to safe=1), got %v", err)
@@ -493,6 +686,7 @@ func TestRunCustomFFmpeg_CmdDirPinnedToOutDir(t *testing.T) {
 		"ffmpeg -i {input} -i second.mp4 -map 0:v -map 1:a -t 1 -c copy {output}",
 		src,
 		outDir,
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("RunCustomFFmpeg: %v", err)
@@ -512,6 +706,7 @@ func TestDetectOutputMIME_MP4(t *testing.T) {
 		"ffmpeg -i {input} -t 1 -c copy -f mp4 {output}",
 		src,
 		outDir,
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("RunCustomFFmpeg: %v", err)

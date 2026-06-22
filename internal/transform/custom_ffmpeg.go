@@ -23,6 +23,7 @@ var (
 	ErrCustomFFmpegNoOutputToken     = errors.New("command must contain {output}")
 	ErrCustomFFmpegFailed            = errors.New("ffmpeg exited with error")
 	ErrCustomFFmpegUnterminatedQuote = errors.New("command has an unterminated quote")
+	ErrCustomFFmpegBadRefToken       = errors.New("command contains a malformed asset/variant reference")
 )
 
 const (
@@ -70,6 +71,71 @@ var pathLikePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\b(amovie|movie)\s*=`),
 }
 
+// refTokenPattern matches a well-formed {asset:ID} or {variant:ID} token
+// when applied to a candidate substring on its own (anchored both ends, so
+// it only accepts the substring if it has no malformed leftovers). IDs may
+// be ULIDs (26 chars) or UUID-style (32 hex + 4 hyphens); the 1-100 char
+// range is deliberately broad to accommodate both without being so wide that
+// an oversized token sails through unflagged.
+var refTokenPattern = regexp.MustCompile(`^\{(asset|variant):([a-zA-Z0-9_-]{1,100})\}$`)
+
+// refTokenFindPattern is refTokenPattern without anchors, used to locate
+// well-formed ref placeholders anywhere inside a token — not just when the
+// placeholder is the entire token. A ref like {asset:ID} can appear embedded
+// in a larger filter argument (e.g. -vf subtitles={asset:ID}), since some
+// ffmpeg filters take their input as part of the filter string rather than a
+// separate -i.
+var refTokenFindPattern = regexp.MustCompile(`\{(asset|variant):([a-zA-Z0-9_-]{1,100})\}`)
+
+// refLikePattern matches anything shaped like a ref placeholder — including
+// malformed ones (empty or oversized ID, bad characters) — anywhere inside a
+// token. ValidateCustomCommand uses this to catch a malformed embedded ref
+// that refTokenFindPattern would simply skip over, which would otherwise let
+// it through to ffmpeg as literal, unsubstituted text instead of being
+// rejected up front.
+var refLikePattern = regexp.MustCompile(`\{(asset|variant):[^{}]*\}`)
+
+// RefToken represents a single {asset:ID} or {variant:ID} placeholder
+// extracted from a custom FFmpeg command.
+type RefToken struct {
+	Token string // full placeholder, e.g. "{asset:abc123}" — used as map key
+	Kind  string // "asset" or "variant"
+	ID    string // the raw ID portion
+}
+
+// ExtractRefTokens returns all well-formed {asset:ID} and {variant:ID} tokens
+// present in cmd (description line ignored, same tokenizer as
+// [ValidateCustomCommand]), deduplicated by Token value — the same token
+// appearing more than once still maps to a single temp file. A ref may be a
+// whole token on its own (e.g. -i {asset:ID}) or embedded inside a larger one
+// (e.g. -vf subtitles={asset:ID}); both are found. Substrings that look like
+// a reference but fail the format check are not returned here;
+// [ValidateCustomCommand] is responsible for rejecting those. Returns nil
+// (not an error) when no ref tokens are found or the command fails to
+// tokenize (an unterminated quote, say) — callers that need to know about a
+// malformed command should consult ValidateCustomCommand directly.
+func ExtractRefTokens(cmd string) []RefToken {
+	_, content := StripLeadingDescription(cmd)
+	tokens, err := splitCommandTokens(content)
+	if err != nil {
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+	var result []RefToken
+	for _, tok := range tokens {
+		for _, m := range refTokenFindPattern.FindAllStringSubmatch(tok, -1) {
+			token := m[0]
+			if _, dup := seen[token]; dup {
+				continue
+			}
+			seen[token] = struct{}{}
+			result = append(result, RefToken{Token: token, Kind: m[1], ID: m[2]})
+		}
+	}
+	return result
+}
+
 // StripLeadingDescription splits raw into an optional leading "# ..." label
 // line and the remaining content. The label, if present, is for display only
 // (e.g. the variant param reuse-history menu) — content is what's actually
@@ -108,6 +174,11 @@ func ValidateCustomCommand(cmd string) error {
 		return err
 	}
 	for i, tok := range tokens {
+		for _, refLike := range refLikePattern.FindAllString(tok, -1) {
+			if !refTokenPattern.MatchString(refLike) {
+				return fmt.Errorf("%w: %q", ErrCustomFFmpegBadRefToken, refLike)
+			}
+		}
 		if !quoted[i] && shellMetacharPattern.MatchString(tok) {
 			return fmt.Errorf("%w: %q", ErrCustomFFmpegBlacklisted, tok)
 		}
@@ -191,7 +262,16 @@ func splitCommandTokensWithQuoting(cmd string) ([]string, []bool, error) {
 // the produced output file. The command is split via [splitCommandTokens]
 // and run through [exec.Command] — never sh -c — so shell injection is not
 // possible regardless of the blacklist.
-func (t *transformer) RunCustomFFmpeg(ctx context.Context, cmd, srcPath, outDir string) (string, error) {
+//
+// refs maps ref token strings (e.g. "{asset:abc123}", as produced by
+// [ExtractRefTokens]) to local file paths of already-downloaded files. Pass
+// nil when the command has no references — ranging over a nil map is a
+// no-op.
+func (t *transformer) RunCustomFFmpeg(
+	ctx context.Context,
+	cmd, srcPath, outDir string,
+	refs map[string]string,
+) (string, error) {
 	if err := ValidateCustomCommand(cmd); err != nil {
 		return "", err
 	}
@@ -242,6 +322,9 @@ func (t *transformer) RunCustomFFmpeg(ctx context.Context, cmd, srcPath, outDir 
 		if tok == "-safe" {
 			i++
 			continue
+		}
+		for refTok, refPath := range refs {
+			tok = strings.ReplaceAll(tok, refTok, refPath)
 		}
 		tok = strings.ReplaceAll(tok, "{input}", srcPath)
 		tok = strings.ReplaceAll(tok, "{output}", outputPath)

@@ -395,6 +395,12 @@ func (s *Server) handleValidateCustomFFmpegCommand(c fiber.Ctx) error {
 			Error:  "command_blacklisted",
 			Detail: err.Error(),
 		})
+	case errors.Is(err, transform.ErrCustomFFmpegBadRefToken):
+		return c.JSON(ValidateCommandResponse{
+			Valid:  false,
+			Error:  "bad_ref_token",
+			Detail: err.Error(),
+		})
 	default:
 		return c.JSON(ValidateCommandResponse{Valid: false, Error: err.Error()})
 	}
