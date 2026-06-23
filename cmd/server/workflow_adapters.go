@@ -222,6 +222,29 @@ func (a textTrackAdapter) CreateAIImageDescription(
 	return dto.ID, nil
 }
 
+func (a textTrackAdapter) CreateOCR(
+	ctx context.Context,
+	workspaceID string,
+	p workflow.TextTrackCreateOCRParams,
+) (string, error) {
+	dto, err := a.svc.Create(ctx, service.CreateTextTrackParams{
+		WorkspaceID: workspaceID,
+		AssetID:     p.AssetID,
+		Source:      "ocr",
+		Lang:        &p.Lang,
+		Params: map[string]any{
+			"storage_key":   p.StorageKey,
+			"mime_type":     p.MimeType,
+			"output_format": p.OutputFormat,
+		},
+		WorkflowContinuation: p.Continuation,
+	})
+	if err != nil {
+		return "", err
+	}
+	return dto.ID, nil
+}
+
 type versionManagerAdapter struct {
 	versions repository.VersionRepository
 }

@@ -13,6 +13,7 @@ import (
 	"damask/server/internal/apperr"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
+	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
 )
@@ -27,11 +28,16 @@ const (
 	portNoMatch           = "no_match"
 	labelError            = "Error"
 	labelOut              = "Out"
+	labelContinued        = "Continued"
 	nodeTypeCreateVariant = "action.create_variant"
 	nodeTypeSetNewVersion = "action.set_new_version"
 	nodeTypeAIImageDesc   = "action.ai_image_description"
+	nodeTypeOCR           = "action.ocr"
 	rcKeyContinuation     = "__workflow_continuation"
 	portContinued         = "continued"
+	outputKeyTrackID      = "track_id"
+	ocrOutputFormatTxt    = "txt"
+	ocrOutputFormatHocr   = "hocr"
 )
 
 // ContinuationInjector is an optional interface nodes can implement to seed
@@ -105,7 +111,7 @@ func createVariantSchemaFn() NodeSchema {
 		Inputs:      []Port{{ID: "in", Label: "In"}},
 		Outputs: []Port{
 			{ID: portOut, Label: labelOut},
-			{ID: portContinued, Label: "Continued"},
+			{ID: portContinued, Label: labelContinued},
 			{ID: portError, Label: labelError},
 		},
 		ConfigSchema: mustConfigSchema(
@@ -123,11 +129,29 @@ func aiImageDescriptionSchemaFn() NodeSchema {
 		Inputs:      []Port{{ID: "in", Label: "In"}},
 		Outputs: []Port{
 			{ID: portOut, Label: labelOut},
-			{ID: portContinued, Label: "Continued"},
+			{ID: portContinued, Label: labelContinued},
 			{ID: portError, Label: labelError},
 		},
 		ConfigSchema: mustConfigSchema(
 			`{"type":"object","properties":{"model":{"type":"string","title":"Model","format":"vision_model"},"lang":{"type":"string","title":"Language","format":"language"},"prompt":{"type":"string","title":"Prompt","format":"ai_description_prompt"}},"additionalProperties":false}`,
+		),
+	}
+}
+
+func ocrSchemaFn() NodeSchema {
+	return NodeSchema{
+		Type:        nodeTypeOCR,
+		Label:       "OCR",
+		Category:    nodeCategoryAction,
+		Description: "Extracts text from an image using Tesseract OCR and stores it as a text track.",
+		Inputs:      []Port{{ID: "in", Label: "In"}},
+		Outputs: []Port{
+			{ID: portOut, Label: labelOut},
+			{ID: portContinued, Label: labelContinued},
+			{ID: portError, Label: labelError},
+		},
+		ConfigSchema: mustConfigSchema(
+			`{"type":"object","properties":{"lang":{"type":"string","title":"Language","format":"ocr_language","default":"eng"},"output_format":{"type":"string","title":"Output Format","enum":["txt","hocr"],"default":"txt"}},"additionalProperties":false}`,
 		),
 	}
 }
@@ -450,6 +474,12 @@ func init() {
 		aiImageDescriptionSchemaFn(),
 		func(deps Deps) Node {
 			return aiImageDescriptionNode{deps: deps, schema: aiImageDescriptionSchemaFn()}
+		},
+	)
+	Register(
+		ocrSchemaFn(),
+		func(deps Deps) Node {
+			return ocrNode{deps: deps, schema: ocrSchemaFn()}
 		},
 	)
 }
@@ -1000,18 +1030,18 @@ type aiImageDescriptionNode struct {
 
 func (n aiImageDescriptionNode) Schema() NodeSchema { return n.schema }
 
-// InjectContinuation seeds a continuation whenever anything is wired to the
-// "out" port. Unlike create_variant (which only resumes into the one
-// dedicated set_new_version consumer), any downstream node can consume the
-// description/track_id this node produces, so there's no single node type
-// to special-case here.
-func (n aiImageDescriptionNode) InjectContinuation(
+// injectContinuationOnAnySuccessor seeds a continuation whenever anything is
+// wired to the given port. Unlike create_variant (which only resumes into
+// the one dedicated set_new_version consumer), any downstream node can
+// consume the output these "produce text track + maybe continue" nodes
+// produce, so there's no single node type to special-case here.
+func injectContinuationOnAnySuccessor(
 	rc *RunContext,
 	g *Graph,
-	nodeID, runID, workflowID, workspaceID string,
+	nodeID, runID, workflowID, workspaceID, port string,
 ) {
 	rc.Delete(rcKeyContinuation)
-	successors := g.Successors(nodeID, portOut)
+	successors := g.Successors(nodeID, port)
 	if len(successors) == 0 {
 		return
 	}
@@ -1021,6 +1051,31 @@ func (n aiImageDescriptionNode) InjectContinuation(
 		WorkflowID:  workflowID,
 		WorkspaceID: workspaceID,
 	})
+}
+
+func (n aiImageDescriptionNode) InjectContinuation(
+	rc *RunContext,
+	g *Graph,
+	nodeID, runID, workflowID, workspaceID string,
+) {
+	injectContinuationOnAnySuccessor(rc, g, nodeID, runID, workflowID, workspaceID, portOut)
+}
+
+// snapshotContinuation returns the continuation the executor pre-populated
+// for this step (if any), with the current run context snapshotted into it
+// so a job worker can later resume the run from this point. Returns nil if
+// no continuation was seeded (nothing wired to this node's "out" port).
+func snapshotContinuation(rc *RunContext) *NodeContinuation {
+	contVal, ok := rc.Get(rcKeyContinuation)
+	if !ok {
+		return nil
+	}
+	cont, isCont := contVal.(NodeContinuation)
+	if !isCont {
+		return nil
+	}
+	cont.ContextJSON = mustJSON(rc)
+	return &cont
 }
 
 func isCuratedVisionModel(model string) bool {
@@ -1112,13 +1167,7 @@ func (n aiImageDescriptionNode) Execute(
 	// If the executor pre-populated a continuation (meaning at least one node
 	// is wired to our "out" port), snapshot the current context so the job
 	// worker can resume the run once the description is ready.
-	var cont *NodeContinuation
-	if contVal, ok := rc.Get(rcKeyContinuation); ok {
-		if c, isCont := contVal.(NodeContinuation); isCont {
-			c.ContextJSON = mustJSON(rc)
-			cont = &c
-		}
-	}
+	cont := snapshotContinuation(rc)
 
 	trackID, err := n.deps.TextTracks.CreateAIImageDescription(ctx, workspaceID, TextTrackCreateParams{
 		AssetID:      assetID,
@@ -1134,7 +1183,105 @@ func (n aiImageDescriptionNode) Execute(
 	}
 
 	if cont != nil {
-		return portContinued, map[string]any{"track_id": trackID}, nil
+		return portContinued, map[string]any{outputKeyTrackID: trackID}, nil
 	}
-	return portOut, map[string]any{"track_id": trackID}, nil
+	return portOut, map[string]any{outputKeyTrackID: trackID}, nil
+}
+
+type ocrNode struct {
+	deps   Deps
+	schema NodeSchema
+}
+
+func (n ocrNode) Schema() NodeSchema { return n.schema }
+
+// InjectContinuation seeds a continuation whenever anything is wired to the
+// "out" port, same as aiImageDescriptionNode — any downstream node can
+// consume the text/track_id this node produces.
+func (n ocrNode) InjectContinuation(
+	rc *RunContext,
+	g *Graph,
+	nodeID, runID, workflowID, workspaceID string,
+) {
+	injectContinuationOnAnySuccessor(rc, g, nodeID, runID, workflowID, workspaceID, portOut)
+}
+
+func (n ocrNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
+	assetID, err := rcRequireString(rc, "asset_id")
+	if err != nil {
+		return "", nil, err
+	}
+	workspaceID, err := rcRequireString(rc, "workspace_id")
+	if err != nil {
+		return "", nil, err
+	}
+	if n.deps.Assets == nil || n.deps.Versions == nil || n.deps.TextTracks == nil {
+		return "", nil, errors.New("workflow ocr dependencies not configured")
+	}
+
+	asset, err := n.deps.Assets.Get(ctx, workspaceID, assetID)
+	if err != nil {
+		return "", nil, err
+	}
+	if !transform.SupportedOCRMIMEs[asset.MimeType] {
+		return "", nil, fmt.Errorf(
+			"asset mime type %q is not supported for OCR: %w",
+			asset.MimeType,
+			apperr.ErrInvalidInput,
+		)
+	}
+	if asset.CurrentVersionID == nil {
+		return "", nil, fmt.Errorf("asset has no current version: %w", apperr.ErrInvalidInput)
+	}
+
+	version, err := n.deps.Versions.GetByID(ctx, *asset.CurrentVersionID)
+	if err != nil {
+		return "", nil, fmt.Errorf("get current version: %w", err)
+	}
+
+	var nodeCfg struct {
+		Lang         string `json:"lang"`
+		OutputFormat string `json:"output_format"`
+	}
+	if unmarshalErr := json.Unmarshal(cfg, &nodeCfg); unmarshalErr != nil {
+		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
+	}
+
+	lang := strings.TrimSpace(nodeCfg.Lang)
+	if lang == "" {
+		lang = "eng"
+	}
+
+	outputFormat := strings.TrimSpace(nodeCfg.OutputFormat)
+	if outputFormat == "" {
+		outputFormat = ocrOutputFormatTxt
+	} else if outputFormat != ocrOutputFormatTxt && outputFormat != ocrOutputFormatHocr {
+		return "", nil, fmt.Errorf("unsupported output format %q: %w", outputFormat, apperr.ErrInvalidInput)
+	}
+
+	// If the executor pre-populated a continuation (meaning at least one node
+	// is wired to our "out" port), snapshot the current context so the job
+	// worker can resume the run once the OCR text is ready.
+	cont := snapshotContinuation(rc)
+
+	trackID, err := n.deps.TextTracks.CreateOCR(ctx, workspaceID, TextTrackCreateOCRParams{
+		AssetID:      assetID,
+		StorageKey:   version.StorageKey,
+		MimeType:     version.MimeType,
+		Lang:         lang,
+		OutputFormat: outputFormat,
+		Continuation: cont,
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	if cont != nil {
+		return portContinued, map[string]any{outputKeyTrackID: trackID}, nil
+	}
+	return portOut, map[string]any{outputKeyTrackID: trackID}, nil
 }

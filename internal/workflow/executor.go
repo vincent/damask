@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	workflowRunStatusRunning    = "running"
 	workflowRunStatusCompleted  = "completed"
 	workflowRunStatusFailed     = "failed"
 	workflowRunFailedEvent      = "workflow_run_failed"
@@ -75,7 +76,7 @@ func (e *Executor) Run(ctx context.Context, runID string) error {
 	rc.Set("workflow_id", wf.ID)
 	rc.Set("workflow_created_by", wf.CreatedBy)
 
-	err = e.deps.Runs.SetStatus(ctx, runID, "running")
+	err = e.deps.Runs.SetStatus(ctx, runID, workflowRunStatusRunning)
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,7 @@ func (e *Executor) executeNode(
 		RunID:     runID,
 		NodeID:    node.ID,
 		NodeType:  node.Type,
-		Status:    "running",
+		Status:    workflowRunStatusRunning,
 		Attempt:   1,
 		InputCtx:  mustJSON(rc),
 		StartedAt: nowPtr(),
@@ -268,6 +269,23 @@ func (e *Executor) ResumeAt(ctx context.Context, cont NodeContinuation, updates 
 		span.SetStatus(codes.Error, runErr.Error())
 	}
 	return e.finalizeRun(ctx, wf, cont.RunID, rc, runErr)
+}
+
+// FailAt marks a paused workflow run as failed when the async job it was
+// waiting on could not complete (e.g. a permanent OCR/AI/variant failure),
+// so the run doesn't stay "running" forever. No-op (returns cause) if the
+// run was already finalized by another path.
+func (e *Executor) FailAt(ctx context.Context, cont NodeContinuation, cause error) error {
+	wf, err := e.deps.Workflows.GetByID(ctx, cont.WorkspaceID, cont.WorkflowID)
+	if err != nil {
+		return err
+	}
+	if existing, lookupErr := e.deps.Runs.GetByID(ctx, cont.RunID); lookupErr == nil &&
+		(existing.Status == workflowRunStatusCompleted || existing.Status == workflowRunStatusFailed) {
+		return cause
+	}
+	rc := NewRunContext(jsonToMap(cont.ContextJSON))
+	return e.finalizeRun(ctx, wf, cont.RunID, rc, cause)
 }
 
 func (e *Executor) finalizeRun(

@@ -336,6 +336,7 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Get("/workflows", s.handleListWorkflows)
 	api.Post("/workflows", auth.RequireRole(getRoleFn, auth.Owner), s.handleCreateWorkflow)
 	api.Get("/workflows/node-schemas", s.handleGetWorkflowNodeSchemas)
+	api.Get("/workflows/ocr-languages", s.handleListOCRLanguages)
 	api.Get("/workflows/templates", s.handleGetWorkflowTemplates)
 	api.Get("/workflows/:id", s.handleGetWorkflow)
 	api.Put("/workflows/:id", auth.RequireRole(getRoleFn, auth.Owner), s.handleUpdateWorkflow)

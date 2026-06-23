@@ -1216,5 +1216,7 @@
   "text_tracks_ai_description_error_unsupported_mime": "La descripción IA solo está disponible para imágenes.",
   "variant_param_history_button_label": "Ajustes anteriores",
   "variant_param_history_empty": "Sin ajustes anteriores",
-  "variant_param_history_load_error": "No se pudieron cargar los ajustes anteriores"
+  "variant_param_history_load_error": "No se pudieron cargar los ajustes anteriores",
+  "workflow_ocr_language_label": "Idioma OCR",
+  "workflow_ocr_unavailable_hint": "Tesseract OCR no está instalado en el servidor, no hay idiomas disponibles."
 }

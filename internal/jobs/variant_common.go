@@ -88,16 +88,28 @@ func (s *JobServer) variantRegistry() map[string]variantEntry {
 }
 
 // jobVariant is the single generic handler for all user-triggered variant jobs.
+// It fails the paused workflow run (if any) when runVariantJob errors, so a
+// run waiting on a create_variant continuation doesn't stay "running" forever.
 func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
+	var p VariantJobPayload
+	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
+		return fmt.Errorf("parse payload: %w", err)
+	}
+	if err := s.runVariantJob(ctx, job, p); err != nil {
+		s.failContinuation(ctx, p.Continuation, err)
+		return err
+	}
+	return nil
+}
+
+// runVariantJob runs the build/transform/finalize pipeline for a single
+// variant job. p.Continuation is only ever non-nil for useFullFinalize
+// (workflow-triggered image) jobs — rebuild-variant jobs never set it.
+func (s *JobServer) runVariantJob(ctx context.Context, job dbgen.Job, p VariantJobPayload) error {
 	reg := s.variantRegistry()
 	entry, ok := reg[job.Type]
 	if !ok {
 		return fmt.Errorf("unknown variant job type: %s", job.Type)
-	}
-
-	var p VariantJobPayload
-	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
-		return fmt.Errorf("parse payload: %w", err)
 	}
 
 	trf, err := entry.build(job.Type, p.MimeType, p.WorkspaceID, p.Params)

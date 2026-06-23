@@ -7,11 +7,14 @@ import (
 )
 
 type MockTextTrackService struct {
-	ListFn               func(ctx context.Context, workspaceID, assetID string) ([]service.TextTrackDTO, error)
-	GetFn                func(ctx context.Context, workspaceID, trackID string) (service.TextTrackDTO, error)
-	CreateFn             func(ctx context.Context, p service.CreateTextTrackParams) (service.TextTrackDTO, error)
-	DeleteFn             func(ctx context.Context, workspaceID, trackID string) error
-	RunOCRFn             func(ctx context.Context, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string) error
+	ListFn   func(ctx context.Context, workspaceID, assetID string) ([]service.TextTrackDTO, error)
+	GetFn    func(ctx context.Context, workspaceID, trackID string) (service.TextTrackDTO, error)
+	CreateFn func(ctx context.Context, p service.CreateTextTrackParams) (service.TextTrackDTO, error)
+	DeleteFn func(ctx context.Context, workspaceID, trackID string) error
+	RunOCRFn func(
+		ctx context.Context,
+		workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
+	) (text string, wordCount int, err error)
 	RunExtractPDFFn      func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractPlainFn    func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractDocumentFn func(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
@@ -53,11 +56,11 @@ func (m *MockTextTrackService) Delete(ctx context.Context, workspaceID, trackID 
 func (m *MockTextTrackService) RunOCR(
 	ctx context.Context,
 	workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
-) error {
+) (string, int, error) {
 	if m.RunOCRFn != nil {
 		return m.RunOCRFn(ctx, workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat)
 	}
-	return nil
+	return "", 0, nil
 }
 
 func (m *MockTextTrackService) RunExtractPDF(

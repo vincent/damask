@@ -195,8 +195,8 @@ type CreateTextTrackParams struct {
 	Params         map[string]any
 	CreatedBy      string
 	// WorkflowContinuation, when set, is forwarded into the async job payload
-	// (currently only ai_image_description honors it) so the job worker can
-	// resume a suspended workflow run once the track is ready. Nil for every
+	// (honored by ai_image_description and ocr) so the job worker can resume
+	// a suspended workflow run once the track is ready. Nil for every
 	// non-workflow caller (manual UI, API).
 	WorkflowContinuation *workflow.NodeContinuation
 }
@@ -209,7 +209,7 @@ type TextTrackService interface {
 	RunOCR(
 		ctx context.Context,
 		workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
-	) error
+	) (text string, wordCount int, err error)
 	RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error

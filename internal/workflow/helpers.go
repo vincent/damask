@@ -181,11 +181,28 @@ type TextTrackCreateParams struct {
 	Continuation *NodeContinuation
 }
 
+// TextTrackCreateOCRParams carries everything needed to enqueue an OCR job.
+// Continuation, when set, is embedded in the job payload so the job worker
+// can resume the suspended workflow run once the OCR text is ready.
+type TextTrackCreateOCRParams struct {
+	AssetID      string
+	StorageKey   string
+	MimeType     string
+	Lang         string
+	OutputFormat string
+	Continuation *NodeContinuation
+}
+
 type TextTrackManager interface {
 	CreateAIImageDescription(
 		ctx context.Context,
 		workspaceID string,
 		p TextTrackCreateParams,
+	) (trackID string, err error)
+	CreateOCR(
+		ctx context.Context,
+		workspaceID string,
+		p TextTrackCreateOCRParams,
 	) (trackID string, err error)
 }
 

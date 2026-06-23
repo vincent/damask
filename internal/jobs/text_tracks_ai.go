@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -34,6 +35,19 @@ func (s *JobServer) jobAIImageDescriptionTextTrack(ctx context.Context, job dbge
 		return fmt.Errorf("jobAIImageDescriptionTextTrack: unmarshal: %w", err)
 	}
 
+	// fail records the track failure and, if a workflow run is paused waiting
+	// on this job, fails that run too — otherwise it would stay "running" forever.
+	fail := func(err error) error {
+		errMsg := err.Error()
+		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
+			ID:          p.TrackID,
+			WorkspaceID: p.WorkspaceID,
+			Error:       &errMsg,
+		})
+		s.failContinuation(ctx, p.Continuation, err)
+		return err
+	}
+
 	if procErr := s.queries.SetTextTrackProcessing(ctx, dbgen.SetTextTrackProcessingParams{
 		ID:          p.TrackID,
 		WorkspaceID: p.WorkspaceID,
@@ -44,56 +58,26 @@ func (s *JobServer) jobAIImageDescriptionTextTrack(ctx context.Context, job dbge
 
 	apiKey, _, err := s.aiAPIKeyResolver(ctx, p.WorkspaceID, string(ai.ProviderOpenRouter))
 	if err != nil || apiKey == "" {
-		errMsg := "OpenRouter is not configured"
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          p.TrackID,
-			WorkspaceID: p.WorkspaceID,
-			Error:       &errMsg,
-		})
-		return fmt.Errorf("jobAIImageDescriptionTextTrack: %s", errMsg)
+		return fail(errors.New("jobAIImageDescriptionTextTrack: OpenRouter is not configured"))
 	}
 
 	rc, err := s.storage.Get(p.StorageKey)
 	if err != nil {
-		errMsg := err.Error()
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          p.TrackID,
-			WorkspaceID: p.WorkspaceID,
-			Error:       &errMsg,
-		})
-		return fmt.Errorf("jobAIImageDescriptionTextTrack: read source: %w", err)
+		return fail(fmt.Errorf("jobAIImageDescriptionTextTrack: read source: %w", err))
 	}
 	imageBytes, readErr := io.ReadAll(io.LimitReader(rc, ai.MaxDescribeImageBytes+1))
 	_ = rc.Close()
 	if readErr != nil {
-		errMsg := readErr.Error()
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          p.TrackID,
-			WorkspaceID: p.WorkspaceID,
-			Error:       &errMsg,
-		})
-		return fmt.Errorf("jobAIImageDescriptionTextTrack: read bytes: %w", readErr)
+		return fail(fmt.Errorf("jobAIImageDescriptionTextTrack: read bytes: %w", readErr))
 	}
 	if len(imageBytes) > ai.MaxDescribeImageBytes {
-		errMsg := "source image exceeds maximum size for AI description"
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          p.TrackID,
-			WorkspaceID: p.WorkspaceID,
-			Error:       &errMsg,
-		})
-		return fmt.Errorf("jobAIImageDescriptionTextTrack: %s", errMsg)
+		return fail(errors.New("jobAIImageDescriptionTextTrack: source image exceeds maximum size for AI description"))
 	}
 
 	client := ai.NewOpenRouterClient(apiKey)
 	description, err := client.DescribeImage(ctx, p.Model, p.Prompt, imageBytes, p.MimeType)
 	if err != nil {
-		errMsg := err.Error()
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          p.TrackID,
-			WorkspaceID: p.WorkspaceID,
-			Error:       &errMsg,
-		})
-		return fmt.Errorf("jobAIImageDescriptionTextTrack: describe: %w", err)
+		return fail(fmt.Errorf("jobAIImageDescriptionTextTrack: describe: %w", err))
 	}
 
 	wordCount := len(strings.Fields(description))
@@ -110,7 +94,7 @@ func (s *JobServer) jobAIImageDescriptionTextTrack(ctx context.Context, job dbge
 		Content:     description,
 		Meta:        &meta,
 	}); err != nil {
-		return fmt.Errorf("jobAIImageDescriptionTextTrack: mark ready: %w", err)
+		return fail(fmt.Errorf("jobAIImageDescriptionTextTrack: mark ready: %w", err))
 	}
 
 	if ftsErr := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
@@ -135,6 +119,7 @@ func (s *JobServer) jobAIImageDescriptionTextTrack(ctx context.Context, job dbge
 				"node_id", p.Continuation.NodeID,
 				"error", resumeErr,
 			)
+			s.failContinuation(ctx, p.Continuation, resumeErr)
 			return fmt.Errorf("jobAIImageDescriptionTextTrack: resume workflow: %w", resumeErr)
 		}
 	}

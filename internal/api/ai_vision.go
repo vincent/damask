@@ -24,9 +24,11 @@ type supportedLang struct {
 	Native  string `json:"native"`
 }
 
+const langNameEnglish = "English"
+
 //nolint:gochecknoglobals // intentional package-level list; read-only after init
 var supportedLangs = []supportedLang{
-	{"en", "English", "English"},
+	{"en", langNameEnglish, langNameEnglish},
 	{"es", "Spanish", "Español"},
 	{"fr", "French", "Français"},
 	{"de", "German", "Deutsch"},

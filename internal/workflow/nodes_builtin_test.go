@@ -406,6 +406,7 @@ func (s *stubWorkspaceManager) ListAIProviders(
 type stubTextTrackManager struct {
 	trackID  string
 	lastCall TextTrackCreateParams
+	lastOCR  TextTrackCreateOCRParams
 	err      error
 }
 
@@ -415,6 +416,18 @@ func (s *stubTextTrackManager) CreateAIImageDescription(
 	p TextTrackCreateParams,
 ) (string, error) {
 	s.lastCall = p
+	if s.err != nil {
+		return "", s.err
+	}
+	return s.trackID, nil
+}
+
+func (s *stubTextTrackManager) CreateOCR(
+	_ context.Context,
+	_ string,
+	p TextTrackCreateOCRParams,
+) (string, error) {
+	s.lastOCR = p
 	if s.err != nil {
 		return "", s.err
 	}
@@ -531,6 +544,99 @@ func TestActionAIImageDescription_InjectContinuation_AnySuccessor(t *testing.T) 
 	}
 	runRC := rc()
 	node.InjectContinuation(runRC, g, "n_desc", "run_1", "wf_1", "ws_1")
+	val, ok := runRC.Get(rcKeyContinuation)
+	if !ok {
+		t.Fatal("expected continuation to be seeded")
+	}
+	cont, ok := val.(NodeContinuation)
+	if !ok || cont.NodeID != "n_tag" {
+		t.Errorf("expected continuation targeting n_tag, got %v", val)
+	}
+}
+
+// --- action.ocr node tests ---
+
+func ocrDeps(tracks *stubTextTrackManager) Deps {
+	return Deps{
+		Assets:     &stubAssetManagerWithMime{mimeType: "image/png"},
+		Versions:   &stubVersionManager{version: repository.AssetVersion{StorageKey: "sk1", MimeType: "image/png"}},
+		TextTracks: tracks,
+	}
+}
+
+func TestActionOCR_Execute_OK(t *testing.T) {
+	t.Parallel()
+	tracks := &stubTextTrackManager{trackID: "trk_1"}
+	node := ocrNode{deps: ocrDeps(tracks), schema: ocrSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	port, updates, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if port != portOut {
+		t.Errorf("expected portOut, got %q", port)
+	}
+	if updates["track_id"] != "trk_1" {
+		t.Errorf("expected track_id=trk_1 in updates, got %v", updates)
+	}
+	if tracks.lastOCR.Lang != "eng" {
+		t.Errorf("expected default lang=eng, got %q", tracks.lastOCR.Lang)
+	}
+	if tracks.lastOCR.OutputFormat != ocrOutputFormatTxt {
+		t.Errorf("expected default output_format=txt, got %q", tracks.lastOCR.OutputFormat)
+	}
+}
+
+func TestActionOCR_Execute_UnsupportedMime(t *testing.T) {
+	t.Parallel()
+	tracks := &stubTextTrackManager{trackID: "trk_1"}
+	deps := ocrDeps(tracks)
+	deps.Assets = &stubAssetManagerWithMime{mimeType: "video/mp4"}
+	node := ocrNode{deps: deps, schema: ocrSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	_, _, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err == nil {
+		t.Fatal("expected error for unsupported mime type")
+	}
+}
+
+func TestActionOCR_Execute_WithContinuation(t *testing.T) {
+	t.Parallel()
+	tracks := &stubTextTrackManager{trackID: "trk_1"}
+	node := ocrNode{deps: ocrDeps(tracks), schema: ocrSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	triggerRC.Set(rcKeyContinuation, NodeContinuation{
+		RunID: "run_1", NodeID: "n_tag", WorkflowID: "wf_1", WorkspaceID: "ws_1",
+	})
+	port, updates, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if port != portContinued {
+		t.Errorf("expected portContinued, got %q", port)
+	}
+	if updates["track_id"] != "trk_1" {
+		t.Errorf("expected track_id=trk_1 in updates, got %v", updates)
+	}
+	if tracks.lastOCR.Continuation == nil {
+		t.Fatal("expected continuation to be passed to TextTracks.CreateOCR")
+	}
+}
+
+func TestActionOCR_InjectContinuation_AnySuccessor(t *testing.T) {
+	t.Parallel()
+	node := ocrNode{schema: ocrSchemaFn()}
+	g := &Graph{
+		Nodes: []GraphNode{
+			{ID: "n_ocr", Type: nodeTypeOCR},
+			{ID: "n_tag", Type: "action.tag"},
+		},
+		Edges: []GraphEdge{
+			{FromNode: "n_ocr", FromPort: portOut, ToNode: "n_tag", ToPort: "in"},
+		},
+	}
+	runRC := rc()
+	node.InjectContinuation(runRC, g, "n_ocr", "run_1", "wf_1", "ws_1")
 	val, ok := runRC.Get(rcKeyContinuation)
 	if !ok {
 		t.Fatal("expected continuation to be seeded")

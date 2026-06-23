@@ -3,6 +3,7 @@ package transform
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,6 +26,35 @@ type OCRResult struct {
 func TesseractAvailable() bool {
 	_, err := exec.LookPath("tesseract")
 	return err == nil
+}
+
+// ListOCRLanguages returns the Tesseract language codes actually installed
+// on this host (e.g. "eng", "fra"), by parsing `tesseract --list-langs`.
+// The "osd" entry (orientation/script detection data, not a real language)
+// is filtered out.
+func ListOCRLanguages(ctx context.Context) ([]string, error) {
+	if !TesseractAvailable() {
+		return nil, errors.New("ocr: tesseract not available")
+	}
+
+	cmd := exec.CommandContext(ctx, "tesseract", "--list-langs")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ocr: list langs: %w (stderr: %s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	lines := strings.Split(stdout.String(), "\n")
+	langs := make([]string, 0, len(lines))
+	for _, line := range lines[1:] { // first line is a header, not a language
+		line = strings.TrimSpace(line)
+		if line == "" || line == "osd" {
+			continue
+		}
+		langs = append(langs, line)
+	}
+	return langs, nil
 }
 
 var SupportedOCRMIMEs = map[string]bool{

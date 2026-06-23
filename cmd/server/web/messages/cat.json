@@ -1216,5 +1216,7 @@
   "text_tracks_ai_description_error_unsupported_mime": "La descripció IA només està disponible per a imatges.",
   "variant_param_history_button_label": "Configuració anterior",
   "variant_param_history_empty": "Sense configuració anterior",
-  "variant_param_history_load_error": "No s'ha pogut carregar la configuració anterior"
+  "variant_param_history_load_error": "No s'ha pogut carregar la configuració anterior",
+  "workflow_ocr_language_label": "Idioma OCR",
+  "workflow_ocr_unavailable_hint": "Tesseract OCR no està instal·lat al servidor, no hi ha cap idioma disponible."
 }

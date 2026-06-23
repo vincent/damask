@@ -10,6 +10,7 @@
   import Input from '$lib/components/ui/Input.svelte'
   import AIVisionModelSelect from '$lib/components/AIVisionModelSelect.svelte'
   import AILanguageSelect from '$lib/components/AILanguageSelect.svelte'
+  import OCRLanguageSelect from '$lib/components/OCRLanguageSelect.svelte'
   import AIDescriptionPromptInput from '$lib/components/AIDescriptionPromptInput.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { variantTypes, variantTypeMap } from '$lib/stores/variantTypes.svelte'
@@ -300,6 +301,12 @@
               />
             {:else if field.format === 'language'}
               <AILanguageSelect
+                value={stringValue(key)}
+                disabled={readonly}
+                onchange={(val) => updateField(key, val)}
+              />
+            {:else if field.format === 'ocr_language'}
+              <OCRLanguageSelect
                 value={stringValue(key)}
                 disabled={readonly}
                 onchange={(val) => updateField(key, val)}

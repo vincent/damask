@@ -13,6 +13,7 @@ import (
 
 	"damask/server/internal/apperr"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
@@ -274,14 +275,15 @@ func (s *textTrackService) finalizeManualTrack(
 
 func (s *textTrackService) enqueueOCR(ctx context.Context, p CreateTextTrackParams, trackID string) (string, error) {
 	payload, err := json.Marshal(struct {
-		WorkspaceID    string `json:"workspace_id"`
-		AssetID        string `json:"asset_id"`
-		TrackID        string `json:"track_id"`
-		AssetVersionID string `json:"asset_version_id"`
-		StorageKey     string `json:"storage_key"`
-		MimeType       string `json:"mime_type"`
-		Lang           string `json:"lang"`
-		OutputFormat   string `json:"output_format"`
+		WorkspaceID    string                     `json:"workspace_id"`
+		AssetID        string                     `json:"asset_id"`
+		TrackID        string                     `json:"track_id"`
+		AssetVersionID string                     `json:"asset_version_id"`
+		StorageKey     string                     `json:"storage_key"`
+		MimeType       string                     `json:"mime_type"`
+		Lang           string                     `json:"lang"`
+		OutputFormat   string                     `json:"output_format"`
+		Continuation   *workflow.NodeContinuation `json:"continuation,omitempty"`
 	}{
 		WorkspaceID:    p.WorkspaceID,
 		AssetID:        p.AssetID,
@@ -291,6 +293,7 @@ func (s *textTrackService) enqueueOCR(ctx context.Context, p CreateTextTrackPara
 		MimeType:       stringParam(p.Params, "mime_type", ""),
 		Lang:           stringValue(p.Lang, "eng"),
 		OutputFormat:   stringParam(p.Params, "output_format", "txt"),
+		Continuation:   p.WorkflowContinuation,
 	})
 	if err != nil {
 		return "", fmt.Errorf("marshal OCR payload: %w", err)
@@ -651,7 +654,7 @@ func (s *textTrackService) writeExtractedText(
 func (s *textTrackService) RunOCR(
 	ctx context.Context,
 	workspaceID, assetID, trackID, _, storageKey, mimeType, lang, outputFormat string,
-) (err error) {
+) (text string, wordCount int, err error) {
 	ctx, span := telemetry.StartBackgroundSpan(ctx, "service.text_tracks.ocr",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.String("damask.asset_id", assetID),
@@ -674,18 +677,28 @@ func (s *textTrackService) RunOCR(
 		}
 	}()
 
+	fail := func(formatErr error) (string, int, error) {
+		errMsg := formatErr.Error()
+		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
+			ID:          trackID,
+			WorkspaceID: workspaceID,
+			Error:       &errMsg,
+		})
+		return "", 0, formatErr
+	}
+
 	_, readSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.read_source",
 		attribute.String("damask.storage_key", storageKey),
 	)
 	rc, err := s.storage.Get(storageKey)
 	telemetry.EndSpan(readSpan, err)
 	if err != nil {
-		return fmt.Errorf("RunOCR: read source: %w", err)
+		return fail(fmt.Errorf("RunOCR: read source: %w", err))
 	}
 	imageBytes, err := io.ReadAll(rc)
 	_ = rc.Close()
 	if err != nil {
-		return fmt.Errorf("RunOCR: read bytes: %w", err)
+		return fail(fmt.Errorf("RunOCR: read bytes: %w", err))
 	}
 	span.SetAttributes(attribute.Int("damask.source_bytes", len(imageBytes)))
 
@@ -696,13 +709,7 @@ func (s *textTrackService) RunOCR(
 	})
 	telemetry.EndSpan(ocrSpan, err)
 	if err != nil {
-		errMsg := err.Error()
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          trackID,
-			WorkspaceID: workspaceID,
-			Error:       &errMsg,
-		})
-		return fmt.Errorf("RunOCR: OCR: %w", err)
+		return fail(fmt.Errorf("RunOCR: OCR: %w", err))
 	}
 
 	var resultStorageKey *string
@@ -714,7 +721,7 @@ func (s *textTrackService) RunOCR(
 		)
 		if err = s.storage.Put(key, bytes.NewReader(result.FileContent)); err != nil {
 			telemetry.EndSpan(storeSpan, err)
-			return fmt.Errorf("RunOCR: store companion file: %w", err)
+			return fail(fmt.Errorf("RunOCR: store companion file: %w", err))
 		}
 		telemetry.EndSpan(storeSpan, nil)
 		resultStorageKey = &key
@@ -723,12 +730,12 @@ func (s *textTrackService) RunOCR(
 	}
 
 	plainText := readyTextContent(result.PlainText)
-	wordCount := len(strings.Fields(result.PlainText))
+	wordCount = len(strings.Fields(result.PlainText))
 	metaBytes, _ := json.Marshal(map[string]any{
-		"lang":          lang,
-		"model":         "tesseract",
-		"output_format": outputFormat,
-		"word_count":    wordCount,
+		"lang":                lang,
+		"model":               "tesseract",
+		"output_format":       outputFormat,
+		jobs.MetaKeyWordCount: wordCount,
 	})
 	meta := string(metaBytes)
 
@@ -742,7 +749,7 @@ func (s *textTrackService) RunOCR(
 		WorkspaceID: workspaceID,
 	}); err != nil {
 		telemetry.EndSpan(writeSpan, err)
-		return fmt.Errorf("RunOCR: update track: %w", err)
+		return fail(fmt.Errorf("RunOCR: update track: %w", err))
 	}
 	telemetry.EndSpan(writeSpan, nil)
 
@@ -774,5 +781,5 @@ func (s *textTrackService) RunOCR(
 		"output_format", outputFormat,
 	)
 
-	return nil
+	return plainText, wordCount, nil
 }

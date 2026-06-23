@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"time"
 
@@ -53,7 +55,7 @@ type textTrackService interface {
 	RunOCR(
 		ctx context.Context,
 		workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
-	) error
+	) (text string, wordCount int, err error)
 	RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
@@ -287,4 +289,17 @@ func (s *JobServer) jobRunWorkflow(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("parse workflow payload: %w", err)
 	}
 	return s.workflowExec.Run(ctx, payload.RunID)
+}
+
+// failContinuation marks a paused workflow run as failed when the job it
+// depends on couldn't complete, so the run doesn't stay "running" forever.
+// No-op if cont is nil.
+func (s *JobServer) failContinuation(ctx context.Context, cont *workflow.NodeContinuation, cause error) {
+	if cont == nil {
+		return
+	}
+	if err := s.workflowExec.FailAt(ctx, *cont, cause); err != nil && !errors.Is(err, cause) {
+		slog.ErrorContext(ctx, "workflow continuation fail-at failed",
+			"run_id", cont.RunID, "node_id", cont.NodeID, "error", err)
+	}
 }

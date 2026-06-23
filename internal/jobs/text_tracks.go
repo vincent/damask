@@ -4,7 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+
+	"damask/server/internal/workflow"
 )
+
+// MetaKeyWordCount is the shared meta/context key for OCR and AI image
+// description word counts.
+const MetaKeyWordCount = "word_count"
 
 type OCRTextTrackPayload struct {
 	WorkspaceID    string `json:"workspace_id"`
@@ -15,6 +22,9 @@ type OCRTextTrackPayload struct {
 	MimeType       string `json:"mime_type"`
 	Lang           string `json:"lang"`
 	OutputFormat   string `json:"output_format"`
+	// Continuation, when set, resumes a suspended workflow run once the OCR
+	// text is ready (see action.ocr workflow node).
+	Continuation *workflow.NodeContinuation `json:"continuation,omitempty"`
 }
 
 func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) error {
@@ -22,7 +32,7 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) erro
 	if err := json.Unmarshal([]byte(rawPayload), &p); err != nil {
 		return fmt.Errorf("jobOCRTextTrack: unmarshal: %w", err)
 	}
-	return s.textTrackSvc.RunOCR(
+	text, wordCount, err := s.textTrackSvc.RunOCR(
 		ctx,
 		p.WorkspaceID,
 		p.AssetID,
@@ -33,4 +43,27 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) erro
 		p.Lang,
 		p.OutputFormat,
 	)
+	if err != nil {
+		s.failContinuation(ctx, p.Continuation, err)
+		return err
+	}
+
+	if p.Continuation == nil {
+		return nil
+	}
+
+	if resumeErr := s.workflowExec.ResumeAt(ctx, *p.Continuation, map[string]any{
+		"text":           text,
+		"track_id":       p.TrackID,
+		MetaKeyWordCount: wordCount,
+	}); resumeErr != nil {
+		slog.ErrorContext(ctx, "workflow continuation failed after ocr ready",
+			"run_id", p.Continuation.RunID,
+			"node_id", p.Continuation.NodeID,
+			"error", resumeErr,
+		)
+		s.failContinuation(ctx, p.Continuation, resumeErr)
+		return fmt.Errorf("jobOCRTextTrack: resume workflow: %w", resumeErr)
+	}
+	return nil
 }

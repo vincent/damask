@@ -161,3 +161,139 @@ func TestExecutorReportsRunFailures(t *testing.T) {
 		t.Fatalf("expected workflow failure email, got %+v", mailer)
 	}
 }
+
+func TestExecutorFailAt_MarksRunFailed(t *testing.T) {
+	workflows := memory.NewWorkflowRepo()
+	runs := memory.NewWorkflowRunRepo()
+	hub := &testHub{}
+	auditWriter := &testAuditWriter{}
+	mailer := &testMailer{}
+
+	graph := `{"nodes":[{"id":"trigger","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`
+
+	workflows.Seed(repository.Workflow{
+		ID:                   "wf_1",
+		WorkspaceID:          "ws_1",
+		Name:                 "Continuation Workflow",
+		Enabled:              true,
+		TriggerType:          "trigger.manual",
+		Graph:                graph,
+		NotifyOnFailureEmail: "ops@example.com",
+		CreatedBy:            "usr_1",
+	})
+	_, _ = runs.Create(context.Background(), repository.CreateWorkflowRunParams{
+		ID:          "run_1",
+		WorkflowID:  "wf_1",
+		WorkspaceID: "ws_1",
+		Status:      workflowRunStatusRunning,
+		TriggerData: `{"asset_id":"asset_1"}`,
+		Context:     `{"asset_id":"asset_1"}`,
+	})
+
+	exec := NewExecutor(Deps{
+		Workflows: workflows,
+		Runs:      runs,
+		Hub:       hub,
+		Audit:     auditWriter,
+		Mailer:    mailer,
+	})
+
+	cont := NodeContinuation{
+		RunID:       "run_1",
+		NodeID:      "would_be_next",
+		WorkflowID:  "wf_1",
+		WorkspaceID: "ws_1",
+		ContextJSON: `{"asset_id":"asset_1"}`,
+	}
+	cause := errors.New("ocr permanently failed")
+	err := exec.FailAt(context.Background(), cont, cause)
+	if !errors.Is(err, cause) {
+		t.Fatalf("expected FailAt to return the cause error, got %v", err)
+	}
+
+	run, err := runs.GetByID(context.Background(), "run_1")
+	if err != nil {
+		t.Fatalf("GetByID() unexpected error: %v", err)
+	}
+	if run.Status != "failed" {
+		t.Fatalf("expected run status failed, got %q", run.Status)
+	}
+	if len(hub.published) != 1 || hub.published[0].Type != "workflow_run_failed" {
+		t.Fatalf("expected one workflow failure event, got %+v", hub.published)
+	}
+	if len(auditWriter.assetEvents) != 1 || auditWriter.assetEvents[0].EventType != "workflow_run_failed" {
+		t.Fatalf("expected workflow failure audit event, got %+v", auditWriter.assetEvents)
+	}
+	if mailer.errMsg != "ocr permanently failed" {
+		t.Fatalf("expected workflow failure email, got %+v", mailer)
+	}
+}
+
+func TestExecutorFailAt_NoOpIfAlreadyFinalized(t *testing.T) {
+	workflows := memory.NewWorkflowRepo()
+	runs := memory.NewWorkflowRunRepo()
+	hub := &testHub{}
+	auditWriter := &testAuditWriter{}
+	mailer := &testMailer{}
+
+	graph := `{"nodes":[{"id":"trigger","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`
+
+	workflows.Seed(repository.Workflow{
+		ID:                   "wf_1",
+		WorkspaceID:          "ws_1",
+		Name:                 "Continuation Workflow",
+		Enabled:              true,
+		TriggerType:          "trigger.manual",
+		Graph:                graph,
+		NotifyOnFailureEmail: "ops@example.com",
+		CreatedBy:            "usr_1",
+	})
+	_, _ = runs.Create(context.Background(), repository.CreateWorkflowRunParams{
+		ID:          "run_1",
+		WorkflowID:  "wf_1",
+		WorkspaceID: "ws_1",
+		Status:      workflowRunStatusRunning,
+		TriggerData: `{}`,
+		Context:     `{}`,
+	})
+	if err := runs.SetFinal(context.Background(), repository.SetWorkflowRunFinalParams{
+		ID:          "run_1",
+		Status:      "completed",
+		Context:     `{}`,
+		CompletedAt: nowPtr(),
+	}); err != nil {
+		t.Fatalf("SetFinal() unexpected error: %v", err)
+	}
+
+	exec := NewExecutor(Deps{
+		Workflows: workflows,
+		Runs:      runs,
+		Hub:       hub,
+		Audit:     auditWriter,
+		Mailer:    mailer,
+	})
+
+	cont := NodeContinuation{RunID: "run_1", NodeID: "would_be_next", WorkflowID: "wf_1", WorkspaceID: "ws_1"}
+	cause := errors.New("resume failed after run already completed")
+	err := exec.FailAt(context.Background(), cont, cause)
+	if !errors.Is(err, cause) {
+		t.Fatalf("expected FailAt to return the cause error, got %v", err)
+	}
+
+	run, err := runs.GetByID(context.Background(), "run_1")
+	if err != nil {
+		t.Fatalf("GetByID() unexpected error: %v", err)
+	}
+	if run.Status != "completed" {
+		t.Fatalf("expected run status to remain completed, got %q", run.Status)
+	}
+	if len(hub.published) != 0 {
+		t.Fatalf("expected no events published for an already-finalized run, got %+v", hub.published)
+	}
+	if len(auditWriter.assetEvents) != 0 {
+		t.Fatalf("expected no audit events for an already-finalized run, got %+v", auditWriter.assetEvents)
+	}
+	if mailer.errMsg != "" {
+		t.Fatalf("expected no failure email for an already-finalized run, got %+v", mailer)
+	}
+}

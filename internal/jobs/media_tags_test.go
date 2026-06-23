@@ -32,7 +32,9 @@ func (noopExifSvc) ExtractForAsset(_ context.Context, _, _, _ string) error { re
 
 type noopTextTrackSvc struct{}
 
-func (noopTextTrackSvc) RunOCR(_ context.Context, _, _, _, _, _, _, _, _ string) error    { return nil }
+func (noopTextTrackSvc) RunOCR(_ context.Context, _, _, _, _, _, _, _, _ string) (string, int, error) {
+	return "", 0, nil
+}
 func (noopTextTrackSvc) RunExtractPDF(_ context.Context, _, _, _, _ string) error         { return nil }
 func (noopTextTrackSvc) RunExtractPlain(_ context.Context, _, _, _, _ string) error       { return nil }
 func (noopTextTrackSvc) RunExtractDocument(_ context.Context, _, _, _, _, _ string) error { return nil }
