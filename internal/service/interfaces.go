@@ -300,6 +300,20 @@ type ShareService interface {
 	Revoke(ctx context.Context, workspaceID, id string) error
 }
 
+// EmbedTokenService handles business logic for public asset embed tokens.
+type EmbedTokenService interface {
+	// GetOrCreate returns the active token for the asset, creating one if none
+	// exists. Idempotent — safe to call on every "copy link" click.
+	GetOrCreate(ctx context.Context, workspaceID, assetID, userID string) (*EmbedTokenDTO, error)
+	// GetActive returns the active token for an asset, or apperr.ErrNotFound.
+	GetActive(ctx context.Context, workspaceID, assetID string) (*EmbedTokenDTO, error)
+	// Revoke revokes the active token. Returns apperr.ErrNotFound if none active.
+	Revoke(ctx context.Context, workspaceID, assetID string) error
+	// ResolveCurrentFile is called by the public /e/:token endpoints. No workspace
+	// auth — the token id is the only key. Returns apperr.ErrNotFound or ErrGone.
+	ResolveCurrentFile(ctx context.Context, tokenID string) (*ResolvedEmbed, error)
+}
+
 // WorkflowTriggerPublisher publishes workflow trigger events.
 type WorkflowTriggerPublisher interface {
 	Dispatch(ctx context.Context, eventType string, data map[string]any) error

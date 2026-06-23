@@ -1218,5 +1218,14 @@
   "variant_param_history_empty": "No previous settings",
   "variant_param_history_load_error": "Couldn't load previous settings",
   "workflow_ocr_language_label": "OCR language",
-  "workflow_ocr_unavailable_hint": "Tesseract OCR is not installed on the server, so no languages are available."
+  "workflow_ocr_unavailable_hint": "Tesseract OCR is not installed on the server, so no languages are available.",
+  "embed_copy_public_url": "Copy public URL",
+  "embed_public_url_active": "Public URL active",
+  "embed_revoke": "Revoke",
+  "embed_revoke_confirm_title": "Revoke public link?",
+  "embed_revoke_confirm_body": "Anyone with the URL will lose access immediately.",
+  "embed_revoke_success": "Public link revoked",
+  "embed_revoke_failed": "Could not revoke public link",
+  "embed_create_failed": "Could not create public link",
+  "embed_copy_failed": "Could not copy link"
 }

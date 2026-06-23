@@ -72,6 +72,7 @@ type Server struct {
 	workflows           service.WorkflowService
 	storageSvc          service.StorageService
 	visualSimilaritySvc *visualsimilarity.Service
+	embedTokens         service.EmbedTokenService
 	bcryptCost          int
 }
 
@@ -106,6 +107,7 @@ func NewHTTPServer(
 	workflowWebhookRepo := reposqlc.NewWorkflowWebhookRepo(queries, sqlDB)
 	assetFieldRepo := reposqlc.NewAssetFieldRepo(queries, sqlDB)
 	projectFieldRepo := reposqlc.NewProjectFieldRepo(queries)
+	embedTokenRepo := reposqlc.NewEmbedTokenRepo(queries)
 	media := ingest.NewRegistry(trf)
 	triggerDispatcher := workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
@@ -143,6 +145,7 @@ func NewHTTPServer(
 		cfg:           cfg,
 		collections:   service.NewCollectionService(collectionRepo, assetRepo),
 		demo:          demoSeeder,
+		embedTokens:   service.NewEmbedTokenService(embedTokenRepo, assetRepo, versionRepo, cfg.BaseURL.String()),
 		fields:        service.NewFieldService(fieldRepo),
 		folders:       service.NewFolderService(folderRepo),
 		hub:           hub,
@@ -555,6 +558,11 @@ func NewRouter(
 		s.handleRemoveTagFromAsset,
 	)
 
+	// Public embed tokens — authenticated CRUD; the public /e/:token routes are below.
+	api.Post("/assets/:id/embed-token", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateEmbedToken)
+	api.Get("/assets/:id/embed-token", s.handleGetEmbedToken)
+	api.Delete("/assets/:id/embed-token", auth.RequireRole(getRoleFn, auth.Editor), s.handleDeleteEmbedToken)
+
 	// Variants
 	api.Get("/variants/validate-command", s.handleValidateCustomFFmpegCommand)
 	api.Get("/variant-param-history", s.handleGetVariantParamHistory)
@@ -753,6 +761,11 @@ func NewRouter(
 	shareGroup.Post("/comments", s.handleShareCreateComment)
 	shareGroup.Get("/comments", s.handleShareListComments)
 	shareGroup.Get("/assets/:aid/comments", s.handleShareListAssetComments)
+
+	// Public embed token routes — durable, unauthenticated links to an asset's
+	// current version. Always serve whatever is_current points to at request time.
+	app.Get("/e/:token", s.handlePublicEmbedFile)        // public by design — no auth
+	app.Get("/e/:token/thumb", s.handlePublicEmbedThumb) // public by design — no auth
 
 	// Mount the UI with the default configuration under /swagger
 	app.Get("/swagger/*", swaggo.HandlerDefault)

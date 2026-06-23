@@ -7,6 +7,7 @@
   import AssetExportImage from '$lib/components/asset/AssetExportImage.svelte'
   import AssetDeleteButton from '$lib/components/asset/AssetDeleteButton.svelte'
   import ShareModal from '$lib/components/ShareModal.svelte'
+  import PublicUrlMenuItem from '$lib/components/asset/PublicUrlMenuItem.svelte'
   import VisualSimilarityDrawer from './VisualSimilarityDrawer.svelte'
   import { m } from '$lib/paraglide/messages'
   import { isImage } from '$lib/utils/mime'
@@ -107,6 +108,8 @@
           <Share class="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
           {m.share()}
         </button>
+
+        <PublicUrlMenuItem assetId={asset.id} />
 
         {#if isImg}
           {#if noResultsMsg}

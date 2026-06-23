@@ -379,3 +379,36 @@ func TestIsolation_Members_CannotAccessOtherWorkspace(t *testing.T) {
 		}
 	}
 }
+
+func TestIsolation_EmbedTokens(t *testing.T) {
+	env, ws1, ws2 := setupTwoWorkspaces(t)
+
+	assetID := uploadTestAsset(t, env, ws1)
+
+	createReq := th.AuthRequest(http.MethodPost, "/api/v1/assets/"+assetID+"/embed-token", nil, ws2.Cookie)
+	createResp, err := env.App.Test(createReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if createResp.StatusCode != http.StatusNotFound {
+		t.Errorf("create: expected 404, got %d", createResp.StatusCode)
+	}
+
+	getReq := th.AuthRequest(http.MethodGet, "/api/v1/assets/"+assetID+"/embed-token", nil, ws2.Cookie)
+	getResp, err := env.App.Test(getReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if getResp.StatusCode != http.StatusNotFound {
+		t.Errorf("get: expected 404, got %d", getResp.StatusCode)
+	}
+
+	delReq := th.AuthRequest(http.MethodDelete, "/api/v1/assets/"+assetID+"/embed-token", nil, ws2.Cookie)
+	delResp, err := env.App.Test(delReq, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if delResp.StatusCode != http.StatusNotFound {
+		t.Errorf("delete: expected 404, got %d", delResp.StatusCode)
+	}
+}

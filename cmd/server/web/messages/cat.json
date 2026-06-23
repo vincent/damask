@@ -1218,5 +1218,14 @@
   "variant_param_history_empty": "Sense configuració anterior",
   "variant_param_history_load_error": "No s'ha pogut carregar la configuració anterior",
   "workflow_ocr_language_label": "Idioma OCR",
-  "workflow_ocr_unavailable_hint": "Tesseract OCR no està instal·lat al servidor, no hi ha cap idioma disponible."
+  "workflow_ocr_unavailable_hint": "Tesseract OCR no està instal·lat al servidor, no hi ha cap idioma disponible.",
+  "embed_copy_public_url": "Copia la URL pública",
+  "embed_public_url_active": "URL pública activa",
+  "embed_revoke": "Revoca",
+  "embed_revoke_confirm_title": "Revocar l'enllaç públic?",
+  "embed_revoke_confirm_body": "Qualsevol persona amb la URL perdrà l'accés immediatament.",
+  "embed_revoke_success": "Enllaç públic revocat",
+  "embed_revoke_failed": "No s'ha pogut revocar l'enllaç públic",
+  "embed_create_failed": "No s'ha pogut crear l'enllaç públic",
+  "embed_copy_failed": "No s'ha pogut copiar l'enllaç"
 }

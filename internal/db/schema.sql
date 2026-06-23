@@ -585,3 +585,20 @@ CREATE TABLE asset_visual_similarity_hashes (
 
 CREATE INDEX idx_visual_similarity_hashes_workspace_hash
     ON asset_visual_similarity_hashes(workspace_id, central_hash);
+
+CREATE TABLE asset_embed_tokens (
+    id           TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    asset_id     TEXT NOT NULL REFERENCES assets(id)     ON DELETE CASCADE,
+    created_by   TEXT NOT NULL REFERENCES users(id),
+    label        TEXT NOT NULL DEFAULT '',
+    created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+    revoked_at   DATETIME
+);
+
+CREATE INDEX idx_embed_tokens_workspace ON asset_embed_tokens(workspace_id);
+CREATE INDEX idx_embed_tokens_asset     ON asset_embed_tokens(asset_id);
+
+CREATE UNIQUE INDEX idx_embed_tokens_one_active
+    ON asset_embed_tokens(asset_id)
+    WHERE revoked_at IS NULL;

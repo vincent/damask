@@ -23,6 +23,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': 'http://localhost:8080',
+      '/e': 'http://localhost:8080',
       '/share': 'http://localhost:8080',
       '/auth': 'http://localhost:8080',
       '/config': 'http://localhost:8080',

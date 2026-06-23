@@ -60,6 +60,7 @@ type TestServerConfig struct {
 	Upload           service.UploadService
 	Workflows        service.WorkflowService
 	VisualSimilarity *visualsimilarity.Service
+	EmbedTokens      service.EmbedTokenService
 }
 
 // NewTestServer constructs a Server from explicit service interfaces and returns
@@ -144,6 +145,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		upload:              cfg.Upload,
 		workflows:           cfg.Workflows,
 		visualSimilaritySvc: cfg.VisualSimilarity,
+		embedTokens:         cfg.EmbedTokens,
 	}
 
 	app := buildTestApp(s)
@@ -401,6 +403,11 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Post("/assets/:id/tags", auth.RequireRole(getRoleFn, auth.Editor), s.handleAddTagToAsset)
 	api.Delete("/assets/:id/tags/:name", auth.RequireRole(getRoleFn, auth.Editor), s.handleRemoveTagFromAsset)
 
+	// Public embed tokens — authenticated CRUD; the public /e/:token routes are below.
+	api.Post("/assets/:id/embed-token", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateEmbedToken)
+	api.Get("/assets/:id/embed-token", s.handleGetEmbedToken)
+	api.Delete("/assets/:id/embed-token", auth.RequireRole(getRoleFn, auth.Editor), s.handleDeleteEmbedToken)
+
 	// AI providers
 	api.Get("/aiproviders", s.handleListAIProviders)
 	api.Get("/ai/vision-models", s.handleListVisionModels)
@@ -523,6 +530,10 @@ func buildTestApp(s *Server) *fiber.App {
 	shareGroup.Post("/comments", s.handleShareCreateComment)
 	shareGroup.Get("/comments", s.handleShareListComments)
 	shareGroup.Get("/assets/:aid/comments", s.handleShareListAssetComments)
+
+	// Public embed token routes
+	app.Get("/e/:token", s.handlePublicEmbedFile)
+	app.Get("/e/:token/thumb", s.handlePublicEmbedThumb)
 
 	return app
 }

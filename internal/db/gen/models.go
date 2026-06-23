@@ -29,6 +29,16 @@ type Asset struct {
 	TouchedAt            time.Time `json:"touched_at"`
 }
 
+type AssetEmbedToken struct {
+	ID          string     `json:"id"`
+	WorkspaceID string     `json:"workspace_id"`
+	AssetID     string     `json:"asset_id"`
+	CreatedBy   string     `json:"created_by"`
+	Label       string     `json:"label"`
+	CreatedAt   time.Time  `json:"created_at"`
+	RevokedAt   *time.Time `json:"revoked_at"`
+}
+
 type AssetEvent struct {
 	ID          string  `json:"id"`
 	WorkspaceID string  `json:"workspace_id"`

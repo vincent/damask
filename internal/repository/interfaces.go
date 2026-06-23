@@ -383,6 +383,42 @@ type ExportConfigRepository interface {
 	ListDue(ctx context.Context) ([]ExportConfig, error)
 }
 
+// EmbedTokenRepository handles persistence for public asset embed tokens.
+type EmbedTokenRepository interface {
+	// Create inserts a new token row. Returns apperr.ErrConflict if an active
+	// token already exists for this asset (unique index violation).
+	Create(ctx context.Context, params CreateEmbedTokenParams) (EmbedToken, error)
+	// GetByID loads a token by its 16-char id regardless of revocation status.
+	// Returns apperr.ErrNotFound if id does not exist.
+	GetByID(ctx context.Context, id string) (EmbedToken, error)
+	// GetActiveByAssetID returns the single non-revoked token for an asset.
+	// Returns apperr.ErrNotFound if none exists.
+	GetActiveByAssetID(ctx context.Context, workspaceID, assetID string) (EmbedToken, error)
+	// Revoke sets revoked_at = now() on the given token id, scoped to workspace.
+	// Returns apperr.ErrNotFound if the token does not exist or is already revoked.
+	Revoke(ctx context.Context, workspaceID, id string) error
+}
+
+// EmbedToken is the domain representation of a public asset embed token.
+type EmbedToken struct {
+	ID          string
+	WorkspaceID string
+	AssetID     string
+	CreatedBy   string
+	Label       string
+	CreatedAt   time.Time
+	RevokedAt   *time.Time
+}
+
+// CreateEmbedTokenParams is the input for EmbedTokenRepository.Create.
+type CreateEmbedTokenParams struct {
+	ID          string
+	WorkspaceID string
+	AssetID     string
+	CreatedBy   string
+	Label       string
+}
+
 // ExportRunRepository handles persistence for export_runs rows.
 type ExportRunRepository interface {
 	Create(ctx context.Context, p ExportRun) (ExportRun, error)
