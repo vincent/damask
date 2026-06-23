@@ -8,6 +8,7 @@ import (
 
 	"damask/server/internal/ai"
 	"damask/server/internal/repository"
+	"damask/server/internal/workflow"
 )
 
 // AssetCommentDTO is a comment posted on an asset via a public share.
@@ -193,6 +194,11 @@ type CreateTextTrackParams struct {
 	InitialContent string
 	Params         map[string]any
 	CreatedBy      string
+	// WorkflowContinuation, when set, is forwarded into the async job payload
+	// (currently only ai_image_description honors it) so the job worker can
+	// resume a suspended workflow run once the track is ready. Nil for every
+	// non-workflow caller (manual UI, API).
+	WorkflowContinuation *workflow.NodeContinuation
 }
 
 type TextTrackService interface {

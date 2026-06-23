@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
@@ -41,6 +42,7 @@ type Deps struct {
 	Tags        TagManager
 	AssetFields AssetFieldManager
 	Workspace   WorkspaceManager
+	TextTracks  TextTrackManager
 	Config      *config.Config
 }
 
@@ -148,8 +150,43 @@ type AssetFieldManager interface {
 	SetValues(ctx context.Context, workspaceID, assetID, userID string, inputs []FieldValueInput) error
 }
 
+// AIProviderStatus is a capability-filtered, minimal view of one AI provider's
+// configuration state — workflow nodes never need provider model lists.
+type AIProviderStatus struct {
+	ID         ai.ProviderID
+	Configured bool
+}
+
 type WorkspaceManager interface {
-	GetImageRouterKeyStatus(ctx context.Context, workspaceID string) (bool, error)
+	// ListAIProviders returns only the providers that declare at least one of
+	// the requested capabilities, with their current key-configured status.
+	ListAIProviders(
+		ctx context.Context,
+		workspaceID string,
+		capabilities ai.Capability,
+	) ([]AIProviderStatus, error)
+}
+
+// TextTrackCreateParams carries everything needed to enqueue an AI image
+// description job. Continuation, when set, is embedded in the job payload so
+// the job worker can resume the suspended workflow run once the description
+// is ready.
+type TextTrackCreateParams struct {
+	AssetID      string
+	StorageKey   string
+	MimeType     string
+	Model        string
+	Prompt       string
+	Lang         string
+	Continuation *NodeContinuation
+}
+
+type TextTrackManager interface {
+	CreateAIImageDescription(
+		ctx context.Context,
+		workspaceID string,
+		p TextTrackCreateParams,
+	) (trackID string, err error)
 }
 
 type RunWorkflowPayload struct {

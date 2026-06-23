@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+
+	"damask/server/internal/ai"
+	"damask/server/internal/repository"
 )
 
 // --- helpers ---
@@ -288,6 +291,19 @@ func (s *stubAssetManager) Move(_ context.Context, _, _ string, p AssetMoveParam
 	return &Asset{ID: "ast_1", WorkspaceID: "ws_1", FolderID: p.FolderID, ProjectID: p.ProjectID}, nil
 }
 
+type stubAssetManagerWithMime struct {
+	mimeType string
+}
+
+func (s *stubAssetManagerWithMime) Get(_ context.Context, _, _ string) (*Asset, error) {
+	versionID := "ver_1"
+	return &Asset{ID: "ast_1", WorkspaceID: "ws_1", MimeType: s.mimeType, CurrentVersionID: &versionID}, nil
+}
+
+func (s *stubAssetManagerWithMime) Move(_ context.Context, _, _ string, p AssetMoveParams) (*Asset, error) {
+	return &Asset{ID: "ast_1", WorkspaceID: "ws_1", FolderID: p.FolderID, ProjectID: p.ProjectID}, nil
+}
+
 type stubShareManager struct {
 	lastShareID string
 }
@@ -344,6 +360,185 @@ func TestActionMoveFolder_Execute_OK(t *testing.T) {
 		t.Errorf("expected folder_id=%q to be moved, got %v", folder, assets.movedFolderID)
 	}
 	_ = updates
+}
+
+// --- stubs for metadata.ai_image_description ---
+
+type stubVersionManager struct {
+	version repository.AssetVersion
+}
+
+func (s *stubVersionManager) GetByID(_ context.Context, _ string) (repository.AssetVersion, error) {
+	return s.version, nil
+}
+
+func (s *stubVersionManager) NextVersionNum(_ context.Context, _ string) (int64, error) {
+	return 1, nil
+}
+
+func (s *stubVersionManager) Create(
+	_ context.Context,
+	v repository.AssetVersion,
+) (repository.AssetVersion, error) {
+	return v, nil
+}
+
+func (s *stubVersionManager) SetCurrent(_ context.Context, _, _ string) error { return nil }
+
+func (s *stubVersionManager) SetAssetThumbnail(_ context.Context, _ string, _ *string) error {
+	return nil
+}
+
+type stubWorkspaceManager struct {
+	providers []AIProviderStatus
+	err       error
+}
+
+func (s *stubWorkspaceManager) ListAIProviders(
+	_ context.Context, _ string, _ ai.Capability,
+) ([]AIProviderStatus, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.providers, nil
+}
+
+type stubTextTrackManager struct {
+	trackID  string
+	lastCall TextTrackCreateParams
+	err      error
+}
+
+func (s *stubTextTrackManager) CreateAIImageDescription(
+	_ context.Context,
+	_ string,
+	p TextTrackCreateParams,
+) (string, error) {
+	s.lastCall = p
+	if s.err != nil {
+		return "", s.err
+	}
+	return s.trackID, nil
+}
+
+// --- metadata.ai_image_description node tests ---
+
+func aiImageDescDeps(workspace *stubWorkspaceManager, tracks *stubTextTrackManager) Deps {
+	return Deps{
+		Assets:     &stubAssetManagerWithMime{mimeType: "image/jpeg"},
+		Versions:   &stubVersionManager{version: repository.AssetVersion{StorageKey: "sk1", MimeType: "image/jpeg"}},
+		Workspace:  workspace,
+		TextTracks: tracks,
+	}
+}
+
+func TestActionAIImageDescription_Execute_OK(t *testing.T) {
+	t.Parallel()
+	tracks := &stubTextTrackManager{trackID: "trk_1"}
+	node := aiImageDescriptionNode{
+		deps: aiImageDescDeps(&stubWorkspaceManager{
+			providers: []AIProviderStatus{{ID: ai.ProviderOpenRouter, Configured: true}},
+		}, tracks),
+		schema: aiImageDescriptionSchemaFn(),
+	}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	port, updates, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if port != portOut {
+		t.Errorf("expected portOut, got %q", port)
+	}
+	if updates["track_id"] != "trk_1" {
+		t.Errorf("expected track_id=trk_1 in updates, got %v", updates)
+	}
+	if tracks.lastCall.Model != "google/gemini-2.5-flash" {
+		t.Errorf("expected default model, got %q", tracks.lastCall.Model)
+	}
+}
+
+func TestActionAIImageDescription_Execute_NotConfigured(t *testing.T) {
+	t.Parallel()
+	tracks := &stubTextTrackManager{trackID: "trk_1"}
+	node := aiImageDescriptionNode{
+		deps:   aiImageDescDeps(&stubWorkspaceManager{}, tracks),
+		schema: aiImageDescriptionSchemaFn(),
+	}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	_, _, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err == nil {
+		t.Fatal("expected error when OpenRouter is not configured")
+	}
+	if tracks.lastCall.AssetID != "" {
+		t.Errorf("expected CreateAIImageDescription to not be called, got %v", tracks.lastCall)
+	}
+}
+
+func TestActionAIImageDescription_Execute_NonImageMime(t *testing.T) {
+	t.Parallel()
+	tracks := &stubTextTrackManager{trackID: "trk_1"}
+	deps := aiImageDescDeps(&stubWorkspaceManager{
+		providers: []AIProviderStatus{{ID: ai.ProviderOpenRouter, Configured: true}},
+	}, tracks)
+	deps.Assets = &stubAssetManagerWithMime{mimeType: "video/mp4"}
+	node := aiImageDescriptionNode{deps: deps, schema: aiImageDescriptionSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	_, _, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err == nil {
+		t.Fatal("expected error for non-image asset")
+	}
+}
+
+func TestActionAIImageDescription_Execute_WithContinuation(t *testing.T) {
+	t.Parallel()
+	tracks := &stubTextTrackManager{trackID: "trk_1"}
+	node := aiImageDescriptionNode{
+		deps: aiImageDescDeps(&stubWorkspaceManager{
+			providers: []AIProviderStatus{{ID: ai.ProviderOpenRouter, Configured: true}},
+		}, tracks),
+		schema: aiImageDescriptionSchemaFn(),
+	}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	triggerRC.Set(rcKeyContinuation, NodeContinuation{
+		RunID: "run_1", NodeID: "n_tag", WorkflowID: "wf_1", WorkspaceID: "ws_1",
+	})
+	port, updates, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if port != portContinued {
+		t.Errorf("expected portContinued, got %q", port)
+	}
+	if updates["track_id"] != "trk_1" {
+		t.Errorf("expected track_id=trk_1 in updates, got %v", updates)
+	}
+	if tracks.lastCall.Continuation == nil {
+		t.Fatal("expected continuation to be passed to TextTracks.CreateAIImageDescription")
+	}
+}
+
+func TestActionAIImageDescription_InjectContinuation_AnySuccessor(t *testing.T) {
+	t.Parallel()
+	node := aiImageDescriptionNode{schema: aiImageDescriptionSchemaFn()}
+	g := &Graph{
+		Nodes: []GraphNode{
+			{ID: "n_desc", Type: nodeTypeAIImageDesc},
+			{ID: "n_tag", Type: "action.tag"},
+		},
+		Edges: []GraphEdge{
+			{FromNode: "n_desc", FromPort: portOut, ToNode: "n_tag", ToPort: "in"},
+		},
+	}
+	runRC := rc()
+	node.InjectContinuation(runRC, g, "n_desc", "run_1", "wf_1", "ws_1")
+	val, ok := runRC.Get(rcKeyContinuation)
+	if !ok {
+		t.Fatal("expected continuation to be seeded")
+	}
+	cont, ok := val.(NodeContinuation)
+	if !ok || cont.NodeID != "n_tag" {
+		t.Errorf("expected continuation targeting n_tag, got %v", val)
+	}
 }
 
 func TestActionShare_Execute_OK(t *testing.T) {

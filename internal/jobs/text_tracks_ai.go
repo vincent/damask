@@ -10,6 +10,7 @@ import (
 
 	"damask/server/internal/ai"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/workflow"
 )
 
 // AIImageDescriptionPayload is the job payload for ai_image_description_text_track.
@@ -22,6 +23,9 @@ type AIImageDescriptionPayload struct {
 	Model       string `json:"model"`
 	Prompt      string `json:"prompt"` // final prompt (already includes lang instruction)
 	Lang        string `json:"lang"`   // ISO 639-1, stored in track meta
+	// Continuation, when set, resumes a suspended workflow run once the
+	// description is ready (see action.ai_image_description workflow node).
+	Continuation *workflow.NodeContinuation `json:"continuation,omitempty"`
 }
 
 func (s *JobServer) jobAIImageDescriptionTextTrack(ctx context.Context, job dbgen.Job) error {
@@ -118,6 +122,21 @@ func (s *JobServer) jobAIImageDescriptionTextTrack(ctx context.Context, job dbge
 		Content:     description,
 	}); ftsErr != nil {
 		slog.WarnContext(ctx, "ai image description: FTS insert failed", "track_id", p.TrackID, "error", ftsErr)
+	}
+
+	if p.Continuation != nil {
+		if resumeErr := s.workflowExec.ResumeAt(ctx, *p.Continuation, map[string]any{
+			"description": description,
+			"track_id":    p.TrackID,
+			"word_count":  wordCount,
+		}); resumeErr != nil {
+			slog.ErrorContext(ctx, "workflow continuation failed after ai image description ready",
+				"run_id", p.Continuation.RunID,
+				"node_id", p.Continuation.NodeID,
+				"error", resumeErr,
+			)
+			return fmt.Errorf("jobAIImageDescriptionTextTrack: resume workflow: %w", resumeErr)
+		}
 	}
 
 	slog.DebugContext(ctx, "ai image description completed",

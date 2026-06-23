@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/apperr"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
@@ -28,6 +29,7 @@ const (
 	labelOut              = "Out"
 	nodeTypeCreateVariant = "action.create_variant"
 	nodeTypeSetNewVersion = "action.set_new_version"
+	nodeTypeAIImageDesc   = "action.ai_image_description"
 	rcKeyContinuation     = "__workflow_continuation"
 	portContinued         = "continued"
 )
@@ -108,6 +110,24 @@ func createVariantSchemaFn() NodeSchema {
 		},
 		ConfigSchema: mustConfigSchema(
 			`{"type":"object","properties":{"type":{"type":"string","title":"Variant Type","format":"variant"},"params":{"type":"object","title":"Params","format":"json"},"title":{"type":"string","title":"Title"},"is_shared":{"type":"boolean","title":"Shared"}},"required":["type"],"additionalProperties":false}`,
+		),
+	}
+}
+
+func aiImageDescriptionSchemaFn() NodeSchema {
+	return NodeSchema{
+		Type:        nodeTypeAIImageDesc,
+		Label:       "AI Image Description",
+		Category:    nodeCategoryAction,
+		Description: "Describes an image using an AI vision model and stores it as a text track.",
+		Inputs:      []Port{{ID: "in", Label: "In"}},
+		Outputs: []Port{
+			{ID: portOut, Label: labelOut},
+			{ID: portContinued, Label: "Continued"},
+			{ID: portError, Label: labelError},
+		},
+		ConfigSchema: mustConfigSchema(
+			`{"type":"object","properties":{"model":{"type":"string","title":"Model","format":"vision_model"},"lang":{"type":"string","title":"Language","format":"language"},"prompt":{"type":"string","title":"Prompt","format":"ai_description_prompt"}},"additionalProperties":false}`,
 		),
 	}
 }
@@ -426,6 +446,12 @@ func init() {
 			return setNewVersionNode{deps: deps, schema: setNewVersionSchemaFn()}
 		},
 	)
+	Register(
+		aiImageDescriptionSchemaFn(),
+		func(deps Deps) Node {
+			return aiImageDescriptionNode{deps: deps, schema: aiImageDescriptionSchemaFn()}
+		},
+	)
 }
 
 type setNewVersionNode struct {
@@ -648,6 +674,7 @@ type createVariantNode struct {
 func (n createVariantNode) Schema() NodeSchema { return n.schema }
 
 func (n createVariantNode) InjectContinuation(rc *RunContext, g *Graph, nodeID, runID, workflowID, workspaceID string) {
+	rc.Delete(rcKeyContinuation)
 	for _, s := range g.Successors(nodeID, portOut) {
 		if s.Type == nodeTypeSetNewVersion {
 			rc.Set(rcKeyContinuation, NodeContinuation{
@@ -685,9 +712,16 @@ func (n createVariantNode) Execute(
 	if asset.CurrentVersionID == nil {
 		return "", nil, fmt.Errorf("asset has no current version: %w", apperr.ErrInvalidInput)
 	}
-	currentVer, err := n.deps.Workspace.GetImageRouterKeyStatus(ctx, workspaceID)
+	irProviders, err := n.deps.Workspace.ListAIProviders(ctx, workspaceID, ai.CapBgRemove|ai.CapImageToImage)
 	if err != nil {
 		return "", nil, err
+	}
+	imageRouterConfigured := false
+	for _, p := range irProviders {
+		if p.ID == ai.ProviderImageRouter && p.Configured {
+			imageRouterConfigured = true
+			break
+		}
 	}
 	var nodeCfg struct {
 		Type     string          `json:"type"`
@@ -704,7 +738,7 @@ func (n createVariantNode) Execute(
 		Type:                  nodeCfg.Type,
 		Params:                nodeCfg.Params,
 		AssetMimeType:         asset.MimeType,
-		ImageRouterConfigured: currentVer,
+		ImageRouterConfigured: imageRouterConfigured,
 		DefaultImageModel:     n.deps.Config.ImageRouter.DefaultModel,
 		DefaultBgRemoveModel:  n.deps.Config.ImageRouter.DefaultBgRemoveModel,
 		Title:                 nodeCfg.Title,
@@ -957,4 +991,150 @@ func (n setFieldNode) Execute(
 		return "", nil, err
 	}
 	return portOut, map[string]any{"field_id": nodeCfg.FieldID, "field_value": nodeCfg.Value}, nil
+}
+
+type aiImageDescriptionNode struct {
+	deps   Deps
+	schema NodeSchema
+}
+
+func (n aiImageDescriptionNode) Schema() NodeSchema { return n.schema }
+
+// InjectContinuation seeds a continuation whenever anything is wired to the
+// "out" port. Unlike create_variant (which only resumes into the one
+// dedicated set_new_version consumer), any downstream node can consume the
+// description/track_id this node produces, so there's no single node type
+// to special-case here.
+func (n aiImageDescriptionNode) InjectContinuation(
+	rc *RunContext,
+	g *Graph,
+	nodeID, runID, workflowID, workspaceID string,
+) {
+	rc.Delete(rcKeyContinuation)
+	successors := g.Successors(nodeID, portOut)
+	if len(successors) == 0 {
+		return
+	}
+	rc.Set(rcKeyContinuation, NodeContinuation{
+		RunID:       runID,
+		NodeID:      successors[0].ID,
+		WorkflowID:  workflowID,
+		WorkspaceID: workspaceID,
+	})
+}
+
+func isCuratedVisionModel(model string) bool {
+	for _, m := range ai.CuratedVisionModels {
+		if m.ID == model {
+			return true
+		}
+	}
+	return false
+}
+
+func (n aiImageDescriptionNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
+	assetID, err := rcRequireString(rc, "asset_id")
+	if err != nil {
+		return "", nil, err
+	}
+	workspaceID, err := rcRequireString(rc, "workspace_id")
+	if err != nil {
+		return "", nil, err
+	}
+	if n.deps.Assets == nil || n.deps.Versions == nil || n.deps.Workspace == nil || n.deps.TextTracks == nil {
+		return "", nil, errors.New("workflow ai_image_description dependencies not configured")
+	}
+
+	asset, err := n.deps.Assets.Get(ctx, workspaceID, assetID)
+	if err != nil {
+		return "", nil, err
+	}
+	if !strings.HasPrefix(asset.MimeType, "image/") {
+		return "", nil, fmt.Errorf("asset is not an image: %w", apperr.ErrInvalidInput)
+	}
+	if asset.CurrentVersionID == nil {
+		return "", nil, fmt.Errorf("asset has no current version: %w", apperr.ErrInvalidInput)
+	}
+
+	descProviders, err := n.deps.Workspace.ListAIProviders(ctx, workspaceID, ai.CapImageDescription)
+	if err != nil {
+		return "", nil, err
+	}
+	configured := false
+	for _, p := range descProviders {
+		if p.Configured {
+			configured = true
+			break
+		}
+	}
+	if !configured {
+		return "", nil, fmt.Errorf("no AI provider configured for image description: %w", apperr.ErrInvalidInput)
+	}
+
+	version, err := n.deps.Versions.GetByID(ctx, *asset.CurrentVersionID)
+	if err != nil {
+		return "", nil, fmt.Errorf("get current version: %w", err)
+	}
+
+	var nodeCfg struct {
+		Model  string `json:"model"`
+		Lang   string `json:"lang"`
+		Prompt string `json:"prompt"`
+	}
+	if unmarshalErr := json.Unmarshal(cfg, &nodeCfg); unmarshalErr != nil {
+		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
+	}
+
+	model := strings.TrimSpace(nodeCfg.Model)
+	switch {
+	case model == "":
+		model = ai.DefaultVisionModel
+	case !isCuratedVisionModel(model):
+		return "", nil, fmt.Errorf("unsupported model %q: %w", model, apperr.ErrInvalidInput)
+	}
+
+	prompt := nodeCfg.Prompt
+	if strings.TrimSpace(prompt) == "" {
+		prompt = ai.DefaultImageDescriptionPrompt
+	} else if len(prompt) > ai.MaxImageDescriptionPromptLen {
+		return "", nil, fmt.Errorf("prompt too long: %w", apperr.ErrInvalidInput)
+	}
+
+	lang := strings.TrimSpace(nodeCfg.Lang)
+	if lang == "" {
+		lang = "en"
+	}
+
+	// If the executor pre-populated a continuation (meaning at least one node
+	// is wired to our "out" port), snapshot the current context so the job
+	// worker can resume the run once the description is ready.
+	var cont *NodeContinuation
+	if contVal, ok := rc.Get(rcKeyContinuation); ok {
+		if c, isCont := contVal.(NodeContinuation); isCont {
+			c.ContextJSON = mustJSON(rc)
+			cont = &c
+		}
+	}
+
+	trackID, err := n.deps.TextTracks.CreateAIImageDescription(ctx, workspaceID, TextTrackCreateParams{
+		AssetID:      assetID,
+		StorageKey:   version.StorageKey,
+		MimeType:     version.MimeType,
+		Model:        model,
+		Prompt:       prompt,
+		Lang:         lang,
+		Continuation: cont,
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	if cont != nil {
+		return portContinued, map[string]any{"track_id": trackID}, nil
+	}
+	return portOut, map[string]any{"track_id": trackID}, nil
 }

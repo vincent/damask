@@ -206,6 +206,7 @@ func main() {
 		Tags:        newTagManager(tagSvc),
 		AssetFields: newAssetFieldManager(assetFieldSvc),
 		Workspace:   newWorkspaceManager(workspaceSvc),
+		TextTracks:  newTextTrackManager(textTrackSvc),
 		Config:      cfg,
 	})
 

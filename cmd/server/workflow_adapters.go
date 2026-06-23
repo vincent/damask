@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 
 	"damask/server/internal/ai"
 	"damask/server/internal/repository"
@@ -159,12 +160,66 @@ func newWorkspaceManager(svc service.WorkspaceService) workflow.WorkspaceManager
 	return workspaceAdapter{svc: svc}
 }
 
-func (a workspaceAdapter) GetImageRouterKeyStatus(ctx context.Context, workspaceID string) (bool, error) {
-	status, err := a.svc.GetAIProviderKeyStatus(ctx, workspaceID, string(ai.ProviderImageRouter))
+func (a workspaceAdapter) ListAIProviders(
+	ctx context.Context,
+	workspaceID string,
+	capabilities ai.Capability,
+) ([]workflow.AIProviderStatus, error) {
+	entries, err := a.svc.ListAIProviders(ctx, workspaceID, capabilities)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return status.KeySet, nil
+	out := make([]workflow.AIProviderStatus, 0, len(entries))
+	for _, e := range entries {
+		if !capabilityNamesIntersect(e.Capabilities, capabilities) {
+			continue
+		}
+		out = append(out, workflow.AIProviderStatus{ID: ai.ProviderID(e.ID), Configured: e.Configured})
+	}
+	return out, nil
+}
+
+// capabilityNamesIntersect reports whether a provider's declared capability
+// names (service.AIProviderStatusDTO.Capabilities) overlap the requested
+// bitmask. ai.AllProviders only filters models by capability, not the
+// provider list itself, so this is the real provider-level filter.
+func capabilityNamesIntersect(have []string, want ai.Capability) bool {
+	for _, name := range want.Names() {
+		if slices.Contains(have, name) {
+			return true
+		}
+	}
+	return false
+}
+
+type textTrackAdapter struct{ svc service.TextTrackService }
+
+func newTextTrackManager(svc service.TextTrackService) workflow.TextTrackManager {
+	return textTrackAdapter{svc: svc}
+}
+
+func (a textTrackAdapter) CreateAIImageDescription(
+	ctx context.Context,
+	workspaceID string,
+	p workflow.TextTrackCreateParams,
+) (string, error) {
+	dto, err := a.svc.Create(ctx, service.CreateTextTrackParams{
+		WorkspaceID: workspaceID,
+		AssetID:     p.AssetID,
+		Source:      "ai_image_description",
+		Lang:        &p.Lang,
+		Params: map[string]any{
+			"storage_key": p.StorageKey,
+			"mime_type":   p.MimeType,
+			"model":       p.Model,
+			"prompt":      p.Prompt,
+		},
+		WorkflowContinuation: p.Continuation,
+	})
+	if err != nil {
+		return "", err
+	}
+	return dto.ID, nil
 }
 
 type versionManagerAdapter struct {

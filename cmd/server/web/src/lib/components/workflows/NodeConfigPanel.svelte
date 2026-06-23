@@ -8,6 +8,9 @@
   import { folderApi, tagApi, type Folder } from '$lib/api'
   import type { Tag } from '$lib/api'
   import Input from '$lib/components/ui/Input.svelte'
+  import AIVisionModelSelect from '$lib/components/AIVisionModelSelect.svelte'
+  import AILanguageSelect from '$lib/components/AILanguageSelect.svelte'
+  import AIDescriptionPromptInput from '$lib/components/AIDescriptionPromptInput.svelte'
   import { projectsStore } from '$lib/stores/projects.svelte'
   import { variantTypes, variantTypeMap } from '$lib/stores/variantTypes.svelte'
 
@@ -289,6 +292,24 @@
                   </optgroup>
                 {/each}
               </select>
+            {:else if field.format === 'vision_model'}
+              <AIVisionModelSelect
+                value={stringValue(key)}
+                disabled={readonly}
+                onchange={(val) => updateField(key, val)}
+              />
+            {:else if field.format === 'language'}
+              <AILanguageSelect
+                value={stringValue(key)}
+                disabled={readonly}
+                onchange={(val) => updateField(key, val)}
+              />
+            {:else if field.format === 'ai_description_prompt'}
+              <AIDescriptionPromptInput
+                value={stringValue(key)}
+                disabled={readonly}
+                onchange={(val) => updateField(key, val)}
+              />
             {:else if field.format === 'tag'}
               <label
                 for={'tag-value-' + key}

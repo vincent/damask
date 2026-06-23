@@ -17,6 +17,7 @@ import (
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
+	"damask/server/internal/workflow"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -207,7 +208,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 		s := string(b)
 		meta = &s
 	}
-	createdBy := &p.CreatedBy
+	createdBy := nilIfEmpty(p.CreatedBy)
 
 	row, err := s.queries.CreateTextTrack(ctx, dbgen.CreateTextTrackParams{
 		ID:             uuid.NewString(),
@@ -309,23 +310,25 @@ func (s *textTrackService) enqueueAIImageDescription(
 	trackID string,
 ) (string, error) {
 	payload, err := json.Marshal(struct {
-		WorkspaceID string `json:"workspace_id"`
-		AssetID     string `json:"asset_id"`
-		TrackID     string `json:"track_id"`
-		StorageKey  string `json:"storage_key"`
-		MimeType    string `json:"mime_type"`
-		Model       string `json:"model"`
-		Prompt      string `json:"prompt"`
-		Lang        string `json:"lang"`
+		WorkspaceID  string                     `json:"workspace_id"`
+		AssetID      string                     `json:"asset_id"`
+		TrackID      string                     `json:"track_id"`
+		StorageKey   string                     `json:"storage_key"`
+		MimeType     string                     `json:"mime_type"`
+		Model        string                     `json:"model"`
+		Prompt       string                     `json:"prompt"`
+		Lang         string                     `json:"lang"`
+		Continuation *workflow.NodeContinuation `json:"continuation,omitempty"`
 	}{
-		WorkspaceID: p.WorkspaceID,
-		AssetID:     p.AssetID,
-		TrackID:     trackID,
-		StorageKey:  stringParam(p.Params, "storage_key", ""),
-		MimeType:    stringParam(p.Params, "mime_type", ""),
-		Model:       stringParam(p.Params, "model", ""),
-		Prompt:      stringParam(p.Params, "prompt", ""),
-		Lang:        stringValue(p.Lang, "en"),
+		WorkspaceID:  p.WorkspaceID,
+		AssetID:      p.AssetID,
+		TrackID:      trackID,
+		StorageKey:   stringParam(p.Params, "storage_key", ""),
+		MimeType:     stringParam(p.Params, "mime_type", ""),
+		Model:        stringParam(p.Params, "model", ""),
+		Prompt:       stringParam(p.Params, "prompt", ""),
+		Lang:         stringValue(p.Lang, "en"),
+		Continuation: p.WorkflowContinuation,
 	})
 	if err != nil {
 		return "", fmt.Errorf("marshal ai_image_description payload: %w", err)
