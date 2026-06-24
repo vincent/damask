@@ -93,7 +93,7 @@ func IsPdfMime(mime string) bool {
 
 // IsTextMime reports whether mime is text/*.
 func IsTextMime(mime string) bool {
-	return strings.HasPrefix(mime, "text/")
+	return strings.HasPrefix(mime, "text/") || mime == "application/x-subrip"
 }
 
 // IsFontMime reports whether mime is a font/* type.

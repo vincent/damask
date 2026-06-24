@@ -45,6 +45,7 @@ func NewRegistry(trf transform.Transformer) *Registry {
 			NewVideoHandler(trf),
 			NewPDFHandler(trf),
 			NewDefaultHandler([]string{
+				"application/x-subrip",
 				"application/msword",
 				"application/vnd",
 				"text/plain",

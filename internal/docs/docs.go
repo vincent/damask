@@ -823,6 +823,149 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/assets/{id}/embed-token": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns 404 if no active token exists — this is a valid non-error state used by the frontend to decide which UI to show.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Embed Tokens"
+                ],
+                "summary": "Get the active public embed token for an asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.EmbedTokenResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No active token for this asset",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Idempotent. If an active token already exists it is returned unchanged. Creates a new 16-char base62 token otherwise. Requires editor role or above.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Embed Tokens"
+                ],
+                "summary": "Create or return the active public embed token for an asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.EmbedTokenResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Not an editor",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sets revoked_at on the token so the public /e/:token endpoints return 410 Gone. Requires editor role or above.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Embed Tokens"
+                ],
+                "summary": "Revoke the active public embed token for an asset",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Asset ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Not an editor",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No active token for this asset",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/assets/{id}/events": {
             "get": {
                 "security": [
@@ -5490,6 +5633,19 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/workflows/ocr-languages": {
+            "get": {
+                "summary": "List available OCR languages",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.OCRLanguagesResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/workflows/runs": {
             "get": {
                 "summary": "List all workflow runs (paginated)",
@@ -6921,6 +7077,95 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/api.ConfigResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/e/{token}": {
+            "get": {
+                "description": "Unauthenticated. Always serves whatever version is current at request time. Returns Cache-Control: public, no-cache so CDNs revalidate on every request, but sets ETag from the version's content hash so a CDN can serve a 304 when the content hasn't changed.",
+                "tags": [
+                    "Public Embed"
+                ],
+                "summary": "Stream the current-version file for a public embed token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "16-char base62 embed token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "304": {
+                        "description": "Not Modified (ETag matched)"
+                    },
+                    "404": {
+                        "description": "Token not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "410": {
+                        "description": "Token revoked",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/e/{token}/thumb": {
+            "get": {
+                "description": "Unauthenticated. Same token resolution and ETag semantics as GET /e/:token. Returns 202 with a Retry-After header when the thumbnail has not finished generating yet — this is a normal, expected state for recently uploaded assets, not an error.",
+                "tags": [
+                    "Public Embed"
+                ],
+                "summary": "Stream the current-version thumbnail for a public embed token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "16-char base62 embed token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "202": {
+                        "description": "Thumbnail not ready yet",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "304": {
+                        "description": "Not Modified (ETag matched)"
+                    },
+                    "404": {
+                        "description": "Token not found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "410": {
+                        "description": "Token revoked",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -8422,6 +8667,37 @@ const docTemplate = `{
                 }
             }
         },
+        "api.EmbedTokenResponse": {
+            "type": "object",
+            "required": [
+                "asset_id",
+                "created_at",
+                "id",
+                "public_url",
+                "revoked",
+                "thumb_url"
+            ],
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "public_url": {
+                    "type": "string"
+                },
+                "revoked": {
+                    "type": "boolean"
+                },
+                "thumb_url": {
+                    "type": "string"
+                }
+            }
+        },
         "api.ErrorResponse": {
             "type": "object",
             "required": [
@@ -8998,6 +9274,39 @@ const docTemplate = `{
                 },
                 "target": {
                     "$ref": "#/definitions/api.TagResponse"
+                }
+            }
+        },
+        "api.OCRLanguageResponse": {
+            "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.OCRLanguagesResponse": {
+            "type": "object",
+            "required": [
+                "available",
+                "languages"
+            ],
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "languages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.OCRLanguageResponse"
+                    }
                 }
             }
         },

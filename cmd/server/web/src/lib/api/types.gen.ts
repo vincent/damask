@@ -397,6 +397,83 @@ export interface paths {
       };
     };
   };
+  readonly "/api/v1/assets/{id}/embed-token": {
+    /** Returns 404 if no active token exists — this is a valid non-error state used by the frontend to decide which UI to show. */
+    readonly get: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: definitions["api.EmbedTokenResponse"];
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** No active token for this asset */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+    /** Idempotent. If an active token already exists it is returned unchanged. Creates a new 16-char base62 token otherwise. Requires editor role or above. */
+    readonly post: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: definitions["api.EmbedTokenResponse"];
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Not an editor */
+        readonly 403: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Asset not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+    /** Sets revoked_at on the token so the public /e/:token endpoints return 410 Gone. Requires editor role or above. */
+    readonly delete: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+        };
+      };
+      readonly responses: {
+        /** No Content */
+        readonly 204: never;
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Not an editor */
+        readonly 403: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** No active token for this asset */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
   readonly "/api/v1/assets/{id}/events": {
     /** Returns paginated audit events for the given asset. */
     readonly get: {
@@ -2728,6 +2805,16 @@ export interface paths {
       };
     };
   };
+  readonly "/api/v1/workflows/ocr-languages": {
+    readonly get: {
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: definitions["api.OCRLanguagesResponse"];
+        };
+      };
+    };
+  };
   readonly "/api/v1/workflows/runs": {
     readonly get: {
       readonly responses: {
@@ -3518,6 +3605,64 @@ export interface paths {
       };
     };
   };
+  readonly "/e/{token}": {
+    /** Unauthenticated. Always serves whatever version is current at request time. Returns Cache-Control: public, no-cache so CDNs revalidate on every request, but sets ETag from the version's content hash so a CDN can serve a 304 when the content hasn't changed. */
+    readonly get: {
+      readonly parameters: {
+        readonly path: {
+          /** 16-char base62 embed token */
+          readonly token: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: unknown;
+        };
+        /** Not Modified (ETag matched) */
+        readonly 304: never;
+        /** Token not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Token revoked */
+        readonly 410: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
+  readonly "/e/{token}/thumb": {
+    /** Unauthenticated. Same token resolution and ETag semantics as GET /e/:token. Returns 202 with a Retry-After header when the thumbnail has not finished generating yet — this is a normal, expected state for recently uploaded assets, not an error. */
+    readonly get: {
+      readonly parameters: {
+        readonly path: {
+          /** 16-char base62 embed token */
+          readonly token: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: unknown;
+        };
+        /** Thumbnail not ready yet */
+        readonly 202: {
+          readonly schema: { readonly [key: string]: unknown };
+        };
+        /** Not Modified (ETag matched) */
+        readonly 304: never;
+        /** Token not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Token revoked */
+        readonly 410: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
   readonly "/healthz": {
     /** get the status of server. */
     readonly get: {
@@ -4056,6 +4201,14 @@ export interface definitions {
     readonly b: string;
     readonly score: number;
   };
+  readonly "api.EmbedTokenResponse": {
+    readonly asset_id: string;
+    readonly created_at: string;
+    readonly id: string;
+    readonly public_url: string;
+    readonly revoked: boolean;
+    readonly thumb_url: string;
+  };
   readonly "api.ErrorResponse": {
     readonly error: string;
   };
@@ -4205,6 +4358,14 @@ export interface definitions {
   readonly "api.MergeTagsResponse": {
     readonly merged_assets: number;
     readonly target: definitions["api.TagResponse"];
+  };
+  readonly "api.OCRLanguageResponse": {
+    readonly code: string;
+    readonly name: string;
+  };
+  readonly "api.OCRLanguagesResponse": {
+    readonly available: boolean;
+    readonly languages: readonly definitions["api.OCRLanguageResponse"][];
   };
   readonly "api.ParamHistoryEntryResponse": {
     readonly params: { readonly [key: string]: unknown };

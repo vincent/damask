@@ -634,6 +634,28 @@ definitions:
     - b
     - score
     type: object
+  api.EmbedTokenResponse:
+    properties:
+      asset_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      public_url:
+        type: string
+      revoked:
+        type: boolean
+      thumb_url:
+        type: string
+    required:
+    - asset_id
+    - created_at
+    - id
+    - public_url
+    - revoked
+    - thumb_url
+    type: object
   api.ErrorResponse:
     properties:
       error:
@@ -1036,6 +1058,28 @@ definitions:
     required:
     - merged_assets
     - target
+    type: object
+  api.OCRLanguageResponse:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+    required:
+    - code
+    - name
+    type: object
+  api.OCRLanguagesResponse:
+    properties:
+      available:
+        type: boolean
+      languages:
+        items:
+          $ref: '#/definitions/api.OCRLanguageResponse'
+        type: array
+    required:
+    - available
+    - languages
     type: object
   api.ParamHistoryEntryResponse:
     properties:
@@ -2554,6 +2598,100 @@ paths:
       summary: Get asset comments
       tags:
       - Assets
+  /api/v1/assets/{id}/embed-token:
+    delete:
+      description: Sets revoked_at on the token so the public /e/:token endpoints
+        return 410 Gone. Requires editor role or above.
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Not an editor
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: No active token for this asset
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke the active public embed token for an asset
+      tags:
+      - Embed Tokens
+    get:
+      description: Returns 404 if no active token exists — this is a valid non-error
+        state used by the frontend to decide which UI to show.
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.EmbedTokenResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: No active token for this asset
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the active public embed token for an asset
+      tags:
+      - Embed Tokens
+    post:
+      description: Idempotent. If an active token already exists it is returned unchanged.
+        Creates a new 16-char base62 token otherwise. Requires editor role or above.
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.EmbedTokenResponse'
+        "401":
+          description: Not authenticated
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Not an editor
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Asset not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create or return the active public embed token for an asset
+      tags:
+      - Embed Tokens
   /api/v1/assets/{id}/events:
     get:
       description: Returns paginated audit events for the given asset.
@@ -5911,6 +6049,14 @@ paths:
               $ref: '#/definitions/api.WorkflowNodeSchemaResponse'
             type: array
       summary: List workflow node schemas
+  /api/v1/workflows/ocr-languages:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.OCRLanguagesResponse'
+      summary: List available OCR languages
   /api/v1/workflows/runs:
     get:
       responses:
@@ -6804,6 +6950,71 @@ paths:
       summary: Get server config
       tags:
       - Config
+  /e/{token}:
+    get:
+      description: 'Unauthenticated. Always serves whatever version is current at
+        request time. Returns Cache-Control: public, no-cache so CDNs revalidate on
+        every request, but sets ETag from the version''s content hash so a CDN can
+        serve a 304 when the content hasn''t changed.'
+      parameters:
+      - description: 16-char base62 embed token
+        in: path
+        name: token
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "304":
+          description: Not Modified (ETag matched)
+        "404":
+          description: Token not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "410":
+          description: Token revoked
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Stream the current-version file for a public embed token
+      tags:
+      - Public Embed
+  /e/{token}/thumb:
+    get:
+      description: Unauthenticated. Same token resolution and ETag semantics as GET
+        /e/:token. Returns 202 with a Retry-After header when the thumbnail has not
+        finished generating yet — this is a normal, expected state for recently uploaded
+        assets, not an error.
+      parameters:
+      - description: 16-char base62 embed token
+        in: path
+        name: token
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "202":
+          description: Thumbnail not ready yet
+          schema:
+            additionalProperties: true
+            type: object
+        "304":
+          description: Not Modified (ETag matched)
+        "404":
+          description: Token not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "410":
+          description: Token revoked
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Stream the current-version thumbnail for a public embed token
+      tags:
+      - Public Embed
   /healthz:
     get:
       consumes:

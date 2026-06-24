@@ -108,8 +108,14 @@ type OCRLanguageResponse struct {
 	Name string `json:"name"`
 }
 
+// OCRLanguagesResponse lists Tesseract languages available on this host.
+type OCRLanguagesResponse struct {
+	Available bool                  `json:"available"`
+	Languages []OCRLanguageResponse `json:"languages"`
+}
+
 // @Summary List available OCR languages
-// @Success 200 {object} fiber.Map
+// @Success 200 {object} OCRLanguagesResponse
 // @Router /api/v1/workflows/ocr-languages [get].
 func (s *Server) handleListOCRLanguages(c fiber.Ctx) error {
 	codes, err := transform.ListOCRLanguages(c.Context())
