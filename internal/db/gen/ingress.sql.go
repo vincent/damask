@@ -248,7 +248,7 @@ func (q *Queries) GetIngressSourceByPublicToken(ctx context.Context, publicToken
 }
 
 const getWorkspaceByIngestToken = `-- name: GetWorkspaceByIngestToken :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, created_at, updated_at FROM workspaces WHERE ingest_token = ?
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, created_at, updated_at FROM workspaces WHERE ingest_token = ?
 `
 
 func (q *Queries) GetWorkspaceByIngestToken(ctx context.Context, ingestToken *string) (Workspace, error) {
@@ -269,6 +269,8 @@ func (q *Queries) GetWorkspaceByIngestToken(ctx context.Context, ingestToken *st
 		&i.ExifKeepGps,
 		&i.LockedTaxonomy,
 		&i.StorageLimitBytes,
+		&i.AutoTagEnabled,
+		&i.AutoTagMode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

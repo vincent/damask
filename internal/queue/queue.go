@@ -342,4 +342,6 @@ const (
 	JobTypePurgeScratchVariants    = "purge_scratch_variants"
 
 	JobTypeVisualSimilarityBackfill = "visual_similarity_backfill"
+
+	JobTypeAutoTag = "auto_tag"
 )

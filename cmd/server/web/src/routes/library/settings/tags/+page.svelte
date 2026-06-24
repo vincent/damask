@@ -399,6 +399,46 @@
       taxonomySaving = false
     }
   }
+
+  // ── AI auto-tagging settings (owner only) ─────────────────────────────────────
+  let autoTagEnabled = $state(authStore.workspace?.auto_tag_enabled ?? false)
+  let autoTagMode = $state<'pending' | 'silent'>(
+    (authStore.workspace?.auto_tag_mode as 'pending' | 'silent') ?? 'pending'
+  )
+  let autoTagSaving = $state(false)
+
+  $effect(() => {
+    autoTagEnabled = authStore.workspace?.auto_tag_enabled ?? false
+    autoTagMode =
+      (authStore.workspace?.auto_tag_mode as 'pending' | 'silent') ?? 'pending'
+  })
+
+  async function saveAutoTagSettings() {
+    if (!isOwner) return
+    autoTagSaving = true
+    try {
+      const updated = await workspaceApi.updateSettings({
+        auto_tag_enabled: autoTagEnabled,
+        auto_tag_mode: autoTagMode,
+      })
+      authStore.patchWorkspace({
+        auto_tag_enabled: updated.auto_tag_enabled,
+        auto_tag_mode: updated.auto_tag_mode,
+      })
+    } catch (e) {
+      toastStore.show(
+        e instanceof Error ? e.message : 'Failed to update setting',
+        'error'
+      )
+    } finally {
+      autoTagSaving = false
+    }
+  }
+
+  async function toggleAutoTagEnabled() {
+    autoTagEnabled = !autoTagEnabled
+    await saveAutoTagSettings()
+  }
 </script>
 
 <svelte:head>
@@ -473,10 +513,10 @@
                 aria-label={m.workspace_settings_locked_taxonomy_label()}
                 disabled={taxonomySaving}
                 onclick={toggleLockedTaxonomy}
-                class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50
+                class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-indigo-500
               {taxonomyLocked
-                  ? 'bg-indigo-600'
-                  : 'bg-gray-200 dark:bg-gray-700'}"
+                  ? 'bg-indigo-600 hover:bg-indigo-700'
+                  : 'bg-[var(--border)] hover:bg-[var(--border-subtle)] dark:hover:bg-[var(--bg-hover)]'}"
               >
                 <span
                   class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
@@ -491,6 +531,92 @@
                     .length,
                 })}
               </p>
+            {/if}
+          </div>
+        </div>
+
+        <!-- AI auto-tagging section — owner only -->
+        <div class="mb-8">
+          <div
+            class="space-y-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-sm"
+          >
+            <h2
+              class="text-sm font-semibold tracking-wide text-[var(--text-muted)] uppercase"
+            >
+              {m.auto_tag_settings_title()}
+            </h2>
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <p class="text-md font-medium text-[var(--text-primary)]">
+                  {m.auto_tag_settings_enabled_label()}
+                </p>
+                <p class="mt-0.5 text-sm text-[var(--text-muted)]">
+                  {m.auto_tag_settings_enabled_description()}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoTagEnabled}
+                aria-label={m.auto_tag_settings_enabled_label()}
+                disabled={autoTagSaving}
+                onclick={toggleAutoTagEnabled}
+                class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-indigo-500
+              {autoTagEnabled
+                  ? 'bg-indigo-600 hover:bg-indigo-700'
+                  : 'bg-[var(--border)] hover:bg-[var(--border-subtle)] dark:hover:bg-[var(--bg-hover)]'}"
+              >
+                <span
+                  class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform
+              {autoTagEnabled ? 'translate-x-5' : 'translate-x-0'}"
+                ></span>
+              </button>
+            </div>
+
+            {#if autoTagEnabled}
+              <div class="space-y-3">
+                <p class="text-sm font-medium text-[var(--text-primary)]">
+                  {m.auto_tag_settings_mode_label()}
+                </p>
+                <label class="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="radio"
+                    name="auto_tag_mode"
+                    class="mt-1 accent-indigo-600"
+                    bind:group={autoTagMode}
+                    value="pending"
+                    disabled={autoTagSaving}
+                    onchange={saveAutoTagSettings}
+                  />
+                  <div class="flex-1 space-y-1">
+                    <p class="text-sm font-medium text-[var(--text-primary)]">
+                      {m.auto_tag_settings_mode_pending()}
+                    </p>
+                    <p class="text-xs text-[var(--text-muted)]">
+                      {m.auto_tag_settings_mode_pending_description()}
+                    </p>
+                  </div>
+                </label>
+                <label class="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="radio"
+                    name="auto_tag_mode"
+                    class="mt-1 accent-indigo-600"
+                    bind:group={autoTagMode}
+                    value="silent"
+                    disabled={autoTagSaving}
+                    onchange={saveAutoTagSettings}
+                  />
+                  <div class="flex-1 space-y-1">
+                    <p class="text-sm font-medium text-[var(--text-primary)]">
+                      {m.auto_tag_settings_mode_silent()}
+                    </p>
+                    <p class="text-xs text-[var(--text-muted)]">
+                      {m.auto_tag_settings_mode_silent_description()}
+                    </p>
+                  </div>
+                </label>
+              </div>
             {/if}
           </div>
         </div>

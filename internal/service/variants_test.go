@@ -74,6 +74,7 @@ func (s systemTagServiceStub) UpsertForAsset(context.Context, string, string, st
 func (s systemTagServiceStub) BatchTagsForAssets(context.Context, []string) (map[string][]string, error) {
 	return map[string][]string{}, nil
 }
+func (s systemTagServiceStub) ApplyTag(context.Context, string, string, string) error { return nil }
 
 func newVariantSvc(t *testing.T) (service.VariantService, *memory.VariantRepo, *memory.AssetRepo) {
 	t.Helper()

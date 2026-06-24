@@ -40,6 +40,7 @@ type ingesterImpl struct {
 	stor    storage.Storage
 	q       queue.JobQueue
 	media   *ingest.Registry
+	autoTag AutoTagService
 }
 
 // NewAssetIngester returns an AssetIngester backed by the given dependencies.
@@ -49,8 +50,9 @@ func NewAssetIngester(
 	stor storage.Storage,
 	q queue.JobQueue,
 	media *ingest.Registry,
+	autoTag AutoTagService,
 ) AssetIngester {
-	return &ingesterImpl{queries: queries, sqlDB: sqlDB, stor: stor, q: q, media: media}
+	return &ingesterImpl{queries: queries, sqlDB: sqlDB, stor: stor, q: q, media: media, autoTag: autoTag}
 }
 
 func (s *ingesterImpl) IngestFile(
@@ -129,12 +131,12 @@ func (s *ingesterImpl) ingest(
 	slog.DebugContext(
 		ctx,
 		"starting asset ingest",
-		keyWorkspaceID,
-		workspaceID,
-		"file_path",
-		filePath,
-		"opts",
-		opts,
+		keyWorkspaceID, workspaceID,
+		"file_path", filePath,
+		"project_id", opts.ProjectID,
+		"folder_id", opts.FolderID,
+		"user_id", opts.UserID,
+		"original_name", opts.OriginalName,
 	)
 
 	stat, err := os.Stat(filePath)
@@ -325,6 +327,9 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 				StorageKey:  asset.StorageKey,
 				MimeType:    mimeType,
 			})
+	}
+	if err := s.autoTag.Enqueue(ctx, workspaceID, asset.ID, false); err != nil {
+		slog.WarnContext(ctx, "auto_tag: enqueue failed", keyAssetID, asset.ID, "error", err)
 	}
 }
 

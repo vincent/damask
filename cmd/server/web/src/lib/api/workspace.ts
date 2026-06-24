@@ -30,6 +30,8 @@ export const workspaceApi = {
     exif_keep?: boolean
     exif_keep_gps?: boolean
     locked_taxonomy?: boolean
+    auto_tag_enabled?: boolean
+    auto_tag_mode?: 'pending' | 'silent'
   }) =>
     apiFetch<Workspace>('/api/v1/workspace/settings', {
       method: 'PUT',

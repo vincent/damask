@@ -1,4 +1,5 @@
 export * from './assets'
+export * from './auto_tag'
 export * from './client'
 export * from './collections'
 export * from './custom_fields'

@@ -60,6 +60,7 @@ type TestEnv struct {
 	Upload        *mockservice.MockUploadService
 	Workflows     *mockservice.MockWorkflowService
 	EmbedTokens   *mockservice.MockEmbedTokenService
+	AutoTag       *mockservice.MockAutoTagService
 }
 
 // NewTestEnv creates a TestEnv with all mock services wired into a Fiber app.
@@ -94,6 +95,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 	upload := mockservice.NewUploadService()
 	workflows := mockservice.NewWorkflowService()
 	embedTokens := mockservice.NewEmbedTokenService()
+	autoTag := mockservice.NewAutoTagService()
 
 	srv, app := api.NewTestServer(&api.TestServerConfig{
 		TokenMaker:    maker,
@@ -119,6 +121,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 		Upload:        upload,
 		Workflows:     workflows,
 		EmbedTokens:   embedTokens,
+		AutoTag:       autoTag,
 	})
 
 	return &TestEnv{
@@ -148,6 +151,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 		Upload:        upload,
 		Workflows:     workflows,
 		EmbedTokens:   embedTokens,
+		AutoTag:       autoTag,
 	}
 }
 

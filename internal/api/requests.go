@@ -262,16 +262,21 @@ func (r *ShareAccessRequest) Valid(_ context.Context) map[string]string {
 }
 
 type UpdateWorkspaceSettingsRequest struct {
-	VersionRetentionCount int64 `json:"version_retention_count"`
-	ExifKeep              bool  `json:"exif_keep"`
-	ExifKeepGPS           bool  `json:"exif_keep_gps"`
-	LockedTaxonomy        *bool `json:"locked_taxonomy"`
+	VersionRetentionCount int64   `json:"version_retention_count"`
+	ExifKeep              bool    `json:"exif_keep"`
+	ExifKeepGPS           bool    `json:"exif_keep_gps"`
+	LockedTaxonomy        *bool   `json:"locked_taxonomy"`
+	AutoTagEnabled        *bool   `json:"auto_tag_enabled"`
+	AutoTagMode           *string `json:"auto_tag_mode"`
 }
 
 func (r *UpdateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {
 	p := map[string]string{}
 	if r.VersionRetentionCount < 0 {
 		p["version_retention_count"] = "must be 0 (keep all) or a positive integer"
+	}
+	if r.AutoTagMode != nil && *r.AutoTagMode != "pending" && *r.AutoTagMode != "silent" {
+		p["auto_tag_mode"] = "must be 'pending' or 'silent'"
 	}
 	return p
 }

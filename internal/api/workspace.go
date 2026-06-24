@@ -28,6 +28,8 @@ type WorkspaceResponse struct {
 	ExifKeep                 bool      `json:"exif_keep"`
 	ExifKeepGps              bool      `json:"exif_keep_gps"`
 	LockedTaxonomy           bool      `json:"locked_taxonomy"`
+	AutoTagEnabled           bool      `json:"auto_tag_enabled"`
+	AutoTagMode              string    `json:"auto_tag_mode"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }
@@ -44,6 +46,8 @@ func workspaceDTOToResponse(w *service.WorkspaceDTO) WorkspaceResponse {
 		ExifKeep:                 w.ExifKeep,
 		ExifKeepGps:              w.ExifKeepGps,
 		LockedTaxonomy:           w.LockedTaxonomy,
+		AutoTagEnabled:           w.AutoTagEnabled,
+		AutoTagMode:              w.AutoTagMode,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
@@ -236,6 +240,8 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 		ExifKeep:              &body.ExifKeep,
 		ExifKeepGps:           &body.ExifKeepGPS,
 		LockedTaxonomy:        body.LockedTaxonomy,
+		AutoTagEnabled:        body.AutoTagEnabled,
+		AutoTagMode:           body.AutoTagMode,
 	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)

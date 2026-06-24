@@ -26,6 +26,8 @@ type WorkspaceDTO struct {
 	ExifKeep                 bool
 	ExifKeepGps              bool
 	LockedTaxonomy           bool
+	AutoTagEnabled           bool
+	AutoTagMode              string
 	CreatedAt                time.Time
 	UpdatedAt                time.Time
 }
@@ -77,6 +79,8 @@ type UpdateWorkspaceParams struct {
 	ExifKeep              *bool
 	ExifKeepGps           *bool
 	LockedTaxonomy        *bool
+	AutoTagEnabled        *bool
+	AutoTagMode           *string
 }
 
 // CreateInviteParams is the input for WorkspaceService.CreateInvite.
@@ -158,6 +162,20 @@ func (s *workspaceService) Update(
 	}
 	if p.LockedTaxonomy != nil {
 		updated, err = s.workspaces.UpdateLockedTaxonomy(ctx, workspaceID, *p.LockedTaxonomy)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if p.AutoTagEnabled != nil || p.AutoTagMode != nil {
+		enabled := updated.AutoTagEnabled
+		if p.AutoTagEnabled != nil {
+			enabled = *p.AutoTagEnabled
+		}
+		mode := updated.AutoTagMode
+		if p.AutoTagMode != nil {
+			mode = *p.AutoTagMode
+		}
+		updated, err = s.workspaces.UpdateAutoTagSettings(ctx, workspaceID, enabled, mode)
 		if err != nil {
 			return nil, err
 		}
@@ -464,6 +482,8 @@ func toWorkspaceDTO(ws repository.Workspace) *WorkspaceDTO {
 		ExifKeep:                 ws.ExifKeep,
 		ExifKeepGps:              ws.ExifKeepGps,
 		LockedTaxonomy:           ws.LockedTaxonomy,
+		AutoTagEnabled:           ws.AutoTagEnabled,
+		AutoTagMode:              ws.AutoTagMode,
 		CreatedAt:                ws.CreatedAt,
 		UpdatedAt:                ws.UpdatedAt,
 	}

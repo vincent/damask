@@ -347,6 +347,150 @@ export interface paths {
       };
     };
   };
+  readonly "/api/v1/assets/{id}/auto-tag": {
+    /** Enqueues an auto_tag job for the asset, bypassing the workspace's auto_tag_enabled setting. */
+    readonly post: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+        };
+      };
+      readonly responses: {
+        /** Accepted */
+        readonly 202: {
+          readonly schema: { readonly [key: string]: string };
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Asset not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Ineligible MIME type or no AI provider configured */
+        readonly 422: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
+  readonly "/api/v1/assets/{id}/auto-tag/suggestions": {
+    readonly get: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: {
+            readonly [
+              key: string
+            ]: readonly definitions["api.AutoTagSuggestionResponse"][];
+          };
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Asset not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+    readonly delete: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+        };
+      };
+      readonly responses: {
+        /** No Content */
+        readonly 204: never;
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
+  readonly "/api/v1/assets/{id}/auto-tag/suggestions/accept-all": {
+    readonly post: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: { readonly [key: string]: number };
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
+  readonly "/api/v1/assets/{id}/auto-tag/suggestions/{sid}": {
+    readonly delete: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+          /** Suggestion ID */
+          readonly sid: string;
+        };
+      };
+      readonly responses: {
+        /** No Content */
+        readonly 204: never;
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Suggestion not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
+  readonly "/api/v1/assets/{id}/auto-tag/suggestions/{sid}/accept": {
+    /** Applies the suggested tag to the asset and deletes the suggestion. */
+    readonly post: {
+      readonly parameters: {
+        readonly path: {
+          /** Asset ID */
+          readonly id: string;
+          /** Suggestion ID */
+          readonly sid: string;
+        };
+      };
+      readonly responses: {
+        /** OK */
+        readonly 200: {
+          readonly schema: { readonly [key: string]: string };
+        };
+        /** Not authenticated */
+        readonly 401: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+        /** Suggestion not found */
+        readonly 404: {
+          readonly schema: definitions["api.ErrorResponse"];
+        };
+      };
+    };
+  };
   readonly "/api/v1/assets/{id}/collections": {
     /** Returns all collections in the workspace that contain the given asset. */
     readonly get: {
@@ -4047,6 +4191,12 @@ export interface definitions {
     readonly user: definitions["api.UserResponse"];
     readonly workspace?: definitions["api.WorkspaceResponse"];
   };
+  readonly "api.AutoTagSuggestionResponse": {
+    readonly asset_id: string;
+    readonly created_at: string;
+    readonly id: string;
+    readonly tag_name: string;
+  };
   readonly "api.AutomateVariantsResponse": {
     readonly workflow_id: string;
     readonly workflow_url: string;
@@ -4552,6 +4702,8 @@ export interface definitions {
     readonly password?: string;
   };
   readonly "api.UpdateWorkspaceSettingsRequest": {
+    readonly auto_tag_enabled: boolean;
+    readonly auto_tag_mode: string;
     readonly exif_keep: boolean;
     readonly exif_keep_gps: boolean;
     readonly locked_taxonomy: boolean;
@@ -4703,6 +4855,8 @@ export interface definitions {
     readonly workspace: definitions["api.WorkspaceResponse"];
   };
   readonly "api.WorkspaceResponse": {
+    readonly auto_tag_enabled: boolean;
+    readonly auto_tag_mode: string;
     readonly created_at: string;
     readonly download_log_retention_days: number;
     readonly event_log_retention_days: number;

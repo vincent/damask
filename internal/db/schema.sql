@@ -13,6 +13,9 @@ CREATE TABLE workspaces (
     exif_keep_gps               INTEGER NOT NULL DEFAULT 0,
     locked_taxonomy             INTEGER NOT NULL DEFAULT 0,
     storage_limit_bytes         INTEGER,
+    auto_tag_enabled            INTEGER NOT NULL DEFAULT 0,
+    auto_tag_mode               TEXT    NOT NULL DEFAULT 'pending'
+                                CHECK (auto_tag_mode IN ('pending', 'silent')),
     created_at                  DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at                  DATETIME NOT NULL DEFAULT (datetime('now'))
 );
@@ -602,3 +605,17 @@ CREATE INDEX idx_embed_tokens_asset     ON asset_embed_tokens(asset_id);
 CREATE UNIQUE INDEX idx_embed_tokens_one_active
     ON asset_embed_tokens(asset_id)
     WHERE revoked_at IS NULL;
+
+CREATE TABLE auto_tag_suggestions (
+    id                TEXT PRIMARY KEY,
+    workspace_id      TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    asset_id          TEXT NOT NULL REFERENCES assets(id)     ON DELETE CASCADE,
+    asset_version_id  TEXT REFERENCES asset_versions(id)      ON DELETE SET NULL,
+    tag_name          TEXT NOT NULL,
+    created_at        DATETIME NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_auto_tag_suggestions_asset
+    ON auto_tag_suggestions(asset_id);
+CREATE INDEX idx_auto_tag_suggestions_workspace
+    ON auto_tag_suggestions(workspace_id);

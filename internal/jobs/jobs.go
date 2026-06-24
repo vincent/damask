@@ -45,6 +45,13 @@ type exifService interface {
 	ExtractForAsset(ctx context.Context, workspaceID, assetID, userID string) error
 }
 
+// tagService is the subset of service.TagService used by automated
+// (non-HTTP) tag application, e.g. silent AI auto-tagging. Defined here to
+// avoid an import cycle (service imports jobs for queue payload types).
+type tagService interface {
+	ApplyTag(ctx context.Context, workspaceID, assetID, tagName string) error
+}
+
 type fieldPurgeService interface {
 	PurgeExpiredFields(ctx context.Context) (int, error)
 }
@@ -81,6 +88,7 @@ type JobServer struct {
 	workflowExec      *workflow.Executor
 	exportSvc         exportService
 	exifSvc           exifService
+	tagSvc            tagService
 	fieldSvc          fieldPurgeService
 	textTrackSvc      textTrackService
 	storageSvc        ingress.StorageLimitChecker
@@ -104,6 +112,7 @@ func NewJobServer(
 	workflowExec *workflow.Executor,
 	exportSvc exportService,
 	exifSvc exifService,
+	tagSvc tagService,
 	fieldSvc fieldPurgeService,
 	textTrackSvc textTrackService,
 	storageSvc ingress.StorageLimitChecker,
@@ -123,6 +132,7 @@ func NewJobServer(
 		queries:           queries,
 		exportSvc:         exportSvc,
 		exifSvc:           exifSvc,
+		tagSvc:            tagSvc,
 		fieldSvc:          fieldSvc,
 		textTrackSvc:      textTrackSvc,
 		handlers:          make(map[string]queue.HandlerFunc),
@@ -225,6 +235,9 @@ func (s *JobServer) RegisterJobHandlers() {
 
 	// Visual similarity.
 	reg(queue.JobTypeVisualSimilarityBackfill, s.jobVisualSimilarityBackfill)
+
+	// Auto-tagging.
+	reg(queue.JobTypeAutoTag, s.jobAutoTag)
 
 	// Maintenance jobs.
 	reg(queue.JobTypePurgeDeletedFields, s.jobPurgeDeletedFields)

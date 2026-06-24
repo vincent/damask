@@ -73,6 +73,7 @@ type Server struct {
 	storageSvc          service.StorageService
 	visualSimilaritySvc *visualsimilarity.Service
 	embedTokens         service.EmbedTokenService
+	autoTag             service.AutoTagService
 	bcryptCost          int
 }
 
@@ -110,10 +111,12 @@ func NewHTTPServer(
 	embedTokenRepo := reposqlc.NewEmbedTokenRepo(queries)
 	media := ingest.NewRegistry(trf)
 	triggerDispatcher := workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q)
+	keyResolver := ai.NewKeyResolver(workspaceRepo, *cfg)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets:   assetRepo,
 		Triggers: triggerDispatcher,
 	})
+	autoTagSvc := service.NewAutoTagService(queries, q, tagSvc, keyResolver)
 	variantsSvc := service.NewVariantServiceWithDeps(
 		variantRepo,
 		assetRepo,
@@ -129,6 +132,7 @@ func NewHTTPServer(
 	)
 	return &Server{
 		queries:     queries,
+		autoTag:     autoTagSvc,
 		assetFields: service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
 		assets: service.NewAssetService(
 			assetRepo,
@@ -166,7 +170,7 @@ func NewHTTPServer(
 		trf:           trf,
 		textTracks:    service.NewTextTrackService(queries, q, stor),
 		upload: service.NewUploadService(
-			service.NewAssetIngester(queries, sqlDB, stor, q, media),
+			service.NewAssetIngester(queries, sqlDB, stor, q, media, autoTagSvc),
 			auditWriter,
 			storageSvc,
 			triggerDispatcher,
@@ -180,6 +184,7 @@ func NewHTTPServer(
 			Media:      media,
 			Triggers:   triggerDispatcher,
 			Invalidate: storageSvc,
+			AutoTag:    autoTagSvc,
 		}),
 		bcryptCost:          bcryptCost,
 		storageSvc:          storageSvc,
@@ -188,7 +193,7 @@ func NewHTTPServer(
 			workspaceRepo,
 			userRepo,
 			cfg.AppSecret,
-			ai.NewKeyResolver(workspaceRepo, *cfg),
+			keyResolver,
 		),
 		workflows: service.NewWorkflowService(
 			workflowRepo,
@@ -556,6 +561,31 @@ func NewRouter(
 		"/assets/:id/tags/:name",
 		auth.RequireRole(getRoleFn, auth.Editor),
 		s.handleRemoveTagFromAsset,
+	)
+
+	// AI auto-tagging — accept-all must be registered before /:sid/accept to
+	// prevent Fiber from matching the literal "accept-all" as a :sid param.
+	api.Post("/assets/:id/auto-tag", auth.RequireRole(getRoleFn, auth.Editor), s.handleTriggerAutoTag)
+	api.Get("/assets/:id/auto-tag/suggestions", s.handleListAutoTagSuggestions)
+	api.Post(
+		"/assets/:id/auto-tag/suggestions/accept-all",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleAcceptAllAutoTagSuggestions,
+	)
+	api.Post(
+		"/assets/:id/auto-tag/suggestions/:sid/accept",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleAcceptAutoTagSuggestion,
+	)
+	api.Delete(
+		"/assets/:id/auto-tag/suggestions/:sid",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDismissAutoTagSuggestion,
+	)
+	api.Delete(
+		"/assets/:id/auto-tag/suggestions",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDismissAllAutoTagSuggestions,
 	)
 
 	// Public embed tokens — authenticated CRUD; the public /e/:token routes are below.

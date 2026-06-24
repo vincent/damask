@@ -242,6 +242,8 @@ func toWorkspace(w dbgen.Workspace) repository.Workspace {
 		ExifKeep:                 w.ExifKeep != 0,
 		ExifKeepGps:              w.ExifKeepGps != 0,
 		LockedTaxonomy:           w.LockedTaxonomy != 0,
+		AutoTagEnabled:           w.AutoTagEnabled != 0,
+		AutoTagMode:              w.AutoTagMode,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
@@ -259,6 +261,26 @@ func (r *workspaceRepo) UpdateLockedTaxonomy(
 	if err := r.q.UpdateWorkspaceLockedTaxonomy(ctx, dbgen.UpdateWorkspaceLockedTaxonomyParams{
 		ID:             workspaceID,
 		LockedTaxonomy: val,
+	}); err != nil {
+		return repository.Workspace{}, err
+	}
+	return r.GetByID(ctx, workspaceID)
+}
+
+func (r *workspaceRepo) UpdateAutoTagSettings(
+	ctx context.Context,
+	workspaceID string,
+	enabled bool,
+	mode string,
+) (repository.Workspace, error) {
+	val := int64(0)
+	if enabled {
+		val = 1
+	}
+	if err := r.q.UpdateWorkspaceAutoTagSettings(ctx, dbgen.UpdateWorkspaceAutoTagSettingsParams{
+		ID:             workspaceID,
+		AutoTagEnabled: val,
+		AutoTagMode:    mode,
 	}); err != nil {
 		return repository.Workspace{}, err
 	}

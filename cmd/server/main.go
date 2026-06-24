@@ -160,10 +160,11 @@ func main() {
 	// --- services ---
 	auditWriter := audit.New(sqlDB)
 	aiAPIKeyResolver := ai.NewKeyResolver(workspaceRepo, *cfg)
-	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
 	})
+	autoTagSvc := service.NewAutoTagService(queries, q, tagSvc, aiAPIKeyResolver)
+	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media, autoTagSvc)
 	variantSvc := service.NewVariantServiceWithDeps(
 		variantRepo,
 		assetRepo,
@@ -189,6 +190,16 @@ func main() {
 	exifSvc := service.NewExifService(queries, stor)
 	textTrackSvc := service.NewTextTrackService(queries, q, stor)
 	storageSvc := service.NewStorageService(queries)
+	// jobsTagSvc is a dedicated TagService instance (separate from tagSvc
+	// above) with a real TriggerDispatcher wired in, so silent AI auto-tagging
+	// publishes trigger.tag_added. The shared tagSvc above stays on a nop
+	// publisher to avoid making workflowExec's "set tag" action start
+	// publishing triggers too, which has no cycle/depth guard against a
+	// workflow re-triggering itself.
+	jobsTagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
+		Assets:   assetRepo,
+		Triggers: workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q),
+	})
 
 	// --- workflow executor ---
 	workflowExec := workflow.NewExecutor(workflow.Deps{
@@ -228,6 +239,7 @@ func main() {
 		workflowExec,
 		exportSvc,
 		exifSvc,
+		jobsTagSvc,
 		fieldSvc,
 		textTrackSvc,
 		storageSvc,

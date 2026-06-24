@@ -1,7 +1,13 @@
 <script lang="ts">
-  import { tagApi, type Asset } from '$lib/api'
+  import {
+    tagApi,
+    autoTagApi,
+    type Asset,
+    type AutoTagSuggestion,
+  } from '$lib/api'
   import { authStore } from '$lib/stores/auth.svelte'
   import Chip from '$lib/components/ui/Chip.svelte'
+  import TagSuggestionChip from './TagSuggestionChip.svelte'
   import SubSectionTitle from '$lib/components/ui/SubSectionTitle.svelte'
   import { m } from '$lib/paraglide/messages'
   import { undoStore } from '$lib/stores/undo.svelte'
@@ -20,6 +26,91 @@
   let showTagInput = $state(false)
   let allTags = $state<{ id: string; name: string; asset_count: number }[]>([])
   let tagError = $state('')
+
+  // --- AI auto-tag suggestions ---
+  let autoTagSuggestions = $state<AutoTagSuggestion[]>([])
+  let autoTagTriggering = $state(false)
+  let autoTagError = $state('')
+
+  const autoTagEligible = $derived(
+    !!asset &&
+      (asset.mime_type.startsWith('image/') ||
+        asset.mime_type.startsWith('video/') ||
+        asset.mime_type === 'application/pdf')
+  )
+
+  async function reloadAutoTagSuggestions() {
+    if (!asset) return
+    try {
+      const res = await autoTagApi.listSuggestions(asset.id)
+      autoTagSuggestions = res.suggestions
+    } catch {
+      /* silently ignore */
+    }
+  }
+
+  async function acceptAutoTagSuggestion(s: AutoTagSuggestion) {
+    if (!asset) return
+    try {
+      await autoTagApi.acceptSuggestion(asset.id, s.id)
+      assetsStore.addTag(asset.id, s.tag_name)
+      autoTagSuggestions = autoTagSuggestions.filter((x) => x.id !== s.id)
+    } catch {
+      /* silently ignore */
+    }
+  }
+
+  async function dismissAutoTagSuggestion(s: AutoTagSuggestion) {
+    if (!asset) return
+    try {
+      await autoTagApi.dismissSuggestion(asset.id, s.id)
+      autoTagSuggestions = autoTagSuggestions.filter((x) => x.id !== s.id)
+    } catch {
+      /* silently ignore */
+    }
+  }
+
+  async function acceptAllAutoTagSuggestions() {
+    if (!asset) return
+    const before = autoTagSuggestions
+    try {
+      await autoTagApi.acceptAll(asset.id)
+    } catch (e) {
+      autoTagError = e instanceof Error ? e.message : m.auto_tag_trigger_error()
+    }
+    await reloadAutoTagSuggestions()
+    const remainingIds = new Set(autoTagSuggestions.map((s) => s.id))
+    for (const s of before) {
+      if (!remainingIds.has(s.id)) assetsStore.addTag(asset.id, s.tag_name)
+    }
+  }
+
+  async function dismissAllAutoTagSuggestions() {
+    if (!asset) return
+    try {
+      await autoTagApi.dismissAll(asset.id)
+      autoTagSuggestions = []
+    } catch {
+      /* silently ignore */
+    }
+  }
+
+  let autoTagTimer: ReturnType<typeof setTimeout> | undefined
+
+  async function triggerAutoTag() {
+    if (!asset) return
+    autoTagTriggering = true
+    autoTagError = ''
+    try {
+      await autoTagApi.trigger(asset.id)
+      clearTimeout(autoTagTimer)
+      autoTagTimer = setTimeout(reloadAutoTagSuggestions, 3000)
+    } catch (e) {
+      autoTagError = e instanceof Error ? e.message : m.auto_tag_trigger_error()
+    } finally {
+      autoTagTriggering = false
+    }
+  }
 
   const tags = $derived(
     (asset ? assetsStore.assets.find((a) => a.id === asset.id) : null)?.tags ??
@@ -81,6 +172,14 @@
         allTags = t
       })
       .catch(() => {})
+  })
+
+  $effect(() => {
+    if (asset && autoTagEligible) {
+      autoTagSuggestions = []
+      reloadAutoTagSuggestions()
+    }
+    return () => clearTimeout(autoTagTimer)
   })
 </script>
 
@@ -167,5 +266,49 @@
         >
       {/if}
     {/if}
+
+    {#each autoTagSuggestions as suggestion (suggestion.id)}
+      <TagSuggestionChip
+        label={suggestion.tag_name}
+        disabled={authStore.role === 'viewer'}
+        onaccept={() => acceptAutoTagSuggestion(suggestion)}
+        ondismiss={() => dismissAutoTagSuggestion(suggestion)}
+      />
+    {/each}
   </div>
+
+  {#if authStore.role !== 'viewer' && autoTagEligible}
+    <div class="mt-1.5 flex items-center gap-3">
+      {#if autoTagSuggestions.length > 0}
+        <button
+          type="button"
+          onclick={acceptAllAutoTagSuggestions}
+          class="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+        >
+          {m.auto_tag_accept_all()}
+        </button>
+        <button
+          type="button"
+          onclick={dismissAllAutoTagSuggestions}
+          class="text-xs text-[var(--text-muted)] hover:underline"
+        >
+          {m.auto_tag_dismiss_all()}
+        </button>
+      {:else}
+        <button
+          type="button"
+          onclick={triggerAutoTag}
+          disabled={autoTagTriggering}
+          class="text-xs text-indigo-600 hover:underline disabled:opacity-50 dark:text-indigo-400"
+        >
+          {autoTagTriggering
+            ? m.auto_tag_triggering()
+            : m.auto_tag_trigger_button()}
+        </button>
+      {/if}
+      {#if autoTagError}
+        <p class="text-xs text-red-600 dark:text-red-400">{autoTagError}</p>
+      {/if}
+    </div>
+  {/if}
 </div>

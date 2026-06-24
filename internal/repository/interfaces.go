@@ -235,6 +235,7 @@ type WorkspaceRepository interface {
 	Create(ctx context.Context, w Workspace) (Workspace, error)
 	Update(ctx context.Context, w Workspace) (Workspace, error)
 	UpdateLockedTaxonomy(ctx context.Context, workspaceID string, locked bool) (Workspace, error)
+	UpdateAutoTagSettings(ctx context.Context, workspaceID string, enabled bool, mode string) (Workspace, error)
 	GetAIProviderKey(ctx context.Context, workspaceID, providerName string) (string, error)
 	SetAIProviderKey(ctx context.Context, workspaceID, providerName, encKey string) error
 	ClearAIProviderKey(ctx context.Context, workspaceID string, providerName string) error

@@ -91,6 +91,11 @@ func IsPdfMime(mime string) bool {
 	return mime == "application/pdf"
 }
 
+// IsAutoTaggable reports whether mime is eligible for AI auto-tagging.
+func IsAutoTaggable(mime string) bool {
+	return IsImageMime(mime) || IsVideoMime(mime) || IsPdfMime(mime)
+}
+
 // IsTextMime reports whether mime is text/*.
 func IsTextMime(mime string) bool {
 	return strings.HasPrefix(mime, "text/") || mime == "application/x-subrip"

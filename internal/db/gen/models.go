@@ -128,6 +128,15 @@ type AssetsTextFt struct {
 	Content     string `json:"content"`
 }
 
+type AutoTagSuggestion struct {
+	ID             string    `json:"id"`
+	WorkspaceID    string    `json:"workspace_id"`
+	AssetID        string    `json:"asset_id"`
+	AssetVersionID *string   `json:"asset_version_id"`
+	TagName        string    `json:"tag_name"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type Collection struct {
 	ID          string    `json:"id"`
 	WorkspaceID string    `json:"workspace_id"`
@@ -450,6 +459,8 @@ type Workspace struct {
 	ExifKeepGps              int64     `json:"exif_keep_gps"`
 	LockedTaxonomy           int64     `json:"locked_taxonomy"`
 	StorageLimitBytes        *int64    `json:"storage_limit_bytes"`
+	AutoTagEnabled           int64     `json:"auto_tag_enabled"`
+	AutoTagMode              string    `json:"auto_tag_mode"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }

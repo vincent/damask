@@ -186,6 +186,8 @@ type Workspace struct {
 	ExifKeep                 bool
 	ExifKeepGps              bool
 	LockedTaxonomy           bool
+	AutoTagEnabled           bool
+	AutoTagMode              string
 	CreatedAt                time.Time
 	UpdatedAt                time.Time
 }

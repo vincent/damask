@@ -61,6 +61,7 @@ type versionService struct {
 	audit      audit.Writer
 	triggers   WorkflowTriggerPublisher
 	invalidate StorageInvalidator
+	autoTag    AutoTagService
 }
 
 type VersionServiceDeps struct {
@@ -70,6 +71,9 @@ type VersionServiceDeps struct {
 	Media      *ingest.Registry
 	Triggers   WorkflowTriggerPublisher
 	Invalidate StorageInvalidator
+	// AutoTag, when set, is used to dismiss stale tag suggestions and
+	// re-trigger auto-tagging when a new version is uploaded for an asset.
+	AutoTag AutoTagService
 }
 
 // NewVersionService returns a VersionService.
@@ -91,6 +95,7 @@ func NewVersionService(
 		audit:      aw,
 		triggers:   workflowTriggerPublisherOrNop(cfg.Triggers),
 		invalidate: cfg.Invalidate,
+		autoTag:    cfg.AutoTag,
 	}
 }
 
@@ -297,6 +302,20 @@ func (s *versionService) UploadNewVersion(
 	if thumbErr := s.SetAssetThumbnail(ctx, p.AssetID, nil); thumbErr != nil {
 		slog.ErrorContext(ctx, "clear asset thumbnail",
 			"asset_id", p.AssetID, "version_id", newVersion.ID, "error", thumbErr)
+	}
+
+	if s.autoTag != nil {
+		// Suggestions from the previous version are stale; clear them and
+		// let a fresh auto_tag run (if enabled) populate suggestions for
+		// the new version.
+		if dismissErr := s.autoTag.DismissAll(ctx, p.WorkspaceID, p.AssetID); dismissErr != nil {
+			slog.WarnContext(ctx, "dismiss stale auto-tag suggestions",
+				"asset_id", p.AssetID, "version_id", newVersion.ID, "error", dismissErr)
+		}
+		if enqErr := s.autoTag.Enqueue(ctx, p.WorkspaceID, p.AssetID, false); enqErr != nil {
+			slog.WarnContext(ctx, "enqueue auto_tag for new version",
+				"asset_id", p.AssetID, "version_id", newVersion.ID, "error", enqErr)
+		}
 	}
 
 	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)

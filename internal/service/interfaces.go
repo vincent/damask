@@ -215,6 +215,36 @@ type TextTrackService interface {
 	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
 }
 
+// AutoTagSuggestionDTO is a pending AI tag suggestion awaiting review.
+type AutoTagSuggestionDTO struct {
+	ID        string
+	AssetID   string
+	TagName   string
+	CreatedAt time.Time
+}
+
+// AutoTagService suggests tags for assets via a vision-capable AI provider and
+// manages the resulting pending suggestions.
+type AutoTagService interface {
+	// Enqueue enqueues an auto_tag job for the asset. It is a no-op when the
+	// asset's MIME type isn't eligible, or when manual is false and the
+	// workspace has auto-tagging disabled.
+	Enqueue(ctx context.Context, workspaceID, assetID string, manual bool) error
+	// IsProviderAvailable reports whether a configured AI provider supports
+	// vision tagging for the given MIME type.
+	IsProviderAvailable(ctx context.Context, workspaceID, mimeType string) bool
+	ListSuggestions(ctx context.Context, workspaceID, assetID string) ([]AutoTagSuggestionDTO, error)
+	// AcceptSuggestion applies the suggested tag to its asset and deletes the suggestion.
+	// assetID must match the suggestion's asset; mismatches return apperr.ErrNotFound.
+	AcceptSuggestion(ctx context.Context, workspaceID, assetID, suggestionID string) (*TagDTO, error)
+	// AcceptAll applies every pending suggestion for an asset and returns the count applied.
+	AcceptAll(ctx context.Context, workspaceID, assetID string) (int, error)
+	// DismissSuggestion deletes a suggestion. assetID must match the suggestion's
+	// asset; mismatches return apperr.ErrNotFound.
+	DismissSuggestion(ctx context.Context, workspaceID, assetID, suggestionID string) error
+	DismissAll(ctx context.Context, workspaceID, assetID string) error
+}
+
 // AIProviderModelDTO is a model entry returned for an AI provider.
 type AIProviderModelDTO struct {
 	ID            string
@@ -501,6 +531,12 @@ type TagService interface {
 	AddToAsset(ctx context.Context, workspaceID, assetID, tagName string) (*TagDTO, error)
 	RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error
 	UpsertForAsset(ctx context.Context, workspaceID, assetID, tagName string) error
+	// ApplyTag upserts tagName and links it to assetID, performing the same
+	// audit + workflow-trigger side effects as AddToAsset, without returning
+	// the resulting TagDTO. The error-only, primitive-typed signature lets
+	// callers outside the service package (e.g. internal/jobs) depend on it
+	// via a local interface without importing service-package types.
+	ApplyTag(ctx context.Context, workspaceID, assetID, tagName string) error
 }
 
 // ProjectService handles business logic for project records.

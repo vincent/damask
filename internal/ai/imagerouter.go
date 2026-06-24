@@ -413,6 +413,18 @@ func (p *imageRouterProvider) ValidateKey(ctx context.Context) error {
 	return p.client.validate(ctx)
 }
 
+// DescribeImage is not supported by ImageRouter. It declares neither
+// CapVisionTag nor CapImageDescription, so this is never reached through
+// the resolver — it exists only to satisfy the Provider interface.
+func (p *imageRouterProvider) DescribeImage(
+	_ context.Context,
+	_, _ string,
+	_ []byte,
+	_ string,
+) (string, error) {
+	return "", errors.New("imagerouter: DescribeImage not supported")
+}
+
 func (p *imageRouterProvider) ListModels(ctx context.Context) ([]Model, error) {
 	const cacheKey = string(ProviderImageRouter)
 	if cached, ok := modelCache.Get(cacheKey); ok {

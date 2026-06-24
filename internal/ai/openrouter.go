@@ -80,7 +80,7 @@ func (p *openRouterProvider) ID() ProviderID       { return ProviderOpenRouter }
 func (p *openRouterProvider) IsConfigured() bool   { return p.apiKey != "" }
 func (p *openRouterProvider) KeySource() KeySource { return p.keySource }
 func (p *openRouterProvider) Capabilities() Capability {
-	return CapBgRemove | CapImageToImage | CapImageDescription
+	return CapBgRemove | CapImageToImage | CapImageDescription | CapVisionTag | CapTextTag
 }
 
 const bgRemovePrompt = "Remove the background from this image. Return only the foreground on a transparent background."

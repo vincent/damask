@@ -59,6 +59,8 @@ var capNames = map[Capability]string{
 	CapTextToImage:      "text to image",
 	CapImageToText:      "image to text",
 	CapImageDescription: "image description",
+	CapVisionTag:        "vision tag suggestion",
+	CapTextTag:          "text tag suggestion",
 }
 
 func (c Capability) Names() []string {
@@ -77,6 +79,8 @@ const (
 	CapTextToImage                             // prompt → image (reserved)
 	CapImageToText                             // image → text (reserved)
 	CapImageDescription                        // image → text description via vision model
+	CapVisionTag                               // image → suggested tags via vision model
+	CapTextTag                                 // extracted text → suggested tags via chat model
 )
 
 // Provider is a configured, ready-to-use AI provider.
@@ -95,6 +99,10 @@ type Provider interface {
 	// ValidateKey checks that the configured API key is accepted by the provider.
 	// Returns ErrInvalidKey if rejected, or another error for transport failures.
 	ValidateKey(ctx context.Context) error
+	// DescribeImage sends imageData to the provider's vision endpoint using the
+	// given model and prompt, and returns the model's text response. Supported
+	// for providers that declare CapVisionTag or CapImageDescription.
+	DescribeImage(ctx context.Context, model, prompt string, imageData []byte, mimeType string) (string, error)
 }
 
 type ProviderWithModels struct {
@@ -129,8 +137,8 @@ func NewProvider(providerID ProviderID, apiKey string, keySource KeySource) (Pro
 		return NewOpenRouterProvider(
 			apiKey,
 			keySource,
-			"google/gemini-2.5-flash:free",
-			"google/gemini-2.5-flash:free",
+			"google/gemini-2.5-flash",
+			"google/gemini-2.5-flash",
 		), nil
 	default:
 		return nil, ErrUnknownProvider

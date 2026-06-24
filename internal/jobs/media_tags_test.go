@@ -30,6 +30,10 @@ type noopExifSvc struct{}
 
 func (noopExifSvc) ExtractForAsset(_ context.Context, _, _, _ string) error { return nil }
 
+type noopTagSvc struct{}
+
+func (noopTagSvc) ApplyTag(_ context.Context, _, _, _ string) error { return nil }
+
 type noopTextTrackSvc struct{}
 
 func (noopTextTrackSvc) RunOCR(_ context.Context, _, _, _, _, _, _, _, _ string) (string, int, error) {
@@ -97,6 +101,7 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 		workflow.NewExecutor(workflow.Deps{}),
 		newMemExportSvc(repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo()),
 		noopExifSvc{},
+		noopTagSvc{},
 		noopFieldsSvc{},
 		noopTextTrackSvc{},
 		nil,

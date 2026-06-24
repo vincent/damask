@@ -125,6 +125,14 @@ func (r *WorkspaceRepo) Update(_ context.Context, _ repository.Workspace) (repos
 func (r *WorkspaceRepo) UpdateLockedTaxonomy(_ context.Context, _ string, _ bool) (repository.Workspace, error) {
 	panic("memory: WorkspaceRepo.UpdateLockedTaxonomy not implemented")
 }
+func (r *WorkspaceRepo) UpdateAutoTagSettings(
+	_ context.Context,
+	_ string,
+	_ bool,
+	_ string,
+) (repository.Workspace, error) {
+	panic("memory: WorkspaceRepo.UpdateAutoTagSettings not implemented")
+}
 func (r *WorkspaceRepo) GetAIProviderKey(_ context.Context, _, _ string) (string, error) {
 	return "", nil
 }

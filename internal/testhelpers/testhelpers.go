@@ -23,6 +23,7 @@ import (
 
 	"damask/server/internal/ai"
 	"damask/server/internal/api"
+	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
@@ -108,6 +109,24 @@ func WithImageRouterBaseURL(baseURL string) TestOption {
 	}
 }
 
+func WithOpenRouterAPIKey(key string) TestOption {
+	return func(s *testSetup) { s.cfg.OpenRouter.APIKey = key }
+}
+
+// WithOpenRouterBaseURL injects a custom OpenRouter base URL into the job server's
+// provider factory, redirecting calls to an [httptest.Server].
+func WithOpenRouterBaseURL(baseURL string) TestOption {
+	return func(s *testSetup) {
+		s.aiProviderFactory = func(id ai.ProviderID, apiKey string, src ai.KeySource) (ai.Provider, error) {
+			if id == ai.ProviderOpenRouter {
+				return ai.NewOpenRouterProviderForTest(apiKey, src, "google/gemini-2.5-flash:free",
+					"google/gemini-2.5-flash:free", baseURL), nil
+			}
+			return ai.NewProvider(id, apiKey, src)
+		}
+	}
+}
+
 func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	t.Helper()
 	u, _ := url.Parse("http://localhost")
@@ -159,7 +178,8 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
 	media := ingest.NewRegistry(trf)
-	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media)
+	autoTagSvc := service.NewAutoTagService(queries, q, nil, nil)
+	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media, autoTagSvc)
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
 	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
 	storageSvc := service.NewStorageService(queries)
@@ -177,10 +197,12 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		storageSvc,
 		setup.bcryptCost,
 	)
+	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
+	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
 	workflowExec := workflow.NewExecutor(
 		workflow.Deps{
-			Workflows: reposqlc.NewWorkflowRepo(queries, sqlDB),
-			Runs:      reposqlc.NewWorkflowRunRepo(queries, sqlDB),
+			Workflows: workflowRepo,
+			Runs:      workflowRunRepo,
 			Queue:     q,
 			Config:    cfg,
 		},
@@ -197,6 +219,17 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	exifSvc := service.NewExifService(queries, stor)
 	fieldSvc := service.NewFieldService(reposqlc.NewFieldRepo(queries, sqlDB))
 	textTrackSvc := service.NewTextTrackService(queries, q, stor)
+	// jobsTagSvc is a dedicated TagService instance with a real
+	// TriggerDispatcher wired in, mirroring cmd/server/main.go, so tests can
+	// observe trigger.tag_added firing for silently-applied AI tags.
+	jobsTagSvc := service.NewTagService(
+		reposqlc.NewTagRepo(queries, sqlDB),
+		audit.New(sqlDB),
+		service.TagServiceDeps{
+			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Triggers: workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q),
+		},
+	)
 	j := jobs.NewJobServer(
 		queries,
 		sqlDB,
@@ -214,6 +247,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		workflowExec,
 		exportSvc,
 		exifSvc,
+		jobsTagSvc,
 		fieldSvc,
 		textTrackSvc,
 		storageSvc,

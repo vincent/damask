@@ -93,6 +93,24 @@ func (r *RealWorkspaceRepo) UpdateLockedTaxonomy(
 	return ws, nil
 }
 
+func (r *RealWorkspaceRepo) UpdateAutoTagSettings(
+	_ context.Context,
+	workspaceID string,
+	enabled bool,
+	mode string,
+) (repository.Workspace, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	ws, ok := r.workspaces[workspaceID]
+	if !ok {
+		return repository.Workspace{}, fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
+	}
+	ws.AutoTagEnabled = enabled
+	ws.AutoTagMode = mode
+	r.workspaces[workspaceID] = ws
+	return ws, nil
+}
+
 func (r *RealWorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }

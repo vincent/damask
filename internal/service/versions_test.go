@@ -208,7 +208,10 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 	stor, _ := storage.NewAferoMemoryStorage()
 	q := queue.New(queries, 1)
 	uploadSvc := service.NewUploadService(
-		service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		service.NewAssetIngester(
+			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(queries, q, nil, nil),
+		),
 		audit.NopWriter{},
 		nil,
 	)
@@ -286,7 +289,10 @@ func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *test
 	q := queue.New(queries, 1)
 	// Upload asset without project/folder → both will be nil.
 	uploadSvc := service.NewUploadService(
-		service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		service.NewAssetIngester(
+			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(queries, q, nil, nil),
+		),
 		audit.NopWriter{},
 		nil,
 	)
@@ -359,7 +365,10 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 	stor, _ := storage.NewAferoMemoryStorage()
 	q := queue.New(queries, 1)
 	uploadSvc := service.NewUploadService(
-		service.NewAssetIngester(queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer())),
+		service.NewAssetIngester(
+			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(queries, q, nil, nil),
+		),
 		audit.NopWriter{},
 		nil,
 	)

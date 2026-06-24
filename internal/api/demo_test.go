@@ -82,7 +82,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
 	media := ingest.NewRegistry(trf)
-	ingester := service.NewAssetIngester(queries, rawDB, stor, q, media)
+	ingester := service.NewAssetIngester(queries, rawDB, stor, q, media, service.NewAutoTagService(queries, q, nil, nil))
 	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, rawDB)
 	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})

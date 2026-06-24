@@ -459,6 +459,11 @@ func (s *tagService) AddToAsset(ctx context.Context, workspaceID, assetID, tagNa
 	return dto, nil
 }
 
+func (s *tagService) ApplyTag(ctx context.Context, workspaceID, assetID, tagName string) error {
+	_, err := s.AddToAsset(ctx, workspaceID, assetID, tagName)
+	return err
+}
+
 func (s *tagService) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error {
 	tagName = strings.ToLower(strings.TrimSpace(tagName))
 	if _, err := s.tags.GetByName(ctx, workspaceID, tagName); err != nil {

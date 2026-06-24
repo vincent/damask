@@ -61,6 +61,7 @@ type TestServerConfig struct {
 	Workflows        service.WorkflowService
 	VisualSimilarity *visualsimilarity.Service
 	EmbedTokens      service.EmbedTokenService
+	AutoTag          service.AutoTagService
 }
 
 // NewTestServer constructs a Server from explicit service interfaces and returns
@@ -146,6 +147,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		workflows:           cfg.Workflows,
 		visualSimilaritySvc: cfg.VisualSimilarity,
 		embedTokens:         cfg.EmbedTokens,
+		autoTag:             cfg.AutoTag,
 	}
 
 	app := buildTestApp(s)
@@ -402,6 +404,30 @@ func buildTestApp(s *Server) *fiber.App {
 	api.Get("/assets/:id/tags", s.handleGetAssetTags)
 	api.Post("/assets/:id/tags", auth.RequireRole(getRoleFn, auth.Editor), s.handleAddTagToAsset)
 	api.Delete("/assets/:id/tags/:name", auth.RequireRole(getRoleFn, auth.Editor), s.handleRemoveTagFromAsset)
+
+	// AI auto-tagging — accept-all must be registered before /:sid/accept.
+	api.Post("/assets/:id/auto-tag", auth.RequireRole(getRoleFn, auth.Editor), s.handleTriggerAutoTag)
+	api.Get("/assets/:id/auto-tag/suggestions", s.handleListAutoTagSuggestions)
+	api.Post(
+		"/assets/:id/auto-tag/suggestions/accept-all",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleAcceptAllAutoTagSuggestions,
+	)
+	api.Post(
+		"/assets/:id/auto-tag/suggestions/:sid/accept",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleAcceptAutoTagSuggestion,
+	)
+	api.Delete(
+		"/assets/:id/auto-tag/suggestions/:sid",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDismissAutoTagSuggestion,
+	)
+	api.Delete(
+		"/assets/:id/auto-tag/suggestions",
+		auth.RequireRole(getRoleFn, auth.Editor),
+		s.handleDismissAllAutoTagSuggestions,
+	)
 
 	// Public embed tokens — authenticated CRUD; the public /e/:token routes are below.
 	api.Post("/assets/:id/embed-token", auth.RequireRole(getRoleFn, auth.Editor), s.handleCreateEmbedToken)
