@@ -27,6 +27,7 @@ type autoTagPayload struct {
 	ThumbnailContentType string `json:"thumbnail_content_type"`
 	MimeType             string `json:"mime_type"`
 	Mode                 string `json:"mode"`
+	Size                 int64  `json:"size"`
 }
 
 type autoTagService struct {
@@ -81,6 +82,7 @@ func (s *autoTagService) Enqueue(ctx context.Context, workspaceID, assetID strin
 		ThumbnailContentType: asset.ThumbnailContentType,
 		MimeType:             asset.MimeType,
 		Mode:                 ws.AutoTagMode,
+		Size:                 asset.Size,
 	})
 	if err != nil {
 		return fmt.Errorf("auto_tag: marshal payload: %w", err)

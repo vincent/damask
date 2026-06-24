@@ -93,7 +93,7 @@ func IsPdfMime(mime string) bool {
 
 // IsAutoTaggable reports whether mime is eligible for AI auto-tagging.
 func IsAutoTaggable(mime string) bool {
-	return IsImageMime(mime) || IsVideoMime(mime) || IsPdfMime(mime)
+	return IsImageMime(mime) || IsVideoMime(mime) || IsPdfMime(mime) || IsAudioMime(mime)
 }
 
 // IsTextMime reports whether mime is text/*.

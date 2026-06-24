@@ -15,9 +15,13 @@ type MockTextTrackService struct {
 		ctx context.Context,
 		workspaceID, assetID, trackID, assetVersionID, storageKey, mimeType, lang, outputFormat string,
 	) (text string, wordCount int, err error)
-	RunExtractPDFFn      func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
-	RunExtractPlainFn    func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
-	RunExtractDocumentFn func(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
+	RunExtractPDFFn         func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
+	RunExtractPlainFn       func(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
+	RunExtractDocumentFn    func(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
+	CreateAudioTranscriptFn func(
+		ctx context.Context,
+		workspaceID, assetID, assetVersionID, transcript string,
+	) (trackID string, err error)
 }
 
 func NewTextTrackService() *MockTextTrackService { return &MockTextTrackService{} }
@@ -91,4 +95,14 @@ func (m *MockTextTrackService) RunExtractDocument(
 		return m.RunExtractDocumentFn(ctx, workspaceID, assetID, trackID, storageKey, mimeType)
 	}
 	return nil
+}
+
+func (m *MockTextTrackService) CreateAudioTranscript(
+	ctx context.Context,
+	workspaceID, assetID, assetVersionID, transcript string,
+) (string, error) {
+	if m.CreateAudioTranscriptFn != nil {
+		return m.CreateAudioTranscriptFn(ctx, workspaceID, assetID, assetVersionID, transcript)
+	}
+	return "", nil
 }

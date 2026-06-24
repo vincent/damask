@@ -36,6 +36,7 @@
     !!asset &&
       (asset.mime_type.startsWith('image/') ||
         asset.mime_type.startsWith('video/') ||
+        asset.mime_type.startsWith('audio/') ||
         asset.mime_type === 'application/pdf')
   )
 

@@ -197,6 +197,101 @@ func TestOpenRouterProvider_ListModels_CachesOnSuccess(t *testing.T) {
 	}
 }
 
+func TestOpenRouterProvider_TranscribeAudio_Success(t *testing.T) {
+	const audioBytes = "fake-audio-bytes"
+	var gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"text": "hello world"})
+	}))
+	defer srv.Close()
+
+	p := newOR(t, srv, "sk-or-test", "", "")
+	got, err := p.TranscribeAudio(context.Background(), "openai/whisper-1", []byte(audioBytes), "wav")
+	if err != nil {
+		t.Fatalf("TranscribeAudio: %v", err)
+	}
+	if got != "hello world" {
+		t.Fatalf("expected transcript %q, got %q", "hello world", got)
+	}
+	if gotPath != "/api/v1/audio/transcriptions" {
+		t.Fatalf("expected transcriptions endpoint, got %q", gotPath)
+	}
+	inputAudio, ok := gotBody["input_audio"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected input_audio object in request body, got %v", gotBody)
+	}
+	if inputAudio["format"] != "wav" {
+		t.Fatalf("expected format=wav, got %v", inputAudio["format"])
+	}
+	wantData := base64.StdEncoding.EncodeToString([]byte(audioBytes))
+	if inputAudio["data"] != wantData {
+		t.Fatalf("expected base64 audio data %q, got %v", wantData, inputAudio["data"])
+	}
+}
+
+func TestOpenRouterProvider_TranscribeAudio_APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"bad audio"}}`))
+	}))
+	defer srv.Close()
+
+	p := newOR(t, srv, "sk-or-test", "", "")
+	_, err := p.TranscribeAudio(context.Background(), "openai/whisper-1", []byte("x"), "wav")
+	if !errors.Is(err, ai.ErrTranscribeAudioAPIError) {
+		t.Fatalf("expected ErrTranscribeAudioAPIError, got %v", err)
+	}
+}
+
+func TestOpenRouterProvider_TagText_Success(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{
+				{"message": map[string]any{"content": `["interview","music"]`}},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	p := newOR(t, srv, "sk-or-test", "", "")
+	got, err := p.TagText(context.Background(), "google/gemini-2.5-flash", "tag this transcript")
+	if err != nil {
+		t.Fatalf("TagText: %v", err)
+	}
+	if got != `["interview","music"]` {
+		t.Fatalf("unexpected content: %q", got)
+	}
+	messages, ok := gotBody["messages"].([]any)
+	if !ok || len(messages) != 1 {
+		t.Fatalf("expected 1 message, got %v", gotBody["messages"])
+	}
+	msg := messages[0].(map[string]any)
+	if msg["content"] != "tag this transcript" {
+		t.Fatalf("expected plain string content, got %v", msg["content"])
+	}
+}
+
+func TestOpenRouterProvider_TagText_NoChoicesErrors(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{}})
+	}))
+	defer srv.Close()
+
+	p := newOR(t, srv, "sk-or-test", "", "")
+	_, err := p.TagText(context.Background(), "google/gemini-2.5-flash", "tag this")
+	if !errors.Is(err, ai.ErrTagTextNoContent) {
+		t.Fatalf("expected ErrTagTextNoContent, got %v", err)
+	}
+}
+
 func TestOpenRouterProvider_ListModels_ErrorNotCached(t *testing.T) {
 	ai.ResetModelCacheForTest()
 	t.Cleanup(ai.ResetModelCacheForTest)

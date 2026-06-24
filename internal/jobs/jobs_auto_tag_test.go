@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"damask/server/internal/ai"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
@@ -81,6 +82,245 @@ func enqueueAutoTagFull(
 	_, err = env.JobServer.EnqueueForTest(context.Background(), workspaceID, queue.JobTypeAutoTag, string(payload))
 	if err != nil {
 		t.Fatalf("enqueue auto_tag: %v", err)
+	}
+}
+
+// setupAutoTagAudioAsset uploads a fake "audio/mpeg" asset (content sniffing
+// falls back to the .mp3 extension since the bytes aren't real audio — see
+// transform.DetectMimeType) and returns its workspace ID, asset ID, and
+// storage key.
+func setupAutoTagAudioAsset(t *testing.T, env *th.TestEnv) (workspaceID, assetID, storageKey string) {
+	t.Helper()
+	res := th.Register(t, env, "Auto Tag Audio User", "autotagaudio@test.com", "password123")
+	req := th.BuildUploadRequest(t, "test.mp3", []byte("fake audio bytes"), res.Cookie)
+	resp, err := env.App.Test(req, fiber.TestConfig{Timeout: 5000})
+	if err != nil {
+		t.Fatalf("upload audio asset: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("upload audio asset: expected 201, got %d", resp.StatusCode)
+	}
+	var asset struct {
+		ID string `json:"id"`
+	}
+	if e := json.NewDecoder(resp.Body).Decode(&asset); e != nil {
+		t.Fatalf("decode asset: %v", e)
+	}
+	if e := env.Database.QueryRowContext(
+		context.Background(),
+		`SELECT storage_key FROM assets WHERE id = ?`, asset.ID,
+	).Scan(&storageKey); e != nil {
+		t.Fatalf("lookup storage key: %v", e)
+	}
+	return res.WorkspaceID, asset.ID, storageKey
+}
+
+// audioTagModelServer mocks both OpenRouter endpoints the audio auto-tag
+// path needs: speech-to-text transcription and text tagging.
+func audioTagModelServer(t *testing.T, transcript, tagsJSON string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/audio/transcriptions":
+			_ = json.NewEncoder(w).Encode(map[string]any{"text": transcript})
+		case "/chat/completions":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{
+					{"message": map[string]string{"content": tagsJSON}},
+				},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+}
+
+func TestJobAutoTag_Audio_PendingMode_CreatesSuggestionsAndTranscript(t *testing.T) {
+	srv := audioTagModelServer(t, "this is a podcast about go programming", `["podcast","programming"]`)
+	defer srv.Close()
+
+	env := th.SetupTestApp(t, th.WithOpenRouterAPIKey("test-key"), th.WithOpenRouterBaseURL(srv.URL))
+	workspaceID, assetID, storageKey := setupAutoTagAudioAsset(t, env)
+
+	enqueueAutoTag(t, env, workspaceID, assetID, storageKey, "audio/mpeg", "pending")
+	env.JobServer.DrainForTest(context.Background())
+
+	var suggestionCount int
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*) FROM auto_tag_suggestions WHERE asset_id = ?`, assetID,
+	).Scan(&suggestionCount); e != nil {
+		t.Fatalf("count suggestions: %v", e)
+	}
+	if suggestionCount != 2 {
+		t.Fatalf("expected 2 suggestions, got %d", suggestionCount)
+	}
+
+	var trackCount int
+	var content string
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*), COALESCE(MAX(content), '') FROM asset_text_tracks
+		 WHERE asset_id = ? AND source = 'audio_transcript'`, assetID,
+	).Scan(&trackCount, &content); e != nil {
+		t.Fatalf("count text tracks: %v", e)
+	}
+	if trackCount != 1 {
+		t.Fatalf("expected 1 audio_transcript text track, got %d", trackCount)
+	}
+	if content != "this is a podcast about go programming" {
+		t.Fatalf("unexpected transcript content: %q", content)
+	}
+}
+
+func TestJobAutoTag_Audio_OversizedBySize_SkipsWithoutReadingStorage(t *testing.T) {
+	// No httptest server is started — if the job fell through to
+	// storage.Get/transcription instead of rejecting on the known size, the
+	// provider call would fail with a connection error and the job would be
+	// marked failed.
+	env := th.SetupTestApp(t, th.WithOpenRouterAPIKey("test-key"), th.WithOpenRouterBaseURL("http://127.0.0.1:1"))
+	workspaceID, assetID, storageKey := setupAutoTagAudioAsset(t, env)
+
+	payload, err := json.Marshal(map[string]any{
+		"workspace_id": workspaceID,
+		"asset_id":     assetID,
+		"storage_key":  storageKey,
+		"mime_type":    "audio/mpeg",
+		"mode":         "pending",
+		"size":         ai.MaxTranscribeAudioBytes + 1,
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if _, e := env.JobServer.EnqueueForTest(
+		context.Background(),
+		workspaceID,
+		queue.JobTypeAutoTag,
+		string(payload),
+	); e != nil {
+		t.Fatalf("enqueue auto_tag: %v", e)
+	}
+	env.JobServer.DrainForTest(context.Background())
+
+	var count int
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*) FROM auto_tag_suggestions WHERE asset_id = ?`, assetID,
+	).Scan(&count); e != nil {
+		t.Fatalf("count suggestions: %v", e)
+	}
+	if count != 0 {
+		t.Fatalf("expected no suggestions for an oversized audio file, got %d", count)
+	}
+
+	var failed int
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*) FROM jobs WHERE type = 'auto_tag' AND status = 'failed'`,
+	).Scan(&failed); e != nil {
+		t.Fatalf("count failed jobs: %v", e)
+	}
+	if failed != 0 {
+		t.Fatalf("expected job to skip cleanly on oversized audio (not fail), got %d failed", failed)
+	}
+}
+
+func TestJobAutoTag_Audio_SilentMode_AppliesTagsDirectly(t *testing.T) {
+	srv := audioTagModelServer(t, "a song about the sea", `["music","ocean"]`)
+	defer srv.Close()
+
+	env := th.SetupTestApp(t, th.WithOpenRouterAPIKey("test-key"), th.WithOpenRouterBaseURL(srv.URL))
+	workspaceID, assetID, storageKey := setupAutoTagAudioAsset(t, env)
+
+	enqueueAutoTag(t, env, workspaceID, assetID, storageKey, "audio/mpeg", "silent")
+	env.JobServer.DrainForTest(context.Background())
+
+	var tagCount int
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*) FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE at.asset_id = ?`, assetID,
+	).Scan(&tagCount); e != nil {
+		t.Fatalf("count asset_tags: %v", e)
+	}
+	if tagCount != 2 {
+		t.Fatalf("expected 2 tags applied directly, got %d", tagCount)
+	}
+}
+
+// TestJobAutoTag_Audio_M4A_SendsM4AFormatNotAAC guards against regressing to
+// transform.AudioFormatFromMimeType, which maps audio/mp4 to "aac" — wrong
+// for OpenRouter's STT format enum, which expects "m4a" for an MP4/M4A
+// container. See ai.TranscriptionFormatFromMimeType.
+func TestJobAutoTag_Audio_M4A_SendsM4AFormatNotAAC(t *testing.T) {
+	var gotFormat string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/audio/transcriptions":
+			var body struct {
+				InputAudio struct {
+					Format string `json:"format"`
+				} `json:"input_audio"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			gotFormat = body.InputAudio.Format
+			_ = json.NewEncoder(w).Encode(map[string]any{"text": "a voice memo"})
+		case "/chat/completions":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{
+					{"message": map[string]string{"content": `["memo"]`}},
+				},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	env := th.SetupTestApp(t, th.WithOpenRouterAPIKey("test-key"), th.WithOpenRouterBaseURL(srv.URL))
+	workspaceID, assetID, storageKey := setupAutoTagAudioAsset(t, env)
+
+	enqueueAutoTag(t, env, workspaceID, assetID, storageKey, "audio/mp4", "pending")
+	env.JobServer.DrainForTest(context.Background())
+
+	if gotFormat != "m4a" {
+		t.Fatalf("expected format %q sent to transcription API, got %q", "m4a", gotFormat)
+	}
+
+	var count int
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*) FROM auto_tag_suggestions WHERE asset_id = ?`, assetID,
+	).Scan(&count); e != nil {
+		t.Fatalf("count suggestions: %v", e)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 suggestion, got %d", count)
+	}
+}
+
+func TestJobAutoTag_Audio_UnsupportedMime_SkipsCleanly(t *testing.T) {
+	// No httptest server is started — if the job didn't skip on the
+	// unmapped mime type, the provider call would fail with a connection
+	// error and the job would be marked failed.
+	env := th.SetupTestApp(t, th.WithOpenRouterAPIKey("test-key"), th.WithOpenRouterBaseURL("http://127.0.0.1:1"))
+	workspaceID, assetID, storageKey := setupAutoTagAudioAsset(t, env)
+
+	enqueueAutoTag(t, env, workspaceID, assetID, storageKey, "audio/x-totally-unknown", "pending")
+	env.JobServer.DrainForTest(context.Background())
+
+	var count int
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*) FROM auto_tag_suggestions WHERE asset_id = ?`, assetID,
+	).Scan(&count); e != nil {
+		t.Fatalf("count suggestions: %v", e)
+	}
+	if count != 0 {
+		t.Fatalf("expected no suggestions for an unsupported audio mime type, got %d", count)
+	}
+
+	var failed int
+	if e := env.Database.QueryRow(
+		`SELECT COUNT(*) FROM jobs WHERE type = 'auto_tag' AND status = 'failed'`,
+	).Scan(&failed); e != nil {
+		t.Fatalf("count failed jobs: %v", e)
+	}
+	if failed != 0 {
+		t.Fatalf("expected job to skip cleanly on unsupported audio mime (not fail), got %d failed", failed)
 	}
 }
 

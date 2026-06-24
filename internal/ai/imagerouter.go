@@ -425,6 +425,20 @@ func (p *imageRouterProvider) DescribeImage(
 	return "", errors.New("imagerouter: DescribeImage not supported")
 }
 
+// TranscribeAudio is not supported by ImageRouter. It does not declare
+// CapAudioTranscription, so this is never reached through the resolver —
+// it exists only to satisfy the Provider interface.
+func (p *imageRouterProvider) TranscribeAudio(_ context.Context, _ string, _ []byte, _ string) (string, error) {
+	return "", errors.New("imagerouter: TranscribeAudio not supported")
+}
+
+// TagText is not supported by ImageRouter. It does not declare CapTextTag,
+// so this is never reached through the resolver — it exists only to satisfy
+// the Provider interface.
+func (p *imageRouterProvider) TagText(_ context.Context, _, _ string) (string, error) {
+	return "", errors.New("imagerouter: TagText not supported")
+}
+
 func (p *imageRouterProvider) ListModels(ctx context.Context) ([]Model, error) {
 	const cacheKey = string(ProviderImageRouter)
 	if cached, ok := modelCache.Get(cacheKey); ok {

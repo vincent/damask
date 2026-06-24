@@ -42,6 +42,9 @@ func (noopTextTrackSvc) RunOCR(_ context.Context, _, _, _, _, _, _, _, _ string)
 func (noopTextTrackSvc) RunExtractPDF(_ context.Context, _, _, _, _ string) error         { return nil }
 func (noopTextTrackSvc) RunExtractPlain(_ context.Context, _, _, _, _ string) error       { return nil }
 func (noopTextTrackSvc) RunExtractDocument(_ context.Context, _, _, _, _, _ string) error { return nil }
+func (noopTextTrackSvc) CreateAudioTranscript(_ context.Context, _, _, _, _ string) (string, error) {
+	return "", nil
+}
 
 // memExportSvc wires two memory repos into the exportService interface for tests.
 type memExportSvc struct {

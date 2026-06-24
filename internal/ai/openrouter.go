@@ -18,15 +18,18 @@ import (
 const openRouterDefaultBaseURL = "https://openrouter.ai/api/v1"
 
 const (
-	openRouterTimeout         = 120 * time.Second
-	openRouterDescribeTimeout = 60 * time.Second
-	openRouterReferer         = "https://damask.studio"
-	openRouterTitle           = "Damask"
+	openRouterTimeout           = 120 * time.Second
+	openRouterDescribeTimeout   = 60 * time.Second
+	openRouterTranscribeTimeout = 60 * time.Second
+	openRouterTagTextTimeout    = 60 * time.Second
+	openRouterReferer           = "https://damask.studio"
+	openRouterTitle             = "Damask"
 
 	modImage = "image"
 	modText  = "text"
 
 	describeMaxTokens = 1024
+	tagTextMaxTokens  = 512
 )
 
 type openRouterProvider struct {
@@ -80,7 +83,7 @@ func (p *openRouterProvider) ID() ProviderID       { return ProviderOpenRouter }
 func (p *openRouterProvider) IsConfigured() bool   { return p.apiKey != "" }
 func (p *openRouterProvider) KeySource() KeySource { return p.keySource }
 func (p *openRouterProvider) Capabilities() Capability {
-	return CapBgRemove | CapImageToImage | CapImageDescription | CapVisionTag | CapTextTag
+	return CapBgRemove | CapImageToImage | CapImageDescription | CapVisionTag | CapTextTag | CapAudioTranscription
 }
 
 const bgRemovePrompt = "Remove the background from this image. Return only the foreground on a transparent background."
@@ -253,6 +256,160 @@ func (p *openRouterProvider) DescribeImage(
 	if len(chatResp.Choices) == 0 {
 		endGenAISpan(span, model, 0, ErrDescribeImageNoContent)
 		return "", ErrDescribeImageNoContent
+	}
+	endGenAISpan(span, model, 0, nil)
+	return chatResp.Choices[0].Message.Content, nil
+}
+
+var (
+	ErrTranscribeAudioAPIError = errors.New("openrouter: transcribe audio API returned non-2xx")
+	ErrTagTextAPIError         = errors.New("openrouter: tag text API returned non-2xx")
+	ErrTagTextNoContent        = errors.New("openrouter: tag text response has no choices")
+)
+
+// TranscribeAudio sends audioData to the OpenRouter speech-to-text endpoint
+// using the given model. format is a short audio format hint (e.g. "mp3", "wav").
+// Returns the transcript text.
+func (p *openRouterProvider) TranscribeAudio(
+	ctx context.Context,
+	model string,
+	audioData []byte,
+	format string,
+) (string, error) {
+	if strings.TrimSpace(p.apiKey) == "" {
+		return "", errors.New("ai/openrouter: API key not configured")
+	}
+
+	ctx, span := startGenAISpan(ctx, "transcribe-audio", model, "")
+
+	transcribeCtx, cancel := context.WithTimeout(ctx, openRouterTranscribeTimeout)
+	defer cancel()
+
+	payload, err := json.Marshal(map[string]any{
+		"model": model,
+		"input_audio": map[string]string{
+			"data":   base64.StdEncoding.EncodeToString(audioData),
+			"format": format,
+		},
+	})
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: encode transcribe request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(
+		transcribeCtx,
+		http.MethodPost,
+		p.baseURL+"/audio/transcriptions",
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: build transcribe request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	p.setHeaders(req)
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: transcribe request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: read transcribe response: %w", err)
+	}
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		apiErr := fmt.Errorf("%w: status=%d body=%s", ErrTranscribeAudioAPIError, resp.StatusCode, body)
+		endGenAISpan(span, model, 0, apiErr)
+		return "", apiErr
+	}
+
+	var transcribeResp struct {
+		Text string `json:"text"`
+	}
+	if err = json.Unmarshal(body, &transcribeResp); err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: decode transcribe response: %w", err)
+	}
+	endGenAISpan(span, model, 0, nil)
+	return transcribeResp.Text, nil
+}
+
+// TagText sends a text-only prompt to the OpenRouter chat completions API
+// using the given model. Returns the model's text response.
+func (p *openRouterProvider) TagText(ctx context.Context, model, prompt string) (string, error) {
+	if strings.TrimSpace(p.apiKey) == "" {
+		return "", errors.New("ai/openrouter: API key not configured")
+	}
+
+	ctx, span := startGenAISpan(ctx, "tag-text", model, prompt)
+
+	tagCtx, cancel := context.WithTimeout(ctx, openRouterTagTextTimeout)
+	defer cancel()
+
+	payload, err := json.Marshal(map[string]any{
+		"model":      model,
+		"max_tokens": tagTextMaxTokens,
+		"messages": []map[string]any{
+			{"role": "user", "content": prompt},
+		},
+	})
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: encode tag text request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(
+		tagCtx,
+		http.MethodPost,
+		p.baseURL+"/chat/completions",
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: build tag text request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	p.setHeaders(req)
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: tag text request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: read tag text response: %w", err)
+	}
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		apiErr := fmt.Errorf("%w: status=%d body=%s", ErrTagTextAPIError, resp.StatusCode, body)
+		endGenAISpan(span, model, 0, apiErr)
+		return "", apiErr
+	}
+
+	var chatResp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err = json.Unmarshal(body, &chatResp); err != nil {
+		endGenAISpan(span, model, 0, err)
+		return "", fmt.Errorf("ai/openrouter: decode tag text response: %w", err)
+	}
+	if len(chatResp.Choices) == 0 {
+		endGenAISpan(span, model, 0, ErrTagTextNoContent)
+		return "", ErrTagTextNoContent
 	}
 	endGenAISpan(span, model, 0, nil)
 	return chatResp.Choices[0].Message.Content, nil

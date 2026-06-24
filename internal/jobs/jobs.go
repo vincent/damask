@@ -66,6 +66,10 @@ type textTrackService interface {
 	RunExtractPDF(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractPlain(ctx context.Context, workspaceID, assetID, trackID, storageKey string) error
 	RunExtractDocument(ctx context.Context, workspaceID, assetID, trackID, storageKey, mimeType string) error
+	CreateAudioTranscript(
+		ctx context.Context,
+		workspaceID, assetID, assetVersionID, transcript string,
+	) (trackID string, err error)
 }
 
 // JobServer holds shared dependencies injected at startup.

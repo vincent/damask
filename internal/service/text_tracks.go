@@ -30,6 +30,7 @@ const textTrackSourceAIImageDescription = "ai_image_description"
 const textTrackSourceExtractPDF = "extract_pdf"
 const textTrackSourceExtractPlain = "extract_plain"
 const textTrackSourceExtractDocument = "extract_document"
+const textTrackSourceAudioTranscript = "audio_transcript"
 
 var ErrUnsupportedTextTrackSource = errors.New("unsupported text track source")
 
@@ -174,7 +175,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	status := WorkflowRunStatusPending
 	content := ""
 	switch p.Source {
-	case textTrackSourceManual:
+	case textTrackSourceManual, textTrackSourceAudioTranscript:
 		status = variantStatusReady
 		content = readyTextContent(p.InitialContent)
 	case textTrackSourceOCR:
@@ -229,7 +230,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 
 	dto = toTextTrackDTO(row)
 	switch p.Source {
-	case textTrackSourceManual:
+	case textTrackSourceManual, textTrackSourceAudioTranscript:
 		return s.finalizeManualTrack(ctx, row, content, dto)
 	case textTrackSourceOCR:
 		jobID, enqErr := s.enqueueOCR(ctx, p, row.ID)
@@ -248,6 +249,30 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	}
 
 	return TextTrackDTO{}, ErrUnsupportedTextTrackSource
+}
+
+// CreateAudioTranscript persists a ready-to-use audio transcript text track.
+// Unlike OCR/AI-image-description, transcription already happened by the time
+// this is called, so the track is created directly in the "ready" state.
+func (s *textTrackService) CreateAudioTranscript(
+	ctx context.Context,
+	workspaceID, assetID, assetVersionID, transcript string,
+) (trackID string, err error) {
+	var versionID *string
+	if assetVersionID != "" {
+		versionID = &assetVersionID
+	}
+	dto, err := s.Create(ctx, CreateTextTrackParams{
+		WorkspaceID:    workspaceID,
+		AssetID:        assetID,
+		AssetVersionID: versionID,
+		Source:         textTrackSourceAudioTranscript,
+		InitialContent: transcript,
+	})
+	if err != nil {
+		return "", err
+	}
+	return dto.ID, nil
 }
 
 func (s *textTrackService) finalizeManualTrack(

@@ -54,13 +54,14 @@ const (
 type Capability uint32
 
 var capNames = map[Capability]string{
-	CapBgRemove:         "background removal",
-	CapImageToImage:     "image to image",
-	CapTextToImage:      "text to image",
-	CapImageToText:      "image to text",
-	CapImageDescription: "image description",
-	CapVisionTag:        "vision tag suggestion",
-	CapTextTag:          "text tag suggestion",
+	CapBgRemove:           "background removal",
+	CapImageToImage:       "image to image",
+	CapTextToImage:        "text to image",
+	CapImageToText:        "image to text",
+	CapImageDescription:   "image description",
+	CapVisionTag:          "vision tag suggestion",
+	CapTextTag:            "text tag suggestion",
+	CapAudioTranscription: "audio transcription",
 }
 
 func (c Capability) Names() []string {
@@ -74,13 +75,14 @@ func (c Capability) Names() []string {
 }
 
 const (
-	CapBgRemove         Capability = 1 << iota // image → image, background removal
-	CapImageToImage                            // image + prompt → image
-	CapTextToImage                             // prompt → image (reserved)
-	CapImageToText                             // image → text (reserved)
-	CapImageDescription                        // image → text description via vision model
-	CapVisionTag                               // image → suggested tags via vision model
-	CapTextTag                                 // extracted text → suggested tags via chat model
+	CapBgRemove           Capability = 1 << iota // image → image, background removal
+	CapImageToImage                              // image + prompt → image
+	CapTextToImage                               // prompt → image (reserved)
+	CapImageToText                               // image → text (reserved)
+	CapImageDescription                          // image → text description via vision model
+	CapVisionTag                                 // image → suggested tags via vision model
+	CapTextTag                                   // extracted text → suggested tags via chat model
+	CapAudioTranscription                        // audio → transcript via speech-to-text model
 )
 
 // Provider is a configured, ready-to-use AI provider.
@@ -103,6 +105,13 @@ type Provider interface {
 	// given model and prompt, and returns the model's text response. Supported
 	// for providers that declare CapVisionTag or CapImageDescription.
 	DescribeImage(ctx context.Context, model, prompt string, imageData []byte, mimeType string) (string, error)
+	// TranscribeAudio sends audioData to the provider's speech-to-text endpoint
+	// and returns the transcript. Supported for providers that declare
+	// CapAudioTranscription. format is a short audio format hint (e.g. "mp3", "wav").
+	TranscribeAudio(ctx context.Context, model string, audioData []byte, format string) (string, error)
+	// TagText sends a text-only prompt to the provider's chat endpoint and returns
+	// the model's text response. Supported for providers that declare CapTextTag.
+	TagText(ctx context.Context, model, prompt string) (string, error)
 }
 
 type ProviderWithModels struct {
