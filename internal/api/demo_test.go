@@ -60,11 +60,12 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 		Demo:      demoCfg,
 	}
 
-	queries, rawDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
+	queries, rawDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { rawDB.Close() })
+	t.Cleanup(func() { database.Close() })
 
 	maker, err := auth.NewMaker("test-secret-key-must-be-32chars!!")
 	if err != nil {
@@ -83,11 +84,11 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	tmb := transform.NewThumbnailer(trf)
 	media := ingest.NewRegistry(trf)
 	ingester := service.NewAssetIngester(queries, rawDB, stor, q, media, service.NewAutoTagService(queries, q, nil, nil))
-	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, rawDB)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(database)
 	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
 	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
-	exportConfigsRepo := reposqlc.NewExportConfigRepo(queries, sqlDB)
-	exportRunsRepo := reposqlc.NewExportRunRepo(queries, sqlDB)
+	exportConfigsRepo := reposqlc.NewExportConfigRepo(database)
+	exportRunsRepo := reposqlc.NewExportRunRepo(database)
 
 	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb)
 	if err := seeder.EnsureWorkspace(t.Context()); err != nil {
@@ -95,7 +96,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	}
 
 	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, ingester, resolveImageRouterKey, nil, exportConfigsRepo, exportRunsRepo)
-	app := api.NewRouter(queries, rawDB, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil)
+	app := api.NewRouter(database, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil, nil)
 
 	return &demoEnv{App: app, Maker: maker, SqlDB: rawDB, Seeder: seeder}
 }

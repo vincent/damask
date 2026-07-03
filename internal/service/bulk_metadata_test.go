@@ -14,15 +14,16 @@ import (
 // newBulkFieldSvc returns an AssetFieldService backed by a fresh SQLite DB.
 func newBulkFieldSvc(t *testing.T) (service.AssetFieldService, *dbgen.Queries) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/bulk_fields.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/bulk_fields.db")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
+	queries := database.WQ
 	svc := service.NewAssetFieldService(
-		reposqlc.NewAssetRepo(queries, sqlDB),
-		reposqlc.NewFieldRepo(queries, sqlDB),
-		reposqlc.NewAssetFieldRepo(queries, sqlDB),
+		reposqlc.NewAssetRepo(database),
+		reposqlc.NewFieldRepo(database),
+		reposqlc.NewAssetFieldRepo(database),
 		audit.NopWriter{},
 	)
 	return svc, queries

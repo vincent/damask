@@ -41,7 +41,7 @@ func (s *Server) handleGetSimilarAssets(c fiber.Ctx) error {
 	claims := auth.GetClaims(c)
 	id := c.Params("id")
 
-	asset, err := s.queries.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
+	asset, err := s.readQueries.GetAssetByID(c.Context(), dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: claims.WorkspaceID,
 	})

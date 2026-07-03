@@ -12,11 +12,12 @@ import (
 // newStorageSvcDB opens an in-memory SQLite DB and returns a StorageService, Queries, and *[sql.DB].
 func newStorageSvcDB(t *testing.T) (StorageService, *dbgen.Queries, *sql.DB) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 	return NewStorageService(queries), queries, sqlDB
 }
 

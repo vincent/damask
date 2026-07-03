@@ -12,22 +12,22 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type assetRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewAssetRepo returns a repository.AssetRepository backed by sqlc-generated queries.
-func NewAssetRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.AssetRepository {
-	return &assetRepo{q: q, sqlDB: sqlDB}
+func NewAssetRepo(d *db.DB) repository.AssetRepository {
+	return &assetRepo{d: d}
 }
 
 func (r *assetRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Asset, error) {
-	row, err := r.q.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+	row, err := r.d.RQ.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
@@ -136,7 +136,7 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 		orderBy,
 	)
 
-	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	rows, err := r.d.Reader.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func buildOrderByClause(
 }
 
 func (r *assetRepo) Create(ctx context.Context, params repository.CreateAssetParams) (repository.Asset, error) {
-	row, err := r.q.CreateAsset(ctx, dbgen.CreateAssetParams{
+	row, err := r.d.WQ.CreateAsset(ctx, dbgen.CreateAssetParams{
 		ID:               params.ID,
 		WorkspaceID:      params.WorkspaceID,
 		ProjectID:        params.ProjectID,
@@ -238,7 +238,7 @@ func (r *assetRepo) Create(ctx context.Context, params repository.CreateAssetPar
 // generates separate update queries rather than a single partial-update query.
 func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetParams) (repository.Asset, error) {
 	if params.OriginalFilename != nil {
-		if err := r.q.UpdateAssetName(ctx, dbgen.UpdateAssetNameParams{
+		if err := r.d.WQ.UpdateAssetName(ctx, dbgen.UpdateAssetNameParams{
 			ID:               params.ID,
 			WorkspaceID:      params.WorkspaceID,
 			OriginalFilename: *params.OriginalFilename,
@@ -249,7 +249,7 @@ func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 	//nolint:nestif // clean me some day
 	if params.FolderID != nil || params.ProjectID != nil {
 		if params.FolderID != nil {
-			if err := r.q.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
+			if err := r.d.WQ.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
 				ID:          params.ID,
 				WorkspaceID: params.WorkspaceID,
 				FolderID:    params.FolderID,
@@ -258,7 +258,7 @@ func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 			}
 		}
 		if params.ProjectID != nil {
-			if err := r.q.UpdateAssetProject(ctx, dbgen.UpdateAssetProjectParams{
+			if err := r.d.WQ.UpdateAssetProject(ctx, dbgen.UpdateAssetProjectParams{
 				ID:          params.ID,
 				WorkspaceID: params.WorkspaceID,
 				ProjectID:   params.ProjectID,
@@ -268,7 +268,7 @@ func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 		}
 	}
 	if params.ThumbnailKey != nil {
-		if err := r.q.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+		if err := r.d.WQ.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 			ID:           params.ID,
 			ThumbnailKey: params.ThumbnailKey,
 		}); err != nil {
@@ -276,7 +276,7 @@ func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 		}
 	}
 	if params.CurrentVersionID != nil {
-		if err := r.q.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
+		if err := r.d.WQ.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
 			ID:               params.ID,
 			CurrentVersionID: params.CurrentVersionID,
 		}); err != nil {
@@ -284,7 +284,7 @@ func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 		}
 	}
 	if params.Width != nil || params.Height != nil {
-		if err := r.q.UpdateAssetDimensions(ctx, dbgen.UpdateAssetDimensionsParams{
+		if err := r.d.WQ.UpdateAssetDimensions(ctx, dbgen.UpdateAssetDimensionsParams{
 			ID:     params.ID,
 			Width:  params.Width,
 			Height: params.Height,
@@ -296,14 +296,14 @@ func (r *assetRepo) Update(ctx context.Context, params repository.UpdateAssetPar
 }
 
 func (r *assetRepo) SoftDelete(ctx context.Context, workspaceID, id string) error {
-	return r.q.DeleteAsset(ctx, dbgen.DeleteAssetParams{
+	return r.d.WQ.DeleteAsset(ctx, dbgen.DeleteAssetParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
 }
 
 func (r *assetRepo) IsProjectCover(ctx context.Context, workspaceID, assetID string) (bool, error) {
-	_, err := r.q.GetProjectByCoverAsset(ctx, dbgen.GetProjectByCoverAssetParams{
+	_, err := r.d.RQ.GetProjectByCoverAsset(ctx, dbgen.GetProjectByCoverAssetParams{
 		CoverAssetID: &assetID,
 		WorkspaceID:  workspaceID,
 	})
@@ -317,7 +317,7 @@ func (r *assetRepo) IsProjectCover(ctx context.Context, workspaceID, assetID str
 }
 
 func (r *assetRepo) IsWorkspaceIcon(ctx context.Context, workspaceID, assetID string) (bool, error) {
-	_, err := r.q.GetWorkspaceByIconAsset(ctx, dbgen.GetWorkspaceByIconAssetParams{
+	_, err := r.d.RQ.GetWorkspaceByIconAsset(ctx, dbgen.GetWorkspaceByIconAssetParams{
 		IconAssetID: &assetID,
 		ID:          workspaceID,
 	})
@@ -338,7 +338,7 @@ func (r *assetRepo) CountByIDs(ctx context.Context, workspaceID string, ids []st
 	if err != nil {
 		return 0, err
 	}
-	row := r.sqlDB.QueryRowContext(ctx,
+	row := r.d.Reader.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM assets WHERE workspace_id = ? AND id IN (SELECT value FROM json_each(?))`,
 		workspaceID, string(idsJSON),
 	)
@@ -348,12 +348,12 @@ func (r *assetRepo) CountByIDs(ctx context.Context, workspaceID string, ids []st
 
 func (r *assetRepo) RefreshFTS(ctx context.Context, assetID string) error {
 	var originalFilename string
-	row := r.sqlDB.QueryRowContext(ctx, `SELECT original_filename FROM assets WHERE id = ?`, assetID)
+	row := r.d.Writer.QueryRowContext(ctx, `SELECT original_filename FROM assets WHERE id = ?`, assetID)
 	if err := row.Scan(&originalFilename); err != nil {
 		return nil // asset not found — no-op
 	}
 
-	rows, err := r.sqlDB.QueryContext(ctx, `
+	rows, err := r.d.Writer.QueryContext(ctx, `
 		SELECT v.value_text
 		FROM asset_field_values v
 		JOIN field_definitions f ON f.id = v.field_id
@@ -376,14 +376,14 @@ func (r *assetRepo) RefreshFTS(ctx context.Context, assetID string) error {
 	}
 
 	combined := strings.Join(parts, " ")
-	if _, err = r.sqlDB.ExecContext(ctx, `
+	if _, err = r.d.Writer.ExecContext(ctx, `
 		INSERT INTO assets_fts(assets_fts, rowid, original_filename)
 		SELECT 'delete', rowid, original_filename FROM assets WHERE id = ?
 	`, assetID); err != nil {
 		slog.ErrorContext(ctx, "fts refresh delete", "asset_id", assetID, "error", err)
 		return err
 	}
-	if _, err = r.sqlDB.ExecContext(ctx, `
+	if _, err = r.d.Writer.ExecContext(ctx, `
 		INSERT INTO assets_fts(rowid, original_filename)
 		SELECT rowid, ? FROM assets WHERE id = ?
 	`, combined, assetID); err != nil {
@@ -450,7 +450,7 @@ func (r *assetRepo) ListByFields(
 		LIMIT ?
 	`, strings.Join(joins, "\n"), filterClauses, cursorClause)
 
-	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	rows, err := r.d.Reader.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("ListByFields: %w", err)
 	}
@@ -583,7 +583,7 @@ func (r *assetRepo) CollectStorageKeys(
 	ctx context.Context,
 	workspaceID, assetID string,
 ) (repository.AssetStorageKeys, error) {
-	asset, err := r.q.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: assetID, WorkspaceID: workspaceID})
+	asset, err := r.d.RQ.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: assetID, WorkspaceID: workspaceID})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.AssetStorageKeys{}, apperr.ErrNotFound
@@ -594,7 +594,7 @@ func (r *assetRepo) CollectStorageKeys(
 		AssetKey: asset.StorageKey,
 		ThumbKey: asset.ThumbnailKey,
 	}
-	versions, err := r.q.ListAllVersions(ctx, assetID)
+	versions, err := r.d.RQ.ListAllVersions(ctx, assetID)
 	if err != nil {
 		return repository.AssetStorageKeys{}, err
 	}
@@ -603,7 +603,7 @@ func (r *assetRepo) CollectStorageKeys(
 			StorageKey:   v.StorageKey,
 			ThumbnailKey: v.ThumbnailKey,
 		}
-		variants, varErr := r.q.ListVariantsByVersion(ctx, v.ID)
+		variants, varErr := r.d.RQ.ListVariantsByVersion(ctx, v.ID)
 		if varErr != nil {
 			return repository.AssetStorageKeys{}, varErr
 		}
@@ -612,7 +612,7 @@ func (r *assetRepo) CollectStorageKeys(
 		}
 		out.VersionKeys = append(out.VersionKeys, vk)
 	}
-	textTrackRows, err := r.sqlDB.QueryContext(
+	textTrackRows, err := r.d.Reader.QueryContext(
 		ctx,
 		`SELECT storage_key FROM asset_text_tracks WHERE asset_id = ? AND workspace_id = ? AND storage_key IS NOT NULL`,
 		assetID,
@@ -636,28 +636,28 @@ func (r *assetRepo) CollectStorageKeys(
 }
 
 func (r *assetRepo) HardDelete(ctx context.Context, workspaceID, assetID string) error {
-	_ = r.q.DeleteTextFTSByAsset(ctx, assetID)
-	return r.q.DeleteAsset(ctx, dbgen.DeleteAssetParams{ID: assetID, WorkspaceID: workspaceID})
+	_ = r.d.WQ.DeleteTextFTSByAsset(ctx, assetID)
+	return r.d.WQ.DeleteAsset(ctx, dbgen.DeleteAssetParams{ID: assetID, WorkspaceID: workspaceID})
 }
 
 func (r *assetRepo) CountVersionsByAsset(ctx context.Context, assetID string) (int64, error) {
-	return r.q.CountVersionsForAsset(ctx, assetID)
+	return r.d.RQ.CountVersionsForAsset(ctx, assetID)
 }
 
 func (r *assetRepo) CountVariantsByCurrentVersion(ctx context.Context, assetID string) (int64, error) {
 	var currentVersionID string
-	err := r.sqlDB.QueryRowContext(ctx,
+	err := r.d.Reader.QueryRowContext(ctx,
 		`SELECT COALESCE(current_version_id, '') FROM assets WHERE id = ?`, assetID,
 	).Scan(&currentVersionID)
 	if err != nil || currentVersionID == "" {
 		return 0, nil //nolint:nilerr // asset has no versions, so zero variants
 	}
-	return r.q.CountVariantsByVersion(ctx, currentVersionID)
+	return r.d.RQ.CountVariantsByVersion(ctx, currentVersionID)
 }
 
 func (r *assetRepo) IsRebuildingVariants(ctx context.Context, versionID string) (bool, error) {
 	var count int64
-	err := r.sqlDB.QueryRowContext(ctx,
+	err := r.d.Reader.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM jobs
 		 WHERE type = 'rebuild_variants'
 		   AND JSON_EXTRACT(payload, '$.new_version_id') = ?
@@ -671,7 +671,7 @@ func (r *assetRepo) IsRebuildingVariants(ctx context.Context, versionID string) 
 }
 
 func (r *assetRepo) ListComments(ctx context.Context, assetID string) ([]repository.AssetComment, error) {
-	rows, err := r.q.ListCommentsOnAsset(ctx, assetID)
+	rows, err := r.d.RQ.ListCommentsOnAsset(ctx, assetID)
 	if err != nil {
 		return nil, err
 	}
@@ -692,7 +692,7 @@ func (r *assetRepo) ListComments(ctx context.Context, assetID string) ([]reposit
 }
 
 func (r *assetRepo) SetProject(ctx context.Context, workspaceID, assetID string, projectID *string) error {
-	return r.q.UpdateAssetProject(ctx, dbgen.UpdateAssetProjectParams{
+	return r.d.WQ.UpdateAssetProject(ctx, dbgen.UpdateAssetProjectParams{
 		ID:          assetID,
 		WorkspaceID: workspaceID,
 		ProjectID:   projectID,
@@ -746,7 +746,7 @@ func (r *assetRepo) batchCounts(ctx context.Context, assetIDs []string, query st
 	for i, id := range assetIDs {
 		args[i] = id
 	}
-	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	rows, err := r.d.Reader.QueryContext(ctx, query, args...)
 	if err != nil {
 		return counts, err
 	}

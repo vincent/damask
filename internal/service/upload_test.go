@@ -20,11 +20,12 @@ import (
 
 func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_spy.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/upload_spy.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 	stor, _ := storage.NewAferoMemoryStorage()
 	spy := newSpy()
 	q := queue.New(queries, 1)
@@ -37,11 +38,12 @@ func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 
 func newUploadSvc(t *testing.T) service.UploadService {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {
@@ -93,11 +95,12 @@ func TestUploadService_Ingest_EmptyFilename(t *testing.T) {
 
 func TestUploadService_Ingest_OK(t *testing.T) {
 	stor, _ := storage.NewAferoMemoryStorage()
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_test.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/upload_test.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_upload"
@@ -146,11 +149,12 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	var svc service.UploadService
 	_, spy := newUploadSvcSpy(t)
 
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_audit.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/upload_audit.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_audit"
@@ -194,11 +198,12 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 }
 
 func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_trigger.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/upload_trigger.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_trigger"
@@ -248,11 +253,12 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 }
 
 func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/upload_nil_proj.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/upload_nil_proj.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_nil_proj"

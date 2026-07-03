@@ -7,22 +7,22 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type shareRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewShareRepo returns a repository.ShareRepository backed by sqlc-generated queries.
-func NewShareRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.ShareRepository {
-	return &shareRepo{q: q, sqlDB: sqlDB}
+func NewShareRepo(d *db.DB) repository.ShareRepository {
+	return &shareRepo{d: d}
 }
 
 func (r *shareRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Share, error) {
-	row, err := r.q.GetShareByIDAndWorkspace(ctx, dbgen.GetShareByIDAndWorkspaceParams{
+	row, err := r.d.RQ.GetShareByIDAndWorkspace(ctx, dbgen.GetShareByIDAndWorkspaceParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
@@ -36,7 +36,7 @@ func (r *shareRepo) GetByID(ctx context.Context, workspaceID, id string) (reposi
 }
 
 func (r *shareRepo) GetPublic(ctx context.Context, id string) (repository.Share, error) {
-	row, err := r.q.GetShareByID(ctx, id)
+	row, err := r.d.RQ.GetShareByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.Share{}, apperr.ErrNotFound
@@ -51,7 +51,7 @@ func (r *shareRepo) GetByIDAndWorkspace(ctx context.Context, workspaceID, id str
 }
 
 func (r *shareRepo) List(ctx context.Context, workspaceID string) ([]repository.Share, error) {
-	rows, err := r.q.ListSharesByWorkspace(ctx, workspaceID)
+	rows, err := r.d.RQ.ListSharesByWorkspace(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (r *shareRepo) List(ctx context.Context, workspaceID string) ([]repository.
 }
 
 func (r *shareRepo) Create(ctx context.Context, s repository.Share) (repository.Share, error) {
-	row, err := r.q.CreateShare(ctx, dbgen.CreateShareParams{
+	row, err := r.d.WQ.CreateShare(ctx, dbgen.CreateShareParams{
 		ID:            s.ID,
 		WorkspaceID:   s.WorkspaceID,
 		CreatedBy:     s.CreatedBy,
@@ -82,7 +82,7 @@ func (r *shareRepo) Create(ctx context.Context, s repository.Share) (repository.
 }
 
 func (r *shareRepo) Update(ctx context.Context, s repository.Share) (repository.Share, error) {
-	row, err := r.q.UpdateShare(ctx, dbgen.UpdateShareParams{
+	row, err := r.d.WQ.UpdateShare(ctx, dbgen.UpdateShareParams{
 		ID:            s.ID,
 		WorkspaceID:   s.WorkspaceID,
 		Label:         s.Label,
@@ -101,14 +101,14 @@ func (r *shareRepo) Update(ctx context.Context, s repository.Share) (repository.
 }
 
 func (r *shareRepo) Revoke(ctx context.Context, workspaceID, id string) error {
-	return r.q.RevokeShare(ctx, dbgen.RevokeShareParams{
+	return r.d.WQ.RevokeShare(ctx, dbgen.RevokeShareParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
 }
 
 func (r *shareRepo) IncrementViewCount(ctx context.Context, id string) error {
-	return r.q.IncrementShareViewCount(ctx, id)
+	return r.d.WQ.IncrementShareViewCount(ctx, id)
 }
 
 func (r *shareRepo) ListAssetsByTarget(
@@ -135,7 +135,7 @@ func (r *shareRepo) ListAssetsByTarget(
 		return nil, nil
 	}
 
-	rows, err := r.sqlDB.QueryContext(ctx, query, targetID)
+	rows, err := r.d.Reader.QueryContext(ctx, query, targetID)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (r *shareRepo) ListAssetsByTarget(
 }
 
 func (r *shareRepo) GetPublicAsset(ctx context.Context, assetID string) (repository.PublicAsset, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `
+	row := r.d.Reader.QueryRowContext(ctx, `
 		SELECT id, workspace_id, project_id, folder_id, original_filename, storage_key,
 		       mime_type, size, width, height, thumbnail_key, metadata, created_at, updated_at
 		FROM assets WHERE id = ?`, assetID)
@@ -182,7 +182,7 @@ func (r *shareRepo) GetPublicAsset(ctx context.Context, assetID string) (reposit
 }
 
 func (r *shareRepo) GetPublicAssetFile(ctx context.Context, assetID string) (repository.PublicAssetFile, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `
+	row := r.d.Reader.QueryRowContext(ctx, `
 		SELECT a.mime_type, a.original_filename, v.storage_key, v.content_hash, v.size, v.created_at
 		FROM assets a
 		JOIN asset_versions v ON v.asset_id = a.id AND v.is_current = 1 AND v.deleted_at IS NULL
@@ -205,7 +205,7 @@ func (r *shareRepo) GetPublicAssetFile(ctx context.Context, assetID string) (rep
 }
 
 func (r *shareRepo) GetPublicAssetThumb(ctx context.Context, assetID string) (*string, time.Time, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `SELECT thumbnail_key, updated_at FROM assets WHERE id = ?`, assetID)
+	row := r.d.Reader.QueryRowContext(ctx, `SELECT thumbnail_key, updated_at FROM assets WHERE id = ?`, assetID)
 	var thumbKey *string
 	var updatedAtStr string
 	if err := row.Scan(&thumbKey, &updatedAtStr); err != nil {
@@ -232,7 +232,7 @@ func (r *shareRepo) IsAssetInTarget(ctx context.Context, targetType, targetID, a
 	default:
 		return false, nil
 	}
-	row := r.sqlDB.QueryRowContext(ctx, query, args...)
+	row := r.d.Reader.QueryRowContext(ctx, query, args...)
 	var count int
 	if err := row.Scan(&count); err != nil {
 		return false, err
@@ -241,7 +241,7 @@ func (r *shareRepo) IsAssetInTarget(ctx context.Context, targetType, targetID, a
 }
 
 func (r *shareRepo) CreateComment(ctx context.Context, c repository.ShareComment) (repository.ShareComment, error) {
-	row, err := r.q.CreateComment(ctx, dbgen.CreateCommentParams{
+	row, err := r.d.WQ.CreateComment(ctx, dbgen.CreateCommentParams{
 		ID:          c.ID,
 		ShareID:     c.ShareID,
 		AssetID:     c.AssetID,
@@ -256,7 +256,7 @@ func (r *shareRepo) CreateComment(ctx context.Context, c repository.ShareComment
 }
 
 func (r *shareRepo) ListCommentsByShare(ctx context.Context, shareID string) ([]repository.ShareComment, error) {
-	rows, err := r.q.ListCommentsByShare(ctx, shareID)
+	rows, err := r.d.RQ.ListCommentsByShare(ctx, shareID)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (r *shareRepo) ListCommentsByShareAndAsset(
 	ctx context.Context,
 	shareID, assetID string,
 ) ([]repository.ShareComment, error) {
-	rows, err := r.q.ListCommentsByShareAndAsset(ctx, dbgen.ListCommentsByShareAndAssetParams{
+	rows, err := r.d.RQ.ListCommentsByShareAndAsset(ctx, dbgen.ListCommentsByShareAndAssetParams{
 		ShareID: shareID,
 		AssetID: assetID,
 	})
@@ -286,7 +286,7 @@ func (r *shareRepo) ListCommentsByShareAndAsset(
 }
 
 func (r *shareRepo) DeleteComment(ctx context.Context, shareID, commentID string) error {
-	return r.q.DeleteComment(ctx, dbgen.DeleteCommentParams{
+	return r.d.WQ.DeleteComment(ctx, dbgen.DeleteCommentParams{
 		ID:      commentID,
 		ShareID: shareID,
 	})

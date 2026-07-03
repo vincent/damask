@@ -18,11 +18,12 @@ const autoTagTestWorkspaceID = "ws_1"
 
 func newAutoTagTestDB(t *testing.T) *dbgen.Queries {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
+	queries := database.WQ
 	if _, wsErr := queries.CreateWorkspace(context.Background(), dbgen.CreateWorkspaceParams{
 		ID: autoTagTestWorkspaceID, Name: "ws",
 	}); wsErr != nil {

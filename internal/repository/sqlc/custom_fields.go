@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 
@@ -14,17 +15,16 @@ import (
 )
 
 type fieldRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewFieldRepo returns a repository.FieldRepository backed by sqlc-generated queries.
-func NewFieldRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.FieldRepository {
-	return &fieldRepo{q: q, sqlDB: sqlDB}
+func NewFieldRepo(d *db.DB) repository.FieldRepository {
+	return &fieldRepo{d: d}
 }
 
 func (r *fieldRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.FieldDefinition, error) {
-	row, err := r.q.GetFieldDefinitionByID(ctx, dbgen.GetFieldDefinitionByIDParams{
+	row, err := r.d.RQ.GetFieldDefinitionByID(ctx, dbgen.GetFieldDefinitionByIDParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
@@ -38,7 +38,7 @@ func (r *fieldRepo) GetByID(ctx context.Context, workspaceID, id string) (reposi
 }
 
 func (r *fieldRepo) List(ctx context.Context, workspaceID, scope string) ([]repository.FieldDefinition, error) {
-	rows, err := r.q.ListFieldDefinitions(ctx, dbgen.ListFieldDefinitionsParams{
+	rows, err := r.d.RQ.ListFieldDefinitions(ctx, dbgen.ListFieldDefinitionsParams{
 		WorkspaceID: workspaceID,
 		Scope:       scope,
 	})
@@ -54,7 +54,7 @@ func (r *fieldRepo) List(ctx context.Context, workspaceID, scope string) ([]repo
 
 func (r *fieldRepo) Create(ctx context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
 	createdBy := ptrIfNonEmpty(f.CreatedBy)
-	row, err := r.q.CreateFieldDefinition(ctx, dbgen.CreateFieldDefinitionParams{
+	row, err := r.d.WQ.CreateFieldDefinition(ctx, dbgen.CreateFieldDefinitionParams{
 		ID:                 f.ID,
 		WorkspaceID:        f.WorkspaceID,
 		CreatedBy:          createdBy,
@@ -76,7 +76,7 @@ func (r *fieldRepo) Create(ctx context.Context, f repository.FieldDefinition) (r
 func (r *fieldRepo) Update(ctx context.Context, f repository.FieldDefinition) (repository.FieldDefinition, error) {
 	req := boolToInt64(f.Required)
 	ifp := boolToInt64(f.InheritFromProject)
-	row, err := r.q.UpdateFieldDefinition(ctx, dbgen.UpdateFieldDefinitionParams{
+	row, err := r.d.WQ.UpdateFieldDefinition(ctx, dbgen.UpdateFieldDefinitionParams{
 		ID:                 f.ID,
 		WorkspaceID:        f.WorkspaceID,
 		Name:               &f.Name,
@@ -95,14 +95,14 @@ func (r *fieldRepo) Update(ctx context.Context, f repository.FieldDefinition) (r
 }
 
 func (r *fieldRepo) SoftDelete(ctx context.Context, workspaceID, id string) error {
-	return r.q.SoftDeleteFieldDefinition(ctx, dbgen.SoftDeleteFieldDefinitionParams{
+	return r.d.WQ.SoftDeleteFieldDefinition(ctx, dbgen.SoftDeleteFieldDefinitionParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
 }
 
 func (r *fieldRepo) CountByWorkspaceAndScope(ctx context.Context, workspaceID, scope string) (int64, error) {
-	return r.q.CountFieldDefinitions(ctx, dbgen.CountFieldDefinitionsParams{
+	return r.d.RQ.CountFieldDefinitions(ctx, dbgen.CountFieldDefinitionsParams{
 		WorkspaceID: workspaceID,
 		Scope:       scope,
 	})
@@ -136,15 +136,15 @@ func boolToInt64(b bool) int64 {
 }
 
 func (r *fieldRepo) CountAssetValues(ctx context.Context, fieldID string) (int64, error) {
-	return r.q.CountFieldDefinitionAssetValues(ctx, fieldID)
+	return r.d.RQ.CountFieldDefinitionAssetValues(ctx, fieldID)
 }
 
 func (r *fieldRepo) CountProjectValues(ctx context.Context, fieldID string) (int64, error) {
-	return r.q.CountFieldDefinitionProjectValues(ctx, fieldID)
+	return r.d.RQ.CountFieldDefinitionProjectValues(ctx, fieldID)
 }
 
 func (r *fieldRepo) UpdatePosition(ctx context.Context, workspaceID, id string, position int64) error {
-	return r.q.UpdateFieldDefinitionPosition(ctx, dbgen.UpdateFieldDefinitionPositionParams{
+	return r.d.WQ.UpdateFieldDefinitionPosition(ctx, dbgen.UpdateFieldDefinitionPositionParams{
 		Position:    position,
 		ID:          id,
 		WorkspaceID: workspaceID,
@@ -152,7 +152,7 @@ func (r *fieldRepo) UpdatePosition(ctx context.Context, workspaceID, id string, 
 }
 
 func (r *fieldRepo) GetByKey(ctx context.Context, workspaceID, key string) (repository.FieldDefinition, error) {
-	row, err := r.q.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
+	row, err := r.d.RQ.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
 		WorkspaceID: workspaceID,
 		Key:         key,
 	})
@@ -166,7 +166,7 @@ func (r *fieldRepo) GetByKey(ctx context.Context, workspaceID, key string) (repo
 }
 
 func (r *fieldRepo) ListImageAssetIDs(ctx context.Context, workspaceID string) ([]string, error) {
-	return r.q.ListImageAssetIDs(ctx, workspaceID)
+	return r.d.RQ.ListImageAssetIDs(ctx, workspaceID)
 }
 
 func (r *fieldRepo) ListMissingExifField(
@@ -174,7 +174,7 @@ func (r *fieldRepo) ListMissingExifField(
 	workspaceID, fieldID string,
 	limit int64,
 ) ([]string, error) {
-	return r.q.ListAssetsMissingExifField(ctx, dbgen.ListAssetsMissingExifFieldParams{
+	return r.d.RQ.ListAssetsMissingExifField(ctx, dbgen.ListAssetsMissingExifFieldParams{
 		FieldID:     fieldID,
 		WorkspaceID: workspaceID,
 		Limit:       limit,
@@ -182,19 +182,19 @@ func (r *fieldRepo) ListMissingExifField(
 }
 
 func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error {
-	defs, err := r.q.ListInheritableAssetFieldDefinitions(ctx, workspaceID)
+	defs, err := r.d.RQ.ListInheritableAssetFieldDefinitions(ctx, workspaceID)
 	if err != nil {
 		return err
 	}
 	for _, def := range defs {
-		pv, pvErr := r.q.GetProjectFieldValue(ctx, dbgen.GetProjectFieldValueParams{
+		pv, pvErr := r.d.RQ.GetProjectFieldValue(ctx, dbgen.GetProjectFieldValueParams{
 			ProjectID: projectID,
 			FieldID:   def.ID,
 		})
 		if pvErr != nil {
 			continue // no value set on project for this field — skip
 		}
-		if _, err = r.q.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+		if _, err = r.d.WQ.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 			ID:           uuid.NewString(),
 			AssetID:      assetID,
 			FieldID:      def.ID,
@@ -215,17 +215,16 @@ func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, asset
 // -- AssetFieldRepository -----------------------------------------------------
 
 type assetFieldRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewAssetFieldRepo returns a repository.AssetFieldRepository backed by sqlc-generated queries.
-func NewAssetFieldRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.AssetFieldRepository {
-	return &assetFieldRepo{q: q, sqlDB: sqlDB}
+func NewAssetFieldRepo(d *db.DB) repository.AssetFieldRepository {
+	return &assetFieldRepo{d: d}
 }
 
 func (r *assetFieldRepo) GetValues(ctx context.Context, assetID string) ([]repository.FieldValue, error) {
-	rows, err := r.q.GetAssetFieldValues(ctx, assetID)
+	rows, err := r.d.RQ.GetAssetFieldValues(ctx, assetID)
 	if err != nil {
 		return nil, err
 	}
@@ -249,11 +248,11 @@ func (r *assetFieldRepo) GetValues(ctx context.Context, assetID string) ([]repos
 }
 
 func (r *assetFieldRepo) DeleteValue(ctx context.Context, assetID, fieldID string) error {
-	return r.q.DeleteAssetFieldValue(ctx, dbgen.DeleteAssetFieldValueParams{AssetID: assetID, FieldID: fieldID})
+	return r.d.WQ.DeleteAssetFieldValue(ctx, dbgen.DeleteAssetFieldValueParams{AssetID: assetID, FieldID: fieldID})
 }
 
 func (r *assetFieldRepo) UpsertValue(ctx context.Context, assetID string, p repository.SetFieldValueParams) error {
-	_, err := r.q.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
+	_, err := r.d.WQ.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
 		ID:           uuid.NewString(),
 		AssetID:      assetID,
 		FieldID:      p.FieldID,
@@ -281,12 +280,12 @@ func stringValue(s *string) string {
 }
 
 func (r *assetFieldRepo) RunInTx(ctx context.Context, fn func(tx repository.AssetFieldRepository) error) error {
-	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	tx, err := r.d.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	txRepo := &assetFieldRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}
+	txRepo := &assetFieldRepo{d: r.d.WithTx(tx)}
 	if err = fn(txRepo); err != nil {
 		return err
 	}
@@ -296,16 +295,16 @@ func (r *assetFieldRepo) RunInTx(ctx context.Context, fn func(tx repository.Asse
 // -- ProjectFieldRepository ---------------------------------------------------
 
 type projectFieldRepo struct {
-	q *dbgen.Queries
+	d *db.DB
 }
 
 // NewProjectFieldRepo returns a repository.ProjectFieldRepository backed by sqlc-generated queries.
-func NewProjectFieldRepo(q *dbgen.Queries) repository.ProjectFieldRepository {
-	return &projectFieldRepo{q: q}
+func NewProjectFieldRepo(d *db.DB) repository.ProjectFieldRepository {
+	return &projectFieldRepo{d: d}
 }
 
 func (r *projectFieldRepo) GetValues(ctx context.Context, projectID string) ([]repository.FieldValue, error) {
-	rows, err := r.q.GetProjectFieldValues(ctx, projectID)
+	rows, err := r.d.RQ.GetProjectFieldValues(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -318,11 +317,14 @@ func (r *projectFieldRepo) GetValues(ctx context.Context, projectID string) ([]r
 }
 
 func (r *projectFieldRepo) DeleteValue(ctx context.Context, projectID, fieldID string) error {
-	return r.q.DeleteProjectFieldValue(ctx, dbgen.DeleteProjectFieldValueParams{ProjectID: projectID, FieldID: fieldID})
+	return r.d.WQ.DeleteProjectFieldValue(
+		ctx,
+		dbgen.DeleteProjectFieldValueParams{ProjectID: projectID, FieldID: fieldID},
+	)
 }
 
 func (r *projectFieldRepo) UpsertValue(ctx context.Context, projectID string, p repository.SetFieldValueParams) error {
-	_, err := r.q.UpsertProjectFieldValue(ctx, dbgen.UpsertProjectFieldValueParams{
+	_, err := r.d.WQ.UpsertProjectFieldValue(ctx, dbgen.UpsertProjectFieldValueParams{
 		ID:           uuid.NewString(),
 		ProjectID:    projectID,
 		FieldID:      p.FieldID,
@@ -336,7 +338,7 @@ func (r *projectFieldRepo) UpsertValue(ctx context.Context, projectID string, p 
 }
 
 func (r *fieldRepo) PurgeExpired(ctx context.Context) (int, error) {
-	ids, err := r.q.HardDeleteExpiredFieldDefinitions(ctx)
+	ids, err := r.d.WQ.HardDeleteExpiredFieldDefinitions(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -344,13 +346,13 @@ func (r *fieldRepo) PurgeExpired(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
-	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	tx, err := r.d.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback() //nolint:errcheck // best-effort
 
-	qtx := r.q.WithTx(tx)
+	qtx := r.d.WQ.WithTx(tx)
 	for _, id := range ids {
 		if err = qtx.DeleteAssetFieldValuesByField(ctx, id); err != nil {
 			return 0, err

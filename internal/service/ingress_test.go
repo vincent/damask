@@ -19,6 +19,7 @@ const testAppSecret = "test-app-secret-for-tests!!"
 // ingressTestEnv holds a db + seeded workspace/user for ingress tests.
 type ingressTestEnv struct {
 	queries     *dbgen.Queries
+	database    *dbpkg.DB
 	svc         service.IngressService
 	workspaceID string
 	userID      string
@@ -28,11 +29,12 @@ type ingressTestEnv struct {
 // and returns a configured IngressService.
 func newIngressEnv(t *testing.T) *ingressTestEnv {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
+	queries := database.WQ
 
 	ctx := context.Background()
 	wsID := uuid.NewString()
@@ -51,7 +53,7 @@ func newIngressEnv(t *testing.T) *ingressTestEnv {
 
 	mailer := mail.NewMailer(&mail.Config{})
 	svc := service.NewIngressService(queries, testAppSecret, nil, mailer)
-	return &ingressTestEnv{queries: queries, svc: svc, workspaceID: wsID, userID: userID}
+	return &ingressTestEnv{queries: queries, database: database, svc: svc, workspaceID: wsID, userID: userID}
 }
 
 // seedSource creates an ingress source via the service.

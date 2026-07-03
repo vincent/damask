@@ -7,22 +7,22 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type versionRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewVersionRepo returns a repository.VersionRepository backed by sqlc-generated queries.
-func NewVersionRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.VersionRepository {
-	return &versionRepo{q: q, sqlDB: sqlDB}
+func NewVersionRepo(d *db.DB) repository.VersionRepository {
+	return &versionRepo{d: d}
 }
 
 func (r *versionRepo) GetByID(ctx context.Context, id string) (repository.AssetVersion, error) {
-	row, err := r.q.GetVersionByIDUnchecked(ctx, id)
+	row, err := r.d.RQ.GetVersionByIDUnchecked(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.AssetVersion{}, apperr.ErrNotFound
@@ -33,7 +33,7 @@ func (r *versionRepo) GetByID(ctx context.Context, id string) (repository.AssetV
 }
 
 func (r *versionRepo) ListByAsset(ctx context.Context, assetID string) ([]repository.AssetVersion, error) {
-	rows, err := r.q.ListVersions(ctx, assetID)
+	rows, err := r.d.RQ.ListVersions(ctx, assetID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (r *versionRepo) ListByAsset(ctx context.Context, assetID string) ([]reposi
 }
 
 func (r *versionRepo) Create(ctx context.Context, v repository.AssetVersion) (repository.AssetVersion, error) {
-	row, err := r.q.CreateAssetVersion(ctx, dbgen.CreateAssetVersionParams{
+	row, err := r.d.WQ.CreateAssetVersion(ctx, dbgen.CreateAssetVersionParams{
 		ID:           v.ID,
 		AssetID:      v.AssetID,
 		WorkspaceID:  v.WorkspaceID,
@@ -68,7 +68,7 @@ func (r *versionRepo) Create(ctx context.Context, v repository.AssetVersion) (re
 }
 
 func (r *versionRepo) GetCurrentByAsset(ctx context.Context, assetID string) (repository.AssetVersion, error) {
-	row, err := r.q.GetCurrentVersion(ctx, assetID)
+	row, err := r.d.RQ.GetCurrentVersion(ctx, assetID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.AssetVersion{}, apperr.ErrNotFound
@@ -79,7 +79,7 @@ func (r *versionRepo) GetCurrentByAsset(ctx context.Context, assetID string) (re
 }
 
 func (r *versionRepo) GetFirstByAsset(ctx context.Context, assetID string) (repository.AssetVersion, error) {
-	row, err := r.q.GetFirstVersion(ctx, assetID)
+	row, err := r.d.RQ.GetFirstVersion(ctx, assetID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.AssetVersion{}, apperr.ErrNotFound
@@ -93,7 +93,7 @@ func (r *versionRepo) GetByIDForWorkspace(
 	ctx context.Context,
 	workspaceID, id string,
 ) (repository.AssetVersion, error) {
-	row, err := r.q.GetVersionByID(ctx, dbgen.GetVersionByIDParams{
+	row, err := r.d.RQ.GetVersionByID(ctx, dbgen.GetVersionByIDParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
@@ -107,15 +107,15 @@ func (r *versionRepo) GetByIDForWorkspace(
 }
 
 func (r *versionRepo) SoftDelete(ctx context.Context, id string) error {
-	return r.q.SoftDeleteVersion(ctx, id)
+	return r.d.WQ.SoftDeleteVersion(ctx, id)
 }
 
 func (r *versionRepo) Delete(ctx context.Context, id string) error {
-	return r.q.HardDeleteVersion(ctx, id)
+	return r.d.WQ.HardDeleteVersion(ctx, id)
 }
 
 func (r *versionRepo) IsReferencedAsCover(ctx context.Context, versionID string) (bool, error) {
-	count, err := r.q.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
+	count, err := r.d.RQ.IsVersionReferencedAsCover(ctx, dbgen.IsVersionReferencedAsCoverParams{
 		CoverVersionID: &versionID,
 		IconVersionID:  &versionID,
 	})
@@ -126,11 +126,11 @@ func (r *versionRepo) IsReferencedAsCover(ctx context.Context, versionID string)
 }
 
 func (r *versionRepo) CountByAsset(ctx context.Context, assetID string) (int64, error) {
-	return r.q.CountActiveVersions(ctx, assetID)
+	return r.d.RQ.CountActiveVersions(ctx, assetID)
 }
 
 func (r *versionRepo) GetByHash(ctx context.Context, assetID, contentHash string) (repository.AssetVersion, error) {
-	row, err := r.q.GetVersionByHash(ctx, dbgen.GetVersionByHashParams{
+	row, err := r.d.RQ.GetVersionByHash(ctx, dbgen.GetVersionByHashParams{
 		AssetID:     assetID,
 		ContentHash: contentHash,
 	})
@@ -145,7 +145,7 @@ func (r *versionRepo) GetByHash(ctx context.Context, assetID, contentHash string
 
 func (r *versionRepo) NextVersionNum(ctx context.Context, assetID string) (int64, error) {
 	var maxNum sql.NullInt64
-	err := r.sqlDB.QueryRowContext(ctx,
+	err := r.d.Reader.QueryRowContext(ctx,
 		`SELECT MAX(version_num) FROM asset_versions WHERE asset_id = ?`, assetID,
 	).Scan(&maxNum)
 	if err != nil {
@@ -155,12 +155,12 @@ func (r *versionRepo) NextVersionNum(ctx context.Context, assetID string) (int64
 }
 
 func (r *versionRepo) SetCurrent(ctx context.Context, assetID, versionID string) error {
-	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	tx, err := r.d.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	qtx := r.q.WithTx(tx)
+	qtx := r.d.WQ.WithTx(tx)
 	if err = qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (r *versionRepo) SetCurrent(ctx context.Context, assetID, versionID string)
 }
 
 func (r *versionRepo) SetAssetThumbnail(ctx context.Context, assetID string, key *string) error {
-	return r.q.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+	return r.d.WQ.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 		ThumbnailKey: key,
 		ID:           assetID,
 	})
@@ -187,7 +187,7 @@ func (r *versionRepo) ListWithVariantCount(
 	ctx context.Context,
 	assetID string,
 ) ([]repository.AssetVersionWithCount, error) {
-	rows, err := r.q.ListVersionsWithVariantCount(ctx, assetID)
+	rows, err := r.d.RQ.ListVersionsWithVariantCount(ctx, assetID)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -850,4 +853,195 @@ func TestListInvites_NonOwner(t *testing.T) {
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
 	}
+}
+
+// TestRoleCache_RemovalTakesEffectImmediately proves the role cache
+// (ROADMAP 68 DB-3) is invalidated on removal rather than just expiring after
+// its TTL: a removed member must lose access on their very next request, not
+// up to 15s later.
+func TestRoleCache_RemovalTakesEffectImmediately(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
+
+	var editorUserID string
+	row := env.Database.QueryRow(
+		`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	if err := row.Scan(&editorUserID); err != nil {
+		t.Fatalf("find editor: %v", err)
+	}
+
+	createProject := func() int {
+		req := th.BearerRequest(http.MethodPost, "/api/v1/projects",
+			th.JSONBody(api.CreateProjectRequest{Name: "p"}), editorToken)
+		resp, err := env.App.Test(req)
+		if err != nil {
+			t.Fatalf("request: %v", err)
+		}
+		return resp.StatusCode
+	}
+
+	// Warm the role cache with the editor's role.
+	if status := createProject(); status != http.StatusCreated {
+		t.Fatalf("expected 201 before removal, got %d", status)
+	}
+
+	removeReq := th.AuthRequest(http.MethodDelete, "/api/v1/workspace/members/"+editorUserID, nil, result.Cookie)
+	removeResp, err := env.App.Test(removeReq)
+	if err != nil {
+		t.Fatalf("remove request: %v", err)
+	}
+	if removeResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 removing member, got %d", removeResp.StatusCode)
+	}
+
+	// No sleep: if invalidation didn't fire, the cached "editor" role would
+	// still be valid for up to 15s (roleCacheTTL) and this would wrongly succeed.
+	if status := createProject(); status != http.StatusForbidden {
+		t.Fatalf("expected 403 immediately after removal, got %d", status)
+	}
+}
+
+// TestRoleCache_UpdateTakesEffectImmediately mirrors the removal case for a
+// role demotion: editor → viewer must be enforced on the next request.
+func TestRoleCache_UpdateTakesEffectImmediately(t *testing.T) {
+	env := th.SetupTestApp(t)
+	result := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	editorToken := th.MintEditorToken(t, env, result.WorkspaceID, auth.Editor)
+
+	var editorUserID string
+	row := env.Database.QueryRow(
+		`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND role = 'editor'`, result.WorkspaceID)
+	if err := row.Scan(&editorUserID); err != nil {
+		t.Fatalf("find editor: %v", err)
+	}
+
+	createProject := func() int {
+		req := th.BearerRequest(http.MethodPost, "/api/v1/projects",
+			th.JSONBody(api.CreateProjectRequest{Name: "p"}), editorToken)
+		resp, err := env.App.Test(req)
+		if err != nil {
+			t.Fatalf("request: %v", err)
+		}
+		return resp.StatusCode
+	}
+
+	if status := createProject(); status != http.StatusCreated {
+		t.Fatalf("expected 201 before demotion, got %d", status)
+	}
+
+	demoteReq := th.AuthRequest(http.MethodPut, "/api/v1/workspace/members/"+editorUserID,
+		th.JSONBody(api.UpdateMemberRoleRequest{Role: auth.Viewer}), result.Cookie)
+	demoteResp, err := env.App.Test(demoteReq)
+	if err != nil {
+		t.Fatalf("demote request: %v", err)
+	}
+	if demoteResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 demoting member, got %d", demoteResp.StatusCode)
+	}
+
+	if status := createProject(); status != http.StatusForbidden {
+		t.Fatalf("expected 403 immediately after demotion to viewer, got %d", status)
+	}
+}
+
+// TestRoleCache_CrossWorkspaceIsolation proves the cache key is scoped by
+// (workspaceID, userID) together: invalidating a user's cached role in one
+// workspace must not disturb their independently-cached role in another
+// workspace, even though it's the same user ID.
+func TestRoleCache_CrossWorkspaceIsolation(t *testing.T) {
+	env := th.SetupTestApp(t)
+	alice := th.Register(t, env, "Alice", "alice@example.com", "password123")
+	bob := th.Register(t, env, "Bob", "bob@example.com", "password123")
+
+	// sharedUserID joins Alice's workspace as editor and Bob's workspace as owner.
+	sharedUserID := "shared-user-id"
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+	if _, err := env.Database.Exec(
+		`INSERT INTO users (id, email, password_hash, name, created_at) VALUES (?, ?, ?, ?, ?)`,
+		sharedUserID, "shared@example.com", string(hash), "Shared User", now,
+	); err != nil {
+		t.Fatalf("insert shared user: %v", err)
+	}
+	if _, err := env.Database.Exec(
+		`INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, 'editor', ?)`,
+		alice.WorkspaceID, sharedUserID, now,
+	); err != nil {
+		t.Fatalf("insert membership in alice's workspace: %v", err)
+	}
+	if _, err := env.Database.Exec(
+		`INSERT INTO workspace_members (workspace_id, user_id, role, created_at) VALUES (?, ?, 'owner', ?)`,
+		bob.WorkspaceID, sharedUserID, now,
+	); err != nil {
+		t.Fatalf("insert membership in bob's workspace: %v", err)
+	}
+
+	tokenInAlice, err := env.Maker.CreateToken(sharedUserID, alice.WorkspaceID, time.Hour)
+	if err != nil {
+		t.Fatalf("mint token for alice's workspace: %v", err)
+	}
+	tokenInBob, err := env.Maker.CreateToken(sharedUserID, bob.WorkspaceID, time.Hour)
+	if err != nil {
+		t.Fatalf("mint token for bob's workspace: %v", err)
+	}
+
+	// Warm both cache entries: (alice.WorkspaceID, sharedUserID)->editor and
+	// (bob.WorkspaceID, sharedUserID)->owner.
+	createProjectReq := th.BearerRequest(http.MethodPost, "/api/v1/projects",
+		th.JSONBody(api.CreateProjectRequest{Name: "p"}), tokenInAlice)
+	warmAliceResp, err := env.App.Test(createProjectReq)
+	if err != nil || warmAliceResp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 warming editor cache in alice's workspace, got status=%d err=%v",
+			statusOf(warmAliceResp), err)
+	}
+	settingsReq := th.BearerRequest(http.MethodPut, "/api/v1/workspace/settings",
+		th.JSONBody(api.UpdateWorkspaceSettingsRequest{VersionRetentionCount: 5}), tokenInBob)
+	warmBobResp, err := env.App.Test(settingsReq)
+	if err != nil || warmBobResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 warming owner cache in bob's workspace, got status=%d err=%v",
+			statusOf(warmBobResp), err)
+	}
+
+	// Remove sharedUserID from Alice's workspace only — invalidates
+	// (alice.WorkspaceID, sharedUserID), must not touch (bob.WorkspaceID, sharedUserID).
+	removeReq := th.AuthRequest(http.MethodDelete, "/api/v1/workspace/members/"+sharedUserID, nil, alice.Cookie)
+	removeResp, err := env.App.Test(removeReq)
+	if err != nil {
+		t.Fatalf("remove request: %v", err)
+	}
+	if removeResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 removing shared user from alice's workspace, got %d", removeResp.StatusCode)
+	}
+
+	// Alice's workspace: access must now be denied.
+	afterRemovalReq := th.BearerRequest(http.MethodPost, "/api/v1/projects",
+		th.JSONBody(api.CreateProjectRequest{Name: "p2"}), tokenInAlice)
+	afterRemovalResp, err := env.App.Test(afterRemovalReq)
+	if err != nil {
+		t.Fatalf("post-removal request: %v", err)
+	}
+	if afterRemovalResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 in alice's workspace after removal, got %d", afterRemovalResp.StatusCode)
+	}
+
+	// Bob's workspace: the owner role cached earlier must be entirely
+	// unaffected by the invalidation scoped to alice's workspace.
+	stillOwnerReq := th.BearerRequest(http.MethodPut, "/api/v1/workspace/settings",
+		th.JSONBody(api.UpdateWorkspaceSettingsRequest{VersionRetentionCount: 7}), tokenInBob)
+	stillOwnerResp, err := env.App.Test(stillOwnerReq)
+	if err != nil {
+		t.Fatalf("bob workspace request: %v", err)
+	}
+	if stillOwnerResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 in bob's workspace (unaffected by alice's cache invalidation), got %d",
+			stillOwnerResp.StatusCode)
+	}
+}
+
+func statusOf(resp *http.Response) int {
+	if resp == nil {
+		return -1
+	}
+	return resp.StatusCode
 }

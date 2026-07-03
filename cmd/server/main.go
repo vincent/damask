@@ -77,17 +77,17 @@ func main() {
 	slog.Info("log", "level", logLevel.Level())
 
 	slog.Info("database", "path", cfg.DBPath)
-	queries, sqlDB, err := db.Open(cfg.DBPath)
+	database, err := db.Open(cfg.DBPath)
 	if err != nil {
 		slog.Error("database", "error", err)
 		os.Exit(1)
 	}
-	defer sqlDB.Close()
+	defer database.Close()
 
 	tokenMaker, err := auth.NewMaker(cfg.JWTSecret)
 	if err != nil {
 		slog.Error("auth", "error", err)
-		os.Exit(1) //nolint: gocritic // Defered sqlDB.Close() is not needed on exit.
+		os.Exit(1) //nolint: gocritic // Defered database.Close() is not needed on exit.
 	}
 
 	eventsHub := events.NewEventHub()
@@ -100,9 +100,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	service.VerifySizeColumns(context.Background(), sqlDB, slog.Default())
+	service.VerifySizeColumns(context.Background(), database.Reader, slog.Default())
 
-	q := queue.New(queries, cfg.QueueWorkers)
+	q := queue.New(database.WQ, cfg.QueueWorkers)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -146,32 +146,32 @@ func main() {
 	media := ingest.NewRegistry(trf)
 
 	// --- repositories ---
-	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
-	assetRepo := reposqlc.NewAssetRepo(queries, sqlDB)
-	tagRepo := reposqlc.NewTagRepo(queries, sqlDB)
-	fieldRepo := reposqlc.NewFieldRepo(queries, sqlDB)
-	userRepo := reposqlc.NewUserRepo(queries, sqlDB)
-	versionRepo := reposqlc.NewVersionRepo(queries, sqlDB)
-	variantRepo := reposqlc.NewVariantRepo(sqlDB)
-	assetFieldRepo := reposqlc.NewAssetFieldRepo(queries, sqlDB)
-	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
-	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(database)
+	assetRepo := reposqlc.NewAssetRepo(database)
+	tagRepo := reposqlc.NewTagRepo(database)
+	fieldRepo := reposqlc.NewFieldRepo(database)
+	userRepo := reposqlc.NewUserRepo(database)
+	versionRepo := reposqlc.NewVersionRepo(database)
+	variantRepo := reposqlc.NewVariantRepo(database)
+	assetFieldRepo := reposqlc.NewAssetFieldRepo(database)
+	workflowRepo := reposqlc.NewWorkflowRepo(database)
+	workflowRunRepo := reposqlc.NewWorkflowRunRepo(database)
 
 	// --- services ---
-	auditWriter := audit.New(sqlDB)
+	auditWriter := audit.New(database.Writer)
 	aiAPIKeyResolver := ai.NewKeyResolver(workspaceRepo, *cfg)
 	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
 		Assets: assetRepo,
 	})
-	autoTagSvc := service.NewAutoTagService(queries, q, tagSvc, aiAPIKeyResolver)
-	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media, autoTagSvc)
+	autoTagSvc := service.NewAutoTagService(database.WQ, q, tagSvc, aiAPIKeyResolver)
+	ingester := service.NewAssetIngester(database.WQ, database.Writer, stor, q, media, autoTagSvc)
 	variantSvc := service.NewVariantServiceWithDeps(
 		variantRepo,
 		assetRepo,
 		tagSvc,
 		auditWriter,
 		service.VariantServiceDeps{
-			Actions: service.NewSQLVariantActionsStore(sqlDB),
+			Actions: service.NewSQLVariantActionsStore(database.Writer),
 			Queue:   q,
 			Storage: stor,
 		},
@@ -179,17 +179,17 @@ func main() {
 	fieldSvc := service.NewFieldService(fieldRepo)
 	assetSvc := service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q)
 	assetFieldSvc := service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter)
-	shareSvc := service.NewShareService(reposqlc.NewShareRepo(queries, sqlDB), auditWriter)
+	shareSvc := service.NewShareService(reposqlc.NewShareRepo(database), auditWriter)
 	workspaceSvc := service.NewWorkspaceService(
 		workspaceRepo,
 		userRepo,
 		cfg.AppSecret,
 		aiAPIKeyResolver,
 	)
-	exportSvc := service.NewExportService(queries, sqlDB, stor, cfg.AppSecret, q)
-	exifSvc := service.NewExifService(queries, stor)
-	textTrackSvc := service.NewTextTrackService(queries, q, stor)
-	storageSvc := service.NewStorageService(queries)
+	exportSvc := service.NewExportService(database, stor, cfg.AppSecret, q)
+	exifSvc := service.NewExifService(database.WQ, stor)
+	textTrackSvc := service.NewTextTrackService(database.WQ, q, stor)
+	storageSvc := service.NewStorageService(database.WQ)
 	// jobsTagSvc is a dedicated TagService instance (separate from tagSvc
 	// above) with a real TriggerDispatcher wired in, so silent AI auto-tagging
 	// publishes trigger.tag_added. The shared tagSvc above stays on a nop
@@ -223,8 +223,8 @@ func main() {
 
 	// --- job server ---
 	js := jobs.NewJobServer(
-		queries,
-		sqlDB,
+		database.WQ,
+		database.Writer,
 		stor,
 		eventsHub,
 		q,
@@ -249,16 +249,16 @@ func main() {
 	// --- http ---
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
-	demoSeeder := initDemoSeeder(ctx, cfg, sqlDB, stor, trf, tmb)
+	demoSeeder := initDemoSeeder(ctx, cfg, database.Writer, stor, trf, tmb)
 
-	app := api.NewRouter(queries, sqlDB, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS, storageSvc)
+	app := api.NewRouter(database, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS, storageSvc)
 
-	mailErr := initMailServer(cfg, queries, q)
+	mailErr := initMailServer(cfg, database.WQ, q)
 
 	config.InitOIDCProviders(cfg)
 
 	// Wire TokenRefresher into OAuth-backed ingress sources.
-	refresher := oauth.NewTokenRefresher(queries, cfg.AppSecret)
+	refresher := oauth.NewTokenRefresher(database.WQ, cfg.AppSecret)
 	if cfg.Google.ClientID != "" {
 		slog.Info("register Google tokens refresher")
 		refresher.RegisterProvider("google", &oauth2.Config{
@@ -289,7 +289,7 @@ func main() {
 	/// start background services
 
 	if cfg.EnableScheduler {
-		initScheduler(ctx, cfg, q, queries, js)
+		initScheduler(ctx, cfg, q, database.WQ, js)
 	}
 
 	slog.Info("api server starting", "port", cfg.Port, "env", cfg.AppEnv, "workers", cfg.QueueWorkers)

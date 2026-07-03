@@ -95,11 +95,12 @@ func setupMailserverDB(t *testing.T) (*dbgen.Queries, *sql.DB) {
 	t.Helper()
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
-	queries, sqlDB, err := dbpkg.Open(dbPath)
+	database, err := dbpkg.Open(dbPath)
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 	ctx := context.Background()
 	if _, err = sqlDB.ExecContext(
 		ctx,
@@ -125,11 +126,12 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
-	queries, sqlDB, err := dbpkg.Open(dbPath)
+	database, err := dbpkg.Open(dbPath)
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 

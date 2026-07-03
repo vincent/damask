@@ -7,22 +7,22 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type folderRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewFolderRepo returns a repository.FolderRepository backed by sqlc-generated queries.
-func NewFolderRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.FolderRepository {
-	return &folderRepo{q: q, sqlDB: sqlDB}
+func NewFolderRepo(d *db.DB) repository.FolderRepository {
+	return &folderRepo{d: d}
 }
 
 func (r *folderRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Folder, error) {
-	row, err := r.q.GetFolderByID(ctx, dbgen.GetFolderByIDParams{
+	row, err := r.d.RQ.GetFolderByID(ctx, dbgen.GetFolderByIDParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
@@ -36,7 +36,7 @@ func (r *folderRepo) GetByID(ctx context.Context, workspaceID, id string) (repos
 }
 
 func (r *folderRepo) ListByProject(ctx context.Context, workspaceID, projectID string) ([]repository.Folder, error) {
-	sqlRows, err := r.sqlDB.QueryContext(ctx,
+	sqlRows, err := r.d.Reader.QueryContext(ctx,
 		`SELECT id, workspace_id, project_id, parent_id, name, slug, position, created_at
 		 FROM folders WHERE workspace_id = ? AND project_id = ? ORDER BY position, name`,
 		workspaceID, projectID,
@@ -67,7 +67,7 @@ func (r *folderRepo) ListByProject(ctx context.Context, workspaceID, projectID s
 }
 
 func (r *folderRepo) Create(ctx context.Context, f repository.Folder) (repository.Folder, error) {
-	row, err := r.q.CreateFolder(ctx, dbgen.CreateFolderParams{
+	row, err := r.d.WQ.CreateFolder(ctx, dbgen.CreateFolderParams{
 		ID:          f.ID,
 		WorkspaceID: f.WorkspaceID,
 		ProjectID:   f.ProjectID,
@@ -82,7 +82,7 @@ func (r *folderRepo) Create(ctx context.Context, f repository.Folder) (repositor
 }
 
 func (r *folderRepo) Update(ctx context.Context, f repository.Folder) (repository.Folder, error) {
-	row, err := r.q.UpdateFolder(ctx, dbgen.UpdateFolderParams{
+	row, err := r.d.WQ.UpdateFolder(ctx, dbgen.UpdateFolderParams{
 		ID:          f.ID,
 		WorkspaceID: f.WorkspaceID,
 		Name:        &f.Name,
@@ -99,14 +99,14 @@ func (r *folderRepo) Update(ctx context.Context, f repository.Folder) (repositor
 }
 
 func (r *folderRepo) Delete(ctx context.Context, workspaceID, id string) error {
-	return r.q.DeleteFolder(ctx, dbgen.DeleteFolderParams{
+	return r.d.WQ.DeleteFolder(ctx, dbgen.DeleteFolderParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
 }
 
 func (r *folderRepo) GetChildren(ctx context.Context, workspaceID, parentID string) ([]repository.Folder, error) {
-	rows, err := r.q.GetFolderChildren(ctx, dbgen.GetFolderChildrenParams{
+	rows, err := r.d.RQ.GetFolderChildren(ctx, dbgen.GetFolderChildrenParams{
 		ParentID:    &parentID,
 		WorkspaceID: workspaceID,
 	})
@@ -121,14 +121,14 @@ func (r *folderRepo) GetChildren(ctx context.Context, workspaceID, parentID stri
 }
 
 func (r *folderRepo) NullifyAssets(ctx context.Context, workspaceID, folderID string) error {
-	return r.q.NullifyFolderAssets(ctx, dbgen.NullifyFolderAssetsParams{
+	return r.d.WQ.NullifyFolderAssets(ctx, dbgen.NullifyFolderAssetsParams{
 		FolderID:    &folderID,
 		WorkspaceID: workspaceID,
 	})
 }
 
 func (r *folderRepo) ListTree(ctx context.Context, workspaceID, projectID string) ([]repository.FolderTree, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `
+	rows, err := r.d.Reader.QueryContext(ctx, `
 		WITH RECURSIVE tree AS (
 			SELECT *, 0 AS depth FROM folders
 			WHERE project_id = ? AND parent_id IS NULL AND workspace_id = ?

@@ -385,6 +385,7 @@ func (s *Server) handleRemoveMember(c fiber.Ctx) error {
 		}
 		return ErrorStatusResponse(c, err)
 	}
+	s.roleCache.invalidate(claims.WorkspaceID, targetUserID)
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -424,6 +425,7 @@ func (s *Server) handleUpdateMemberRole(c fiber.Ctx) error {
 		}
 		return ErrorStatusResponse(c, err)
 	}
+	s.roleCache.invalidate(claims.WorkspaceID, targetUserID)
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

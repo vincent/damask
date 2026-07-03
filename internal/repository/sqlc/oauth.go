@@ -6,21 +6,22 @@ import (
 	"errors"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type oauthRepo struct {
-	q *dbgen.Queries
+	d *db.DB
 }
 
 // NewOAuthRepo returns a repository.OAuthConnectionRepository backed by sqlc-generated queries.
-func NewOAuthRepo(q *dbgen.Queries) repository.OAuthConnectionRepository {
-	return &oauthRepo{q: q}
+func NewOAuthRepo(d *db.DB) repository.OAuthConnectionRepository {
+	return &oauthRepo{d: d}
 }
 
 func (r *oauthRepo) List(ctx context.Context, workspaceID string) ([]repository.OAuthConnection, error) {
-	rows, err := r.q.ListOAuthConnectionsByWorkspace(ctx, workspaceID)
+	rows, err := r.d.RQ.ListOAuthConnectionsByWorkspace(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +33,7 @@ func (r *oauthRepo) List(ctx context.Context, workspaceID string) ([]repository.
 }
 
 func (r *oauthRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.OAuthConnection, error) {
-	row, err := r.q.GetOAuthConnectionByID(ctx, dbgen.GetOAuthConnectionByIDParams{
+	row, err := r.d.RQ.GetOAuthConnectionByID(ctx, dbgen.GetOAuthConnectionByIDParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
@@ -49,7 +50,7 @@ func (r *oauthRepo) GetByProviderUserID(
 	ctx context.Context,
 	workspaceID, provider, providerUserID string,
 ) (repository.OAuthConnection, error) {
-	row, err := r.q.GetOAuthConnectionByProviderUserID(ctx, dbgen.GetOAuthConnectionByProviderUserIDParams{
+	row, err := r.d.RQ.GetOAuthConnectionByProviderUserID(ctx, dbgen.GetOAuthConnectionByProviderUserIDParams{
 		WorkspaceID:    workspaceID,
 		Provider:       provider,
 		ProviderUserID: &providerUserID,
@@ -64,7 +65,7 @@ func (r *oauthRepo) GetByProviderUserID(
 }
 
 func (r *oauthRepo) Create(ctx context.Context, c repository.OAuthConnection) error {
-	_, err := r.q.CreateOAuthConnection(ctx, dbgen.CreateOAuthConnectionParams{
+	_, err := r.d.WQ.CreateOAuthConnection(ctx, dbgen.CreateOAuthConnectionParams{
 		ID:             c.ID,
 		WorkspaceID:    c.WorkspaceID,
 		CreatedBy:      c.CreatedBy,
@@ -85,7 +86,7 @@ func (r *oauthRepo) UpdateTokens(
 	refreshToken *string,
 	expiresAt *string,
 ) error {
-	_, err := r.q.UpdateOAuthConnectionTokens(ctx, dbgen.UpdateOAuthConnectionTokensParams{
+	_, err := r.d.WQ.UpdateOAuthConnectionTokens(ctx, dbgen.UpdateOAuthConnectionTokensParams{
 		ID:           id,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -101,7 +102,7 @@ func (r *oauthRepo) UpdateTokensAndScopes(
 	expiresAt *string,
 	scopes string,
 ) error {
-	_, err := r.q.UpdateOAuthConnectionTokensAndScopes(ctx, dbgen.UpdateOAuthConnectionTokensAndScopesParams{
+	_, err := r.d.WQ.UpdateOAuthConnectionTokensAndScopes(ctx, dbgen.UpdateOAuthConnectionTokensAndScopesParams{
 		ID:           id,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -112,7 +113,7 @@ func (r *oauthRepo) UpdateTokensAndScopes(
 }
 
 func (r *oauthRepo) Delete(ctx context.Context, workspaceID, id string) error {
-	return r.q.DeleteOAuthConnection(ctx, dbgen.DeleteOAuthConnectionParams{
+	return r.d.WQ.DeleteOAuthConnection(ctx, dbgen.DeleteOAuthConnectionParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})

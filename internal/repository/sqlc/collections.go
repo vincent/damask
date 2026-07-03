@@ -6,22 +6,22 @@ import (
 	"errors"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type collectionRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewCollectionRepo returns a repository.CollectionRepository backed by sqlc-generated queries.
-func NewCollectionRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.CollectionRepository {
-	return &collectionRepo{q: q, sqlDB: sqlDB}
+func NewCollectionRepo(d *db.DB) repository.CollectionRepository {
+	return &collectionRepo{d: d}
 }
 
 func (r *collectionRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Collection, error) {
-	row, err := r.q.GetCollection(ctx, dbgen.GetCollectionParams{
+	row, err := r.d.RQ.GetCollection(ctx, dbgen.GetCollectionParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
@@ -41,7 +41,7 @@ func (r *collectionRepo) GetByID(ctx context.Context, workspaceID, id string) (r
 }
 
 func (r *collectionRepo) List(ctx context.Context, workspaceID string) ([]repository.Collection, error) {
-	rows, err := r.q.ListCollections(ctx, workspaceID)
+	rows, err := r.d.RQ.ListCollections(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *collectionRepo) List(ctx context.Context, workspaceID string) ([]reposi
 }
 
 func (r *collectionRepo) Create(ctx context.Context, c repository.Collection) (repository.Collection, error) {
-	row, err := r.q.CreateCollection(ctx, dbgen.CreateCollectionParams{
+	row, err := r.d.WQ.CreateCollection(ctx, dbgen.CreateCollectionParams{
 		ID:          c.ID,
 		WorkspaceID: c.WorkspaceID,
 		Name:        c.Name,
@@ -76,7 +76,7 @@ func (r *collectionRepo) Create(ctx context.Context, c repository.Collection) (r
 }
 
 func (r *collectionRepo) Update(ctx context.Context, c repository.Collection) (repository.Collection, error) {
-	row, err := r.q.UpdateCollection(ctx, dbgen.UpdateCollectionParams{
+	row, err := r.d.WQ.UpdateCollection(ctx, dbgen.UpdateCollectionParams{
 		ID:          c.ID,
 		WorkspaceID: c.WorkspaceID,
 		Name:        c.Name,
@@ -98,14 +98,14 @@ func (r *collectionRepo) Update(ctx context.Context, c repository.Collection) (r
 }
 
 func (r *collectionRepo) Delete(ctx context.Context, workspaceID, id string) error {
-	return r.q.DeleteCollection(ctx, dbgen.DeleteCollectionParams{
+	return r.d.WQ.DeleteCollection(ctx, dbgen.DeleteCollectionParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})
 }
 
 func (r *collectionRepo) AddAsset(ctx context.Context, collectionID, assetID string) error {
-	return r.q.AddCollectionAsset(ctx, dbgen.AddCollectionAssetParams{
+	return r.d.WQ.AddCollectionAsset(ctx, dbgen.AddCollectionAssetParams{
 		CollectionID:   collectionID,
 		AssetID:        assetID,
 		CollectionID_2: collectionID,
@@ -113,7 +113,7 @@ func (r *collectionRepo) AddAsset(ctx context.Context, collectionID, assetID str
 }
 
 func (r *collectionRepo) RemoveAsset(ctx context.Context, collectionID, assetID string) error {
-	return r.q.RemoveCollectionAsset(ctx, dbgen.RemoveCollectionAssetParams{
+	return r.d.WQ.RemoveCollectionAsset(ctx, dbgen.RemoveCollectionAssetParams{
 		CollectionID: collectionID,
 		AssetID:      assetID,
 	})
@@ -123,7 +123,7 @@ func (r *collectionRepo) ListForAsset(
 	ctx context.Context,
 	workspaceID, assetID string,
 ) ([]repository.Collection, error) {
-	rows, err := r.q.ListCollectionsForAsset(ctx, dbgen.ListCollectionsForAssetParams{
+	rows, err := r.d.RQ.ListCollectionsForAsset(ctx, dbgen.ListCollectionsForAssetParams{
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,
 	})
@@ -147,7 +147,7 @@ func (r *collectionRepo) ListForAsset(
 }
 
 func (r *collectionRepo) CountAssets(ctx context.Context, collectionID string) (int64, error) {
-	row := r.sqlDB.QueryRowContext(ctx,
+	row := r.d.Reader.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM collection_assets WHERE collection_id = ?`,
 		collectionID,
 	)
@@ -159,7 +159,7 @@ func (r *collectionRepo) CountAssets(ctx context.Context, collectionID string) (
 }
 
 func (r *collectionRepo) ListAssetIDs(ctx context.Context, collectionID string) ([]string, error) {
-	rows, err := r.q.ListCollectionAssets(ctx, collectionID)
+	rows, err := r.d.RQ.ListCollectionAssets(ctx, collectionID)
 	if err != nil {
 		return nil, err
 	}

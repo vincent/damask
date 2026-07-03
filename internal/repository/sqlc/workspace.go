@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 
@@ -14,17 +15,16 @@ import (
 )
 
 type workspaceRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewWorkspaceRepo returns a repository.WorkspaceRepository backed by sqlc-generated queries.
-func NewWorkspaceRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.WorkspaceRepository {
-	return &workspaceRepo{q: q, sqlDB: sqlDB}
+func NewWorkspaceRepo(d *db.DB) repository.WorkspaceRepository {
+	return &workspaceRepo{d: d}
 }
 
 func (r *workspaceRepo) GetByID(ctx context.Context, id string) (repository.Workspace, error) {
-	row, err := r.q.GetWorkspaceByID(ctx, id)
+	row, err := r.d.RQ.GetWorkspaceByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.Workspace{}, apperr.ErrNotFound
@@ -36,14 +36,14 @@ func (r *workspaceRepo) GetByID(ctx context.Context, id string) (repository.Work
 
 // Update applies exif + version-retention settings.
 func (r *workspaceRepo) Update(ctx context.Context, w repository.Workspace) (repository.Workspace, error) {
-	if err := r.q.UpdateWorkspaceExifSettings(ctx, dbgen.UpdateWorkspaceExifSettingsParams{
+	if err := r.d.WQ.UpdateWorkspaceExifSettings(ctx, dbgen.UpdateWorkspaceExifSettingsParams{
 		ID:          w.ID,
 		ExifKeep:    boolToInt64(w.ExifKeep),
 		ExifKeepGps: boolToInt64(w.ExifKeepGps),
 	}); err != nil {
 		return repository.Workspace{}, err
 	}
-	if err := r.q.UpdateWorkspaceVersionRetention(ctx, dbgen.UpdateWorkspaceVersionRetentionParams{
+	if err := r.d.WQ.UpdateWorkspaceVersionRetention(ctx, dbgen.UpdateWorkspaceVersionRetentionParams{
 		ID:                    w.ID,
 		VersionRetentionCount: w.VersionRetentionCount,
 	}); err != nil {
@@ -53,11 +53,11 @@ func (r *workspaceRepo) Update(ctx context.Context, w repository.Workspace) (rep
 }
 
 func (r *workspaceRepo) CountAssets(ctx context.Context, workspaceID string) (int64, error) {
-	return r.q.CountWorkspaceAssets(ctx, workspaceID)
+	return r.d.RQ.CountWorkspaceAssets(ctx, workspaceID)
 }
 
 func (r *workspaceRepo) GetAIProviderKey(ctx context.Context, workspaceID, providerName string) (string, error) {
-	key, err := r.q.GetWorkspaceAIProviderKey(ctx, dbgen.GetWorkspaceAIProviderKeyParams{
+	key, err := r.d.RQ.GetWorkspaceAIProviderKey(ctx, dbgen.GetWorkspaceAIProviderKeyParams{
 		ProviderName: providerName,
 		ID:           workspaceID,
 	})
@@ -71,7 +71,7 @@ func (r *workspaceRepo) GetAIProviderKey(ctx context.Context, workspaceID, provi
 }
 
 func (r *workspaceRepo) SetAIProviderKey(ctx context.Context, workspaceID, providerName, encKey string) error {
-	return r.q.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
+	return r.d.WQ.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
 		ProviderName: providerName,
 		Value:        &encKey,
 		ID:           workspaceID,
@@ -79,7 +79,7 @@ func (r *workspaceRepo) SetAIProviderKey(ctx context.Context, workspaceID, provi
 }
 
 func (r *workspaceRepo) ClearAIProviderKey(ctx context.Context, workspaceID, providerName string) error {
-	return r.q.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
+	return r.d.WQ.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
 		ProviderName: providerName,
 		Value:        nil,
 		ID:           workspaceID,
@@ -87,14 +87,14 @@ func (r *workspaceRepo) ClearAIProviderKey(ctx context.Context, workspaceID, pro
 }
 
 func (r *workspaceRepo) GetMember(ctx context.Context, workspaceID, userID string) (repository.Member, error) {
-	row, err := r.q.GetMember(ctx, dbgen.GetMemberParams{WorkspaceID: workspaceID, UserID: userID})
+	row, err := r.d.RQ.GetMember(ctx, dbgen.GetMemberParams{WorkspaceID: workspaceID, UserID: userID})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.Member{}, apperr.ErrNotFound
 		}
 		return repository.Member{}, err
 	}
-	user, err := r.q.GetUserByID(ctx, userID)
+	user, err := r.d.RQ.GetUserByID(ctx, userID)
 	if err != nil {
 		return repository.Member{}, err
 	}
@@ -110,7 +110,7 @@ func (r *workspaceRepo) GetMember(ctx context.Context, workspaceID, userID strin
 }
 
 func (r *workspaceRepo) ListMembers(ctx context.Context, workspaceID string) ([]repository.Member, error) {
-	rows, err := r.q.ListMembers(ctx, workspaceID)
+	rows, err := r.d.RQ.ListMembers(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -129,11 +129,11 @@ func (r *workspaceRepo) ListMembers(ctx context.Context, workspaceID string) ([]
 }
 
 func (r *workspaceRepo) CountMembers(ctx context.Context, workspaceID string) (int64, error) {
-	return r.q.CountWorkspaceMembers(ctx, workspaceID)
+	return r.d.RQ.CountWorkspaceMembers(ctx, workspaceID)
 }
 
 func (r *workspaceRepo) CreateMember(ctx context.Context, m repository.Member) error {
-	return r.q.CreateMember(ctx, dbgen.CreateMemberParams{
+	return r.d.WQ.CreateMember(ctx, dbgen.CreateMemberParams{
 		WorkspaceID: m.WorkspaceID,
 		UserID:      m.UserID,
 		Role:        m.Role,
@@ -142,11 +142,11 @@ func (r *workspaceRepo) CreateMember(ctx context.Context, m repository.Member) e
 }
 
 func (r *workspaceRepo) DeleteMember(ctx context.Context, workspaceID, userID string) error {
-	return r.q.DeleteMember(ctx, dbgen.DeleteMemberParams{WorkspaceID: workspaceID, UserID: userID})
+	return r.d.WQ.DeleteMember(ctx, dbgen.DeleteMemberParams{WorkspaceID: workspaceID, UserID: userID})
 }
 
 func (r *workspaceRepo) UpdateMemberRole(ctx context.Context, workspaceID, userID, role string) error {
-	return r.q.UpdateMemberRole(ctx, dbgen.UpdateMemberRoleParams{
+	return r.d.WQ.UpdateMemberRole(ctx, dbgen.UpdateMemberRoleParams{
 		WorkspaceID: workspaceID,
 		UserID:      userID,
 		Role:        role,
@@ -163,7 +163,7 @@ func (r *workspaceRepo) CreateInvite(ctx context.Context, inv repository.Invite)
 	if inv.ExpiresAt.IsZero() {
 		inv.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
 	}
-	row, err := r.q.CreateInvite(ctx, dbgen.CreateInviteParams{
+	row, err := r.d.WQ.CreateInvite(ctx, dbgen.CreateInviteParams{
 		ID:          inv.ID,
 		WorkspaceID: inv.WorkspaceID,
 		Email:       inv.Email,
@@ -179,7 +179,7 @@ func (r *workspaceRepo) CreateInvite(ctx context.Context, inv repository.Invite)
 }
 
 func (r *workspaceRepo) ListPendingInvites(ctx context.Context, workspaceID string) ([]repository.Invite, error) {
-	rows, err := r.q.ListPendingInvites(ctx, workspaceID)
+	rows, err := r.d.RQ.ListPendingInvites(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (r *workspaceRepo) ListPendingInvites(ctx context.Context, workspaceID stri
 }
 
 func (r *workspaceRepo) GetInviteByToken(ctx context.Context, token string) (repository.Invite, error) {
-	row, err := r.q.GetInviteByToken(ctx, token)
+	row, err := r.d.RQ.GetInviteByToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.Invite{}, apperr.ErrNotFound
@@ -202,15 +202,15 @@ func (r *workspaceRepo) GetInviteByToken(ctx context.Context, token string) (rep
 }
 
 func (r *workspaceRepo) DeleteInvite(ctx context.Context, workspaceID, inviteID string) error {
-	return r.q.DeleteInvite(ctx, dbgen.DeleteInviteParams{WorkspaceID: workspaceID, ID: inviteID})
+	return r.d.WQ.DeleteInvite(ctx, dbgen.DeleteInviteParams{WorkspaceID: workspaceID, ID: inviteID})
 }
 
 func (r *workspaceRepo) AcceptInvite(ctx context.Context, inviteID string) error {
-	return r.q.AcceptInvite(ctx, inviteID)
+	return r.d.WQ.AcceptInvite(ctx, inviteID)
 }
 
 func (r *workspaceRepo) ListByUserID(ctx context.Context, userID string) ([]repository.WorkspaceWithRole, error) {
-	rows, err := r.q.ListWorkspacesByUserID(ctx, userID)
+	rows, err := r.d.RQ.ListWorkspacesByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (r *workspaceRepo) UpdateLockedTaxonomy(
 	if locked {
 		val = 1
 	}
-	if err := r.q.UpdateWorkspaceLockedTaxonomy(ctx, dbgen.UpdateWorkspaceLockedTaxonomyParams{
+	if err := r.d.WQ.UpdateWorkspaceLockedTaxonomy(ctx, dbgen.UpdateWorkspaceLockedTaxonomyParams{
 		ID:             workspaceID,
 		LockedTaxonomy: val,
 	}); err != nil {
@@ -277,7 +277,7 @@ func (r *workspaceRepo) UpdateAutoTagSettings(
 	if enabled {
 		val = 1
 	}
-	if err := r.q.UpdateWorkspaceAutoTagSettings(ctx, dbgen.UpdateWorkspaceAutoTagSettingsParams{
+	if err := r.d.WQ.UpdateWorkspaceAutoTagSettings(ctx, dbgen.UpdateWorkspaceAutoTagSettingsParams{
 		ID:             workspaceID,
 		AutoTagEnabled: val,
 		AutoTagMode:    mode,
@@ -288,7 +288,7 @@ func (r *workspaceRepo) UpdateAutoTagSettings(
 }
 
 func (r *workspaceRepo) Create(ctx context.Context, w repository.Workspace) (repository.Workspace, error) {
-	row, err := r.q.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{
+	row, err := r.d.WQ.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{
 		ID:   w.ID,
 		Name: w.Name,
 	})
@@ -299,12 +299,12 @@ func (r *workspaceRepo) Create(ctx context.Context, w repository.Workspace) (rep
 }
 
 func (r *workspaceRepo) RunInTx(ctx context.Context, fn func(repository.WorkspaceRepository) error) error {
-	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	tx, err := r.d.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	if err = fn(&workspaceRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}); err != nil {
+	if err = fn(&workspaceRepo{d: r.d.WithTx(tx)}); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -316,14 +316,14 @@ func (r *workspaceRepo) RunRegistrationTx(
 	ctx context.Context,
 	fn func(context.Context, repository.UserRepository, repository.WorkspaceRepository) error,
 ) error {
-	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	tx, err := r.d.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	txQ := r.q.WithTx(tx)
-	txUsers := &userRepo{q: txQ, sqlDB: r.sqlDB, db: tx}
-	txWorkspaces := &workspaceRepo{q: txQ, sqlDB: r.sqlDB}
+	txDB := r.d.WithTx(tx)
+	txUsers := &userRepo{d: txDB, writerDB: tx, readerDB: tx}
+	txWorkspaces := &workspaceRepo{d: txDB}
 	if err = fn(ctx, txUsers, txWorkspaces); err != nil {
 		return err
 	}

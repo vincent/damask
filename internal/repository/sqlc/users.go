@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
@@ -16,14 +17,17 @@ type userDB interface {
 }
 
 type userRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
-	db    userDB
+	d *db.DB
+	// writerDB/readerDB carry the raw-SQL handles used by getOne (reads) and
+	// the hand-rolled UPDATE/DELETE statements (writes). Both point at tx
+	// inside RunInTx, since a transaction must stay on one connection.
+	writerDB userDB
+	readerDB userDB
 }
 
 // NewUserRepo returns a repository.UserRepository backed by sqlc-generated queries.
-func NewUserRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.UserRepository {
-	return &userRepo{q: q, sqlDB: sqlDB, db: sqlDB}
+func NewUserRepo(d *db.DB) repository.UserRepository {
+	return &userRepo{d: d, writerDB: d.Writer, readerDB: d.Reader}
 }
 
 func (r *userRepo) GetByID(ctx context.Context, id string) (repository.User, error) {
@@ -43,7 +47,7 @@ func (r *userRepo) GetByEmail(ctx context.Context, email string) (repository.Use
 }
 
 func (r *userRepo) Create(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.CreateUser(ctx, dbgen.CreateUserParams{
+	_, err := r.d.WQ.CreateUser(ctx, dbgen.CreateUserParams{
 		ID:           u.ID,
 		Email:        u.Email,
 		PasswordHash: u.PasswordHash,
@@ -60,7 +64,7 @@ func (r *userRepo) Update(ctx context.Context, u repository.User) (repository.Us
 }
 
 func (r *userRepo) UpdateProfile(ctx context.Context, id, displayName string) (repository.User, error) {
-	if _, err := r.db.ExecContext(
+	if _, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET display_name = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
 		displayName,
@@ -72,7 +76,7 @@ func (r *userRepo) UpdateProfile(ctx context.Context, id, displayName string) (r
 }
 
 func (r *userRepo) UpdateAvatarKey(ctx context.Context, id, storageKey string) (repository.User, error) {
-	if _, err := r.db.ExecContext(
+	if _, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET avatar_storage_key = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
 		storageKey,
@@ -84,7 +88,7 @@ func (r *userRepo) UpdateAvatarKey(ctx context.Context, id, storageKey string) (
 }
 
 func (r *userRepo) ClearAvatarKey(ctx context.Context, id string) (repository.User, error) {
-	if _, err := r.db.ExecContext(
+	if _, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET avatar_storage_key = NULL, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
 		id,
@@ -95,7 +99,7 @@ func (r *userRepo) ClearAvatarKey(ctx context.Context, id string) (repository.Us
 }
 
 func (r *userRepo) SetPassword(ctx context.Context, id, passwordHash string) error {
-	_, err := r.db.ExecContext(
+	_, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
 		passwordHash,
@@ -105,7 +109,7 @@ func (r *userRepo) SetPassword(ctx context.Context, id, passwordHash string) err
 }
 
 func (r *userRepo) SetAuthMethods(ctx context.Context, id, authMethods string) (repository.User, error) {
-	if _, err := r.db.ExecContext(
+	if _, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET auth_methods = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
 		authMethods,
@@ -117,7 +121,7 @@ func (r *userRepo) SetAuthMethods(ctx context.Context, id, authMethods string) (
 }
 
 func (r *userRepo) SetPendingEmail(ctx context.Context, id, email string) error {
-	_, err := r.db.ExecContext(
+	_, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET pending_email = ?, updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
 		email,
@@ -127,7 +131,7 @@ func (r *userRepo) SetPendingEmail(ctx context.Context, id, email string) error 
 }
 
 func (r *userRepo) ClearPendingEmail(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(
+	_, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET pending_email = NULL, updated_at = datetime('now') WHERE id = ?`,
 		id,
@@ -136,7 +140,7 @@ func (r *userRepo) ClearPendingEmail(ctx context.Context, id string) error {
 }
 
 func (r *userRepo) ConfirmEmailChange(ctx context.Context, id, pendingEmail string) (repository.User, error) {
-	if _, err := r.db.ExecContext(
+	if _, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET email = pending_email, pending_email = NULL, updated_at = datetime('now') WHERE id = ? AND pending_email = ? AND deleted_at IS NULL`,
 		id,
@@ -148,7 +152,7 @@ func (r *userRepo) ConfirmEmailChange(ctx context.Context, id, pendingEmail stri
 }
 
 func (r *userRepo) SoftDelete(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(
+	_, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL`,
 		id,
@@ -157,7 +161,7 @@ func (r *userRepo) SoftDelete(ctx context.Context, id string) error {
 }
 
 func (r *userRepo) AnonymizeDeletedUser(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(
+	_, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE users SET email = 'deleted_' || id || '@deleted.invalid', display_name = 'Deleted user', password_hash = '', avatar_storage_key = NULL, avatar_url = NULL, pending_email = NULL, auth_methods = '[]', updated_at = datetime('now') WHERE id = ?`,
 		id,
@@ -166,7 +170,7 @@ func (r *userRepo) AnonymizeDeletedUser(ctx context.Context, id string) error {
 }
 
 func (r *userRepo) HardDelete(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
+	_, err := r.writerDB.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
 	return err
 }
 
@@ -196,7 +200,7 @@ func (r *userRepo) GetByOIDC(ctx context.Context, issuer, sub string) (repositor
 }
 
 func (r *userRepo) CreateWithGoogle(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.CreateUserWithGoogle(ctx, dbgen.CreateUserWithGoogleParams{
+	_, err := r.d.WQ.CreateUserWithGoogle(ctx, dbgen.CreateUserWithGoogleParams{
 		ID:           u.ID,
 		Email:        u.Email,
 		Name:         u.Name,
@@ -211,7 +215,7 @@ func (r *userRepo) CreateWithGoogle(ctx context.Context, u repository.User) (rep
 }
 
 func (r *userRepo) CreateWithOIDC(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.CreateUserWithOIDC(ctx, dbgen.CreateUserWithOIDCParams{
+	_, err := r.d.WQ.CreateUserWithOIDC(ctx, dbgen.CreateUserWithOIDCParams{
 		ID:          u.ID,
 		Email:       u.Email,
 		Name:        u.Name,
@@ -227,7 +231,7 @@ func (r *userRepo) CreateWithOIDC(ctx context.Context, u repository.User) (repos
 }
 
 func (r *userRepo) CreateWithCanva(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.CreateUserWithCanva(ctx, dbgen.CreateUserWithCanvaParams{
+	_, err := r.d.WQ.CreateUserWithCanva(ctx, dbgen.CreateUserWithCanvaParams{
 		ID:          u.ID,
 		Email:       u.Email,
 		Name:        u.Name,
@@ -242,7 +246,7 @@ func (r *userRepo) CreateWithCanva(ctx context.Context, u repository.User) (repo
 }
 
 func (r *userRepo) LinkGoogle(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.LinkGoogle(ctx, dbgen.LinkGoogleParams{
+	_, err := r.d.WQ.LinkGoogle(ctx, dbgen.LinkGoogleParams{
 		ID:           u.ID,
 		GoogleUserID: u.GoogleUserID,
 		AvatarUrl:    u.AvatarURL,
@@ -255,7 +259,7 @@ func (r *userRepo) LinkGoogle(ctx context.Context, u repository.User) (repositor
 }
 
 func (r *userRepo) LinkOIDC(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.LinkOIDC(ctx, dbgen.LinkOIDCParams{
+	_, err := r.d.WQ.LinkOIDC(ctx, dbgen.LinkOIDCParams{
 		ID:          u.ID,
 		OidcIssuer:  u.OidcIssuer,
 		OidcSub:     u.OidcSub,
@@ -269,7 +273,7 @@ func (r *userRepo) LinkOIDC(ctx context.Context, u repository.User) (repository.
 }
 
 func (r *userRepo) LinkCanva(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.LinkCanva(ctx, dbgen.LinkCanvaParams{
+	_, err := r.d.WQ.LinkCanva(ctx, dbgen.LinkCanvaParams{
 		ID:          u.ID,
 		CanvaUserID: u.CanvaUserID,
 		AvatarUrl:   u.AvatarURL,
@@ -282,7 +286,7 @@ func (r *userRepo) LinkCanva(ctx context.Context, u repository.User) (repository
 }
 
 func (r *userRepo) UnlinkGoogle(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.UnlinkGoogle(ctx, dbgen.UnlinkGoogleParams{
+	_, err := r.d.WQ.UnlinkGoogle(ctx, dbgen.UnlinkGoogleParams{
 		ID:          u.ID,
 		AuthMethods: u.AuthMethods,
 	})
@@ -293,7 +297,7 @@ func (r *userRepo) UnlinkGoogle(ctx context.Context, u repository.User) (reposit
 }
 
 func (r *userRepo) UnlinkOIDC(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.UnlinkOIDC(ctx, dbgen.UnlinkOIDCParams{
+	_, err := r.d.WQ.UnlinkOIDC(ctx, dbgen.UnlinkOIDCParams{
 		ID:          u.ID,
 		AuthMethods: u.AuthMethods,
 	})
@@ -304,7 +308,7 @@ func (r *userRepo) UnlinkOIDC(ctx context.Context, u repository.User) (repositor
 }
 
 func (r *userRepo) UnlinkCanva(ctx context.Context, u repository.User) (repository.User, error) {
-	_, err := r.q.UnlinkCanva(ctx, dbgen.UnlinkCanvaParams{
+	_, err := r.d.WQ.UnlinkCanva(ctx, dbgen.UnlinkCanvaParams{
 		ID:          u.ID,
 		AuthMethods: u.AuthMethods,
 	})
@@ -315,7 +319,7 @@ func (r *userRepo) UnlinkCanva(ctx context.Context, u repository.User) (reposito
 }
 
 func (r *userRepo) ListWorkspaceIDs(ctx context.Context, userID string) ([]string, error) {
-	rows, err := r.q.ListWorkspacesByUserID(ctx, userID)
+	rows, err := r.d.RQ.ListWorkspacesByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -327,19 +331,19 @@ func (r *userRepo) ListWorkspaceIDs(ctx context.Context, userID string) ([]strin
 }
 
 func (r *userRepo) RunInTx(ctx context.Context, fn func(repository.UserRepository) error) error {
-	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	tx, err := r.d.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	if err = fn(&userRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB, db: tx}); err != nil {
+	if err = fn(&userRepo{d: r.d.WithTx(tx), writerDB: tx, readerDB: tx}); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 func (r *userRepo) getOne(ctx context.Context, query string, args ...any) (repository.User, error) {
-	row := r.db.QueryRowContext(ctx, query, args...)
+	row := r.readerDB.QueryRowContext(ctx, query, args...)
 	var u repository.User
 	err := row.Scan(
 		&u.ID,

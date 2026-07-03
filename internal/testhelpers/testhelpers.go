@@ -150,15 +150,16 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	}
 	cfg := setup.cfg
 
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() {
-		if closeErr := sqlDB.Close(); closeErr != nil {
+		if closeErr := database.Close(); closeErr != nil {
 			t.Fatalf("close db: %v", closeErr)
 		}
 	})
+	queries, sqlDB := database.WQ, database.Writer
 
 	eventsHub := events.NewEventHub()
 
@@ -180,12 +181,11 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	media := ingest.NewRegistry(trf)
 	autoTagSvc := service.NewAutoTagService(queries, q, nil, nil)
 	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media, autoTagSvc)
-	workspaceRepo := reposqlc.NewWorkspaceRepo(queries, sqlDB)
+	workspaceRepo := reposqlc.NewWorkspaceRepo(database)
 	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
 	storageSvc := service.NewStorageService(queries)
 	h := api.NewHTTPServer(
-		queries,
-		sqlDB,
+		database,
 		maker,
 		stor,
 		eventsHub,
@@ -197,8 +197,8 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		storageSvc,
 		setup.bcryptCost,
 	)
-	workflowRepo := reposqlc.NewWorkflowRepo(queries, sqlDB)
-	workflowRunRepo := reposqlc.NewWorkflowRunRepo(queries, sqlDB)
+	workflowRepo := reposqlc.NewWorkflowRepo(database)
+	workflowRunRepo := reposqlc.NewWorkflowRunRepo(database)
 	workflowExec := workflow.NewExecutor(
 		workflow.Deps{
 			Workflows: workflowRepo,
@@ -217,16 +217,16 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		repomemory.NewExportRunRepo(),
 	)
 	exifSvc := service.NewExifService(queries, stor)
-	fieldSvc := service.NewFieldService(reposqlc.NewFieldRepo(queries, sqlDB))
+	fieldSvc := service.NewFieldService(reposqlc.NewFieldRepo(database))
 	textTrackSvc := service.NewTextTrackService(queries, q, stor)
 	// jobsTagSvc is a dedicated TagService instance with a real
 	// TriggerDispatcher wired in, mirroring cmd/server/main.go, so tests can
 	// observe trigger.tag_added firing for silently-applied AI tags.
 	jobsTagSvc := service.NewTagService(
-		reposqlc.NewTagRepo(queries, sqlDB),
+		reposqlc.NewTagRepo(database),
 		audit.New(sqlDB),
 		service.TagServiceDeps{
-			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Assets:   reposqlc.NewAssetRepo(database),
 			Triggers: workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q),
 		},
 	)
@@ -252,7 +252,7 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 		textTrackSvc,
 		storageSvc,
 	)
-	app := api.NewRouter(queries, sqlDB, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil, storageSvc)
+	app := api.NewRouter(database, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil, storageSvc)
 	return &TestEnv{App: app, HTTPServer: h, JobServer: j, Maker: maker, Database: sqlDB, Storage: stor, Config: cfg}
 }
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/export"
 	"damask/server/internal/ingress"
@@ -32,20 +33,19 @@ type exportService struct {
 
 // NewExportService creates a production ExportService with sqlc-backed repos.
 func NewExportService(
-	queries *dbgen.Queries,
-	sqlDB *sql.DB,
+	database *db.DB,
 	stor storage.Storage,
 	appSecret string,
 	q queue.JobQueue,
 ) ExportService {
 	return &exportService{
-		queries:    queries,
-		sqlDB:      sqlDB,
+		queries:    database.WQ,
+		sqlDB:      database.Writer,
 		storage:    stor,
 		appSecret:  appSecret,
 		q:          q,
-		configRepo: reposqlc.NewExportConfigRepo(queries, sqlDB),
-		runRepo:    reposqlc.NewExportRunRepo(queries, sqlDB),
+		configRepo: reposqlc.NewExportConfigRepo(database),
+		runRepo:    reposqlc.NewExportRunRepo(database),
 	}
 }
 

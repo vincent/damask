@@ -7,24 +7,25 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type embedTokenRepo struct {
-	q *dbgen.Queries
+	d *db.DB
 }
 
 // NewEmbedTokenRepo returns a repository.EmbedTokenRepository backed by sqlc-generated queries.
-func NewEmbedTokenRepo(q *dbgen.Queries) repository.EmbedTokenRepository {
-	return &embedTokenRepo{q: q}
+func NewEmbedTokenRepo(d *db.DB) repository.EmbedTokenRepository {
+	return &embedTokenRepo{d: d}
 }
 
 func (r *embedTokenRepo) Create(
 	ctx context.Context,
 	params repository.CreateEmbedTokenParams,
 ) (repository.EmbedToken, error) {
-	row, err := r.q.CreateEmbedToken(ctx, dbgen.CreateEmbedTokenParams{
+	row, err := r.d.WQ.CreateEmbedToken(ctx, dbgen.CreateEmbedTokenParams{
 		ID:          params.ID,
 		WorkspaceID: params.WorkspaceID,
 		AssetID:     params.AssetID,
@@ -41,7 +42,7 @@ func (r *embedTokenRepo) Create(
 }
 
 func (r *embedTokenRepo) GetByID(ctx context.Context, id string) (repository.EmbedToken, error) {
-	row, err := r.q.GetEmbedTokenByID(ctx, id)
+	row, err := r.d.RQ.GetEmbedTokenByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.EmbedToken{}, apperr.ErrNotFound
@@ -55,7 +56,7 @@ func (r *embedTokenRepo) GetActiveByAssetID(
 	ctx context.Context,
 	workspaceID, assetID string,
 ) (repository.EmbedToken, error) {
-	row, err := r.q.GetActiveEmbedTokenByAssetID(ctx, dbgen.GetActiveEmbedTokenByAssetIDParams{
+	row, err := r.d.RQ.GetActiveEmbedTokenByAssetID(ctx, dbgen.GetActiveEmbedTokenByAssetIDParams{
 		WorkspaceID: workspaceID,
 		AssetID:     assetID,
 	})
@@ -69,7 +70,7 @@ func (r *embedTokenRepo) GetActiveByAssetID(
 }
 
 func (r *embedTokenRepo) Revoke(ctx context.Context, workspaceID, id string) error {
-	rows, err := r.q.RevokeEmbedToken(ctx, dbgen.RevokeEmbedTokenParams{
+	rows, err := r.d.WQ.RevokeEmbedToken(ctx, dbgen.RevokeEmbedTokenParams{
 		ID:          id,
 		WorkspaceID: workspaceID,
 	})

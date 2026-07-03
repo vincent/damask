@@ -186,11 +186,12 @@ func TestVersionService_WriteVersionRestored_EmitsAuditEvent(t *testing.T) {
 }
 
 func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T) {
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/version_upload.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/version_upload.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_upload"
@@ -225,10 +226,10 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 
 	triggers := &triggerSpy{}
 	versionSvc := service.NewVersionService(
-		reposqlc.NewVersionRepo(queries, sqlDB),
+		reposqlc.NewVersionRepo(database),
 		audit.NopWriter{},
 		service.VersionServiceDeps{
-			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Assets:   reposqlc.NewAssetRepo(database),
 			Storage:  stor,
 			Queue:    q,
 			Media:    ingest.NewRegistry(transform.NewTransformer()),
@@ -266,11 +267,12 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 }
 
 func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *testing.T) {
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/version_nil_proj.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/version_nil_proj.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_ver_nil"
@@ -306,10 +308,10 @@ func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *test
 
 	triggers := &triggerSpy{}
 	versionSvc := service.NewVersionService(
-		reposqlc.NewVersionRepo(queries, sqlDB),
+		reposqlc.NewVersionRepo(database),
 		audit.NopWriter{},
 		service.VersionServiceDeps{
-			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Assets:   reposqlc.NewAssetRepo(database),
 			Storage:  stor,
 			Queue:    q,
 			Media:    ingest.NewRegistry(transform.NewTransformer()),
@@ -343,11 +345,12 @@ func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *test
 }
 
 func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/version_upload_dispatch_err.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/version_upload_dispatch_err.db")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	ctx := context.Background()
 	wsID := "ws_upload_err"
@@ -382,10 +385,10 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 
 	triggers := &triggerSpy{err: errors.New("boom")}
 	versionSvc := service.NewVersionService(
-		reposqlc.NewVersionRepo(queries, sqlDB),
+		reposqlc.NewVersionRepo(database),
 		audit.NopWriter{},
 		service.VersionServiceDeps{
-			Assets:   reposqlc.NewAssetRepo(queries, sqlDB),
+			Assets:   reposqlc.NewAssetRepo(database),
 			Storage:  stor,
 			Queue:    q,
 			Media:    ingest.NewRegistry(transform.NewTransformer()),

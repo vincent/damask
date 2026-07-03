@@ -12,11 +12,12 @@ import (
 
 func newTestService(t *testing.T) (*Service, *sql.DB) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 	return NewService(queries, sqlDB), sqlDB
 }
 

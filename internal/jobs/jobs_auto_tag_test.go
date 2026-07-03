@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"damask/server/internal/ai"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
@@ -806,7 +807,7 @@ func TestJobAutoTag_SilentMode_DispatchesWorkflowTrigger(t *testing.T) {
 		t.Fatalf("lookup workspace owner: %v", e)
 	}
 
-	wfRepo := reposqlc.NewWorkflowRepo(queries, env.Database)
+	wfRepo := reposqlc.NewWorkflowRepo(&db.DB{Writer: env.Database, Reader: env.Database, WQ: queries, RQ: queries})
 	graph, err := json.Marshal(workflow.Graph{
 		Nodes: []workflow.GraphNode{{ID: "n1", Type: "trigger.tag_added"}},
 		Edges: []workflow.GraphEdge{},

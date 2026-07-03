@@ -8,20 +8,22 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	"damask/server/internal/repository"
 )
 
 type variantRepo struct {
-	sqlDB *sql.DB
+	writerDB rawDB
+	readerDB rawDB
 }
 
 // NewVariantRepo returns a repository.VariantRepository backed by sqlc-generated queries.
-func NewVariantRepo(sqlDB *sql.DB) repository.VariantRepository {
-	return &variantRepo{sqlDB: sqlDB}
+func NewVariantRepo(d *db.DB) repository.VariantRepository {
+	return &variantRepo{writerDB: d.Writer, readerDB: d.Reader}
 }
 
 func (r *variantRepo) GetByID(ctx context.Context, workspaceID, id string) (repository.Variant, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `
+	row := r.readerDB.QueryRowContext(ctx, `
 		SELECT id, workspace_id, asset_version_id, type, storage_key, transform_params, size,
 		       status, thumbnail_key, thumbnail_content_type, title, is_shared, content_hash, created_at
 		FROM variants
@@ -30,7 +32,7 @@ func (r *variantRepo) GetByID(ctx context.Context, workspaceID, id string) (repo
 }
 
 func (r *variantRepo) ListByAsset(ctx context.Context, _ string, assetID string) ([]repository.Variant, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `
+	rows, err := r.readerDB.QueryContext(ctx, `
 		SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
 		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.content_hash, v.created_at
 		FROM variants v
@@ -58,7 +60,7 @@ func (r *variantRepo) Create(ctx context.Context, v repository.Variant) (reposit
 	if status == "" {
 		status = "ready"
 	}
-	row := r.sqlDB.QueryRowContext(
+	row := r.writerDB.QueryRowContext(
 		ctx,
 		`
 		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size, status, title, is_shared, content_hash)
@@ -81,12 +83,12 @@ func (r *variantRepo) Create(ctx context.Context, v repository.Variant) (reposit
 }
 
 func (r *variantRepo) Delete(ctx context.Context, workspaceID, id string) error {
-	_, err := r.sqlDB.ExecContext(ctx, `DELETE FROM variants WHERE id = ? AND workspace_id = ?`, id, workspaceID)
+	_, err := r.writerDB.ExecContext(ctx, `DELETE FROM variants WHERE id = ? AND workspace_id = ?`, id, workspaceID)
 	return err
 }
 
 func (r *variantRepo) UpdateTitle(ctx context.Context, workspaceID, variantID string, title *string) error {
-	res, err := r.sqlDB.ExecContext(
+	res, err := r.writerDB.ExecContext(
 		ctx,
 		`UPDATE variants SET title = ? WHERE id = ? AND workspace_id = ?`,
 		title,
@@ -117,9 +119,9 @@ func (r *variantRepo) UpdateSharedBatch(ctx context.Context, workspaceID string,
 		args = append(args, id)
 	}
 	args = append(args, workspaceID)
-	query := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
+	query := fmt.Sprintf(
 		`UPDATE variants SET is_shared = ? WHERE id IN (%s) AND workspace_id = ?`, placeholders)
-	_, err := r.sqlDB.ExecContext(ctx, query, args...)
+	_, err := r.writerDB.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -135,7 +137,7 @@ func (r *variantRepo) ListSharedByAssetIDs(
 	for _, id := range assetIDs {
 		args = append(args, id)
 	}
-	query := fmt.Sprintf( //nolint:gosec // query is built with validated inputs and parameter placeholders
+	query := fmt.Sprintf(
 		`SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
 		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.content_hash, v.created_at,
 		       av.asset_id AS asset_id
@@ -145,7 +147,7 @@ func (r *variantRepo) ListSharedByAssetIDs(
 		  AND av.is_current = 1
 		  AND v.is_shared = 1
 		ORDER BY av.asset_id, v.created_at ASC`, placeholders)
-	rows, err := r.sqlDB.QueryContext(ctx, query, args...)
+	rows, err := r.readerDB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +184,7 @@ func (r *variantRepo) GetSharedByVariantAndAsset(
 	ctx context.Context,
 	variantID, assetID string,
 ) (repository.Variant, error) {
-	row := r.sqlDB.QueryRowContext(ctx, `
+	row := r.readerDB.QueryRowContext(ctx, `
 		SELECT v.id, v.workspace_id, v.asset_version_id, v.type, v.storage_key, v.transform_params, v.size,
 		       v.status, v.thumbnail_key, v.thumbnail_content_type, v.title, v.is_shared, v.content_hash, v.created_at
 		FROM variants v
@@ -202,7 +204,7 @@ func (r *variantRepo) ListVariantParamHistory(
 	workspaceID, variantType string,
 	limit int,
 ) ([]string, error) {
-	rows, err := r.sqlDB.QueryContext(ctx, `
+	rows, err := r.readerDB.QueryContext(ctx, `
 		SELECT transform_params
 		FROM variants
 		WHERE workspace_id = ?

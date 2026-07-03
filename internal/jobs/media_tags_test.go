@@ -72,11 +72,12 @@ func (s *memExportSvc) SetConfigLastRun(ctx context.Context, configID string, p 
 func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, queue.JobQueue, storage.Storage) {
 	t.Helper()
 
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {

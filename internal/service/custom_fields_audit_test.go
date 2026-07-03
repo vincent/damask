@@ -15,16 +15,17 @@ import (
 // All repos are sqlc-backed so FK constraints in asset_field_values are satisfied.
 func newAssetFieldSvcSpy(t *testing.T) (service.AssetFieldService, *dbgen.Queries, *spyWriter) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/fields_asset.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/fields_asset.db")
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 	spy := newSpy()
 	svc := service.NewAssetFieldService(
-		reposqlc.NewAssetRepo(queries, sqlDB),
-		reposqlc.NewFieldRepo(queries, sqlDB),
-		reposqlc.NewAssetFieldRepo(queries, sqlDB),
+		reposqlc.NewAssetRepo(database),
+		reposqlc.NewFieldRepo(database),
+		reposqlc.NewAssetFieldRepo(database),
 		spy,
 	)
 	return svc, queries, spy
@@ -33,16 +34,17 @@ func newAssetFieldSvcSpy(t *testing.T) (service.AssetFieldService, *dbgen.Querie
 // newProjectFieldSvcSpy returns a ProjectFieldService with a spy audit writer.
 func newProjectFieldSvcSpy(t *testing.T) (service.ProjectFieldService, *dbgen.Queries, *spyWriter) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(t.TempDir() + "/fields_project.db?_foreign_keys=ON")
+	database, err := dbpkg.Open(t.TempDir() + "/fields_project.db")
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 	spy := newSpy()
 	svc := service.NewProjectFieldService(
-		reposqlc.NewProjectRepo(queries),
-		reposqlc.NewFieldRepo(queries, sqlDB),
-		reposqlc.NewProjectFieldRepo(queries),
+		reposqlc.NewProjectRepo(database),
+		reposqlc.NewFieldRepo(database),
+		reposqlc.NewProjectFieldRepo(database),
 		spy,
 	)
 	return svc, queries, spy

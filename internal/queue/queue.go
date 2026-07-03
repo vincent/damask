@@ -152,6 +152,11 @@ func (q *Queue) worker(ctx context.Context) {
 }
 
 // processNext claims the oldest pending job and runs its handler.
+//
+// Invariant: ClaimNextJob/CompleteJob/FailJob are independent, non-transactional
+// statements — no BeginTx spans a poll tick. This must stay true: holding a
+// transaction open here would pin the single writer connection (see
+// ROADMAP.68) between polls and starve every other write in the process.
 func (q *Queue) processNext(ctx context.Context) {
 	var err error
 	ctx, span := telemetry.StartSpan(ctx, "service.queue.next")

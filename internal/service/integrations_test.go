@@ -20,7 +20,7 @@ type integrationTestEnv struct {
 func newIntegrationEnv(t *testing.T) *integrationTestEnv {
 	t.Helper()
 	env := newIngressEnv(t)
-	repo := reposqlc.NewOAuthRepo(env.queries)
+	repo := reposqlc.NewOAuthRepo(env.database)
 	return &integrationTestEnv{
 		svc:         service.NewIntegrationService(repo),
 		workspaceID: env.workspaceID,

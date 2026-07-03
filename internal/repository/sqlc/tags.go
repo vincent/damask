@@ -10,22 +10,22 @@ import (
 	"github.com/google/uuid"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
 type tagRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewTagRepo returns a repository.TagRepository backed by sqlc-generated queries.
-func NewTagRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.TagRepository {
-	return &tagRepo{q: q, sqlDB: sqlDB}
+func NewTagRepo(d *db.DB) repository.TagRepository {
+	return &tagRepo{d: d}
 }
 
 func (r *tagRepo) GetByName(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
-	row, err := r.q.GetTagByWorkspaceAndName(ctx, dbgen.GetTagByWorkspaceAndNameParams{
+	row, err := r.d.RQ.GetTagByWorkspaceAndName(ctx, dbgen.GetTagByWorkspaceAndNameParams{
 		WorkspaceID: workspaceID,
 		Name:        name,
 	})
@@ -39,7 +39,7 @@ func (r *tagRepo) GetByName(ctx context.Context, workspaceID, name string) (repo
 }
 
 func (r *tagRepo) List(ctx context.Context, workspaceID string, includeSystem bool) ([]repository.Tag, error) {
-	rows, err := r.q.ListTagsWithCount(ctx, dbgen.ListTagsWithCountParams{
+	rows, err := r.d.RQ.ListTagsWithCount(ctx, dbgen.ListTagsWithCountParams{
 		WorkspaceID:   workspaceID,
 		IncludeSystem: includeSystem,
 	})
@@ -63,7 +63,7 @@ func (r *tagRepo) List(ctx context.Context, workspaceID string, includeSystem bo
 }
 
 func (r *tagRepo) EnsureSystemTag(ctx context.Context, workspaceID, name string) error {
-	return r.q.EnsureSystemTag(ctx, dbgen.EnsureSystemTagParams{
+	return r.d.WQ.EnsureSystemTag(ctx, dbgen.EnsureSystemTagParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: workspaceID,
 		Name:        name,
@@ -71,7 +71,7 @@ func (r *tagRepo) EnsureSystemTag(ctx context.Context, workspaceID, name string)
 }
 
 func (r *tagRepo) Upsert(ctx context.Context, workspaceID, name string) (repository.Tag, error) {
-	row, err := r.q.GetOrCreateTag(ctx, dbgen.GetOrCreateTagParams{
+	row, err := r.d.WQ.GetOrCreateTag(ctx, dbgen.GetOrCreateTagParams{
 		ID:          uuid.NewString(),
 		WorkspaceID: workspaceID,
 		Name:        name,
@@ -83,7 +83,7 @@ func (r *tagRepo) Upsert(ctx context.Context, workspaceID, name string) (reposit
 }
 
 func (r *tagRepo) UpdateMetadata(ctx context.Context, workspaceID, name string, color, groupName *string) error {
-	return r.q.UpdateTagMetadata(ctx, dbgen.UpdateTagMetadataParams{
+	return r.d.WQ.UpdateTagMetadata(ctx, dbgen.UpdateTagMetadataParams{
 		WorkspaceID: workspaceID,
 		Name:        name,
 		Color:       color,
@@ -92,7 +92,7 @@ func (r *tagRepo) UpdateMetadata(ctx context.Context, workspaceID, name string, 
 }
 
 func (r *tagRepo) Rename(ctx context.Context, workspaceID, oldName, newName string) error {
-	return r.q.UpdateTagName(ctx, dbgen.UpdateTagNameParams{
+	return r.d.WQ.UpdateTagName(ctx, dbgen.UpdateTagNameParams{
 		WorkspaceID: workspaceID,
 		Name_2:      oldName,
 		Name:        newName,
@@ -101,7 +101,7 @@ func (r *tagRepo) Rename(ctx context.Context, workspaceID, oldName, newName stri
 
 func (r *tagRepo) Delete(ctx context.Context, workspaceID string, names []string) error {
 	for _, name := range names {
-		if err := r.q.DeleteTag(ctx, dbgen.DeleteTagParams{
+		if err := r.d.WQ.DeleteTag(ctx, dbgen.DeleteTagParams{
 			WorkspaceID: workspaceID,
 			Name:        name,
 		}); err != nil {
@@ -112,7 +112,7 @@ func (r *tagRepo) Delete(ctx context.Context, workspaceID string, names []string
 }
 
 func (r *tagRepo) ListForAsset(ctx context.Context, assetID string) ([]repository.Tag, error) {
-	rows, err := r.q.GetTagsForAsset(ctx, assetID)
+	rows, err := r.d.RQ.GetTagsForAsset(ctx, assetID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +128,14 @@ func (r *tagRepo) ListForAsset(ctx context.Context, assetID string) ([]repositor
 }
 
 func (r *tagRepo) AddToAsset(ctx context.Context, assetID, tagID string) error {
-	return r.q.AddTagToAsset(ctx, dbgen.AddTagToAssetParams{
+	return r.d.WQ.AddTagToAsset(ctx, dbgen.AddTagToAssetParams{
 		AssetID: assetID,
 		TagID:   tagID,
 	})
 }
 
 func (r *tagRepo) RemoveFromAsset(ctx context.Context, workspaceID, assetID, tagName string) error {
-	return r.q.RemoveTagFromAsset(ctx, dbgen.RemoveTagFromAssetParams{
+	return r.d.WQ.RemoveTagFromAsset(ctx, dbgen.RemoveTagFromAssetParams{
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,
 		Name:        tagName,
@@ -156,7 +156,7 @@ func (r *tagRepo) BatchTagsForAssets(ctx context.Context, assetIDs []string) (ma
 		`SELECT at.asset_id, t.name FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE at.asset_id IN (%s)`,
 		strings.Join(placeholders, ","),
 	)
-	rows, err := r.sqlDB.QueryContext(ctx, q, args...)
+	rows, err := r.d.Reader.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -173,18 +173,18 @@ func (r *tagRepo) BatchTagsForAssets(ctx context.Context, assetIDs []string) (ma
 }
 
 func (r *tagRepo) CountAssets(ctx context.Context, tagID string) (int64, error) {
-	return r.q.CountTagAssets(ctx, tagID)
+	return r.d.RQ.CountTagAssets(ctx, tagID)
 }
 
 func (r *tagRepo) ReassignAssets(ctx context.Context, fromTagID, toTagID string) error {
-	return r.q.ReassignTagAssets(ctx, dbgen.ReassignTagAssetsParams{
+	return r.d.WQ.ReassignTagAssets(ctx, dbgen.ReassignTagAssetsParams{
 		TagID:   toTagID,
 		TagID_2: fromTagID,
 	})
 }
 
 func (r *tagRepo) TouchLastUsed(ctx context.Context, workspaceID, name string) error {
-	return r.q.TouchTagLastUsed(ctx, dbgen.TouchTagLastUsedParams{
+	return r.d.WQ.TouchTagLastUsed(ctx, dbgen.TouchTagLastUsedParams{
 		WorkspaceID: workspaceID,
 		Name:        name,
 	})
@@ -194,7 +194,7 @@ func (r *tagRepo) FindAssetBySystemTagInFolder(
 	ctx context.Context,
 	workspaceID, tagName, folderID string,
 ) (repository.Asset, error) {
-	row, err := r.q.FindAssetBySystemTagInFolder(ctx, dbgen.FindAssetBySystemTagInFolderParams{
+	row, err := r.d.RQ.FindAssetBySystemTagInFolder(ctx, dbgen.FindAssetBySystemTagInFolderParams{
 		WorkspaceID: workspaceID,
 		Name:        tagName,
 		FolderID:    &folderID,
@@ -212,7 +212,7 @@ func (r *tagRepo) FindAssetBySystemTagInProject(
 	ctx context.Context,
 	workspaceID, tagName, projectID string,
 ) (repository.Asset, error) {
-	row, err := r.q.FindAssetBySystemTagInProject(ctx, dbgen.FindAssetBySystemTagInProjectParams{
+	row, err := r.d.RQ.FindAssetBySystemTagInProject(ctx, dbgen.FindAssetBySystemTagInProjectParams{
 		WorkspaceID: workspaceID,
 		Name:        tagName,
 		ProjectID:   &projectID,
@@ -230,7 +230,7 @@ func (r *tagRepo) FindAssetBySystemTagInWorkspace(
 	ctx context.Context,
 	workspaceID, tagName string,
 ) (repository.Asset, error) {
-	row, err := r.q.FindAssetBySystemTagInWorkspace(ctx, dbgen.FindAssetBySystemTagInWorkspaceParams{
+	row, err := r.d.RQ.FindAssetBySystemTagInWorkspace(ctx, dbgen.FindAssetBySystemTagInWorkspaceParams{
 		WorkspaceID: workspaceID,
 		Name:        tagName,
 	})
@@ -244,12 +244,12 @@ func (r *tagRepo) FindAssetBySystemTagInWorkspace(
 }
 
 func (r *tagRepo) RunInTx(ctx context.Context, fn func(tx repository.TagRepository) error) error {
-	tx, err := r.sqlDB.BeginTx(ctx, nil)
+	tx, err := r.d.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	txRepo := &tagRepo{q: r.q.WithTx(tx), sqlDB: r.sqlDB}
+	txRepo := &tagRepo{d: r.d.WithTx(tx)}
 	if err = fn(txRepo); err != nil {
 		return err
 	}

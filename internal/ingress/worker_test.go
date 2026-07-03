@@ -68,11 +68,12 @@ func (p *pollSource) Fetch(_ context.Context, item IngestItem) (io.ReadCloser, e
 
 func setupWorkerTest(t *testing.T) (*Worker, *dbgen.Queries) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
+	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	stor, err := storage.NewAferoMemoryStorage()
 	if err != nil {

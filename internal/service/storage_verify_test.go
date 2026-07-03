@@ -11,11 +11,12 @@ import (
 
 func TestVerifySizeColumns(t *testing.T) {
 	ctx := context.Background()
-	_, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
+	sqlDB := database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	t.Cleanup(func() { _ = database.Close() })
 
 	// Insert a workspace, user, project, and asset_version with size=0.
 	wsID := "ws-verify"

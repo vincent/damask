@@ -17,10 +17,12 @@ import (
 
 func newTestIngesterImpl(t *testing.T) (*ingesterImpl, *sql.DB) {
 	t.Helper()
-	queries, sqlDB, err := dbpkg.Open(":memory:?_foreign_keys=ON")
+	database, err := dbpkg.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	t.Cleanup(func() { _ = database.Close() })
+	queries, sqlDB := database.WQ, database.Writer
 	impl := &ingesterImpl{
 		queries: queries,
 		sqlDB:   sqlDB,
@@ -34,7 +36,6 @@ func newTestIngesterImpl(t *testing.T) (*ingesterImpl, *sql.DB) {
 // (representing a system action, e.g., ingress-created asset).
 func TestCreateInitialVersionWithNoUser(t *testing.T) {
 	impl, sqlDB := newTestIngesterImpl(t)
-	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	ctx := context.Background()
 
@@ -97,7 +98,6 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 // is called with a userID, it correctly stores that user's ID as created_by.
 func TestCreateInitialVersionWithUser(t *testing.T) {
 	impl, sqlDB := newTestIngesterImpl(t)
-	t.Cleanup(func() { _ = sqlDB.Close() })
 
 	ctx := context.Background()
 

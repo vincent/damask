@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
@@ -14,13 +15,12 @@ import (
 // ---- ExportConfig repo ----
 
 type exportConfigRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewExportConfigRepo creates a new sqlc-backed ExportConfigRepository.
-func NewExportConfigRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.ExportConfigRepository {
-	return &exportConfigRepo{q: q, sqlDB: sqlDB}
+func NewExportConfigRepo(d *db.DB) repository.ExportConfigRepository {
+	return &exportConfigRepo{d: d}
 }
 
 func (r *exportConfigRepo) Create(ctx context.Context, p repository.ExportConfig) (repository.ExportConfig, error) {
@@ -29,7 +29,7 @@ func (r *exportConfigRepo) Create(ctx context.Context, p repository.ExportConfig
 		v := int64(*p.QuietMinutes)
 		quietMinutes = &v
 	}
-	row, err := r.q.CreateExportConfig(ctx, dbgen.CreateExportConfigParams{
+	row, err := r.d.WQ.CreateExportConfig(ctx, dbgen.CreateExportConfigParams{
 		ID:              p.ID,
 		WorkspaceID:     p.WorkspaceID,
 		ProjectID:       p.ProjectID,
@@ -50,7 +50,7 @@ func (r *exportConfigRepo) Create(ctx context.Context, p repository.ExportConfig
 }
 
 func (r *exportConfigRepo) Get(ctx context.Context, workspaceID, id string) (repository.ExportConfig, error) {
-	row, err := r.q.GetExportConfig(ctx, dbgen.GetExportConfigParams{ID: id, WorkspaceID: workspaceID})
+	row, err := r.d.RQ.GetExportConfig(ctx, dbgen.GetExportConfigParams{ID: id, WorkspaceID: workspaceID})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.ExportConfig{}, apperr.ErrNotFound
@@ -61,7 +61,7 @@ func (r *exportConfigRepo) Get(ctx context.Context, workspaceID, id string) (rep
 }
 
 func (r *exportConfigRepo) List(ctx context.Context, workspaceID string) ([]repository.ExportConfig, error) {
-	rows, err := r.q.ListExportConfigs(ctx, workspaceID)
+	rows, err := r.d.RQ.ListExportConfigs(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (r *exportConfigRepo) ListByProject(
 	ctx context.Context,
 	workspaceID, projectID string,
 ) ([]repository.ExportConfig, error) {
-	rows, err := r.q.ListExportConfigsByProject(ctx, dbgen.ListExportConfigsByProjectParams{
+	rows, err := r.d.RQ.ListExportConfigsByProject(ctx, dbgen.ListExportConfigsByProjectParams{
 		ProjectID:   projectID,
 		WorkspaceID: workspaceID,
 	})
@@ -96,7 +96,7 @@ func (r *exportConfigRepo) Update(ctx context.Context, p repository.ExportConfig
 		v := int64(*p.QuietMinutes)
 		quietMinutes = &v
 	}
-	row, err := r.q.UpdateExportConfig(ctx, dbgen.UpdateExportConfigParams{
+	row, err := r.d.WQ.UpdateExportConfig(ctx, dbgen.UpdateExportConfigParams{
 		ID:              p.ID,
 		WorkspaceID:     p.WorkspaceID,
 		Label:           p.Label,
@@ -118,11 +118,11 @@ func (r *exportConfigRepo) Update(ctx context.Context, p repository.ExportConfig
 }
 
 func (r *exportConfigRepo) Delete(ctx context.Context, workspaceID, id string) error {
-	return r.q.DeleteExportConfig(ctx, dbgen.DeleteExportConfigParams{ID: id, WorkspaceID: workspaceID})
+	return r.d.WQ.DeleteExportConfig(ctx, dbgen.DeleteExportConfigParams{ID: id, WorkspaceID: workspaceID})
 }
 
 func (r *exportConfigRepo) SetLastRun(ctx context.Context, id string, p repository.ExportRunResult) error {
-	return r.q.SetExportConfigLastRun(ctx, dbgen.SetExportConfigLastRunParams{
+	return r.d.WQ.SetExportConfigLastRun(ctx, dbgen.SetExportConfigLastRunParams{
 		ID:            id,
 		LastRunAt:     &p.LastRunAt,
 		LastRunStatus: &p.LastRunStatus,
@@ -131,7 +131,7 @@ func (r *exportConfigRepo) SetLastRun(ctx context.Context, id string, p reposito
 }
 
 func (r *exportConfigRepo) ListDue(ctx context.Context) ([]repository.ExportConfig, error) {
-	rows, err := r.q.ListDueExportConfigs(ctx)
+	rows, err := r.d.RQ.ListDueExportConfigs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -145,17 +145,16 @@ func (r *exportConfigRepo) ListDue(ctx context.Context) ([]repository.ExportConf
 // ---- ExportRun repo ----
 
 type exportRunRepo struct {
-	q     *dbgen.Queries
-	sqlDB *sql.DB
+	d *db.DB
 }
 
 // NewExportRunRepo creates a new sqlc-backed ExportRunRepository.
-func NewExportRunRepo(q *dbgen.Queries, sqlDB *sql.DB) repository.ExportRunRepository {
-	return &exportRunRepo{q: q, sqlDB: sqlDB}
+func NewExportRunRepo(d *db.DB) repository.ExportRunRepository {
+	return &exportRunRepo{d: d}
 }
 
 func (r *exportRunRepo) Create(ctx context.Context, p repository.ExportRun) (repository.ExportRun, error) {
-	row, err := r.q.CreateExportRun(ctx, dbgen.CreateExportRunParams{
+	row, err := r.d.WQ.CreateExportRun(ctx, dbgen.CreateExportRunParams{
 		ID:             p.ID,
 		ExportConfigID: p.ExportConfigID,
 		WorkspaceID:    p.WorkspaceID,
@@ -168,7 +167,7 @@ func (r *exportRunRepo) Create(ctx context.Context, p repository.ExportRun) (rep
 }
 
 func (r *exportRunRepo) Get(ctx context.Context, workspaceID, id string) (repository.ExportRun, error) {
-	row, err := r.q.GetExportRun(ctx, dbgen.GetExportRunParams{ID: id, WorkspaceID: workspaceID})
+	row, err := r.d.RQ.GetExportRun(ctx, dbgen.GetExportRunParams{ID: id, WorkspaceID: workspaceID})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return repository.ExportRun{}, apperr.ErrNotFound
@@ -179,7 +178,7 @@ func (r *exportRunRepo) Get(ctx context.Context, workspaceID, id string) (reposi
 }
 
 func (r *exportRunRepo) List(ctx context.Context, configID string, limit, offset int) ([]repository.ExportRun, error) {
-	rows, err := r.q.ListExportRuns(ctx, dbgen.ListExportRunsParams{
+	rows, err := r.d.RQ.ListExportRuns(ctx, dbgen.ListExportRunsParams{
 		ExportConfigID: configID,
 		Limit:          int64(limit),
 		Offset:         int64(offset),
@@ -195,11 +194,11 @@ func (r *exportRunRepo) List(ctx context.Context, configID string, limit, offset
 }
 
 func (r *exportRunRepo) Start(ctx context.Context, id string) error {
-	return r.q.StartExportRun(ctx, id)
+	return r.d.WQ.StartExportRun(ctx, id)
 }
 
 func (r *exportRunRepo) UpdateProgress(ctx context.Context, id string, p repository.ExportProgress) error {
-	return r.q.UpdateExportRunProgress(ctx, dbgen.UpdateExportRunProgressParams{
+	return r.d.WQ.UpdateExportRunProgress(ctx, dbgen.UpdateExportRunProgressParams{
 		ID:             id,
 		AssetsExported: int64(p.AssetsExported),
 		AssetsSkipped:  int64(p.AssetsSkipped),
@@ -208,7 +207,7 @@ func (r *exportRunRepo) UpdateProgress(ctx context.Context, id string, p reposit
 }
 
 func (r *exportRunRepo) Finish(ctx context.Context, id string, p repository.ExportFinish) error {
-	return r.q.FinishExportRun(ctx, dbgen.FinishExportRunParams{
+	return r.d.WQ.FinishExportRun(ctx, dbgen.FinishExportRunParams{
 		ID:             id,
 		Status:         p.Status,
 		AssetsTotal:    int64(p.AssetsTotal),

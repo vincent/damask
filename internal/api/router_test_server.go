@@ -114,7 +114,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 	}
 
 	s := &Server{
-		queries:             cfg.DB,
+		readQueries:         cfg.DB,
 		auth:                cfg.TokenMaker,
 		storage:             stor,
 		queue:               q,
@@ -148,6 +148,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		visualSimilaritySvc: cfg.VisualSimilarity,
 		embedTokens:         cfg.EmbedTokens,
 		autoTag:             cfg.AutoTag,
+		roleCache:           newRoleCache(),
 	}
 
 	app := buildTestApp(s)
@@ -224,11 +225,7 @@ func buildTestApp(s *Server) *fiber.App {
 		if s.workspace == nil {
 			return auth.Viewer, nil
 		}
-		member, err := s.workspace.GetMember(ctx, workspaceID, userID)
-		if err != nil {
-			return "", err
-		}
-		return auth.Role(member.Role), nil
+		return s.getRole(ctx, workspaceID, userID)
 	}
 	// Workspace settings — owner only
 	api.Put(
