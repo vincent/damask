@@ -66,12 +66,14 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 		return fmt.Errorf("parse draft payload: %w", err)
 	}
 
+	publishCtx := context.WithoutCancel(ctx)
 	ctx, cancel := context.WithTimeout(ctx, draftJobTimeout)
 	defer cancel()
 
 	publishErr := func(msg string) {
-		// Use background context so a timed-out job ctx doesn't swallow the error event.
-		s.hub.Publish(context.Background(), p.WorkspaceID, events.Event{
+		// Detach from the timeout-bound ctx so a timed-out job doesn't swallow the
+		// error event, while keeping trace linkage to the originating job context.
+		s.hub.Publish(publishCtx, p.WorkspaceID, events.Event{
 			Type:  "variant_draft.error",
 			Nonce: p.Nonce,
 			Error: msg,

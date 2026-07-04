@@ -25,7 +25,9 @@ type CustomFFmpegParams struct {
 }
 
 // customFFmpegBuild is the variantBuildFn for the custom_ffmpeg variant type.
-func (s *JobServer) customFFmpegBuild(_, _, workspaceID string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) customFFmpegBuild(
+	_ context.Context, _, _, workspaceID string, params json.RawMessage,
+) (variantTransformer, error) {
 	return s.customFFmpegTransformer(workspaceID, params)
 }
 

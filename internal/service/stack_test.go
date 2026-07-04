@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -203,5 +204,66 @@ func TestStackService_ExportZip_FilenameDefault(t *testing.T) {
 	}, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// cancelAfterNGets wraps a Storage and cancels the given context after the
+// Nth call to Get, simulating a client disconnect mid-export.
+type cancelAfterNGets struct {
+	storage.Storage
+
+	cancel context.CancelFunc
+	n      int
+	calls  int
+}
+
+func (c *cancelAfterNGets) Get(key string) (io.ReadCloser, error) {
+	c.calls++
+	if c.calls == c.n {
+		c.cancel()
+	}
+	return c.Storage.Get(key)
+}
+
+func TestStackService_ExportZip_AbortsOnContextCancellation(t *testing.T) {
+	assetRepo := memory.NewAssetRepo()
+	versionRepo := memory.NewRealVersionRepo()
+	stor, _ := storage.NewAferoMemoryStorage()
+
+	assetRepo.Seed(
+		repository.Asset{ID: "ast_1", WorkspaceID: "ws_1", OriginalFilename: "a.jpg"},
+		repository.Asset{ID: "ast_2", WorkspaceID: "ws_1", OriginalFilename: "b.jpg"},
+		repository.Asset{ID: "ast_3", WorkspaceID: "ws_1", OriginalFilename: "c.jpg"},
+	)
+	versionRepo.Seed(
+		repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key1"},
+		repository.AssetVersion{ID: "v2", AssetID: "ast_2", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key2"},
+		repository.AssetVersion{ID: "v3", AssetID: "ast_3", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key3"},
+	)
+	for _, k := range []string{"key1", "key2", "key3"} {
+		if err := stor.Put(k, strings.NewReader("data")); err != nil {
+			t.Fatalf("stor.Put %s: %v", k, err)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	wrapped := &cancelAfterNGets{Storage: stor, cancel: cancel, n: 1}
+	svc := service.NewStackService(assetRepo, versionRepo, memory.NewRealVariantRepo(), wrapped, nil)
+
+	var buf bytes.Buffer
+	err := svc.ExportZip(ctx, "ws_1", service.ExportZipParams{
+		AssetIDs: []string{"ast_1", "ast_2", "ast_3"},
+	}, &buf)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	// Only the first asset's storage read should have happened before abort.
+	if wrapped.calls != 1 {
+		t.Errorf("expected export to stop reading storage after cancellation, got %d Get calls", wrapped.calls)
+	}
+	// The ZIP was never finalized (zw.Close never reached), so this must not be a valid archive.
+	data := buf.Bytes()
+	if _, zerr := zip.NewReader(bytes.NewReader(data), int64(len(data))); zerr == nil {
+		t.Error("expected an incomplete/invalid zip after cancellation, got a valid archive")
 	}
 }

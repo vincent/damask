@@ -17,7 +17,9 @@ import (
 )
 
 // videoCaptureBuild is the variantBuildFn for video frame capture.
-func (s *JobServer) videoCaptureBuild(_, _, _ string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) videoCaptureBuild(
+	_ context.Context, _, _, _ string, params json.RawMessage,
+) (variantTransformer, error) {
 	return s.videoCaptureTransformer(params)
 }
 
@@ -85,7 +87,9 @@ func (s *JobServer) videoCaptureTransformer(params json.RawMessage) (variantTran
 }
 
 // videoTranscodeBuild is the variantBuildFn for video transcoding.
-func (s *JobServer) videoTranscodeBuild(_, _, _ string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) videoTranscodeBuild(
+	_ context.Context, _, _, _ string, params json.RawMessage,
+) (variantTransformer, error) {
 	return s.videoTranscodeTransformer(params)
 }
 
@@ -148,8 +152,10 @@ func (s *JobServer) videoTranscodeTransformer(params json.RawMessage) (variantTr
 }
 
 // videoWatermarkBuild is the variantBuildFn for video watermarking.
-func (s *JobServer) videoWatermarkBuild(_, _, workspaceID string, params json.RawMessage) (variantTransformer, error) {
-	return s.videoWatermarkTransformer(workspaceID, params)
+func (s *JobServer) videoWatermarkBuild(
+	ctx context.Context, _, _, workspaceID string, params json.RawMessage,
+) (variantTransformer, error) {
+	return s.videoWatermarkTransformer(ctx, workspaceID, params)
 }
 
 // videoWatermarkCanonical returns canonical JSON for video watermark params.
@@ -162,7 +168,9 @@ func videoWatermarkCanonical(_, _ string, params json.RawMessage) (string, error
 }
 
 // videoWatermarkTransformer returns a variantTransformer for video watermarking.
-func (s *JobServer) videoWatermarkTransformer(workspaceID string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) videoWatermarkTransformer(
+	ctx context.Context, workspaceID string, params json.RawMessage,
+) (variantTransformer, error) {
 	if !s.trf.FFmpegAvailable() {
 		return nil, errors.New("ffmpeg not found in PATH")
 	}
@@ -176,7 +184,7 @@ func (s *JobServer) videoWatermarkTransformer(workspaceID string, params json.Ra
 	if p.WatermarkAssetID == "" {
 		return nil, errors.New("watermark asset id is required")
 	}
-	wm, err := s.queries.GetAssetByID(context.Background(), dbgen.GetAssetByIDParams{
+	wm, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
 		ID:          p.WatermarkAssetID,
 		WorkspaceID: workspaceID,
 	})

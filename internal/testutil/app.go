@@ -63,9 +63,20 @@ type TestEnv struct {
 	AutoTag       *mockservice.MockAutoTagService
 }
 
+// TestEnvOption customises the api.TestServerConfig used by NewTestEnv.
+type TestEnvOption func(*api.TestServerConfig)
+
+// WithPreMiddleware registers a Fiber handler before auth middleware and routes,
+// letting a test manipulate the request context (e.g. simulate cancellation).
+func WithPreMiddleware(h fiber.Handler) TestEnvOption {
+	return func(cfg *api.TestServerConfig) {
+		cfg.PreMiddleware = append(cfg.PreMiddleware, h)
+	}
+}
+
 // NewTestEnv creates a TestEnv with all mock services wired into a Fiber app.
 // No database, no migrations, no bcrypt — tests start instantly.
-func NewTestEnv(t *testing.T) *TestEnv {
+func NewTestEnv(t *testing.T, opts ...TestEnvOption) *TestEnv {
 	t.Helper()
 
 	maker, err := auth.NewMaker(testSecret)
@@ -97,7 +108,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 	embedTokens := mockservice.NewEmbedTokenService()
 	autoTag := mockservice.NewAutoTagService()
 
-	srv, app := api.NewTestServer(&api.TestServerConfig{
+	cfg := &api.TestServerConfig{
 		TokenMaker:    maker,
 		Assets:        assets,
 		Projects:      projects,
@@ -122,7 +133,11 @@ func NewTestEnv(t *testing.T) *TestEnv {
 		Workflows:     workflows,
 		EmbedTokens:   embedTokens,
 		AutoTag:       autoTag,
-	})
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+	srv, app := api.NewTestServer(cfg)
 
 	return &TestEnv{
 		App:    app,

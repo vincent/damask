@@ -2,8 +2,10 @@ package api
 
 import (
 	"errors"
+	"log/slog"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/auth"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -30,17 +32,30 @@ func isInvalidInput(err error) bool {
 // ErrorStatusResponse maps a service-layer error to the appropriate HTTP response.
 // ErrNotFound -> 404, ErrForbidden -> 403, ErrConflict -> 409,
 // ErrInvalidInput -> 422, anything else -> 500.
+// Mapped 4xx errors are logged at Warn, unmapped errors at Error.
 func ErrorStatusResponse(c fiber.Ctx, err error) error {
+	workspaceID := ""
+	if claims := auth.GetClaims(c); claims != nil {
+		workspaceID = claims.WorkspaceID
+	}
+
+	var status int
 	switch {
 	case errors.Is(err, apperr.ErrNotFound):
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{apiErrorKey: err.Error()})
+		status = fiber.StatusNotFound
 	case errors.Is(err, apperr.ErrForbidden):
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{apiErrorKey: err.Error()})
+		status = fiber.StatusForbidden
 	case errors.Is(err, apperr.ErrConflict):
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{apiErrorKey: err.Error()})
+		status = fiber.StatusConflict
 	case errors.Is(err, apperr.ErrInvalidInput):
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{apiErrorKey: err.Error()})
+		status = fiber.StatusUnprocessableEntity
 	default:
+		slog.ErrorContext(c.Context(), "unhandled service error",
+			"path", c.Path(), "method", c.Method(), "workspace_id", workspaceID, "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{apiErrorKey: "internal error"})
 	}
+
+	slog.WarnContext(c.Context(), "service error",
+		"status", status, "path", c.Path(), "method", c.Method(), "workspace_id", workspaceID, "error", err)
+	return c.Status(status).JSON(fiber.Map{apiErrorKey: err.Error()})
 }

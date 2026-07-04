@@ -229,7 +229,6 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 		InheritFields:    s.newInheritProjectFieldsFunc(),
 	})
 	if err != nil {
-		slog.ErrorContext(c, "cannot create asset", apiErrorKey, err)
 		return ErrorStatusResponse(c, err)
 	}
 

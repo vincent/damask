@@ -24,7 +24,9 @@ type variantTransformer func(ctx context.Context, sourceKey string) ([]byte, str
 // variantBuildFn is the unified builder signature for all variant types.
 // jobType and sourceMime are the job type constant and the asset MIME type.
 // workspaceID is needed by types that look up workspace-specific config or assets.
-type variantBuildFn func(jobType, sourceMime, workspaceID string, params json.RawMessage) (variantTransformer, error)
+type variantBuildFn func(
+	ctx context.Context, jobType, sourceMime, workspaceID string, params json.RawMessage,
+) (variantTransformer, error)
 
 // variantEntry describes a registered variant type.
 type variantEntry struct {
@@ -112,7 +114,7 @@ func (s *JobServer) runVariantJob(ctx context.Context, job dbgen.Job, p VariantJ
 		return fmt.Errorf("unknown variant job type: %s", job.Type)
 	}
 
-	trf, err := entry.build(job.Type, p.MimeType, p.WorkspaceID, p.Params)
+	trf, err := entry.build(ctx, job.Type, p.MimeType, p.WorkspaceID, p.Params)
 	if err != nil {
 		return err
 	}
@@ -189,7 +191,7 @@ func (s *JobServer) rebuildVariant(
 	if !ok {
 		return fmt.Errorf("unknown variant type for rebuild: %s", variantType)
 	}
-	trf, err := entry.build(variantType, ver.MimeType, ver.WorkspaceID, json.RawMessage(paramsJSON))
+	trf, err := entry.build(ctx, variantType, ver.MimeType, ver.WorkspaceID, json.RawMessage(paramsJSON))
 	if err != nil {
 		return err
 	}

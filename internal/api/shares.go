@@ -68,21 +68,29 @@ type shareTargetError struct {
 
 func (e *shareTargetError) Error() string { return e.msg }
 
+// targetNotFound maps a target lookup failure to a 404, unless the request
+// context itself was cancelled, in which case the ctx error is returned as-is.
+func targetNotFound(ctx context.Context) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	return &shareTargetError{status: fiber.StatusNotFound, msg: apiTargetNotFound}
+}
+
 // validateShareTarget checks that the given target_id exists in the workspace.
-func (s *Server) validateShareTarget(workspaceID, targetType, targetID string) error {
-	ctx := context.Background()
+func (s *Server) validateShareTarget(ctx context.Context, workspaceID, targetType, targetID string) error {
 	switch targetType {
 	case apiTargetProject:
 		if _, err := s.projects.Get(ctx, workspaceID, targetID); err != nil {
-			return &shareTargetError{status: fiber.StatusNotFound, msg: apiTargetNotFound}
+			return targetNotFound(ctx)
 		}
 	case apiTargetAsset:
 		if _, err := s.assets.Get(ctx, workspaceID, targetID); err != nil {
-			return &shareTargetError{status: fiber.StatusNotFound, msg: apiTargetNotFound}
+			return targetNotFound(ctx)
 		}
 	case "collection":
 		if _, err := s.collections.Get(ctx, workspaceID, targetID); err != nil {
-			return &shareTargetError{status: fiber.StatusNotFound, msg: apiTargetNotFound}
+			return targetNotFound(ctx)
 		}
 	}
 	return nil
@@ -108,7 +116,7 @@ func (s *Server) handleCreateShare(c fiber.Ctx) error {
 		return nil
 	}
 
-	if err := s.validateShareTarget(claims.WorkspaceID, body.TargetType, body.TargetID); err != nil {
+	if err := s.validateShareTarget(c.Context(), claims.WorkspaceID, body.TargetType, body.TargetID); err != nil {
 		te := &shareTargetError{}
 		if errors.As(err, &te) {
 			return errRes(c, te.status, te.msg)

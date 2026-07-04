@@ -27,6 +27,10 @@ import (
 // Any nil service field is replaced with a no-op stub that returns zero values.
 // TokenMaker is required; if nil NewTestServer panics.
 type TestServerConfig struct {
+	// PreMiddleware handlers are registered before auth middleware and routes.
+	// Tests use this to manipulate the request context (e.g. simulate cancellation).
+	PreMiddleware []fiber.Handler
+
 	// Core infrastructure
 	TokenMaker *auth.Maker
 	DB         *dbgen.Queries
@@ -151,7 +155,7 @@ func NewTestServer(cfg *TestServerConfig) (*Server, *fiber.App) {
 		roleCache:           newRoleCache(),
 	}
 
-	app := buildTestApp(s)
+	app := buildTestApp(s, cfg.PreMiddleware...)
 	return s, app
 }
 
@@ -168,7 +172,7 @@ func (s *Server) StorageForTest() storage.Storage {
 // The route registrations must stay in sync with NewRouter in router.go.
 //
 //nolint:funlen // tests
-func buildTestApp(s *Server) *fiber.App {
+func buildTestApp(s *Server, preMiddleware ...fiber.Handler) *fiber.App {
 	tokenMaker := s.auth
 
 	bodyLimit := defaultBodyLimitBytes
@@ -182,6 +186,10 @@ func buildTestApp(s *Server) *fiber.App {
 
 	app.Use(telemetry.FiberMiddleware())
 	app.Use(telemetry.FiberStatusMiddleware())
+
+	for _, mw := range preMiddleware {
+		app.Use(mw)
+	}
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},

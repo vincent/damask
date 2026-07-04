@@ -127,9 +127,21 @@ func (s *stackService) ExportZip(ctx context.Context, workspaceID string, p Expo
 	missing := missingNames
 
 	for _, g := range groups {
-		m := s.writeZipGroup(ctx, zw, g)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		m, groupErr := s.writeZipGroup(ctx, zw, g)
 		written += len(g.entries) - len(m)
 		missing = append(missing, m...)
+		if groupErr != nil {
+			return groupErr
+		}
+	}
+
+	// A cancel during the last group breaks out of writeZipGroup without an
+	// error; don't finish the archive as if it were complete.
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
 	}
 
 	if len(missing) > 0 {
@@ -215,11 +227,16 @@ func (s *stackService) variantEntries(ctx context.Context, workspaceID, assetID,
 	return out
 }
 
-// writeZipGroup writes all entries in g to zw, returning the paths of any that could not be written.
-func (s *stackService) writeZipGroup(ctx context.Context, zw *zip.Writer, g zipGroup) []string {
+// writeZipGroup writes all entries in g to zw, returning the paths of any that
+// could not be read from storage. A mid-copy failure corrupts the ZIP stream,
+// so it aborts the group and is returned as an error.
+func (s *stackService) writeZipGroup(ctx context.Context, zw *zip.Writer, g zipGroup) ([]string, error) {
 	usedInFolder := map[string]int{}
 	var missing []string
 	for _, e := range g.entries {
+		if ctx.Err() != nil {
+			break
+		}
 		name := uniqueName(e.name, usedInFolder)
 		zipPath := name
 		if g.folder != "" {
@@ -236,12 +253,13 @@ func (s *stackService) writeZipGroup(ctx context.Context, zw *zip.Writer, g zipG
 			missing = append(missing, zipPath)
 			continue
 		}
-		if _, copyErr := io.Copy(fw, rc); copyErr != nil {
-			slog.WarnContext(ctx, "zip copy error", "name", zipPath, "err", copyErr)
-		}
+		_, copyErr := io.Copy(fw, rc)
 		_ = rc.Close()
+		if copyErr != nil {
+			return missing, fmt.Errorf("zip copy %q: %w", zipPath, copyErr)
+		}
 	}
-	return missing
+	return missing, nil //nolint:nilerr // unreadable entries go to the manifest; caller re-checks ctx.Err()
 }
 
 // EnqueueMerge enqueues a stack_merge job and returns the job ID.

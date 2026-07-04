@@ -21,7 +21,9 @@ type aiVariantParams struct {
 }
 
 // imageBgRemoveBuild is the variantBuildFn for background removal.
-func (s *JobServer) imageBgRemoveBuild(_, _, workspaceID string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) imageBgRemoveBuild(
+	_ context.Context, _, _, workspaceID string, params json.RawMessage,
+) (variantTransformer, error) {
 	return s.imageBgRemoveTransformer(workspaceID, params)
 }
 
@@ -57,7 +59,9 @@ func (s *JobServer) imageBgRemoveTransformer(workspaceID string, params json.Raw
 }
 
 // imageWithPromptBuild is the variantBuildFn for AI image-with-prompt.
-func (s *JobServer) imageWithPromptBuild(_, _, workspaceID string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) imageWithPromptBuild(
+	_ context.Context, _, _, workspaceID string, params json.RawMessage,
+) (variantTransformer, error) {
 	return s.imageWithPromptTransformer(workspaceID, params)
 }
 

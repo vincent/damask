@@ -53,9 +53,14 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 	workspaceID := claims.WorkspaceID
 	params := service.ExportZipParams{AssetIDs: body.AssetIDs, Filename: body.Filename, VariantMode: body.VariantMode}
 
+	// c.Context() is never cancelled by fiber on client disconnect; derive a
+	// cancellable context and cancel it when fasthttp closes the stream body
+	// (disconnect or completion) so ExportZip stops writing doomed entries.
+	ctx, cancel := context.WithCancel(c.Context())
+
 	pr, pw := io.Pipe()
-	go func() { //nolint:gosec // writer only for stack export
-		err := s.stack.ExportZip(context.Background(), workspaceID, params, pw)
+	go func() {
+		err := s.stack.ExportZip(ctx, workspaceID, params, pw)
 		if err != nil {
 			_ = pw.CloseWithError(err)
 		} else {
@@ -63,8 +68,20 @@ func (s *Server) handleStackExport(c fiber.Ctx) error {
 		}
 	}()
 
-	return c.SendStream(pr)
+	return c.SendStream(&cancelReadCloser{Reader: pr, close: func() error {
+		cancel()
+		return pr.Close()
+	}})
 }
+
+// cancelReadCloser cancels the export context when the response stream is closed.
+type cancelReadCloser struct {
+	io.Reader
+
+	close func() error
+}
+
+func (c *cancelReadCloser) Close() error { return c.close() }
 
 // sanitiseFilename strips path separators and ASCII control characters from a
 // filename so it is safe to use in a Content-Disposition header.

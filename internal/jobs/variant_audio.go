@@ -16,7 +16,9 @@ import (
 )
 
 // audioBuild is the variantBuildFn for all audio variant types.
-func (s *JobServer) audioBuild(jobType, sourceMime, _ string, params json.RawMessage) (variantTransformer, error) {
+func (s *JobServer) audioBuild(
+	_ context.Context, jobType, sourceMime, _ string, params json.RawMessage,
+) (variantTransformer, error) {
 	return s.audioTransformer(jobType, sourceMime, params)
 }
 
