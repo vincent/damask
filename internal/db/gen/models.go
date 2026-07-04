@@ -260,16 +260,17 @@ type IngressSource struct {
 }
 
 type Job struct {
-	ID          string    `json:"id"`
-	WorkspaceID string    `json:"workspace_id"`
-	Type        string    `json:"type"`
-	Payload     string    `json:"payload"`
-	Status      string    `json:"status"`
-	Attempts    int64     `json:"attempts"`
-	Error       *string   `json:"error"`
-	Result      *string   `json:"result"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string     `json:"id"`
+	WorkspaceID string     `json:"workspace_id"`
+	Type        string     `json:"type"`
+	Payload     string     `json:"payload"`
+	Status      string     `json:"status"`
+	Attempts    int64      `json:"attempts"`
+	Error       *string    `json:"error"`
+	Result      *string    `json:"result"`
+	RunAfter    *time.Time `json:"run_after"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type OauthConnection struct {

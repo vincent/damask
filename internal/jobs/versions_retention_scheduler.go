@@ -112,6 +112,11 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 	if err != nil {
 		return nil //nolint:nilerr // already hard-deleted; nothing to do.
 	}
+	if ver.WorkspaceID != job.WorkspaceID {
+		slog.WarnContext(ctx, "purge-version-storage: version not in job workspace — skipping",
+			"version_id", p.VersionID, "workspace_id", job.WorkspaceID)
+		return nil
+	}
 
 	// Safety guard: never purge a current version.
 	if ver.IsCurrent == 1 {

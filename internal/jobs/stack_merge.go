@@ -54,6 +54,11 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 			slog.WarnContext(ctx, "stack_merge: skip asset (no current version)", "asset_id", assetID)
 			continue
 		}
+		if ver.WorkspaceID != job.WorkspaceID {
+			slog.WarnContext(ctx, "stack_merge: skip asset (not in workspace)",
+				"asset_id", assetID, "workspace_id", job.WorkspaceID)
+			continue
+		}
 		ext := filepath.Ext(ver.StorageKey)
 		if ext == "" {
 			ext = ".bin"

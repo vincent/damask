@@ -12,6 +12,7 @@ import (
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
 	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
@@ -61,6 +62,15 @@ func (s *JobServer) jobAutoTag(ctx context.Context, job dbgen.Job) error {
 	var p AutoTagPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("jobAutoTag: unmarshal: %w", err)
+	}
+
+	// Workspace guard: the asset must exist in the job's workspace before any
+	// tag reads/writes happen.
+	if _, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
+		ID:          p.AssetID,
+		WorkspaceID: job.WorkspaceID,
+	}); err != nil {
+		return queue.Permanent(fmt.Errorf("auto_tag: asset %s not found in workspace %s", p.AssetID, job.WorkspaceID))
 	}
 
 	if !transform.IsAutoTaggable(p.MimeType) {

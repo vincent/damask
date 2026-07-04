@@ -64,6 +64,13 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
+	// Workspace guard: the version (and its writes below) must belong to the
+	// job's workspace.
+	if ver, verErr := s.queries.GetVersionByIDUnchecked(ctx, p.VersionID); verErr != nil ||
+		ver.WorkspaceID != job.WorkspaceID {
+		return queue.Permanent(fmt.Errorf("version %s not found in workspace %s", p.VersionID, job.WorkspaceID))
+	}
+
 	slog.DebugContext(ctx, "generate thumbnail", "mime_type", p.MimeType, "storage_key", p.StorageKey)
 
 	thumbData, thumbExt, err := s.tmb.GenerateThumbnailData(ctx, s.storage, p.MimeType, p.StorageKey)

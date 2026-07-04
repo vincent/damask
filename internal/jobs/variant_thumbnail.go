@@ -49,6 +49,15 @@ func (s *JobServer) jobVariantThumbnail(ctx context.Context, job dbgen.Job) erro
 		return fmt.Errorf("parse payload: %w", err)
 	}
 
+	// Workspace guard: the variant must belong to the job's workspace before
+	// the bare-ID thumbnail write below.
+	if _, err := s.queries.GetVariantByID(ctx, dbgen.GetVariantByIDParams{
+		ID:          p.VariantID,
+		WorkspaceID: job.WorkspaceID,
+	}); err != nil {
+		return queue.Permanent(fmt.Errorf("variant %s not found in workspace %s", p.VariantID, job.WorkspaceID))
+	}
+
 	thumbData, thumbExt, err := s.tmb.GenerateThumbnailData(ctx, s.storage, p.MimeType, p.StorageKey)
 	if err != nil {
 		return fmt.Errorf("generate thumbnail: %w", err)

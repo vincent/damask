@@ -171,7 +171,9 @@ func (s *JobServer) EnqueueForTest(ctx context.Context, workspaceID, jobType, pa
 func (s *JobServer) DrainForTest(ctx context.Context) {
 	s.RegisterJobHandlers()
 	for {
-		job, err := s.queries.ClaimNextJob(ctx)
+		// Ignore run_after so jobs parked for a future retry still drain —
+		// otherwise tests would pass with work silently left pending.
+		job, err := s.queries.ClaimNextJobIgnoreRunAfter(ctx)
 		if err != nil {
 			return // queue empty
 		}

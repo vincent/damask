@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
 )
 
 // RebuildVariantsPayload is the job payload for rebuild_variants.
@@ -63,8 +64,24 @@ func (s *JobServer) jobRebuildVariants(ctx context.Context, job dbgen.Job) error
 
 	// Load the new version to get storage key, mime, workspace, version num.
 	newVer, err := s.queries.GetVersionByIDUnchecked(ctx, p.NewVersionID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return queue.Permanent(fmt.Errorf("version %s not found in workspace %s", p.NewVersionID, job.WorkspaceID))
+	}
 	if err != nil {
 		return fmt.Errorf("load new version: %w", err)
+	}
+	if newVer.WorkspaceID != job.WorkspaceID {
+		return queue.Permanent(fmt.Errorf("version %s not found in workspace %s", p.NewVersionID, job.WorkspaceID))
+	}
+	srcVer, err := s.queries.GetVersionByIDUnchecked(ctx, p.SourceVersionID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return queue.Permanent(fmt.Errorf("version %s not found in workspace %s", p.SourceVersionID, job.WorkspaceID))
+	}
+	if err != nil {
+		return fmt.Errorf("load source version: %w", err)
+	}
+	if srcVer.WorkspaceID != job.WorkspaceID {
+		return queue.Permanent(fmt.Errorf("version %s not found in workspace %s", p.SourceVersionID, job.WorkspaceID))
 	}
 
 	// Copy variant params from the source version (manual excluded by query).

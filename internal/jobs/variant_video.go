@@ -35,14 +35,18 @@ func videoCaptureCanonical(_, _ string, params json.RawMessage) (string, error) 
 
 // videoCapturePostHook updates the asset thumbnail if none exists yet.
 func (s *JobServer) videoCapturePostHook(ctx context.Context, p VariantJobPayload, _, storageKey, _ string) {
-	asset, _ := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
+	asset, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
+	if err != nil {
+		// Asset gone or not in this workspace — never write a bare-ID update.
+		return
+	}
 	if asset.ThumbnailKey != nil {
 		return
 	}
-	if err := s.queries.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
+	if updErr := s.queries.UpdateAssetThumbnail(ctx, dbgen.UpdateAssetThumbnailParams{
 		ThumbnailKey: &storageKey,
 		ID:           p.AssetID,
-	}); err == nil {
+	}); updErr == nil {
 		s.hub.Publish(ctx, p.WorkspaceID, events.Event{
 			Type:         "thumbnail_ready",
 			AssetID:      p.AssetID,

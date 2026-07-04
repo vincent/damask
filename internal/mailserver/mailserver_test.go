@@ -203,7 +203,7 @@ func TestSession_EmailAttachmentEnqueuesIngestFetchJob(t *testing.T) {
 		t.Fatalf("expected 1 pending job, got %d", n)
 	}
 
-	job, err := queries.ClaimNextJob(ctx)
+	job, err := queries.ClaimNextJob(ctx, queue.NoExcludedTypes)
 	if err != nil {
 		t.Fatalf("claim job: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestSession_FolderRoutingViaSubaddress(t *testing.T) {
 		t.Fatalf("Data: %v", err)
 	}
 
-	job, err := queries.ClaimNextJob(ctx)
+	job, err := queries.ClaimNextJob(ctx, queue.NoExcludedTypes)
 	if err != nil {
 		t.Fatalf("claim job: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestSession_FolderRouting_UnknownTagFallsBack(t *testing.T) {
 		t.Fatalf("expected 1 pending job, got %d", n)
 	}
 
-	job, err := queries.ClaimNextJob(ctx)
+	job, err := queries.ClaimNextJob(ctx, queue.NoExcludedTypes)
 	if err != nil {
 		t.Fatalf("claim job: %v", err)
 	}

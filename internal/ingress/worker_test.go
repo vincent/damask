@@ -522,7 +522,7 @@ func TestHandleFetch_MetaPassedToSource(t *testing.T) {
 		t.Fatalf("HandlePoll: %v", err)
 	}
 
-	fetchJob, err := queries.ClaimNextJob(ctx)
+	fetchJob, err := queries.ClaimNextJob(ctx, queue.NoExcludedTypes)
 	if err != nil {
 		t.Fatalf("ClaimNextJob: %v", err)
 	}

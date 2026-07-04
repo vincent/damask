@@ -7,19 +7,26 @@ package dbgen
 
 import (
 	"context"
+	"time"
 )
 
 const claimNextJob = `-- name: ClaimNextJob :one
 UPDATE jobs
 SET status = 'processing', attempts = attempts + 1, updated_at = datetime('now')
 WHERE id = (
-    SELECT id FROM jobs WHERE status = 'pending' ORDER BY created_at ASC LIMIT 1
+    SELECT id FROM jobs
+    WHERE status = 'pending'
+      AND (run_after IS NULL OR datetime(run_after) <= datetime('now'))
+      -- excluded_types is a comma-delimited list wrapped in commas, e.g.
+      -- ",video_transcode,video_watermark," (empty string = no exclusions)
+      AND instr(CAST(?1 AS TEXT), ',' || type || ',') = 0
+    ORDER BY created_at ASC LIMIT 1
 )
-RETURNING id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at
+RETURNING id, workspace_id, type, payload, status, attempts, error, result, run_after, created_at, updated_at
 `
 
-func (q *Queries) ClaimNextJob(ctx context.Context) (Job, error) {
-	row := q.db.QueryRowContext(ctx, claimNextJob)
+func (q *Queries) ClaimNextJob(ctx context.Context, excludedTypes string) (Job, error) {
+	row := q.db.QueryRowContext(ctx, claimNextJob, excludedTypes)
 	var i Job
 	err := row.Scan(
 		&i.ID,
@@ -30,19 +37,65 @@ func (q *Queries) ClaimNextJob(ctx context.Context) (Job, error) {
 		&i.Attempts,
 		&i.Error,
 		&i.Result,
+		&i.RunAfter,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const completeJob = `-- name: CompleteJob :exec
-UPDATE jobs SET status = 'done', updated_at = datetime('now') WHERE id = ?
+const claimNextJobIgnoreRunAfter = `-- name: ClaimNextJobIgnoreRunAfter :one
+UPDATE jobs
+SET status = 'processing', attempts = attempts + 1, updated_at = datetime('now')
+WHERE id = (
+    SELECT id FROM jobs
+    WHERE status = 'pending'
+    ORDER BY created_at ASC LIMIT 1
+)
+RETURNING id, workspace_id, type, payload, status, attempts, error, result, run_after, created_at, updated_at
 `
 
-func (q *Queries) CompleteJob(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, completeJob, id)
-	return err
+// Test-only: like ClaimNextJob but ignores run_after so test drains also run
+// jobs parked for a future retry.
+func (q *Queries) ClaimNextJobIgnoreRunAfter(ctx context.Context) (Job, error) {
+	row := q.db.QueryRowContext(ctx, claimNextJobIgnoreRunAfter)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Type,
+		&i.Payload,
+		&i.Status,
+		&i.Attempts,
+		&i.Error,
+		&i.Result,
+		&i.RunAfter,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const completeJob = `-- name: CompleteJob :execrows
+
+UPDATE jobs SET status = 'done', updated_at = datetime('now')
+WHERE id = ? AND status = 'processing' AND attempts = ?
+`
+
+type CompleteJobParams struct {
+	ID       string `json:"id"`
+	Attempts int64  `json:"attempts"`
+}
+
+// Settle queries guard on status+attempts: a worker that outlived its timeout
+// (sweep requeued the job, another worker re-claimed it, bumping attempts)
+// must not clobber the new claimant's state. Zero rows affected = stale writer.
+func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, completeJob, arg.ID, arg.Attempts)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const completeJobWithResult = `-- name: CompleteJobWithResult :exec
@@ -73,7 +126,7 @@ func (q *Queries) CountPendingJobs(ctx context.Context) (int64, error) {
 const createJob = `-- name: CreateJob :one
 INSERT INTO jobs (id, workspace_id, type, payload, status)
 VALUES (?, ?, ?, ?, 'pending')
-RETURNING id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at
+RETURNING id, workspace_id, type, payload, status, attempts, error, result, run_after, created_at, updated_at
 `
 
 type CreateJobParams struct {
@@ -100,6 +153,7 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 		&i.Attempts,
 		&i.Error,
 		&i.Result,
+		&i.RunAfter,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -109,7 +163,7 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 const createJobForWorkspace = `-- name: CreateJobForWorkspace :one
 INSERT INTO jobs (id, workspace_id, type, payload, status)
 VALUES (?, ?, ?, ?, 'pending')
-RETURNING id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at
+RETURNING id, workspace_id, type, payload, status, attempts, error, result, run_after, created_at, updated_at
 `
 
 type CreateJobForWorkspaceParams struct {
@@ -136,28 +190,100 @@ func (q *Queries) CreateJobForWorkspace(ctx context.Context, arg CreateJobForWor
 		&i.Attempts,
 		&i.Error,
 		&i.Result,
+		&i.RunAfter,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const failJob = `-- name: FailJob :exec
-UPDATE jobs SET status = 'failed', error = ?, updated_at = datetime('now') WHERE id = ?
+const failJob = `-- name: FailJob :execrows
+UPDATE jobs SET status = 'failed', error = ?, updated_at = datetime('now')
+WHERE id = ? AND status = 'processing' AND attempts = ?
 `
 
 type FailJobParams struct {
-	Error *string `json:"error"`
-	ID    string  `json:"id"`
+	Error    *string `json:"error"`
+	ID       string  `json:"id"`
+	Attempts int64   `json:"attempts"`
 }
 
-func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) error {
-	_, err := q.db.ExecContext(ctx, failJob, arg.Error, arg.ID)
+func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, failJob, arg.Error, arg.ID, arg.Attempts)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const failJobRetry = `-- name: FailJobRetry :execrows
+UPDATE jobs
+SET status = 'pending', error = ?, run_after = ?, updated_at = datetime('now')
+WHERE id = ? AND status = 'processing' AND attempts = ?
+`
+
+type FailJobRetryParams struct {
+	Error    *string    `json:"error"`
+	RunAfter *time.Time `json:"run_after"`
+	ID       string     `json:"id"`
+	Attempts int64      `json:"attempts"`
+}
+
+func (q *Queries) FailJobRetry(ctx context.Context, arg FailJobRetryParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, failJobRetry,
+		arg.Error,
+		arg.RunAfter,
+		arg.ID,
+		arg.Attempts,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const failStalledJobsNotOfTypes = `-- name: FailStalledJobsNotOfTypes :exec
+UPDATE jobs
+SET status = 'failed', error = 'stalled: attempt budget exhausted', updated_at = datetime('now')
+WHERE status = 'processing'
+  AND datetime(updated_at) < datetime(CAST(?1 AS TEXT))
+  AND attempts >= CAST(?2 AS INTEGER)
+  AND instr(CAST(?3 AS TEXT), ',' || type || ',') = 0
+`
+
+type FailStalledJobsNotOfTypesParams struct {
+	Cutoff      string `json:"cutoff"`
+	MaxAttempts int64  `json:"max_attempts"`
+	Types       string `json:"types"`
+}
+
+func (q *Queries) FailStalledJobsNotOfTypes(ctx context.Context, arg FailStalledJobsNotOfTypesParams) error {
+	_, err := q.db.ExecContext(ctx, failStalledJobsNotOfTypes, arg.Cutoff, arg.MaxAttempts, arg.Types)
+	return err
+}
+
+const failStalledJobsOfTypes = `-- name: FailStalledJobsOfTypes :exec
+UPDATE jobs
+SET status = 'failed', error = 'stalled: attempt budget exhausted', updated_at = datetime('now')
+WHERE status = 'processing'
+  AND datetime(updated_at) < datetime(CAST(?1 AS TEXT))
+  AND attempts >= CAST(?2 AS INTEGER)
+  AND instr(CAST(?3 AS TEXT), ',' || type || ',') > 0
+`
+
+type FailStalledJobsOfTypesParams struct {
+	Cutoff      string `json:"cutoff"`
+	MaxAttempts int64  `json:"max_attempts"`
+	Types       string `json:"types"`
+}
+
+func (q *Queries) FailStalledJobsOfTypes(ctx context.Context, arg FailStalledJobsOfTypesParams) error {
+	_, err := q.db.ExecContext(ctx, failStalledJobsOfTypes, arg.Cutoff, arg.MaxAttempts, arg.Types)
 	return err
 }
 
 const getJobByID = `-- name: GetJobByID :one
-SELECT id, workspace_id, type, payload, status, attempts, error, result, created_at, updated_at FROM jobs WHERE id = ?
+SELECT id, workspace_id, type, payload, status, attempts, error, result, run_after, created_at, updated_at FROM jobs WHERE id = ?
 `
 
 func (q *Queries) GetJobByID(ctx context.Context, id string) (Job, error) {
@@ -172,6 +298,7 @@ func (q *Queries) GetJobByID(ctx context.Context, id string) (Job, error) {
 		&i.Attempts,
 		&i.Error,
 		&i.Result,
+		&i.RunAfter,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -185,5 +312,43 @@ WHERE status = 'processing'
 
 func (q *Queries) RequeueStalledJobs(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, requeueStalledJobs)
+	return err
+}
+
+const requeueStalledJobsNotOfTypes = `-- name: RequeueStalledJobsNotOfTypes :exec
+UPDATE jobs SET status = 'pending', updated_at = datetime('now')
+WHERE status = 'processing'
+  AND datetime(updated_at) < datetime(CAST(?1 AS TEXT))
+  AND attempts < CAST(?2 AS INTEGER)
+  AND instr(CAST(?3 AS TEXT), ',' || type || ',') = 0
+`
+
+type RequeueStalledJobsNotOfTypesParams struct {
+	Cutoff      string `json:"cutoff"`
+	MaxAttempts int64  `json:"max_attempts"`
+	Types       string `json:"types"`
+}
+
+func (q *Queries) RequeueStalledJobsNotOfTypes(ctx context.Context, arg RequeueStalledJobsNotOfTypesParams) error {
+	_, err := q.db.ExecContext(ctx, requeueStalledJobsNotOfTypes, arg.Cutoff, arg.MaxAttempts, arg.Types)
+	return err
+}
+
+const requeueStalledJobsOfTypes = `-- name: RequeueStalledJobsOfTypes :exec
+UPDATE jobs SET status = 'pending', updated_at = datetime('now')
+WHERE status = 'processing'
+  AND datetime(updated_at) < datetime(CAST(?1 AS TEXT))
+  AND attempts < CAST(?2 AS INTEGER)
+  AND instr(CAST(?3 AS TEXT), ',' || type || ',') > 0
+`
+
+type RequeueStalledJobsOfTypesParams struct {
+	Cutoff      string `json:"cutoff"`
+	MaxAttempts int64  `json:"max_attempts"`
+	Types       string `json:"types"`
+}
+
+func (q *Queries) RequeueStalledJobsOfTypes(ctx context.Context, arg RequeueStalledJobsOfTypesParams) error {
+	_, err := q.db.ExecContext(ctx, requeueStalledJobsOfTypes, arg.Cutoff, arg.MaxAttempts, arg.Types)
 	return err
 }

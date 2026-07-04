@@ -171,6 +171,7 @@ CREATE TABLE jobs (
     attempts     INTEGER NOT NULL DEFAULT 0,
     error        TEXT,
     result       TEXT,
+    run_after    DATETIME,
     created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at   DATETIME NOT NULL DEFAULT (datetime('now'))
 );

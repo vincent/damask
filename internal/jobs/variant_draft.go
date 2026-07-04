@@ -3,6 +3,7 @@ package jobs
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -81,7 +82,13 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 	}
 
 	ver, err := s.queries.GetCurrentVersion(ctx, p.AssetID)
-	if err != nil {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		publishErr("asset not found")
+		return nil
+	case err != nil:
+		return err // transient DB error — let the queue retry
+	case ver.WorkspaceID != job.WorkspaceID:
 		publishErr("asset not found")
 		return nil
 	}
