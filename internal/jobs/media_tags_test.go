@@ -86,30 +86,27 @@ func newMediaTagsJobTestEnv(t *testing.T) (*dbgen.Queries, *sql.DB, *JobServer, 
 	q := queue.New(queries, 1)
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
-	js := NewJobServer(
-		queries,
-		sqlDB,
-		stor,
-		events.NewEventHub(),
-		q,
-		mail.NewMailer(&mail.Config{}),
-		trf,
-		tmb,
-		&config.Config{},
-		nil,
-		ai.KeyResolver(func(context.Context, string, string) (string, ai.KeySource, error) {
+	js := NewJobServer(Deps{
+		Queries:     queries,
+		SQLDB:       sqlDB,
+		Storage:     stor,
+		Hub:         events.NewEventHub(),
+		Queue:       q,
+		Mailer:      mail.NewMailer(&mail.Config{}),
+		Transformer: trf,
+		Thumbnailer: tmb,
+		Config:      &config.Config{},
+		AIAPIKeyResolver: ai.KeyResolver(func(context.Context, string, string) (string, ai.KeySource, error) {
 			return "", "", nil
 		}),
-		nil,
-		repomemory.NewRealWorkspaceRepo(),
-		workflow.NewExecutor(workflow.Deps{}),
-		newMemExportSvc(repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo()),
-		noopExifSvc{},
-		noopTagSvc{},
-		noopFieldsSvc{},
-		noopTextTrackSvc{},
-		nil,
-	)
+		WorkspaceRepo: repomemory.NewRealWorkspaceRepo(),
+		WorkflowExec:  workflow.NewExecutor(workflow.Deps{}),
+		ExportSvc:     newMemExportSvc(repomemory.NewExportConfigRepo(), repomemory.NewExportRunRepo()),
+		ExifSvc:       noopExifSvc{},
+		TagSvc:        noopTagSvc{},
+		FieldSvc:      noopFieldsSvc{},
+		TextTrackSvc:  noopTextTrackSvc{},
+	})
 
 	if _, err = sqlDB.Exec(`INSERT INTO workspaces (id, name) VALUES ('ws_test', 'Test')`); err != nil {
 		t.Fatalf("seed workspace: %v", err)

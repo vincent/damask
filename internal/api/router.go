@@ -5,23 +5,19 @@ import (
 	"fmt"
 	"io/fs"
 
-	"damask/server/internal/ai"
-	"damask/server/internal/audit"
+	appcomp "damask/server/internal/app"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
-	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
 	"damask/server/internal/mail"
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
-	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 	"damask/server/internal/visualsimilarity"
-	"damask/server/internal/workflow"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -77,133 +73,56 @@ type Server struct {
 	roleCache           *roleCache
 }
 
+// NewHTTPServer builds a Server that reads all of its dependencies from the
+// single composition root (app.Deps) instead of constructing repositories
+// and services itself — deps here are the same instances the job server
+// uses, so API-driven and background-job mutations behave identically.
 func NewHTTPServer(
-	database *db.DB,
+	deps *appcomp.Deps,
 	tokenMaker *auth.Maker,
-	stor storage.Storage,
-	hub events.EventHub,
-	q queue.JobQueue,
-	mailer mail.Mailer,
-	trf transform.Transformer,
-	cfg *config.Config,
 	demoSeeder DemoSeeder,
-	storageSvc service.StorageService,
 	bcryptCost int,
 ) *Server {
-	queries := database.WQ
-	sqlDB := database.Writer
-	auditWriter := audit.New(sqlDB)
-	assetRepo := reposqlc.NewAssetRepo(database)
-	tagRepo := reposqlc.NewTagRepo(database)
-	fieldRepo := reposqlc.NewFieldRepo(database)
-	projectRepo := reposqlc.NewProjectRepo(database)
-	folderRepo := reposqlc.NewFolderRepo(database)
-	collectionRepo := reposqlc.NewCollectionRepo(database)
-	shareRepo := reposqlc.NewShareRepo(database)
-	userRepo := reposqlc.NewUserRepo(database)
-	workspaceRepo := reposqlc.NewWorkspaceRepo(database)
-	versionRepo := reposqlc.NewVersionRepo(database)
-	variantRepo := reposqlc.NewVariantRepo(database)
-	workflowRepo := reposqlc.NewWorkflowRepo(database)
-	workflowRunRepo := reposqlc.NewWorkflowRunRepo(database)
-	workflowWebhookRepo := reposqlc.NewWorkflowWebhookRepo(database)
-	assetFieldRepo := reposqlc.NewAssetFieldRepo(database)
-	projectFieldRepo := reposqlc.NewProjectFieldRepo(database)
-	embedTokenRepo := reposqlc.NewEmbedTokenRepo(database)
-	media := ingest.NewRegistry(trf)
-	triggerDispatcher := workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q)
-	keyResolver := ai.NewKeyResolver(workspaceRepo, *cfg)
-	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
-		Assets:   assetRepo,
-		Triggers: triggerDispatcher,
-	})
-	autoTagSvc := service.NewAutoTagService(queries, q, tagSvc, keyResolver)
-	variantsSvc := service.NewVariantServiceWithDeps(
-		variantRepo,
-		assetRepo,
-		tagSvc,
-		auditWriter,
-		service.VariantServiceDeps{
-			Actions:    service.NewSQLVariantActionsStore(sqlDB),
-			Queue:      q,
-			Storage:    stor,
-			Workflows:  workflowRepo,
-			Invalidate: storageSvc,
-		},
-	)
 	return &Server{
-		readQueries: database.RQ,
-		autoTag:     autoTagSvc,
-		assetFields: service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter),
-		assets: service.NewAssetService(
-			assetRepo,
-			versionRepo,
-			tagRepo,
-			fieldRepo,
-			stor,
-			auditWriter,
-			q,
-			storageSvc,
-		),
-		auditLog:      service.NewAuditLogService(queries),
-		auth:          tokenMaker,
-		cfg:           cfg,
-		collections:   service.NewCollectionService(collectionRepo, assetRepo),
-		demo:          demoSeeder,
-		embedTokens:   service.NewEmbedTokenService(embedTokenRepo, assetRepo, versionRepo, cfg.BaseURL.String()),
-		fields:        service.NewFieldService(fieldRepo),
-		folders:       service.NewFolderService(folderRepo),
-		hub:           hub,
-		ingress:       service.NewIngressService(queries, cfg.AppSecret, q, mailer),
-		exports:       service.NewExportService(database, stor, cfg.AppSecret, q),
-		integrations:  service.NewIntegrationService(reposqlc.NewOAuthRepo(database)),
-		mailer:        mailer,
-		media:         media,
-		previewCache:  NewLRUPreviewCache(100), //nolint:mnd // arbitrary cache size
-		projectFields: service.NewProjectFieldService(projectRepo, fieldRepo, projectFieldRepo, auditWriter),
-		projects:      service.NewProjectService(projectRepo, auditWriter),
-		queue:         q,
-		sharePublic:   service.NewSharePublicService(shareRepo, userRepo, variantRepo, mailer),
-		shares:        service.NewShareService(shareRepo, auditWriter),
-		stack:         service.NewStackService(assetRepo, versionRepo, variantRepo, stor, q),
-		storage:       stor,
-		tags:          tagSvc,
-		trf:           trf,
-		textTracks:    service.NewTextTrackService(queries, q, stor),
-		upload: service.NewUploadService(
-			service.NewAssetIngester(queries, sqlDB, stor, q, media, autoTagSvc),
-			auditWriter,
-			storageSvc,
-			triggerDispatcher,
-		),
-		users:    service.NewUserService(userRepo, workspaceRepo, stor),
-		variants: variantsSvc,
-		versions: service.NewVersionService(versionRepo, auditWriter, service.VersionServiceDeps{
-			Assets:     assetRepo,
-			Storage:    stor,
-			Queue:      q,
-			Media:      media,
-			Triggers:   triggerDispatcher,
-			Invalidate: storageSvc,
-			AutoTag:    autoTagSvc,
-		}),
+		readQueries:         deps.DB.RQ,
+		auth:                tokenMaker,
+		storage:             deps.Storage,
+		queue:               deps.Queue,
+		mailer:              deps.Mailer,
+		hub:                 deps.Hub,
+		previewCache:        NewLRUPreviewCache(100), //nolint:mnd // arbitrary cache size
+		cfg:                 deps.Config,
+		trf:                 deps.Transformer,
+		media:               deps.Media,
+		demo:                demoSeeder,
+		assets:              deps.Assets,
+		projects:            deps.Projects,
+		folders:             deps.Folders,
+		tags:                deps.Tags,
+		collections:         deps.Collections,
+		shares:              deps.Shares,
+		sharePublic:         deps.SharePublic,
+		fields:              deps.Fields,
+		integrations:        deps.Integrations,
+		assetFields:         deps.AssetFields,
+		projectFields:       deps.ProjectFields,
+		versions:            deps.Versions,
+		variants:            deps.Variants,
+		textTracks:          deps.TextTracks,
+		auditLog:            deps.AuditLog,
+		workspace:           deps.Workspace,
+		users:               deps.Users,
+		ingress:             deps.Ingress,
+		exports:             deps.Exports,
+		stack:               deps.Stack,
+		upload:              deps.Upload,
+		workflows:           deps.Workflows,
+		storageSvc:          deps.StorageSvc,
+		visualSimilaritySvc: deps.VisualSimilarity,
+		embedTokens:         deps.EmbedTokens,
+		autoTag:             deps.AutoTag,
 		bcryptCost:          bcryptCost,
 		roleCache:           newRoleCache(),
-		storageSvc:          storageSvc,
-		visualSimilaritySvc: visualsimilarity.NewService(queries, sqlDB),
-		workspace: service.NewWorkspaceService(
-			workspaceRepo,
-			userRepo,
-			cfg.AppSecret,
-			keyResolver,
-		),
-		workflows: service.NewWorkflowService(
-			workflowRepo,
-			workflowRunRepo,
-			workflowWebhookRepo,
-			q,
-			service.WorkflowServiceDeps{Assets: assetRepo, Variants: variantRepo, Versions: versionRepo},
-		),
 	}
 }
 
@@ -222,32 +141,14 @@ func NewHTTPServer(
 //
 //nolint:funlen // router
 func NewRouter(
-	database *db.DB,
+	deps *appcomp.Deps,
 	tokenMaker *auth.Maker,
-	stor storage.Storage,
-	hub events.EventHub,
-	q queue.JobQueue,
-	mailer mail.Mailer,
-	trf transform.Transformer,
-	cfg *config.Config,
 	demoSeeder DemoSeeder,
 	uiFS fs.FS,
-	storageSvc service.StorageService,
 ) *fiber.App {
-	s := NewHTTPServer(
-		database,
-		tokenMaker,
-		stor,
-		hub,
-		q,
-		mailer,
-		trf,
-		cfg,
-		demoSeeder,
-		storageSvc,
-		bcrypt.DefaultCost,
-	)
+	s := NewHTTPServer(deps, tokenMaker, demoSeeder, bcrypt.DefaultCost)
 
+	cfg := deps.Config
 	bodyLimit := defaultBodyLimitBytes
 	if cfg.BodyLimit > 0 {
 		bodyLimit = cfg.BodyLimit

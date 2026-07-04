@@ -99,61 +99,87 @@ type JobServer struct {
 	visualSimilarity  *visualsimilarity.Service
 }
 
-func NewJobServer(
-	queries *dbgen.Queries,
-	sqlDB *sql.DB,
-	stor storage.Storage,
-	hub events.EventHub,
-	q queue.JobQueue,
-	mailer mail.Mailer,
-	trf transform.Transformer,
-	tmb transform.Thumbnailer,
-	cfg *config.Config,
-	ingester assetio.Ingester,
-	aiAPIKeyResolver ai.KeyResolver,
-	aiProviderFactory ai.ProviderFactory,
-	workspaceRepo repository.WorkspaceRepository,
-	workflowExec *workflow.Executor,
-	exportSvc exportService,
-	exifSvc exifService,
-	tagSvc tagService,
-	fieldSvc fieldPurgeService,
-	textTrackSvc textTrackService,
-	storageSvc ingress.StorageLimitChecker,
-) *JobServer {
-	if aiAPIKeyResolver == nil {
-		panic("jobs: NewJobServer requires a non-nil ai api key resolver")
+// Deps holds every dependency required to construct a [JobServer]. Fields
+// marked required are validated non-nil by [NewJobServer] so a missing
+// wiring bug fails fast at startup instead of panicking or misbehaving deep
+// inside a job handler.
+type Deps struct {
+	Queries           *dbgen.Queries // required
+	SQLDB             *sql.DB        // required
+	Storage           storage.Storage
+	Hub               events.EventHub
+	Queue             queue.JobQueue // required
+	Mailer            mail.Mailer
+	Transformer       transform.Transformer
+	Thumbnailer       transform.Thumbnailer
+	Config            *config.Config
+	Ingester          assetio.Ingester
+	AIAPIKeyResolver  ai.KeyResolver // required
+	AIProviderFactory ai.ProviderFactory
+	WorkspaceRepo     repository.WorkspaceRepository
+	WorkflowExec      *workflow.Executor // required
+	ExportSvc         exportService
+	ExifSvc           exifService
+	TagSvc            tagService
+	FieldSvc          fieldPurgeService
+	TextTrackSvc      textTrackService
+	StorageSvc        ingress.StorageLimitChecker
+}
+
+// validate checks that every field required to run job handlers is
+// non-nil, returning an error naming the first missing field.
+func (d Deps) validate() error {
+	switch {
+	case d.Queries == nil:
+		return errors.New("jobs: Deps.Queries is required")
+	case d.SQLDB == nil:
+		return errors.New("jobs: Deps.SQLDB is required")
+	case d.Queue == nil:
+		return errors.New("jobs: Deps.Queue is required")
+	case d.AIAPIKeyResolver == nil:
+		return errors.New("jobs: Deps.AIAPIKeyResolver is required")
+	case d.WorkflowExec == nil:
+		return errors.New("jobs: Deps.WorkflowExec is required")
 	}
+	return nil
+}
+
+// NewJobServer constructs a JobServer from deps. It panics if a required
+// dependency is missing — job wiring is assembled once at startup, so a
+// missing dependency is a programming error that should fail fast rather
+// than surface as a nil-pointer panic mid-job.
+func NewJobServer(deps Deps) *JobServer {
+	if err := deps.validate(); err != nil {
+		panic(err)
+	}
+	aiProviderFactory := deps.AIProviderFactory
 	if aiProviderFactory == nil {
 		aiProviderFactory = ai.NewProvider
 	}
-	if workflowExec == nil {
-		panic("jobs: NewJobServer requires a non-nil workflow executor")
-	}
 	return &JobServer{
-		audit:             audit.New(sqlDB),
-		cfg:               cfg,
-		queries:           queries,
-		exportSvc:         exportSvc,
-		exifSvc:           exifSvc,
-		tagSvc:            tagSvc,
-		fieldSvc:          fieldSvc,
-		textTrackSvc:      textTrackSvc,
+		audit:             audit.New(deps.SQLDB),
+		cfg:               deps.Config,
+		queries:           deps.Queries,
+		exportSvc:         deps.ExportSvc,
+		exifSvc:           deps.ExifSvc,
+		tagSvc:            deps.TagSvc,
+		fieldSvc:          deps.FieldSvc,
+		textTrackSvc:      deps.TextTrackSvc,
 		handlers:          make(map[string]queue.HandlerFunc),
-		hub:               hub,
-		aiAPIKeyResolver:  aiAPIKeyResolver,
+		hub:               deps.Hub,
+		aiAPIKeyResolver:  deps.AIAPIKeyResolver,
 		aiProviderFactory: aiProviderFactory,
-		workspaceRepo:     workspaceRepo,
-		ingester:          ingester,
-		mailer:            mailer,
-		queue:             q,
-		sqlDB:             sqlDB,
-		storage:           stor,
-		storageSvc:        storageSvc,
-		tmb:               tmb,
-		trf:               trf,
-		workflowExec:      workflowExec,
-		visualSimilarity:  visualsimilarity.NewService(queries, sqlDB),
+		workspaceRepo:     deps.WorkspaceRepo,
+		ingester:          deps.Ingester,
+		mailer:            deps.Mailer,
+		queue:             deps.Queue,
+		sqlDB:             deps.SQLDB,
+		storage:           deps.Storage,
+		storageSvc:        deps.StorageSvc,
+		tmb:               deps.Thumbnailer,
+		trf:               deps.Transformer,
+		workflowExec:      deps.WorkflowExec,
+		visualSimilarity:  visualsimilarity.NewService(deps.Queries, deps.SQLDB),
 	}
 }
 

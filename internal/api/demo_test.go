@@ -14,18 +14,16 @@ import (
 	"time"
 
 	"damask/server/internal/api"
+	"damask/server/internal/app"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	"damask/server/internal/demo"
 	"damask/server/internal/events"
-	"damask/server/internal/ai"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
-	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
-	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	th "damask/server/internal/testhelpers"
 	"damask/server/internal/transform"
@@ -34,10 +32,10 @@ import (
 )
 
 type demoEnv struct {
-	App    *fiber.App
-	Maker  *auth.Maker
-	SqlDB  *sql.DB
-	Seeder *demo.Seeder
+	App      *fiber.App
+	Maker    *auth.Maker
+	Database *sql.DB
+	Seeder   *demo.Seeder
 }
 
 func setupDemoTestApp(t *testing.T) *demoEnv {
@@ -53,11 +51,12 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	}
 	u, _ := url.Parse("http://localhost")
 	cfg := &config.Config{
-		JWTSecret: "test-app-secret-for-tests!!",
-		AppSecret: "test-app-secret-for-tests!!",
-		AppEnv:    "development",
-		BaseURL:   u,
-		Demo:      demoCfg,
+		JWTSecret:    "test-app-secret-for-tests!!",
+		AppSecret:    "test-app-secret-for-tests!!",
+		AppEnv:       "development",
+		BaseURL:      u,
+		Demo:         demoCfg,
+		EnableSignup: true,
 	}
 
 	database, err := dbpkg.Open(":memory:")
@@ -82,23 +81,43 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
-	media := ingest.NewRegistry(trf)
-	ingester := service.NewAssetIngester(queries, rawDB, stor, q, media, service.NewAutoTagService(queries, q, nil, nil))
-	workspaceRepo := reposqlc.NewWorkspaceRepo(database)
-	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
-	noopMailer := mail.NewMailer(&mail.MailSenderConfig{})
-	exportConfigsRepo := reposqlc.NewExportConfigRepo(database)
-	exportRunsRepo := reposqlc.NewExportRunRepo(database)
+	noopMailer := mail.NewMailer(&mail.Config{})
 
 	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb)
 	if err := seeder.EnsureWorkspace(t.Context()); err != nil {
 		t.Fatalf("ensure demo workspace: %v", err)
 	}
 
-	_ = jobs.NewJobServer(queries, rawDB, stor, hub, q, noopMailer, trf, tmb, cfg, ingester, resolveImageRouterKey, nil, exportConfigsRepo, exportRunsRepo)
-	app := api.NewRouter(database, maker, stor, hub, q, noopMailer, trf, cfg, seeder, nil, nil)
+	deps, err := app.Build(cfg, database, stor, hub, q, noopMailer, trf, tmb)
+	if err != nil {
+		t.Fatalf("app.Build: %v", err)
+	}
 
-	return &demoEnv{App: app, Maker: maker, SqlDB: rawDB, Seeder: seeder}
+	_ = jobs.NewJobServer(jobs.Deps{
+		Queries:           queries,
+		SQLDB:             rawDB,
+		Storage:           deps.Storage,
+		Hub:               deps.Hub,
+		Queue:             deps.Queue,
+		Mailer:            deps.Mailer,
+		Transformer:       deps.Transformer,
+		Thumbnailer:       deps.Thumbnailer,
+		Config:            deps.Config,
+		Ingester:          deps.Ingester,
+		AIAPIKeyResolver:  deps.KeyResolver,
+		AIProviderFactory: deps.AIProviderFactory,
+		WorkspaceRepo:     reposqlc.NewWorkspaceRepo(database),
+		WorkflowExec:      deps.WorkflowExec,
+		ExportSvc:         deps.Exports,
+		ExifSvc:           deps.Exif,
+		TagSvc:            deps.Tags,
+		FieldSvc:          deps.Fields,
+		TextTrackSvc:      deps.TextTracks,
+		StorageSvc:        deps.StorageSvc,
+	})
+	router := api.NewRouter(deps, maker, seeder, nil)
+
+	return &demoEnv{App: router, Maker: maker, Database: rawDB, Seeder: seeder}
 }
 
 func mintDemoToken(t *testing.T, env *demoEnv) string {

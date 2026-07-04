@@ -45,9 +45,7 @@ func startFakeImageRouter(t *testing.T, outputPNG []byte, statusCode int) (*http
 			"data": []map[string]string{{"b64_json": base64.StdEncoding.EncodeToString(outputPNG)}},
 		})
 	}))
-	// restore := ai.SetImageRouterBaseURLForTest(srv.URL + "/v1")
 	return srv, func() {
-		// restore()
 		srv.Close()
 	}
 }
@@ -90,10 +88,10 @@ func storageKeyExists(env *th.TestEnv, key string) bool {
 
 func TestCreateVariantDraftJob_HappyPath(t *testing.T) {
 	outputPNG := tinyPNGBytes(t)
-	_, cleanup := startFakeImageRouter(t, outputPNG, http.StatusOK)
+	srv, cleanup := startFakeImageRouter(t, outputPNG, http.StatusOK)
 	defer cleanup()
 
-	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"))
+	env := th.SetupTestApp(t, th.WithImageRouterAPIKey("test-key"), th.WithImageRouterBaseURL(srv.URL))
 	res := th.Register(t, env, "Draft User", "draft@test.com", "password123")
 	assetID := env.UploadTestAsset(t, res.Cookie)
 

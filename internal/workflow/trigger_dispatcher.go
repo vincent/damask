@@ -30,6 +30,12 @@ func NewTriggerDispatcher(
 }
 
 func (d *TriggerDispatcher) Dispatch(ctx context.Context, eventType string, data map[string]any) error {
+	if depth := TriggerDepthFrom(ctx); depth >= 1 {
+		slog.DebugContext(ctx, "workflow trigger suppressed: mutation caused by a workflow run",
+			"trigger_type", eventType, "depth", depth)
+		return nil
+	}
+
 	var err error
 	ctx, span := dispatcherTracer.Start(
 		ctx,

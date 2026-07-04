@@ -23,22 +23,18 @@ import (
 
 	"damask/server/internal/ai"
 	"damask/server/internal/api"
-	"damask/server/internal/audit"
+	"damask/server/internal/app"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	dbpkg "damask/server/internal/db"
 	"damask/server/internal/events"
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
-	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
-	repomemory "damask/server/internal/repository/memory"
 	reposqlc "damask/server/internal/repository/sqlc"
-	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 	"damask/server/internal/versioning"
-	"damask/server/internal/workflow"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -178,82 +174,45 @@ func SetupTestApp(t *testing.T, opts ...TestOption) *TestEnv {
 	noopMailer := mail.NewMailer(&mail.Config{})
 	trf := transform.NewTransformer()
 	tmb := transform.NewThumbnailer(trf)
-	media := ingest.NewRegistry(trf)
-	autoTagSvc := service.NewAutoTagService(queries, q, nil, nil)
-	ingester := service.NewAssetIngester(queries, sqlDB, stor, q, media, autoTagSvc)
-	workspaceRepo := reposqlc.NewWorkspaceRepo(database)
-	resolveImageRouterKey := ai.NewKeyResolver(workspaceRepo, *cfg)
-	storageSvc := service.NewStorageService(queries)
-	h := api.NewHTTPServer(
-		database,
-		maker,
-		stor,
-		eventsHub,
-		q,
-		noopMailer,
-		trf,
-		cfg,
-		nil,
-		storageSvc,
-		setup.bcryptCost,
-	)
-	workflowRepo := reposqlc.NewWorkflowRepo(database)
-	workflowRunRepo := reposqlc.NewWorkflowRunRepo(database)
-	workflowExec := workflow.NewExecutor(
-		workflow.Deps{
-			Workflows: workflowRepo,
-			Runs:      workflowRunRepo,
-			Queue:     q,
-			Config:    cfg,
-		},
-	)
-	exportSvc := service.NewExportServiceWithRepos(
-		queries,
-		sqlDB,
-		stor,
-		cfg.AppSecret,
-		q,
-		repomemory.NewExportConfigRepo(),
-		repomemory.NewExportRunRepo(),
-	)
-	exifSvc := service.NewExifService(queries, stor)
-	fieldSvc := service.NewFieldService(reposqlc.NewFieldRepo(database))
-	textTrackSvc := service.NewTextTrackService(queries, q, stor)
-	// jobsTagSvc is a dedicated TagService instance with a real
-	// TriggerDispatcher wired in, mirroring cmd/server/main.go, so tests can
-	// observe trigger.tag_added firing for silently-applied AI tags.
-	jobsTagSvc := service.NewTagService(
-		reposqlc.NewTagRepo(database),
-		audit.New(sqlDB),
-		service.TagServiceDeps{
-			Assets:   reposqlc.NewAssetRepo(database),
-			Triggers: workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q),
-		},
-	)
-	j := jobs.NewJobServer(
-		queries,
-		sqlDB,
-		stor,
-		eventsHub,
-		q,
-		noopMailer,
-		trf,
-		tmb,
-		cfg,
-		ingester,
-		resolveImageRouterKey,
-		setup.aiProviderFactory,
-		workspaceRepo,
-		workflowExec,
-		exportSvc,
-		exifSvc,
-		jobsTagSvc,
-		fieldSvc,
-		textTrackSvc,
-		storageSvc,
-	)
-	app := api.NewRouter(database, maker, stor, eventsHub, q, noopMailer, trf, cfg, nil, nil, storageSvc)
-	return &TestEnv{App: app, HTTPServer: h, JobServer: j, Maker: maker, Database: sqlDB, Storage: stor, Config: cfg}
+
+	// Single composition root, same as cmd/server/main.go: both the test's
+	// HTTP server and job server consume the same *app.Deps, so tests
+	// observe the same convergent behavior production does (e.g.
+	// trigger.tag_added firing identically for API and job-driven tag
+	// mutations, variant Invalidate/Workflows wiring matching either path).
+	appDeps, err := app.Build(cfg, database, stor, eventsHub, q, noopMailer, trf, tmb)
+	if err != nil {
+		t.Fatalf("app.Build: %v", err)
+	}
+
+	h := api.NewHTTPServer(appDeps, maker, nil, setup.bcryptCost)
+	j := jobs.NewJobServer(jobs.Deps{
+		Queries:           queries,
+		SQLDB:             sqlDB,
+		Storage:           appDeps.Storage,
+		Hub:               appDeps.Hub,
+		Queue:             appDeps.Queue,
+		Mailer:            appDeps.Mailer,
+		Transformer:       appDeps.Transformer,
+		Thumbnailer:       appDeps.Thumbnailer,
+		Config:            appDeps.Config,
+		Ingester:          appDeps.Ingester,
+		AIAPIKeyResolver:  appDeps.KeyResolver,
+		AIProviderFactory: setup.aiProviderFactory,
+		WorkspaceRepo:     reposqlc.NewWorkspaceRepo(database),
+		WorkflowExec:      appDeps.WorkflowExec,
+		ExportSvc:         appDeps.Exports,
+		ExifSvc:           appDeps.Exif,
+		TagSvc:            appDeps.Tags,
+		FieldSvc:          appDeps.Fields,
+		TextTrackSvc:      appDeps.TextTracks,
+		StorageSvc:        appDeps.StorageSvc,
+	})
+	appRouter := api.NewRouter(appDeps, maker, nil, nil)
+	return &TestEnv{
+		App: appRouter, HTTPServer: h, JobServer: j,
+		Maker: maker, Database: sqlDB, Storage: stor, Config: cfg,
+	}
 }
 
 // AuthResult holds the parsed outcome of a register or login response.

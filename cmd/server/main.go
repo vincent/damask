@@ -10,9 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"damask/server/internal/ai"
 	"damask/server/internal/api"
-	"damask/server/internal/audit"
+	"damask/server/internal/app"
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	"damask/server/internal/db"
@@ -22,14 +21,12 @@ import (
 	"damask/server/internal/jobs"
 	"damask/server/internal/mail"
 	"damask/server/internal/mailserver"
-	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
-	"damask/server/internal/workflow"
 
 	// Side-effect imports to register ingress source types.
 	"damask/server/internal/ingress/sources/canva"
@@ -143,107 +140,40 @@ func main() {
 	// --- transform ---
 	trf := transform.NewTransformer(cfg.FFmpeg)
 	tmb := transform.NewThumbnailer(trf)
-	media := ingest.NewRegistry(trf)
 
-	// --- repositories ---
-	workspaceRepo := reposqlc.NewWorkspaceRepo(database)
-	assetRepo := reposqlc.NewAssetRepo(database)
-	tagRepo := reposqlc.NewTagRepo(database)
-	fieldRepo := reposqlc.NewFieldRepo(database)
-	userRepo := reposqlc.NewUserRepo(database)
-	versionRepo := reposqlc.NewVersionRepo(database)
-	variantRepo := reposqlc.NewVariantRepo(database)
-	assetFieldRepo := reposqlc.NewAssetFieldRepo(database)
-	workflowRepo := reposqlc.NewWorkflowRepo(database)
-	workflowRunRepo := reposqlc.NewWorkflowRunRepo(database)
-
-	// --- services ---
-	auditWriter := audit.New(database.Writer)
-	aiAPIKeyResolver := ai.NewKeyResolver(workspaceRepo, *cfg)
-	tagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
-		Assets: assetRepo,
-	})
-	autoTagSvc := service.NewAutoTagService(database.WQ, q, tagSvc, aiAPIKeyResolver)
-	ingester := service.NewAssetIngester(database.WQ, database.Writer, stor, q, media, autoTagSvc)
-	variantSvc := service.NewVariantServiceWithDeps(
-		variantRepo,
-		assetRepo,
-		tagSvc,
-		auditWriter,
-		service.VariantServiceDeps{
-			Actions: service.NewSQLVariantActionsStore(database.Writer),
-			Queue:   q,
-			Storage: stor,
-		},
-	)
-	fieldSvc := service.NewFieldService(fieldRepo)
-	assetSvc := service.NewAssetService(assetRepo, versionRepo, tagRepo, fieldRepo, stor, auditWriter, q)
-	assetFieldSvc := service.NewAssetFieldService(assetRepo, fieldRepo, assetFieldRepo, auditWriter)
-	shareSvc := service.NewShareService(reposqlc.NewShareRepo(database), auditWriter)
-	workspaceSvc := service.NewWorkspaceService(
-		workspaceRepo,
-		userRepo,
-		cfg.AppSecret,
-		aiAPIKeyResolver,
-	)
-	exportSvc := service.NewExportService(database, stor, cfg.AppSecret, q)
-	exifSvc := service.NewExifService(database.WQ, stor)
-	textTrackSvc := service.NewTextTrackService(database.WQ, q, stor)
-	storageSvc := service.NewStorageService(database.WQ)
-	// jobsTagSvc is a dedicated TagService instance (separate from tagSvc
-	// above) with a real TriggerDispatcher wired in, so silent AI auto-tagging
-	// publishes trigger.tag_added. The shared tagSvc above stays on a nop
-	// publisher to avoid making workflowExec's "set tag" action start
-	// publishing triggers too, which has no cycle/depth guard against a
-	// workflow re-triggering itself.
-	jobsTagSvc := service.NewTagService(tagRepo, auditWriter, service.TagServiceDeps{
-		Assets:   assetRepo,
-		Triggers: workflow.NewTriggerDispatcher(workflowRepo, workflowRunRepo, q),
-	})
-
-	// --- workflow executor ---
-	workflowExec := workflow.NewExecutor(workflow.Deps{
-		Workflows:   workflowRepo,
-		Runs:        workflowRunRepo,
-		Queue:       q,
-		Storage:     stor,
-		Mailer:      mailer,
-		Hub:         eventsHub,
-		Audit:       auditWriter,
-		Assets:      newAssetManager(assetSvc),
-		Variants:    newVariantManager(variantSvc),
-		Versions:    newVersionManager(versionRepo),
-		Shares:      newShareManager(shareSvc),
-		Tags:        newTagManager(tagSvc),
-		AssetFields: newAssetFieldManager(assetFieldSvc),
-		Workspace:   newWorkspaceManager(workspaceSvc),
-		TextTracks:  newTextTrackManager(textTrackSvc),
-		Config:      cfg,
-	})
+	// --- single composition root: builds the entire dependency graph once.
+	// Both the HTTP server and the job server consume the same *app.Deps, so
+	// a variant produced via a background job goes through identical
+	// Invalidate/Workflows wiring as one produced via the API.
+	deps, err := app.Build(cfg, database, stor, eventsHub, q, mailer, trf, tmb)
+	if err != nil {
+		slog.Error("app", "error", err)
+		os.Exit(1)
+	}
 
 	// --- job server ---
-	js := jobs.NewJobServer(
-		database.WQ,
-		database.Writer,
-		stor,
-		eventsHub,
-		q,
-		mailer,
-		trf,
-		tmb,
-		cfg,
-		ingester,
-		aiAPIKeyResolver,
-		ai.NewProvider,
-		workspaceRepo,
-		workflowExec,
-		exportSvc,
-		exifSvc,
-		jobsTagSvc,
-		fieldSvc,
-		textTrackSvc,
-		storageSvc,
-	)
+	js := jobs.NewJobServer(jobs.Deps{
+		Queries:           database.WQ,
+		SQLDB:             database.Writer,
+		Storage:           deps.Storage,
+		Hub:               deps.Hub,
+		Queue:             deps.Queue,
+		Mailer:            deps.Mailer,
+		Transformer:       deps.Transformer,
+		Thumbnailer:       deps.Thumbnailer,
+		Config:            deps.Config,
+		Ingester:          deps.Ingester,
+		AIAPIKeyResolver:  deps.KeyResolver,
+		AIProviderFactory: deps.AIProviderFactory,
+		WorkspaceRepo:     reposqlc.NewWorkspaceRepo(database),
+		WorkflowExec:      deps.WorkflowExec,
+		ExportSvc:         deps.Exports,
+		ExifSvc:           deps.Exif,
+		TagSvc:            deps.Tags,
+		FieldSvc:          deps.Fields,
+		TextTrackSvc:      deps.TextTracks,
+		StorageSvc:        deps.StorageSvc,
+	})
 	js.RegisterJobHandlers()
 
 	// --- http ---
@@ -251,7 +181,7 @@ func main() {
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
 	demoSeeder := initDemoSeeder(ctx, cfg, database.Writer, stor, trf, tmb)
 
-	app := api.NewRouter(database, tokenMaker, stor, eventsHub, q, mailer, trf, cfg, demoSeeder, uiFS, storageSvc)
+	app := api.NewRouter(deps, tokenMaker, demoSeeder, uiFS)
 
 	mailErr := initMailServer(cfg, database.WQ, q)
 

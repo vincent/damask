@@ -42,7 +42,7 @@ test:
 
 # Run integration tests (internal/api handlers against real SQLite)
 test-integration:
-	go test -tags=integration ./internal/api/...
+	go test -tags=integration ./internal/api/... ./internal/jobs/
 
 # Produce merged HTML coverage report (unit + integration)
 coverage:

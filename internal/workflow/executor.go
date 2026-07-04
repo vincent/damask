@@ -85,6 +85,9 @@ func (e *Executor) Run(ctx context.Context, runID string) error {
 	if err != nil {
 		return err
 	}
+	// Mutations performed by workflow nodes carry a trigger depth so the
+	// dispatcher refuses to fire triggers from them (recursion guard).
+	ctx = WithTriggerDepth(ctx, TriggerDepthFrom(ctx)+1)
 	runErr := e.executeNode(ctx, &graph, trigger, rc, runID, wf.WorkspaceID, wf.ID)
 
 	if runErr != nil {
@@ -254,6 +257,9 @@ func (e *Executor) ResumeAt(ctx context.Context, cont NodeContinuation, updates 
 		return err
 	}
 
+	// Resumed nodes are still workflow-caused mutations — carry the depth
+	// so the dispatcher's recursion guard applies here too.
+	ctx = WithTriggerDepth(ctx, TriggerDepthFrom(ctx)+1)
 	runErr := e.executeNode(ctx, &graph, targetNode, rc, cont.RunID, cont.WorkspaceID, cont.WorkflowID)
 
 	// Guard against double-write: if the run was already finalised by a
