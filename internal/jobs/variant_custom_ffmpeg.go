@@ -57,7 +57,7 @@ func (s *JobServer) customFFmpegTransformer(workspaceID string, params json.RawM
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "custom_ffmpeg"),
 		)
-		rc, err := s.storage.Get(sourceKey)
+		rc, err := s.storage.Get(ctx, sourceKey)
 		if err != nil {
 			telemetry.EndSpan(span, err)
 			return nil, "", err
@@ -175,7 +175,7 @@ func (s *JobServer) resolveOneRef(
 		return "", fmt.Errorf("resolveOneRef: unknown ref kind %q", ref.Kind)
 	}
 
-	rc, err := s.storage.Get(storageKey)
+	rc, err := s.storage.Get(ctx, storageKey)
 	if err != nil {
 		return "", fmt.Errorf("resolveOneRef: download %s %q: %w", ref.Kind, ref.ID, err)
 	}

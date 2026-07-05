@@ -1,30 +1,32 @@
 package storage
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
-	"strings"
+	"time"
 )
 
 // Storage is the interface that wraps basic asset storage operations.
 // LocalStorage is the default implementation. Swap for S3Storage at config level.
 type Storage interface {
-	Put(key string, r io.Reader) error
-	Get(key string) (io.ReadCloser, error)
-	Delete(key string) error
-	List(prefix string) ([]string, error)
+	Put(ctx context.Context, key string, r io.Reader) error
+	Get(ctx context.Context, key string) (io.ReadCloser, error)
+	Delete(ctx context.Context, key string) error
+	List(ctx context.Context, prefix string) ([]string, error)
+	Stat(ctx context.Context, key string) (Info, error)
 }
 
-// IsNotFoundErr returns true when err indicates a missing key, regardless of backend.
-func IsNotFoundErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "not found") ||
-		strings.Contains(msg, "no such file") ||
-		strings.Contains(msg, "does not exist")
+// Info holds metadata about a stored object, as returned by Stat.
+type Info struct {
+	Size    int64
+	ModTime time.Time
 }
+
+// ErrNotFound is the sentinel error returned (wrapped) by backends when a
+// requested key does not exist.
+var ErrNotFound = errors.New("storage: object not found")
 
 // VersionedVariantKey returns the canonical storage path for a variant that
 // belongs to a specific asset version.

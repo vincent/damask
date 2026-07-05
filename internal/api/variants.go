@@ -743,7 +743,7 @@ func (s *Server) handleGetVariantFile(c fiber.Ctx) error {
 		return nil
 	}
 
-	rc, err := s.storage.Get(variant.StorageKey)
+	rc, err := s.storage.Get(c.Context(), variant.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "variant file not found")
 	}
@@ -791,9 +791,9 @@ func (s *Server) handleDeleteVariant(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	_ = s.storage.Delete(variant.StorageKey)
+	_ = s.storage.Delete(c.Context(), variant.StorageKey)
 	if variant.ThumbnailKey != nil {
-		_ = s.storage.Delete(*variant.ThumbnailKey)
+		_ = s.storage.Delete(c.Context(), *variant.ThumbnailKey)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -860,7 +860,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		attribute.String("damask.storage.key", storageKey),
 		attribute.Int64("damask.upload.bytes", fh.Size),
 	)
-	err = s.storage.Put(storageKey, f)
+	err = s.storage.Put(c.Context(), storageKey, f)
 	apptelemetry.EndSpan(putSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not store file")
@@ -884,7 +884,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		Size:            &sz,
 	})
 	if err != nil {
-		_ = s.storage.Delete(storageKey)
+		_ = s.storage.Delete(c.Context(), storageKey)
 		return errRes(c, fiber.StatusInternalServerError, "could not create variant record")
 	}
 
@@ -926,7 +926,7 @@ func (s *Server) handleGetVariantThumb(c fiber.Ctx) error {
 		attribute.String("damask.variant_id", variantID),
 		attribute.String("damask.storage.key", *variant.ThumbnailKey),
 	)
-	rc, err := s.storage.Get(*variant.ThumbnailKey)
+	rc, err := s.storage.Get(c.Context(), *variant.ThumbnailKey)
 	apptelemetry.EndSpan(getSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
@@ -1004,7 +1004,7 @@ func (s *Server) handlePreviewTransform(c fiber.Ctx) error {
 		attribute.String("damask.asset_id", assetID),
 		attribute.String("damask.storage.key", asset.StorageKey),
 	)
-	rc, err := s.storage.Get(asset.StorageKey)
+	rc, err := s.storage.Get(c.Context(), asset.StorageKey)
 	apptelemetry.EndSpan(getSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "asset file not found")

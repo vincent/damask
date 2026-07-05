@@ -28,7 +28,7 @@ func embedPublicResolved(storageKey, contentHash, mimeType string) *service.Reso
 
 func TestPublicEmbedFile_StreamsCurrentVersionFile(t *testing.T) {
 	env := testutil.NewTestEnv(t)
-	if err := env.Server.StorageForTest().Put("key/v1", bytes.NewReader([]byte("file-bytes-v1"))); err != nil {
+	if err := env.Server.StorageForTest().Put(t.Context(), "key/v1", bytes.NewReader([]byte("file-bytes-v1"))); err != nil {
 		t.Fatalf("seed storage: %v", err)
 	}
 	env.EmbedTokens.ResolveFn = func(_ context.Context, tokenID string) (*service.ResolvedEmbed, error) {
@@ -55,7 +55,7 @@ func TestPublicEmbedFile_StreamsCurrentVersionFile(t *testing.T) {
 
 func TestPublicEmbedFile_SetsETagFromContentHash(t *testing.T) {
 	env := testutil.NewTestEnv(t)
-	if err := env.Server.StorageForTest().Put("key/v1", bytes.NewReader([]byte("file-bytes"))); err != nil {
+	if err := env.Server.StorageForTest().Put(t.Context(), "key/v1", bytes.NewReader([]byte("file-bytes"))); err != nil {
 		t.Fatalf("seed storage: %v", err)
 	}
 	env.EmbedTokens.ResolveFn = func(_ context.Context, _ string) (*service.ResolvedEmbed, error) {
@@ -72,7 +72,7 @@ func TestPublicEmbedFile_SetsETagFromContentHash(t *testing.T) {
 
 func TestPublicEmbedFile_Returns304OnETagMatch(t *testing.T) {
 	env := testutil.NewTestEnv(t)
-	if err := env.Server.StorageForTest().Put("key/v1", bytes.NewReader([]byte("file-bytes"))); err != nil {
+	if err := env.Server.StorageForTest().Put(t.Context(), "key/v1", bytes.NewReader([]byte("file-bytes"))); err != nil {
 		t.Fatalf("seed storage: %v", err)
 	}
 	env.EmbedTokens.ResolveFn = func(_ context.Context, _ string) (*service.ResolvedEmbed, error) {
@@ -87,7 +87,7 @@ func TestPublicEmbedFile_Returns304OnETagMatch(t *testing.T) {
 
 func TestPublicEmbedFile_StreamsCurrentVersionFileWithSluggedURL(t *testing.T) {
 	env := testutil.NewTestEnv(t)
-	if err := env.Server.StorageForTest().Put("key/v1", bytes.NewReader([]byte("file-bytes-v1"))); err != nil {
+	if err := env.Server.StorageForTest().Put(t.Context(), "key/v1", bytes.NewReader([]byte("file-bytes-v1"))); err != nil {
 		t.Fatalf("seed storage: %v", err)
 	}
 	// Real token IDs are always exactly 16 chars (token.NewBase62(16)) — ExtractTokenID
@@ -137,10 +137,10 @@ func TestPublicEmbedFile_Returns410ForRevokedToken(t *testing.T) {
 func TestPublicEmbedFile_ServesNewVersionAfterPromotion(t *testing.T) {
 	env := testutil.NewTestEnv(t)
 	stor := env.Server.StorageForTest()
-	if err := stor.Put("key/v1", bytes.NewReader([]byte("v1-bytes"))); err != nil {
+	if err := stor.Put(t.Context(), "key/v1", bytes.NewReader([]byte("v1-bytes"))); err != nil {
 		t.Fatalf("seed storage: %v", err)
 	}
-	if err := stor.Put("key/v2", bytes.NewReader([]byte("v2-bytes"))); err != nil {
+	if err := stor.Put(t.Context(), "key/v2", bytes.NewReader([]byte("v2-bytes"))); err != nil {
 		t.Fatalf("seed storage: %v", err)
 	}
 
@@ -168,7 +168,7 @@ func TestPublicEmbedFile_ServesNewVersionAfterPromotion(t *testing.T) {
 
 func TestPublicEmbedThumb_StreamsThumbnail(t *testing.T) {
 	env := testutil.NewTestEnv(t)
-	if err := env.Server.StorageForTest().Put("thumbs/v1", bytes.NewReader([]byte("thumb-bytes"))); err != nil {
+	if err := env.Server.StorageForTest().Put(t.Context(), "thumbs/v1", bytes.NewReader([]byte("thumb-bytes"))); err != nil {
 		t.Fatalf("seed storage: %v", err)
 	}
 	thumbKey := "thumbs/v1"

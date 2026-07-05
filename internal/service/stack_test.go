@@ -154,10 +154,10 @@ func TestStackService_ExportZip_DuplicateFilenames(t *testing.T) {
 		repository.AssetVersion{ID: "v1", AssetID: "ast_1", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key1"},
 		repository.AssetVersion{ID: "v2", AssetID: "ast_2", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key2"},
 	)
-	if err := stor.Put("key1", strings.NewReader("data1")); err != nil {
+	if err := stor.Put(t.Context(), "key1", strings.NewReader("data1")); err != nil {
 		t.Fatalf("stor.Put key1: %v", err)
 	}
-	if err := stor.Put("key2", strings.NewReader("data2")); err != nil {
+	if err := stor.Put(t.Context(), "key2", strings.NewReader("data2")); err != nil {
 		t.Fatalf("stor.Put key2: %v", err)
 	}
 
@@ -217,12 +217,12 @@ type cancelAfterNGets struct {
 	calls  int
 }
 
-func (c *cancelAfterNGets) Get(key string) (io.ReadCloser, error) {
+func (c *cancelAfterNGets) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	c.calls++
 	if c.calls == c.n {
 		c.cancel()
 	}
-	return c.Storage.Get(key)
+	return c.Storage.Get(ctx, key)
 }
 
 func TestStackService_ExportZip_AbortsOnContextCancellation(t *testing.T) {
@@ -241,7 +241,7 @@ func TestStackService_ExportZip_AbortsOnContextCancellation(t *testing.T) {
 		repository.AssetVersion{ID: "v3", AssetID: "ast_3", WorkspaceID: "ws_1", IsCurrent: true, StorageKey: "key3"},
 	)
 	for _, k := range []string{"key1", "key2", "key3"} {
-		if err := stor.Put(k, strings.NewReader("data")); err != nil {
+		if err := stor.Put(t.Context(), k, strings.NewReader("data")); err != nil {
 			t.Fatalf("stor.Put %s: %v", k, err)
 		}
 	}

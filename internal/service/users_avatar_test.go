@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -27,7 +28,7 @@ type errStorage struct {
 	keys      map[string][]byte
 }
 
-func (s *errStorage) Put(key string, r io.Reader) error {
+func (s *errStorage) Put(_ context.Context, key string, r io.Reader) error {
 	if s.putErr != nil {
 		return s.putErr
 	}
@@ -42,14 +43,14 @@ func (s *errStorage) Put(key string, r io.Reader) error {
 	return nil
 }
 
-func (s *errStorage) Get(key string) (io.ReadCloser, error) {
+func (s *errStorage) Get(_ context.Context, key string) (io.ReadCloser, error) {
 	if data, ok := s.keys[key]; ok {
 		return io.NopCloser(bytes.NewReader(data)), nil
 	}
 	return nil, errors.New("not found")
 }
 
-func (s *errStorage) Delete(key string) error {
+func (s *errStorage) Delete(_ context.Context, key string) error {
 	if s.deleteErr != nil {
 		return s.deleteErr
 	}
@@ -57,7 +58,7 @@ func (s *errStorage) Delete(key string) error {
 	return nil
 }
 
-func (s *errStorage) List(prefix string) ([]string, error) {
+func (s *errStorage) List(_ context.Context, prefix string) ([]string, error) {
 	var out []string
 	for key := range s.keys {
 		if len(prefix) == 0 || len(key) >= len(prefix) && key[:len(prefix)] == prefix {
@@ -65,6 +66,13 @@ func (s *errStorage) List(prefix string) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+func (s *errStorage) Stat(_ context.Context, key string) (storage.Info, error) {
+	if data, ok := s.keys[key]; ok {
+		return storage.Info{Size: int64(len(data))}, nil
+	}
+	return storage.Info{}, fmt.Errorf("stat %s: %w", key, storage.ErrNotFound)
 }
 
 func makePNG(t *testing.T) []byte {
@@ -141,14 +149,14 @@ func TestUserService_UploadAvatar_OK(t *testing.T) {
 		t.Fatalf("AvatarStorageKey = %v", dto.AvatarStorageKey)
 	}
 
-	keys, err := stor.List("avatars")
+	keys, err := stor.List(t.Context(), "avatars")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if len(keys) != 1 || keys[0] != "avatars/u_1.webp" {
 		t.Fatalf("stored keys = %v", keys)
 	}
-	stored, err := stor.Get("avatars/u_1.webp")
+	stored, err := stor.Get(t.Context(), "avatars/u_1.webp")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -196,7 +204,7 @@ func TestUserService_DeleteAvatar_OK(t *testing.T) {
 	svc, users, _, stor := newUserSvc(t)
 	key := "avatars/u_1.webp"
 	users.Seed(repository.User{ID: "u_1", Email: "avatar@example.com", Name: "Avatar", AvatarStorageKey: &key})
-	if err := stor.Put(key, bytes.NewReader([]byte("avatar"))); err != nil {
+	if err := stor.Put(t.Context(), key, bytes.NewReader([]byte("avatar"))); err != nil {
 		t.Fatalf("Put: %v", err)
 	}
 
@@ -212,7 +220,7 @@ func TestUserService_DeleteAvatar_OK(t *testing.T) {
 		t.Fatalf("AvatarStorageKey = %v, want nil", *user.AvatarStorageKey)
 	}
 
-	keys, err := stor.List("avatars")
+	keys, err := stor.List(t.Context(), "avatars")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}

@@ -223,7 +223,7 @@ func (s *JobServer) finalizeVariant(
 	ext := transform.MimeToExt(contentType)
 	storageKey := storage.VersionedVariantKey(p.WorkspaceID, p.AssetID, p.VersionNum, jobType, paramsHash, ext)
 
-	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
+	if err := s.storage.Put(ctx, storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 
@@ -284,7 +284,7 @@ func (s *JobServer) finalizeRebuildVariant(
 		ext,
 	)
 
-	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
+	if err := s.storage.Put(ctx, storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("store variant: %w", err)
 	}
 

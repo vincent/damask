@@ -161,7 +161,7 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 		slog.ErrorContext(ctx, "purge-version-storage: list variants", "version_id", p.VersionID, "error", varErr)
 	}
 	for _, v := range variants {
-		if delErr := s.storage.Delete(v.StorageKey); delErr != nil {
+		if delErr := s.storage.Delete(ctx, v.StorageKey); delErr != nil {
 			slog.ErrorContext(
 				ctx,
 				"purge-version-storage: delete variant storage",
@@ -172,7 +172,7 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 			)
 		}
 		if v.ThumbnailKey != nil {
-			if delErr := s.storage.Delete(*v.ThumbnailKey); delErr != nil {
+			if delErr := s.storage.Delete(ctx, *v.ThumbnailKey); delErr != nil {
 				slog.ErrorContext(
 					ctx,
 					"purge-version-storage: delete variant thumb",
@@ -186,11 +186,11 @@ func (s *JobServer) jobPurgeVersionStorage(ctx context.Context, job dbgen.Job) e
 	}
 
 	// Delete source + thumbnail storage files.
-	if delErr := s.storage.Delete(ver.StorageKey); delErr != nil {
+	if delErr := s.storage.Delete(ctx, ver.StorageKey); delErr != nil {
 		slog.ErrorContext(ctx, "purge-version-storage: delete storage", "storage_key", ver.StorageKey, "error", delErr)
 	}
 	if ver.ThumbnailKey != nil {
-		if delErr := s.storage.Delete(*ver.ThumbnailKey); delErr != nil {
+		if delErr := s.storage.Delete(ctx, *ver.ThumbnailKey); delErr != nil {
 			slog.ErrorContext(
 				ctx,
 				"purge-version-storage: delete thumb",

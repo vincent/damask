@@ -683,7 +683,7 @@ func (s *Server) handleDownloadTextTrack(c fiber.Ctx) (err error) {
 	_, fileSpan := telemetry.StartSpan(ctx, "api.text_tracks.download.open_storage",
 		attribute.String("damask.storage_key", *track.StorageKey),
 	)
-	rc, err := s.storage.Get(*track.StorageKey)
+	rc, err := s.storage.Get(c.Context(), *track.StorageKey)
 	telemetry.EndSpan(fileSpan, err)
 	if err != nil {
 		span.RecordError(err)

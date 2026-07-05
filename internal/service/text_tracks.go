@@ -433,7 +433,7 @@ func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID stri
 		attribute.Bool("damask.text_track.has_file", track.StorageKey != nil),
 	)
 	if track.StorageKey != nil && s.storage != nil {
-		if delErr := s.storage.Delete(*track.StorageKey); delErr != nil {
+		if delErr := s.storage.Delete(ctx, *track.StorageKey); delErr != nil {
 			slog.WarnContext(
 				ctx,
 				"text track storage delete failed",
@@ -527,7 +527,7 @@ func (s *textTrackService) RunExtractPDF(
 		}
 	}()
 
-	rc, err := s.storage.Get(storageKey)
+	rc, err := s.storage.Get(ctx, storageKey)
 	if err != nil {
 		return fmt.Errorf("RunExtractPDF: read source: %w", err)
 	}
@@ -567,7 +567,7 @@ func (s *textTrackService) RunExtractPlain(
 		}
 	}()
 
-	rc, err := s.storage.Get(storageKey)
+	rc, err := s.storage.Get(ctx, storageKey)
 	if err != nil {
 		return fmt.Errorf("RunExtractPlain: read source: %w", err)
 	}
@@ -601,7 +601,7 @@ func (s *textTrackService) RunExtractDocument(
 		}
 	}()
 
-	rc, err := s.storage.Get(storageKey)
+	rc, err := s.storage.Get(ctx, storageKey)
 	if err != nil {
 		return fmt.Errorf("RunExtractDocument: read source: %w", err)
 	}
@@ -685,7 +685,7 @@ func (s *textTrackService) RunOCR(
 	_, readSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.read_source",
 		attribute.String("damask.storage_key", storageKey),
 	)
-	rc, err := s.storage.Get(storageKey)
+	rc, err := s.storage.Get(ctx, storageKey)
 	telemetry.EndSpan(readSpan, err)
 	if err != nil {
 		return fail(fmt.Errorf("RunOCR: read source: %w", err))
@@ -714,7 +714,7 @@ func (s *textTrackService) RunOCR(
 		_, storeSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.store_companion",
 			attribute.String("damask.storage_key", key),
 		)
-		if err = s.storage.Put(key, bytes.NewReader(result.FileContent)); err != nil {
+		if err = s.storage.Put(ctx, key, bytes.NewReader(result.FileContent)); err != nil {
 			telemetry.EndSpan(storeSpan, err)
 			return fail(fmt.Errorf("RunOCR: store companion file: %w", err))
 		}

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image/color"
 	"io"
 
+	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 
 	"github.com/disintegration/imaging"
@@ -18,7 +20,7 @@ type mockStorage struct {
 	err  error
 }
 
-func (m *mockStorage) Get(key string) (io.ReadCloser, error) {
+func (m *mockStorage) Get(_ context.Context, key string) (io.ReadCloser, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -28,16 +30,26 @@ func (m *mockStorage) Get(key string) (io.ReadCloser, error) {
 	return nil, errors.New("not found")
 }
 
-func (m *mockStorage) Put(_ string, _ io.Reader) error {
+func (m *mockStorage) Put(_ context.Context, _ string, _ io.Reader) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockStorage) Delete(_ string) error {
+func (m *mockStorage) Delete(_ context.Context, _ string) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockStorage) List(_ string) ([]string, error) {
+func (m *mockStorage) List(_ context.Context, _ string) ([]string, error) {
 	return nil, errors.New("not implemented")
+}
+
+func (m *mockStorage) Stat(_ context.Context, key string) (storage.Info, error) {
+	if m.err != nil {
+		return storage.Info{}, m.err
+	}
+	if data, exists := m.data[key]; exists {
+		return storage.Info{Size: int64(len(data))}, nil
+	}
+	return storage.Info{}, fmt.Errorf("stat %s: %w", key, storage.ErrNotFound)
 }
 
 type mockTransformer struct{}

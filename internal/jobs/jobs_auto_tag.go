@@ -106,7 +106,7 @@ func (s *JobServer) jobAutoTag(ctx context.Context, job dbgen.Job) error {
 		return fmt.Errorf("jobAutoTag: build prompt: %w", err)
 	}
 
-	rc, err := s.storage.Get(imageKey)
+	rc, err := s.storage.Get(ctx, imageKey)
 	if err != nil {
 		return fmt.Errorf("jobAutoTag: read image: %w", err)
 	}
@@ -158,7 +158,7 @@ func (s *JobServer) jobAutoTagAudio(ctx context.Context, p AutoTagPayload) error
 		return nil
 	}
 
-	rc, err := s.storage.Get(p.StorageKey)
+	rc, err := s.storage.Get(ctx, p.StorageKey)
 	if err != nil {
 		return fmt.Errorf("jobAutoTagAudio: read audio: %w", err)
 	}

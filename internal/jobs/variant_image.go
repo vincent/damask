@@ -69,7 +69,7 @@ func (s *JobServer) imageLocalTransformer(
 			attribute.String("damask.variant_type", jobType),
 		)
 
-		rc, err := s.storage.Get(sourceKey)
+		rc, err := s.storage.Get(ctx, sourceKey)
 		if err != nil {
 			telemetry.EndSpan(span, err)
 			return nil, "", fmt.Errorf("get file: %w", err)
@@ -121,7 +121,7 @@ func (s *JobServer) imageLocalTransformer(
 				telemetry.EndSpan(span, werr)
 				return nil, "", fmt.Errorf("get watermark asset: %w", werr)
 			}
-			wmRC, werr := s.storage.Get(wm.StorageKey)
+			wmRC, werr := s.storage.Get(ctx, wm.StorageKey)
 			if werr != nil {
 				telemetry.EndSpan(span, werr)
 				return nil, "", fmt.Errorf("get watermark file: %w", werr)

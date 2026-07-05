@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -101,13 +102,13 @@ func (s *Server) handlePreviewDraft(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	meta, err := draftReadMeta(s.storage, claims.WorkspaceID, claims.UserID, nonce)
+	meta, err := draftReadMeta(c.Context(), s.storage, claims.WorkspaceID, claims.UserID, nonce)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "draft not found or expired")
 	}
 
 	sk := draftScratchKey(claims.WorkspaceID, claims.UserID, nonce)
-	rc, err := s.storage.Get(sk)
+	rc, err := s.storage.Get(c.Context(), sk)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "draft not found or expired")
 	}
@@ -133,7 +134,7 @@ func (s *Server) handleCommitDraft(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	meta, err := draftReadMeta(s.storage, claims.WorkspaceID, claims.UserID, nonce)
+	meta, err := draftReadMeta(c.Context(), s.storage, claims.WorkspaceID, claims.UserID, nonce)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "draft not found or expired")
 	}
@@ -216,10 +217,10 @@ func (s *Server) handleDiscardDraft(c fiber.Ctx) error {
 	sk := draftScratchKey(claims.WorkspaceID, claims.UserID, nonce)
 	mk := draftMetaKey(claims.WorkspaceID, claims.UserID, nonce)
 
-	if err := s.storage.Delete(sk); err != nil && !draftIsNotFound(err) {
+	if err := s.storage.Delete(c.Context(), sk); err != nil && !errors.Is(err, storage.ErrNotFound) {
 		slog.WarnContext(c.Context(), "discard_draft: delete output failed", "key", sk, "error", err)
 	}
-	if err := s.storage.Delete(mk); err != nil && !draftIsNotFound(err) {
+	if err := s.storage.Delete(c.Context(), mk); err != nil && !errors.Is(err, storage.ErrNotFound) {
 		slog.WarnContext(c.Context(), "discard_draft: delete meta failed", "key", mk, "error", err)
 	}
 
@@ -257,9 +258,11 @@ type draftMeta struct {
 	CreatedAt       string `json:"created_at"`
 }
 
-func draftReadMeta(stor storage.Storage, workspaceID, userID, nonce string) (*draftMeta, error) {
+func draftReadMeta(
+	ctx context.Context, stor storage.Storage, workspaceID, userID, nonce string,
+) (*draftMeta, error) {
 	mk := draftMetaKey(workspaceID, userID, nonce)
-	rc, err := stor.Get(mk)
+	rc, err := stor.Get(ctx, mk)
 	if err != nil {
 		return nil, err
 	}
@@ -274,10 +277,10 @@ func draftReadMeta(stor storage.Storage, workspaceID, userID, nonce string) (*dr
 // draftMoveKey reads src into dst (Put), then deletes src.
 // If dst already exists and src is gone, the move is treated as complete (idempotent).
 func draftMoveKey(ctx context.Context, stor storage.Storage, src, dst string) error {
-	rc, err := stor.Get(src)
+	rc, err := stor.Get(ctx, src)
 	if err != nil {
 		// src gone — check dst already present.
-		dstRC, dstErr := stor.Get(dst)
+		dstRC, dstErr := stor.Get(ctx, dst)
 		if dstErr == nil {
 			_ = dstRC.Close()
 			return nil
@@ -290,10 +293,10 @@ func draftMoveKey(ctx context.Context, stor storage.Storage, src, dst string) er
 	if err != nil {
 		return fmt.Errorf("read scratch data: %w", err)
 	}
-	if err = stor.Put(dst, bytes.NewReader(data)); err != nil {
+	if err = stor.Put(ctx, dst, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("write permanent file: %w", err)
 	}
-	if delErr := stor.Delete(src); delErr != nil && !draftIsNotFound(delErr) {
+	if delErr := stor.Delete(ctx, src); delErr != nil && !errors.Is(delErr, storage.ErrNotFound) {
 		slog.WarnContext(
 			ctx,
 			"draftMoveKey: delete scratch src failed; will be purged nightly",
@@ -338,5 +341,3 @@ func draftSortedMap(m map[string]any) map[string]any {
 	}
 	return out
 }
-
-func draftIsNotFound(err error) bool { return storage.IsNotFoundErr(err) }

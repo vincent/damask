@@ -61,7 +61,7 @@ func (s *JobServer) jobAIImageDescriptionTextTrack(ctx context.Context, job dbge
 		return fail(errors.New("jobAIImageDescriptionTextTrack: OpenRouter is not configured"))
 	}
 
-	rc, err := s.storage.Get(p.StorageKey)
+	rc, err := s.storage.Get(ctx, p.StorageKey)
 	if err != nil {
 		return fail(fmt.Errorf("jobAIImageDescriptionTextTrack: read source: %w", err))
 	}

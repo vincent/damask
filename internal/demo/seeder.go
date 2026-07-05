@@ -513,7 +513,7 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 		}
 
 		storageKey := fmt.Sprintf("demo/%s/%s/%s%s", d.workspaceID, assetID, assetID, ext)
-		if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
+		if err := s.storage.Put(ctx, storageKey, bytes.NewReader(data)); err != nil {
 			return fmt.Errorf("demo: store %s: %w", sp.name, err)
 		}
 
@@ -571,7 +571,7 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 		thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
 		if tErr == nil && thumbData != nil {
 			thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
-			if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {
+			if putErr := s.storage.Put(ctx, thumbKey, bytes.NewReader(thumbData)); putErr == nil {
 				s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID)
 				s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)
 			} else {
@@ -615,7 +615,7 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 	}
 
 	storageKey := fmt.Sprintf("demo/%s/%s_v%d", d.workspaceID, assetID, versionNum)
-	if err := s.storage.Put(storageKey, bytes.NewReader(data)); err != nil {
+	if err := s.storage.Put(ctx, storageKey, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("demo: store version %d of %s: %w", versionNum, sp.name, err)
 	}
 
@@ -669,7 +669,7 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 	thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
 	if tErr == nil && thumbData != nil {
 		thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
-		if putErr := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); putErr == nil {
+		if putErr := s.storage.Put(ctx, thumbKey, bytes.NewReader(thumbData)); putErr == nil {
 			s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID)
 			s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)
 		}

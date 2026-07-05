@@ -118,7 +118,7 @@ func insertVariantDirectly(t *testing.T, env *th.TestEnv, assetID, workspaceID s
 	}
 
 	storageKey := fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID)
-	_ = env.Storage.Put(storageKey, bytes.NewReader([]byte("dummy variant content")))
+	_ = env.Storage.Put(t.Context(), storageKey, bytes.NewReader([]byte("dummy variant content")))
 
 	_, err := env.Database.ExecContext(ctx, `
 		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)
@@ -158,7 +158,7 @@ func insertVariantWithParams(
 	}
 
 	storageKey := fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID)
-	_ = env.Storage.Put(storageKey, bytes.NewReader([]byte("dummy variant content")))
+	_ = env.Storage.Put(t.Context(), storageKey, bytes.NewReader([]byte("dummy variant content")))
 
 	_, err := env.Database.ExecContext(ctx, `
 		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)

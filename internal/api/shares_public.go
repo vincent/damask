@@ -2,6 +2,7 @@ package api
 
 import (
 	"archive/zip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -322,7 +323,7 @@ func (s *Server) handleShareGetVariantFile(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	rc, err := s.storage.Get(v.StorageKey)
+	rc, err := s.storage.Get(c.Context(), v.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "variant file not found")
 	}
@@ -369,7 +370,7 @@ func (s *Server) handleShareGetVariantThumb(c fiber.Ctx) error {
 		return c.Redirect().To(sharedAssetThumbURL(shareID, assetID))
 	}
 
-	rc, err := s.storage.Get(*v.ThumbnailKey)
+	rc, err := s.storage.Get(c.Context(), *v.ThumbnailKey)
 	if err != nil {
 		return c.Redirect().To(sharedAssetThumbURL(shareID, assetID))
 	}
@@ -421,7 +422,7 @@ func (s *Server) handleShareGetAssetFile(c fiber.Ctx) error {
 		return nil
 	}
 
-	rc, err := s.storage.Get(f.StorageKey)
+	rc, err := s.storage.Get(c.Context(), f.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
@@ -469,7 +470,7 @@ func (s *Server) handleShareGetAssetThumb(c fiber.Ctx) error {
 		return nil
 	}
 
-	rc, err := s.storage.Get(thumb.ThumbnailKey)
+	rc, err := s.storage.Get(c.Context(), thumb.ThumbnailKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}
@@ -754,7 +755,7 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 	)
 
 	pr, pw := io.Pipe()
-	go writeShareZip(pw, entries, s.storage)
+	go writeShareZip(context.Background(), pw, entries, s.storage)
 
 	return c.SendStream(pr)
 }
@@ -796,14 +797,14 @@ type zipExportEntry struct {
 }
 
 type shareZipStorage interface {
-	Get(key string) (io.ReadCloser, error)
+	Get(ctx context.Context, key string) (io.ReadCloser, error)
 }
 
-func writeShareZip(pw *io.PipeWriter, entries []zipExportEntry, storage shareZipStorage) {
+func writeShareZip(ctx context.Context, pw *io.PipeWriter, entries []zipExportEntry, storage shareZipStorage) {
 	zw := zip.NewWriter(pw)
 	var missing []string
 	for _, e := range entries {
-		rc, getErr := storage.Get(e.storageKey)
+		rc, getErr := storage.Get(ctx, e.storageKey)
 		if getErr != nil {
 			missing = append(missing, e.name)
 			continue
@@ -815,7 +816,7 @@ func writeShareZip(pw *io.PipeWriter, entries []zipExportEntry, storage shareZip
 			continue
 		}
 		if _, copyErr := io.Copy(fw, rc); copyErr != nil {
-			slog.Warn("share zip copy error", "name", e.name, "err", copyErr)
+			slog.WarnContext(ctx, "share zip copy error", "name", e.name, "err", copyErr)
 		}
 		_ = rc.Close()
 	}

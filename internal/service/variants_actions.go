@@ -268,7 +268,7 @@ func (s *variantService) Promote(ctx context.Context, p PromoteVariantParams) (P
 	mimeType := inferMimeTypeFromKey(variant.StorageKey)
 	filename := promotedFilename(name, mimeType, variant.StorageKey)
 	width, height := promotedDimensions(asset, variant)
-	contentHash, err := hashStorageObject(s.storage, variant.StorageKey)
+	contentHash, err := hashStorageObject(ctx, s.storage, variant.StorageKey)
 	if err != nil {
 		return PromoteVariantResult{}, err
 	}
@@ -427,12 +427,12 @@ func (s *variantService) Rerun(ctx context.Context, p RerunVariantParams) error 
 	}
 
 	if strings.TrimSpace(variant.StorageKey) != "" {
-		if delErr := s.storage.Delete(variant.StorageKey); delErr != nil {
+		if delErr := s.storage.Delete(ctx, variant.StorageKey); delErr != nil {
 			slog.WarnContext(ctx, "delete old variant storage before rerun", "variant_id", variant.ID, "error", delErr)
 		}
 	}
 	if variant.ThumbnailKey != nil {
-		if delErr := s.storage.Delete(*variant.ThumbnailKey); delErr != nil {
+		if delErr := s.storage.Delete(ctx, *variant.ThumbnailKey); delErr != nil {
 			slog.WarnContext(
 				ctx,
 				"delete old variant thumbnail before rerun",
@@ -539,10 +539,10 @@ func promotedDimensions(asset repository.Asset, variant repository.Variant) (*in
 	return nil, nil
 }
 
-func hashStorageObject(stor interface {
-	Get(key string) (io.ReadCloser, error)
+func hashStorageObject(ctx context.Context, stor interface {
+	Get(ctx context.Context, key string) (io.ReadCloser, error)
 }, key string) (string, error) {
-	rc, err := stor.Get(key)
+	rc, err := stor.Get(ctx, key)
 	if err != nil {
 		return "", err
 	}

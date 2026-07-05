@@ -35,7 +35,7 @@ func insertVariantForThumbTest(
 
 	variantID = "thumb-test-variant-id"
 	storageKey = fmt.Sprintf("%s/%s/variants/%s.jpg", workspaceID, assetID, variantID)
-	_ = env.Storage.Put(storageKey, bytes.NewReader(th.MakeJPEG(10, 10)))
+	_ = env.Storage.Put(t.Context(), storageKey, bytes.NewReader(th.MakeJPEG(10, 10)))
 
 	_, err := env.Database.ExecContext(ctx, `
 		INSERT INTO variants (id, workspace_id, asset_version_id, type, storage_key, transform_params, size)

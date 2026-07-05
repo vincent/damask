@@ -57,7 +57,7 @@ func writeScratchFiles(
 	outputKey := fmt.Sprintf("scratch/%s/%s/%s", workspaceID, userID, nonce)
 	metaKey := outputKey + ".meta"
 
-	_ = stor.Put(outputKey, bytes.NewReader([]byte("fake-image-bytes")))
+	_ = stor.Put(t.Context(), outputKey, bytes.NewReader([]byte("fake-image-bytes")))
 
 	meta := fmt.Sprintf(`{
 		"asset_id": %q,
@@ -68,7 +68,7 @@ func writeScratchFiles(
 		"content_type": "image/png",
 		"created_at": "2026-05-22T12:00:00Z"
 	}`, assetID, workspaceID, userID)
-	_ = stor.Put(metaKey, bytes.NewReader([]byte(meta)))
+	_ = stor.Put(t.Context(), metaKey, bytes.NewReader([]byte(meta)))
 }
 
 // ---- Generate draft ----

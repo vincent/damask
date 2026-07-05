@@ -77,7 +77,7 @@ func TestCustomFFmpegJob_HappyPath_CreatesVariant(t *testing.T) {
 		t.Fatal("expected non-empty storage key")
 	}
 
-	rc, err := env.Storage.Get(storageKey)
+	rc, err := env.Storage.Get(t.Context(), storageKey)
 	if err != nil {
 		t.Fatalf("read stored variant: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestCustomFFmpegJob_WithAssetRef_HappyPath(t *testing.T) {
 		t.Fatal("expected non-empty storage key")
 	}
 
-	rc, err := env.Storage.Get(storageKey)
+	rc, err := env.Storage.Get(t.Context(), storageKey)
 	if err != nil {
 		t.Fatalf("read stored variant: %v", err)
 	}

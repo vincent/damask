@@ -792,7 +792,7 @@ func TestGetAssetThumb_Ready(t *testing.T) {
 	// Store a fake thumbnail in local storage and point the DB row at it
 	thumbKey := "thumbs/" + asset.ID + ".jpg"
 	thumbData := th.MakeJPEG(50, 50)
-	if err := env.Storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
+	if err := env.Storage.Put(t.Context(), thumbKey, bytes.NewReader(thumbData)); err != nil {
 		t.Fatalf("put thumbnail: %v", err)
 	}
 	if _, err := env.Database.Exec(`UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, asset.ID); err != nil {

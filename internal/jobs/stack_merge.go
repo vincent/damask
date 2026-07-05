@@ -71,7 +71,7 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 
 	var localPaths []string
 	for i, ent := range entries {
-		rc, getErr := s.storage.Get(ent.storageKey)
+		rc, getErr := s.storage.Get(ctx, ent.storageKey)
 		if getErr != nil {
 			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", ent.storageKey, "err", getErr)
 			continue

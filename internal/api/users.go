@@ -162,7 +162,7 @@ func (s *Server) handleGetAvatar(c fiber.Ctx) error {
 	}
 	if dto.AvatarStorageKey != nil && *dto.AvatarStorageKey != "" {
 		var rc io.ReadCloser
-		rc, err = s.storage.Get(*dto.AvatarStorageKey)
+		rc, err = s.storage.Get(c.Context(), *dto.AvatarStorageKey)
 		if err != nil {
 			return errRes(c, fiber.StatusNotFound, "avatar not found")
 		}
@@ -313,7 +313,7 @@ func (s *Server) handleDeleteMe(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 	if avatarKey != nil && *avatarKey != "" {
-		_ = s.storage.Delete(*avatarKey)
+		_ = s.storage.Delete(c.Context(), *avatarKey)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }

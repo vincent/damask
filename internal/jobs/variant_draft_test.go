@@ -62,7 +62,7 @@ func writeDraftMeta(t *testing.T, env *th.TestEnv, workspaceID, userID, nonce, a
 		"content_type":"image/png",
 		"created_at":%q
 	}`, assetID, workspaceID, userID, createdAt.Format(time.RFC3339))
-	if err := env.Storage.Put(metaKey, bytes.NewReader([]byte(meta))); err != nil {
+	if err := env.Storage.Put(t.Context(), metaKey, bytes.NewReader([]byte(meta))); err != nil {
 		t.Fatalf("write meta: %v", err)
 	}
 }
@@ -70,13 +70,13 @@ func writeDraftMeta(t *testing.T, env *th.TestEnv, workspaceID, userID, nonce, a
 func writeDraftOutput(t *testing.T, env *th.TestEnv, workspaceID, userID, nonce string) {
 	t.Helper()
 	outputKey := fmt.Sprintf("scratch/%s/%s/%s", workspaceID, userID, nonce)
-	if err := env.Storage.Put(outputKey, bytes.NewReader([]byte("fake-png"))); err != nil {
+	if err := env.Storage.Put(t.Context(), outputKey, bytes.NewReader([]byte("fake-png"))); err != nil {
 		t.Fatalf("write draft output: %v", err)
 	}
 }
 
 func storageKeyExists(env *th.TestEnv, key string) bool {
-	rc, err := env.Storage.Get(key)
+	rc, err := env.Storage.Get(context.Background(), key)
 	if err != nil {
 		return false
 	}

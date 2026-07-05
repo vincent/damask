@@ -108,7 +108,7 @@ func (s *JobServer) runAIProviderJob(
 		return nil, err
 	}
 
-	rc, err := s.storage.Get(storedSourceKey)
+	rc, err := s.storage.Get(ctx, storedSourceKey)
 	if err != nil {
 		telemetry.EndSpan(span, err)
 		return nil, fmt.Errorf("get source: %w", err)

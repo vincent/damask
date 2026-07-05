@@ -63,7 +63,7 @@ func (s *Server) handlePublicEmbedFile(c fiber.Ctx) error {
 		return nil
 	}
 
-	rc, err := s.storage.Get(resolved.StorageKey)
+	rc, err := s.storage.Get(c.Context(), resolved.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not read file")
 	}
@@ -103,7 +103,7 @@ func (s *Server) handlePublicEmbedThumb(c fiber.Ctx) error {
 		return nil
 	}
 
-	rc, err := s.storage.Get(*resolved.ThumbnailKey)
+	rc, err := s.storage.Get(c.Context(), *resolved.ThumbnailKey)
 	if err != nil {
 		return errRes(c, fiber.StatusInternalServerError, "could not read thumbnail")
 	}

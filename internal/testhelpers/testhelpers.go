@@ -485,7 +485,7 @@ func SeedVersionV1(t *testing.T, env *TestEnv, asset api.AssetResponse) string {
 
 	// Compute the real SHA-256 of the stored file so dedup logic works correctly.
 	contentHash := "seed-hash-" + asset.ID // fallback if storage read fails
-	if rc, storageErr := env.Storage.Get(storageKey); storageErr == nil {
+	if rc, storageErr := env.Storage.Get(t.Context(), storageKey); storageErr == nil {
 		if h, _, hErr := versioning.HashReader(rc); hErr == nil {
 			contentHash = h
 		}

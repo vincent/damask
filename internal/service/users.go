@@ -259,7 +259,7 @@ func (s *userService) UploadAvatar(ctx context.Context, userID string, data []by
 	_, putSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_storage_put",
 		attribute.String("avatar.storage_key", storageKey),
 	)
-	putErr := s.stor.Put(storageKey, bytes.NewReader(processed))
+	putErr := s.stor.Put(ctx, storageKey, bytes.NewReader(processed))
 	apptelemetry.EndSpan(putSpan, putErr)
 	if putErr != nil {
 		err = fmt.Errorf("%w: could not store avatar: %w", ErrAvatarStorage, putErr)
@@ -326,7 +326,7 @@ func (s *userService) DeleteAvatar(ctx context.Context, userID string) (err erro
 	_, deleteSpan := apptelemetry.StartSpan(ctx, "service.users.avatar_storage_delete",
 		attribute.String("avatar.storage_key", storageKey),
 	)
-	deleteErr := s.stor.Delete(storageKey)
+	deleteErr := s.stor.Delete(ctx, storageKey)
 	apptelemetry.EndSpan(deleteSpan, deleteErr)
 	if deleteErr != nil {
 		err = fmt.Errorf("%w: could not delete avatar: %w", ErrAvatarStorage, deleteErr)

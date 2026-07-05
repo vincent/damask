@@ -106,7 +106,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		return errors.New("_exif_make field not found after ensureFields")
 	}
 
-	r, err := s.storage.Get(asset.StorageKey)
+	r, err := s.storage.Get(ctx, asset.StorageKey)
 	if err != nil {
 		return fmt.Errorf("open asset: %w", err)
 	}

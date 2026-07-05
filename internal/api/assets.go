@@ -675,7 +675,7 @@ func (s *Server) handleGetAssetFile(c fiber.Ctx) error {
 		attribute.String("damask.asset_id", id),
 		attribute.String("damask.storage.key", version.StorageKey),
 	)
-	rc, err := s.storage.Get(version.StorageKey)
+	rc, err := s.storage.Get(c.Context(), version.StorageKey)
 	telemetry.EndSpan(storageSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
@@ -730,7 +730,7 @@ func (s *Server) handleGetAssetThumb(c fiber.Ctx) error {
 		attribute.String("damask.asset_id", id),
 		attribute.String("damask.storage.key", *dto.ThumbnailKey),
 	)
-	rc, err := s.storage.Get(*dto.ThumbnailKey)
+	rc, err := s.storage.Get(c.Context(), *dto.ThumbnailKey)
 	telemetry.EndSpan(storageSpan, err)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")

@@ -42,7 +42,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 	switch {
 	case mimeType == "image/gif":
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}
@@ -60,7 +60,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 
 	case IsImageMime(mimeType):
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}
@@ -69,7 +69,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 
 	case IsVideoMime(mimeType):
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}
@@ -82,7 +82,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 
 	case IsPdfMime(mimeType):
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}
@@ -91,7 +91,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 
 	case IsAudioMime(mimeType):
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}
@@ -100,7 +100,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 
 	case IsDocumentMime(mimeType):
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}
@@ -125,7 +125,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 
 	case IsTextMime(mimeType):
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}
@@ -134,7 +134,7 @@ func (t *thumbnailer) GenerateThumbnailData(
 
 	case IsFontMime(mimeType):
 		var rc io.ReadCloser
-		rc, err = storage.Get(storageKey)
+		rc, err = storage.Get(ctx, storageKey)
 		if err != nil {
 			return nil, "", err
 		}

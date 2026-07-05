@@ -38,7 +38,7 @@ func (s *JobServer) computeAndStoreVisualSimilarity(
 	)
 	defer telemetry.EndSpan(span, nil)
 
-	rc, err := s.storage.Get(storageKey)
+	rc, err := s.storage.Get(ctx, storageKey)
 	if err != nil {
 		slog.WarnContext(ctx, "visual similarity: get from storage", "version_id", assetVersionID, "error", err)
 		return

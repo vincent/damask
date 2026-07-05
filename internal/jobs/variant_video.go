@@ -68,7 +68,7 @@ func (s *JobServer) videoCaptureTransformer(params json.RawMessage) (variantTran
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "video_capture_image"),
 		)
-		rc, err := s.storage.Get(sourceKey)
+		rc, err := s.storage.Get(ctx, sourceKey)
 		if err != nil {
 			telemetry.EndSpan(span, err)
 			return nil, "", err
@@ -126,7 +126,7 @@ func (s *JobServer) videoTranscodeTransformer(params json.RawMessage) (variantTr
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "video_transcode"),
 		)
-		rc, err := s.storage.Get(sourceKey)
+		rc, err := s.storage.Get(ctx, sourceKey)
 		if err != nil {
 			telemetry.EndSpan(span, err)
 			return nil, "", err
@@ -199,7 +199,7 @@ func (s *JobServer) videoWatermarkTransformer(
 		ctx, span := telemetry.StartBackgroundSpan(ctx, "variant.transform",
 			attribute.String("damask.variant_type", "video_watermark"),
 		)
-		rc, rcErr := s.storage.Get(sourceKey)
+		rc, rcErr := s.storage.Get(ctx, sourceKey)
 		if rcErr != nil {
 			telemetry.EndSpan(span, rcErr)
 			return nil, "", rcErr
@@ -211,7 +211,7 @@ func (s *JobServer) videoWatermarkTransformer(
 			return nil, "", fmt.Errorf("write src temp: %w", srcErr)
 		}
 		defer cleanSrc()
-		wmRC, wmRCErr := s.storage.Get(wm.StorageKey)
+		wmRC, wmRCErr := s.storage.Get(ctx, wm.StorageKey)
 		if wmRCErr != nil {
 			telemetry.EndSpan(span, wmRCErr)
 			return nil, "", fmt.Errorf("get watermark file: %w", wmRCErr)

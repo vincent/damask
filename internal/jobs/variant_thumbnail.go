@@ -67,7 +67,7 @@ func (s *JobServer) jobVariantThumbnail(ctx context.Context, job dbgen.Job) erro
 	}
 
 	thumbKey := fmt.Sprintf("%s/%s/variants/%s/thumb%s", p.WorkspaceID, p.AssetID, p.VariantID, thumbExt)
-	if e := s.storage.Put(thumbKey, bytes.NewReader(thumbData)); e != nil {
+	if e := s.storage.Put(ctx, thumbKey, bytes.NewReader(thumbData)); e != nil {
 		return fmt.Errorf("store variant thumb: %w", e)
 	}
 

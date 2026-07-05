@@ -2,6 +2,9 @@
 package storage
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -41,7 +44,10 @@ func NewAferoS3Storage(cfg AferoS3Config) (Storage, error) {
 	return &AferoStorage{base, fs}, nil
 }
 
-func (s *AferoStorage) Put(key string, r io.Reader) error {
+func (s *AferoStorage) Put(ctx context.Context, key string, r io.Reader) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	dst := filepath.Join(s.base, filepath.FromSlash(key))
 	if err := s.fs.MkdirAll(filepath.Dir(dst), 0755); err != nil { //nolint:mnd // 0755 is appropriate for directories
 		return err
@@ -55,15 +61,45 @@ func (s *AferoStorage) Put(key string, r io.Reader) error {
 	return err
 }
 
-func (s *AferoStorage) Get(key string) (io.ReadCloser, error) {
-	return s.fs.Open(filepath.Join(s.base, filepath.FromSlash(key)))
+func (s *AferoStorage) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	f, err := s.fs.Open(filepath.Join(s.base, filepath.FromSlash(key)))
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("afero storage: get %s: %w", key, ErrNotFound)
+		}
+		return nil, err
+	}
+	return f, nil
 }
 
-func (s *AferoStorage) Delete(key string) error {
+func (s *AferoStorage) Stat(ctx context.Context, key string) (Info, error) {
+	if err := ctx.Err(); err != nil {
+		return Info{}, err
+	}
+	fi, err := s.fs.Stat(filepath.Join(s.base, filepath.FromSlash(key)))
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return Info{}, fmt.Errorf("afero storage: stat %s: %w", key, ErrNotFound)
+		}
+		return Info{}, err
+	}
+	return Info{Size: fi.Size(), ModTime: fi.ModTime()}, nil
+}
+
+func (s *AferoStorage) Delete(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.fs.RemoveAll(filepath.Join(s.base, filepath.FromSlash(key)))
 }
 
-func (s *AferoStorage) List(prefix string) ([]string, error) {
+func (s *AferoStorage) List(ctx context.Context, prefix string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	root := filepath.Join(s.base, filepath.FromSlash(prefix))
 
 	exists, err := afero.DirExists(s.fs, root)

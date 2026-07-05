@@ -12,6 +12,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
+	"damask/server/internal/storage"
 )
 
 type variantAuditSpy struct {
@@ -56,15 +57,19 @@ type promoteStorageStub struct {
 	content []byte
 }
 
-func (promoteStorageStub) Put(string, io.Reader) error { return nil }
+func (promoteStorageStub) Put(context.Context, string, io.Reader) error { return nil }
 
-func (s promoteStorageStub) Get(string) (io.ReadCloser, error) {
+func (s promoteStorageStub) Get(context.Context, string) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(s.content)), nil
 }
 
-func (promoteStorageStub) Delete(string) error { return nil }
+func (promoteStorageStub) Delete(context.Context, string) error { return nil }
 
-func (promoteStorageStub) List(string) ([]string, error) { return nil, nil }
+func (promoteStorageStub) List(context.Context, string) ([]string, error) { return nil, nil }
+
+func (s promoteStorageStub) Stat(context.Context, string) (storage.Info, error) {
+	return storage.Info{Size: int64(len(s.content))}, nil
+}
 
 type promoteQueueStub struct{}
 

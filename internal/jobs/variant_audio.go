@@ -50,7 +50,7 @@ func (s *JobServer) audioTransformer(jobType, sourceMime string, params json.Raw
 			attribute.String("damask.variant_type", jobType),
 		)
 
-		rc, err := s.storage.Get(sourceKey)
+		rc, err := s.storage.Get(ctx, sourceKey)
 		if err != nil {
 			telemetry.EndSpan(span, err)
 			return nil, "", err

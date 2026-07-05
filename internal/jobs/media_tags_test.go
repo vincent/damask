@@ -119,7 +119,7 @@ func TestExtractMediaTags_WritesValuesAndSeedsFields(t *testing.T) {
 
 	const assetID = "asset-media-tags-1"
 	const storageKey = "ws_test/audio/test.mp3"
-	if err := stor.Put(storageKey, strings.NewReader("audio")); err != nil {
+	if err := stor.Put(t.Context(), storageKey, strings.NewReader("audio")); err != nil {
 		t.Fatalf("put asset: %v", err)
 	}
 	if _, err := queries.CreateAsset(context.Background(), dbgen.CreateAssetParams{

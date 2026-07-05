@@ -356,7 +356,7 @@ func (s *Server) handleGetVersionFile(c fiber.Ctx) error {
 		return nil
 	}
 
-	rc, err := s.storage.Get(target.StorageKey)
+	rc, err := s.storage.Get(c.Context(), target.StorageKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "file not found")
 	}
@@ -407,7 +407,7 @@ func (s *Server) handleGetVersionThumb(c fiber.Ctx) error {
 		return nil
 	}
 
-	rc, err := s.storage.Get(*target.ThumbnailKey)
+	rc, err := s.storage.Get(c.Context(), *target.ThumbnailKey)
 	if err != nil {
 		return errRes(c, fiber.StatusNotFound, "thumbnail not found")
 	}

@@ -333,7 +333,7 @@ func (s *assetService) HardDelete(ctx context.Context, workspaceID, assetID stri
 	if err = s.assets.HardDelete(ctx, workspaceID, assetID); err != nil {
 		return err
 	}
-	s.deleteStorageKeys(keys)
+	s.deleteStorageKeys(ctx, keys)
 	if s.invalidate != nil {
 		s.invalidate.Invalidate(workspaceID)
 	}
@@ -377,7 +377,7 @@ func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, a
 		if err = s.assets.HardDelete(ctx, workspaceID, p.id); err != nil {
 			return err
 		}
-		s.deleteStorageKeys(p.keys)
+		s.deleteStorageKeys(ctx, p.keys)
 	}
 	if s.invalidate != nil {
 		s.invalidate.Invalidate(workspaceID)
@@ -385,22 +385,22 @@ func (s *assetService) BulkHardDelete(ctx context.Context, workspaceID string, a
 	return nil
 }
 
-func (s *assetService) deleteStorageKeys(keys repository.AssetStorageKeys) {
-	_ = s.stor.Delete(keys.AssetKey)
+func (s *assetService) deleteStorageKeys(ctx context.Context, keys repository.AssetStorageKeys) {
+	_ = s.stor.Delete(ctx, keys.AssetKey)
 	if keys.ThumbKey != nil {
-		_ = s.stor.Delete(*keys.ThumbKey)
+		_ = s.stor.Delete(ctx, *keys.ThumbKey)
 	}
 	for _, vk := range keys.VersionKeys {
-		_ = s.stor.Delete(vk.StorageKey)
+		_ = s.stor.Delete(ctx, vk.StorageKey)
 		if vk.ThumbnailKey != nil {
-			_ = s.stor.Delete(*vk.ThumbnailKey)
+			_ = s.stor.Delete(ctx, *vk.ThumbnailKey)
 		}
 		for _, k := range vk.VariantKeys {
-			_ = s.stor.Delete(k)
+			_ = s.stor.Delete(ctx, k)
 		}
 	}
 	for _, key := range keys.TextTrackKeys {
-		_ = s.stor.Delete(key)
+		_ = s.stor.Delete(ctx, key)
 	}
 }
 

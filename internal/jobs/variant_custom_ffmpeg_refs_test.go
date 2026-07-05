@@ -30,7 +30,7 @@ func TestResolveCommandRefs_AssetRef_DownloadsAndReturnsTempPath(t *testing.T) {
 	queries, _, js, _, stor := newMediaTagsJobTestEnv(t)
 
 	const storageKey = "ws_test/video/ref-source.mp4"
-	if err := stor.Put(storageKey, strings.NewReader("ref bytes")); err != nil {
+	if err := stor.Put(t.Context(), storageKey, strings.NewReader("ref bytes")); err != nil {
 		t.Fatalf("put asset storage: %v", err)
 	}
 	if _, err := queries.CreateAsset(context.Background(), dbgen.CreateAssetParams{
@@ -70,7 +70,7 @@ func TestResolveCommandRefs_AssetRefEmbeddedInFilterArg_DownloadsAndReturnsTempP
 	queries, _, js, _, stor := newMediaTagsJobTestEnv(t)
 
 	const storageKey = "ws_test/video/ref-source.mp4"
-	if err := stor.Put(storageKey, strings.NewReader("ref bytes")); err != nil {
+	if err := stor.Put(t.Context(), storageKey, strings.NewReader("ref bytes")); err != nil {
 		t.Fatalf("put asset storage: %v", err)
 	}
 	if _, err := queries.CreateAsset(context.Background(), dbgen.CreateAssetParams{
@@ -108,7 +108,7 @@ func TestResolveCommandRefs_VariantRef_DownloadsAndReturnsTempPath(t *testing.T)
 	seedAssetWithVersion(t, queries, "asset-base-1")
 
 	const storageKey = "ws_test/video/variant-ref.mp4"
-	if err := stor.Put(storageKey, strings.NewReader("variant bytes")); err != nil {
+	if err := stor.Put(t.Context(), storageKey, strings.NewReader("variant bytes")); err != nil {
 		t.Fatalf("put variant storage: %v", err)
 	}
 	if _, err := queries.CreateVariant(context.Background(), dbgen.CreateVariantParams{
@@ -160,7 +160,7 @@ func TestResolveCommandRefs_VariantWrongWorkspace_ReturnsError(t *testing.T) {
 	seedAssetWithVersionInWorkspace(t, queries, "asset-base-2", "ws_other")
 
 	const storageKey = "ws_other/video/variant-ref.mp4"
-	if err := stor.Put(storageKey, strings.NewReader("variant bytes")); err != nil {
+	if err := stor.Put(t.Context(), storageKey, strings.NewReader("variant bytes")); err != nil {
 		t.Fatalf("put variant storage: %v", err)
 	}
 	if _, err := queries.CreateVariant(context.Background(), dbgen.CreateVariantParams{
@@ -187,7 +187,7 @@ func TestResolveCommandRefs_VariantNotReady_ReturnsError(t *testing.T) {
 	seedAssetWithVersion(t, queries, "asset-base-3")
 
 	const storageKey = "ws_test/video/pending-ref.mp4"
-	if err := stor.Put(storageKey, strings.NewReader("pending bytes")); err != nil {
+	if err := stor.Put(t.Context(), storageKey, strings.NewReader("pending bytes")); err != nil {
 		t.Fatalf("put variant storage: %v", err)
 	}
 	if _, err := queries.CreateVariant(context.Background(), dbgen.CreateVariantParams{

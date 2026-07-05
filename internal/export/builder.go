@@ -383,7 +383,7 @@ func (b *buildCtx) writeItem(
 		return 0, true, nil
 	}
 
-	rc, storageErr := b.p.Storage.Get(storageKey)
+	rc, storageErr := b.p.Storage.Get(ctx, storageKey)
 	if storageErr != nil {
 		slog.WarnContext(ctx, "export: storage get failed, skipping asset",
 			"storage_key", storageKey,

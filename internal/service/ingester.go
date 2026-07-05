@@ -166,7 +166,7 @@ func (s *ingesterImpl) ingest(
 		attribute.String("damask.storage.key", storageKey),
 		attribute.Int64("damask.upload.bytes", stat.Size()),
 	)
-	err = s.stor.Put(storageKey, f)
+	err = s.stor.Put(ctx, storageKey, f)
 	telemetry.EndSpan(storeSpan, err)
 	if err != nil {
 		return repository.Asset{}, fmt.Errorf("could not store file: %w", err)

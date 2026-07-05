@@ -85,7 +85,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 	thumbKey := fmt.Sprintf("%s/%s/versions/%s/thumb%s", p.WorkspaceID, p.AssetID, p.VersionID, thumbExt)
 	slog.DebugContext(ctx, "generate thumbnail: store in", "thumbKey", thumbKey)
 
-	if err = s.storage.Put(thumbKey, bytes.NewReader(thumbData)); err != nil {
+	if err = s.storage.Put(ctx, thumbKey, bytes.NewReader(thumbData)); err != nil {
 		return fmt.Errorf("store thumb: %w", err)
 	}
 

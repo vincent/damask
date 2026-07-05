@@ -108,7 +108,7 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 	sk := scratchKey(p.WorkspaceID, p.UserID, p.Nonce)
 	mk := scratchMetaKey(p.WorkspaceID, p.UserID, p.Nonce)
 
-	if err = s.storage.Put(sk, bytes.NewReader(outputBytes)); err != nil {
+	if err = s.storage.Put(ctx, sk, bytes.NewReader(outputBytes)); err != nil {
 		publishErr("failed to store draft output")
 		return nil
 	}
@@ -124,9 +124,9 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 		CreatedAt:       time.Now().UTC().Format(time.RFC3339),
 	}
 	metaBytes, _ := json.Marshal(meta)
-	if err = s.storage.Put(mk, bytes.NewReader(metaBytes)); err != nil {
+	if err = s.storage.Put(ctx, mk, bytes.NewReader(metaBytes)); err != nil {
 		// Non-fatal — clean up output and report error.
-		_ = s.storage.Delete(sk)
+		_ = s.storage.Delete(ctx, sk)
 		publishErr("failed to store draft metadata")
 		return nil
 	}
@@ -172,12 +172,12 @@ func (s *JobServer) draftTransformer(
 		if err != nil {
 			return nil, errors.New("watermark asset not found")
 		}
-		return func(_ context.Context, sourceKey string) ([]byte, string, error) {
-			wmRC, e := s.storage.Get(wm.StorageKey)
+		return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
+			wmRC, e := s.storage.Get(ctx, wm.StorageKey)
 			if e != nil {
 				return nil, "", errors.New("failed to load watermark file")
 			}
-			srcRC, e := s.storage.Get(sourceKey)
+			srcRC, e := s.storage.Get(ctx, sourceKey)
 			if e != nil {
 				_ = wmRC.Close()
 				return nil, "", errors.New("failed to load asset file")
@@ -214,7 +214,7 @@ func (s *JobServer) customFFmpegDraftTransformer(
 		return nil, err
 	}
 	return func(ctx context.Context, sourceKey string) ([]byte, string, error) {
-		rc, err := s.storage.Get(sourceKey)
+		rc, err := s.storage.Get(ctx, sourceKey)
 		if err != nil {
 			return nil, "", errors.New("failed to load asset file")
 		}
@@ -267,7 +267,7 @@ func nextPurgeTime(cfg config.ScratchConfig) time.Time {
 // ---- Purge job ----
 
 func (s *JobServer) jobPurgeScratchVariants(ctx context.Context, _ dbgen.Job) error {
-	keys, err := s.storage.List(scratchPrefix)
+	keys, err := s.storage.List(ctx, scratchPrefix)
 	if err != nil {
 		return fmt.Errorf("list scratch keys: %w", err)
 	}
@@ -292,7 +292,7 @@ func (s *JobServer) jobPurgeScratchVariants(ctx context.Context, _ dbgen.Job) er
 			continue
 		}
 		metaK := k + ".meta"
-		createdAt, metaErr := scratchMetaCreatedAt(s.storage, metaK)
+		createdAt, metaErr := scratchMetaCreatedAt(ctx, s.storage, metaK)
 		if metaErr != nil {
 			// No meta or unreadable — treat as old if output key itself has no meta.
 			createdAt = time.Time{}
@@ -300,12 +300,12 @@ func (s *JobServer) jobPurgeScratchVariants(ctx context.Context, _ dbgen.Job) er
 		if createdAt.After(cutoff) {
 			continue
 		}
-		if delErr := s.storage.Delete(k); delErr != nil {
+		if delErr := s.storage.Delete(ctx, k); delErr != nil {
 			slog.WarnContext(ctx, "purge_scratch: delete output failed", "key", k, "error", delErr)
 		} else {
 			deletedOutputs++
 		}
-		if delErr := s.storage.Delete(metaK); delErr != nil && !isNotFoundErr(delErr) {
+		if delErr := s.storage.Delete(ctx, metaK); delErr != nil && !errors.Is(delErr, storage.ErrNotFound) {
 			slog.WarnContext(ctx, "purge_scratch: delete meta failed", "key", metaK, "error", delErr)
 		} else if delErr == nil {
 			deletedMetas++
@@ -321,14 +321,14 @@ func (s *JobServer) jobPurgeScratchVariants(ctx context.Context, _ dbgen.Job) er
 		if outputKeys[outputK] {
 			continue
 		}
-		createdAt, metaErr := scratchMetaCreatedAt(s.storage, k)
+		createdAt, metaErr := scratchMetaCreatedAt(ctx, s.storage, k)
 		if metaErr != nil {
 			createdAt = time.Time{}
 		}
 		if createdAt.After(cutoff) {
 			continue
 		}
-		if delErr := s.storage.Delete(k); delErr != nil {
+		if delErr := s.storage.Delete(ctx, k); delErr != nil {
 			slog.WarnContext(ctx, "purge_scratch: delete orphan meta failed", "key", k, "error", delErr)
 		} else {
 			deletedMetas++
@@ -343,8 +343,8 @@ func (s *JobServer) jobPurgeScratchVariants(ctx context.Context, _ dbgen.Job) er
 }
 
 // scratchMetaCreatedAt reads a .meta sidecar and returns its CreatedAt timestamp.
-func scratchMetaCreatedAt(stor storage.Storage, metaKey string) (time.Time, error) {
-	rc, err := stor.Get(metaKey)
+func scratchMetaCreatedAt(ctx context.Context, stor storage.Storage, metaKey string) (time.Time, error) {
+	rc, err := stor.Get(ctx, metaKey)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -359,8 +359,6 @@ func scratchMetaCreatedAt(stor storage.Storage, metaKey string) (time.Time, erro
 	}
 	return t, nil
 }
-
-func isNotFoundErr(err error) bool { return storage.IsNotFoundErr(err) }
 
 // ---- Scratch Purge Scheduler ----
 

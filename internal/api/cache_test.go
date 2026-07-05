@@ -221,11 +221,11 @@ func insertVariantFile(t *testing.T, env *th.TestEnv, assetID, workspaceID strin
 	variantKey := storageKey + ".variant.jpg"
 
 	// Copy the file in storage so the variant key is resolvable.
-	rc, err := env.Storage.Get(storageKey)
+	rc, err := env.Storage.Get(t.Context(), storageKey)
 	if err != nil {
 		t.Fatalf("read original: %v", err)
 	}
-	if err := env.Storage.Put(variantKey, rc); err != nil {
+	if err := env.Storage.Put(t.Context(), variantKey, rc); err != nil {
 		rc.Close() //nolint:errcheck
 		t.Fatalf("put variant copy: %v", err)
 	}

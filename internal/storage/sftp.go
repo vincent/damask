@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -95,7 +96,10 @@ func (s *SFTPStorage) remotePath(key string) string {
 	return path.Join(s.cfg.BasePath, key)
 }
 
-func (s *SFTPStorage) Put(key string, r io.Reader) error {
+func (s *SFTPStorage) Put(ctx context.Context, key string, r io.Reader) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	client, sshConn, err := s.connect()
 	if err != nil {
 		return err
@@ -120,7 +124,10 @@ func (s *SFTPStorage) Put(key string, r io.Reader) error {
 	return nil
 }
 
-func (s *SFTPStorage) Get(key string) (io.ReadCloser, error) {
+func (s *SFTPStorage) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	client, sshConn, err := s.connect()
 	if err != nil {
 		return nil, err
@@ -131,12 +138,18 @@ func (s *SFTPStorage) Get(key string) (io.ReadCloser, error) {
 	if err != nil {
 		_ = client.Close()
 		_ = sshConn.Close()
+		if isNotExist(err) {
+			return nil, fmt.Errorf("sftp storage: open %s: %w", remote, ErrNotFound)
+		}
 		return nil, fmt.Errorf("sftp storage: open %s: %w", remote, err)
 	}
 	return &sftpReadCloser{f: f, client: client, ssh: sshConn}, nil
 }
 
-func (s *SFTPStorage) Delete(key string) error {
+func (s *SFTPStorage) Delete(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	client, sshConn, err := s.connect()
 	if err != nil {
 		return err
@@ -160,7 +173,32 @@ func (s *SFTPStorage) Delete(key string) error {
 	return nil
 }
 
-func (s *SFTPStorage) List(prefix string) ([]string, error) {
+func (s *SFTPStorage) Stat(ctx context.Context, key string) (Info, error) {
+	if err := ctx.Err(); err != nil {
+		return Info{}, err
+	}
+	client, sshConn, err := s.connect()
+	if err != nil {
+		return Info{}, err
+	}
+	defer client.Close()
+	defer sshConn.Close()
+
+	remote := s.remotePath(key)
+	fi, err := client.Stat(remote)
+	if err != nil {
+		if isNotExist(err) {
+			return Info{}, fmt.Errorf("sftp storage: stat %s: %w", remote, ErrNotFound)
+		}
+		return Info{}, fmt.Errorf("sftp storage: stat %s: %w", remote, err)
+	}
+	return Info{Size: fi.Size(), ModTime: fi.ModTime()}, nil
+}
+
+func (s *SFTPStorage) List(ctx context.Context, prefix string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	client, sshConn, err := s.connect()
 	if err != nil {
 		return nil, err

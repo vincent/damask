@@ -242,7 +242,7 @@ func (s *stackService) writeZipGroup(ctx context.Context, zw *zip.Writer, g zipG
 		if g.folder != "" {
 			zipPath = g.folder + "/" + name
 		}
-		rc, rcErr := s.storage.Get(e.storageKey)
+		rc, rcErr := s.storage.Get(ctx, e.storageKey)
 		if rcErr != nil {
 			missing = append(missing, zipPath)
 			continue

@@ -390,7 +390,7 @@ func (s *versionService) resolveStorageKey(
 	if err != nil {
 		return "", "", 0, fmt.Errorf("could not reopen uploaded file: %w", err)
 	}
-	putErr := s.storage.Put(key, storeFile)
+	putErr := s.storage.Put(ctx, key, storeFile)
 	_ = storeFile.Close()
 	if putErr != nil {
 		return "", "", 0, fmt.Errorf("could not store file: %w", putErr)

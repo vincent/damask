@@ -251,7 +251,7 @@ func (s *JobServer) mediaTagFilePath(ctx context.Context, storageKey string) (st
 	if ls, ok := s.storage.(localPathStorage); ok {
 		return ls.LocalPath(storageKey), func() {}, nil
 	}
-	r, err := s.storage.Get(storageKey)
+	r, err := s.storage.Get(ctx, storageKey)
 	if err != nil {
 		return "", nil, err
 	}
