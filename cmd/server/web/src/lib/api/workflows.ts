@@ -82,13 +82,16 @@ export interface UpdateWorkflowBody {
 }
 
 export interface WorkflowEvent {
+  id: string
   type: string
-  asset_id: string
-  workflow_id?: string
-  run_id?: string
-  node_id?: string
-  status?: string
-  error?: string
+  payload: {
+    asset_id?: string
+    workflow_id?: string
+    run_id?: string
+    node_id?: string
+    status?: string
+    error?: string
+  }
 }
 
 export const workflowsApi = {

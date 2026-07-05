@@ -105,7 +105,10 @@
 
   $effect(() => {
     const ev = sseEvents.last
-    if (ev?.type === 'stack_merge_done' && ev.job_id === pendingMergeJobId) {
+    if (
+      ev?.type === 'stack_merge_done' &&
+      ev.payload.job_id === pendingMergeJobId
+    ) {
       if (mergeTimeout) {
         clearTimeout(mergeTimeout)
         mergeTimeout = null

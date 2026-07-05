@@ -1,3 +1,4 @@
+import type { SSEEvent } from '$lib/stores/assets.svelte'
 import { apiFetch, type Variant } from './client'
 import type { definitions } from './types.gen'
 
@@ -56,16 +57,25 @@ export function createDraftSubscription(
  */
 export function checkDraftEvent(
   sub: DraftSubscription,
-  event: { type: string; nonce?: string } | null
+  event: SSEEvent | null
 ): void {
   if (!event || sub.done) return
-  if (event.nonce !== sub.nonce) return
-  if (
-    event.type === 'variant_draft.ready' ||
-    event.type === 'variant_draft.error'
-  ) {
+  if (event.payload.nonce !== sub.nonce) return
+  if (event.type === 'variant_draft.ready') {
     sub.done = true
-    sub.handler(event as unknown as DraftEvent)
+    sub.handler({
+      type: 'variant_draft.ready',
+      nonce: sub.nonce,
+      preview_url: event.payload.preview_url ?? '',
+      expires_at: event.payload.expires_at ?? '',
+    })
+  } else if (event.type === 'variant_draft.error') {
+    sub.done = true
+    sub.handler({
+      type: 'variant_draft.error',
+      nonce: sub.nonce,
+      error: event.payload.error ?? '',
+    })
   }
 }
 

@@ -74,11 +74,7 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 	publishErr := func(msg string) {
 		// Detach from the timeout-bound ctx so a timed-out job doesn't swallow the
 		// error event, while keeping trace linkage to the originating job context.
-		s.hub.Publish(publishCtx, p.WorkspaceID, events.Event{
-			Type:  "variant_draft.error",
-			Nonce: p.Nonce,
-			Error: msg,
-		})
+		s.hub.Publish(publishCtx, p.WorkspaceID, events.VariantDraftError(p.Nonce, msg))
 	}
 
 	ver, err := s.queries.GetCurrentVersion(ctx, p.AssetID)
@@ -132,13 +128,12 @@ func (s *JobServer) jobCreateVariantDraft(ctx context.Context, job dbgen.Job) er
 	}
 
 	expiresAt := nextPurgeTime(s.cfg.Scratch)
-	s.hub.Publish(ctx, p.WorkspaceID, events.Event{
-		Type:       "variant_draft.ready",
-		Nonce:      p.Nonce,
-		AssetID:    p.AssetID,
-		PreviewURL: fmt.Sprintf("/api/v1/assets/%s/variants/draft/%s/preview", p.AssetID, p.Nonce),
-		ExpiresAt:  expiresAt.Format(time.RFC3339),
-	})
+	s.hub.Publish(ctx, p.WorkspaceID, events.VariantDraftReady(
+		p.Nonce,
+		p.AssetID,
+		fmt.Sprintf("/api/v1/assets/%s/variants/draft/%s/preview", p.AssetID, p.Nonce),
+		expiresAt.Format(time.RFC3339),
+	))
 	return nil
 }
 

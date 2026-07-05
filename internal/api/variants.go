@@ -889,11 +889,7 @@ func (s *Server) handleUploadManualVariant(c fiber.Ctx) error {
 		return errRes(c, fiber.StatusInternalServerError, "could not create variant record")
 	}
 
-	s.hub.Publish(c.Context(), asset.WorkspaceID, events.Event{
-		Type:      "variant_ready",
-		AssetID:   assetID,
-		VariantID: variantID,
-	})
+	s.hub.Publish(c.Context(), asset.WorkspaceID, events.VariantReady(assetID, variantID))
 
 	if thumbPayload, thumbErr := json.Marshal(jobs.VariantThumbnailJobPayload{
 		VariantID:   variantID,

@@ -5,9 +5,10 @@ import (
 )
 
 type TelemetryStatusResponse struct {
-	Enabled     bool   `json:"enabled"`
-	ServiceName string `json:"service_name"`
-	Env         string `json:"env"`
+	Enabled        bool   `json:"enabled"`
+	ServiceName    string `json:"service_name"`
+	Env            string `json:"env"`
+	SSEDroppedEvts uint64 `json:"sse_dropped_events"`
 }
 
 // @Summary Get telemetry status
@@ -18,8 +19,9 @@ type TelemetryStatusResponse struct {
 // @Router /api/v1/admin/telemetry [get].
 func (s *Server) handleTelemetryStatus(c fiber.Ctx) error {
 	return c.JSON(TelemetryStatusResponse{
-		Enabled:     s.cfg.Telemetry.Enabled,
-		ServiceName: s.cfg.Telemetry.ServiceName,
-		Env:         s.cfg.Telemetry.Env,
+		Enabled:        s.cfg.Telemetry.Enabled,
+		ServiceName:    s.cfg.Telemetry.ServiceName,
+		Env:            s.cfg.Telemetry.Env,
+		SSEDroppedEvts: s.hub.DropCount(),
 	})
 }

@@ -3391,7 +3391,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Opens a persistent Server-Sent Events (SSE) stream scoped to the authenticated user's workspace. The connection stays open until the client disconnects. A keep-alive comment is sent every 25 seconds to prevent proxy timeouts.\u003cbr\u003e\u003cbr\u003e Each event is delivered as a standard SSE \u003ccode\u003edata:\u003c/code\u003e line containing a JSON object with at minimum an \u003ccode\u003eevent\u003c/code\u003e field. Current event types:\u003cbr\u003e\u003cul\u003e\u003cli\u003e\u003cstrong\u003ethumbnail_ready\u003c/strong\u003e — emitted after an image or video thumbnail job completes; payload contains \u003ccode\u003easset_id\u003c/code\u003e.\u003c/li\u003e\u003c/ul\u003e Clients should reconnect automatically on disconnect using the browser's native \u003ccode\u003eEventSource\u003c/code\u003e API or equivalent.",
+                "description": "Opens a persistent Server-Sent Events (SSE) stream scoped to the authenticated user's workspace. The connection stays open until the client disconnects. A keep-alive comment is sent every 10 seconds to prevent proxy timeouts.\u003cbr\u003e\u003cbr\u003e Each frame carries an \u003ccode\u003eid:\u003c/code\u003e line and a \u003ccode\u003edata:\u003c/code\u003e line containing a JSON envelope of the shape \u003ccode\u003e{\"id\": string, \"type\": string, \"payload\": object}\u003c/code\u003e. On reconnect the browser's native \u003ccode\u003eEventSource\u003c/code\u003e API automatically sends the last received id as a \u003ccode\u003eLast-Event-ID\u003c/code\u003e header; the server replays any events published while disconnected, or sends a \u003ccode\u003eresync\u003c/code\u003e event if the gap has fallen out of the replay buffer (256 events per workspace) and the client should refetch state instead. Current event types include \u003cstrong\u003ethumbnail_ready\u003c/strong\u003e, \u003cstrong\u003evariant_ready\u003c/strong\u003e, \u003cstrong\u003evariant_failed\u003c/strong\u003e, \u003cstrong\u003estack_merge_done\u003c/strong\u003e, \u003cstrong\u003evariant_draft.ready\u003c/strong\u003e, \u003cstrong\u003evariant_draft.error\u003c/strong\u003e, \u003cstrong\u003eworkflow_run_failed\u003c/strong\u003e, \u003cstrong\u003eworkflow_run_step_updated\u003c/strong\u003e, and \u003cstrong\u003eresync\u003c/strong\u003e.",
                 "produces": [
                     "text/event-stream"
                 ],
@@ -10056,7 +10056,8 @@
             "required": [
                 "enabled",
                 "env",
-                "service_name"
+                "service_name",
+                "sse_dropped_events"
             ],
             "properties": {
                 "enabled": {
@@ -10067,6 +10068,9 @@
                 },
                 "service_name": {
                     "type": "string"
+                },
+                "sse_dropped_events": {
+                    "type": "integer"
                 }
             }
         },

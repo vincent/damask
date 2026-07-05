@@ -72,7 +72,7 @@
         if (
           (payload.type === 'workflow_run_step_updated' ||
             payload.type === 'workflow_run_failed') &&
-          payload.run_id === run.id
+          payload.payload.run_id === run.id
         ) {
           void onRefresh()
         }

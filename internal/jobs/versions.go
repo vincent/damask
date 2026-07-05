@@ -103,11 +103,7 @@ func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) erro
 			ThumbnailContentType: thumbContentType,
 			ID:                   p.AssetID,
 		}); err == nil {
-			s.hub.Publish(ctx, p.WorkspaceID, events.Event{
-				Type:         "thumbnail_ready",
-				AssetID:      p.AssetID,
-				ThumbnailKey: thumbKey,
-			})
+			s.hub.Publish(ctx, p.WorkspaceID, events.ThumbnailReady(p.AssetID, thumbKey))
 		}
 	}
 

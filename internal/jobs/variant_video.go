@@ -48,11 +48,7 @@ func (s *JobServer) videoCapturePostHook(ctx context.Context, p jobspec.VariantJ
 		ThumbnailKey: &storageKey,
 		ID:           p.AssetID,
 	}); updErr == nil {
-		s.hub.Publish(ctx, p.WorkspaceID, events.Event{
-			Type:         "thumbnail_ready",
-			AssetID:      p.AssetID,
-			ThumbnailKey: storageKey,
-		})
+		s.hub.Publish(ctx, p.WorkspaceID, events.ThumbnailReady(p.AssetID, storageKey))
 	}
 }
 

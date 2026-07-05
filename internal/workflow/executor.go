@@ -331,13 +331,7 @@ func (e *Executor) reportRunFailure(
 ) {
 	if e.deps.Hub != nil {
 		assetID, _ := rcGetString(rc, "asset_id")
-		e.deps.Hub.Publish(ctx, wf.WorkspaceID, events.Event{
-			Type:       workflowRunFailedEvent,
-			AssetID:    assetID,
-			WorkflowID: wf.ID,
-			RunID:      runID,
-			Error:      runErr.Error(),
-		})
+		e.deps.Hub.Publish(ctx, wf.WorkspaceID, events.WorkflowRunFailed(assetID, wf.ID, runID, runErr.Error()))
 	}
 
 	if e.deps.Audit != nil {
@@ -372,15 +366,8 @@ func (e *Executor) publishStepEvent(
 		return
 	}
 	assetID, _ := rcGetString(rc, "asset_id")
-	e.deps.Hub.Publish(ctx, workspaceID, events.Event{
-		Type:       workflowRunStepUpdatedEvent,
-		AssetID:    assetID,
-		WorkflowID: workflowID,
-		RunID:      runID,
-		NodeID:     nodeID,
-		Status:     status,
-		Error:      errMsg,
-	})
+	ev := events.WorkflowRunStepUpdated(assetID, workflowID, runID, nodeID, status, errMsg)
+	e.deps.Hub.Publish(ctx, workspaceID, ev)
 }
 
 func errStringPtr(err error) *string {

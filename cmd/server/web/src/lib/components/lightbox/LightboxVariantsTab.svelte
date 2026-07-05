@@ -155,7 +155,7 @@
   $effect(() => {
     const ev = sseEvents.last
     if (pendingVariantAssetId !== asset.id) return
-    if (ev?.type !== 'variant_ready' || ev.asset_id !== asset.id) return
+    if (ev?.type !== 'variant_ready' || ev.payload.asset_id !== asset.id) return
     pendingVariantAssetId = null
     activeVariantTab = 'all'
     selectedTool = null
@@ -167,11 +167,12 @@
   $effect(() => {
     const ev = sseEvents.last
     if (pendingVariantAssetId !== asset.id) return
-    if (ev?.type !== 'variant_failed' || ev.asset_id !== asset.id) return
+    if (ev?.type !== 'variant_failed' || ev.payload.asset_id !== asset.id)
+      return
     clearVariantRefreshCountdown()
     pendingVariantAssetId = null
     createSuccess = ''
-    createError = ev.error || m.variant_create_failed()
+    createError = ev.payload.error || m.variant_create_failed()
   })
 
   // Cleanup on unmount

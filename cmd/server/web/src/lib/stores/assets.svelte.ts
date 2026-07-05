@@ -45,19 +45,28 @@ const SSE_MAX_ATTEMPTS = 10
 // Maps assetId -> uploadId for in-flight thumbnail waits
 const pendingThumbnails = new Map<string, string>()
 
-export const sseEvents = $state<{
-  last: {
-    type: string
-    asset_id: string
+/** Envelope shape for every SSE frame — see internal/events/events.go. */
+export interface SSEEvent {
+  id: string
+  type: string
+  payload: {
+    asset_id?: string
     variant_id?: string
-    thumbnail_key: string
+    workflow_id?: string
+    run_id?: string
+    node_id?: string
+    status?: string
+    thumbnail_key?: string
     job_id?: string
     error?: string
     nonce?: string
     preview_url?: string
     expires_at?: string
-  } | null
-}>({ last: null })
+    reason?: string
+  }
+}
+
+export const sseEvents = $state<{ last: SSEEvent | null }>({ last: null })
 
 function patchAsset(
   assetId: string,
@@ -106,26 +115,28 @@ function connectSSE() {
   sseSource.addEventListener('message', (e: MessageEvent) => {
     console.debug('[sse] message received', e.data)
     try {
-      const event = JSON.parse(e.data) as {
-        type: string
-        asset_id: string
-        variant_id?: string
-        thumbnail_key: string
-        job_id?: string
-        error?: string
-      }
+      const event = JSON.parse(e.data) as SSEEvent
       sseEvents.last = event
       sseReconnectDelay = 1000
       sseReconnectAttempts = 0
 
+      if (event.type === 'resync') {
+        // Last-Event-ID fell out of the server's replay buffer — refetch
+        // instead of trusting the stream to fill the gap.
+        load(true)
+        return
+      }
+
       if (event.type !== 'thumbnail_ready') return
+      const assetId = event.payload.asset_id
+      if (!assetId) return
 
-      reloadAssetResources(event.asset_id)
-      patchAsset(event.asset_id, { thumbnail_key: event.thumbnail_key })
+      reloadAssetResources(assetId)
+      patchAsset(assetId, { thumbnail_key: event.payload.thumbnail_key })
 
-      const uploadId = pendingThumbnails.get(event.asset_id)
+      const uploadId = pendingThumbnails.get(assetId)
       if (uploadId) {
-        pendingThumbnails.delete(event.asset_id)
+        pendingThumbnails.delete(assetId)
         uploadsStore.update(uploadId, { status: 'done' })
       }
     } catch {

@@ -75,8 +75,8 @@
     if (!event) return
     if (event.type !== 'variant_ready' && event.type !== 'variant_failed')
       return
-    if (event.asset_id !== assetId) return
-    resolveOldestQueued(event.type === 'variant_ready', event.error)
+    if (event.payload.asset_id !== assetId) return
+    resolveOldestQueued(event.type === 'variant_ready', event.payload.error)
   })
 
   function resolveOldestQueued(success: boolean, error?: string) {

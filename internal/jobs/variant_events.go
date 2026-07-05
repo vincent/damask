@@ -13,20 +13,11 @@ import (
 )
 
 func (s *JobServer) publishVariantReady(ctx context.Context, workspaceID, assetID, variantID string) {
-	s.hub.Publish(ctx, workspaceID, events.Event{
-		Type:      "variant_ready",
-		AssetID:   assetID,
-		VariantID: variantID,
-	})
+	s.hub.Publish(ctx, workspaceID, events.VariantReady(assetID, variantID))
 }
 
 func (s *JobServer) publishVariantFailed(ctx context.Context, workspaceID, assetID, jobID, errMsg string) {
-	s.hub.Publish(ctx, workspaceID, events.Event{
-		Type:    "variant_failed",
-		AssetID: assetID,
-		JobID:   jobID,
-		Error:   errMsg,
-	})
+	s.hub.Publish(ctx, workspaceID, events.VariantFailed(assetID, jobID, errMsg))
 }
 
 func (s *JobServer) wrapVariantJob(h queue.HandlerFunc) queue.HandlerFunc {

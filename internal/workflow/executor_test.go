@@ -19,11 +19,14 @@ type testHub struct {
 	published []events.Event
 }
 
-func (h *testHub) Subscribe(string) (<-chan events.Event, func()) { return nil, func() {} }
+func (h *testHub) Subscribe(string, string) (<-chan events.Event, []events.Event, func()) {
+	return nil, nil, func() {}
+}
 func (h *testHub) Publish(_ context.Context, _ string, ev events.Event) {
 	h.published = append(h.published, ev)
 }
 func (h *testHub) EventHandler(fiber.Ctx) error { return nil }
+func (h *testHub) DropCount() uint64            { return 0 }
 
 type testAuditWriter struct {
 	assetEvents []audit.AssetEvent
@@ -143,12 +146,14 @@ func TestExecutorReportsRunFailures(t *testing.T) {
 	if len(hub.published) != 3 {
 		t.Fatalf("expected trigger step, failed step, and workflow failure events, got %+v", hub.published)
 	}
-	if hub.published[0].Type != "workflow_run_step_updated" || hub.published[0].NodeID != "trigger" ||
-		hub.published[0].Status != "completed" {
+	step0 := decodeStepUpdated(t, hub.published[0])
+	if hub.published[0].Type != "workflow_run_step_updated" || step0.NodeID != "trigger" ||
+		step0.Status != "completed" {
 		t.Fatalf("expected trigger completion event, got %+v", hub.published[0])
 	}
-	if hub.published[1].Type != "workflow_run_step_updated" || hub.published[1].NodeID != "fail" ||
-		hub.published[1].Status != "failed" {
+	step1 := decodeStepUpdated(t, hub.published[1])
+	if hub.published[1].Type != "workflow_run_step_updated" || step1.NodeID != "fail" ||
+		step1.Status != "failed" {
 		t.Fatalf("expected failed step update event, got %+v", hub.published[1])
 	}
 	if hub.published[2].Type != "workflow_run_failed" {
@@ -296,4 +301,13 @@ func TestExecutorFailAt_NoOpIfAlreadyFinalized(t *testing.T) {
 	if mailer.errMsg != "" {
 		t.Fatalf("expected no failure email for an already-finalized run, got %+v", mailer)
 	}
+}
+
+func decodeStepUpdated(t *testing.T, ev events.Event) events.WorkflowRunStepUpdatedPayload {
+	t.Helper()
+	var p events.WorkflowRunStepUpdatedPayload
+	if err := json.Unmarshal(ev.Payload, &p); err != nil {
+		t.Fatalf("decode workflow_run_step_updated payload: %v", err)
+	}
+	return p
 }
