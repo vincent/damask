@@ -111,3 +111,34 @@ func (r *FieldRepo) ListImageAssetIDs(_ context.Context, _ string) ([]string, er
 func (r *FieldRepo) ListMissingExifField(_ context.Context, _, _ string, _ int64) ([]string, error) {
 	return nil, nil
 }
+
+func (r *FieldRepo) EnsureSystemField(_ context.Context, params repository.EnsureSystemFieldParams) error {
+	r.mapStore.mu.Lock()
+	defer r.mapStore.mu.Unlock()
+	for _, f := range r.mapStore.items {
+		if f.WorkspaceID == params.WorkspaceID && f.Key == params.Key && f.DeletedAt == nil {
+			return nil
+		}
+	}
+	r.mapStore.items[params.ID] = repository.FieldDefinition{
+		ID:          params.ID,
+		WorkspaceID: params.WorkspaceID,
+		Source:      params.Source,
+		Scope:       "asset",
+		Name:        params.Name,
+		Key:         params.Key,
+		FieldType:   params.FieldType,
+		Position:    params.Position,
+	}
+	return nil
+}
+
+func (r *FieldRepo) ListBySource(_ context.Context, workspaceID, source string) ([]repository.FieldDefinition, error) {
+	out := []repository.FieldDefinition{}
+	for _, f := range r.mapStore.all() {
+		if f.WorkspaceID == workspaceID && f.Source == source && f.DeletedAt == nil {
+			out = append(out, f)
+		}
+	}
+	return out, nil
+}

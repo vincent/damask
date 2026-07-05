@@ -14,11 +14,16 @@ import (
 
 type versionRepo struct {
 	d *db.DB
+	// writer is nil on the tx-scoped clone produced by RunInTx, which signals
+	// SetCurrent to run its statements on the existing tx instead of opening
+	// a nested one (SQLite's writer pool only allows a single connection, so
+	// a nested BeginTx on it would deadlock waiting for a connection to free up).
+	writer *sql.DB
 }
 
 // NewVersionRepo returns a repository.VersionRepository backed by sqlc-generated queries.
 func NewVersionRepo(d *db.DB) repository.VersionRepository {
-	return &versionRepo{d: d}
+	return &versionRepo{d: d, writer: d.Writer}
 }
 
 func (r *versionRepo) GetByID(ctx context.Context, id string) (repository.AssetVersion, error) {
@@ -155,22 +160,44 @@ func (r *versionRepo) NextVersionNum(ctx context.Context, assetID string) (int64
 }
 
 func (r *versionRepo) SetCurrent(ctx context.Context, assetID, versionID string) error {
-	tx, err := r.d.Writer.BeginTx(ctx, nil)
+	if r.writer == nil {
+		// Already running inside RunInTx's transaction — reuse it instead of
+		// nesting a BeginTx on the (single-connection) writer pool.
+		return setCurrentVersion(ctx, r.d.WQ, assetID, versionID)
+	}
+
+	tx, err := r.writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-	qtx := r.d.WQ.WithTx(tx)
-	if err = qtx.ClearCurrentVersionFlags(ctx, assetID); err != nil {
+	if err = setCurrentVersion(ctx, r.d.WQ.WithTx(tx), assetID, versionID); err != nil {
 		return err
 	}
-	if err = qtx.SetCurrentVersionFlag(ctx, versionID); err != nil {
+	return tx.Commit()
+}
+
+func setCurrentVersion(ctx context.Context, q *dbgen.Queries, assetID, versionID string) error {
+	if err := q.ClearCurrentVersionFlags(ctx, assetID); err != nil {
 		return err
 	}
-	if err = qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
+	if err := q.SetCurrentVersionFlag(ctx, versionID); err != nil {
+		return err
+	}
+	return q.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
 		CurrentVersionID: &versionID,
 		ID:               assetID,
-	}); err != nil {
+	})
+}
+
+func (r *versionRepo) RunInTx(ctx context.Context, fn func(tx repository.VersionRepository) error) error {
+	tx, err := r.writer.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
+	txRepo := &versionRepo{d: r.d.WithTx(tx), writer: nil}
+	if err = fn(txRepo); err != nil {
 		return err
 	}
 	return tx.Commit()

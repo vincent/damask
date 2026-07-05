@@ -275,28 +275,39 @@ func (s *versionService) UploadNewVersion(
 	}
 	createdBy := p.UserID
 
-	newVersion, err := s.Create(ctx, &VersionDTO{
-		ID:          uuid.NewString(),
-		AssetID:     p.AssetID,
-		WorkspaceID: p.WorkspaceID,
-		VersionNum:  nextNum,
-		StorageKey:  storageKey,
-		ContentHash: hash,
-		MimeType:    mimeType,
-		Size:        size,
-		Width:       meta.Width,
-		Height:      meta.Height,
-		DurationSec: meta.DurationSec,
-		Comment:     commentPtr,
-		CreatedBy:   &createdBy,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not create version: %w", err)
+	newVersionID := uuid.NewString()
+	var created repository.AssetVersion
+	if txErr := s.versions.RunInTx(ctx, func(tx repository.VersionRepository) error {
+		var createErr error
+		created, createErr = tx.Create(ctx, repository.AssetVersion{
+			ID:          newVersionID,
+			AssetID:     p.AssetID,
+			WorkspaceID: p.WorkspaceID,
+			VersionNum:  nextNum,
+			StorageKey:  storageKey,
+			ContentHash: hash,
+			MimeType:    mimeType,
+			Size:        size,
+			Width:       meta.Width,
+			Height:      meta.Height,
+			DurationSec: meta.DurationSec,
+			Comment:     commentPtr,
+			CreatedBy:   &createdBy,
+		})
+		if createErr != nil {
+			return fmt.Errorf("could not create version: %w", createErr)
+		}
+		// Promoting within the same tx as Create avoids an orphaned version row
+		// (and asset.current_version_id left unset) if SetCurrent fails.
+		if setCurrErr := tx.SetCurrent(ctx, p.AssetID, newVersionID); setCurrErr != nil {
+			return fmt.Errorf("could not promote version: %w", setCurrErr)
+		}
+		return nil
+	}); txErr != nil {
+		return nil, txErr
 	}
 
-	if setCurrErr := s.SetCurrent(ctx, p.AssetID, newVersion.ID); setCurrErr != nil {
-		return nil, fmt.Errorf("could not promote version: %w", setCurrErr)
-	}
+	newVersion := toVersionDTO(created)
 	newVersion.IsCurrent = true
 
 	if thumbErr := s.SetAssetThumbnail(ctx, p.AssetID, nil); thumbErr != nil {

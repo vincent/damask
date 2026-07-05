@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/repository"
+	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 )
 
 func newAuditSvc(t *testing.T) service.AuditLogService {
 	t.Helper()
-	env := newIngressEnv(t) // reuse: opens in-memory SQLite with migrations + seeded workspace/user
-	return service.NewAuditLogService(env.queries)
+	return service.NewAuditLogService(memory.NewAuditLogRepo())
 }
 
 // -- ListAssetEvents --
@@ -300,5 +301,65 @@ func TestPaginateAuditEvents(t *testing.T) {
 	}
 	if res.NextCursor == nil || *res.NextCursor != events[2].CreatedAt {
 		t.Errorf("expected cursor %q, got %v", events[2].CreatedAt, res.NextCursor)
+	}
+}
+
+// -- Cross-workspace negative test --
+// AuditLogRepository's List* methods must return no rows for a workspace that
+// didn't create the events, even when querying by the correct entity ID.
+
+func TestAuditLogRepository_CrossWorkspaceIsolation(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewAuditLogRepo()
+
+	wsA, wsB := "ws-a", "ws-b"
+	repo.SeedAssetEvent(wsA, repository.AuditEvent{
+		ID:        "evt-1",
+		EntityID:  "asset-1",
+		EventType: "asset_renamed",
+		CreatedAt: "2024-01-01 00:00:00",
+		ActorType: "user",
+	})
+	repo.SeedProjectEvent(wsA, repository.AuditEvent{
+		ID:        "evt-2",
+		EntityID:  "proj-1",
+		EventType: "project_renamed",
+		CreatedAt: "2024-01-01 00:00:00",
+		ActorType: "user",
+	})
+
+	assetOut, err := repo.ListAssetEvents(
+		ctx,
+		repository.ListAuditEventsParams{WorkspaceID: wsB, EntityID: "asset-1", Limit: 50},
+	)
+	if err != nil || len(assetOut) != 0 {
+		t.Errorf("ListAssetEvents cross-workspace: expected empty, got %v, err=%v", assetOut, err)
+	}
+	projOut, err := repo.ListProjectEvents(
+		ctx,
+		repository.ListAuditEventsParams{WorkspaceID: wsB, EntityID: "proj-1", Limit: 50},
+	)
+	if err != nil || len(projOut) != 0 {
+		t.Errorf("ListProjectEvents cross-workspace: expected empty, got %v, err=%v", projOut, err)
+	}
+	wsAssetOut, err := repo.ListWorkspaceAssetEvents(ctx, repository.ListAuditEventsParams{WorkspaceID: wsB, Limit: 50})
+	if err != nil || len(wsAssetOut) != 0 {
+		t.Errorf("ListWorkspaceAssetEvents cross-workspace: expected empty, got %v, err=%v", wsAssetOut, err)
+	}
+	wsProjOut, err := repo.ListWorkspaceProjectEvents(
+		ctx,
+		repository.ListAuditEventsParams{WorkspaceID: wsB, Limit: 50},
+	)
+	if err != nil || len(wsProjOut) != 0 {
+		t.Errorf("ListWorkspaceProjectEvents cross-workspace: expected empty, got %v, err=%v", wsProjOut, err)
+	}
+
+	// Sanity: same-workspace access still works after all the negative checks above.
+	out, err := repo.ListAssetEvents(
+		ctx,
+		repository.ListAuditEventsParams{WorkspaceID: wsA, EntityID: "asset-1", Limit: 50},
+	)
+	if err != nil || len(out) != 1 {
+		t.Errorf("ListAssetEvents same-workspace: expected 1 event, got %v, err=%v", out, err)
 	}
 }

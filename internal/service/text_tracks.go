@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,9 +11,9 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
 	"damask/server/internal/queue"
+	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
@@ -48,13 +47,13 @@ func extractJobType(source string) (string, error) {
 }
 
 type textTrackService struct {
-	queries *dbgen.Queries
+	repo    repository.TextTrackRepository
 	queue   queue.JobQueue
 	storage storage.Storage
 }
 
-func NewTextTrackService(queries *dbgen.Queries, q queue.JobQueue, stor storage.Storage) TextTrackService {
-	return &textTrackService{queries: queries, queue: q, storage: stor}
+func NewTextTrackService(repo repository.TextTrackRepository, q queue.JobQueue, stor storage.Storage) TextTrackService {
+	return &textTrackService{repo: repo, queue: q, storage: stor}
 }
 
 func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string) (out []TextTrackDTO, err error) {
@@ -81,10 +80,7 @@ func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string
 		}
 	}()
 
-	rows, err := s.queries.ListTextTracksByAsset(ctx, dbgen.ListTextTracksByAssetParams{
-		AssetID:     assetID,
-		WorkspaceID: workspaceID,
-	})
+	rows, err := s.repo.List(ctx, workspaceID, assetID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,14 +119,8 @@ func (s *textTrackService) Get(ctx context.Context, workspaceID, trackID string)
 		}
 	}()
 
-	row, err := s.queries.GetTextTrack(ctx, dbgen.GetTextTrackParams{
-		ID:          trackID,
-		WorkspaceID: workspaceID,
-	})
+	row, err := s.repo.Get(ctx, workspaceID, trackID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return TextTrackDTO{}, apperr.ErrNotFound
-		}
 		return TextTrackDTO{}, err
 	}
 	dto = toTextTrackDTO(row)
@@ -212,7 +202,7 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	}
 	createdBy := nilIfEmpty(p.CreatedBy)
 
-	row, err := s.queries.CreateTextTrack(ctx, dbgen.CreateTextTrackParams{
+	row, err := s.repo.Create(ctx, repository.CreateTextTrackParams{
 		ID:             uuid.NewString(),
 		WorkspaceID:    p.WorkspaceID,
 		AssetID:        p.AssetID,
@@ -277,7 +267,7 @@ func (s *textTrackService) CreateAudioTranscript(
 
 func (s *textTrackService) finalizeManualTrack(
 	ctx context.Context,
-	row dbgen.AssetTextTrack,
+	row repository.TextTrack,
 	content string,
 	dto TextTrackDTO,
 ) (TextTrackDTO, error) {
@@ -285,7 +275,7 @@ func (s *textTrackService) finalizeManualTrack(
 	if row.Lang != nil {
 		lang = *row.Lang
 	}
-	if ftsErr := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
+	if ftsErr := s.repo.InsertFTS(ctx, repository.InsertTextFTSParams{
 		TrackID:     row.ID,
 		AssetID:     row.AssetID,
 		WorkspaceID: row.WorkspaceID,
@@ -456,19 +446,16 @@ func (s *textTrackService) Delete(ctx context.Context, workspaceID, trackID stri
 			)
 		}
 	}
-	if ftsErr := s.queries.DeleteTextFTS(ctx, trackID); ftsErr != nil {
+	if ftsErr := s.repo.DeleteFTS(ctx, trackID); ftsErr != nil {
 		return ftsErr
 	}
-	if delErr := s.queries.DeleteTextTrack(ctx, dbgen.DeleteTextTrackParams{
-		ID:          trackID,
-		WorkspaceID: workspaceID,
-	}); delErr != nil {
+	if delErr := s.repo.Delete(ctx, workspaceID, trackID); delErr != nil {
 		return delErr
 	}
 	return nil
 }
 
-func toTextTrackDTO(row dbgen.AssetTextTrack) TextTrackDTO {
+func toTextTrackDTO(row repository.TextTrack) TextTrackDTO {
 	meta := map[string]any{}
 	if row.Meta != nil && *row.Meta != "" {
 		_ = json.Unmarshal([]byte(*row.Meta), &meta)
@@ -552,12 +539,7 @@ func (s *textTrackService) RunExtractPDF(
 
 	text, err := transform.ExtractPDFText(ctx, pdfBytes)
 	if err != nil {
-		errMsg := err.Error()
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          trackID,
-			WorkspaceID: workspaceID,
-			Error:       &errMsg,
-		})
+		_ = s.repo.SetFailed(ctx, workspaceID, trackID, err.Error())
 		return fmt.Errorf("RunExtractPDF: extract: %w", err)
 	}
 
@@ -631,12 +613,7 @@ func (s *textTrackService) RunExtractDocument(
 
 	text, err := transform.ExtractDocumentText(ctx, docBytes, mimeType)
 	if err != nil {
-		errMsg := err.Error()
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          trackID,
-			WorkspaceID: workspaceID,
-			Error:       &errMsg,
-		})
+		_ = s.repo.SetFailed(ctx, workspaceID, trackID, err.Error())
 		return fmt.Errorf("RunExtractDocument: extract: %w", err)
 	}
 
@@ -652,18 +629,16 @@ func (s *textTrackService) writeExtractedText(
 	metaBytes, _ := json.Marshal(map[string]any{"word_count": wordCount})
 	meta := string(metaBytes)
 
-	if err := s.queries.SetTextTrackReady(ctx, dbgen.SetTextTrackReadyParams{
+	if err := s.repo.SetReady(ctx, workspaceID, trackID, repository.SetTextTrackReadyParams{
 		Content:     content,
 		StorageKey:  nil,
 		ContentType: nil,
 		Meta:        &meta,
-		ID:          trackID,
-		WorkspaceID: workspaceID,
 	}); err != nil {
 		return fmt.Errorf("writeExtractedText: mark ready: %w", err)
 	}
 
-	if err := s.queries.InsertTextFTS(ctx, dbgen.InsertTextFTSParams{
+	if err := s.repo.InsertFTS(ctx, repository.InsertTextFTSParams{
 		TrackID:     trackID,
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,
@@ -703,12 +678,7 @@ func (s *textTrackService) RunOCR(
 	}()
 
 	fail := func(formatErr error) (string, int, error) {
-		errMsg := formatErr.Error()
-		_ = s.queries.SetTextTrackFailed(ctx, dbgen.SetTextTrackFailedParams{
-			ID:          trackID,
-			WorkspaceID: workspaceID,
-			Error:       &errMsg,
-		})
+		_ = s.repo.SetFailed(ctx, workspaceID, trackID, formatErr.Error())
 		return "", 0, formatErr
 	}
 
@@ -765,13 +735,11 @@ func (s *textTrackService) RunOCR(
 	meta := string(metaBytes)
 
 	writeCtx, writeSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.mark_ready")
-	if err = s.queries.SetTextTrackReady(writeCtx, dbgen.SetTextTrackReadyParams{
+	if err = s.repo.SetReady(writeCtx, workspaceID, trackID, repository.SetTextTrackReadyParams{
 		Content:     plainText,
 		StorageKey:  resultStorageKey,
 		ContentType: contentType,
 		Meta:        &meta,
-		ID:          trackID,
-		WorkspaceID: workspaceID,
 	}); err != nil {
 		telemetry.EndSpan(writeSpan, err)
 		return fail(fmt.Errorf("RunOCR: update track: %w", err))
@@ -779,7 +747,7 @@ func (s *textTrackService) RunOCR(
 	telemetry.EndSpan(writeSpan, nil)
 
 	ftsCtx, ftsSpan := telemetry.StartSpan(ctx, "service.text_tracks.ocr.index_fts")
-	if err = s.queries.InsertTextFTS(ftsCtx, dbgen.InsertTextFTSParams{
+	if err = s.repo.InsertFTS(ftsCtx, repository.InsertTextFTSParams{
 		TrackID:     trackID,
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,

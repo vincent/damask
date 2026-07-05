@@ -26,6 +26,11 @@ type repos struct {
 	share           repository.ShareRepository
 	projectField    repository.ProjectFieldRepository
 	embedToken      repository.EmbedTokenRepository
+	ingress         repository.IngressRepository
+	textTrack       repository.TextTrackRepository
+	auditLog        repository.AuditLogRepository
+	autoTagSug      repository.AutoTagSuggestionRepository
+	storageStats    repository.StorageStatsRepository
 }
 
 func buildRepos(database *db.DB) repos {
@@ -47,5 +52,10 @@ func buildRepos(database *db.DB) repos {
 		share:           reposqlc.NewShareRepo(database),
 		projectField:    reposqlc.NewProjectFieldRepo(database),
 		embedToken:      reposqlc.NewEmbedTokenRepo(database),
+		ingress:         reposqlc.NewIngressRepo(database),
+		textTrack:       reposqlc.NewTextTrackRepo(database),
+		auditLog:        reposqlc.NewAuditLogRepo(database),
+		autoTagSug:      reposqlc.NewAutoTagSuggestionRepo(database),
+		storageStats:    reposqlc.NewStorageStatsRepo(database),
 	}
 }

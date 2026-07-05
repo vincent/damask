@@ -12,7 +12,6 @@ var (
 	RemoveAuthMethodStr  = removeAuthMethodStr
 	HasOnlyMethodStr     = hasOnlyMethodStr
 	MethodName           = methodName
-	ToStringPtr          = toStringPtr
 	ExtractJobType       = extractJobType
 	ReadyTextContent     = readyTextContent
 	StringValue          = stringValue

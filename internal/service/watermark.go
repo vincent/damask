@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
 	"damask/server/internal/apperr"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/repository"
 )
 
@@ -16,17 +14,15 @@ var ErrNoWatermarkAsset = errors.New(
 )
 
 type watermarkService struct {
-	queries *dbgen.Queries
-	assets  repository.AssetRepository
+	assets repository.AssetRepository
 }
 
 func NewWatermarkService(
-	queries *dbgen.Queries,
 	assets repository.AssetRepository,
 	folders repository.FolderRepository,
 ) WatermarkService {
 	_ = folders
-	return &watermarkService{queries: queries, assets: assets}
+	return &watermarkService{assets: assets}
 }
 
 func (s *watermarkService) ResolveWatermarkAsset(
@@ -39,42 +35,36 @@ func (s *watermarkService) ResolveWatermarkAsset(
 	}
 
 	if asset.FolderID != nil {
-		row, folderErr := s.queries.FindWatermarkAssetInFolder(ctx, dbgen.FindWatermarkAssetInFolderParams{
-			WorkspaceID: workspaceID,
-			FolderID:    asset.FolderID,
-		})
+		row, folderErr := s.assets.FindWatermarkInFolder(ctx, workspaceID, *asset.FolderID)
 		if folderErr == nil {
 			return toWatermarkAssetDTO(row, "folder"), nil
 		}
-		if !errors.Is(folderErr, sql.ErrNoRows) {
+		if !errors.Is(folderErr, apperr.ErrNotFound) {
 			return nil, fmt.Errorf("find folder watermark: %w", folderErr)
 		}
 	}
 
 	if asset.ProjectID != nil {
-		row, projectErr := s.queries.FindWatermarkAssetInProject(ctx, dbgen.FindWatermarkAssetInProjectParams{
-			WorkspaceID: workspaceID,
-			ProjectID:   *asset.ProjectID,
-		})
+		row, projectErr := s.assets.FindWatermarkInProject(ctx, workspaceID, *asset.ProjectID)
 		if projectErr == nil {
 			return toWatermarkAssetDTO(row, "project"), nil
 		}
-		if !errors.Is(projectErr, sql.ErrNoRows) {
+		if !errors.Is(projectErr, apperr.ErrNotFound) {
 			return nil, fmt.Errorf("find project watermark: %w", projectErr)
 		}
 	}
 
-	row, err := s.queries.FindWatermarkAssetInWorkspace(ctx, workspaceID)
+	row, err := s.assets.FindWatermarkInWorkspace(ctx, workspaceID)
 	if err == nil {
 		return toWatermarkAssetDTO(row, "workspace"), nil
 	}
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, apperr.ErrNotFound) {
 		return nil, fmt.Errorf("%w: %w", ErrNoWatermarkAsset, apperr.ErrInvalidInput)
 	}
 	return nil, fmt.Errorf("find workspace watermark: %w", err)
 }
 
-func toWatermarkAssetDTO(asset dbgen.Asset, scope string) *WatermarkAssetDTO {
+func toWatermarkAssetDTO(asset repository.Asset, scope string) *WatermarkAssetDTO {
 	return &WatermarkAssetDTO{
 		ID:         asset.ID,
 		Name:       asset.OriginalFilename,

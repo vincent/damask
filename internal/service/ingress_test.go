@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
-	dbpkg "damask/server/internal/db"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/mail"
+	"damask/server/internal/repository"
+	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 
 	"github.com/google/uuid"
@@ -16,44 +16,27 @@ import (
 
 const testAppSecret = "test-app-secret-for-tests!!"
 
-// ingressTestEnv holds a db + seeded workspace/user for ingress tests.
+// ingressTestEnv holds memory repos + a seeded workspace/user for ingress tests.
 type ingressTestEnv struct {
-	queries     *dbgen.Queries
-	database    *dbpkg.DB
+	repo        *memory.IngressMemoryRepo
 	svc         service.IngressService
 	workspaceID string
 	userID      string
 }
 
-// newIngressEnv opens a fresh in-memory SQLite DB, seeds a workspace and user,
-// and returns a configured IngressService.
+// newIngressEnv wires an IngressService against memory repos with a seeded user.
 func newIngressEnv(t *testing.T) *ingressTestEnv {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	t.Cleanup(func() { _ = database.Close() })
-	queries := database.WQ
-
-	ctx := context.Background()
 	wsID := uuid.NewString()
 	userID := uuid.NewString()
 
-	if _, wsErr := queries.CreateWorkspace(ctx, dbgen.CreateWorkspaceParams{
-		ID: wsID, Name: "test-workspace",
-	}); wsErr != nil {
-		t.Fatalf("seed workspace: %v", wsErr)
-	}
-	if _, usrErr := queries.CreateUser(ctx, dbgen.CreateUserParams{
-		ID: userID, Email: userID + "@test.com", PasswordHash: "x", Name: "test",
-	}); usrErr != nil {
-		t.Fatalf("seed user: %v", usrErr)
-	}
+	users := memory.NewRealUserRepo()
+	users.Seed(repository.User{ID: userID, Email: userID + "@test.com", Name: "test"})
 
+	repo := memory.NewIngressRepo()
 	mailer := mail.NewMailer(&mail.Config{})
-	svc := service.NewIngressService(queries, testAppSecret, nil, mailer)
-	return &ingressTestEnv{queries: queries, database: database, svc: svc, workspaceID: wsID, userID: userID}
+	svc := service.NewIngressService(repo, users, testAppSecret, nil, mailer)
+	return &ingressTestEnv{repo: repo, svc: svc, workspaceID: wsID, userID: userID}
 }
 
 // seedSource creates an ingress source via the service.
@@ -367,25 +350,95 @@ func TestIngressService_RetryLogEntry_InvalidStatus(t *testing.T) {
 	env := newIngressEnv(t)
 	src := seedSource(t, env, "src")
 
-	// Insert a log entry (starts as "pending") then mark as "done".
-	entry, err := env.queries.InsertIngressLogEntry(context.Background(), dbgen.InsertIngressLogEntryParams{
-		ID:       uuid.NewString(),
+	// Seed a log entry directly on the repo, already marked "imported".
+	entryID := uuid.NewString()
+	env.repo.SeedLogEntry(repository.IngressLogEntry{
+		ID:       entryID,
 		SourceID: src.ID,
 		RemoteID: "remote_1",
 		Filename: "file.jpg",
+		Status:   "imported",
 	})
-	if err != nil {
-		t.Fatalf("insert log entry: %v", err)
-	}
-	if updateErr := env.queries.UpdateIngressLogEntry(context.Background(), dbgen.UpdateIngressLogEntryParams{
-		Status: "imported",
-		ID:     entry.ID,
-	}); updateErr != nil {
-		t.Fatalf("update log entry: %v", updateErr)
-	}
 
-	_, err = env.svc.RetryLogEntry(context.Background(), env.workspaceID, entry.ID)
+	_, err := env.svc.RetryLogEntry(context.Background(), env.workspaceID, entryID)
 	if !errors.Is(err, apperr.ErrInvalidInput) {
 		t.Fatalf("expected ErrInvalidInput for imported status, got %v", err)
+	}
+}
+
+// -- Cross-workspace negative test --
+// Every read/update/delete method on IngressRepository must return not-found/no-op
+// when called with a different workspace ID than the one that owns the resource.
+
+func TestIngressRepository_CrossWorkspaceIsolation(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewIngressRepo()
+
+	wsA, wsB := "ws-a", "ws-b"
+	src, createErr := repo.CreateSource(ctx, repository.CreateIngressSourceParams{
+		ID: "src-1", WorkspaceID: wsA, CreatedBy: "user-1", Type: "sftp", Label: "a-source",
+	})
+	if createErr != nil {
+		t.Fatalf("create source: %v", createErr)
+	}
+	rule, createRuleErr := repo.CreateRule(ctx, repository.CreateIngressRuleParams{
+		ID: "rule-1", WorkspaceID: wsA, SourceID: src.ID, Position: 1,
+		Field: "filename", Operator: "contains", Value: "x", Action: "include",
+	})
+	if createRuleErr != nil {
+		t.Fatalf("create rule: %v", createRuleErr)
+	}
+	repo.SeedLogEntry(
+		repository.IngressLogEntry{ID: "log-1", SourceID: src.ID, RemoteID: "r1", Filename: "f", Status: "pending"},
+	)
+
+	checks := []struct {
+		name string
+		run  func() error
+	}{
+		{"GetSource", func() error { _, err := repo.GetSource(ctx, wsB, src.ID); return err }},
+		{"DeleteSource", func() error { return repo.DeleteSource(ctx, wsB, src.ID) }},
+		{"UpdateSource", func() error {
+			_, err := repo.UpdateSource(ctx, repository.UpdateIngressSourceParams{ID: src.ID, WorkspaceID: wsB})
+			return err
+		}},
+		{"ListRules", func() error { _, err := repo.ListRules(ctx, wsB, src.ID); return err }},
+		{"GetRule", func() error { _, err := repo.GetRule(ctx, wsB, rule.ID); return err }},
+		{"CreateRule", func() error {
+			_, err := repo.CreateRule(
+				ctx,
+				repository.CreateIngressRuleParams{ID: "rule-2", WorkspaceID: wsB, SourceID: src.ID},
+			)
+			return err
+		}},
+		{"UpdateRule", func() error {
+			_, err := repo.UpdateRule(ctx, wsB, repository.UpdateIngressRuleParams{ID: rule.ID})
+			return err
+		}},
+		{"DeleteRule", func() error { return repo.DeleteRule(ctx, wsB, rule.ID) }},
+		{"ListSourceLog", func() error { _, err := repo.ListSourceLog(ctx, wsB, src.ID, 10, 0); return err }},
+		{"GetLogEntry", func() error { _, err := repo.GetLogEntry(ctx, wsB, "log-1"); return err }},
+		{"UpdateLogEntry", func() error {
+			return repo.UpdateLogEntry(
+				ctx,
+				wsB,
+				repository.UpdateIngressLogEntryParams{ID: "log-1", Status: "imported"},
+			)
+		}},
+		{"DeleteLogEntry", func() error { return repo.DeleteLogEntry(ctx, wsB, "log-1") }},
+	}
+	for _, c := range checks {
+		if err := c.run(); !errors.Is(err, apperr.ErrNotFound) {
+			t.Errorf("%s cross-workspace: expected ErrNotFound, got %v", c.name, err)
+		}
+	}
+
+	if out, err := repo.ListWorkspaceLog(ctx, wsB, "", 10, 0); err != nil || len(out) != 0 {
+		t.Errorf("ListWorkspaceLog cross-workspace: expected empty result, got %v, err=%v", out, err)
+	}
+
+	// Sanity: same-workspace access still works after all the negative checks above.
+	if _, err := repo.GetSource(ctx, wsA, src.ID); err != nil {
+		t.Errorf("GetSource same-workspace: unexpected error %v", err)
 	}
 }

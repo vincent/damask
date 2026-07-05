@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,8 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/apperr"
 	"damask/server/internal/media/contentmeta"
+	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 )
 
@@ -50,29 +50,35 @@ var exifFields = []exifFieldDef{
 
 // ExifService extracts EXIF metadata from image assets and stores it as field values.
 type ExifService struct {
-	queries *dbgen.Queries
-	storage storage.Storage
+	workspaces repository.WorkspaceRepository
+	assets     repository.AssetRepository
+	fields     repository.FieldRepository
+	assetField repository.AssetFieldRepository
+	storage    storage.Storage
 }
 
-func NewExifService(queries *dbgen.Queries, stor storage.Storage) *ExifService {
-	return &ExifService{queries: queries, storage: stor}
+func NewExifService(
+	workspaces repository.WorkspaceRepository,
+	assets repository.AssetRepository,
+	fields repository.FieldRepository,
+	assetField repository.AssetFieldRepository,
+	stor storage.Storage,
+) *ExifService {
+	return &ExifService{workspaces: workspaces, assets: assets, fields: fields, assetField: assetField, storage: stor}
 }
 
 func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID, userID string) error {
-	ws, err := s.queries.GetWorkspaceByID(ctx, workspaceID)
+	ws, err := s.workspaces.GetByID(ctx, workspaceID)
 	if err != nil {
 		return fmt.Errorf("load workspace: %w", err)
 	}
-	if ws.ExifKeep == 0 {
+	if !ws.ExifKeep {
 		return nil
 	}
 
-	asset, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{
-		ID:          assetID,
-		WorkspaceID: workspaceID,
-	})
+	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, apperr.ErrNotFound) {
 			return nil
 		}
 		return fmt.Errorf("load asset: %w", err)
@@ -81,7 +87,7 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 		return nil
 	}
 
-	keepGPS := ws.ExifKeepGps == 1
+	keepGPS := ws.ExifKeepGps
 
 	// Tombstone check before ensureFields to avoid N inserts on already-processed assets.
 	if processed, tombErr := s.isExifTombstoned(ctx, workspaceID, assetID); tombErr != nil {
@@ -113,12 +119,10 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 
 	if result == nil {
 		empty := ""
-		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
-			ID:        uuid.New().String(),
-			AssetID:   assetID,
+		if uErr := s.assetField.UpsertValue(ctx, assetID, repository.SetFieldValueParams{
 			FieldID:   makeFieldID,
 			ValueText: &empty,
-			CreatedBy: &userID,
+			CreatedBy: userID,
 		}); uErr != nil {
 			return fmt.Errorf("write tombstone: %w", uErr)
 		}
@@ -140,22 +144,18 @@ func (s *ExifService) ExtractForAsset(ctx context.Context, workspaceID, assetID,
 }
 
 func (s *ExifService) isExifTombstoned(ctx context.Context, workspaceID, assetID string) (bool, error) {
-	makeField, err := s.queries.GetFieldDefinitionByKey(ctx, dbgen.GetFieldDefinitionByKeyParams{
-		WorkspaceID: workspaceID,
-		Key:         exifKeyMake,
-	})
+	makeField, err := s.fields.GetByKey(ctx, workspaceID, exifKeyMake)
 	if err != nil {
 		return false, nil //nolint:nilerr // field doesn't exist yet
 	}
-	_, tombErr := s.queries.GetAssetFieldValueByAssetAndField(ctx, dbgen.GetAssetFieldValueByAssetAndFieldParams{
-		AssetID: assetID,
-		FieldID: makeField.ID,
-	})
-	if tombErr == nil {
-		return true, nil
-	}
-	if !errors.Is(tombErr, sql.ErrNoRows) {
+	values, tombErr := s.assetField.GetValues(ctx, assetID)
+	if tombErr != nil {
 		return false, fmt.Errorf("check tombstone: %w", tombErr)
+	}
+	for _, v := range values {
+		if v.FieldID == makeField.ID {
+			return true, nil
+		}
 	}
 	return false, nil
 }
@@ -169,7 +169,7 @@ func (s *ExifService) ensureFields(
 		if fd.gpsOnly && !keepGPS {
 			continue
 		}
-		if err := s.queries.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
+		if err := s.fields.EnsureSystemField(ctx, repository.EnsureSystemFieldParams{
 			ID:          uuid.NewString(),
 			WorkspaceID: workspaceID,
 			Source:      exifSource,
@@ -182,10 +182,7 @@ func (s *ExifService) ensureFields(
 		}
 	}
 
-	fields, err := s.queries.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
-		WorkspaceID: workspaceID,
-		Source:      exifSource,
-	})
+	fields, err := s.fields.ListBySource(ctx, workspaceID, exifSource)
 	if err != nil {
 		return nil, fmt.Errorf("load exif fields: %w", err)
 	}
@@ -226,12 +223,10 @@ func (s *ExifService) upsertExifFields(
 		if !ok {
 			continue
 		}
-		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
-			ID:        uuid.New().String(),
-			AssetID:   assetID,
+		if uErr := s.assetField.UpsertValue(ctx, assetID, repository.SetFieldValueParams{
 			FieldID:   fid,
 			ValueText: f.val,
-			CreatedBy: &userID,
+			CreatedBy: userID,
 		}); uErr != nil {
 			return fmt.Errorf("upsert %s: %w", f.key, uErr)
 		}
@@ -257,12 +252,10 @@ func (s *ExifService) upsertExifFields(
 		if !ok {
 			continue
 		}
-		if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
-			ID:          uuid.New().String(),
-			AssetID:     assetID,
+		if uErr := s.assetField.UpsertValue(ctx, assetID, repository.SetFieldValueParams{
 			FieldID:     fid,
 			ValueNumber: f.val,
-			CreatedBy:   &userID,
+			CreatedBy:   userID,
 		}); uErr != nil {
 			return fmt.Errorf("upsert %s: %w", f.key, uErr)
 		}
@@ -271,12 +264,10 @@ func (s *ExifService) upsertExifFields(
 	if result.TakenAt != nil {
 		if fid, ok := fieldIDs["_exif_taken_at"]; ok {
 			v := result.TakenAt.Format("2006-01-02")
-			if _, uErr := s.queries.UpsertAssetFieldValue(ctx, dbgen.UpsertAssetFieldValueParams{
-				ID:        uuid.New().String(),
-				AssetID:   assetID,
+			if uErr := s.assetField.UpsertValue(ctx, assetID, repository.SetFieldValueParams{
 				FieldID:   fid,
 				ValueDate: &v,
-				CreatedBy: &userID,
+				CreatedBy: userID,
 			}); uErr != nil {
 				return fmt.Errorf("upsert _exif_taken_at: %w", uErr)
 			}

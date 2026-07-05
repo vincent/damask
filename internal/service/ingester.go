@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -11,10 +10,10 @@ import (
 	"strings"
 
 	"damask/server/internal/assetio"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/jobs"
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
+	"damask/server/internal/repository"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
@@ -35,24 +34,24 @@ type AssetIngester interface {
 }
 
 type ingesterImpl struct {
-	queries *dbgen.Queries
-	sqlDB   *sql.DB
-	stor    storage.Storage
-	q       queue.JobQueue
-	media   *ingest.Registry
-	autoTag AutoTagService
+	assets   repository.AssetRepository
+	versions repository.VersionRepository
+	stor     storage.Storage
+	q        queue.JobQueue
+	media    *ingest.Registry
+	autoTag  AutoTagService
 }
 
 // NewAssetIngester returns an AssetIngester backed by the given dependencies.
 func NewAssetIngester(
-	queries *dbgen.Queries,
-	sqlDB *sql.DB,
+	assets repository.AssetRepository,
+	versions repository.VersionRepository,
 	stor storage.Storage,
 	q queue.JobQueue,
 	media *ingest.Registry,
 	autoTag AutoTagService,
 ) AssetIngester {
-	return &ingesterImpl{queries: queries, sqlDB: sqlDB, stor: stor, q: q, media: media, autoTag: autoTag}
+	return &ingesterImpl{assets: assets, versions: versions, stor: stor, q: q, media: media, autoTag: autoTag}
 }
 
 func (s *ingesterImpl) IngestFile(
@@ -103,12 +102,12 @@ func (s *ingesterImpl) IngestFileWithDetails(
 
 // ingest is the shared implementation called by IngestFile and IngestFileFull.
 //
-//nolint:funlen // mostly sequential steps with error handling and telemetry.
+
 func (s *ingesterImpl) ingest(
 	ctx context.Context,
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
-) (asset dbgen.Asset, err error) {
+) (asset repository.Asset, err error) {
 	ctx, span := telemetry.StartSpan(ctx, "service.ingester.ingest",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Bool("damask.upload.has_project", opts.ProjectID != nil),
@@ -141,13 +140,13 @@ func (s *ingesterImpl) ingest(
 
 	stat, err := os.Stat(filePath)
 	if err != nil {
-		return dbgen.Asset{}, fmt.Errorf("could not stat uploaded file: %w", err)
+		return repository.Asset{}, fmt.Errorf("could not stat uploaded file: %w", err)
 	}
 	span.SetAttributes(attribute.Int64("damask.upload.bytes", stat.Size()))
 
 	mimeType, err := transform.DetectMimeType(filePath)
 	if err != nil {
-		return dbgen.Asset{}, fmt.Errorf("could not detect MIME type: %w", err)
+		return repository.Asset{}, fmt.Errorf("could not detect MIME type: %w", err)
 	}
 	span.SetAttributes(attribute.String("damask.mime_type", mimeType))
 
@@ -160,7 +159,7 @@ func (s *ingesterImpl) ingest(
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return dbgen.Asset{}, fmt.Errorf("could not open file: %w", err)
+		return repository.Asset{}, fmt.Errorf("could not open file: %w", err)
 	}
 	defer f.Close()
 	_, storeSpan := telemetry.StartSpan(ctx, "service.ingester.storage_put",
@@ -170,7 +169,7 @@ func (s *ingesterImpl) ingest(
 	err = s.stor.Put(storageKey, f)
 	telemetry.EndSpan(storeSpan, err)
 	if err != nil {
-		return dbgen.Asset{}, fmt.Errorf("could not store file: %w", err)
+		return repository.Asset{}, fmt.Errorf("could not store file: %w", err)
 	}
 
 	meta := ingest.FileMeta{}
@@ -195,10 +194,11 @@ func (s *ingesterImpl) ingest(
 	}
 
 	_, createSpan := telemetry.StartSpan(ctx, "service.ingester.create_asset")
-	asset, err = s.queries.CreateAsset(ctx, dbgen.CreateAssetParams{
+	asset, err = s.assets.Create(ctx, repository.CreateAssetParams{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
 		ProjectID:        opts.ProjectID,
+		FolderID:         opts.FolderID,
 		OriginalFilename: originalFilename,
 		StorageKey:       storageKey,
 		MimeType:         mimeType,
@@ -208,7 +208,7 @@ func (s *ingesterImpl) ingest(
 	})
 	telemetry.EndSpan(createSpan, err)
 	if err != nil {
-		return dbgen.Asset{}, fmt.Errorf("could not save asset: %w", err)
+		return repository.Asset{}, fmt.Errorf("could not save asset: %w", err)
 	}
 
 	slog.DebugContext(ctx, "created asset", keyAssetID, asset.ID, keyMimeType, asset.MimeType, keySize, asset.Size)
@@ -216,18 +216,6 @@ func (s *ingesterImpl) ingest(
 	initialVersionID, vErr := s.createInitialVersion(ctx, asset, filePath, storageKey, mimeType, meta, opts.UserID)
 	if vErr != nil {
 		slog.ErrorContext(ctx, "create initial version", keyAssetID, asset.ID, "error", vErr)
-	}
-
-	if opts.FolderID != nil {
-		if folderErr := s.queries.UpdateAssetFolder(ctx, dbgen.UpdateAssetFolderParams{
-			FolderID:    opts.FolderID,
-			ID:          asset.ID,
-			WorkspaceID: workspaceID,
-		}); folderErr != nil {
-			slog.ErrorContext(ctx, "set folder for asset", keyAssetID, asset.ID, "error", folderErr)
-		} else {
-			asset.FolderID = opts.FolderID
-		}
 	}
 
 	if opts.InheritFields != nil && opts.ProjectID != nil && opts.UserID != "" {
@@ -262,7 +250,7 @@ func (s *ingesterImpl) ingest(
 
 func (s *ingesterImpl) enqueueIngestionJobs(
 	ctx context.Context,
-	asset dbgen.Asset,
+	asset repository.Asset,
 	workspaceID, mimeType, initialVersionID, userID string,
 ) {
 	enqueue := func(spanName, logMsg, jobType string, payload any) {
@@ -335,7 +323,7 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 
 func (s *ingesterImpl) createInitialVersion(
 	ctx context.Context,
-	asset dbgen.Asset,
+	asset repository.Asset,
 	filePath, storageKey, mimeType string,
 	meta ingest.FileMeta,
 	userID string,
@@ -359,50 +347,45 @@ func (s *ingesterImpl) createInitialVersion(
 
 	versionID = uuid.NewString()
 
-	tx, err := s.sqlDB.BeginTx(ctx, nil)
-	if err != nil {
-		return "", fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback() //nolint:errcheck // Rollback is best-effort after read-only queries or commit.
-
-	qtx := s.queries.WithTx(tx)
-
 	var createdByPtr *string
 	if userID != "" {
 		createdByPtr = &userID
 	}
 
-	if _, err = qtx.CreateAssetVersion(ctx, dbgen.CreateAssetVersionParams{
-		ID:          versionID,
-		AssetID:     asset.ID,
-		WorkspaceID: asset.WorkspaceID,
-		VersionNum:  1,
-		StorageKey:  storageKey,
-		ContentHash: hash,
-		MimeType:    mimeType,
-		Size:        asset.Size,
-		Width:       meta.Width,
-		Height:      meta.Height,
-		DurationSec: meta.DurationSec,
-		CreatedBy:   createdByPtr,
-		IsCurrent:   1,
+	if err = s.versions.RunInTx(ctx, func(tx repository.VersionRepository) error {
+		if _, createErr := tx.Create(ctx, repository.AssetVersion{
+			ID:          versionID,
+			AssetID:     asset.ID,
+			WorkspaceID: asset.WorkspaceID,
+			VersionNum:  1,
+			StorageKey:  storageKey,
+			ContentHash: hash,
+			MimeType:    mimeType,
+			Size:        asset.Size,
+			Width:       meta.Width,
+			Height:      meta.Height,
+			DurationSec: meta.DurationSec,
+			CreatedBy:   createdByPtr,
+		}); createErr != nil {
+			return fmt.Errorf(
+				"create version row (asset_id, workspace_id, created_by) (%s, %s, %v): %w",
+				asset.ID,
+				asset.WorkspaceID,
+				createdByPtr,
+				createErr,
+			)
+		}
+
+		// SetCurrent atomically flips the version's is_current flag and the asset's
+		// current_version_id (see repository.VersionRepository.SetCurrent). Wrapping it
+		// in the same tx as Create avoids an orphaned version row if this step fails.
+		if setErr := tx.SetCurrent(ctx, asset.ID, versionID); setErr != nil {
+			return fmt.Errorf("set current_version_id: %w", setErr)
+		}
+		return nil
 	}); err != nil {
-		return "", fmt.Errorf(
-			"create version row (asset_id, workspace_id, created_by) (%s, %s, %v): %w",
-			asset.ID,
-			asset.WorkspaceID,
-			createdByPtr,
-			err,
-		)
+		return "", err
 	}
 
-	if err = qtx.UpdateAssetCurrentVersion(ctx, dbgen.UpdateAssetCurrentVersionParams{
-		CurrentVersionID: &versionID,
-		ID:               asset.ID,
-	}); err != nil {
-		return "", fmt.Errorf("set current_version_id: %w", err)
-	}
-
-	err = tx.Commit()
-	return versionID, err
+	return versionID, nil
 }

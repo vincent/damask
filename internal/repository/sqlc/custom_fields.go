@@ -181,6 +181,36 @@ func (r *fieldRepo) ListMissingExifField(
 	})
 }
 
+func (r *fieldRepo) EnsureSystemField(ctx context.Context, params repository.EnsureSystemFieldParams) error {
+	return r.d.WQ.InsertSystemFieldDefinition(ctx, dbgen.InsertSystemFieldDefinitionParams{
+		ID:          params.ID,
+		WorkspaceID: params.WorkspaceID,
+		Source:      params.Source,
+		Name:        params.Name,
+		Key:         params.Key,
+		FieldType:   params.FieldType,
+		Position:    params.Position,
+	})
+}
+
+func (r *fieldRepo) ListBySource(
+	ctx context.Context,
+	workspaceID, source string,
+) ([]repository.FieldDefinition, error) {
+	rows, err := r.d.RQ.GetSystemFieldsBySource(ctx, dbgen.GetSystemFieldsBySourceParams{
+		WorkspaceID: workspaceID,
+		Source:      source,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.FieldDefinition, len(rows))
+	for i, row := range rows {
+		out[i] = toField(row)
+	}
+	return out, nil
+}
+
 func (r *fieldRepo) InheritProjectFields(ctx context.Context, workspaceID, assetID, projectID, userID string) error {
 	defs, err := r.d.RQ.ListInheritableAssetFieldDefinitions(ctx, workspaceID)
 	if err != nil {

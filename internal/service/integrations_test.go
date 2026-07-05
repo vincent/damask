@@ -19,7 +19,7 @@ type integrationTestEnv struct {
 
 func newIntegrationEnv(t *testing.T) *integrationTestEnv {
 	t.Helper()
-	env := newIngressEnv(t)
+	env := newSQLiteEnv(t)
 	repo := reposqlc.NewOAuthRepo(env.database)
 	return &integrationTestEnv{
 		svc:         service.NewIntegrationService(repo),

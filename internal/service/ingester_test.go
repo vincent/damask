@@ -8,8 +8,9 @@ import (
 	"testing"
 
 	dbpkg "damask/server/internal/db"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/media/ingest"
+	"damask/server/internal/repository"
+	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/transform"
 
 	"github.com/google/uuid"
@@ -22,13 +23,12 @@ func newTestIngesterImpl(t *testing.T) (*ingesterImpl, *sql.DB) {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
-	queries, sqlDB := database.WQ, database.Writer
 	impl := &ingesterImpl{
-		queries: queries,
-		sqlDB:   sqlDB,
-		media:   ingest.NewRegistry(transform.NewTransformer()),
+		assets:   reposqlc.NewAssetRepo(database),
+		versions: reposqlc.NewVersionRepo(database),
+		media:    ingest.NewRegistry(transform.NewTransformer()),
 	}
-	return impl, sqlDB
+	return impl, database.Writer
 }
 
 // TestCreateInitialVersionWithNoUser verifies that when createInitialVersion
@@ -46,7 +46,7 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 	}
 
 	assetID := uuid.NewString()
-	asset := dbgen.Asset{
+	asset := repository.Asset{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
 		Size:             100,
@@ -117,7 +117,7 @@ func TestCreateInitialVersionWithUser(t *testing.T) {
 	}
 
 	assetID := uuid.NewString()
-	asset := dbgen.Asset{
+	asset := repository.Asset{
 		ID:               assetID,
 		WorkspaceID:      workspaceID,
 		Size:             100,

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,8 +9,8 @@ import (
 
 	"damask/server/internal/ai"
 	"damask/server/internal/apperr"
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
+	"damask/server/internal/repository"
 	"damask/server/internal/transform"
 )
 
@@ -31,7 +30,9 @@ type autoTagPayload struct {
 }
 
 type autoTagService struct {
-	queries          *dbgen.Queries
+	assets           repository.AssetRepository
+	workspaces       repository.WorkspaceRepository
+	suggestions      repository.AutoTagSuggestionRepository
 	queue            queue.JobQueue
 	tags             TagService
 	aiAPIKeyResolver ai.KeyResolver
@@ -39,16 +40,25 @@ type autoTagService struct {
 
 // NewAutoTagService returns an AutoTagService.
 func NewAutoTagService(
-	queries *dbgen.Queries,
+	assets repository.AssetRepository,
+	workspaces repository.WorkspaceRepository,
+	suggestions repository.AutoTagSuggestionRepository,
 	q queue.JobQueue,
 	tags TagService,
 	aiAPIKeyResolver ai.KeyResolver,
 ) AutoTagService {
-	return &autoTagService{queries: queries, queue: q, tags: tags, aiAPIKeyResolver: aiAPIKeyResolver}
+	return &autoTagService{
+		assets:           assets,
+		workspaces:       workspaces,
+		suggestions:      suggestions,
+		queue:            q,
+		tags:             tags,
+		aiAPIKeyResolver: aiAPIKeyResolver,
+	}
 }
 
 func (s *autoTagService) Enqueue(ctx context.Context, workspaceID, assetID string, manual bool) error {
-	asset, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: assetID, WorkspaceID: workspaceID})
+	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
 	if err != nil {
 		return err
 	}
@@ -56,11 +66,11 @@ func (s *autoTagService) Enqueue(ctx context.Context, workspaceID, assetID strin
 		return nil
 	}
 
-	ws, err := s.queries.GetWorkspaceByID(ctx, workspaceID)
+	ws, err := s.workspaces.GetByID(ctx, workspaceID)
 	if err != nil {
 		return err
 	}
-	if !manual && ws.AutoTagEnabled == 0 {
+	if !manual && !ws.AutoTagEnabled {
 		return nil
 	}
 
@@ -115,10 +125,7 @@ func (s *autoTagService) ListSuggestions(
 	ctx context.Context,
 	workspaceID, assetID string,
 ) ([]AutoTagSuggestionDTO, error) {
-	rows, err := s.queries.ListAutoTagSuggestions(ctx, dbgen.ListAutoTagSuggestionsParams{
-		AssetID:     assetID,
-		WorkspaceID: workspaceID,
-	})
+	rows, err := s.suggestions.List(ctx, workspaceID, assetID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,12 +140,9 @@ func (s *autoTagService) AcceptSuggestion(
 	ctx context.Context,
 	workspaceID, assetID, suggestionID string,
 ) (*TagDTO, error) {
-	sug, err := s.queries.GetAutoTagSuggestion(ctx, dbgen.GetAutoTagSuggestionParams{
-		ID:          suggestionID,
-		WorkspaceID: workspaceID,
-	})
+	sug, err := s.suggestions.Get(ctx, workspaceID, suggestionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, apperr.ErrNotFound) {
 			return nil, fmt.Errorf("suggestion %q: %w", suggestionID, apperr.ErrNotFound)
 		}
 		return nil, err
@@ -150,20 +154,14 @@ func (s *autoTagService) AcceptSuggestion(
 	if err != nil {
 		return nil, err
 	}
-	if err = s.queries.DeleteAutoTagSuggestion(ctx, dbgen.DeleteAutoTagSuggestionParams{
-		ID:          suggestionID,
-		WorkspaceID: workspaceID,
-	}); err != nil {
+	if err = s.suggestions.Delete(ctx, workspaceID, suggestionID); err != nil {
 		return nil, err
 	}
 	return tag, nil
 }
 
 func (s *autoTagService) AcceptAll(ctx context.Context, workspaceID, assetID string) (int, error) {
-	sugs, err := s.queries.ListAutoTagSuggestions(ctx, dbgen.ListAutoTagSuggestionsParams{
-		AssetID:     assetID,
-		WorkspaceID: workspaceID,
-	})
+	sugs, err := s.suggestions.List(ctx, workspaceID, assetID)
 	if err != nil {
 		return 0, err
 	}
@@ -175,10 +173,7 @@ func (s *autoTagService) AcceptAll(ctx context.Context, workspaceID, assetID str
 			failed++
 			continue
 		}
-		if err = s.queries.DeleteAutoTagSuggestion(ctx, dbgen.DeleteAutoTagSuggestionParams{
-			ID:          sug.ID,
-			WorkspaceID: workspaceID,
-		}); err != nil {
+		if err = s.suggestions.Delete(ctx, workspaceID, sug.ID); err != nil {
 			slog.WarnContext(ctx, "auto_tag: accept-all delete suggestion failed", "id", sug.ID, "error", err)
 			failed++
 			continue
@@ -192,12 +187,9 @@ func (s *autoTagService) AcceptAll(ctx context.Context, workspaceID, assetID str
 }
 
 func (s *autoTagService) DismissSuggestion(ctx context.Context, workspaceID, assetID, suggestionID string) error {
-	sug, err := s.queries.GetAutoTagSuggestion(ctx, dbgen.GetAutoTagSuggestionParams{
-		ID:          suggestionID,
-		WorkspaceID: workspaceID,
-	})
+	sug, err := s.suggestions.Get(ctx, workspaceID, suggestionID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, apperr.ErrNotFound) {
 			return fmt.Errorf("suggestion %q: %w", suggestionID, apperr.ErrNotFound)
 		}
 		return err
@@ -205,15 +197,9 @@ func (s *autoTagService) DismissSuggestion(ctx context.Context, workspaceID, ass
 	if sug.AssetID != assetID {
 		return fmt.Errorf("suggestion %q: %w", suggestionID, apperr.ErrNotFound)
 	}
-	return s.queries.DeleteAutoTagSuggestion(ctx, dbgen.DeleteAutoTagSuggestionParams{
-		ID:          suggestionID,
-		WorkspaceID: workspaceID,
-	})
+	return s.suggestions.Delete(ctx, workspaceID, suggestionID)
 }
 
 func (s *autoTagService) DismissAll(ctx context.Context, workspaceID, assetID string) error {
-	return s.queries.DeleteAutoTagSuggestionsByAsset(ctx, dbgen.DeleteAutoTagSuggestionsByAssetParams{
-		AssetID:     assetID,
-		WorkspaceID: workspaceID,
-	})
+	return s.suggestions.DeleteByAsset(ctx, workspaceID, assetID)
 }

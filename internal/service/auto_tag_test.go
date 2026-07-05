@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"damask/server/internal/apperr"
-	dbpkg "damask/server/internal/db"
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/repository"
+	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 	"damask/server/internal/testutil/mockservice"
 
@@ -16,56 +16,42 @@ import (
 
 const autoTagTestWorkspaceID = "ws_1"
 
-func newAutoTagTestDB(t *testing.T) *dbgen.Queries {
+// newAutoTagEnv wires an AutoTagService against memory repos with tags stubbed by a mock.
+func newAutoTagEnv(t *testing.T, tags service.TagService) (
+	service.AutoTagService,
+	*memory.AssetRepo,
+	*memory.AutoTagSuggestionMemoryRepo,
+) {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	t.Cleanup(func() { _ = database.Close() })
-	queries := database.WQ
-	if _, wsErr := queries.CreateWorkspace(context.Background(), dbgen.CreateWorkspaceParams{
-		ID: autoTagTestWorkspaceID, Name: "ws",
-	}); wsErr != nil {
-		t.Fatalf("seed workspace: %v", wsErr)
-	}
-	return queries
+	assets := memory.NewAssetRepo()
+	workspaces := memory.NewRealWorkspaceRepo()
+	suggestions := memory.NewAutoTagSuggestionRepo()
+	workspaces.Seed(repository.Workspace{ID: autoTagTestWorkspaceID, Name: "ws"})
+	svc := service.NewAutoTagService(assets, workspaces, suggestions, nil, tags, nil)
+	return svc, assets, suggestions
 }
 
-func seedAutoTagAsset(t *testing.T, queries *dbgen.Queries, assetID string) {
-	t.Helper()
-	if _, err := queries.CreateAsset(context.Background(), dbgen.CreateAssetParams{
-		ID:               assetID,
-		WorkspaceID:      autoTagTestWorkspaceID,
-		OriginalFilename: "photo.jpg",
-		StorageKey:       "k/" + assetID,
-		MimeType:         "image/jpeg",
-	}); err != nil {
-		t.Fatalf("seed asset: %v", err)
-	}
+func seedAutoTagAsset(assets *memory.AssetRepo, assetID string) {
+	assets.Seed(repository.Asset{
+		ID: assetID, WorkspaceID: autoTagTestWorkspaceID,
+		OriginalFilename: "photo.jpg", StorageKey: "k/" + assetID, MimeType: "image/jpeg",
+	})
 }
 
-func seedAutoTagSuggestion(t *testing.T, queries *dbgen.Queries, tagName string) string {
-	t.Helper()
+//nolint:unparam // assetID kept general; every current test case happens to use the same asset.
+func seedAutoTagSuggestion(suggestions *memory.AutoTagSuggestionMemoryRepo, assetID, tagName string) string {
 	id := uuid.NewString()
-	if _, err := queries.CreateAutoTagSuggestion(context.Background(), dbgen.CreateAutoTagSuggestionParams{
-		ID:          id,
-		WorkspaceID: autoTagTestWorkspaceID,
-		AssetID:     "ast_1",
-		TagName:     tagName,
-	}); err != nil {
-		t.Fatalf("seed suggestion: %v", err)
-	}
+	suggestions.Seed(repository.AutoTagSuggestion{
+		ID: id, WorkspaceID: autoTagTestWorkspaceID, AssetID: assetID, TagName: tagName,
+	})
 	return id
 }
 
 func TestAutoTagService_AcceptSuggestion_AssetMismatch_ReturnsNotFound(t *testing.T) {
-	queries := newAutoTagTestDB(t)
-	seedAutoTagAsset(t, queries, "ast_1")
-	seedAutoTagAsset(t, queries, "ast_2")
-	sugID := seedAutoTagSuggestion(t, queries, "hero")
-
-	svc := service.NewAutoTagService(queries, nil, mockservice.NewTagService(), nil)
+	svc, assets, suggestions := newAutoTagEnv(t, mockservice.NewTagService())
+	seedAutoTagAsset(assets, "ast_1")
+	seedAutoTagAsset(assets, "ast_2")
+	sugID := seedAutoTagSuggestion(suggestions, "ast_1", "hero")
 
 	_, err := svc.AcceptSuggestion(context.Background(), autoTagTestWorkspaceID, "ast_2", sugID)
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -74,12 +60,10 @@ func TestAutoTagService_AcceptSuggestion_AssetMismatch_ReturnsNotFound(t *testin
 }
 
 func TestAutoTagService_DismissSuggestion_AssetMismatch_ReturnsNotFound(t *testing.T) {
-	queries := newAutoTagTestDB(t)
-	seedAutoTagAsset(t, queries, "ast_1")
-	seedAutoTagAsset(t, queries, "ast_2")
-	sugID := seedAutoTagSuggestion(t, queries, "hero")
-
-	svc := service.NewAutoTagService(queries, nil, mockservice.NewTagService(), nil)
+	svc, assets, suggestions := newAutoTagEnv(t, mockservice.NewTagService())
+	seedAutoTagAsset(assets, "ast_1")
+	seedAutoTagAsset(assets, "ast_2")
+	sugID := seedAutoTagSuggestion(suggestions, "ast_1", "hero")
 
 	err := svc.DismissSuggestion(context.Background(), autoTagTestWorkspaceID, "ast_2", sugID)
 	if !errors.Is(err, apperr.ErrNotFound) {
@@ -88,12 +72,6 @@ func TestAutoTagService_DismissSuggestion_AssetMismatch_ReturnsNotFound(t *testi
 }
 
 func TestAutoTagService_AcceptAll_ContinuesPastPerItemErrors(t *testing.T) {
-	queries := newAutoTagTestDB(t)
-	seedAutoTagAsset(t, queries, "ast_1")
-	seedAutoTagSuggestion(t, queries, "ok-tag-1")
-	seedAutoTagSuggestion(t, queries, "bad-tag")
-	seedAutoTagSuggestion(t, queries, "ok-tag-2")
-
 	tags := mockservice.NewTagService()
 	tags.AddToAssetFn = func(_ context.Context, _, _, tagName string) (*service.TagDTO, error) {
 		if tagName == "bad-tag" {
@@ -101,7 +79,11 @@ func TestAutoTagService_AcceptAll_ContinuesPastPerItemErrors(t *testing.T) {
 		}
 		return &service.TagDTO{Name: tagName}, nil
 	}
-	svc := service.NewAutoTagService(queries, nil, tags, nil)
+	svc, assets, suggestions := newAutoTagEnv(t, tags)
+	seedAutoTagAsset(assets, "ast_1")
+	seedAutoTagSuggestion(suggestions, "ast_1", "ok-tag-1")
+	seedAutoTagSuggestion(suggestions, "ast_1", "bad-tag")
+	seedAutoTagSuggestion(suggestions, "ast_1", "ok-tag-2")
 
 	accepted, err := svc.AcceptAll(context.Background(), autoTagTestWorkspaceID, "ast_1")
 	if err != nil {
@@ -111,10 +93,7 @@ func TestAutoTagService_AcceptAll_ContinuesPastPerItemErrors(t *testing.T) {
 		t.Fatalf("expected 2 accepted, got %d", accepted)
 	}
 
-	remaining, err := queries.ListAutoTagSuggestions(context.Background(), dbgen.ListAutoTagSuggestionsParams{
-		AssetID:     "ast_1",
-		WorkspaceID: autoTagTestWorkspaceID,
-	})
+	remaining, err := suggestions.List(context.Background(), autoTagTestWorkspaceID, "ast_1")
 	if err != nil {
 		t.Fatalf("list remaining: %v", err)
 	}
@@ -124,16 +103,14 @@ func TestAutoTagService_AcceptAll_ContinuesPastPerItemErrors(t *testing.T) {
 }
 
 func TestAutoTagService_AcceptAll_AllFail_ReturnsError(t *testing.T) {
-	queries := newAutoTagTestDB(t)
-	seedAutoTagAsset(t, queries, "ast_1")
-	seedAutoTagSuggestion(t, queries, "bad-tag-1")
-	seedAutoTagSuggestion(t, queries, "bad-tag-2")
-
 	tags := mockservice.NewTagService()
 	tags.AddToAssetFn = func(_ context.Context, _, _, _ string) (*service.TagDTO, error) {
 		return nil, errors.New("boom")
 	}
-	svc := service.NewAutoTagService(queries, nil, tags, nil)
+	svc, assets, suggestions := newAutoTagEnv(t, tags)
+	seedAutoTagAsset(assets, "ast_1")
+	seedAutoTagSuggestion(suggestions, "ast_1", "bad-tag-1")
+	seedAutoTagSuggestion(suggestions, "ast_1", "bad-tag-2")
 
 	accepted, err := svc.AcceptAll(context.Background(), autoTagTestWorkspaceID, "ast_1")
 	if err == nil {
@@ -141,5 +118,38 @@ func TestAutoTagService_AcceptAll_AllFail_ReturnsError(t *testing.T) {
 	}
 	if accepted != 0 {
 		t.Fatalf("expected 0 accepted, got %d", accepted)
+	}
+}
+
+// -- Cross-workspace negative test --
+// AutoTagSuggestionRepository must not leak suggestions across workspaces.
+
+func TestAutoTagSuggestionRepository_CrossWorkspaceIsolation(t *testing.T) {
+	ctx := context.Background()
+	repo := memory.NewAutoTagSuggestionRepo()
+
+	wsA, wsB := "ws-a", "ws-b"
+	sug, err := repo.Create(ctx, repository.CreateAutoTagSuggestionParams{
+		ID: "sug-1", WorkspaceID: wsA, AssetID: "asset-1", TagName: "hero",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if out, listErr := repo.List(ctx, wsB, "asset-1"); listErr != nil || len(out) != 0 {
+		t.Errorf("List cross-workspace: expected empty, got %v, err=%v", out, listErr)
+	}
+	if _, getErr := repo.Get(ctx, wsB, sug.ID); !errors.Is(getErr, apperr.ErrNotFound) {
+		t.Errorf("Get cross-workspace: expected ErrNotFound, got %v", getErr)
+	}
+	if delErr := repo.Delete(ctx, wsB, sug.ID); !errors.Is(delErr, apperr.ErrNotFound) {
+		t.Errorf("Delete cross-workspace: expected ErrNotFound, got %v", delErr)
+	}
+	if delByAssetErr := repo.DeleteByAsset(ctx, wsB, "asset-1"); delByAssetErr != nil {
+		t.Errorf("DeleteByAsset cross-workspace: unexpected error %v", delByAssetErr)
+	}
+	// Sanity: DeleteByAsset on the wrong workspace must not have removed it.
+	if _, getErr := repo.Get(ctx, wsA, sug.ID); getErr != nil {
+		t.Errorf("Get same-workspace after cross-workspace DeleteByAsset: unexpected error %v", getErr)
 	}
 }

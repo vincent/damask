@@ -22,6 +22,9 @@ import (
 )
 
 type exportService struct {
+	// queries and sqlDB are kept only to satisfy internal/export.BuildParams, which
+	// does its own bulk asset/variant queries directly (like internal/ingress/worker.go,
+	// that package is out of scope for the repository-extraction recipe here).
 	queries    *dbgen.Queries
 	sqlDB      *sql.DB
 	storage    storage.Storage
@@ -29,6 +32,7 @@ type exportService struct {
 	q          queue.JobQueue
 	configRepo repository.ExportConfigRepository
 	runRepo    repository.ExportRunRepository
+	projects   repository.ProjectRepository
 }
 
 // NewExportService creates a production ExportService with sqlc-backed repos.
@@ -37,6 +41,7 @@ func NewExportService(
 	stor storage.Storage,
 	appSecret string,
 	q queue.JobQueue,
+	projects repository.ProjectRepository,
 ) ExportService {
 	return &exportService{
 		queries:    database.WQ,
@@ -46,6 +51,7 @@ func NewExportService(
 		q:          q,
 		configRepo: reposqlc.NewExportConfigRepo(database),
 		runRepo:    reposqlc.NewExportRunRepo(database),
+		projects:   projects,
 	}
 }
 
@@ -58,6 +64,7 @@ func NewExportServiceWithRepos(
 	q queue.JobQueue,
 	configRepo repository.ExportConfigRepository,
 	runRepo repository.ExportRunRepository,
+	projects repository.ProjectRepository,
 ) ExportService {
 	return &exportService{
 		queries:    queries,
@@ -67,6 +74,7 @@ func NewExportServiceWithRepos(
 		q:          q,
 		configRepo: configRepo,
 		runRepo:    runRepo,
+		projects:   projects,
 	}
 }
 
@@ -316,10 +324,7 @@ func (s *exportService) ExecuteRun(ctx context.Context, workspaceID, configID, r
 		slog.WarnContext(ctx, "export: mark run started", "error", startErr)
 	}
 
-	project, err := s.queries.GetProjectByID(ctx, dbgen.GetProjectByIDParams{
-		WorkspaceID: cfg.WorkspaceID,
-		ID:          cfg.ProjectID,
-	})
+	project, err := s.projects.GetByID(ctx, cfg.WorkspaceID, cfg.ProjectID)
 	if err != nil {
 		s.failRun(ctx, run.ID, cfg.ID, fmt.Sprintf("load project: %s", err))
 		return fmt.Errorf("export: load project: %w", err)
@@ -332,7 +337,7 @@ func (s *exportService) ExecuteRun(ctx context.Context, workspaceID, configID, r
 		Storage: s.storage,
 		Queries: s.queries,
 		SQLite:  s.sqlDB,
-		Project: project,
+		Project: projectToDbgen(project),
 		OnProgress: func(prog export.BuildProgress) {
 			_ = s.runRepo.UpdateProgress(ctx, run.ID, repository.ExportProgress{
 				AssetsExported: prog.AssetsExported,
@@ -396,6 +401,22 @@ func (s *exportService) CreateRun(ctx context.Context, run repository.ExportRun)
 
 func (s *exportService) SetConfigLastRun(ctx context.Context, configID string, p repository.ExportRunResult) error {
 	return s.configRepo.SetLastRun(ctx, configID, p)
+}
+
+// projectToDbgen adapts a repository.Project into the raw dbgen.Project shape
+// expected by internal/export.BuildParams, which queries assets/variants directly.
+func projectToDbgen(p repository.Project) dbgen.Project {
+	return dbgen.Project{
+		ID:             p.ID,
+		WorkspaceID:    p.WorkspaceID,
+		Name:           p.Name,
+		Description:    p.Description,
+		Color:          p.Color,
+		CoverAssetID:   p.CoverAssetID,
+		CoverVersionID: p.CoverVersionID,
+		CreatedAt:      p.CreatedAt,
+		UpdatedAt:      p.UpdatedAt,
+	}
 }
 
 func exportConfigToDTO(c repository.ExportConfig) *ExportConfigDTO {

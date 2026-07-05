@@ -219,6 +219,7 @@ func (r *assetRepo) Create(ctx context.Context, params repository.CreateAssetPar
 		ID:               params.ID,
 		WorkspaceID:      params.WorkspaceID,
 		ProjectID:        params.ProjectID,
+		FolderID:         params.FolderID,
 		OriginalFilename: params.OriginalFilename,
 		StorageKey:       params.StorageKey,
 		MimeType:         params.MimeType,
@@ -697,6 +698,48 @@ func (r *assetRepo) SetProject(ctx context.Context, workspaceID, assetID string,
 		WorkspaceID: workspaceID,
 		ProjectID:   projectID,
 	})
+}
+
+func (r *assetRepo) FindWatermarkInFolder(ctx context.Context, workspaceID, folderID string) (repository.Asset, error) {
+	row, err := r.d.RQ.FindWatermarkAssetInFolder(ctx, dbgen.FindWatermarkAssetInFolderParams{
+		WorkspaceID: workspaceID,
+		FolderID:    &folderID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Asset{}, apperr.ErrNotFound
+		}
+		return repository.Asset{}, err
+	}
+	return toAsset(row), nil
+}
+
+func (r *assetRepo) FindWatermarkInProject(
+	ctx context.Context,
+	workspaceID, projectID string,
+) (repository.Asset, error) {
+	row, err := r.d.RQ.FindWatermarkAssetInProject(ctx, dbgen.FindWatermarkAssetInProjectParams{
+		WorkspaceID: workspaceID,
+		ProjectID:   projectID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Asset{}, apperr.ErrNotFound
+		}
+		return repository.Asset{}, err
+	}
+	return toAsset(row), nil
+}
+
+func (r *assetRepo) FindWatermarkInWorkspace(ctx context.Context, workspaceID string) (repository.Asset, error) {
+	row, err := r.d.RQ.FindWatermarkAssetInWorkspace(ctx, workspaceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return repository.Asset{}, apperr.ErrNotFound
+		}
+		return repository.Asset{}, err
+	}
+	return toAsset(row), nil
 }
 
 func (r *assetRepo) BatchVersionCounts(ctx context.Context, assetIDs []string) (map[string]int64, error) {

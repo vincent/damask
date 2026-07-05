@@ -2,7 +2,10 @@ package memory
 
 import (
 	"context"
+	"sort"
+	"strings"
 
+	"damask/server/internal/apperr"
 	"damask/server/internal/repository"
 )
 
@@ -184,4 +187,39 @@ func (r *AssetRepo) SetProject(_ context.Context, workspaceID, assetID string, p
 			return a, nil
 		},
 	)
+}
+
+// findWatermark returns the oldest asset satisfying inScope whose filename contains
+// "watermark" (case-insensitive), or ErrNotFound.
+func (r *AssetRepo) findWatermark(workspaceID string, inScope func(repository.Asset) bool) (repository.Asset, error) {
+	var candidates []repository.Asset
+	for _, a := range r.mapStore.all() {
+		if a.WorkspaceID != workspaceID || !inScope(a) {
+			continue
+		}
+		if strings.Contains(strings.ToLower(a.OriginalFilename), "watermark") {
+			candidates = append(candidates, a)
+		}
+	}
+	if len(candidates) == 0 {
+		return repository.Asset{}, apperr.ErrNotFound
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].CreatedAt.Before(candidates[j].CreatedAt) })
+	return candidates[0], nil
+}
+
+func (r *AssetRepo) FindWatermarkInFolder(_ context.Context, workspaceID, folderID string) (repository.Asset, error) {
+	return r.findWatermark(workspaceID, func(a repository.Asset) bool {
+		return a.FolderID != nil && *a.FolderID == folderID
+	})
+}
+
+func (r *AssetRepo) FindWatermarkInProject(_ context.Context, workspaceID, projectID string) (repository.Asset, error) {
+	return r.findWatermark(workspaceID, func(a repository.Asset) bool {
+		return a.ProjectID != nil && *a.ProjectID == projectID
+	})
+}
+
+func (r *AssetRepo) FindWatermarkInWorkspace(_ context.Context, workspaceID string) (repository.Asset, error) {
+	return r.findWatermark(workspaceID, func(repository.Asset) bool { return true })
 }

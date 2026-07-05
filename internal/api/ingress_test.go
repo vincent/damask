@@ -463,11 +463,14 @@ func TestDeleteIngressLogEntry_WrongWorkspace(t *testing.T) {
 		t.Fatalf("insert log entry: %v", err)
 	}
 
-	// Bob tries to delete Alice's log entry — should get 403
+	// Bob tries to delete Alice's log entry. GetLogEntry join-scopes by
+	// workspace via the source relation, so a cross-workspace entry ID is
+	// indistinguishable from a nonexistent one — 404, not 403, to avoid
+	// leaking whether the entry exists in another workspace.
 	req := th.AuthRequest(http.MethodDelete, "/api/v1/ingress/log/"+entryID, nil, bob.Cookie)
 	resp, _ := env.App.Test(req)
-	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 

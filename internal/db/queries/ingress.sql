@@ -110,6 +110,33 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 -- name: DeleteIngressLogEntry :exec
 DELETE FROM ingress_log WHERE id = ?;
 
+-- Workspace-scoped variants for repository.IngressRepository (internal/repository/sqlc/ingress.go).
+-- ListWorkspaceIngressLog above is already workspace-scoped and reused as-is.
+
+-- name: ListIngressSourceLogForWorkspace :many
+SELECT l.* FROM ingress_log l
+JOIN ingress_sources s ON s.id = l.source_id
+WHERE l.source_id = sqlc.arg('source_id') AND s.workspace_id = sqlc.arg('workspace_id')
+ORDER BY l.imported_at DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: GetIngressLogEntryForWorkspace :one
+SELECT l.* FROM ingress_log l
+JOIN ingress_sources s ON s.id = l.source_id
+WHERE l.id = sqlc.arg('id') AND s.workspace_id = sqlc.arg('workspace_id');
+
+-- name: UpdateIngressLogEntryForWorkspace :execrows
+UPDATE ingress_log
+SET status = sqlc.arg('status'), asset_id = sqlc.arg('asset_id'), error = sqlc.arg('error'),
+    imported_at = datetime('now')
+WHERE ingress_log.id = sqlc.arg('id')
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = sqlc.arg('workspace_id'));
+
+-- name: DeleteIngressLogEntryForWorkspace :execrows
+DELETE FROM ingress_log
+WHERE ingress_log.id = sqlc.arg('id')
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = sqlc.arg('workspace_id'));
+
 -- ============================================================
 -- ingress_rules
 -- ============================================================
@@ -135,3 +162,38 @@ SELECT * FROM ingress_rules WHERE id = ?;
 
 -- name: DeleteIngressRule :exec
 DELETE FROM ingress_rules WHERE id = ?;
+
+-- Workspace-scoped variants for repository.IngressRepository (internal/repository/sqlc/ingress.go).
+-- These enforce workspace_id filtering at the repository boundary; the queries above remain in
+-- use by internal/ingress/worker.go which resolves its source (and workspace) first.
+
+-- name: CreateIngressRuleForWorkspace :one
+INSERT INTO ingress_rules (id, source_id, position, field, operator, value, action)
+SELECT sqlc.arg('id'), sqlc.arg('source_id'), sqlc.arg('position'), sqlc.arg('field'),
+       sqlc.arg('operator'), sqlc.arg('value'), sqlc.arg('action')
+WHERE EXISTS (SELECT 1 FROM ingress_sources WHERE id = sqlc.arg('source_id') AND workspace_id = sqlc.arg('workspace_id'))
+RETURNING *;
+
+-- name: ListIngressRulesForWorkspace :many
+SELECT r.* FROM ingress_rules r
+JOIN ingress_sources s ON s.id = r.source_id
+WHERE r.source_id = sqlc.arg('source_id') AND s.workspace_id = sqlc.arg('workspace_id')
+ORDER BY r.position ASC;
+
+-- name: GetIngressRuleForWorkspace :one
+SELECT r.* FROM ingress_rules r
+JOIN ingress_sources s ON s.id = r.source_id
+WHERE r.id = sqlc.arg('id') AND s.workspace_id = sqlc.arg('workspace_id');
+
+-- name: UpdateIngressRuleForWorkspace :one
+UPDATE ingress_rules
+SET position = sqlc.arg('position'), field = sqlc.arg('field'), operator = sqlc.arg('operator'),
+    value = sqlc.arg('value'), action = sqlc.arg('action')
+WHERE ingress_rules.id = sqlc.arg('id')
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = sqlc.arg('workspace_id'))
+RETURNING *;
+
+-- name: DeleteIngressRuleForWorkspace :execrows
+DELETE FROM ingress_rules
+WHERE ingress_rules.id = sqlc.arg('id')
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = sqlc.arg('workspace_id'));

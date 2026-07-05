@@ -12,7 +12,7 @@ import (
 
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
-	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/repository"
 	apptelemetry "damask/server/internal/telemetry"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -99,43 +99,32 @@ type ExportActivityParams struct {
 }
 
 type auditLogService struct {
-	queries *dbgen.Queries
+	repo repository.AuditLogRepository
 }
 
 // NewAuditLogService returns an AuditLogService.
-func NewAuditLogService(queries *dbgen.Queries) AuditLogService {
-	return &auditLogService{queries: queries}
+func NewAuditLogService(repo repository.AuditLogRepository) AuditLogService {
+	return &auditLogService{repo: repo}
 }
 
-//nolint:dupl // Asset and project event listing differ only by sqlc-generated row and param types.
 func (s *auditLogService) ListAssetEvents(ctx context.Context, p ListAssetEventsParams) (*AuditEventListDTO, error) {
 	limit := clampLimit(p.Limit, minAssetEventsPageSize, maxAssetEventsPageSize)
 	typesFilter := makeTypesFilter(p.Types)
 
-	var cursorArg any
-	if p.Cursor != "" {
-		cursorArg = p.Cursor
-	}
-
-	rows, err := s.queries.ListAssetEvents(ctx, dbgen.ListAssetEventsParams{
-		AssetID:     p.AssetID,
+	rows, err := s.repo.ListAssetEvents(ctx, repository.ListAuditEventsParams{
+		EntityID:    p.AssetID,
 		WorkspaceID: p.WorkspaceID,
-		Cursor:      cursorArg,
-		EventType:   singleType(typesFilter),
+		Cursor:      p.Cursor,
+		EventType:   singleTypeString(typesFilter),
 		Limit:       limit + 1,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return listAuditEvents(rows, limit, typesFilter, func(r dbgen.ListAssetEventsRow) string {
-		return r.EventType
-	}, func(r dbgen.ListAssetEventsRow) AuditEventDTO {
-		return buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType)
-	}), nil
+	return listAuditEvents(rows, limit, typesFilter), nil
 }
 
-//nolint:dupl // Asset and project event listing differ only by sqlc-generated row and param types.
 func (s *auditLogService) ListProjectEvents(
 	ctx context.Context,
 	p ListProjectEventsParams,
@@ -143,42 +132,30 @@ func (s *auditLogService) ListProjectEvents(
 	limit := clampLimit(p.Limit, minAssetEventsPageSize, maxAssetEventsPageSize)
 	typesFilter := makeTypesFilter(p.Types)
 
-	var cursorArg any
-	if p.Cursor != "" {
-		cursorArg = p.Cursor
-	}
-
-	rows, err := s.queries.ListProjectEvents(ctx, dbgen.ListProjectEventsParams{
-		ProjectID:   p.ProjectID,
+	rows, err := s.repo.ListProjectEvents(ctx, repository.ListAuditEventsParams{
+		EntityID:    p.ProjectID,
 		WorkspaceID: p.WorkspaceID,
-		Cursor:      cursorArg,
-		EventType:   singleType(typesFilter),
+		Cursor:      p.Cursor,
+		EventType:   singleTypeString(typesFilter),
 		Limit:       limit + 1,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return listAuditEvents(rows, limit, typesFilter, func(r dbgen.ListProjectEventsRow) string {
-		return r.EventType
-	}, func(r dbgen.ListProjectEventsRow) AuditEventDTO {
-		return buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType)
-	}), nil
+	return listAuditEvents(rows, limit, typesFilter), nil
 }
 
-func listAuditEvents[T any](
-	rows []T,
-	limit int64,
-	typesFilter map[string]bool,
-	eventType func(T) string,
-	build func(T) AuditEventDTO,
-) *AuditEventListDTO {
+func listAuditEvents(rows []repository.AuditEvent, limit int64, typesFilter map[string]bool) *AuditEventListDTO {
 	events := make([]AuditEventDTO, 0, len(rows))
 	for _, r := range rows {
-		if len(typesFilter) > 0 && !typesFilter[eventType(r)] {
+		if len(typesFilter) > 0 && !typesFilter[r.EventType] {
 			continue
 		}
-		events = append(events, build(r))
+		events = append(
+			events,
+			buildAuditEventDTO(r.ID, r.EventType, r.CreatedAt, r.Payload, r.UserID, r.UserName, r.ActorType),
+		)
 	}
 	return paginateAuditEvents(events, limit)
 }
@@ -207,31 +184,22 @@ func (s *auditLogService) ListWorkspaceActivity(
 	limit := clampLimit(p.Limit, minWorkspaceActivityPageSize, maxWorkspaceActivityPageSize)
 	typesFilter := makeTypesFilter(p.Types)
 
-	var cursorArg any
-	if p.Cursor != "" {
-		cursorArg = p.Cursor
-	}
-	var userIDArg any
-	if p.UserID != "" {
-		userIDArg = p.UserID
-	}
-
-	assetRows, err := s.queries.ListWorkspaceAssetEvents(ctx, dbgen.ListWorkspaceAssetEventsParams{
+	assetRows, err := s.repo.ListWorkspaceAssetEvents(ctx, repository.ListAuditEventsParams{
 		WorkspaceID: p.WorkspaceID,
-		Cursor:      cursorArg,
-		UserID:      userIDArg,
-		EventType:   singleType(typesFilter),
+		Cursor:      p.Cursor,
+		UserID:      p.UserID,
+		EventType:   singleTypeString(typesFilter),
 		Limit:       limit + 1,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	projectRows, err := s.queries.ListWorkspaceProjectEvents(ctx, dbgen.ListWorkspaceProjectEventsParams{
+	projectRows, err := s.repo.ListWorkspaceProjectEvents(ctx, repository.ListAuditEventsParams{
 		WorkspaceID: p.WorkspaceID,
-		Cursor:      cursorArg,
-		UserID:      userIDArg,
-		EventType:   singleType(typesFilter),
+		Cursor:      p.Cursor,
+		UserID:      p.UserID,
+		EventType:   singleTypeString(typesFilter),
 		Limit:       limit + 1,
 	})
 	if err != nil {
@@ -254,7 +222,7 @@ func (s *auditLogService) ListWorkspaceActivity(
 				r.ActorType,
 			),
 			EntityType: string(AutomationScopeAsset),
-			EntityID:   r.AssetID,
+			EntityID:   r.EntityID,
 		})
 	}
 	for _, r := range projectRows {
@@ -272,7 +240,7 @@ func (s *auditLogService) ListWorkspaceActivity(
 				r.ActorType,
 			),
 			EntityType: "project",
-			EntityID:   r.ProjectID,
+			EntityID:   r.EntityID,
 		})
 	}
 
@@ -310,23 +278,23 @@ func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityPa
 		}
 	}()
 
-	var cursorArg any
+	cursor := ""
 	if p.Until != "" {
-		cursorArg = p.Until + " 23:59:59"
+		cursor = p.Until + " 23:59:59"
 	}
 
 	const maxRows = 10000
-	assetRows, err := s.queries.ListWorkspaceAssetEvents(ctx, dbgen.ListWorkspaceAssetEventsParams{
+	assetRows, err := s.repo.ListWorkspaceAssetEvents(ctx, repository.ListAuditEventsParams{
 		WorkspaceID: p.WorkspaceID,
-		Cursor:      cursorArg,
+		Cursor:      cursor,
 		Limit:       maxRows,
 	})
 	if err != nil {
 		return "", err
 	}
-	projectRows, err := s.queries.ListWorkspaceProjectEvents(ctx, dbgen.ListWorkspaceProjectEventsParams{
+	projectRows, err := s.repo.ListWorkspaceProjectEvents(ctx, repository.ListAuditEventsParams{
 		WorkspaceID: p.WorkspaceID,
-		Cursor:      cursorArg,
+		Cursor:      cursor,
 		Limit:       maxRows,
 	})
 	if err != nil {
@@ -356,10 +324,10 @@ func (s *auditLogService) ExportActivity(ctx context.Context, p ExportActivityPa
 	}
 
 	for _, r := range assetRows {
-		writeRow(r.ID, r.EventType, "asset", r.AssetID, r.ActorType, r.UserName, r.Payload, r.CreatedAt)
+		writeRow(r.ID, r.EventType, "asset", r.EntityID, r.ActorType, r.UserName, r.Payload, r.CreatedAt)
 	}
 	for _, r := range projectRows {
-		writeRow(r.ID, r.EventType, "project", r.ProjectID, r.ActorType, r.UserName, r.Payload, r.CreatedAt)
+		writeRow(r.ID, r.EventType, "project", r.EntityID, r.ActorType, r.UserName, r.Payload, r.CreatedAt)
 	}
 	csv = sb.String()
 	return csv, nil
@@ -425,13 +393,13 @@ func makeTypesFilter(types []string) map[string]bool {
 	return m
 }
 
-func singleType(types map[string]bool) any {
+func singleTypeString(types map[string]bool) string {
 	if len(types) == 1 {
 		for t := range types {
 			return t
 		}
 	}
-	return nil
+	return ""
 }
 
 func csvEscape(s string) string {

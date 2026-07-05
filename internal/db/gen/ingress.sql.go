@@ -52,6 +52,53 @@ func (q *Queries) CreateIngressRule(ctx context.Context, arg CreateIngressRulePa
 	return i, err
 }
 
+const createIngressRuleForWorkspace = `-- name: CreateIngressRuleForWorkspace :one
+
+INSERT INTO ingress_rules (id, source_id, position, field, operator, value, action)
+SELECT ?1, ?2, ?3, ?4,
+       ?5, ?6, ?7
+WHERE EXISTS (SELECT 1 FROM ingress_sources WHERE id = ?2 AND workspace_id = ?8)
+RETURNING id, source_id, position, field, operator, value, "action"
+`
+
+type CreateIngressRuleForWorkspaceParams struct {
+	ID          string `json:"id"`
+	SourceID    string `json:"source_id"`
+	Position    int64  `json:"position"`
+	Field       string `json:"field"`
+	Operator    string `json:"operator"`
+	Value       string `json:"value"`
+	Action      string `json:"action"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+// Workspace-scoped variants for repository.IngressRepository (internal/repository/sqlc/ingress.go).
+// These enforce workspace_id filtering at the repository boundary; the queries above remain in
+// use by internal/ingress/worker.go which resolves its source (and workspace) first.
+func (q *Queries) CreateIngressRuleForWorkspace(ctx context.Context, arg CreateIngressRuleForWorkspaceParams) (IngressRule, error) {
+	row := q.db.QueryRowContext(ctx, createIngressRuleForWorkspace,
+		arg.ID,
+		arg.SourceID,
+		arg.Position,
+		arg.Field,
+		arg.Operator,
+		arg.Value,
+		arg.Action,
+		arg.WorkspaceID,
+	)
+	var i IngressRule
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.Position,
+		&i.Field,
+		&i.Operator,
+		&i.Value,
+		&i.Action,
+	)
+	return i, err
+}
+
 const createIngressSource = `-- name: CreateIngressSource :one
 
 INSERT INTO ingress_sources (
@@ -123,6 +170,25 @@ func (q *Queries) DeleteIngressLogEntry(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteIngressLogEntryForWorkspace = `-- name: DeleteIngressLogEntryForWorkspace :execrows
+DELETE FROM ingress_log
+WHERE ingress_log.id = ?1
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = ?2)
+`
+
+type DeleteIngressLogEntryForWorkspaceParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) DeleteIngressLogEntryForWorkspace(ctx context.Context, arg DeleteIngressLogEntryForWorkspaceParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteIngressLogEntryForWorkspace, arg.ID, arg.WorkspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteIngressRule = `-- name: DeleteIngressRule :exec
 DELETE FROM ingress_rules WHERE id = ?
 `
@@ -130,6 +196,25 @@ DELETE FROM ingress_rules WHERE id = ?
 func (q *Queries) DeleteIngressRule(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteIngressRule, id)
 	return err
+}
+
+const deleteIngressRuleForWorkspace = `-- name: DeleteIngressRuleForWorkspace :execrows
+DELETE FROM ingress_rules
+WHERE ingress_rules.id = ?1
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = ?2)
+`
+
+type DeleteIngressRuleForWorkspaceParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) DeleteIngressRuleForWorkspace(ctx context.Context, arg DeleteIngressRuleForWorkspaceParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteIngressRuleForWorkspace, arg.ID, arg.WorkspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteIngressSource = `-- name: DeleteIngressSource :exec
@@ -166,12 +251,65 @@ func (q *Queries) GetIngressLogEntry(ctx context.Context, id string) (IngressLog
 	return i, err
 }
 
+const getIngressLogEntryForWorkspace = `-- name: GetIngressLogEntryForWorkspace :one
+SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.imported_at FROM ingress_log l
+JOIN ingress_sources s ON s.id = l.source_id
+WHERE l.id = ?1 AND s.workspace_id = ?2
+`
+
+type GetIngressLogEntryForWorkspaceParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) GetIngressLogEntryForWorkspace(ctx context.Context, arg GetIngressLogEntryForWorkspaceParams) (IngressLog, error) {
+	row := q.db.QueryRowContext(ctx, getIngressLogEntryForWorkspace, arg.ID, arg.WorkspaceID)
+	var i IngressLog
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.RemoteID,
+		&i.Filename,
+		&i.AssetID,
+		&i.Status,
+		&i.Error,
+		&i.ImportedAt,
+	)
+	return i, err
+}
+
 const getIngressRule = `-- name: GetIngressRule :one
 SELECT id, source_id, position, field, operator, value, "action" FROM ingress_rules WHERE id = ?
 `
 
 func (q *Queries) GetIngressRule(ctx context.Context, id string) (IngressRule, error) {
 	row := q.db.QueryRowContext(ctx, getIngressRule, id)
+	var i IngressRule
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.Position,
+		&i.Field,
+		&i.Operator,
+		&i.Value,
+		&i.Action,
+	)
+	return i, err
+}
+
+const getIngressRuleForWorkspace = `-- name: GetIngressRuleForWorkspace :one
+SELECT r.id, r.source_id, r.position, r.field, r.operator, r.value, r."action" FROM ingress_rules r
+JOIN ingress_sources s ON s.id = r.source_id
+WHERE r.id = ?1 AND s.workspace_id = ?2
+`
+
+type GetIngressRuleForWorkspaceParams struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) GetIngressRuleForWorkspace(ctx context.Context, arg GetIngressRuleForWorkspaceParams) (IngressRule, error) {
+	row := q.db.QueryRowContext(ctx, getIngressRuleForWorkspace, arg.ID, arg.WorkspaceID)
 	var i IngressRule
 	err := row.Scan(
 		&i.ID,
@@ -404,6 +542,49 @@ func (q *Queries) ListIngressRules(ctx context.Context, sourceID string) ([]Ingr
 	return items, nil
 }
 
+const listIngressRulesForWorkspace = `-- name: ListIngressRulesForWorkspace :many
+SELECT r.id, r.source_id, r.position, r.field, r.operator, r.value, r."action" FROM ingress_rules r
+JOIN ingress_sources s ON s.id = r.source_id
+WHERE r.source_id = ?1 AND s.workspace_id = ?2
+ORDER BY r.position ASC
+`
+
+type ListIngressRulesForWorkspaceParams struct {
+	SourceID    string `json:"source_id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) ListIngressRulesForWorkspace(ctx context.Context, arg ListIngressRulesForWorkspaceParams) ([]IngressRule, error) {
+	rows, err := q.db.QueryContext(ctx, listIngressRulesForWorkspace, arg.SourceID, arg.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IngressRule{}
+	for rows.Next() {
+		var i IngressRule
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.Position,
+			&i.Field,
+			&i.Operator,
+			&i.Value,
+			&i.Action,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIngressSourceLog = `-- name: ListIngressSourceLog :many
 SELECT id, source_id, remote_id, filename, asset_id, status, error, imported_at FROM ingress_log
 WHERE source_id = ?
@@ -419,6 +600,61 @@ type ListIngressSourceLogParams struct {
 
 func (q *Queries) ListIngressSourceLog(ctx context.Context, arg ListIngressSourceLogParams) ([]IngressLog, error) {
 	rows, err := q.db.QueryContext(ctx, listIngressSourceLog, arg.SourceID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IngressLog{}
+	for rows.Next() {
+		var i IngressLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.RemoteID,
+			&i.Filename,
+			&i.AssetID,
+			&i.Status,
+			&i.Error,
+			&i.ImportedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listIngressSourceLogForWorkspace = `-- name: ListIngressSourceLogForWorkspace :many
+
+SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.imported_at FROM ingress_log l
+JOIN ingress_sources s ON s.id = l.source_id
+WHERE l.source_id = ?1 AND s.workspace_id = ?2
+ORDER BY l.imported_at DESC
+LIMIT ?4 OFFSET ?3
+`
+
+type ListIngressSourceLogForWorkspaceParams struct {
+	SourceID    string `json:"source_id"`
+	WorkspaceID string `json:"workspace_id"`
+	Offset      int64  `json:"offset"`
+	Limit       int64  `json:"limit"`
+}
+
+// Workspace-scoped variants for repository.IngressRepository (internal/repository/sqlc/ingress.go).
+// ListWorkspaceIngressLog above is already workspace-scoped and reused as-is.
+func (q *Queries) ListIngressSourceLogForWorkspace(ctx context.Context, arg ListIngressSourceLogForWorkspaceParams) ([]IngressLog, error) {
+	rows, err := q.db.QueryContext(ctx, listIngressSourceLogForWorkspace,
+		arg.SourceID,
+		arg.WorkspaceID,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -630,6 +866,36 @@ func (q *Queries) UpdateIngressLogEntry(ctx context.Context, arg UpdateIngressLo
 	return err
 }
 
+const updateIngressLogEntryForWorkspace = `-- name: UpdateIngressLogEntryForWorkspace :execrows
+UPDATE ingress_log
+SET status = ?1, asset_id = ?2, error = ?3,
+    imported_at = datetime('now')
+WHERE ingress_log.id = ?4
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = ?5)
+`
+
+type UpdateIngressLogEntryForWorkspaceParams struct {
+	Status      string  `json:"status"`
+	AssetID     *string `json:"asset_id"`
+	Error       *string `json:"error"`
+	ID          string  `json:"id"`
+	WorkspaceID string  `json:"workspace_id"`
+}
+
+func (q *Queries) UpdateIngressLogEntryForWorkspace(ctx context.Context, arg UpdateIngressLogEntryForWorkspaceParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateIngressLogEntryForWorkspace,
+		arg.Status,
+		arg.AssetID,
+		arg.Error,
+		arg.ID,
+		arg.WorkspaceID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateIngressRule = `-- name: UpdateIngressRule :one
 UPDATE ingress_rules
 SET position = ?, field = ?, operator = ?, value = ?, action = ?
@@ -654,6 +920,48 @@ func (q *Queries) UpdateIngressRule(ctx context.Context, arg UpdateIngressRulePa
 		arg.Value,
 		arg.Action,
 		arg.ID,
+	)
+	var i IngressRule
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.Position,
+		&i.Field,
+		&i.Operator,
+		&i.Value,
+		&i.Action,
+	)
+	return i, err
+}
+
+const updateIngressRuleForWorkspace = `-- name: UpdateIngressRuleForWorkspace :one
+UPDATE ingress_rules
+SET position = ?1, field = ?2, operator = ?3,
+    value = ?4, action = ?5
+WHERE ingress_rules.id = ?6
+  AND source_id IN (SELECT ingress_sources.id FROM ingress_sources WHERE workspace_id = ?7)
+RETURNING id, source_id, position, field, operator, value, "action"
+`
+
+type UpdateIngressRuleForWorkspaceParams struct {
+	Position    int64  `json:"position"`
+	Field       string `json:"field"`
+	Operator    string `json:"operator"`
+	Value       string `json:"value"`
+	Action      string `json:"action"`
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+}
+
+func (q *Queries) UpdateIngressRuleForWorkspace(ctx context.Context, arg UpdateIngressRuleForWorkspaceParams) (IngressRule, error) {
+	row := q.db.QueryRowContext(ctx, updateIngressRuleForWorkspace,
+		arg.Position,
+		arg.Field,
+		arg.Operator,
+		arg.Value,
+		arg.Action,
+		arg.ID,
+		arg.WorkspaceID,
 	)
 	var i IngressRule
 	err := row.Scan(

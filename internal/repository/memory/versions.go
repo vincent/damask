@@ -188,6 +188,10 @@ func (r *RealVersionRepo) SetCurrent(_ context.Context, assetID, versionID strin
 
 func (r *RealVersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *string) error { return nil }
 
+func (r *RealVersionRepo) RunInTx(_ context.Context, fn func(tx repository.VersionRepository) error) error {
+	return fn(r)
+}
+
 func (r *RealVersionRepo) ListWithVariantCount(
 	_ context.Context,
 	assetID string,

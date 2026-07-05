@@ -106,7 +106,7 @@ func Build(
 	// --- cross-cutting infra ---
 	keyResolver := ai.NewKeyResolver(r.workspace, *cfg)
 	triggerDispatcher := workflow.NewTriggerDispatcher(r.workflow, r.workflowRun, q)
-	storageSvc := service.NewStorageService(database.WQ)
+	storageSvc := service.NewStorageService(r.storageStats)
 
 	// --- single TagService instance, real dispatcher wired in. ---
 	// Both API-driven tag mutations and workflow "set tag" actions go
@@ -118,8 +118,8 @@ func Build(
 		Triggers: triggerDispatcher,
 	})
 
-	autoTagSvc := service.NewAutoTagService(database.WQ, q, tagSvc, keyResolver)
-	ingester := service.NewAssetIngester(database.WQ, database.Writer, stor, q, media, autoTagSvc)
+	autoTagSvc := service.NewAutoTagService(r.asset, r.workspace, r.autoTagSug, q, tagSvc, keyResolver)
+	ingester := service.NewAssetIngester(r.asset, r.version, stor, q, media, autoTagSvc)
 
 	// variantSvc always carries Workflows + Invalidate: previously main.go's
 	// job-server copy omitted them, so background-job variant operations
@@ -146,9 +146,9 @@ func Build(
 	assetFieldSvc := service.NewAssetFieldService(r.asset, r.field, r.assetField, auditWriter)
 	shareSvc := service.NewShareService(r.share, auditWriter)
 	workspaceSvc := service.NewWorkspaceService(r.workspace, r.user, cfg.AppSecret, keyResolver)
-	exportSvc := service.NewExportService(database, stor, cfg.AppSecret, q)
-	exifSvc := service.NewExifService(database.WQ, stor)
-	textTrackSvc := service.NewTextTrackService(database.WQ, q, stor)
+	exportSvc := service.NewExportService(database, stor, cfg.AppSecret, q, r.project)
+	exifSvc := service.NewExifService(r.workspace, r.asset, r.field, r.assetField, stor)
+	textTrackSvc := service.NewTextTrackService(r.textTrack, q, stor)
 
 	versionSvc := service.NewVersionService(r.version, auditWriter, service.VersionServiceDeps{
 		Assets:     r.asset,
@@ -212,10 +212,10 @@ func Build(
 		Versions:      versionSvc,
 		Variants:      variantSvc,
 		TextTracks:    textTrackSvc,
-		AuditLog:      service.NewAuditLogService(database.WQ),
+		AuditLog:      service.NewAuditLogService(r.auditLog),
 		Workspace:     workspaceSvc,
 		Users:         service.NewUserService(r.user, r.workspace, stor),
-		Ingress:       service.NewIngressService(database.WQ, cfg.AppSecret, q, mailer),
+		Ingress:       service.NewIngressService(r.ingress, r.user, cfg.AppSecret, q, mailer),
 		Exports:       exportSvc,
 		Stack:         service.NewStackService(r.asset, r.version, r.variant, stor, q),
 		Upload: service.NewUploadService(

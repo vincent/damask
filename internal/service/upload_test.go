@@ -13,6 +13,7 @@ import (
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
+	reposqlc "damask/server/internal/repository/sqlc"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
@@ -21,7 +22,7 @@ import (
 func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 	t.Helper()
 	database, err := dbpkg.Open(t.TempDir() + "/upload_spy.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -30,8 +31,19 @@ func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 	spy := newSpy()
 	q := queue.New(queries, 1)
 	ingester := service.NewAssetIngester(
-		queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-		service.NewAutoTagService(queries, q, nil, nil),
+		reposqlc.NewAssetRepo(database),
+		reposqlc.NewVersionRepo(database),
+		stor,
+		q,
+		ingest.NewRegistry(transform.NewTransformer()),
+		service.NewAutoTagService(
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewWorkspaceRepo(database),
+			reposqlc.NewAutoTagSuggestionRepo(database),
+			q,
+			nil,
+			nil,
+		),
 	)
 	return service.NewUploadService(ingester, spy, nil), spy
 }
@@ -39,7 +51,7 @@ func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 func newUploadSvc(t *testing.T) service.UploadService {
 	t.Helper()
 	database, err := dbpkg.Open(":memory:")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -51,8 +63,19 @@ func newUploadSvc(t *testing.T) service.UploadService {
 	}
 	q := queue.New(queries, 1)
 	ingester := service.NewAssetIngester(
-		queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-		service.NewAutoTagService(queries, q, nil, nil),
+		reposqlc.NewAssetRepo(database),
+		reposqlc.NewVersionRepo(database),
+		stor,
+		q,
+		ingest.NewRegistry(transform.NewTransformer()),
+		service.NewAutoTagService(
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewWorkspaceRepo(database),
+			reposqlc.NewAutoTagSuggestionRepo(database),
+			q,
+			nil,
+			nil,
+		),
 	)
 	return service.NewUploadService(ingester, audit.NopWriter{}, nil)
 }
@@ -96,7 +119,7 @@ func TestUploadService_Ingest_EmptyFilename(t *testing.T) {
 func TestUploadService_Ingest_OK(t *testing.T) {
 	stor, _ := storage.NewAferoMemoryStorage()
 	database, err := dbpkg.Open(t.TempDir() + "/upload_test.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -118,8 +141,19 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 	q2 := queue.New(queries, 1)
 	svc := service.NewUploadService(
 		service.NewAssetIngester(
-			queries, sqlDB, stor, q2, ingest.NewRegistry(transform.NewTransformer()),
-			service.NewAutoTagService(queries, q2, nil, nil),
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewVersionRepo(database),
+			stor,
+			q2,
+			ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(
+				reposqlc.NewAssetRepo(database),
+				reposqlc.NewWorkspaceRepo(database),
+				reposqlc.NewAutoTagSuggestionRepo(database),
+				q2,
+				nil,
+				nil,
+			),
 		),
 		audit.NopWriter{},
 		nil,
@@ -150,7 +184,7 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	_, spy := newUploadSvcSpy(t)
 
 	database, err := dbpkg.Open(t.TempDir() + "/upload_audit.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -174,8 +208,19 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 	q := queue.New(queries, 1)
 	svc = service.NewUploadService(
 		service.NewAssetIngester(
-			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-			service.NewAutoTagService(queries, q, nil, nil),
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewVersionRepo(database),
+			stor,
+			q,
+			ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(
+				reposqlc.NewAssetRepo(database),
+				reposqlc.NewWorkspaceRepo(database),
+				reposqlc.NewAutoTagSuggestionRepo(database),
+				q,
+				nil,
+				nil,
+			),
 		),
 		spy,
 		nil,
@@ -199,7 +244,7 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 
 func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 	database, err := dbpkg.Open(t.TempDir() + "/upload_trigger.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -223,8 +268,19 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 	triggers := &triggerSpy{}
 	svc := service.NewUploadService(
 		service.NewAssetIngester(
-			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-			service.NewAutoTagService(queries, q, nil, nil),
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewVersionRepo(database),
+			stor,
+			q,
+			ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(
+				reposqlc.NewAssetRepo(database),
+				reposqlc.NewWorkspaceRepo(database),
+				reposqlc.NewAutoTagSuggestionRepo(database),
+				q,
+				nil,
+				nil,
+			),
 		),
 		audit.NopWriter{},
 		nil,
@@ -254,7 +310,7 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 
 func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
 	database, err := dbpkg.Open(t.TempDir() + "/upload_nil_proj.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -278,8 +334,19 @@ func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
 	triggers := &triggerSpy{}
 	svc := service.NewUploadService(
 		service.NewAssetIngester(
-			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-			service.NewAutoTagService(queries, q, nil, nil),
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewVersionRepo(database),
+			stor,
+			q,
+			ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(
+				reposqlc.NewAssetRepo(database),
+				reposqlc.NewWorkspaceRepo(database),
+				reposqlc.NewAutoTagSuggestionRepo(database),
+				q,
+				nil,
+				nil,
+			),
 		),
 		audit.NopWriter{},
 		nil,

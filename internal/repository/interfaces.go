@@ -40,6 +40,13 @@ type AssetRepository interface {
 	BatchVariantCounts(ctx context.Context, assetIDs []string) (map[string]int64, error)
 	// SetProject assigns or clears the project for an asset (projectID = nil clears it).
 	SetProject(ctx context.Context, workspaceID, assetID string, projectID *string) error
+	// FindWatermarkInFolder returns the oldest asset in folderID whose filename contains
+	// "watermark" (case-insensitive), or ErrNotFound.
+	FindWatermarkInFolder(ctx context.Context, workspaceID, folderID string) (Asset, error)
+	// FindWatermarkInProject returns the oldest such asset anywhere in projectID's folders.
+	FindWatermarkInProject(ctx context.Context, workspaceID, projectID string) (Asset, error)
+	// FindWatermarkInWorkspace returns the oldest such asset anywhere in the workspace.
+	FindWatermarkInWorkspace(ctx context.Context, workspaceID string) (Asset, error)
 }
 
 // ProjectRepository handles persistence for Project records.
@@ -166,6 +173,8 @@ type VersionRepository interface {
 	NextVersionNum(ctx context.Context, assetID string) (int64, error)
 	// SetCurrent atomically promotes versionID to current for assetID.
 	SetCurrent(ctx context.Context, assetID, versionID string) error
+	// RunInTx runs fn within a single DB transaction, giving fn a repository bound to that tx.
+	RunInTx(ctx context.Context, fn func(tx VersionRepository) error) error
 	// SetAssetThumbnail updates assets.thumbnail_key for the given asset.
 	SetAssetThumbnail(ctx context.Context, assetID string, key *string) error
 	// ListWithVariantCount returns versions with per-version variant counts.
@@ -192,9 +201,26 @@ type FieldRepository interface {
 	ListImageAssetIDs(ctx context.Context, workspaceID string) ([]string, error)
 	// ListMissingExifField returns asset IDs that are image assets but lack a value for fieldID.
 	ListMissingExifField(ctx context.Context, workspaceID, fieldID string, limit int64) ([]string, error)
+	// EnsureSystemField idempotently creates a system-sourced (non-user-editable) asset
+	// field definition. A no-op if a definition with the same key already exists.
+	EnsureSystemField(ctx context.Context, params EnsureSystemFieldParams) error
+	// ListBySource returns non-deleted field definitions for a given system source
+	// (e.g. "exif"), ordered by position.
+	ListBySource(ctx context.Context, workspaceID, source string) ([]FieldDefinition, error)
 	// PurgeExpired hard-deletes field definitions soft-deleted for more than 30 days,
 	// including their asset and project field values. Returns the number of definitions deleted.
 	PurgeExpired(ctx context.Context) (int, error)
+}
+
+// EnsureSystemFieldParams is the input for FieldRepository.EnsureSystemField.
+type EnsureSystemFieldParams struct {
+	ID          string
+	WorkspaceID string
+	Source      string
+	Name        string
+	Key         string
+	FieldType   string
+	Position    int64
 }
 
 // AssetFieldRepository handles persistence for asset field values.
@@ -428,4 +454,295 @@ type ExportRunRepository interface {
 	Start(ctx context.Context, id string) error
 	UpdateProgress(ctx context.Context, id string, p ExportProgress) error
 	Finish(ctx context.Context, id string, p ExportFinish) error
+}
+
+// IngressRepository handles persistence for ingress sources, rules, and log entries.
+// Every method is workspace-scoped: rule and log-entry methods enforce this via a join
+// through their parent source rather than trusting the caller to have already checked it.
+type IngressRepository interface {
+	ListSources(ctx context.Context, workspaceID string) ([]IngressSource, error)
+	GetSource(ctx context.Context, workspaceID, id string) (IngressSource, error)
+	CreateSource(ctx context.Context, params CreateIngressSourceParams) (IngressSource, error)
+	UpdateSource(ctx context.Context, params UpdateIngressSourceParams) (IngressSource, error)
+	DeleteSource(ctx context.Context, workspaceID, id string) error
+
+	ListRules(ctx context.Context, workspaceID, sourceID string) ([]IngressRule, error)
+	GetRule(ctx context.Context, workspaceID, id string) (IngressRule, error)
+	CreateRule(ctx context.Context, params CreateIngressRuleParams) (IngressRule, error)
+	UpdateRule(ctx context.Context, workspaceID string, params UpdateIngressRuleParams) (IngressRule, error)
+	DeleteRule(ctx context.Context, workspaceID, id string) error
+
+	ListSourceLog(ctx context.Context, workspaceID, sourceID string, limit, offset int64) ([]IngressLogEntry, error)
+	ListWorkspaceLog(ctx context.Context, workspaceID, status string, limit, offset int64) ([]IngressLogEntry, error)
+	GetLogEntry(ctx context.Context, workspaceID, id string) (IngressLogEntry, error)
+	UpdateLogEntry(ctx context.Context, workspaceID string, params UpdateIngressLogEntryParams) error
+	DeleteLogEntry(ctx context.Context, workspaceID, id string) error
+}
+
+// IngressSource is the domain representation of an ingress_sources row.
+// Config remains the encrypted ciphertext blob; encryption/decryption stays in internal/ingress.
+type IngressSource struct {
+	ID              string
+	WorkspaceID     string
+	CreatedBy       string
+	Type            string
+	Label           string
+	Config          string
+	PublicToken     string
+	DestFolderID    *string
+	DestProjectID   *string
+	Enabled         bool
+	PollIntervalMin int64
+	LastPolledAt    *time.Time
+	LastError       *string
+	ErrorCount      int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// CreateIngressSourceParams is the input for IngressRepository.CreateSource.
+type CreateIngressSourceParams struct {
+	ID              string
+	WorkspaceID     string
+	CreatedBy       string
+	Type            string
+	Label           string
+	Config          string
+	PublicToken     string
+	DestFolderID    *string
+	DestProjectID   *string
+	Enabled         bool
+	PollIntervalMin int64
+}
+
+// UpdateIngressSourceParams is the input for IngressRepository.UpdateSource.
+type UpdateIngressSourceParams struct {
+	ID              string
+	WorkspaceID     string
+	Label           string
+	Config          string
+	DestFolderID    *string
+	DestProjectID   *string
+	Enabled         bool
+	PollIntervalMin int64
+}
+
+// IngressRule is the domain representation of an ingress_rules row.
+type IngressRule struct {
+	ID       string
+	SourceID string
+	Position int64
+	Field    string
+	Operator string
+	Value    string
+	Action   string
+}
+
+// CreateIngressRuleParams is the input for IngressRepository.CreateRule.
+type CreateIngressRuleParams struct {
+	ID          string
+	WorkspaceID string
+	SourceID    string
+	Position    int64
+	Field       string
+	Operator    string
+	Value       string
+	Action      string
+}
+
+// UpdateIngressRuleParams is the input for IngressRepository.UpdateRule.
+type UpdateIngressRuleParams struct {
+	ID       string
+	Position int64
+	Field    string
+	Operator string
+	Value    string
+	Action   string
+}
+
+// IngressLogEntry is the domain representation of an ingress_log row.
+type IngressLogEntry struct {
+	ID         string
+	SourceID   string
+	RemoteID   string
+	Filename   string
+	AssetID    *string
+	Status     string
+	Error      *string
+	ImportedAt time.Time
+}
+
+// UpdateIngressLogEntryParams is the input for IngressRepository.UpdateLogEntry.
+type UpdateIngressLogEntryParams struct {
+	ID      string
+	Status  string
+	AssetID *string
+	Error   *string
+}
+
+// StorageStatsRepository handles the read-only aggregate queries backing workspace
+// storage usage/limit reporting. Named "StorageStats" (not "Storage") to avoid
+// colliding with internal/storage.Storage, the asset-bytes storage abstraction.
+type StorageStatsRepository interface {
+	GetByProjectAndType(ctx context.Context, workspaceID string) ([]StorageProjectTypeRow, error)
+	GetFolderCountsByProject(ctx context.Context, workspaceID string) ([]StorageFolderCountRow, error)
+	GetStorageLimitBytes(ctx context.Context, workspaceID string) (*int64, error)
+	GetByFolder(ctx context.Context, workspaceID, projectID string) ([]StorageFolderRow, error)
+}
+
+// StorageProjectTypeRow is one (project, asset_type) storage aggregate row.
+type StorageProjectTypeRow struct {
+	ProjectID     *string
+	ProjectName   string
+	AssetType     string
+	VersionsBytes int64
+	VariantsBytes int64
+}
+
+// StorageFolderCountRow is the folder count for one project.
+type StorageFolderCountRow struct {
+	ProjectID   *string
+	FolderCount int64
+}
+
+// StorageFolderRow is one folder's storage aggregate row.
+type StorageFolderRow struct {
+	FolderID      *string
+	FolderName    string
+	VersionsBytes int64
+	VariantsBytes int64
+}
+
+// AutoTagSuggestionRepository handles persistence for pending AI tag suggestions.
+type AutoTagSuggestionRepository interface {
+	List(ctx context.Context, workspaceID, assetID string) ([]AutoTagSuggestion, error)
+	Get(ctx context.Context, workspaceID, id string) (AutoTagSuggestion, error)
+	Create(ctx context.Context, params CreateAutoTagSuggestionParams) (AutoTagSuggestion, error)
+	Delete(ctx context.Context, workspaceID, id string) error
+	DeleteByAsset(ctx context.Context, workspaceID, assetID string) error
+}
+
+// AutoTagSuggestion is the domain representation of an auto_tag_suggestions row.
+type AutoTagSuggestion struct {
+	ID             string
+	WorkspaceID    string
+	AssetID        string
+	AssetVersionID *string
+	TagName        string
+	CreatedAt      time.Time
+}
+
+// CreateAutoTagSuggestionParams is the input for AutoTagSuggestionRepository.Create.
+type CreateAutoTagSuggestionParams struct {
+	ID             string
+	WorkspaceID    string
+	AssetID        string
+	AssetVersionID *string
+	TagName        string
+}
+
+// TextTrackRepository handles persistence for asset text tracks (OCR, transcripts,
+// extracted document text, etc.) and their full-text search shadow rows.
+type TextTrackRepository interface {
+	List(ctx context.Context, workspaceID, assetID string) ([]TextTrack, error)
+	Get(ctx context.Context, workspaceID, id string) (TextTrack, error)
+	Create(ctx context.Context, params CreateTextTrackParams) (TextTrack, error)
+	SetReady(ctx context.Context, workspaceID, id string, params SetTextTrackReadyParams) error
+	SetFailed(ctx context.Context, workspaceID, id, errMsg string) error
+	Delete(ctx context.Context, workspaceID, id string) error
+	// InsertFTS indexes a track's content for full-text search. trackID must already
+	// belong to workspaceID (callers verify via Get/Create before indexing).
+	InsertFTS(ctx context.Context, params InsertTextFTSParams) error
+	// DeleteFTS removes the FTS shadow row for a track (no-op if absent).
+	DeleteFTS(ctx context.Context, trackID string) error
+}
+
+// TextTrack is the domain representation of an asset_text_tracks row.
+type TextTrack struct {
+	ID             string
+	WorkspaceID    string
+	AssetID        string
+	AssetVersionID *string
+	Source         string
+	Lang           *string
+	Content        string
+	StorageKey     *string
+	ContentType    *string
+	Meta           *string
+	Status         string
+	Error          *string
+	CreatedBy      *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// CreateTextTrackParams is the input for TextTrackRepository.Create.
+type CreateTextTrackParams struct {
+	ID             string
+	WorkspaceID    string
+	AssetID        string
+	AssetVersionID *string
+	Source         string
+	Lang           *string
+	Content        string
+	Meta           *string
+	Status         string
+	CreatedBy      *string
+}
+
+// SetTextTrackReadyParams is the input for TextTrackRepository.SetReady.
+type SetTextTrackReadyParams struct {
+	Content     string
+	StorageKey  *string
+	ContentType *string
+	Meta        *string
+}
+
+// InsertTextFTSParams is the input for TextTrackRepository.InsertFTS.
+type InsertTextFTSParams struct {
+	TrackID     string
+	AssetID     string
+	WorkspaceID string
+	Source      string
+	Lang        string
+	Content     string
+}
+
+// AuditLogRepository handles read access to asset_events/project_events for the
+// audit trail and workspace activity feed. Writes go through audit.Writer, which
+// stays a separate fire-and-forget path per docs/backend-architecture.md.
+type AuditLogRepository interface {
+	// ListAssetEvents returns events for a single asset, newest first.
+	ListAssetEvents(ctx context.Context, params ListAuditEventsParams) ([]AuditEvent, error)
+	// ListProjectEvents returns events for a single project, newest first.
+	ListProjectEvents(ctx context.Context, params ListAuditEventsParams) ([]AuditEvent, error)
+	// ListWorkspaceAssetEvents returns asset events across the workspace, newest first.
+	ListWorkspaceAssetEvents(ctx context.Context, params ListAuditEventsParams) ([]AuditEvent, error)
+	// ListWorkspaceProjectEvents returns project events across the workspace, newest first.
+	ListWorkspaceProjectEvents(ctx context.Context, params ListAuditEventsParams) ([]AuditEvent, error)
+}
+
+// AuditEvent is the domain representation of a single asset_events/project_events row.
+type AuditEvent struct {
+	ID        string
+	EntityID  string // asset_id or project_id, depending on the method that returned it
+	EventType string
+	Payload   string
+	CreatedAt string // stored/returned as text; compared lexically for cursor pagination
+	UserID    *string
+	UserName  *string
+	ActorType string
+}
+
+// ListAuditEventsParams is the shared input for AuditLogRepository's List* methods.
+// Not every field applies to every method: EntityID is required by ListAssetEvents/
+// ListProjectEvents and ignored by the workspace-wide variants; UserID only applies
+// to the workspace-wide variants.
+type ListAuditEventsParams struct {
+	WorkspaceID string
+	EntityID    string
+	Cursor      string // "" = no cursor
+	UserID      string // "" = no filter
+	EventType   string // "" = no filter
+	Limit       int64
 }

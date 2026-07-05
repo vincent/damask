@@ -187,7 +187,7 @@ func TestVersionService_WriteVersionRestored_EmitsAuditEvent(t *testing.T) {
 
 func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T) {
 	database, err := dbpkg.Open(t.TempDir() + "/version_upload.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -210,8 +210,19 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 	q := queue.New(queries, 1)
 	uploadSvc := service.NewUploadService(
 		service.NewAssetIngester(
-			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-			service.NewAutoTagService(queries, q, nil, nil),
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewVersionRepo(database),
+			stor,
+			q,
+			ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(
+				reposqlc.NewAssetRepo(database),
+				reposqlc.NewWorkspaceRepo(database),
+				reposqlc.NewAutoTagSuggestionRepo(database),
+				q,
+				nil,
+				nil,
+			),
 		),
 		audit.NopWriter{},
 		nil,
@@ -268,7 +279,7 @@ func TestVersionService_UploadNewVersion_DispatchesWorkflowTrigger(t *testing.T)
 
 func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *testing.T) {
 	database, err := dbpkg.Open(t.TempDir() + "/version_nil_proj.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -292,8 +303,19 @@ func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *test
 	// Upload asset without project/folder → both will be nil.
 	uploadSvc := service.NewUploadService(
 		service.NewAssetIngester(
-			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-			service.NewAutoTagService(queries, q, nil, nil),
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewVersionRepo(database),
+			stor,
+			q,
+			ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(
+				reposqlc.NewAssetRepo(database),
+				reposqlc.NewWorkspaceRepo(database),
+				reposqlc.NewAutoTagSuggestionRepo(database),
+				q,
+				nil,
+				nil,
+			),
 		),
 		audit.NopWriter{},
 		nil,
@@ -346,7 +368,7 @@ func TestVersionService_UploadNewVersion_TriggerData_NilProjectAndFolder(t *test
 
 func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 	database, err := dbpkg.Open(t.TempDir() + "/version_upload_dispatch_err.db")
-	queries, sqlDB := database.WQ, database.Writer
+	queries := database.WQ
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -369,8 +391,19 @@ func TestVersionService_UploadNewVersion_IgnoresDispatchError(t *testing.T) {
 	q := queue.New(queries, 1)
 	uploadSvc := service.NewUploadService(
 		service.NewAssetIngester(
-			queries, sqlDB, stor, q, ingest.NewRegistry(transform.NewTransformer()),
-			service.NewAutoTagService(queries, q, nil, nil),
+			reposqlc.NewAssetRepo(database),
+			reposqlc.NewVersionRepo(database),
+			stor,
+			q,
+			ingest.NewRegistry(transform.NewTransformer()),
+			service.NewAutoTagService(
+				reposqlc.NewAssetRepo(database),
+				reposqlc.NewWorkspaceRepo(database),
+				reposqlc.NewAutoTagSuggestionRepo(database),
+				q,
+				nil,
+				nil,
+			),
 		),
 		audit.NopWriter{},
 		nil,

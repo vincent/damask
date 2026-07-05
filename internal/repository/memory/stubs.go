@@ -102,6 +102,9 @@ func (r *VersionRepo) NextVersionNum(_ context.Context, _ string) (int64, error)
 }
 func (r *VersionRepo) SetCurrent(_ context.Context, _, _ string) error                { return nil }
 func (r *VersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *string) error { return nil }
+func (r *VersionRepo) RunInTx(_ context.Context, fn func(repository.VersionRepository) error) error {
+	return fn(r)
+}
 func (r *VersionRepo) ListWithVariantCount(_ context.Context, _ string) ([]repository.AssetVersionWithCount, error) {
 	panic("memory: VersionRepo.ListWithVariantCount not implemented")
 }

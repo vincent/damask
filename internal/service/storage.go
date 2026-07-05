@@ -6,8 +6,8 @@ import (
 
 	cache "github.com/go-pkgz/expirable-cache/v3"
 
-	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/ingress"
+	"damask/server/internal/repository"
 )
 
 const (
@@ -78,16 +78,16 @@ type StorageService interface {
 }
 
 type storageService struct {
-	db         *dbgen.Queries
+	repo       repository.StorageStatsRepository
 	usageCache cache.Cache[string, *WorkspaceStorageUsage]
 }
 
 // NewStorageService constructs a StorageService with a 60-second TTL cache.
-func NewStorageService(db *dbgen.Queries) StorageService {
+func NewStorageService(repo repository.StorageStatsRepository) StorageService {
 	c := cache.NewCache[string, *WorkspaceStorageUsage]().
 		WithMaxKeys(usageCacheSize).
 		WithTTL(usageCacheTTL)
-	return &storageService{db: db, usageCache: c}
+	return &storageService{repo: repo, usageCache: c}
 }
 
 func (s *storageService) GetUsage(ctx context.Context, workspaceID string) (*WorkspaceStorageUsage, error) {
@@ -95,20 +95,17 @@ func (s *storageService) GetUsage(ctx context.Context, workspaceID string) (*Wor
 		return cached, nil
 	}
 
-	rows, err := s.db.GetStorageByProjectAndType(ctx, dbgen.GetStorageByProjectAndTypeParams{
-		WorkspaceID:   workspaceID,
-		WorkspaceID_2: workspaceID,
-	})
+	rows, err := s.repo.GetByProjectAndType(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
 
-	folderCounts, err := s.db.GetFolderCountsByProject(ctx, workspaceID)
+	folderCounts, err := s.repo.GetFolderCountsByProject(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
 
-	limitBytes, err := s.db.GetWorkspaceStorageLimitBytes(ctx, workspaceID)
+	limitBytes, err := s.repo.GetStorageLimitBytes(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,25 +120,19 @@ func (s *storageService) GetFolderUsage(
 	ctx context.Context,
 	workspaceID, projectID string,
 ) ([]FolderStorageUsage, error) {
-	rows, err := s.db.GetStorageByFolder(ctx, dbgen.GetStorageByFolderParams{
-		WorkspaceID:   workspaceID,
-		WorkspaceID_2: workspaceID,
-		ProjectID:     &projectID,
-	})
+	rows, err := s.repo.GetByFolder(ctx, workspaceID, projectID)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]FolderStorageUsage, 0, len(rows))
 	for _, r := range rows {
-		vb := toInt64(r.VersionsBytes)
-		varb := toInt64(r.VariantsBytes)
 		result = append(result, FolderStorageUsage{
-			FolderID:      toStringPtr(r.FolderID),
+			FolderID:      r.FolderID,
 			FolderName:    r.FolderName,
-			VersionsBytes: vb,
-			VariantsBytes: varb,
-			TotalBytes:    vb + varb,
+			VersionsBytes: r.VersionsBytes,
+			VariantsBytes: r.VariantsBytes,
+			TotalBytes:    r.VersionsBytes + r.VariantsBytes,
 		})
 	}
 	return result, nil
@@ -168,8 +159,8 @@ func (s *storageService) Invalidate(workspaceID string) {
 // buildUsage aggregates flat DB rows into a WorkspaceStorageUsage.
 // Pure function — no DB access — easy to unit-test.
 func buildUsage(
-	rows []dbgen.GetStorageByProjectAndTypeRow,
-	folderCounts []dbgen.GetFolderCountsByProjectRow,
+	rows []repository.StorageProjectTypeRow,
+	folderCounts []repository.StorageFolderCountRow,
 	limitBytes *int64,
 ) *WorkspaceStorageUsage {
 	fcMap := make(map[string]int64, len(folderCounts))
@@ -204,8 +195,8 @@ func buildUsage(
 			projectOrder = append(projectOrder, key)
 		}
 
-		vb := toInt64(r.VersionsBytes)
-		varb := toInt64(r.VariantsBytes)
+		vb := r.VersionsBytes
+		varb := r.VariantsBytes
 		p.VersionsBytes += vb
 		p.VariantsBytes += varb
 
@@ -245,31 +236,4 @@ func buildUsage(
 
 	usage.TotalBytes = usage.VersionsBytes + usage.VariantsBytes
 	return usage
-}
-
-// toStringPtr converts a SQLite CASE expression any result to *string.
-func toStringPtr(v any) *string {
-	if v == nil {
-		return nil
-	}
-	if s, ok := v.(string); ok {
-		return &s
-	}
-	return nil
-}
-
-// toInt64 converts SQLite COALESCE/SUM any results to int64.
-func toInt64(v any) int64 {
-	if v == nil {
-		return 0
-	}
-	switch n := v.(type) {
-	case int64:
-		return n
-	case int:
-		return int64(n)
-	case float64:
-		return int64(n)
-	}
-	return 0
 }

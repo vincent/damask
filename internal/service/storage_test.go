@@ -7,18 +7,19 @@ import (
 
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/repository"
+	reposqlc "damask/server/internal/repository/sqlc"
 )
 
 // newStorageSvcDB opens an in-memory SQLite DB and returns a StorageService, Queries, and *[sql.DB].
 func newStorageSvcDB(t *testing.T) (StorageService, *dbgen.Queries, *sql.DB) {
 	t.Helper()
 	database, err := dbpkg.Open(":memory:")
-	queries, sqlDB := database.WQ, database.Writer
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
-	return NewStorageService(queries), queries, sqlDB
+	return NewStorageService(reposqlc.NewStorageStatsRepo(database)), database.WQ, database.Writer
 }
 
 // seedWorkspace inserts a minimal workspace row.
@@ -47,12 +48,12 @@ func TestStorageService_ImplementsInvalidator(_ *testing.T) {
 // ── buildUsage unit tests (pure function, no DB) ─────────────────────────────
 
 func TestBuildUsage_TypeBucketing(t *testing.T) {
-	rows := []dbgen.GetStorageByProjectAndTypeRow{
-		{AssetType: "image", VersionsBytes: int64(100), VariantsBytes: int64(20)},
-		{AssetType: "video", VersionsBytes: int64(200), VariantsBytes: int64(0)},
-		{AssetType: "audio", VersionsBytes: int64(50), VariantsBytes: int64(0)},
-		{AssetType: "document", VersionsBytes: int64(30), VariantsBytes: int64(0)},
-		{AssetType: "other", VersionsBytes: int64(10), VariantsBytes: int64(5)},
+	rows := []repository.StorageProjectTypeRow{
+		{AssetType: "image", VersionsBytes: 100, VariantsBytes: 20},
+		{AssetType: "video", VersionsBytes: 200, VariantsBytes: 0},
+		{AssetType: "audio", VersionsBytes: 50, VariantsBytes: 0},
+		{AssetType: "document", VersionsBytes: 30, VariantsBytes: 0},
+		{AssetType: "other", VersionsBytes: 10, VariantsBytes: 5},
 	}
 	u := buildUsage(rows, nil, nil)
 
@@ -77,8 +78,8 @@ func TestBuildUsage_TypeBucketing(t *testing.T) {
 }
 
 func TestBuildUsage_NullProject(t *testing.T) {
-	rows := []dbgen.GetStorageByProjectAndTypeRow{
-		{ProjectID: nil, AssetType: "image", VersionsBytes: int64(100)},
+	rows := []repository.StorageProjectTypeRow{
+		{ProjectID: nil, AssetType: "image", VersionsBytes: 100},
 	}
 	u := buildUsage(rows, nil, nil)
 	if len(u.ByProject) != 1 {
@@ -192,5 +193,36 @@ func TestGetUsage_InvalidateClears(t *testing.T) {
 	u3, _ := svc.GetUsage(ctx, "ws7")
 	if u3.LimitBytes == nil || *u3.LimitBytes != limit {
 		t.Errorf("after invalidate want limit=%d, got %v", limit, u3.LimitBytes)
+	}
+}
+
+// -- Cross-workspace negative test --
+// StorageStatsRepository's aggregate queries must not leak another workspace's
+// limit into a workspace that never set one.
+
+func TestStorageStatsRepository_CrossWorkspaceIsolation(t *testing.T) {
+	ctx := context.Background()
+	database, err := dbpkg.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	repo := reposqlc.NewStorageStatsRepo(database)
+
+	seedWorkspace(ctx, t, database.WQ, "ws-a")
+	seedWorkspace(ctx, t, database.WQ, "ws-b")
+	setLimit(ctx, t, database.Writer, "ws-a", 42)
+
+	limitB, err := repo.GetStorageLimitBytes(ctx, "ws-b")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if limitB != nil {
+		t.Errorf("GetStorageLimitBytes cross-workspace: expected nil, got %v", *limitB)
+	}
+
+	limitA, err := repo.GetStorageLimitBytes(ctx, "ws-a")
+	if err != nil || limitA == nil || *limitA != 42 {
+		t.Errorf("GetStorageLimitBytes same-workspace: expected 42, got %v, err=%v", limitA, err)
 	}
 }
