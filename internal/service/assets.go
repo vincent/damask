@@ -432,7 +432,6 @@ func (s *assetService) BulkSetTag(ctx context.Context, workspaceID, tagName stri
 	if err != nil {
 		return err
 	}
-	// TODO: in one pass
 	for _, assetID := range assetIDs {
 		if _, getErr := s.assets.GetByID(ctx, workspaceID, assetID); getErr != nil {
 			continue // skip assets not in this workspace

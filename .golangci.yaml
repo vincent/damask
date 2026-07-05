@@ -43,6 +43,11 @@ formatters:
       # Default: 100
       max-len: 120
 
+  exclusions:
+    # internal/docs/docs.go is swaggo/swag-generated; don't reformat it.
+    paths:
+      - internal/docs
+
 linters:
   enable:
     - asasalint # checks for pass []any as any in variadic func(...any)
@@ -458,6 +463,11 @@ linters:
     presets:
       - std-error-handling
       - common-false-positives
+    # Paths excluded entirely, regardless of linter.
+    # internal/docs/docs.go is swaggo/swag-generated (see `make generate`) and
+    # hand-edits would be overwritten on the next run.
+    paths:
+      - internal/docs
     # Excluding configuration per-path, per-linter, per-text and per-source.
     rules:
       - path: internal/repository/memory

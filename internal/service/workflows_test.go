@@ -832,7 +832,7 @@ func TestWorkflowService_GetRun_OK(t *testing.T) {
 		ID:          "run_1",
 		WorkflowID:  "wf_1",
 		WorkspaceID: "ws_1",
-		Status:      "completed",
+		Status:      service.WorkflowRunStatusPending,
 		TriggerData: `{"trigger":"manual"}`,
 	})
 	_ = run
@@ -841,7 +841,7 @@ func TestWorkflowService_GetRun_OK(t *testing.T) {
 		RunID:     "run_1",
 		NodeID:    "n1",
 		NodeType:  "trigger.manual",
-		Status:    "completed",
+		Status:    service.WorkflowRunStatusPending,
 		InputCtx:  `{"k":"v"}`,
 		StartedAt: &now,
 	})
@@ -871,7 +871,7 @@ func TestWorkflowService_GetRun_WrongWorkspace(t *testing.T) {
 		ID:          "run_1",
 		WorkflowID:  "wf_1",
 		WorkspaceID: "ws_a",
-		Status:      "completed",
+		Status:      service.WorkflowRunStatusPending,
 		TriggerData: `{}`,
 	})
 
@@ -893,7 +893,7 @@ func TestWorkflowService_ListRuns_OK(t *testing.T) {
 			ID:          id,
 			WorkflowID:  "wf_1",
 			WorkspaceID: "ws_1",
-			Status:      "completed",
+			Status:      service.WorkflowRunStatusPending,
 			TriggerData: `{}`,
 		})
 	}
@@ -920,13 +920,25 @@ func TestWorkflowService_ListAllRuns_OK(t *testing.T) {
 	svc, _, runs, _, _ := newWorkflowSvc(t)
 	ctx := context.Background()
 	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
-		ID: "run_1", WorkflowID: "wf_1", WorkspaceID: "ws_1", Status: "completed", TriggerData: `{}`,
+		ID:          "run_1",
+		WorkflowID:  "wf_1",
+		WorkspaceID: "ws_1",
+		Status:      service.WorkflowRunStatusPending,
+		TriggerData: `{}`,
 	})
 	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
-		ID: "run_2", WorkflowID: "wf_2", WorkspaceID: "ws_1", Status: "completed", TriggerData: `{}`,
+		ID:          "run_2",
+		WorkflowID:  "wf_2",
+		WorkspaceID: "ws_1",
+		Status:      service.WorkflowRunStatusPending,
+		TriggerData: `{}`,
 	})
 	_, _ = runs.Create(ctx, repository.CreateWorkflowRunParams{
-		ID: "run_3", WorkflowID: "wf_other", WorkspaceID: "ws_2", Status: "completed", TriggerData: `{}`,
+		ID:          "run_3",
+		WorkflowID:  "wf_other",
+		WorkspaceID: "ws_2",
+		Status:      service.WorkflowRunStatusPending,
+		TriggerData: `{}`,
 	})
 
 	got, err := svc.ListAllRuns(ctx, "ws_1", 10, "")
@@ -1059,7 +1071,7 @@ func TestWorkflowService_GetRun_ParseMapFallbacks(t *testing.T) {
 		ID:          "run_bad",
 		WorkflowID:  "wf_1",
 		WorkspaceID: "ws_1",
-		Status:      "pending",
+		Status:      service.WorkflowRunStatusPending,
 		TriggerData: `not-json`,
 	})
 	_ = now
@@ -1077,7 +1089,7 @@ func TestWorkflowService_GetRun_ParseMapFallbacks(t *testing.T) {
 		RunID:     "run_bad",
 		NodeID:    "n1",
 		NodeType:  "trigger.manual",
-		Status:    "pending",
+		Status:    service.WorkflowRunStatusPending,
 		InputCtx:  `{}`,
 		OutputCtx: nil,
 		StartedAt: &now,

@@ -139,6 +139,10 @@ func NewHTTPServer(
 // @BasePath /
 // @schemes http.
 //
+// NOTE: when adding, removing, or re-annotating a route below, update the route
+// table in CLAUDE.md ("Route layout") in the same change — it doubles as the
+// access-control spec for agent-driven development.
+//
 //nolint:funlen // router
 func NewRouter(
 	deps *appcomp.Deps,
@@ -161,8 +165,12 @@ func NewRouter(
 	app.Use(telemetry.FiberMiddleware())
 	app.Use(telemetry.FiberStatusMiddleware())
 
+	allowOrigins := []string{s.cfg.BaseURL.String()}
+	if cfg.AppEnv == appEnvDevelopment {
+		allowOrigins = append(allowOrigins, "http://localhost:5173")
+	}
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", s.cfg.BaseURL.String()},
+		AllowOrigins:     allowOrigins,
 		AllowCredentials: true,
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -213,26 +221,6 @@ func NewRouter(
 		auth.RequireRole(getRoleFn, auth.Owner),
 		s.handleUpdateWorkspaceSettings,
 	)
-	// api.Get(
-	// 	"/workspace/settings/imagerouter",
-	// 	auth.RequireRole(getRoleFn, auth.Owner),
-	// 	s.handleGetWorkspaceImageRouterStatus,
-	// )
-	// api.Put(
-	// 	"/workspace/settings/imagerouter",
-	// 	auth.RequireRole(getRoleFn, auth.Owner),
-	// 	s.handlePutWorkspaceImageRouterKey,
-	// )
-	// api.Delete(
-	// 	"/workspace/settings/imagerouter",
-	// 	auth.RequireRole(getRoleFn, auth.Owner),
-	// 	s.handleDeleteWorkspaceImageRouterKey,
-	// )
-	// api.Post(
-	// 	"/workspace/settings/imagerouter/test",
-	// 	auth.RequireRole(getRoleFn, auth.Owner),
-	// 	s.handleTestWorkspaceImageRouterKey,
-	// )
 	api.Get(
 		"/workspace/settings/aiproviders/:provider",
 		auth.RequireRole(getRoleFn, auth.Owner),

@@ -23,7 +23,6 @@ import (
 	"damask/server/internal/mailserver"
 	"damask/server/internal/queue"
 	reposqlc "damask/server/internal/repository/sqlc"
-	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
@@ -96,8 +95,6 @@ func main() {
 		slog.Error("storage", "error", err)
 		os.Exit(1)
 	}
-
-	service.VerifySizeColumns(context.Background(), database.Reader, slog.Default())
 
 	q := queue.New(database.WQ, cfg.QueueWorkers)
 

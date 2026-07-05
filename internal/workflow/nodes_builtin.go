@@ -578,7 +578,7 @@ func (n setNewVersionNode) Execute(
 	payload, err := json.Marshal(map[string]string{
 		"asset_id":     assetID,
 		"version_id":   created.ID,
-		"workspace_id": workspaceID,
+		"workspace_id": workspaceID, //nolint:goconst // queue job payloads are opaque to the executor
 		"storage_key":  created.StorageKey,
 		"mime_type":    created.MimeType,
 	})

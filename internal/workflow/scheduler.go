@@ -55,7 +55,7 @@ func (s *CronScheduler) tick(ctx context.Context) {
 			continue
 		}
 		_ = s.dispatcher.Dispatch(ctx, "trigger.schedule", map[string]any{
-			"workspace_id": wf.WorkspaceID,
+			"workspace_id": wf.WorkspaceID, //nolint:goconst // queue job payloads are opaque to the executor
 			"workflow_id":  wf.ID,
 		})
 		fired++

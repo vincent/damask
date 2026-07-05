@@ -433,9 +433,8 @@ func (s *assetFieldService) SetValues(
 	for _, v := range dtos {
 		afterByFieldID[v.FieldID] = v
 	}
-	//nolint:dupl // Asset and project audit payloads are parallel event types with different writer methods.
+
 	emitFieldValueAuditEvents(inputs, existingByFieldID, afterByFieldID, func(
-		_ SetFieldValueInput, // TODO: check why unused
 		before, after *FieldValueDTO,
 		beforeVal any,
 	) {
@@ -452,7 +451,7 @@ func (s *assetFieldService) SetValues(
 				Before:    beforeVal,
 			},
 		})
-	}, func(_ SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
+	}, func(before, after *FieldValueDTO, beforeVal, afterVal any) {
 		s.audit.WriteAsset(ctx, audit.AssetEvent{
 			WorkspaceID: workspaceID,
 			AssetID:     assetID,
@@ -792,9 +791,8 @@ func (s *projectFieldService) SetValues(
 	for _, v := range dtos {
 		afterByFieldID[v.FieldID] = v
 	}
-	//nolint:dupl // Asset and project audit payloads are parallel event types with different writer methods.
+
 	emitFieldValueAuditEvents(inputs, existingByFieldID, afterByFieldID, func(
-		_ SetFieldValueInput,
 		before, after *FieldValueDTO,
 		beforeVal any,
 	) {
@@ -811,7 +809,7 @@ func (s *projectFieldService) SetValues(
 				Before:    beforeVal,
 			},
 		})
-	}, func(_ SetFieldValueInput, before, after *FieldValueDTO, beforeVal, afterVal any) {
+	}, func(before, after *FieldValueDTO, beforeVal, afterVal any) {
 		s.audit.WriteProject(ctx, audit.ProjectEvent{
 			WorkspaceID: workspaceID,
 			ProjectID:   projectID,
@@ -837,18 +835,18 @@ func emitFieldValueAuditEvents(
 	inputs []SetFieldValueInput,
 	existingByFieldID map[string]*FieldValueDTO,
 	afterByFieldID map[string]*FieldValueDTO,
-	writeCleared func(SetFieldValueInput, *FieldValueDTO, *FieldValueDTO, any),
-	writeSet func(SetFieldValueInput, *FieldValueDTO, *FieldValueDTO, any, any),
+	writeCleared func(*FieldValueDTO, *FieldValueDTO, any),
+	writeSet func(*FieldValueDTO, *FieldValueDTO, any, any),
 ) {
 	for _, input := range inputs {
 		before := existingByFieldID[input.FieldID]
 		after := afterByFieldID[input.FieldID]
 		beforeVal := fieldValueOrNil(before)
 		if input.Value == nil {
-			writeCleared(input, before, after, beforeVal)
+			writeCleared(before, after, beforeVal)
 			continue
 		}
-		writeSet(input, before, after, beforeVal, fieldValueOrNil(after))
+		writeSet(before, after, beforeVal, fieldValueOrNil(after))
 	}
 }
 

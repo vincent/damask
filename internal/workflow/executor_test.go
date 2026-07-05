@@ -118,7 +118,7 @@ func TestExecutorReportsRunFailures(t *testing.T) {
 		ID:          "run_1",
 		WorkflowID:  "wf_1",
 		WorkspaceID: "ws_1",
-		Status:      "pending",
+		Status:      WorkflowRunStatusPending,
 		TriggerData: `{"asset_id":"asset_1"}`,
 		Context:     `{}`,
 	})

@@ -73,6 +73,11 @@ func WithBodyLimit(n int) TestOption {
 	return func(s *testSetup) { s.cfg.BodyLimit = n }
 }
 
+// WithAppEnv overrides the test app's AppEnv (defaults to "development").
+func WithAppEnv(env string) TestOption {
+	return func(s *testSetup) { s.cfg.AppEnv = env }
+}
+
 func WithImageRouterAPIKey(key string) TestOption {
 	return func(s *testSetup) { s.cfg.ImageRouter.APIKey = key }
 }

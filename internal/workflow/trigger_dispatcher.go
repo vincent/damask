@@ -15,6 +15,9 @@ import (
 
 var dispatcherTracer = telemetry.Tracer("damask/internal/workflow/dispatcher")
 
+const WorkflowRunStatusPending = "pending"
+const WorkflowRunStatusCompleted = "completed"
+
 type TriggerDispatcher struct {
 	workflows repository.WorkflowRepository
 	runs      repository.WorkflowRunRepository
@@ -59,7 +62,7 @@ func (d *TriggerDispatcher) Dispatch(ctx context.Context, eventType string, data
 			ID:          runID,
 			WorkflowID:  wf.ID,
 			WorkspaceID: wf.WorkspaceID,
-			Status:      "pending",
+			Status:      WorkflowRunStatusPending,
 			TriggerData: mustJSON(data),
 			Context:     "{}",
 		})

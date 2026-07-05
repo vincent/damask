@@ -755,7 +755,12 @@ func (s *Server) handleShareExport(c fiber.Ctx) error {
 	)
 
 	pr, pw := io.Pipe()
-	go writeShareZip(context.Background(), pw, entries, s.storage)
+	go writeShareZip( //nolint:gosec // background context is fine for this async operation
+		context.Background(),
+		pw,
+		entries,
+		s.storage,
+	)
 
 	return c.SendStream(pr)
 }
