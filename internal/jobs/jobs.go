@@ -21,6 +21,7 @@ import (
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
+	"damask/server/internal/service"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 	"damask/server/internal/visualsimilarity"
@@ -32,8 +33,11 @@ const (
 	jobStatusPending      = "pending"
 )
 
-// exportService is the subset of service.ExportService used by job handlers and the scheduler.
-// Defined here to avoid an import cycle (service imports jobs for payload types and enqueue helpers).
+// exportService is the narrow subset of service.ExportService used by job
+// handlers and the scheduler. Kept narrow (rather than depending on the full
+// interface) so a handler's dependency is legible from its type; conformance
+// is asserted below so a signature drift in service.ExportService breaks
+// this package's build, not just the NewJobServer call site.
 type exportService interface {
 	ExecuteRun(ctx context.Context, workspaceID, configID, runID string) error
 	ListDueConfigs(ctx context.Context) ([]repository.ExportConfig, error)
@@ -45,9 +49,8 @@ type exifService interface {
 	ExtractForAsset(ctx context.Context, workspaceID, assetID, userID string) error
 }
 
-// tagService is the subset of service.TagService used by automated
-// (non-HTTP) tag application, e.g. silent AI auto-tagging. Defined here to
-// avoid an import cycle (service imports jobs for queue payload types).
+// tagService is the narrow subset of service.TagService used by automated
+// (non-HTTP) tag application, e.g. silent AI auto-tagging.
 type tagService interface {
 	ApplyTag(ctx context.Context, workspaceID, assetID, tagName string) error
 }
@@ -56,8 +59,7 @@ type fieldPurgeService interface {
 	PurgeExpiredFields(ctx context.Context) (int, error)
 }
 
-// textTrackService is the subset of service.TextTrackService used by job handlers.
-// Defined here to avoid an import cycle (service imports jobs for queue payload types).
+// textTrackService is the narrow subset of service.TextTrackService used by job handlers.
 type textTrackService interface {
 	RunOCR(
 		ctx context.Context,
@@ -71,6 +73,19 @@ type textTrackService interface {
 		workspaceID, assetID, assetVersionID, transcript string,
 	) (trackID string, err error)
 }
+
+// Compile-time conformance assertions: internal/jobs can now import
+// internal/service directly (service no longer imports jobs — payload types
+// and job-type constants moved to internal/jobspec), so a signature drift in
+// any of these real service types fails this package's build instead of
+// only surfacing where NewJobServer is called.
+var (
+	_ exportService     = (service.ExportService)(nil)
+	_ exifService       = (*service.ExifService)(nil)
+	_ tagService        = (service.TagService)(nil)
+	_ fieldPurgeService = (service.FieldService)(nil)
+	_ textTrackService  = (service.TextTrackService)(nil)
+)
 
 // JobServer holds shared dependencies injected at startup.
 type JobServer struct {

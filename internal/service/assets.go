@@ -12,7 +12,7 @@ import (
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	"damask/server/internal/jobs"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
@@ -610,7 +610,7 @@ func (s *assetService) RegenerateThumbnail(
 			return jobIDs, fmt.Errorf("could not load current version: %w", apperr.ErrNotFound)
 		}
 
-		payload, _ := json.Marshal(jobs.VersionThumbnailJobPayload{
+		payload, _ := json.Marshal(jobspec.VersionThumbnailJobPayload{
 			AssetID:     asset.ID,
 			VersionID:   ver.ID,
 			WorkspaceID: workspaceID,

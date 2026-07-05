@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"damask/server/internal/apperr"
-	"damask/server/internal/jobs"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/storage"
@@ -727,10 +727,10 @@ func (s *textTrackService) RunOCR(
 	plainText := readyTextContent(result.PlainText)
 	wordCount = len(strings.Fields(result.PlainText))
 	metaBytes, _ := json.Marshal(map[string]any{
-		"lang":                lang,
-		"model":               "tesseract",
-		"output_format":       outputFormat,
-		jobs.MetaKeyWordCount: wordCount,
+		"lang":                   lang,
+		"model":                  "tesseract",
+		"output_format":          outputFormat,
+		jobspec.MetaKeyWordCount: wordCount,
 	})
 	meta := string(metaBytes)
 

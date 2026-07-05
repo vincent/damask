@@ -16,7 +16,7 @@ import (
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	"damask/server/internal/jobs"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
@@ -438,14 +438,14 @@ func (s *versionService) validateUploadNewVersionDeps() error {
 }
 
 func (s *versionService) enqueueVersionThumbnail(ctx context.Context, asset repository.Asset, version *VersionDTO) {
-	payload := jobs.VersionThumbnailJobPayload{
+	payload, _ := json.Marshal(jobspec.VersionThumbnailJobPayload{
 		AssetID:     asset.ID,
 		VersionID:   version.ID,
 		WorkspaceID: asset.WorkspaceID,
 		StorageKey:  version.StorageKey,
 		MimeType:    version.MimeType,
-	}
-	if err := jobs.EnqueueVersionThumbnailJob(ctx, s.queue, asset.WorkspaceID, payload); err != nil {
+	})
+	if _, err := s.queue.Enqueue(ctx, asset.WorkspaceID, queue.JobTypeVersionThumbnail, string(payload)); err != nil {
 		slog.ErrorContext(
 			ctx,
 			"enqueue version thumbnail",
@@ -489,7 +489,7 @@ func (s *versionService) enqueueVersionMediaTags(
 	if !strings.HasPrefix(mimeType, "audio/") && !strings.HasPrefix(mimeType, "video/") {
 		return
 	}
-	payload, _ := json.Marshal(jobs.ExtractMediaTagsPayload{
+	payload, _ := json.Marshal(jobspec.ExtractMediaTagsPayload{
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,
 	})

@@ -18,7 +18,7 @@ import (
 	"damask/server/internal/apperr"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
-	"damask/server/internal/jobs"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 
@@ -301,7 +301,7 @@ func (s *variantService) Promote(ctx context.Context, p PromoteVariantParams) (P
 	}
 
 	if variant.ThumbnailKey == nil {
-		thumbPayload, _ := json.Marshal(jobs.VersionThumbnailJobPayload{
+		thumbPayload, _ := json.Marshal(jobspec.VersionThumbnailJobPayload{
 			AssetID:     result.NewAssetID,
 			VersionID:   result.NewVersionID,
 			WorkspaceID: p.WorkspaceID,
@@ -449,7 +449,7 @@ func (s *variantService) Rerun(ctx context.Context, p RerunVariantParams) error 
 		return err
 	}
 
-	payload, _ := json.Marshal(jobs.VariantJobPayload{
+	payload, _ := json.Marshal(jobspec.VariantJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: p.WorkspaceID,
 		VersionID:   variant.AssetVersionID,

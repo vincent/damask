@@ -10,6 +10,7 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/telemetry"
 	"damask/server/internal/transform"
 
@@ -34,7 +35,7 @@ func videoCaptureCanonical(_, _ string, params json.RawMessage) (string, error) 
 }
 
 // videoCapturePostHook updates the asset thumbnail if none exists yet.
-func (s *JobServer) videoCapturePostHook(ctx context.Context, p VariantJobPayload, _, storageKey, _ string) {
+func (s *JobServer) videoCapturePostHook(ctx context.Context, p jobspec.VariantJobPayload, _, storageKey, _ string) {
 	asset, err := s.queries.GetAssetByID(ctx, dbgen.GetAssetByIDParams{ID: p.AssetID, WorkspaceID: p.WorkspaceID})
 	if err != nil {
 		// Asset gone or not in this workspace — never write a bare-ID update.
@@ -234,9 +235,9 @@ func (s *JobServer) videoWatermarkTransformer(
 	}, nil
 }
 
-// assetVersionFromPayload constructs a minimal AssetVersion from a VariantJobPayload,
+// assetVersionFromPayload constructs a minimal AssetVersion from a jobspec.VariantJobPayload,
 // so user-triggered video/audio jobs can reuse finalizeRebuildVariant.
-func assetVersionFromPayload(p VariantJobPayload) dbgen.AssetVersion {
+func assetVersionFromPayload(p jobspec.VariantJobPayload) dbgen.AssetVersion {
 	return dbgen.AssetVersion{
 		ID:          p.VersionID,
 		WorkspaceID: p.WorkspaceID,

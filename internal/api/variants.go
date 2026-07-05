@@ -16,6 +16,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/events"
 	"damask/server/internal/jobs"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/storage"
@@ -521,7 +522,7 @@ func (s *Server) handleCreateVariant(c fiber.Ctx) error {
 		return ErrorStatusResponse(c, err)
 	}
 
-	payload, _ := json.Marshal(jobs.VariantJobPayload{
+	payload, _ := json.Marshal(jobspec.VariantJobPayload{
 		AssetID:     asset.ID,
 		WorkspaceID: asset.WorkspaceID,
 		VersionID:   currentVer.ID,

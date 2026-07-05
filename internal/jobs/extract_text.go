@@ -8,18 +8,11 @@ import (
 	"github.com/google/uuid"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobspec"
 )
 
-// ExtractTextPayload is the payload for the extract_text family of jobs.
-type ExtractTextPayload struct {
-	WorkspaceID string `json:"workspace_id"`
-	AssetID     string `json:"asset_id"`
-	StorageKey  string `json:"storage_key"`
-	MimeType    string `json:"mime_type,omitempty"`
-}
-
 func (s *JobServer) jobExtractPDFTextTrack(ctx context.Context, job dbgen.Job) error {
-	var p ExtractTextPayload
+	var p jobspec.ExtractTextPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("jobExtractPDFTextTrack: unmarshal: %w", err)
 	}
@@ -31,7 +24,7 @@ func (s *JobServer) jobExtractPDFTextTrack(ctx context.Context, job dbgen.Job) e
 }
 
 func (s *JobServer) jobExtractPlainTextTrack(ctx context.Context, job dbgen.Job) error {
-	var p ExtractTextPayload
+	var p jobspec.ExtractTextPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("jobExtractPlainTextTrack: unmarshal: %w", err)
 	}
@@ -43,7 +36,7 @@ func (s *JobServer) jobExtractPlainTextTrack(ctx context.Context, job dbgen.Job)
 }
 
 func (s *JobServer) jobExtractDocumentTextTrack(ctx context.Context, job dbgen.Job) error {
-	var p ExtractTextPayload
+	var p jobspec.ExtractTextPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("jobExtractDocumentTextTrack: unmarshal: %w", err)
 	}

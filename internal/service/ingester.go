@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"damask/server/internal/assetio"
-	"damask/server/internal/jobs"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/media/ingest"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
@@ -268,7 +268,7 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 
 	if s.media.Supports(mimeType) && initialVersionID != "" {
 		enqueue("service.ingester.enqueue_thumbnail", "enqueue version thumbnail",
-			queue.JobTypeVersionThumbnail, jobs.VersionThumbnailJobPayload{
+			queue.JobTypeVersionThumbnail, jobspec.VersionThumbnailJobPayload{
 				AssetID:     asset.ID,
 				VersionID:   initialVersionID,
 				WorkspaceID: asset.WorkspaceID,
@@ -278,7 +278,7 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 	}
 	if transform.IsImageMime(mimeType) {
 		enqueue("service.ingester.enqueue_exif", "enqueue extract_exif",
-			queue.JobTypeExtractExif, jobs.ExtractExifPayload{
+			queue.JobTypeExtractExif, jobspec.ExtractExifPayload{
 				AssetID:     asset.ID,
 				WorkspaceID: workspaceID,
 				UserID:      userID,
@@ -286,14 +286,14 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 	}
 	if strings.HasPrefix(mimeType, "audio/") || strings.HasPrefix(mimeType, "video/") {
 		enqueue("service.ingester.enqueue_media_tags", "enqueue extract_media_tags",
-			queue.JobTypeExtractMediaTags, jobs.ExtractMediaTagsPayload{
+			queue.JobTypeExtractMediaTags, jobspec.ExtractMediaTagsPayload{
 				AssetID:     asset.ID,
 				WorkspaceID: workspaceID,
 			})
 	}
 	if transform.IsPdfMime(mimeType) {
 		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_text",
-			queue.JobTypeExtractPDFTextTrack, jobs.ExtractTextPayload{
+			queue.JobTypeExtractPDFTextTrack, jobspec.ExtractTextPayload{
 				AssetID:     asset.ID,
 				WorkspaceID: workspaceID,
 				StorageKey:  asset.StorageKey,
@@ -301,7 +301,7 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 	}
 	if transform.IsTextMime(mimeType) {
 		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_text",
-			queue.JobTypeExtractPlainTextTrack, jobs.ExtractTextPayload{
+			queue.JobTypeExtractPlainTextTrack, jobspec.ExtractTextPayload{
 				AssetID:     asset.ID,
 				WorkspaceID: workspaceID,
 				StorageKey:  asset.StorageKey,
@@ -309,7 +309,7 @@ func (s *ingesterImpl) enqueueIngestionJobs(
 	}
 	if transform.IsDocumentMime(mimeType) {
 		enqueue("service.ingester.enqueue_extract_text", "enqueue extract_document_text",
-			queue.JobTypeExtractDocumentTextTrack, jobs.ExtractTextPayload{
+			queue.JobTypeExtractDocumentTextTrack, jobspec.ExtractTextPayload{
 				AssetID:     asset.ID,
 				WorkspaceID: workspaceID,
 				StorageKey:  asset.StorageKey,

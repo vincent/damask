@@ -10,30 +10,10 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 	"damask/server/internal/transform"
 )
-
-// VersionThumbnailJobPayload is the payload for version-specific thumbnail generation.
-type VersionThumbnailJobPayload struct {
-	AssetID     string `json:"asset_id"`
-	VersionID   string `json:"version_id"`
-	WorkspaceID string `json:"workspace_id"`
-	StorageKey  string `json:"storage_key"`
-	MimeType    string `json:"mime_type"`
-}
-
-// EnqueueVersionThumbnailJob enqueues a version thumbnail job.
-func EnqueueVersionThumbnailJob(
-	ctx context.Context,
-	q queue.JobQueue,
-	workspaceID string,
-	p VersionThumbnailJobPayload,
-) error {
-	payload, _ := json.Marshal(p)
-	_, err := q.Enqueue(ctx, workspaceID, queue.JobTypeVersionThumbnail, string(payload))
-	return err
-}
 
 // EnqueueRebuildVariantsJob enqueues a rebuild_variants job when a new version is uploaded.
 // sourceVersionID is the version that was current before the upload — its variant params are copied.
@@ -59,7 +39,7 @@ func EnqueueRebuildVariantsJob(
 // It writes the thumbnail to storage and updates asset_versions.thumbnail_key.
 // If this is the current version, it also updates assets.thumbnail_key.
 func (s *JobServer) jobVersionThumbnail(ctx context.Context, job dbgen.Job) error {
-	var p VersionThumbnailJobPayload
+	var p jobspec.VersionThumbnailJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}

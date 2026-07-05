@@ -8,6 +8,7 @@ import (
 
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 )
 
@@ -30,7 +31,7 @@ func (s *JobServer) publishVariantFailed(ctx context.Context, workspaceID, asset
 
 func (s *JobServer) wrapVariantJob(h queue.HandlerFunc) queue.HandlerFunc {
 	return func(ctx context.Context, job dbgen.Job) error {
-		var p VariantJobPayload
+		var p jobspec.VariantJobPayload
 		if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 			return fmt.Errorf("parse variant job payload: %w", err)
 		}

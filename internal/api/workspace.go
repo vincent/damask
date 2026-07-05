@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"damask/server/internal/auth"
-	"damask/server/internal/jobs"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 	"damask/server/internal/service"
 	"damask/server/internal/telemetry"
@@ -298,7 +298,7 @@ func (s *Server) triggerExtractExifBackfill(c fiber.Ctx, workspaceID, userID str
 	}
 
 	for _, assetID := range pendingIDs {
-		payload, _ := json.Marshal(jobs.ExtractExifPayload{
+		payload, _ := json.Marshal(jobspec.ExtractExifPayload{
 			AssetID:     assetID,
 			WorkspaceID: workspaceID,
 			UserID:      userID,

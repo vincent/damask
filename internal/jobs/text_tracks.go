@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"damask/server/internal/jobspec"
 	"damask/server/internal/workflow"
 )
-
-// MetaKeyWordCount is the shared meta/context key for OCR and AI image
-// description word counts.
-const MetaKeyWordCount = "word_count"
 
 type OCRTextTrackPayload struct {
 	WorkspaceID    string `json:"workspace_id"`
@@ -53,9 +50,9 @@ func (s *JobServer) jobOCRTextTrack(ctx context.Context, rawPayload string) erro
 	}
 
 	if resumeErr := s.workflowExec.ResumeAt(ctx, *p.Continuation, map[string]any{
-		"text":           text,
-		"track_id":       p.TrackID,
-		MetaKeyWordCount: wordCount,
+		"text":                   text,
+		"track_id":               p.TrackID,
+		jobspec.MetaKeyWordCount: wordCount,
 	}); resumeErr != nil {
 		slog.ErrorContext(ctx, "workflow continuation failed after ocr ready",
 			"run_id", p.Continuation.RunID,

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
@@ -31,9 +32,9 @@ type variantBuildFn func(
 // variantEntry describes a registered variant type.
 type variantEntry struct {
 	build           variantBuildFn
-	canonicalJSON   func(jobType, sourceMime string, params json.RawMessage) (string, error)                                // nil = use raw params
-	useFullFinalize bool                                                                                                    // true = CreateVariantFull (image user-triggered)
-	postJobHook     func(s *JobServer, ctx context.Context, p VariantJobPayload, variantID, storageKey, contentType string) // optional
+	canonicalJSON   func(jobType, sourceMime string, params json.RawMessage) (string, error)                                        // nil = use raw params
+	useFullFinalize bool                                                                                                            // true = CreateVariantFull (image user-triggered)
+	postJobHook     func(s *JobServer, ctx context.Context, p jobspec.VariantJobPayload, variantID, storageKey, contentType string) // optional
 }
 
 // variantRegistry returns the map of all registered variant types.
@@ -93,7 +94,7 @@ func (s *JobServer) variantRegistry() map[string]variantEntry {
 // It fails the paused workflow run (if any) when runVariantJob errors, so a
 // run waiting on a create_variant continuation doesn't stay "running" forever.
 func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
-	var p VariantJobPayload
+	var p jobspec.VariantJobPayload
 	if err := json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}
@@ -107,7 +108,7 @@ func (s *JobServer) jobVariant(ctx context.Context, job dbgen.Job) error {
 // runVariantJob runs the build/transform/finalize pipeline for a single
 // variant job. p.Continuation is only ever non-nil for useFullFinalize
 // (workflow-triggered image) jobs — rebuild-variant jobs never set it.
-func (s *JobServer) runVariantJob(ctx context.Context, job dbgen.Job, p VariantJobPayload) error {
+func (s *JobServer) runVariantJob(ctx context.Context, job dbgen.Job, p jobspec.VariantJobPayload) error {
 	reg := s.variantRegistry()
 	entry, ok := reg[job.Type]
 	if !ok {
@@ -203,7 +204,7 @@ func (s *JobServer) rebuildVariant(
 }
 
 // resolveVariantID returns p.VariantID if set, otherwise generates a new UUID.
-func resolveVariantID(p VariantJobPayload) string {
+func resolveVariantID(p jobspec.VariantJobPayload) string {
 	if p.VariantID != "" {
 		return p.VariantID
 	}
@@ -215,7 +216,7 @@ func resolveVariantID(p VariantJobPayload) string {
 // enqueues the thumbnail job. Used by user-triggered image variant jobs.
 func (s *JobServer) finalizeVariant(
 	ctx context.Context,
-	p VariantJobPayload,
+	p jobspec.VariantJobPayload,
 	variantID, jobType, paramsJSON, paramsHash string,
 	data []byte,
 	contentType string,

@@ -12,6 +12,7 @@ import (
 	dbpkg "damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/events"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/mail"
 	"damask/server/internal/media/contentmeta"
 	"damask/server/internal/queue"
@@ -147,7 +148,7 @@ func TestExtractMediaTags_WritesValuesAndSeedsFields(t *testing.T) {
 		}, nil
 	}
 
-	payload, _ := json.Marshal(ExtractMediaTagsPayload{AssetID: assetID, WorkspaceID: "ws_test"})
+	payload, _ := json.Marshal(jobspec.ExtractMediaTagsPayload{AssetID: assetID, WorkspaceID: "ws_test"})
 	if _, err := q.Enqueue(
 		context.Background(),
 		"ws_test",
@@ -208,7 +209,7 @@ VALUES ('afv-media-title', 'asset-media-tags-2', 'fd-media-title', 'Existing', d
 		return nil, nil //nolint:nilnil // tests
 	}
 
-	payload, _ := json.Marshal(ExtractMediaTagsPayload{AssetID: "asset-media-tags-2", WorkspaceID: "ws_test"})
+	payload, _ := json.Marshal(jobspec.ExtractMediaTagsPayload{AssetID: "asset-media-tags-2", WorkspaceID: "ws_test"})
 	if _, err := q.Enqueue(
 		context.Background(),
 		"ws_test",

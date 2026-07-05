@@ -16,6 +16,7 @@ import (
 	"damask/server/internal/auth"
 	"damask/server/internal/config"
 	"damask/server/internal/events"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/mail"
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
@@ -115,13 +116,10 @@ type VersionManager interface {
 
 // NodeContinuation carries the data needed to resume a workflow run
 // after an async job completes.
-type NodeContinuation struct {
-	RunID       string `json:"run_id"`
-	NodeID      string `json:"node_id"`
-	WorkflowID  string `json:"workflow_id"`
-	WorkspaceID string `json:"workspace_id"`
-	ContextJSON string `json:"context_json"`
-}
+// NodeContinuation is an alias for [jobspec.NodeContinuation]: it lives in
+// jobspec so job payload structs there can embed it without importing
+// internal/workflow (which itself imports internal/queue).
+type NodeContinuation = jobspec.NodeContinuation
 
 type ShareCreateParams struct {
 	CreatedBy     string

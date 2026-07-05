@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/media/contentmeta"
 	"damask/server/internal/queue"
 	"damask/server/internal/telemetry"
@@ -30,11 +31,6 @@ func ptrStr(s *string) string {
 		return ""
 	}
 	return *s
-}
-
-type ExtractMediaTagsPayload struct {
-	AssetID     string `json:"asset_id"`
-	WorkspaceID string `json:"workspace_id"`
 }
 
 type mediaTagFieldDef struct {
@@ -86,7 +82,7 @@ var mediaTagExtract = contentmeta.ExtractAVTags
 
 // EnqueueExtractMediaTagsJob enqueues an extract_media_tags job for an audio or video asset.
 func EnqueueExtractMediaTagsJob(ctx context.Context, q queue.JobQueue, workspaceID, assetID string) error {
-	payload, _ := json.Marshal(ExtractMediaTagsPayload{
+	payload, _ := json.Marshal(jobspec.ExtractMediaTagsPayload{
 		AssetID:     assetID,
 		WorkspaceID: workspaceID,
 	})
@@ -95,7 +91,7 @@ func EnqueueExtractMediaTagsJob(ctx context.Context, q queue.JobQueue, workspace
 }
 
 func (s *JobServer) jobExtractMediaTags(ctx context.Context, job dbgen.Job) (err error) {
-	var p ExtractMediaTagsPayload
+	var p jobspec.ExtractMediaTagsPayload
 	if err = json.Unmarshal([]byte(job.Payload), &p); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
 	}

@@ -14,6 +14,7 @@ import (
 
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/jobspec"
 	"damask/server/internal/telemetry"
 
 	"github.com/google/uuid"
@@ -491,52 +492,54 @@ func (q *Queue) settleFailure(ctx context.Context, job dbgen.Job, jobErr error) 
 	)
 }
 
-// Job type constants used throughout the application.
+// Job type constants used throughout the application. The canonical values
+// live in internal/jobspec; these names are kept so the many existing call
+// sites across the codebase don't need to change.
 const (
-	JobTypeVersionThumbnail            = "version_thumbnail"
-	JobTypeVariantThumbnail            = "generate_variant_thumbnail"
-	JobTypeOCRTextTrack                = "ocr_text_track"
-	JobTypeAIImageDescriptionTextTrack = "ai_image_description_text_track"
-	JobTypeExtractPDFTextTrack         = "document_pdf_extract_text_track"
-	JobTypeExtractPlainTextTrack       = "document_plain_extract_text_track"
-	JobTypeExtractDocumentTextTrack    = "document_office_extract_text_track"
+	JobTypeVersionThumbnail            = jobspec.JobTypeVersionThumbnail
+	JobTypeVariantThumbnail            = jobspec.JobTypeVariantThumbnail
+	JobTypeOCRTextTrack                = jobspec.JobTypeOCRTextTrack
+	JobTypeAIImageDescriptionTextTrack = jobspec.JobTypeAIImageDescriptionTextTrack
+	JobTypeExtractPDFTextTrack         = jobspec.JobTypeExtractPDFTextTrack
+	JobTypeExtractPlainTextTrack       = jobspec.JobTypeExtractPlainTextTrack
+	JobTypeExtractDocumentTextTrack    = jobspec.JobTypeExtractDocumentTextTrack
 
-	JobTypeVideoCaptureImage = "video_capture_image"
-	JobTypeVideoTranscode    = "video_transcode"
-	JobTypeVideoWatermark    = "video_watermark"
-	JobTypeImageResize       = "image_resize"
-	JobTypeImageConvert      = "image_convert"
-	JobTypeImageCrop         = "image_crop"
-	JobTypeImageWatermark    = "image_watermark"
-	JobTypeImageBgRemove     = "image_bg_remove"
-	JobTypeImageWithPrompt   = "image_with_prompt"
-	JobTypeImageSmartCrop    = "image_smart_crop"
-	JobTypeExtractAudio      = "video_extract"
-	JobTypeTranscodeAudio    = "audio_transcode"
-	JobTypeNormalizeAudio    = "audio_normalize"
-	JobTypeCustomFFmpeg      = "custom_ffmpeg"
+	JobTypeVideoCaptureImage = jobspec.JobTypeVideoCaptureImage
+	JobTypeVideoTranscode    = jobspec.JobTypeVideoTranscode
+	JobTypeVideoWatermark    = jobspec.JobTypeVideoWatermark
+	JobTypeImageResize       = jobspec.JobTypeImageResize
+	JobTypeImageConvert      = jobspec.JobTypeImageConvert
+	JobTypeImageCrop         = jobspec.JobTypeImageCrop
+	JobTypeImageWatermark    = jobspec.JobTypeImageWatermark
+	JobTypeImageBgRemove     = jobspec.JobTypeImageBgRemove
+	JobTypeImageWithPrompt   = jobspec.JobTypeImageWithPrompt
+	JobTypeImageSmartCrop    = jobspec.JobTypeImageSmartCrop
+	JobTypeExtractAudio      = jobspec.JobTypeExtractAudio
+	JobTypeTranscodeAudio    = jobspec.JobTypeTranscodeAudio
+	JobTypeNormalizeAudio    = jobspec.JobTypeNormalizeAudio
+	JobTypeCustomFFmpeg      = jobspec.JobTypeCustomFFmpeg
 
-	JobTypeIngestPoll  = "ingest_poll"
-	JobTypeIngestFetch = "ingest_fetch"
+	JobTypeIngestPoll  = jobspec.JobTypeIngestPoll
+	JobTypeIngestFetch = jobspec.JobTypeIngestFetch
 
-	JobTypeRebuildVariants = "rebuild_variants"
-	JobTypeRunWorkflow     = "run_workflow"
+	JobTypeRebuildVariants = jobspec.JobTypeRebuildVariants
+	JobTypeRunWorkflow     = jobspec.JobTypeRunWorkflow
 
-	JobTypeExtractExif      = "extract_exif"
-	JobTypeExtractMediaTags = "extract_media_tags"
+	JobTypeExtractExif      = jobspec.JobTypeExtractExif
+	JobTypeExtractMediaTags = jobspec.JobTypeExtractMediaTags
 
-	JobTypeStackMerge         = "stack_merge"
-	JobTypeCreateVariantDraft = "create_variant_draft"
+	JobTypeStackMerge         = jobspec.JobTypeStackMerge
+	JobTypeCreateVariantDraft = jobspec.JobTypeCreateVariantDraft
 
-	JobTypeExportRun = "export_run"
+	JobTypeExportRun = jobspec.JobTypeExportRun
 
-	JobTypePurgeDeletedFields      = "purge_deleted_fields"
-	JobTypeEnforceVersionRetention = "enforce_version_retention"
-	JobTypePurgeVersionStorage     = "purge_version_storage"
-	JobTypePurgeAuditLog           = "purge_event_log"
-	JobTypePurgeScratchVariants    = "purge_scratch_variants"
+	JobTypePurgeDeletedFields      = jobspec.JobTypePurgeDeletedFields
+	JobTypeEnforceVersionRetention = jobspec.JobTypeEnforceVersionRetention
+	JobTypePurgeVersionStorage     = jobspec.JobTypePurgeVersionStorage
+	JobTypePurgeAuditLog           = jobspec.JobTypePurgeAuditLog
+	JobTypePurgeScratchVariants    = jobspec.JobTypePurgeScratchVariants
 
-	JobTypeVisualSimilarityBackfill = "visual_similarity_backfill"
+	JobTypeVisualSimilarityBackfill = jobspec.JobTypeVisualSimilarityBackfill
 
-	JobTypeAutoTag = "auto_tag"
+	JobTypeAutoTag = jobspec.JobTypeAutoTag
 )
