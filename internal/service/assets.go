@@ -115,10 +115,7 @@ func (s *assetService) List(ctx context.Context, params ListAssetsParams) (out [
 	if err != nil {
 		return nil, err
 	}
-	out = make([]*AssetDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toAssetDTO(r)
-	}
+	out = mapDTOs(rows, toAssetDTO)
 	return out, nil
 }
 
@@ -237,10 +234,7 @@ func (s *assetService) ListByFields(ctx context.Context, params ListAssetsByFiel
 	if err != nil {
 		return nil, err
 	}
-	out = make([]*AssetDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toAssetDTO(r)
-	}
+	out = mapDTOs(rows, toAssetDTO)
 	return out, nil
 }
 

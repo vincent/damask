@@ -115,10 +115,7 @@ func (s *fieldService) List(ctx context.Context, workspaceID, scope string) ([]*
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*FieldDefinitionDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toFieldDTO(r)
-	}
+	out := mapDTOs(rows, toFieldDTO)
 	return out, nil
 }
 
@@ -915,11 +912,7 @@ func resolveFieldValue(fieldID, fieldType string, options *string, value any) (r
 }
 
 func toFieldValueDTOs(rows []repository.FieldValue) []*FieldValueDTO {
-	out := make([]*FieldValueDTO, len(rows))
-	for i, row := range rows {
-		out[i] = toFieldValueDTO(row)
-	}
-	return out
+	return mapDTOs(rows, toFieldValueDTO)
 }
 
 func toFieldValueDTO(row repository.FieldValue) *FieldValueDTO {

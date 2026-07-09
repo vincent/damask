@@ -423,10 +423,7 @@ func (s *ingressService) ListRules(ctx context.Context, workspaceID, sourceID st
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*IngressRuleDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toRuleDTO(r)
-	}
+	out := mapDTOs(rows, toRuleDTO)
 	return out, nil
 }
 
@@ -568,10 +565,7 @@ func (s *ingressService) ReorderRules(
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*IngressRuleDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toRuleDTO(r)
-	}
+	out := mapDTOs(rows, toRuleDTO)
 	return out, nil
 }
 
@@ -587,10 +581,7 @@ func (s *ingressService) ListLog(
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*IngressLogEntryDTO, len(entries))
-	for i, e := range entries {
-		out[i] = toLogEntryDTO(e)
-	}
+	out := mapDTOs(entries, toLogEntryDTO)
 	return out, nil
 }
 
@@ -609,10 +600,7 @@ func (s *ingressService) ListSourceLog(
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*IngressLogEntryDTO, len(entries))
-	for i, e := range entries {
-		out[i] = toLogEntryDTO(e)
-	}
+	out := mapDTOs(entries, toLogEntryDTO)
 	return out, nil
 }
 

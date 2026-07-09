@@ -84,10 +84,7 @@ func (s *textTrackService) List(ctx context.Context, workspaceID, assetID string
 	if err != nil {
 		return nil, err
 	}
-	out = make([]TextTrackDTO, len(rows))
-	for i, row := range rows {
-		out[i] = toTextTrackDTO(row)
-	}
+	out = mapDTOs(rows, toTextTrackDTO)
 	return out, nil
 }
 

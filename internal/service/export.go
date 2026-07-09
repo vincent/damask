@@ -146,10 +146,7 @@ func (s *exportService) List(ctx context.Context, workspaceID string) ([]*Export
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ExportConfigDTO, len(cfgs))
-	for i, c := range cfgs {
-		out[i] = exportConfigToDTO(c)
-	}
+	out := mapDTOs(cfgs, exportConfigToDTO)
 	return out, nil
 }
 
@@ -158,10 +155,7 @@ func (s *exportService) ListByProject(ctx context.Context, workspaceID, projectI
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ExportConfigDTO, len(cfgs))
-	for i, c := range cfgs {
-		out[i] = exportConfigToDTO(c)
-	}
+	out := mapDTOs(cfgs, exportConfigToDTO)
 	return out, nil
 }
 
@@ -290,10 +284,7 @@ func (s *exportService) ListRuns(
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ExportRunDTO, len(runs))
-	for i, r := range runs {
-		out[i] = exportRunToDTO(r)
-	}
+	out := mapDTOs(runs, exportRunToDTO)
 	return out, nil
 }
 

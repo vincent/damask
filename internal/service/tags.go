@@ -105,10 +105,7 @@ func (s *tagService) List(ctx context.Context, workspaceID string, includeSystem
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*TagDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toTagDTO(r)
-	}
+	out := mapDTOs(rows, toTagDTO)
 	return out, nil
 }
 
@@ -383,10 +380,7 @@ func (s *tagService) ListForAsset(ctx context.Context, assetID string) ([]*TagDT
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*TagDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toTagDTO(r)
-	}
+	out := mapDTOs(rows, toTagDTO)
 	return out, nil
 }
 

@@ -18,6 +18,15 @@ const (
 	scheduleTypeAfterQuiet = "after_quiet"
 )
 
+// mapDTOs converts a slice of T to a slice of D using conv.
+func mapDTOs[T, D any](rows []T, conv func(T) D) []D {
+	out := make([]D, len(rows))
+	for i, r := range rows {
+		out[i] = conv(r)
+	}
+	return out
+}
+
 // ListAssetsParams holds filters for listing assets via AssetService.List.
 type ListAssetsParams struct {
 	WorkspaceID string

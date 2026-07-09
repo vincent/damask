@@ -104,10 +104,7 @@ func (s *versionService) List(ctx context.Context, assetID string) ([]*VersionDT
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*VersionDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toVersionDTO(r)
-	}
+	out := mapDTOs(rows, toVersionDTO)
 	return out, nil
 }
 

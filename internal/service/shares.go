@@ -99,10 +99,7 @@ func (s *shareService) List(ctx context.Context, workspaceID string) ([]*ShareDT
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ShareDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toShareDTO(r)
-	}
+	out := mapDTOs(rows, toShareDTO)
 	return out, nil
 }
 

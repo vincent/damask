@@ -137,10 +137,7 @@ func (s *sharePublicService) ListAssets(ctx context.Context, targetType, targetI
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*PublicAssetDTO, len(assets))
-	for i, a := range assets {
-		out[i] = toPublicAssetDTO(a)
-	}
+	out := mapDTOs(assets, toPublicAssetDTO)
 	return out, nil
 }
 
@@ -224,10 +221,7 @@ func (s *sharePublicService) ListCommentsByShare(ctx context.Context, shareID st
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ShareCommentDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toCommentDTO(r)
-	}
+	out := mapDTOs(rows, toCommentDTO)
 	return out, nil
 }
 
@@ -239,10 +233,7 @@ func (s *sharePublicService) ListCommentsByShareAndAsset(
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ShareCommentDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toCommentDTO(r)
-	}
+	out := mapDTOs(rows, toCommentDTO)
 	return out, nil
 }
 

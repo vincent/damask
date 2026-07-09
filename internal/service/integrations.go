@@ -45,10 +45,7 @@ func (s *integrationService) ListConnections(ctx context.Context, workspaceID st
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ConnectionDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toConnectionDTO(r)
-	}
+	out := mapDTOs(rows, toConnectionDTO)
 	return out, nil
 }
 

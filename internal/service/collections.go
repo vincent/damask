@@ -74,10 +74,7 @@ func (s *collectionService) List(ctx context.Context, workspaceID string) ([]*Co
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*CollectionDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toCollectionDTO(r)
-	}
+	out := mapDTOs(rows, toCollectionDTO)
 	return out, nil
 }
 
@@ -176,10 +173,7 @@ func (s *collectionService) ListForAsset(ctx context.Context, workspaceID, asset
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*CollectionDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toCollectionDTO(r)
-	}
+	out := mapDTOs(rows, toCollectionDTO)
 	return out, nil
 }
 

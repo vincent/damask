@@ -149,10 +149,7 @@ func (s *folderService) List(ctx context.Context, workspaceID, projectID string)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*FolderDTO, len(rows))
-	for i, r := range rows {
-		out[i] = toFolderDTO(r)
-	}
+	out := mapDTOs(rows, toFolderDTO)
 	return out, nil
 }
 
