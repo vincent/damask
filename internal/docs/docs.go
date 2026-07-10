@@ -8094,6 +8094,10 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/api.AIProviderModelResponse"
                     }
+                },
+                "models_error": {
+                    "description": "ModelsError is set when the provider is configured but fetching its\nmodel list failed, so Models is empty despite Configured being true.",
+                    "type": "string"
                 }
             }
         },

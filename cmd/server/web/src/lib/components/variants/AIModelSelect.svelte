@@ -100,6 +100,10 @@
           >settings</a
         >.
       </p>
+    {:else if selectedProvider?.models_error}
+      <p class="status-line warning">
+        {m.ai_models_fetch_failed({ reason: selectedProvider.models_error })}
+      </p>
     {:else if models.length === 0}
       <p class="status-line warning">No models available for this provider.</p>
     {:else}

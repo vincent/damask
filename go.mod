@@ -19,6 +19,7 @@ require (
 	github.com/emersion/go-imap/v2 v2.0.0-beta.8
 	github.com/emersion/go-smtp v0.24.0
 	github.com/fclairamb/afero-s3 v0.4.0
+	github.com/go-pkgz/expirable-cache/v3 v3.1.0
 	github.com/gofiber/contrib/v3/otel v1.1.0
 	github.com/gofiber/contrib/v3/swaggo v1.0.1
 	github.com/gofiber/fiber/v3 v3.1.0
@@ -28,11 +29,14 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/pdfcpu/pdfcpu v0.11.1
 	github.com/pkg/sftp v1.13.10
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/spf13/afero v1.15.0
 	github.com/studio-b12/gowebdav v0.12.0
 	github.com/swaggo/swag v1.16.6
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.2
+	github.com/vitali-fedulov/imagehash2 v1.0.3
+	github.com/vitali-fedulov/images4 v1.3.1
 	github.com/wneessen/go-mail v0.7.2
 	go.opentelemetry.io/contrib/bridges/otelslog v0.18.0
 	go.opentelemetry.io/otel v1.43.0
@@ -86,7 +90,6 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-pkgz/expirable-cache/v3 v3.1.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
 	github.com/googleapis/gax-go/v2 v2.21.0 // indirect
@@ -103,10 +106,7 @@ require (
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/vitali-fedulov/hyper v1.0.5 // indirect
-	github.com/vitali-fedulov/imagehash2 v1.0.3 // indirect
-	github.com/vitali-fedulov/images4 v1.3.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib v1.40.0 // indirect
@@ -153,7 +153,7 @@ require (
 	golang.org/x/image v0.38.0
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.42.0
 	golang.org/x/text v0.35.0
 	golang.org/x/tools v0.43.0 // indirect

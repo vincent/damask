@@ -29,7 +29,7 @@ type modelResponseV2 struct {
 	} `json:"price"`
 }
 
-const fetchModelsTimeout = 5 * time.Second
+const fetchModelsTimeout = 15 * time.Second
 
 func fetchImageRouterModels(ctx context.Context, apiKey, baseURL string) ([]imageRouterModel, error) {
 	httpClient := &http.Client{Timeout: fetchModelsTimeout}

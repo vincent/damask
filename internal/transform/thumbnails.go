@@ -39,14 +39,19 @@ func (t *thumbnailer) GenerateThumbnailData(
 	storage storage.Storage,
 	mimeType, storageKey string,
 ) (data []byte, ext string, err error) {
+	if !isSupportedThumbnailMime(mimeType) {
+		slog.DebugContext(ctx, "thumbnail: unsupported MIME type, skipping", "mime_type", mimeType)
+		return nil, "", nil
+	}
+
+	rc, err := storage.Get(ctx, storageKey)
+	if err != nil {
+		return nil, "", err
+	}
+	defer rc.Close()
+
 	switch {
 	case mimeType == "image/gif":
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
 		if !t.transformer.FFmpegAvailable() {
 			slog.DebugContext(
 				ctx,
@@ -59,21 +64,9 @@ func (t *thumbnailer) GenerateThumbnailData(
 		return t.ThumbnailFromVideo(ctx, rc, mimeType)
 
 	case IsImageMime(mimeType):
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
 		return t.ThumbnailFromImage(rc)
 
 	case IsVideoMime(mimeType):
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
 		if !t.transformer.FFmpegAvailable() {
 			slog.DebugContext(ctx, "thumbnail: ffmpeg not available, skipping video", "storage_key", storageKey)
 			return nil, "", nil
@@ -81,30 +74,12 @@ func (t *thumbnailer) GenerateThumbnailData(
 		return t.ThumbnailFromVideo(ctx, rc, mimeType)
 
 	case IsPdfMime(mimeType):
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
 		return t.ThumbnailFromPDF(ctx, rc, mimeType)
 
 	case IsAudioMime(mimeType):
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
 		return t.ThumbnailFromAudio(ctx, rc, mimeType)
 
 	case IsDocumentMime(mimeType):
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
 		if !t.transformer.LibreOfficeAvailable() {
 			slog.DebugContext(ctx, "thumbnail: soffice not available, skipping document", "storage_key", storageKey)
 			return nil, "", nil
@@ -124,27 +99,22 @@ func (t *thumbnailer) GenerateThumbnailData(
 		return docData, docExt, nil
 
 	case IsTextMime(mimeType):
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
 		return t.ThumbnailFromText(ctx, rc, mimeType)
 
-	case IsFontMime(mimeType):
-		var rc io.ReadCloser
-		rc, err = storage.Get(ctx, storageKey)
-		if err != nil {
-			return nil, "", err
-		}
-		defer rc.Close()
+	default: // IsFontMime(mimeType), guaranteed by isSupportedThumbnailMime above
 		return t.ThumbnailFromFontFile(ctx, rc, mimeType, storageKey)
-
-	default:
-		slog.DebugContext(ctx, "thumbnail: unsupported MIME type, skipping", "mime_type", mimeType)
-		return nil, "", nil
 	}
+}
+
+func isSupportedThumbnailMime(mimeType string) bool {
+	return mimeType == "image/gif" ||
+		IsImageMime(mimeType) ||
+		IsVideoMime(mimeType) ||
+		IsPdfMime(mimeType) ||
+		IsAudioMime(mimeType) ||
+		IsDocumentMime(mimeType) ||
+		IsTextMime(mimeType) ||
+		IsFontMime(mimeType)
 }
 
 func (t *thumbnailer) ThumbnailFromImage(rc io.ReadCloser) ([]byte, string, error) {

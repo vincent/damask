@@ -168,35 +168,43 @@ func applyStreamMeta(r *AVTags, s ffprobeStream) {
 		(s.CodecType == "video" && (s.CodecName == "mjpeg" || s.CodecName == "png"))
 	switch {
 	case s.CodecType == "audio" && r.AudioCodec == nil:
-		r.AudioCodec = ptr(s.CodecName)
-		if br, err := strconv.Atoi(s.BitRate); err == nil {
-			r.AudioBitrate = ptr(br)
-		}
-		if sr, err := strconv.Atoi(s.SampleRate); err == nil && sr > 0 {
-			r.SampleRate = ptr(sr)
-		}
-		if s.Channels > 0 {
-			r.Channels = ptr(s.Channels)
-		}
-		if s.ChannelLayout != "" {
-			r.ChannelLayout = ptr(s.ChannelLayout)
-		}
-		if s.BitsPerSample > 0 {
-			r.BitsPerSample = ptr(int(s.BitsPerSample))
-		}
+		applyAudioStreamMeta(r, s)
 	case s.CodecType == "video" && !isCoverArt && r.VideoCodec == nil:
-		r.VideoCodec = ptr(s.CodecName)
-		if s.Width > 0 {
-			r.VideoWidth = ptr(s.Width)
-		}
-		if s.Height > 0 {
-			r.VideoHeight = ptr(s.Height)
-		}
-		if s.RFrameRate != "" && s.RFrameRate != "0/0" {
-			r.FrameRate = ptr(s.RFrameRate)
-		}
+		applyVideoStreamMeta(r, s)
 	case isCoverArt:
 		r.HasCoverArt = true
+	}
+}
+
+func applyAudioStreamMeta(r *AVTags, s ffprobeStream) {
+	r.AudioCodec = ptr(s.CodecName)
+	if br, err := strconv.Atoi(s.BitRate); err == nil {
+		r.AudioBitrate = ptr(br)
+	}
+	if sr, err := strconv.Atoi(s.SampleRate); err == nil && sr > 0 {
+		r.SampleRate = ptr(sr)
+	}
+	if s.Channels > 0 {
+		r.Channels = ptr(s.Channels)
+	}
+	if s.ChannelLayout != "" {
+		r.ChannelLayout = ptr(s.ChannelLayout)
+	}
+	if s.BitsPerSample > 0 {
+		r.BitsPerSample = ptr(int(s.BitsPerSample))
+	}
+}
+
+func applyVideoStreamMeta(r *AVTags, s ffprobeStream) {
+	r.VideoCodec = ptr(s.CodecName)
+	if s.Width > 0 {
+		r.VideoWidth = ptr(s.Width)
+	}
+	if s.Height > 0 {
+		r.VideoHeight = ptr(s.Height)
+	}
+	if s.RFrameRate != "" && s.RFrameRate != "0/0" {
+		r.FrameRate = ptr(s.RFrameRate)
 	}
 }
 

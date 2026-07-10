@@ -227,19 +227,9 @@ func (s *versionService) UploadNewVersion(
 		}
 	}()
 
-	if valErr := s.validateUploadNewVersionDeps(); valErr != nil {
-		return nil, valErr
-	}
-	if p.WorkspaceID == "" || p.AssetID == "" || p.Filename == "" || p.UserID == "" || p.Reader == nil {
-		return nil, fmt.Errorf(
-			"workspace_id, asset_id, filename, user_id, and reader are required: %w",
-			apperr.ErrInvalidInput,
-		)
-	}
-
-	comment := strings.TrimSpace(p.Comment)
-	if len(comment) > maxCommentLength {
-		return nil, fmt.Errorf("comment must be 500 characters or fewer: %w", apperr.ErrInvalidInput)
+	comment, err := s.validateUploadNewVersionParams(p)
+	if err != nil {
+		return nil, err
 	}
 
 	asset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
@@ -266,15 +256,50 @@ func (s *versionService) UploadNewVersion(
 	mimeType := resolveVersionMimeType(tmpPath, p.ContentType, p.Filename)
 	meta := s.extractVersionMeta(ctx, tmpPath, mimeType, p.AssetID)
 
+	created, err := s.createAndPromoteVersion(ctx, p, nextNum, storageKey, hash, mimeType, size, comment, meta)
+	if err != nil {
+		return nil, err
+	}
+
+	newVersion := toVersionDTO(created)
+	newVersion.IsCurrent = true
+
+	s.handleNewVersionSideEffects(ctx, p.WorkspaceID, p.AssetID, newVersion.ID)
+
+	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("could not reload asset: %w", err)
+	}
+
+	s.publishVersionEvent(ctx, asset, updatedAsset, newVersion, comment, mimeType)
+
+	return &UploadAssetVersionResult{
+		Asset:   toAssetDTO(updatedAsset),
+		Version: newVersion,
+	}, nil
+}
+
+// createAndPromoteVersion creates the new version row and promotes it to
+// current within a single transaction, avoiding an orphaned version row (and
+// asset.current_version_id left unset) if SetCurrent fails.
+func (s *versionService) createAndPromoteVersion(
+	ctx context.Context,
+	p UploadAssetVersionParams,
+	nextNum int64,
+	storageKey, hash, mimeType string,
+	size int64,
+	comment string,
+	meta ingest.FileMeta,
+) (repository.AssetVersion, error) {
 	var commentPtr *string
 	if comment != "" {
 		commentPtr = &comment
 	}
 	createdBy := p.UserID
-
 	newVersionID := uuid.NewString()
+
 	var created repository.AssetVersion
-	if txErr := s.versions.RunInTx(ctx, func(tx repository.VersionRepository) error {
+	txErr := s.versions.RunInTx(ctx, func(tx repository.VersionRepository) error {
 		var createErr error
 		created, createErr = tx.Create(ctx, repository.AssetVersion{
 			ID:          newVersionID,
@@ -294,49 +319,38 @@ func (s *versionService) UploadNewVersion(
 		if createErr != nil {
 			return fmt.Errorf("could not create version: %w", createErr)
 		}
-		// Promoting within the same tx as Create avoids an orphaned version row
-		// (and asset.current_version_id left unset) if SetCurrent fails.
 		if setCurrErr := tx.SetCurrent(ctx, p.AssetID, newVersionID); setCurrErr != nil {
 			return fmt.Errorf("could not promote version: %w", setCurrErr)
 		}
 		return nil
-	}); txErr != nil {
-		return nil, txErr
-	}
+	})
+	return created, txErr
+}
 
-	newVersion := toVersionDTO(created)
-	newVersion.IsCurrent = true
-
-	if thumbErr := s.SetAssetThumbnail(ctx, p.AssetID, nil); thumbErr != nil {
+// handleNewVersionSideEffects clears the stale thumbnail and refreshes
+// auto-tag suggestions after a new version is promoted to current. Both are
+// best-effort: failures are logged, not returned, since the version itself
+// was already committed successfully.
+func (s *versionService) handleNewVersionSideEffects(ctx context.Context, workspaceID, assetID, versionID string) {
+	if thumbErr := s.SetAssetThumbnail(ctx, assetID, nil); thumbErr != nil {
 		slog.ErrorContext(ctx, "clear asset thumbnail",
-			"asset_id", p.AssetID, "version_id", newVersion.ID, "error", thumbErr)
+			"asset_id", assetID, "version_id", versionID, "error", thumbErr)
 	}
 
-	if s.autoTag != nil {
-		// Suggestions from the previous version are stale; clear them and
-		// let a fresh auto_tag run (if enabled) populate suggestions for
-		// the new version.
-		if dismissErr := s.autoTag.DismissAll(ctx, p.WorkspaceID, p.AssetID); dismissErr != nil {
-			slog.WarnContext(ctx, "dismiss stale auto-tag suggestions",
-				"asset_id", p.AssetID, "version_id", newVersion.ID, "error", dismissErr)
-		}
-		if enqErr := s.autoTag.Enqueue(ctx, p.WorkspaceID, p.AssetID, false); enqErr != nil {
-			slog.WarnContext(ctx, "enqueue auto_tag for new version",
-				"asset_id", p.AssetID, "version_id", newVersion.ID, "error", enqErr)
-		}
+	if s.autoTag == nil {
+		return
 	}
-
-	updatedAsset, err := s.assets.GetByID(ctx, p.WorkspaceID, p.AssetID)
-	if err != nil {
-		return nil, fmt.Errorf("could not reload asset: %w", err)
+	// Suggestions from the previous version are stale; clear them and
+	// let a fresh auto_tag run (if enabled) populate suggestions for
+	// the new version.
+	if dismissErr := s.autoTag.DismissAll(ctx, workspaceID, assetID); dismissErr != nil {
+		slog.WarnContext(ctx, "dismiss stale auto-tag suggestions",
+			"asset_id", assetID, "version_id", versionID, "error", dismissErr)
 	}
-
-	s.publishVersionEvent(ctx, asset, updatedAsset, newVersion, comment, mimeType)
-
-	return &UploadAssetVersionResult{
-		Asset:   toAssetDTO(updatedAsset),
-		Version: newVersion,
-	}, nil
+	if enqErr := s.autoTag.Enqueue(ctx, workspaceID, assetID, false); enqErr != nil {
+		slog.WarnContext(ctx, "enqueue auto_tag for new version",
+			"asset_id", assetID, "version_id", versionID, "error", enqErr)
+	}
 }
 
 func writeTempFile(r io.Reader, ext string) (path string, cleanup func(), err error) {
@@ -419,6 +433,26 @@ func (s *versionService) publishVersionEvent(
 	if s.invalidate != nil {
 		s.invalidate.Invalidate(updatedAsset.WorkspaceID)
 	}
+}
+
+// validateUploadNewVersionParams checks required deps and fields for
+// UploadNewVersion, and returns the trimmed comment to persist.
+func (s *versionService) validateUploadNewVersionParams(p UploadAssetVersionParams) (string, error) {
+	if valErr := s.validateUploadNewVersionDeps(); valErr != nil {
+		return "", valErr
+	}
+	if p.WorkspaceID == "" || p.AssetID == "" || p.Filename == "" || p.UserID == "" || p.Reader == nil {
+		return "", fmt.Errorf(
+			"workspace_id, asset_id, filename, user_id, and reader are required: %w",
+			apperr.ErrInvalidInput,
+		)
+	}
+
+	comment := strings.TrimSpace(p.Comment)
+	if len(comment) > maxCommentLength {
+		return "", fmt.Errorf("comment must be 500 characters or fewer: %w", apperr.ErrInvalidInput)
+	}
+	return comment, nil
 }
 
 func (s *versionService) validateUploadNewVersionDeps() error {

@@ -29,6 +29,9 @@ type AIProviderStatusResponse struct {
 	KeySource    string                    `json:"key_source"`
 	Capabilities []string                  `json:"capabilities"`
 	Models       []AIProviderModelResponse `json:"models"`
+	// ModelsError is set when the provider is configured but fetching its
+	// model list failed, so Models is empty despite Configured being true.
+	ModelsError string `json:"models_error,omitempty"`
 }
 
 type AIProviderKeyStatusResponse struct {
@@ -87,6 +90,7 @@ func (s *Server) handleListAIProviders(c fiber.Ctx) error {
 			KeySource:    p.KeySource,
 			Capabilities: p.Capabilities,
 			Models:       models,
+			ModelsError:  p.ModelsError,
 		}
 	}
 	return c.JSON(resp)

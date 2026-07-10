@@ -265,6 +265,10 @@ type AIProviderStatusDTO struct {
 	KeySource    string
 	Capabilities []string
 	Models       []AIProviderModelDTO
+	// ModelsError is set when the provider is configured but fetching its
+	// model list failed (e.g. network timeout), so Models is empty even
+	// though the provider itself is usable.
+	ModelsError string
 }
 
 // WorkspaceService handles business logic for workspace settings, members, and invites.

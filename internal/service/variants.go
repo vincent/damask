@@ -206,40 +206,8 @@ func (s *variantService) PrepareCreate(
 		return PreparedCreateVariant{Type: typ, Params: prm, Title: p.Title, IsShared: p.IsShared}
 	}
 
-	if p.Type == queue.JobTypeImageWatermark {
-		normalized, err := s.prepareImageWatermarkParams(ctx, p, params)
-		if err != nil {
-			return PreparedCreateVariant{}, err
-		}
-		return meta(p.Type, normalized), nil
-	}
-
-	if p.Type == queue.JobTypeVideoWatermark {
-		normalized, err := s.prepareVideoWatermarkParams(ctx, p, params)
-		if err != nil {
-			return PreparedCreateVariant{}, err
-		}
-		return meta(p.Type, normalized), nil
-	}
-
-	if p.Type == queue.JobTypeImageBgRemove {
-		normalized, err := prepareImageRouterBgRemoveParams(params, p.DefaultBgRemoveModel)
-		if err != nil {
-			return PreparedCreateVariant{}, err
-		}
-		return meta(p.Type, normalized), nil
-	}
-
-	if p.Type == queue.JobTypeImageWithPrompt {
-		normalized, err := prepareImageRouterPromptParams(params, p.DefaultImageModel)
-		if err != nil {
-			return PreparedCreateVariant{}, err
-		}
-		return meta(p.Type, normalized), nil
-	}
-
-	if p.Type == queue.JobTypeCustomFFmpeg {
-		normalized, err := prepareCustomFFmpegParams(params)
+	if handler, ok := variantParamPreparers[p.Type]; ok {
+		normalized, err := handler(s, ctx, p, params)
 		if err != nil {
 			return PreparedCreateVariant{}, err
 		}
@@ -252,6 +220,32 @@ func (s *variantService) PrepareCreate(
 	}
 
 	return meta(p.Type, normalized), nil
+}
+
+// variantParamPreparer normalizes and validates the raw request params for
+// one variant type, filling in workspace-level defaults (e.g. default model).
+type variantParamPreparer func(
+	s *variantService,
+	ctx context.Context,
+	p PrepareCreateVariantParams,
+	raw json.RawMessage,
+) (json.RawMessage, error)
+
+// variantParamPreparers maps variant types with dedicated param handling to
+// their preparer. Types not present here (e.g. audio transforms) fall back
+// to prepareAudioVariantParams in PrepareCreate.
+var variantParamPreparers = map[string]variantParamPreparer{
+	queue.JobTypeImageWatermark: (*variantService).prepareImageWatermarkParams,
+	queue.JobTypeVideoWatermark: (*variantService).prepareVideoWatermarkParams,
+	queue.JobTypeImageBgRemove: func(_ *variantService, _ context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+		return prepareImageRouterBgRemoveParams(raw, p.DefaultBgRemoveModel)
+	},
+	queue.JobTypeImageWithPrompt: func(_ *variantService, _ context.Context, p PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+		return prepareImageRouterPromptParams(raw, p.DefaultImageModel)
+	},
+	queue.JobTypeCustomFFmpeg: func(_ *variantService, _ context.Context, _ PrepareCreateVariantParams, raw json.RawMessage) (json.RawMessage, error) {
+		return prepareCustomFFmpegParams(raw)
+	},
 }
 
 // prepareCustomFFmpegParams validates the user-supplied command and returns
@@ -591,6 +585,7 @@ func requiresAudioAsset(variantType string) bool {
 		variantType == queue.JobTypeNormalizeAudio
 }
 
+//nolint:cyclop // per-audio-variant-type defaults and validation, not decomposable without losing clarity
 func prepareAudioVariantParams(variantType, mimeType string, raw json.RawMessage) (json.RawMessage, error) {
 	var p transform.AudioParams
 	switch variantType {

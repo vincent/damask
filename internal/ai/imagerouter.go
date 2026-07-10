@@ -155,6 +155,49 @@ func (c *imageRouterClient) editImage(ctx context.Context, imageData []byte, mod
 	return result, nil
 }
 
+// buildEditImageRequest assembles the multipart POST request for the
+// ImageRouter image-edit endpoint.
+func (c *imageRouterClient) buildEditImageRequest(
+	ctx context.Context,
+	imageData []byte,
+	model, prompt string,
+) (*http.Request, error) {
+	filename, contentType, err := detectIRImageUpload(imageData)
+	if err != nil {
+		return nil, err
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if err = writer.WriteField("model", model); err != nil {
+		return nil, fmt.Errorf("imagerouter: write model field: %w", err)
+	}
+	if err = writer.WriteField("prompt", prompt); err != nil {
+		return nil, fmt.Errorf("imagerouter: write prompt field: %w", err)
+	}
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image[]"; filename="%s"`, filename))
+	header.Set("Content-Type", contentType)
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return nil, fmt.Errorf("imagerouter: create image part: %w", err)
+	}
+	if _, err = part.Write(imageData); err != nil {
+		return nil, fmt.Errorf("imagerouter: write image part: %w", err)
+	}
+	if err = writer.Close(); err != nil {
+		return nil, fmt.Errorf("imagerouter: close multipart: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/openai/images/edits", body)
+	if err != nil {
+		return nil, fmt.Errorf("imagerouter: build request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req, nil
+}
+
 func (c *imageRouterClient) performEditImage(
 	ctx context.Context,
 	imageData []byte,
@@ -162,40 +205,11 @@ func (c *imageRouterClient) performEditImage(
 ) ([]byte, int, string, error) {
 	ctx, span := startGenAISpan(ctx, "edit-image", model, prompt)
 
-	filename, contentType, err := detectIRImageUpload(imageData)
+	req, err := c.buildEditImageRequest(ctx, imageData, model, prompt)
 	if err != nil {
 		endGenAISpan(span, model, 0, err)
 		return nil, 0, "", err
 	}
-
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	if err = writer.WriteField("model", model); err != nil {
-		return nil, 0, "", fmt.Errorf("imagerouter: write model field: %w", err)
-	}
-	if err = writer.WriteField("prompt", prompt); err != nil {
-		return nil, 0, "", fmt.Errorf("imagerouter: write prompt field: %w", err)
-	}
-	header := make(textproto.MIMEHeader)
-	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image[]"; filename="%s"`, filename))
-	header.Set("Content-Type", contentType)
-	part, err := writer.CreatePart(header)
-	if err != nil {
-		return nil, 0, "", fmt.Errorf("imagerouter: create image part: %w", err)
-	}
-	if _, err = part.Write(imageData); err != nil {
-		return nil, 0, "", fmt.Errorf("imagerouter: write image part: %w", err)
-	}
-	if err = writer.Close(); err != nil {
-		return nil, 0, "", fmt.Errorf("imagerouter: close multipart: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/openai/images/edits", body)
-	if err != nil {
-		return nil, 0, "", fmt.Errorf("imagerouter: build request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

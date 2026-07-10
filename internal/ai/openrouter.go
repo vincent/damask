@@ -110,7 +110,7 @@ func (p *openRouterProvider) ListModels(ctx context.Context) ([]Model, error) {
 	if cached, ok := modelCache.Get(cacheKey); ok {
 		return cached, nil
 	}
-	listCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	listCtx, cancel := context.WithTimeout(ctx, fetchModelsTimeout)
 	defer cancel()
 	models, err := fetchOpenRouterModels(listCtx, p.apiKey, p.baseURL, p.httpClient)
 	if err != nil {

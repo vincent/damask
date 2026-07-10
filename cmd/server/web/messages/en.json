@@ -1213,6 +1213,7 @@
   "ai_model": "Model",
   "multi": "multi",
   "ai_cannot_reload": "Could not refresh the model list. Using defaults.",
+  "ai_models_fetch_failed": "Could not load models for this provider: {reason}",
   "download_original": "Download original",
   "with_shared_assets": "with shared assets",
   "with_shared_variants": "with shared variants",

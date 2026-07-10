@@ -366,19 +366,7 @@ func (t *transformer) VideoWatermark(
 		args = append(args, "-map", "0:a?")
 	}
 
-	switch p.Format {
-	case FormatWebM:
-		args = append(args, "-c:v", "libvpx-vp9")
-		if !p.StripAudio {
-			args = append(args, ffmpegArgAudioCodec, "libopus")
-		}
-	default:
-		args = append(args, "-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast")
-		if !p.StripAudio {
-			args = append(args, ffmpegArgAudioCodec, "aac")
-		}
-	}
-
+	args = append(args, videoWatermarkCodecArgs(p.Format, p.StripAudio)...)
 	args = append(args, "-shortest", dstPath)
 
 	var stderr bytes.Buffer
@@ -392,6 +380,23 @@ func (t *transformer) VideoWatermark(
 		return fmt.Errorf("ffmpeg watermark: %w — stderr: %s", err, stderr.String())
 	}
 	return nil
+}
+
+// videoWatermarkCodecArgs returns the ffmpeg video/audio codec args for a
+// watermark output, selecting VP9/Opus for WebM and H.264/AAC otherwise.
+func videoWatermarkCodecArgs(format string, stripAudio bool) []string {
+	if format == FormatWebM {
+		args := []string{"-c:v", "libvpx-vp9"}
+		if !stripAudio {
+			args = append(args, ffmpegArgAudioCodec, "libopus")
+		}
+		return args
+	}
+	args := []string{"-c:v", "libx264", "-movflags", "+faststart", "-preset", "fast"}
+	if !stripAudio {
+		args = append(args, ffmpegArgAudioCodec, "aac")
+	}
+	return args
 }
 
 func ffmpegOutputFilters(format, resolution string) string {

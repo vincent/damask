@@ -133,6 +133,17 @@ func (t *transformer) PDFSlideshowThumbnail(
 		return data, MimeImageJPEG, nil
 	}
 
+	return t.buildPDFSlideshowVideo(ctx, dir, entries, n)
+}
+
+// buildPDFSlideshowVideo assembles a silent MP4 slideshow from n already-rasterized
+// PDF page JPEGs in dir, with a quadratic ease-in slide-transition between pages.
+func (t *transformer) buildPDFSlideshowVideo(
+	ctx context.Context,
+	dir string,
+	entries []os.DirEntry,
+	n int,
+) (data []byte, contentType string, err error) {
 	outPath := filepath.Join(dir, "out.mp4")
 
 	// Build ffmpeg args: one -loop 1 -t 3 -i <img> per page, then filter_complex

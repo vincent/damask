@@ -856,59 +856,82 @@ func fieldValueOrNil(value *FieldValueDTO) any {
 
 func resolveFieldValue(fieldID, fieldType string, options *string, value any) (repository.SetFieldValueParams, error) {
 	p := repository.SetFieldValueParams{FieldID: fieldID}
+	var err error
 	switch fieldType {
 	case fieldTypeText, fieldTypeURL:
-		s, ok := value.(string)
-		if !ok {
-			return p, fmt.Errorf("field %s expects a string value", fieldID)
-		}
-		p.ValueText = &s
+		err = resolveTextFieldValue(&p, fieldID, value)
 	case fieldTypeSelect:
-		s, ok := value.(string)
-		if !ok {
-			return p, fmt.Errorf("field %s expects a string value", fieldID)
-		}
-		if options != nil {
-			var opts []string
-			if err := json.Unmarshal([]byte(*options), &opts); err == nil {
-				valid := slices.Contains(opts, s)
-				if !valid {
-					return p, fmt.Errorf("value '%s' is not a valid option for field %s", s, fieldID)
-				}
-			}
-		}
-		p.ValueText = &s
+		err = resolveSelectFieldValue(&p, fieldID, options, value)
 	case fieldTypeNumber:
-		switch v := value.(type) {
-		case float64:
-			p.ValueNumber = &v
-		case int64:
-			f := float64(v)
-			p.ValueNumber = &f
-		default:
-			return p, fmt.Errorf("field %s expects a numeric value", fieldID)
-		}
+		err = resolveNumberFieldValue(&p, fieldID, value)
 	case fieldTypeDate:
-		s, ok := value.(string)
-		if !ok || !dateRe.MatchString(s) {
-			return p, fmt.Errorf("field %s expects a date in YYYY-MM-DD format", fieldID)
-		}
-		if _, err := time.Parse("2006-01-02", s); err != nil {
-			return p, fmt.Errorf("field %s: invalid date '%s'", fieldID, s)
-		}
-		p.ValueDate = &s
+		err = resolveDateFieldValue(&p, fieldID, value)
 	case fieldTypeBoolean:
-		b, ok := value.(bool)
-		if !ok {
-			return p, fmt.Errorf("field %s expects a boolean value", fieldID)
-		}
-		var v int64
-		if b {
-			v = 1
-		}
-		p.ValueBoolean = &v
+		err = resolveBooleanFieldValue(&p, fieldID, value)
 	}
-	return p, nil
+	return p, err
+}
+
+func resolveTextFieldValue(p *repository.SetFieldValueParams, fieldID string, value any) error {
+	s, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("field %s expects a string value", fieldID)
+	}
+	p.ValueText = &s
+	return nil
+}
+
+func resolveSelectFieldValue(p *repository.SetFieldValueParams, fieldID string, options *string, value any) error {
+	s, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("field %s expects a string value", fieldID)
+	}
+	if options != nil {
+		var opts []string
+		if err := json.Unmarshal([]byte(*options), &opts); err == nil && !slices.Contains(opts, s) {
+			return fmt.Errorf("value '%s' is not a valid option for field %s", s, fieldID)
+		}
+	}
+	p.ValueText = &s
+	return nil
+}
+
+func resolveNumberFieldValue(p *repository.SetFieldValueParams, fieldID string, value any) error {
+	switch v := value.(type) {
+	case float64:
+		p.ValueNumber = &v
+	case int64:
+		f := float64(v)
+		p.ValueNumber = &f
+	default:
+		return fmt.Errorf("field %s expects a numeric value", fieldID)
+	}
+	return nil
+}
+
+func resolveDateFieldValue(p *repository.SetFieldValueParams, fieldID string, value any) error {
+	s, ok := value.(string)
+	if !ok || !dateRe.MatchString(s) {
+		return fmt.Errorf("field %s expects a date in YYYY-MM-DD format", fieldID)
+	}
+	if _, err := time.Parse("2006-01-02", s); err != nil {
+		return fmt.Errorf("field %s: invalid date '%s'", fieldID, s)
+	}
+	p.ValueDate = &s
+	return nil
+}
+
+func resolveBooleanFieldValue(p *repository.SetFieldValueParams, fieldID string, value any) error {
+	b, ok := value.(bool)
+	if !ok {
+		return fmt.Errorf("field %s expects a boolean value", fieldID)
+	}
+	var v int64
+	if b {
+		v = 1
+	}
+	p.ValueBoolean = &v
+	return nil
 }
 
 func toFieldValueDTOs(rows []repository.FieldValue) []*FieldValueDTO {

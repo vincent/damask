@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -252,6 +254,9 @@ func (s *workspaceService) ListAIProviders(
 			Capabilities: p.Capabilities().Names(),
 			Models:       []AIProviderModelDTO{},
 		}
+		if p.ModelsErr != nil {
+			entry.ModelsError = classifyModelsError(p.ModelsErr)
+		}
 		if entry.Configured {
 			for _, m := range p.Models {
 				entry.Models = append(entry.Models, AIProviderModelDTO{
@@ -266,6 +271,25 @@ func (s *workspaceService) ListAIProviders(
 		pDTOs = append(pDTOs, entry)
 	}
 	return pDTOs, nil
+}
+
+const modelsErrorUpstream = "upstream error"
+
+// classifyModelsError maps a models-fetch failure to a generic, client-safe reason
+// so upstream URLs or transport internals from the underlying error never reach clients.
+func classifyModelsError(err error) string {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, ai.ErrAPIError):
+		return modelsErrorUpstream
+	default:
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			return "unreachable"
+		}
+		return modelsErrorUpstream
+	}
 }
 
 func (s *workspaceService) GetAIProviderKeyStatus(

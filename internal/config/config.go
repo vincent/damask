@@ -18,6 +18,9 @@ import (
 
 const defaultSMTPPort = 25
 const defaultPurgeHour = 3
+const defaultQueueWorkers = 4
+const defaultSFTPPort = 22
+const defaultDemoResetHours = 6
 
 // OIDCConfig holds config for a generic OIDC provider (selfhosted IDP).
 // Provider and Verifier are populated at startup via OIDC discovery.
@@ -68,6 +71,58 @@ func loadOpenRouterConfig() OpenRouterConfig {
 		DefaultModel:   getEnv("OPENROUTER_DEFAULT_MODEL", "openai/dall-e-2"),
 		DefaultBgModel: getEnv("OPENROUTER_DEFAULT_BG_REMOVE_MODEL", "stability-ai/stable-diffusion-xl-refiner"),
 	}
+}
+
+func loadDemoConfig(demoMode bool) DemoConfig {
+	return DemoConfig{
+		DemoMode:           demoMode,
+		ResetIntervalHours: getEnvPositiveInt("DEMO_RESET_INTERVAL_HOURS", defaultDemoResetHours),
+		UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.studio"),
+		WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
+		ShowBanner: demoMode &&
+			getEnv("DEMO_BANNER", strconv.FormatBool(true)) != strconv.FormatBool(false),
+		SignupURL: getEnv("DEMO_SIGNUP_URL", "/signup"),
+	}
+}
+
+func loadOIDCConfig() OIDCConfig {
+	return OIDCConfig{
+		IssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
+		ClientID:     os.Getenv("OIDC_CLIENT_ID"),
+		ClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
+		Label:        getEnv("OIDC_LABEL", "Sign in with SSO"),
+	}
+}
+
+func loadGoogleOIDCConfig() GoogleOIDCConfig {
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	return GoogleOIDCConfig{
+		Auth: clientID != "" &&
+			getEnv("GOOGLE_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		ClientID:     clientID,
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+	}
+}
+
+func loadCanvaConfig() CanvaConfig {
+	clientID := os.Getenv("CANVA_CLIENT_ID")
+	return CanvaConfig{
+		Auth: clientID != "" &&
+			getEnv("CANVA_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		ClientID:     clientID,
+		ClientSecret: os.Getenv("CANVA_CLIENT_SECRET"),
+	}
+}
+
+// getEnvPositiveInt reads an env var as an int, falling back to defaultVal
+// if unset, unparsable, or not strictly positive.
+func getEnvPositiveInt(key string, defaultVal int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return defaultVal
 }
 
 type FFmpegConfig struct {
@@ -139,30 +194,9 @@ func Load() (*Config, error) {
 	// Load .env file in development (ignore error if file doesn't exist)
 	_ = godotenv.Load(".env")
 
-	workers := 4
-	if w := os.Getenv("QUEUE_WORKERS"); w != "" {
-		if n, err := strconv.Atoi(w); err == nil && n > 0 {
-			workers = n
-		}
-	}
-
-	sftpPort := 22
-	if p := os.Getenv("STORAGE_SFTP_PORT"); p != "" {
-		if n, err := strconv.Atoi(p); err == nil && n > 0 {
-			sftpPort = n
-		}
-	}
-
+	workers := getEnvPositiveInt("QUEUE_WORKERS", defaultQueueWorkers)
+	sftpPort := getEnvPositiveInt("STORAGE_SFTP_PORT", defaultSFTPPort)
 	demoMode := getEnv("DEMO_MODE", strconv.FormatBool(false)) == strconv.FormatBool(true)
-	demoResetHours := 6
-	if h := os.Getenv("DEMO_RESET_INTERVAL_HOURS"); h != "" {
-		if n, err := strconv.Atoi(h); err == nil && n > 0 {
-			demoResetHours = n
-		}
-	}
-
-	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
-	canvaClientID := os.Getenv("CANVA_CLIENT_ID")
 
 	cfg := &Config{
 		Port:           getEnv("PORT", "8080"),
@@ -201,15 +235,7 @@ func Load() (*Config, error) {
 		FrontendPath:    os.Getenv("FRONTEND_PATH"),
 		EnableScheduler: getEnv("ENABLE_SCHEDULER", strconv.FormatBool(true)) != strconv.FormatBool(false),
 		EnableSignup:    getEnv("ENABLE_SIGNUP", strconv.FormatBool(true)) != strconv.FormatBool(false),
-		Demo: DemoConfig{
-			DemoMode:           demoMode,
-			ResetIntervalHours: demoResetHours,
-			UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.studio"),
-			WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
-			ShowBanner: demoMode &&
-				getEnv("DEMO_BANNER", strconv.FormatBool(true)) != strconv.FormatBool(false),
-			SignupURL: getEnv("DEMO_SIGNUP_URL", "/signup"),
-		},
+		Demo:            loadDemoConfig(demoMode),
 		ImageRouter: ImageRouterConfig{
 			APIKey:               os.Getenv("IMAGEROUTER_API_KEY"),
 			DefaultModel:         getEnv("IMAGEROUTER_DEFAULT_MODEL", "black-forest-labs/FLUX-2-klein-4b:free"),
@@ -239,24 +265,9 @@ func Load() (*Config, error) {
 		ServiceName: "damask",
 		Env:         cfg.AppEnv,
 	}
-	cfg.OIDC = OIDCConfig{
-		IssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
-		ClientID:     os.Getenv("OIDC_CLIENT_ID"),
-		ClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
-		Label:        getEnv("OIDC_LABEL", "Sign in with SSO"),
-	}
-	cfg.Google = GoogleOIDCConfig{
-		Auth: googleClientID != "" &&
-			getEnv("GOOGLE_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
-		ClientID:     googleClientID,
-		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-	}
-	cfg.Canva = CanvaConfig{
-		Auth: canvaClientID != "" &&
-			getEnv("CANVA_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
-		ClientID:     canvaClientID,
-		ClientSecret: os.Getenv("CANVA_CLIENT_SECRET"),
-	}
+	cfg.OIDC = loadOIDCConfig()
+	cfg.Google = loadGoogleOIDCConfig()
+	cfg.Canva = loadCanvaConfig()
 
 	if cfg.JWTSecret == "" {
 		return nil, errors.New("JWT_SECRET env var is required")

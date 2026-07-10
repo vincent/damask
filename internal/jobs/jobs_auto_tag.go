@@ -142,6 +142,8 @@ func (s *JobServer) jobAutoTag(ctx context.Context, job dbgen.Job) error {
 // jobAutoTagAudio handles the audio/* branch of jobAutoTag: transcribe the
 // asset's audio via a speech-to-text-capable provider, persist the transcript
 // as a text track, then tag it via a text-capable provider.
+//
+//nolint:cyclop // sequential best-effort pipeline; each guard is an independent skip condition
 func (s *JobServer) jobAutoTagAudio(ctx context.Context, p AutoTagPayload) error {
 	transcribeProvider, err := s.resolveProvider(ctx, p.WorkspaceID, "", ai.CapAudioTranscription)
 	if err != nil || transcribeProvider == nil {

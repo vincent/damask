@@ -159,33 +159,16 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 		return TextTrackDTO{}, fmt.Errorf("source is required: %w", apperr.ErrInvalidInput)
 	}
 
-	status := WorkflowRunStatusPending
-	content := ""
-	switch p.Source {
-	case textTrackSourceManual, textTrackSourceAudioTranscript:
-		status = variantStatusReady
-		content = readyTextContent(p.InitialContent)
-	case textTrackSourceOCR:
-		if stringParam(p.Params, "storage_key", "") == "" {
-			return TextTrackDTO{}, fmt.Errorf("missing OCR storage key: %w", apperr.ErrInvalidInput)
-		}
-	case textTrackSourceAIImageDescription:
-		if stringParam(p.Params, "storage_key", "") == "" {
-			return TextTrackDTO{}, fmt.Errorf(
-				"missing storage key for ai_image_description: %w",
-				apperr.ErrInvalidInput,
-			)
-		}
-		if stringParam(p.Params, "model", "") == "" {
-			return TextTrackDTO{}, fmt.Errorf("missing model for ai_image_description: %w", apperr.ErrInvalidInput)
-		}
-	case textTrackSourceExtractPDF, textTrackSourceExtractPlain, textTrackSourceExtractDocument:
+	if isExtractTextTrackSource(p.Source) {
 		if stringParam(p.Params, "storage_key", "") == "" {
 			return TextTrackDTO{}, fmt.Errorf("missing storage key: %w", apperr.ErrInvalidInput)
 		}
 		return s.enqueueExtract(ctx, span, p)
-	default:
-		return TextTrackDTO{}, ErrUnsupportedTextTrackSource
+	}
+
+	content, status, err := validateTextTrackSourceParams(p.Source, p.Params, p.InitialContent)
+	if err != nil {
+		return TextTrackDTO{}, err
 	}
 
 	var meta *string
@@ -236,6 +219,49 @@ func (s *textTrackService) Create(ctx context.Context, p CreateTextTrackParams) 
 	}
 
 	return TextTrackDTO{}, ErrUnsupportedTextTrackSource
+}
+
+func isExtractTextTrackSource(source string) bool {
+	switch source {
+	case textTrackSourceExtractPDF, textTrackSourceExtractPlain, textTrackSourceExtractDocument:
+		return true
+	default:
+		return false
+	}
+}
+
+// validateTextTrackSourceParams checks the per-source required params for
+// non-extract sources and returns the initial content/status to persist.
+// Extract sources are handled separately in Create since they short-circuit
+// to enqueueExtract instead of creating the row here.
+func validateTextTrackSourceParams(
+	source string,
+	params map[string]any,
+	initialContent string,
+) (content, status string, err error) {
+	status = WorkflowRunStatusPending
+	switch source {
+	case textTrackSourceManual, textTrackSourceAudioTranscript:
+		status = variantStatusReady
+		content = readyTextContent(initialContent)
+	case textTrackSourceOCR:
+		if stringParam(params, "storage_key", "") == "" {
+			return "", "", fmt.Errorf("missing OCR storage key: %w", apperr.ErrInvalidInput)
+		}
+	case textTrackSourceAIImageDescription:
+		if stringParam(params, "storage_key", "") == "" {
+			return "", "", fmt.Errorf(
+				"missing storage key for ai_image_description: %w",
+				apperr.ErrInvalidInput,
+			)
+		}
+		if stringParam(params, "model", "") == "" {
+			return "", "", fmt.Errorf("missing model for ai_image_description: %w", apperr.ErrInvalidInput)
+		}
+	default:
+		return "", "", ErrUnsupportedTextTrackSource
+	}
+	return content, status, nil
 }
 
 // CreateAudioTranscript persists a ready-to-use audio transcript text track.

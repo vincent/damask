@@ -48,63 +48,12 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 	where = append(where, "a.workspace_id = ?")
 	args = append(args, p.WorkspaceID)
 
-	switch {
-	case p.FolderIsRoot:
-		where = append(where, "a.folder_id IS NULL")
-		if p.ProjectID != nil {
-			where = append(where, "a.project_id = ?")
-			args = append(args, *p.ProjectID)
-		}
-	case p.FolderID != nil:
-		where = append(where, "a.folder_id = ?")
-		args = append(args, *p.FolderID)
-	case p.ProjectID != nil:
-		where = append(where, "a.project_id = ?")
-		args = append(args, *p.ProjectID)
-	}
-
-	if p.CollectionID != nil {
-		where = append(where, "a.id IN (SELECT asset_id FROM collection_assets WHERE collection_id = ?)")
-		args = append(args, *p.CollectionID)
-	}
-
-	if len(p.TagNames) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(p.TagNames)), ",")
-		where = append(where, fmt.Sprintf(
-			"a.id IN (SELECT at.asset_id FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE t.workspace_id = ? AND t.name IN (%s) GROUP BY at.asset_id HAVING COUNT(DISTINCT t.id) = ?)",
-			placeholders,
-		))
-		args = append(args, p.WorkspaceID)
-		for _, name := range p.TagNames {
-			args = append(args, name)
-		}
-		args = append(args, int64(len(p.TagNames)))
-	}
-
-	if p.SearchQuery != "" {
-		where = append(
-			where,
-			"(a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?) OR a.id IN (SELECT asset_id FROM assets_text_fts WHERE workspace_id = ? AND assets_text_fts MATCH ?))",
-		)
-		args = append(args, p.SearchQuery+"*", p.WorkspaceID, p.SearchQuery+"*")
-	}
-
-	if p.MimePrefix != nil {
-		where = append(where, "a.mime_type LIKE ?")
-		args = append(args, *p.MimePrefix+"%")
-	}
-
-	if p.SimilarToIDs != nil {
-		if len(p.SimilarToIDs) == 0 {
-			where = append(where, "1 = 0")
-		} else {
-			placeholders := strings.TrimSuffix(strings.Repeat("?,", len(p.SimilarToIDs)), ",")
-			where = append(where, fmt.Sprintf("a.id IN (%s)", placeholders))
-			for _, id := range p.SimilarToIDs {
-				args = append(args, id)
-			}
-		}
-	}
+	where, args = applyScopeFilter(where, args, p)
+	where, args = applyCollectionFilter(where, args, p)
+	where, args = applyTagsFilter(where, args, p)
+	where, args = applySearchFilter(where, args, p)
+	where, args = applyMimePrefixFilter(where, args, p)
+	where, args = applySimilarToFilter(where, args, p)
 
 	// Cursor
 	if p.CursorID != "" && p.CursorValue != "" {
@@ -155,6 +104,84 @@ func (r *assetRepo) List(ctx context.Context, p repository.ListAssetsParams) ([]
 		out = append(out, a)
 	}
 	return out, rows.Err()
+}
+
+func applyScopeFilter(where []string, args []any, p repository.ListAssetsParams) ([]string, []any) {
+	switch {
+	case p.FolderIsRoot:
+		where = append(where, "a.folder_id IS NULL")
+		if p.ProjectID != nil {
+			where = append(where, "a.project_id = ?")
+			args = append(args, *p.ProjectID)
+		}
+	case p.FolderID != nil:
+		where = append(where, "a.folder_id = ?")
+		args = append(args, *p.FolderID)
+	case p.ProjectID != nil:
+		where = append(where, "a.project_id = ?")
+		args = append(args, *p.ProjectID)
+	}
+	return where, args
+}
+
+func applyCollectionFilter(where []string, args []any, p repository.ListAssetsParams) ([]string, []any) {
+	if p.CollectionID != nil {
+		where = append(where, "a.id IN (SELECT asset_id FROM collection_assets WHERE collection_id = ?)")
+		args = append(args, *p.CollectionID)
+	}
+	return where, args
+}
+
+func applyTagsFilter(where []string, args []any, p repository.ListAssetsParams) ([]string, []any) {
+	if len(p.TagNames) == 0 {
+		return where, args
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(p.TagNames)), ",")
+	where = append(where, fmt.Sprintf(
+		"a.id IN (SELECT at.asset_id FROM asset_tags at JOIN tags t ON t.id = at.tag_id WHERE t.workspace_id = ? AND t.name IN (%s) GROUP BY at.asset_id HAVING COUNT(DISTINCT t.id) = ?)",
+		placeholders,
+	))
+	args = append(args, p.WorkspaceID)
+	for _, name := range p.TagNames {
+		args = append(args, name)
+	}
+	args = append(args, int64(len(p.TagNames)))
+	return where, args
+}
+
+func applySearchFilter(where []string, args []any, p repository.ListAssetsParams) ([]string, []any) {
+	if p.SearchQuery == "" {
+		return where, args
+	}
+	where = append(
+		where,
+		"(a.rowid IN (SELECT rowid FROM assets_fts WHERE assets_fts MATCH ?) OR a.id IN (SELECT asset_id FROM assets_text_fts WHERE workspace_id = ? AND assets_text_fts MATCH ?))",
+	)
+	args = append(args, p.SearchQuery+"*", p.WorkspaceID, p.SearchQuery+"*")
+	return where, args
+}
+
+func applyMimePrefixFilter(where []string, args []any, p repository.ListAssetsParams) ([]string, []any) {
+	if p.MimePrefix != nil {
+		where = append(where, "a.mime_type LIKE ?")
+		args = append(args, *p.MimePrefix+"%")
+	}
+	return where, args
+}
+
+func applySimilarToFilter(where []string, args []any, p repository.ListAssetsParams) ([]string, []any) {
+	if p.SimilarToIDs == nil {
+		return where, args
+	}
+	if len(p.SimilarToIDs) == 0 {
+		return append(where, "1 = 0"), args
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(p.SimilarToIDs)), ",")
+	where = append(where, fmt.Sprintf("a.id IN (%s)", placeholders))
+	for _, id := range p.SimilarToIDs {
+		args = append(args, id)
+	}
+	return where, args
 }
 
 func buildCursorClause(p repository.ListAssetsParams) (string, []any) {

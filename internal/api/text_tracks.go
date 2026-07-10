@@ -320,56 +320,10 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 		CreatedBy:   claims.UserID,
 	}
 
-	switch body.Source {
-	case "ocr":
-		if err = s.prepareOCRParams(
-			ctx,
-			c,
-			assetID,
-			claims.WorkspaceID,
-			asset,
-			body.Lang,
-			params,
-			&createParams,
-		); err != nil {
-			return validationErrRes(c, err)
-		}
-	case "manual":
-		content, _ := params["content"].(string)
-		if strings.TrimSpace(content) == "" {
-			return errRes(c, fiber.StatusUnprocessableEntity, "content is required")
-		}
-		createParams.InitialContent = content
-	case "extract_pdf":
-		if err = s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
-			transform.IsPdfMime, "asset is not a PDF", false, params); err != nil {
-			return err
-		}
-	case "extract_plain":
-		if err = s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
-			transform.IsTextMime, "asset is not a plain text file", false, params); err != nil {
-			return err
-		}
-	case "extract_document":
-		if err = s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
-			transform.IsDocumentMime, "asset is not a supported document type", true, params); err != nil {
-			return err
-		}
-	case "ai_image_description":
-		if err = s.prepareAIImageDescriptionParams(
-			ctx,
-			c,
-			claims.WorkspaceID,
-			assetID,
-			asset,
-			body.Lang,
-			params,
-			&createParams,
-		); err != nil {
-			return validationErrRes(c, err)
-		}
-	default:
-		return errRes(c, fiber.StatusUnprocessableEntity, "unsupported_source")
+	if handled, applyErr := s.applyTextTrackSourceParams(
+		ctx, c, claims.WorkspaceID, assetID, asset, body, params, &createParams,
+	); handled {
+		return applyErr
 	}
 
 	createCtx, createSpan := telemetry.StartSpan(ctx, "api.text_tracks.create.persist")
@@ -402,6 +356,60 @@ func (s *Server) handleCreateTextTrack(c fiber.Ctx) (err error) {
 	return c.Status(status).JSON(CreateTextTrackResponse{
 		TextTrack: textTrackDTOToResponse(track, false),
 	})
+}
+
+// applyTextTrackSourceParams validates and fills in createParams for the
+// requested text track source. handled reports whether an HTTP response was
+// already written and the caller must return immediately — errRes and
+// ErrorStatusResponse write the response themselves and return nil once
+// encoding succeeds, so err alone can't be used to signal "stop here".
+func (s *Server) applyTextTrackSourceParams(
+	ctx context.Context,
+	c fiber.Ctx,
+	workspaceID, assetID string,
+	asset *service.AssetDTO,
+	body *CreateTextTrackRequest,
+	params map[string]any,
+	createParams *service.CreateTextTrackParams,
+) (bool, error) {
+	switch body.Source {
+	case "ocr":
+		if ocrErr := s.prepareOCRParams(
+			ctx, c, assetID, workspaceID, asset, body.Lang, params, createParams,
+		); ocrErr != nil {
+			return true, validationErrRes(c, ocrErr)
+		}
+	case "manual":
+		content, _ := params["content"].(string)
+		if strings.TrimSpace(content) == "" {
+			return true, errRes(c, fiber.StatusUnprocessableEntity, "content is required")
+		}
+		createParams.InitialContent = content
+	case "extract_pdf":
+		if extErr := s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
+			transform.IsPdfMime, "asset is not a PDF", false, params); extErr != nil {
+			return true, extErr
+		}
+	case "extract_plain":
+		if extErr := s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
+			transform.IsTextMime, "asset is not a plain text file", false, params); extErr != nil {
+			return true, extErr
+		}
+	case "extract_document":
+		if extErr := s.prepareExtractParams(ctx, c, assetID, asset.MimeType, asset.CurrentVersionID,
+			transform.IsDocumentMime, "asset is not a supported document type", true, params); extErr != nil {
+			return true, extErr
+		}
+	case "ai_image_description":
+		if aiErr := s.prepareAIImageDescriptionParams(
+			ctx, c, workspaceID, assetID, asset, body.Lang, params, createParams,
+		); aiErr != nil {
+			return true, validationErrRes(c, aiErr)
+		}
+	default:
+		return true, errRes(c, fiber.StatusUnprocessableEntity, "unsupported_source")
+	}
+	return false, nil
 }
 
 func (s *Server) prepareExtractParams(

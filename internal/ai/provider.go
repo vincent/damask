@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cache "github.com/go-pkgz/expirable-cache/v3"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -118,6 +119,10 @@ type ProviderWithModels struct {
 	Provider
 
 	Models []Model
+	// ModelsErr is set when fetching Models failed. Configured stays true and
+	// Models stays empty, but callers can use this to distinguish "fetch
+	// failed" from "provider genuinely has no models."
+	ModelsErr error
 }
 
 // Model is a provider model returned to clients.
@@ -161,25 +166,32 @@ func AllProviders(
 	capabilities Capability,
 ) ([]ProviderWithModels, error) {
 	pkIDs := []ProviderID{ProviderImageRouter, ProviderOpenRouter}
-	pks := []ProviderWithModels{}
+	pks := make([]ProviderWithModels, len(pkIDs))
 
-	for _, pk := range pkIDs {
+	g, gctx := errgroup.WithContext(ctx)
+	for i, pk := range pkIDs {
 		apiKey, source, keyErr := apiKeyResolver(ctx, workspaceID, string(pk))
 		if keyErr != nil {
-			return pks, keyErr
+			return nil, keyErr
 		}
 		p, pErr := NewProvider(pk, apiKey, source)
 		if pErr != nil {
-			return pks, pErr
+			return nil, pErr
 		}
 		pm := ProviderWithModels{
 			Provider: p,
 			Models:   []Model{},
 		}
-		if p.IsConfigured() {
-			models, lErr := p.ListModels(ctx)
+		if !p.IsConfigured() {
+			pks[i] = pm
+			continue
+		}
+
+		g.Go(func() error {
+			models, lErr := p.ListModels(gctx)
 			if lErr != nil {
-				slog.WarnContext(ctx, "ai: list models failed", "provider", string(pk), "error", lErr)
+				slog.WarnContext(gctx, "ai: list models failed", "provider", string(pk), "error", lErr)
+				pm.ModelsErr = lErr
 			}
 			for _, m := range models {
 				if (m.Capabilities & capabilities) == 0 {
@@ -187,9 +199,11 @@ func AllProviders(
 				}
 				pm.Models = append(pm.Models, m)
 			}
-		}
-		pks = append(pks, pm)
+			pks[i] = pm
+			return nil
+		})
 	}
+	_ = g.Wait() // per-provider fetch failures are captured in ModelsErr, not returned
 
 	return pks, nil
 }

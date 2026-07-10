@@ -718,11 +718,9 @@ func (n createVariantNode) InjectContinuation(rc *RunContext, g *Graph, nodeID, 
 	}
 }
 
-func (n createVariantNode) Execute(
-	ctx context.Context,
-	rc *RunContext,
-	cfg json.RawMessage,
-) (string, map[string]any, error) {
+// resolveAssetForVariant validates node dependencies and resolves the asset
+// (with its current version) that a variant will be created from.
+func (n createVariantNode) resolveAssetForVariant(ctx context.Context, rc *RunContext) (string, *Asset, error) {
 	assetID, err := rcRequireString(rc, "asset_id")
 	if err != nil {
 		return "", nil, err
@@ -742,17 +740,25 @@ func (n createVariantNode) Execute(
 	if asset.CurrentVersionID == nil {
 		return "", nil, fmt.Errorf("asset has no current version: %w", apperr.ErrInvalidInput)
 	}
+	return workspaceID, asset, nil
+}
+
+// prepareVariant reads the node's config, checks ImageRouter availability,
+// and delegates to the variant service to normalize/validate the requested
+// variant params.
+func (n createVariantNode) prepareVariant(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+	workspaceID string,
+	asset *Asset,
+) (VariantPrepareResult, error) {
 	irProviders, err := n.deps.Workspace.ListAIProviders(ctx, workspaceID, ai.CapBgRemove|ai.CapImageToImage)
 	if err != nil {
-		return "", nil, err
+		return VariantPrepareResult{}, err
 	}
-	imageRouterConfigured := false
-	for _, p := range irProviders {
-		if p.ID == ai.ProviderImageRouter && p.Configured {
-			imageRouterConfigured = true
-			break
-		}
-	}
+	imageRouterConfigured := providerConfigured(irProviders, ai.ProviderImageRouter)
+
 	var nodeCfg struct {
 		Type     string          `json:"type"`
 		Params   json.RawMessage `json:"params"`
@@ -760,9 +766,11 @@ func (n createVariantNode) Execute(
 		IsShared bool            `json:"is_shared"`
 	}
 	if unmarshalErr := json.Unmarshal(cfg, &nodeCfg); unmarshalErr != nil {
-		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
+		return VariantPrepareResult{}, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
-	prepared, err := n.deps.Variants.PrepareCreate(ctx, VariantPrepareRequest{
+
+	assetID, _ := rcGetString(rc, "asset_id")
+	return n.deps.Variants.PrepareCreate(ctx, VariantPrepareRequest{
 		WorkspaceID:           workspaceID,
 		AssetID:               assetID,
 		Type:                  nodeCfg.Type,
@@ -774,37 +782,32 @@ func (n createVariantNode) Execute(
 		Title:                 nodeCfg.Title,
 		IsShared:              nodeCfg.IsShared,
 	})
+}
+
+func (n createVariantNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
+	workspaceID, asset, err := n.resolveAssetForVariant(ctx, rc)
 	if err != nil {
 		return "", nil, err
 	}
+
+	prepared, err := n.prepareVariant(ctx, rc, cfg, workspaceID, asset)
+	if err != nil {
+		return "", nil, err
+	}
+
 	versionID, err := rcRequireString(rc, "version_id")
 	if err != nil {
 		return "", nil, err
 	}
-	versionNum := int64(0)
-	if v, ok := rc.Get("version_num"); ok {
-		switch x := v.(type) {
-		case float64:
-			versionNum = int64(x)
-		case int64:
-			versionNum = x
-		}
-	}
+	versionNum := rcGetVersionNum(rc)
 	storageKey, _ := rcGetString(rc, "storage_key")
 	variantID := uuid.NewString()
-	payload, _ := json.Marshal(VariantJobPayload{
-		AssetID:     asset.ID,
-		WorkspaceID: asset.WorkspaceID,
-		VersionID:   versionID,
-		VersionNum:  versionNum,
-		VariantID:   variantID,
-		StorageKey:  storageKey,
-		MimeType:    asset.MimeType,
-		Type:        prepared.Type,
-		Params:      prepared.Params,
-		Title:       prepared.Title,
-		IsShared:    prepared.IsShared,
-	})
+	vjp := buildVariantJobPayload(asset, versionID, versionNum, variantID, storageKey, prepared)
+
 	// If the executor pre-populated a continuation (meaning a set_new_version
 	// node is wired as our successor), embed it in the job payload so the job
 	// worker can resume the workflow run once the variant is ready.
@@ -816,21 +819,8 @@ func (n createVariantNode) Execute(
 			seed := jsonToMap(cont.ContextJSON)
 			seed["variant_id"] = variantID
 			cont.ContextJSON = mustJSON(NewRunContext(seed))
-			vjp := VariantJobPayload{
-				AssetID:      asset.ID,
-				WorkspaceID:  asset.WorkspaceID,
-				VersionID:    versionID,
-				VersionNum:   versionNum,
-				VariantID:    variantID,
-				StorageKey:   storageKey,
-				MimeType:     asset.MimeType,
-				Type:         prepared.Type,
-				Params:       prepared.Params,
-				Title:        prepared.Title,
-				IsShared:     prepared.IsShared,
-				Continuation: &cont,
-			}
-			payload, _ = json.Marshal(vjp)
+			vjp.Continuation = &cont
+			payload, _ := json.Marshal(vjp)
 			if _, enqErr := n.deps.Queue.Enqueue(ctx, workspaceID, prepared.Type, string(payload)); enqErr != nil {
 				return "", nil, enqErr
 			}
@@ -842,6 +832,7 @@ func (n createVariantNode) Execute(
 		}
 	}
 
+	payload, _ := json.Marshal(vjp)
 	job, err := n.deps.Queue.Enqueue(ctx, workspaceID, prepared.Type, string(payload))
 	if err != nil {
 		return "", nil, err
@@ -851,6 +842,28 @@ func (n createVariantNode) Execute(
 		"variant_job_id": job.ID,
 		"variant_type":   prepared.Type,
 	}, nil
+}
+
+func buildVariantJobPayload(
+	asset *Asset,
+	versionID string,
+	versionNum int64,
+	variantID, storageKey string,
+	prepared VariantPrepareResult,
+) VariantJobPayload {
+	return VariantJobPayload{
+		AssetID:     asset.ID,
+		WorkspaceID: asset.WorkspaceID,
+		VersionID:   versionID,
+		VersionNum:  versionNum,
+		VariantID:   variantID,
+		StorageKey:  storageKey,
+		MimeType:    asset.MimeType,
+		Type:        prepared.Type,
+		Params:      prepared.Params,
+		Title:       prepared.Title,
+		IsShared:    prepared.IsShared,
+	}
 }
 
 type createShareNode struct {
@@ -1087,81 +1100,102 @@ func isCuratedVisionModel(model string) bool {
 	return false
 }
 
-func (n aiImageDescriptionNode) Execute(
+// resolveImageVersionForDescription validates node dependencies, resolves
+// the asset (must be an image with a current version and a configured
+// description provider), and returns its current version.
+func (n aiImageDescriptionNode) resolveImageVersionForDescription(
 	ctx context.Context,
 	rc *RunContext,
-	cfg json.RawMessage,
-) (string, map[string]any, error) {
-	assetID, err := rcRequireString(rc, "asset_id")
+) (assetID, workspaceID string, version repository.AssetVersion, err error) {
+	assetID, err = rcRequireString(rc, "asset_id")
 	if err != nil {
-		return "", nil, err
+		return "", "", repository.AssetVersion{}, err
 	}
-	workspaceID, err := rcRequireString(rc, "workspace_id")
+	workspaceID, err = rcRequireString(rc, "workspace_id")
 	if err != nil {
-		return "", nil, err
+		return "", "", repository.AssetVersion{}, err
 	}
 	if n.deps.Assets == nil || n.deps.Versions == nil || n.deps.Workspace == nil || n.deps.TextTracks == nil {
-		return "", nil, errors.New("workflow ai_image_description dependencies not configured")
+		return "", "", repository.AssetVersion{}, errors.New(
+			"workflow ai_image_description dependencies not configured",
+		)
 	}
 
 	asset, err := n.deps.Assets.Get(ctx, workspaceID, assetID)
 	if err != nil {
-		return "", nil, err
+		return "", "", repository.AssetVersion{}, err
 	}
 	if !strings.HasPrefix(asset.MimeType, "image/") {
-		return "", nil, fmt.Errorf("asset is not an image: %w", apperr.ErrInvalidInput)
+		return "", "", repository.AssetVersion{}, fmt.Errorf("asset is not an image: %w", apperr.ErrInvalidInput)
 	}
 	if asset.CurrentVersionID == nil {
-		return "", nil, fmt.Errorf("asset has no current version: %w", apperr.ErrInvalidInput)
+		return "", "", repository.AssetVersion{}, fmt.Errorf("asset has no current version: %w", apperr.ErrInvalidInput)
 	}
 
 	descProviders, err := n.deps.Workspace.ListAIProviders(ctx, workspaceID, ai.CapImageDescription)
 	if err != nil {
-		return "", nil, err
+		return "", "", repository.AssetVersion{}, err
 	}
-	configured := false
-	for _, p := range descProviders {
-		if p.Configured {
-			configured = true
-			break
-		}
-	}
-	if !configured {
-		return "", nil, fmt.Errorf("no AI provider configured for image description: %w", apperr.ErrInvalidInput)
+	if !anyProviderConfigured(descProviders) {
+		return "", "", repository.AssetVersion{}, fmt.Errorf(
+			"no AI provider configured for image description: %w", apperr.ErrInvalidInput,
+		)
 	}
 
-	version, err := n.deps.Versions.GetByID(ctx, *asset.CurrentVersionID)
+	version, err = n.deps.Versions.GetByID(ctx, *asset.CurrentVersionID)
 	if err != nil {
-		return "", nil, fmt.Errorf("get current version: %w", err)
+		return "", "", repository.AssetVersion{}, fmt.Errorf("get current version: %w", err)
 	}
+	return assetID, workspaceID, version, nil
+}
 
+// parseImageDescriptionConfig validates and defaults the node config,
+// returning the resolved model, prompt, and language to use.
+func parseImageDescriptionConfig(cfg json.RawMessage) (model, prompt, lang string, err error) {
 	var nodeCfg struct {
 		Model  string `json:"model"`
 		Lang   string `json:"lang"`
 		Prompt string `json:"prompt"`
 	}
 	if unmarshalErr := json.Unmarshal(cfg, &nodeCfg); unmarshalErr != nil {
-		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
+		return "", "", "", fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
 	}
 
-	model := strings.TrimSpace(nodeCfg.Model)
+	model = strings.TrimSpace(nodeCfg.Model)
 	switch {
 	case model == "":
 		model = ai.DefaultVisionModel
 	case !isCuratedVisionModel(model):
-		return "", nil, fmt.Errorf("unsupported model %q: %w", model, apperr.ErrInvalidInput)
+		return "", "", "", fmt.Errorf("unsupported model %q: %w", model, apperr.ErrInvalidInput)
 	}
 
-	prompt := nodeCfg.Prompt
+	prompt = nodeCfg.Prompt
 	if strings.TrimSpace(prompt) == "" {
 		prompt = ai.DefaultImageDescriptionPrompt
 	} else if len(prompt) > ai.MaxImageDescriptionPromptLen {
-		return "", nil, fmt.Errorf("prompt too long: %w", apperr.ErrInvalidInput)
+		return "", "", "", fmt.Errorf("prompt too long: %w", apperr.ErrInvalidInput)
 	}
 
-	lang := strings.TrimSpace(nodeCfg.Lang)
+	lang = strings.TrimSpace(nodeCfg.Lang)
 	if lang == "" {
 		lang = "en"
+	}
+	return model, prompt, lang, nil
+}
+
+func (n aiImageDescriptionNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
+	assetID, workspaceID, version, err := n.resolveImageVersionForDescription(ctx, rc)
+	if err != nil {
+		return "", nil, err
+	}
+
+	model, prompt, lang, err := parseImageDescriptionConfig(cfg)
+	if err != nil {
+		return "", nil, err
 	}
 
 	// If the executor pre-populated a continuation (meaning at least one node

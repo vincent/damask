@@ -45,53 +45,12 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	type entry struct{ storageKey, ext string }
-	var entries []entry
-	for _, assetID := range p.AssetIDs {
-		var ver dbgen.AssetVersion
-		ver, err = s.queries.GetCurrentVersion(ctx, assetID)
-		if err != nil {
-			slog.WarnContext(ctx, "stack_merge: skip asset (no current version)", "asset_id", assetID)
-			continue
-		}
-		if ver.WorkspaceID != job.WorkspaceID {
-			slog.WarnContext(ctx, "stack_merge: skip asset (not in workspace)",
-				"asset_id", assetID, "workspace_id", job.WorkspaceID)
-			continue
-		}
-		ext := filepath.Ext(ver.StorageKey)
-		if ext == "" {
-			ext = ".bin"
-		}
-		entries = append(entries, entry{storageKey: ver.StorageKey, ext: ext})
-	}
+	entries := s.collectStackEntries(ctx, p.AssetIDs, job.WorkspaceID)
 	if len(entries) == 0 {
 		return errors.New("no processable assets in stack")
 	}
 
-	var localPaths []string
-	for i, ent := range entries {
-		rc, getErr := s.storage.Get(ctx, ent.storageKey)
-		if getErr != nil {
-			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", ent.storageKey, "err", getErr)
-			continue
-		}
-		path := filepath.Join(tmpDir, fmt.Sprintf("%04d%s", i, ent.ext))
-		f, createErr := os.Create(path)
-		if createErr != nil {
-			_ = rc.Close()
-			continue
-		}
-		if _, copyErr := io.Copy(f, rc); copyErr != nil {
-			_ = f.Close()
-			_ = rc.Close()
-			slog.WarnContext(ctx, "stack_merge: copy error", "key", ent.storageKey, "err", copyErr)
-			continue
-		}
-		_ = f.Close()
-		_ = rc.Close()
-		localPaths = append(localPaths, path)
-	}
+	localPaths := s.downloadStackEntries(ctx, tmpDir, entries)
 	if len(localPaths) == 0 {
 		return errors.New("no assets could be downloaded")
 	}
@@ -139,6 +98,62 @@ func (s *JobServer) jobStackMerge(ctx context.Context, job dbgen.Job) error {
 	s.hub.Publish(ctx, p.WorkspaceID, events.StackMergeDone(asset.ID, job.ID))
 
 	return nil
+}
+
+type stackMergeEntry struct{ storageKey, ext string }
+
+// collectStackEntries resolves each requested asset ID to its current
+// version's storage key, skipping assets with no current version or that
+// don't belong to the merging workspace.
+func (s *JobServer) collectStackEntries(ctx context.Context, assetIDs []string, workspaceID string) []stackMergeEntry {
+	var entries []stackMergeEntry
+	for _, assetID := range assetIDs {
+		ver, err := s.queries.GetCurrentVersion(ctx, assetID)
+		if err != nil {
+			slog.WarnContext(ctx, "stack_merge: skip asset (no current version)", "asset_id", assetID)
+			continue
+		}
+		if ver.WorkspaceID != workspaceID {
+			slog.WarnContext(ctx, "stack_merge: skip asset (not in workspace)",
+				"asset_id", assetID, "workspace_id", workspaceID)
+			continue
+		}
+		ext := filepath.Ext(ver.StorageKey)
+		if ext == "" {
+			ext = ".bin"
+		}
+		entries = append(entries, stackMergeEntry{storageKey: ver.StorageKey, ext: ext})
+	}
+	return entries
+}
+
+// downloadStackEntries fetches each entry's file into tmpDir, skipping any
+// that fail to read or copy; the returned paths are in entry order.
+func (s *JobServer) downloadStackEntries(ctx context.Context, tmpDir string, entries []stackMergeEntry) []string {
+	var localPaths []string
+	for i, ent := range entries {
+		rc, getErr := s.storage.Get(ctx, ent.storageKey)
+		if getErr != nil {
+			slog.WarnContext(ctx, "stack_merge: skip asset (storage error)", "key", ent.storageKey, "err", getErr)
+			continue
+		}
+		path := filepath.Join(tmpDir, fmt.Sprintf("%04d%s", i, ent.ext))
+		f, createErr := os.Create(path)
+		if createErr != nil {
+			_ = rc.Close()
+			continue
+		}
+		if _, copyErr := io.Copy(f, rc); copyErr != nil {
+			_ = f.Close()
+			_ = rc.Close()
+			slog.WarnContext(ctx, "stack_merge: copy error", "key", ent.storageKey, "err", copyErr)
+			continue
+		}
+		_ = f.Close()
+		_ = rc.Close()
+		localPaths = append(localPaths, path)
+	}
+	return localPaths
 }
 
 func buildGIF(paths []string, outPath string, frameMs int) error {

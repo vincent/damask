@@ -165,6 +165,27 @@ type WorkspaceManager interface {
 	) ([]AIProviderStatus, error)
 }
 
+// providerConfigured reports whether the given provider ID is present and
+// configured in the list.
+func providerConfigured(providers []AIProviderStatus, id ai.ProviderID) bool {
+	for _, p := range providers {
+		if p.ID == id && p.Configured {
+			return true
+		}
+	}
+	return false
+}
+
+// anyProviderConfigured reports whether any provider in the list is configured.
+func anyProviderConfigured(providers []AIProviderStatus) bool {
+	for _, p := range providers {
+		if p.Configured {
+			return true
+		}
+	}
+	return false
+}
+
 // TextTrackCreateParams carries everything needed to enqueue an AI image
 // description job. Continuation, when set, is embedded in the job payload so
 // the job worker can resume the suspended workflow run once the description
@@ -281,6 +302,24 @@ func rcRequireString(rc *RunContext, key string) (string, error) {
 		return "", fmt.Errorf("%s is required in workflow context: %w", key, apperr.ErrInvalidInput)
 	}
 	return val, nil
+}
+
+// rcGetVersionNum reads an integer "version_num" from the run context,
+// tolerating both float64 (from JSON-decoded contexts) and int64. Returns 0
+// if absent or of an unexpected type.
+func rcGetVersionNum(rc *RunContext) int64 {
+	v, ok := rc.Get("version_num")
+	if !ok {
+		return 0
+	}
+	switch x := v.(type) {
+	case float64:
+		return int64(x)
+	case int64:
+		return x
+	default:
+		return 0
+	}
 }
 
 func retryPolicyFromConfig(_ json.RawMessage) RetryPolicy {
