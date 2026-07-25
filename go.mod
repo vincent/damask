@@ -150,12 +150,12 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.72.0
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/image v0.38.0
+	golang.org/x/image v0.44.0
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sync v0.21.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.46.0
-	golang.org/x/text v0.38.0
+	golang.org/x/text v0.40.0
 	golang.org/x/tools v0.47.0 // indirect
 	modernc.org/libc v1.70.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
