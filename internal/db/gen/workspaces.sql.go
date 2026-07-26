@@ -404,23 +404,31 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 	return items, nil
 }
 
-const setWorkspaceAIProviderKey = `-- name: SetWorkspaceAIProviderKey :exec
-UPDATE workspaces
-SET
-  openrouter_api_key_enc =  CASE WHEN  ? = 'openrouter'  THEN ? ELSE openrouter_api_key_enc  END,
-  imagerouter_api_key_enc = CASE WHEN  ? = 'imagerouter' THEN ? ELSE imagerouter_api_key_enc END,
-  updated_at = datetime('now')
-WHERE id = ?
+const setWorkspaceImageRouterKey = `-- name: SetWorkspaceImageRouterKey :exec
+UPDATE workspaces SET imagerouter_api_key_enc = ?, updated_at = datetime('now') WHERE id = ?
 `
 
-type SetWorkspaceAIProviderKeyParams struct {
-	ProviderName interface{} `json:"provider_name"`
-	Value        *string     `json:"value"`
-	ID           string      `json:"id"`
+type SetWorkspaceImageRouterKeyParams struct {
+	ImagerouterApiKeyEnc *string `json:"imagerouter_api_key_enc"`
+	ID                   string  `json:"id"`
 }
 
-func (q *Queries) SetWorkspaceAIProviderKey(ctx context.Context, arg SetWorkspaceAIProviderKeyParams) error {
-	_, err := q.db.ExecContext(ctx, setWorkspaceAIProviderKey, arg.ProviderName, arg.Value, arg.ID)
+func (q *Queries) SetWorkspaceImageRouterKey(ctx context.Context, arg SetWorkspaceImageRouterKeyParams) error {
+	_, err := q.db.ExecContext(ctx, setWorkspaceImageRouterKey, arg.ImagerouterApiKeyEnc, arg.ID)
+	return err
+}
+
+const setWorkspaceOpenRouterKey = `-- name: SetWorkspaceOpenRouterKey :exec
+UPDATE workspaces SET openrouter_api_key_enc = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type SetWorkspaceOpenRouterKeyParams struct {
+	OpenrouterApiKeyEnc *string `json:"openrouter_api_key_enc"`
+	ID                  string  `json:"id"`
+}
+
+func (q *Queries) SetWorkspaceOpenRouterKey(ctx context.Context, arg SetWorkspaceOpenRouterKeyParams) error {
+	_, err := q.db.ExecContext(ctx, setWorkspaceOpenRouterKey, arg.OpenrouterApiKeyEnc, arg.ID)
 	return err
 }
 

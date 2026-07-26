@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
+	"damask/server/internal/ai"
 	"damask/server/internal/apperr"
 	"damask/server/internal/db"
 	dbgen "damask/server/internal/db/gen"
@@ -71,19 +73,32 @@ func (r *workspaceRepo) GetAIProviderKey(ctx context.Context, workspaceID, provi
 }
 
 func (r *workspaceRepo) SetAIProviderKey(ctx context.Context, workspaceID, providerName, encKey string) error {
-	return r.d.WQ.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
-		ProviderName: providerName,
-		Value:        &encKey,
-		ID:           workspaceID,
-	})
+	return r.setOrClearAIProviderKey(ctx, workspaceID, providerName, &encKey)
 }
 
 func (r *workspaceRepo) ClearAIProviderKey(ctx context.Context, workspaceID, providerName string) error {
-	return r.d.WQ.SetWorkspaceAIProviderKey(ctx, dbgen.SetWorkspaceAIProviderKeyParams{
-		ProviderName: providerName,
-		Value:        nil,
-		ID:           workspaceID,
-	})
+	return r.setOrClearAIProviderKey(ctx, workspaceID, providerName, nil)
+}
+
+func (r *workspaceRepo) setOrClearAIProviderKey(
+	ctx context.Context,
+	workspaceID, providerName string,
+	encKey *string,
+) error {
+	switch ai.ProviderID(providerName) {
+	case ai.ProviderOpenRouter:
+		return r.d.WQ.SetWorkspaceOpenRouterKey(ctx, dbgen.SetWorkspaceOpenRouterKeyParams{
+			OpenrouterApiKeyEnc: encKey,
+			ID:                  workspaceID,
+		})
+	case ai.ProviderImageRouter:
+		return r.d.WQ.SetWorkspaceImageRouterKey(ctx, dbgen.SetWorkspaceImageRouterKeyParams{
+			ImagerouterApiKeyEnc: encKey,
+			ID:                   workspaceID,
+		})
+	default:
+		return fmt.Errorf("unknown ai provider %q: %w", providerName, apperr.ErrNotFound)
+	}
 }
 
 func (r *workspaceRepo) GetMember(ctx context.Context, workspaceID, userID string) (repository.Member, error) {

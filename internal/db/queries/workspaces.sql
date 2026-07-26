@@ -39,13 +39,11 @@ UPDATE workspaces SET exif_keep = ?, exif_keep_gps = ?, updated_at = datetime('n
 -- name: UpdateWorkspaceLockedTaxonomy :exec
 UPDATE workspaces SET locked_taxonomy = ?, updated_at = datetime('now') WHERE id = ?;
 
--- name: SetWorkspaceAIProviderKey :exec
-UPDATE workspaces
-SET
-  openrouter_api_key_enc =  CASE WHEN  @provider_name = 'openrouter'  THEN @value ELSE openrouter_api_key_enc  END,
-  imagerouter_api_key_enc = CASE WHEN  @provider_name = 'imagerouter' THEN @value ELSE imagerouter_api_key_enc END,
-  updated_at = datetime('now')
-WHERE id = ?;
+-- name: SetWorkspaceOpenRouterKey :exec
+UPDATE workspaces SET openrouter_api_key_enc = ?, updated_at = datetime('now') WHERE id = ?;
+
+-- name: SetWorkspaceImageRouterKey :exec
+UPDATE workspaces SET imagerouter_api_key_enc = ?, updated_at = datetime('now') WHERE id = ?;
 
 
 -- name: CountWorkspaceAssets :one
