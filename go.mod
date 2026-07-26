@@ -37,7 +37,7 @@ require (
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.2
 	github.com/vitali-fedulov/imagehash2 v1.0.3
 	github.com/vitali-fedulov/images4 v1.3.1
-	github.com/wneessen/go-mail v0.7.2
+	github.com/wneessen/go-mail v0.8.1
 	go.opentelemetry.io/contrib/bridges/otelslog v0.19.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.19.0
