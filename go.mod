@@ -32,7 +32,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/spf13/afero v1.15.0
-	github.com/studio-b12/gowebdav v0.12.0
+	github.com/studio-b12/gowebdav v0.13.0
 	github.com/swaggo/swag v1.16.6
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.2
 	github.com/vitali-fedulov/imagehash2 v1.0.3
