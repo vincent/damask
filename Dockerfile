@@ -7,7 +7,7 @@ COPY cmd/server/web/ .
 RUN VITE_API_URL="" npm run build
 
 # ── Go build ──────────────────────────────────────────────────────────────────
-FROM golang:1.25-bookworm AS go-build
+FROM golang:1.26-bookworm AS go-build
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY --from=web-build /build/build cmd/server/web/build
