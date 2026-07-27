@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"damask/server/internal/assetio"
 	"damask/server/internal/audit"
 	"damask/server/internal/auth"
 	dbgen "damask/server/internal/db/gen"
@@ -58,6 +59,45 @@ type AssetResponse struct {
 	SharedVariants       []SharedVariantResponse `json:"shared_variants,omitempty"`
 	CreatedAt            time.Time               `json:"created_at"`
 	UpdatedAt            time.Time               `json:"updated_at"`
+	// DuplicateOf is set only on the POST /assets response, when the
+	// workspace's duplicate_detection_mode is "warn" and a content-hash match
+	// was found elsewhere in the workspace. Omitted entirely (not null) when
+	// there is no match, and never populated by GET/list responses.
+	DuplicateOf *DuplicateOfResponse `json:"duplicate_of,omitempty"`
+}
+
+// DuplicateOfResponse describes the existing asset a just-uploaded file's
+// content matches, per the workspace's duplicate_detection_mode.
+type DuplicateOfResponse struct {
+	AssetID          string    `json:"asset_id"`
+	VersionID        string    `json:"version_id"`
+	OriginalFilename string    `json:"original_filename"`
+	ProjectID        *string   `json:"project_id,omitempty"`
+	ThumbnailURL     *string   `json:"thumbnail_url,omitempty"`
+	IsDeletedVersion bool      `json:"is_deleted_version"`
+	StorageAvailable bool      `json:"storage_available"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+func duplicateOfToResponse(d *assetio.DuplicateMatch) *DuplicateOfResponse {
+	if d == nil {
+		return nil
+	}
+	var thumbURL *string
+	if d.ThumbnailKey != nil {
+		u := versionThumbURL(d.AssetID, d.VersionID)
+		thumbURL = &u
+	}
+	return &DuplicateOfResponse{
+		AssetID:          d.AssetID,
+		VersionID:        d.VersionID,
+		OriginalFilename: d.OriginalFilename,
+		ProjectID:        d.ProjectID,
+		ThumbnailURL:     thumbURL,
+		IsDeletedVersion: d.IsDeletedVersion,
+		StorageAvailable: d.StorageAvailable,
+		CreatedAt:        d.CreatedAt,
+	}
 }
 
 type AssetListResponse struct {
@@ -229,10 +269,19 @@ func (s *Server) handleUploadAsset(c fiber.Ctx) (err error) {
 		InheritFields:    s.newInheritProjectFieldsFunc(),
 	})
 	if err != nil {
+		var dupErr *service.DuplicateConflictError
+		if errors.As(err, &dupErr) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				apiErrorKey:    "duplicate_content",
+				"duplicate_of": duplicateOfToResponse(&dupErr.Match),
+			})
+		}
 		return ErrorStatusResponse(c, err)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(assetToResponse(dtoToDBAsset(asset)))
+	resp := assetToResponse(dtoToDBAsset(asset))
+	resp.DuplicateOf = duplicateOfToResponse(asset.DuplicateOf)
+	return c.Status(fiber.StatusCreated).JSON(resp)
 }
 
 // handleListAssets lists assets in the workspace with filtering, sorting, and cursor pagination.

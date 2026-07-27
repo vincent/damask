@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	"damask/server/internal/apperr"
@@ -190,6 +191,40 @@ func (r *RealVersionRepo) SetAssetThumbnail(_ context.Context, _ string, _ *stri
 
 func (r *RealVersionRepo) RunInTx(_ context.Context, fn func(tx repository.VersionRepository) error) error {
 	return fn(r)
+}
+
+func (r *RealVersionRepo) FindDuplicateVersions(
+	_ context.Context,
+	workspaceID, contentHash, excludeAssetID string,
+) ([]repository.DuplicateVersionMatch, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []repository.DuplicateVersionMatch
+	for _, v := range r.versions {
+		if v.WorkspaceID != workspaceID || v.ContentHash != contentHash || v.AssetID == excludeAssetID {
+			continue
+		}
+		out = append(out, repository.DuplicateVersionMatch{
+			VersionID:  v.ID,
+			AssetID:    v.AssetID,
+			VersionNum: v.VersionNum,
+			StorageKey: v.StorageKey,
+			IsCurrent:  v.IsCurrent,
+			DeletedAt:  v.DeletedAt,
+			CreatedAt:  v.CreatedAt,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].IsCurrent != out[j].IsCurrent {
+			return out[i].IsCurrent
+		}
+		iDeleted, jDeleted := out[i].DeletedAt != nil, out[j].DeletedAt != nil
+		if iDeleted != jDeleted {
+			return !iDeleted
+		}
+		return out[i].CreatedAt.After(out[j].CreatedAt)
+	})
+	return out, nil
 }
 
 func (r *RealVersionRepo) ListWithVariantCount(

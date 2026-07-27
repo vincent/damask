@@ -44,6 +44,7 @@ func newUploadSvcSpy(t *testing.T) (service.UploadService, *spyWriter) {
 			nil,
 			nil,
 		),
+		nil,
 	)
 	return service.NewUploadService(ingester, spy, nil), spy
 }
@@ -76,6 +77,7 @@ func newUploadSvc(t *testing.T) service.UploadService {
 			nil,
 			nil,
 		),
+		nil,
 	)
 	return service.NewUploadService(ingester, audit.NopWriter{}, nil)
 }
@@ -154,6 +156,7 @@ func TestUploadService_Ingest_OK(t *testing.T) {
 				nil,
 				nil,
 			),
+			nil,
 		),
 		audit.NopWriter{},
 		nil,
@@ -221,6 +224,7 @@ func TestUploadService_Ingest_EmitsAuditEvent(t *testing.T) {
 				nil,
 				nil,
 			),
+			nil,
 		),
 		spy,
 		nil,
@@ -281,6 +285,7 @@ func TestUploadService_Ingest_DispatchesWorkflowTrigger(t *testing.T) {
 				nil,
 				nil,
 			),
+			nil,
 		),
 		audit.NopWriter{},
 		nil,
@@ -347,6 +352,7 @@ func TestUploadService_Ingest_TriggerData_NilProjectAndFolder(t *testing.T) {
 				nil,
 				nil,
 			),
+			nil,
 		),
 		audit.NopWriter{},
 		nil,

@@ -34,12 +34,15 @@ const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 /**
  * Custom error class thrown by apiFetch when an API response is not ok.
- * Contains the HTTP status code and error message.
+ * Contains the HTTP status code and error message. `body` carries the parsed
+ * JSON error payload when a caller needs structured details beyond the
+ * message (e.g. the `duplicate_of` block on a 409 duplicate_content response).
  */
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public body?: unknown
   ) {
     super(message)
     this.name = 'ApiError'

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"damask/server/internal/apperr"
+	"damask/server/internal/assetio"
 	"damask/server/internal/workflow"
 )
 
@@ -92,6 +93,9 @@ type AssetDTO struct {
 	CurrentVersionID     *string
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	// DuplicateOf is set when a content-hash duplicate was found elsewhere in
+	// the workspace and duplicate_detection_mode is "warn".
+	DuplicateOf *assetio.DuplicateMatch
 }
 
 type UploadAssetVersionParams struct {

@@ -420,6 +420,10 @@ func (w *Worker) finalizeImport(
 		UserID:    src.CreatedBy,
 	})
 	if err != nil {
+		var dupErr *assetio.DuplicateConflictError
+		if errors.As(err, &dupErr) {
+			return w.skipDuplicateEntry(ctx, entry.ID, dupErr.Match.AssetID)
+		}
 		slog.ErrorContext(ctx, "ingest_fetch: cannot create asset", "error", err)
 		return w.failEntry(ctx, entry.ID, src, fmt.Errorf("ingest_fetch: create asset: %w", err))
 	}
@@ -431,10 +435,15 @@ func (w *Worker) finalizeImport(
 		w.storageSvc.Invalidate(src.WorkspaceID)
 	}
 
+	var duplicateOfAssetID *string
+	if asset.DuplicateOf != nil {
+		duplicateOfAssetID = &asset.DuplicateOf.AssetID
+	}
 	if err = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
-		Status:  ingressStatusImported,
-		AssetID: &assetID,
-		ID:      entry.ID,
+		Status:             ingressStatusImported,
+		AssetID:            &assetID,
+		DuplicateOfAssetID: duplicateOfAssetID,
+		ID:                 entry.ID,
 	}); err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "ingest_fetch: update log entry", "entry_id", entry.ID, "error", err)
@@ -524,6 +533,19 @@ func (w *Worker) markPolledError(ctx context.Context, sourceID, msg string) erro
 	return w.queries.MarkIngressSourceError(ctx, dbgen.MarkIngressSourceErrorParams{
 		ID: sourceID, LastError: &msg,
 	})
+}
+
+// skipDuplicateEntry records a block-mode content-hash duplicate as
+// "skipped_duplicate" rather than routing it through failEntry: this is
+// expected, per-workspace-setting behavior, not a source malfunction, so it
+// must not increment the source's error count or trigger a failure notification.
+func (w *Worker) skipDuplicateEntry(ctx context.Context, entryID, duplicateOfAssetID string) error {
+	_ = w.queries.UpdateIngressLogEntry(ctx, dbgen.UpdateIngressLogEntryParams{
+		Status:             ingressStatusSkippedDup,
+		DuplicateOfAssetID: &duplicateOfAssetID,
+		ID:                 entryID,
+	})
+	return nil
 }
 
 func (w *Worker) failEntry(ctx context.Context, entryID string, src dbgen.IngressSource, err error) error {

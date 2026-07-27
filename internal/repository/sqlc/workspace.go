@@ -259,6 +259,7 @@ func toWorkspace(w dbgen.Workspace) repository.Workspace {
 		LockedTaxonomy:           w.LockedTaxonomy != 0,
 		AutoTagEnabled:           w.AutoTagEnabled != 0,
 		AutoTagMode:              w.AutoTagMode,
+		DuplicateDetectionMode:   w.DuplicateDetectionMode,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
@@ -296,6 +297,20 @@ func (r *workspaceRepo) UpdateAutoTagSettings(
 		ID:             workspaceID,
 		AutoTagEnabled: val,
 		AutoTagMode:    mode,
+	}); err != nil {
+		return repository.Workspace{}, err
+	}
+	return r.GetByID(ctx, workspaceID)
+}
+
+func (r *workspaceRepo) UpdateDuplicateDetectionMode(
+	ctx context.Context,
+	workspaceID string,
+	mode string,
+) (repository.Workspace, error) {
+	if err := r.d.WQ.UpdateWorkspaceDuplicateDetectionMode(ctx, dbgen.UpdateWorkspaceDuplicateDetectionModeParams{
+		ID:                     workspaceID,
+		DuplicateDetectionMode: mode,
 	}); err != nil {
 		return repository.Workspace{}, err
 	}

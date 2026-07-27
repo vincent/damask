@@ -220,14 +220,15 @@ type Folder struct {
 }
 
 type IngressLog struct {
-	ID         string    `json:"id"`
-	SourceID   string    `json:"source_id"`
-	RemoteID   string    `json:"remote_id"`
-	Filename   string    `json:"filename"`
-	AssetID    *string   `json:"asset_id"`
-	Status     string    `json:"status"`
-	Error      *string   `json:"error"`
-	ImportedAt time.Time `json:"imported_at"`
+	ID                 string    `json:"id"`
+	SourceID           string    `json:"source_id"`
+	RemoteID           string    `json:"remote_id"`
+	Filename           string    `json:"filename"`
+	AssetID            *string   `json:"asset_id"`
+	Status             string    `json:"status"`
+	Error              *string   `json:"error"`
+	DuplicateOfAssetID *string   `json:"duplicate_of_asset_id"`
+	ImportedAt         time.Time `json:"imported_at"`
 }
 
 type IngressRule struct {
@@ -462,6 +463,7 @@ type Workspace struct {
 	StorageLimitBytes        *int64    `json:"storage_limit_bytes"`
 	AutoTagEnabled           int64     `json:"auto_tag_enabled"`
 	AutoTagMode              string    `json:"auto_tag_mode"`
+	DuplicateDetectionMode   string    `json:"duplicate_detection_mode"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }

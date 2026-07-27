@@ -13,6 +13,7 @@ export type Asset = definitions['api.AssetResponse'] & {
   authors?: { id: string; name: string }[]
 }
 export type PublicAsset = Asset
+export type DuplicateOf = definitions['api.DuplicateOfResponse']
 
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -74,8 +75,11 @@ export const assetApi = {
           window.location.href = '/login'
           reject(new ApiError(401, 'Unauthorized'))
         } else {
-          const body = JSON.parse(xhr.responseText) as { error?: string }
-          reject(new ApiError(xhr.status, body.error ?? xhr.statusText))
+          const body = JSON.parse(xhr.responseText) as {
+            error?: string
+            duplicate_of?: DuplicateOf
+          }
+          reject(new ApiError(xhr.status, body.error ?? xhr.statusText, body))
         }
       })
 

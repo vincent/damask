@@ -18,6 +18,7 @@ const (
 	ingressOperatorEndsWith   = "ends_with"
 	ingressStatusSkipped      = "skipped"
 	ingressStatusImported     = "imported"
+	ingressStatusSkippedDup   = "skipped_duplicate"
 )
 
 // ItemMeta is the metadata available when rules are evaluated.

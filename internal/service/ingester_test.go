@@ -71,7 +71,7 @@ func TestCreateInitialVersionWithNoUser(t *testing.T) {
 		t.Fatalf("write temp file: %v", writeErr)
 	}
 
-	versionID, err := impl.createInitialVersion(
+	versionID, _, err := impl.createInitialVersion(
 		ctx,
 		asset,
 		tmpFile,
@@ -142,7 +142,7 @@ func TestCreateInitialVersionWithUser(t *testing.T) {
 		t.Fatalf("write temp file: %v", writeErr)
 	}
 
-	versionID, err := impl.createInitialVersion(
+	versionID, _, err := impl.createInitialVersion(
 		ctx,
 		asset,
 		tmpFile,

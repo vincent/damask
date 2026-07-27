@@ -246,6 +246,33 @@ func (r *versionRepo) ListWithVariantCount(
 	return out, nil
 }
 
+func (r *versionRepo) FindDuplicateVersions(
+	ctx context.Context,
+	workspaceID, contentHash, excludeAssetID string,
+) ([]repository.DuplicateVersionMatch, error) {
+	rows, err := r.d.RQ.FindVersionsByContentHash(ctx, dbgen.FindVersionsByContentHashParams{
+		WorkspaceID:    workspaceID,
+		ContentHash:    contentHash,
+		ExcludeAssetID: excludeAssetID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.DuplicateVersionMatch, len(rows))
+	for i, row := range rows {
+		out[i] = repository.DuplicateVersionMatch{
+			VersionID:  row.VersionID,
+			AssetID:    row.AssetID,
+			VersionNum: row.VersionNum,
+			StorageKey: row.StorageKey,
+			IsCurrent:  row.IsCurrent != 0,
+			DeletedAt:  row.DeletedAt,
+			CreatedAt:  parseVersionTime(row.CreatedAt),
+		}
+	}
+	return out, nil
+}
+
 func toVersion(v dbgen.AssetVersion) repository.AssetVersion {
 	return repository.AssetVersion{
 		ID:           v.ID,

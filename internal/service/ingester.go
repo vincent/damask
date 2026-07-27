@@ -34,12 +34,13 @@ type AssetIngester interface {
 }
 
 type ingesterImpl struct {
-	assets   repository.AssetRepository
-	versions repository.VersionRepository
-	stor     storage.Storage
-	q        queue.JobQueue
-	media    *ingest.Registry
-	autoTag  AutoTagService
+	assets     repository.AssetRepository
+	versions   repository.VersionRepository
+	stor       storage.Storage
+	q          queue.JobQueue
+	media      *ingest.Registry
+	autoTag    AutoTagService
+	duplicates DuplicateService
 }
 
 // NewAssetIngester returns an AssetIngester backed by the given dependencies.
@@ -50,8 +51,11 @@ func NewAssetIngester(
 	q queue.JobQueue,
 	media *ingest.Registry,
 	autoTag AutoTagService,
+	duplicates DuplicateService,
 ) AssetIngester {
-	return &ingesterImpl{assets: assets, versions: versions, stor: stor, q: q, media: media, autoTag: autoTag}
+	return &ingesterImpl{
+		assets: assets, versions: versions, stor: stor, q: q, media: media, autoTag: autoTag, duplicates: duplicates,
+	}
 }
 
 func (s *ingesterImpl) IngestFile(
@@ -59,7 +63,7 @@ func (s *ingesterImpl) IngestFile(
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
 ) (assetio.AssetSummary, error) {
-	asset, err := s.ingest(ctx, workspaceID, filePath, opts)
+	asset, dup, err := s.ingest(ctx, workspaceID, filePath, opts)
 	if err != nil {
 		return assetio.AssetSummary{}, err
 	}
@@ -69,6 +73,7 @@ func (s *ingesterImpl) IngestFile(
 		StorageKey:       asset.StorageKey,
 		MimeType:         asset.MimeType,
 		OriginalFilename: asset.OriginalFilename,
+		DuplicateOf:      dup,
 	}, nil
 }
 
@@ -77,7 +82,7 @@ func (s *ingesterImpl) IngestFileWithDetails(
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
 ) (*AssetDTO, error) {
-	asset, err := s.ingest(ctx, workspaceID, filePath, opts)
+	asset, dup, err := s.ingest(ctx, workspaceID, filePath, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +102,7 @@ func (s *ingesterImpl) IngestFileWithDetails(
 		CurrentVersionID: asset.CurrentVersionID,
 		CreatedAt:        asset.CreatedAt,
 		UpdatedAt:        asset.UpdatedAt,
+		DuplicateOf:      dup,
 	}, nil
 }
 
@@ -107,7 +113,7 @@ func (s *ingesterImpl) ingest(
 	ctx context.Context,
 	workspaceID, filePath string,
 	opts assetio.IngestFileOpts,
-) (asset repository.Asset, err error) {
+) (asset repository.Asset, dup *assetio.DuplicateMatch, err error) {
 	ctx, span := telemetry.StartSpan(ctx, "service.ingester.ingest",
 		attribute.String("damask.workspace_id", workspaceID),
 		attribute.Bool("damask.upload.has_project", opts.ProjectID != nil),
@@ -140,13 +146,13 @@ func (s *ingesterImpl) ingest(
 
 	stat, err := os.Stat(filePath)
 	if err != nil {
-		return repository.Asset{}, fmt.Errorf("could not stat uploaded file: %w", err)
+		return repository.Asset{}, nil, fmt.Errorf("could not stat uploaded file: %w", err)
 	}
 	span.SetAttributes(attribute.Int64("damask.upload.bytes", stat.Size()))
 
 	mimeType, err := transform.DetectMimeType(filePath)
 	if err != nil {
-		return repository.Asset{}, fmt.Errorf("could not detect MIME type: %w", err)
+		return repository.Asset{}, nil, fmt.Errorf("could not detect MIME type: %w", err)
 	}
 	span.SetAttributes(attribute.String("damask.mime_type", mimeType))
 
@@ -159,7 +165,7 @@ func (s *ingesterImpl) ingest(
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return repository.Asset{}, fmt.Errorf("could not open file: %w", err)
+		return repository.Asset{}, nil, fmt.Errorf("could not open file: %w", err)
 	}
 	defer f.Close()
 	_, storeSpan := telemetry.StartSpan(ctx, "service.ingester.storage_put",
@@ -169,7 +175,7 @@ func (s *ingesterImpl) ingest(
 	err = s.stor.Put(ctx, storageKey, f)
 	telemetry.EndSpan(storeSpan, err)
 	if err != nil {
-		return repository.Asset{}, fmt.Errorf("could not store file: %w", err)
+		return repository.Asset{}, nil, fmt.Errorf("could not store file: %w", err)
 	}
 
 	meta := ingest.FileMeta{}
@@ -208,14 +214,22 @@ func (s *ingesterImpl) ingest(
 	})
 	telemetry.EndSpan(createSpan, err)
 	if err != nil {
-		return repository.Asset{}, fmt.Errorf("could not save asset: %w", err)
+		return repository.Asset{}, nil, fmt.Errorf("could not save asset: %w", err)
 	}
 
 	slog.DebugContext(ctx, "created asset", keyAssetID, asset.ID, keyMimeType, asset.MimeType, keySize, asset.Size)
 
-	initialVersionID, vErr := s.createInitialVersion(ctx, asset, filePath, storageKey, mimeType, meta, opts.UserID)
+	initialVersionID, contentHash, vErr := s.createInitialVersion(
+		ctx, asset, filePath, storageKey, mimeType, meta, opts.UserID,
+	)
 	if vErr != nil {
 		slog.ErrorContext(ctx, "create initial version", keyAssetID, asset.ID, "error", vErr)
+	}
+
+	if vErr == nil && contentHash != "" {
+		if dup, err = s.checkDuplicate(ctx, workspaceID, asset, storageKey, contentHash); err != nil {
+			return repository.Asset{}, nil, err
+		}
 	}
 
 	if opts.InheritFields != nil && opts.ProjectID != nil && opts.UserID != "" {
@@ -245,7 +259,56 @@ func (s *ingesterImpl) ingest(
 	// once created, we can enqueue specialized jobs for this asset
 	s.enqueueIngestionJobs(ctx, asset, workspaceID, mimeType, initialVersionID, opts.UserID)
 
-	return asset, nil
+	return asset, dup, nil
+}
+
+// checkDuplicate runs content-hash duplicate detection for a just-created
+// asset+version. In "block" mode with a match found, it rolls back the asset
+// (and its cascade-deleted version row) plus the just-written storage object,
+// and returns a *DuplicateConflictError. In "warn" mode it returns the match
+// for the caller to attach to the response. Any failure in the dedup
+// plumbing itself (mode lookup, FindDuplicate) is logged and treated as if
+// detection were off, so a broken dedup path never blocks or drops an upload.
+func (s *ingesterImpl) checkDuplicate(
+	ctx context.Context,
+	workspaceID string,
+	asset repository.Asset,
+	storageKey, contentHash string,
+) (*assetio.DuplicateMatch, error) {
+	if s.duplicates == nil {
+		return nil, nil //nolint:nilnil // no dedup service wired means detection is off
+	}
+
+	mode, err := s.duplicates.Mode(ctx, workspaceID)
+	if err != nil {
+		slog.WarnContext(ctx, "duplicate mode lookup failed, defaulting to warn", "error", err)
+		mode = DuplicateModeWarn
+	}
+	if mode == DuplicateModeOff {
+		return nil, nil //nolint:nilnil // detection disabled for this workspace
+	}
+
+	dup, err := s.duplicates.FindDuplicate(ctx, workspaceID, contentHash, asset.ID)
+	if err != nil {
+		slog.WarnContext(ctx, "duplicate check failed, skipping", keyAssetID, asset.ID, "error", err)
+		return nil, nil //nolint:nilnil // never block/lose an upload over a lookup bug
+	}
+	if dup == nil {
+		return nil, nil //nolint:nilnil // no match found
+	}
+
+	if mode != DuplicateModeBlock {
+		return dup, nil
+	}
+
+	if delErr := s.assets.HardDelete(ctx, workspaceID, asset.ID); delErr != nil {
+		slog.ErrorContext(ctx, "failed to roll back blocked duplicate upload", keyAssetID, asset.ID, "error", delErr)
+	}
+	if delErr := s.stor.Delete(ctx, storageKey); delErr != nil {
+		slog.ErrorContext(ctx, "failed to remove storage for blocked duplicate upload",
+			keyAssetID, asset.ID, "storage_key", storageKey, "error", delErr)
+	}
+	return nil, &DuplicateConflictError{Match: *dup}
 }
 
 func (s *ingesterImpl) enqueueIngestionJobs(
@@ -327,7 +390,7 @@ func (s *ingesterImpl) createInitialVersion(
 	filePath, storageKey, mimeType string,
 	meta ingest.FileMeta,
 	userID string,
-) (versionID string, err error) {
+) (versionID, contentHash string, err error) {
 	ctx, span := telemetry.StartSpan(ctx, "service.ingester.create_initial_version",
 		attribute.String("damask.workspace_id", asset.WorkspaceID),
 		attribute.String("damask.asset_id", asset.ID),
@@ -342,7 +405,7 @@ func (s *ingesterImpl) createInitialVersion(
 
 	hash, err := versioning.HashFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("hash file: %w", err)
+		return "", "", fmt.Errorf("hash file: %w", err)
 	}
 
 	versionID = uuid.NewString()
@@ -384,8 +447,8 @@ func (s *ingesterImpl) createInitialVersion(
 		}
 		return nil
 	}); err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return versionID, nil
+	return versionID, hash, nil
 }

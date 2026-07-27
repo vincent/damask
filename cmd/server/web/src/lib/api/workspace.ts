@@ -32,6 +32,7 @@ export const workspaceApi = {
     locked_taxonomy?: boolean
     auto_tag_enabled?: boolean
     auto_tag_mode?: 'pending' | 'silent'
+    duplicate_detection_mode?: 'off' | 'warn' | 'block'
   }) =>
     apiFetch<Workspace>('/api/v1/workspace/settings', {
       method: 'PUT',

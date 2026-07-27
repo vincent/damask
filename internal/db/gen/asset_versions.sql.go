@@ -99,6 +99,76 @@ func (q *Queries) CreateAssetVersion(ctx context.Context, arg CreateAssetVersion
 	return i, err
 }
 
+const findVersionsByContentHash = `-- name: FindVersionsByContentHash :many
+SELECT
+    id AS version_id,
+    asset_id,
+    version_num,
+    storage_key,
+    is_current,
+    deleted_at,
+    created_at
+FROM asset_versions
+WHERE workspace_id = ?1
+  AND content_hash = ?2
+  AND asset_id != ?3
+ORDER BY is_current DESC, deleted_at IS NOT NULL ASC, created_at DESC
+`
+
+type FindVersionsByContentHashParams struct {
+	WorkspaceID    string `json:"workspace_id"`
+	ContentHash    string `json:"content_hash"`
+	ExcludeAssetID string `json:"exclude_asset_id"`
+}
+
+type FindVersionsByContentHashRow struct {
+	VersionID  string  `json:"version_id"`
+	AssetID    string  `json:"asset_id"`
+	VersionNum int64   `json:"version_num"`
+	StorageKey string  `json:"storage_key"`
+	IsCurrent  int64   `json:"is_current"`
+	DeletedAt  *string `json:"deleted_at"`
+	CreatedAt  string  `json:"created_at"`
+}
+
+// Every version in the workspace matching the given hash, ranked so the most
+// actionable match (live/non-deleted, then most recently created) comes
+// first, INCLUDING soft-deleted versions. Caller excludes the asset currently
+// being created/uploaded (excludeAssetID) since sqlc doesn't make conditional
+// exclusion clean and the exclude list is always exactly one asset in
+// practice. Asset-level details (filename, thumbnail, project) are resolved
+// by the caller via a separate GetAssetByID lookup on the top match.
+func (q *Queries) FindVersionsByContentHash(ctx context.Context, arg FindVersionsByContentHashParams) ([]FindVersionsByContentHashRow, error) {
+	rows, err := q.db.QueryContext(ctx, findVersionsByContentHash, arg.WorkspaceID, arg.ContentHash, arg.ExcludeAssetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FindVersionsByContentHashRow{}
+	for rows.Next() {
+		var i FindVersionsByContentHashRow
+		if err := rows.Scan(
+			&i.VersionID,
+			&i.AssetID,
+			&i.VersionNum,
+			&i.StorageKey,
+			&i.IsCurrent,
+			&i.DeletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCurrentVersion = `-- name: GetCurrentVersion :one
 SELECT id, asset_id, workspace_id, version_num, storage_key, content_hash, mime_type, size, width, height, duration_sec, thumbnail_key, thumbnail_content_type, comment, created_by, created_at, is_current, deleted_at FROM asset_versions
 WHERE asset_id = ? AND is_current = 1 AND deleted_at IS NULL

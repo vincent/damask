@@ -111,6 +111,22 @@ func (r *RealWorkspaceRepo) UpdateAutoTagSettings(
 	return ws, nil
 }
 
+func (r *RealWorkspaceRepo) UpdateDuplicateDetectionMode(
+	_ context.Context,
+	workspaceID string,
+	mode string,
+) (repository.Workspace, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	ws, ok := r.workspaces[workspaceID]
+	if !ok {
+		return repository.Workspace{}, fmt.Errorf("workspace %q: %w", workspaceID, apperr.ErrNotFound)
+	}
+	ws.DuplicateDetectionMode = mode
+	r.workspaces[workspaceID] = ws
+	return ws, nil
+}
+
 func (r *RealWorkspaceRepo) CountAssets(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }

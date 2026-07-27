@@ -154,6 +154,19 @@ type AssetVersionWithCount struct {
 	VariantCount int64
 }
 
+// DuplicateVersionMatch is a version-level result row from
+// VersionRepository.FindDuplicateVersions, ranked by the repository so the
+// first row is the most actionable match (live/non-deleted, then most recent).
+type DuplicateVersionMatch struct {
+	VersionID  string
+	AssetID    string
+	VersionNum int64
+	StorageKey string
+	IsCurrent  bool
+	DeletedAt  *string
+	CreatedAt  time.Time
+}
+
 // FieldDefinition is the domain representation of a custom field definition.
 type FieldDefinition struct {
 	ID                 string
@@ -188,6 +201,7 @@ type Workspace struct {
 	LockedTaxonomy           bool
 	AutoTagEnabled           bool
 	AutoTagMode              string
+	DuplicateDetectionMode   string
 	CreatedAt                time.Time
 	UpdatedAt                time.Time
 }

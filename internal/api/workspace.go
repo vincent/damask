@@ -30,6 +30,7 @@ type WorkspaceResponse struct {
 	LockedTaxonomy           bool      `json:"locked_taxonomy"`
 	AutoTagEnabled           bool      `json:"auto_tag_enabled"`
 	AutoTagMode              string    `json:"auto_tag_mode"`
+	DuplicateDetectionMode   string    `json:"duplicate_detection_mode"`
 	CreatedAt                time.Time `json:"created_at"`
 	UpdatedAt                time.Time `json:"updated_at"`
 }
@@ -48,6 +49,7 @@ func workspaceDTOToResponse(w *service.WorkspaceDTO) WorkspaceResponse {
 		LockedTaxonomy:           w.LockedTaxonomy,
 		AutoTagEnabled:           w.AutoTagEnabled,
 		AutoTagMode:              w.AutoTagMode,
+		DuplicateDetectionMode:   w.DuplicateDetectionMode,
 		CreatedAt:                w.CreatedAt,
 		UpdatedAt:                w.UpdatedAt,
 	}
@@ -236,12 +238,13 @@ func (s *Server) handleUpdateWorkspaceSettings(c fiber.Ctx) error {
 	}
 
 	ws, err := s.workspace.Update(c.Context(), claims.WorkspaceID, service.UpdateWorkspaceParams{
-		VersionRetentionCount: &body.VersionRetentionCount,
-		ExifKeep:              &body.ExifKeep,
-		ExifKeepGps:           &body.ExifKeepGPS,
-		LockedTaxonomy:        body.LockedTaxonomy,
-		AutoTagEnabled:        body.AutoTagEnabled,
-		AutoTagMode:           body.AutoTagMode,
+		VersionRetentionCount:  &body.VersionRetentionCount,
+		ExifKeep:               &body.ExifKeep,
+		ExifKeepGps:            &body.ExifKeepGPS,
+		LockedTaxonomy:         body.LockedTaxonomy,
+		AutoTagEnabled:         body.AutoTagEnabled,
+		AutoTagMode:            body.AutoTagMode,
+		DuplicateDetectionMode: body.DuplicateDetectionMode,
 	})
 	if err != nil {
 		return ErrorStatusResponse(c, err)

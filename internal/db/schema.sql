@@ -16,6 +16,8 @@ CREATE TABLE workspaces (
     auto_tag_enabled            INTEGER NOT NULL DEFAULT 0,
     auto_tag_mode               TEXT    NOT NULL DEFAULT 'pending'
                                 CHECK (auto_tag_mode IN ('pending', 'silent')),
+    duplicate_detection_mode    TEXT    NOT NULL DEFAULT 'warn'
+                                CHECK (duplicate_detection_mode IN ('off', 'warn', 'block')),
     created_at                  DATETIME NOT NULL DEFAULT (datetime('now')),
     updated_at                  DATETIME NOT NULL DEFAULT (datetime('now'))
 );
@@ -123,6 +125,7 @@ CREATE INDEX idx_versions_asset     ON asset_versions(asset_id, is_current);
 CREATE INDEX idx_versions_workspace ON asset_versions(workspace_id);
 CREATE INDEX idx_versions_hash      ON asset_versions(content_hash);
 CREATE INDEX idx_versions_created   ON asset_versions(asset_id, created_at DESC);
+CREATE INDEX idx_versions_workspace_hash ON asset_versions(workspace_id, content_hash);
 
 CREATE TABLE tags (
     id           TEXT PRIMARY KEY,
@@ -288,15 +291,16 @@ CREATE UNIQUE INDEX idx_ingress_sources_public_token
     ON ingress_sources(public_token) WHERE public_token != '';
 
 CREATE TABLE ingress_log (
-    id          TEXT PRIMARY KEY,
-    source_id   TEXT NOT NULL REFERENCES ingress_sources(id) ON DELETE CASCADE,
-    remote_id   TEXT NOT NULL,
-    filename    TEXT NOT NULL,
-    asset_id    TEXT REFERENCES assets(id) ON DELETE SET NULL,
-    status      TEXT NOT NULL DEFAULT 'pending'
-                    CHECK(status IN ('pending', 'imported', 'skipped', 'error')),
-    error       TEXT,
-    imported_at DATETIME NOT NULL DEFAULT (datetime('now')),
+    id                    TEXT PRIMARY KEY,
+    source_id             TEXT NOT NULL REFERENCES ingress_sources(id) ON DELETE CASCADE,
+    remote_id             TEXT NOT NULL,
+    filename              TEXT NOT NULL,
+    asset_id              TEXT REFERENCES assets(id) ON DELETE SET NULL,
+    status                TEXT NOT NULL DEFAULT 'pending'
+                              CHECK(status IN ('pending', 'imported', 'skipped', 'error', 'skipped_duplicate')),
+    error                 TEXT,
+    duplicate_of_asset_id TEXT REFERENCES assets(id) ON DELETE SET NULL,
+    imported_at           DATETIME NOT NULL DEFAULT (datetime('now')),
     UNIQUE(source_id, remote_id)
 );
 

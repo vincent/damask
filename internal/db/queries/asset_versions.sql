@@ -89,3 +89,25 @@ WHERE av.asset_id = ? AND av.deleted_at IS NULL
 GROUP BY av.id
 ORDER BY av.version_num DESC;
 
+-- name: FindVersionsByContentHash :many
+-- Every version in the workspace matching the given hash, ranked so the most
+-- actionable match (live/non-deleted, then most recently created) comes
+-- first, INCLUDING soft-deleted versions. Caller excludes the asset currently
+-- being created/uploaded (excludeAssetID) since sqlc doesn't make conditional
+-- exclusion clean and the exclude list is always exactly one asset in
+-- practice. Asset-level details (filename, thumbnail, project) are resolved
+-- by the caller via a separate GetAssetByID lookup on the top match.
+SELECT
+    id AS version_id,
+    asset_id,
+    version_num,
+    storage_key,
+    is_current,
+    deleted_at,
+    created_at
+FROM asset_versions
+WHERE workspace_id = sqlc.arg('workspace_id')
+  AND content_hash = sqlc.arg('content_hash')
+  AND asset_id != sqlc.arg('exclude_asset_id')
+ORDER BY is_current DESC, deleted_at IS NOT NULL ASC, created_at DESC;
+

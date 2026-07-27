@@ -67,6 +67,17 @@
               error: m.storage_error_limit_reached(),
             })
             toastStore.show(m.storage_error_limit_reached(), 'error')
+          } else if (
+            err instanceof ApiError &&
+            err.status === 409 &&
+            (err.body as { error?: string } | undefined)?.error ===
+              'duplicate_content'
+          ) {
+            const message = m.duplicate_upload_blocked_message({
+              filename: file.name,
+            })
+            uploadsStore.update(id, { status: 'error', error: message })
+            toastStore.show(message, 'error')
           } else {
             uploadsStore.update(id, {
               status: 'error',

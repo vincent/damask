@@ -232,7 +232,7 @@ func (q *Queries) DeleteIngressSource(ctx context.Context, arg DeleteIngressSour
 }
 
 const getIngressLogEntry = `-- name: GetIngressLogEntry :one
-SELECT id, source_id, remote_id, filename, asset_id, status, error, imported_at FROM ingress_log WHERE id = ?
+SELECT id, source_id, remote_id, filename, asset_id, status, error, duplicate_of_asset_id, imported_at FROM ingress_log WHERE id = ?
 `
 
 func (q *Queries) GetIngressLogEntry(ctx context.Context, id string) (IngressLog, error) {
@@ -246,13 +246,14 @@ func (q *Queries) GetIngressLogEntry(ctx context.Context, id string) (IngressLog
 		&i.AssetID,
 		&i.Status,
 		&i.Error,
+		&i.DuplicateOfAssetID,
 		&i.ImportedAt,
 	)
 	return i, err
 }
 
 const getIngressLogEntryForWorkspace = `-- name: GetIngressLogEntryForWorkspace :one
-SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.imported_at FROM ingress_log l
+SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.duplicate_of_asset_id, l.imported_at FROM ingress_log l
 JOIN ingress_sources s ON s.id = l.source_id
 WHERE l.id = ?1 AND s.workspace_id = ?2
 `
@@ -273,6 +274,7 @@ func (q *Queries) GetIngressLogEntryForWorkspace(ctx context.Context, arg GetIng
 		&i.AssetID,
 		&i.Status,
 		&i.Error,
+		&i.DuplicateOfAssetID,
 		&i.ImportedAt,
 	)
 	return i, err
@@ -386,7 +388,7 @@ func (q *Queries) GetIngressSourceByPublicToken(ctx context.Context, publicToken
 }
 
 const getWorkspaceByIngestToken = `-- name: GetWorkspaceByIngestToken :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, created_at, updated_at FROM workspaces WHERE ingest_token = ?
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, duplicate_detection_mode, created_at, updated_at FROM workspaces WHERE ingest_token = ?
 `
 
 func (q *Queries) GetWorkspaceByIngestToken(ctx context.Context, ingestToken *string) (Workspace, error) {
@@ -409,6 +411,7 @@ func (q *Queries) GetWorkspaceByIngestToken(ctx context.Context, ingestToken *st
 		&i.StorageLimitBytes,
 		&i.AutoTagEnabled,
 		&i.AutoTagMode,
+		&i.DuplicateDetectionMode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -419,7 +422,7 @@ const insertIngressLogEntry = `-- name: InsertIngressLogEntry :one
 
 INSERT OR IGNORE INTO ingress_log (id, source_id, remote_id, filename, status)
 VALUES (?, ?, ?, ?, 'pending')
-RETURNING id, source_id, remote_id, filename, asset_id, status, error, imported_at
+RETURNING id, source_id, remote_id, filename, asset_id, status, error, duplicate_of_asset_id, imported_at
 `
 
 type InsertIngressLogEntryParams struct {
@@ -448,6 +451,7 @@ func (q *Queries) InsertIngressLogEntry(ctx context.Context, arg InsertIngressLo
 		&i.AssetID,
 		&i.Status,
 		&i.Error,
+		&i.DuplicateOfAssetID,
 		&i.ImportedAt,
 	)
 	return i, err
@@ -586,7 +590,7 @@ func (q *Queries) ListIngressRulesForWorkspace(ctx context.Context, arg ListIngr
 }
 
 const listIngressSourceLog = `-- name: ListIngressSourceLog :many
-SELECT id, source_id, remote_id, filename, asset_id, status, error, imported_at FROM ingress_log
+SELECT id, source_id, remote_id, filename, asset_id, status, error, duplicate_of_asset_id, imported_at FROM ingress_log
 WHERE source_id = ?
 ORDER BY imported_at DESC
 LIMIT ? OFFSET ?
@@ -615,6 +619,7 @@ func (q *Queries) ListIngressSourceLog(ctx context.Context, arg ListIngressSourc
 			&i.AssetID,
 			&i.Status,
 			&i.Error,
+			&i.DuplicateOfAssetID,
 			&i.ImportedAt,
 		); err != nil {
 			return nil, err
@@ -632,7 +637,7 @@ func (q *Queries) ListIngressSourceLog(ctx context.Context, arg ListIngressSourc
 
 const listIngressSourceLogForWorkspace = `-- name: ListIngressSourceLogForWorkspace :many
 
-SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.imported_at FROM ingress_log l
+SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.duplicate_of_asset_id, l.imported_at FROM ingress_log l
 JOIN ingress_sources s ON s.id = l.source_id
 WHERE l.source_id = ?1 AND s.workspace_id = ?2
 ORDER BY l.imported_at DESC
@@ -670,6 +675,7 @@ func (q *Queries) ListIngressSourceLogForWorkspace(ctx context.Context, arg List
 			&i.AssetID,
 			&i.Status,
 			&i.Error,
+			&i.DuplicateOfAssetID,
 			&i.ImportedAt,
 		); err != nil {
 			return nil, err
@@ -732,7 +738,7 @@ func (q *Queries) ListIngressSources(ctx context.Context, workspaceID string) ([
 }
 
 const listWorkspaceIngressLog = `-- name: ListWorkspaceIngressLog :many
-SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.imported_at FROM ingress_log l
+SELECT l.id, l.source_id, l.remote_id, l.filename, l.asset_id, l.status, l.error, l.duplicate_of_asset_id, l.imported_at FROM ingress_log l
 JOIN ingress_sources s ON s.id = l.source_id
 WHERE s.workspace_id = ?1
   AND (?2 IS NULL OR l.status = ?2)
@@ -769,6 +775,7 @@ func (q *Queries) ListWorkspaceIngressLog(ctx context.Context, arg ListWorkspace
 			&i.AssetID,
 			&i.Status,
 			&i.Error,
+			&i.DuplicateOfAssetID,
 			&i.ImportedAt,
 		); err != nil {
 			return nil, err
@@ -845,15 +852,20 @@ func (q *Queries) SetWorkspaceIngestToken(ctx context.Context, arg SetWorkspaceI
 
 const updateIngressLogEntry = `-- name: UpdateIngressLogEntry :exec
 UPDATE ingress_log
-SET status = ?, asset_id = ?, error = ?, imported_at = datetime('now')
-WHERE id = ?
+SET status = ?1,
+    asset_id = ?2,
+    error = ?3,
+    duplicate_of_asset_id = ?4,
+    imported_at = datetime('now')
+WHERE id = ?5
 `
 
 type UpdateIngressLogEntryParams struct {
-	Status  string  `json:"status"`
-	AssetID *string `json:"asset_id"`
-	Error   *string `json:"error"`
-	ID      string  `json:"id"`
+	Status             string  `json:"status"`
+	AssetID            *string `json:"asset_id"`
+	Error              *string `json:"error"`
+	DuplicateOfAssetID *string `json:"duplicate_of_asset_id"`
+	ID                 string  `json:"id"`
 }
 
 func (q *Queries) UpdateIngressLogEntry(ctx context.Context, arg UpdateIngressLogEntryParams) error {
@@ -861,6 +873,7 @@ func (q *Queries) UpdateIngressLogEntry(ctx context.Context, arg UpdateIngressLo
 		arg.Status,
 		arg.AssetID,
 		arg.Error,
+		arg.DuplicateOfAssetID,
 		arg.ID,
 	)
 	return err

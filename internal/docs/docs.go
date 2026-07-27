@@ -8256,6 +8256,14 @@ const docTemplate = `{
                 "derived_from_asset_id": {
                     "type": "string"
                 },
+                "duplicate_of": {
+                    "description": "DuplicateOf is set only on the POST /assets response, when the\nworkspace's duplicate_detection_mode is \"warn\" and a content-hash match\nwas found elsewhere in the workspace. Omitted entirely (not null) when\nthere is no match, and never populated by GET/list responses.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/api.DuplicateOfResponse"
+                        }
+                    ]
+                },
                 "folder_id": {
                     "type": "string"
                 },
@@ -8952,6 +8960,43 @@ const docTemplate = `{
             ],
             "properties": {
                 "draft_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.DuplicateOfResponse": {
+            "type": "object",
+            "required": [
+                "asset_id",
+                "created_at",
+                "is_deleted_version",
+                "original_filename",
+                "storage_available",
+                "version_id"
+            ],
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "is_deleted_version": {
+                    "type": "boolean"
+                },
+                "original_filename": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "string"
+                },
+                "storage_available": {
+                    "type": "boolean"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "version_id": {
                     "type": "string"
                 }
             }
@@ -10310,6 +10355,7 @@ const docTemplate = `{
             "required": [
                 "auto_tag_enabled",
                 "auto_tag_mode",
+                "duplicate_detection_mode",
                 "exif_keep",
                 "exif_keep_gps",
                 "locked_taxonomy",
@@ -10320,6 +10366,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "auto_tag_mode": {
+                    "type": "string"
+                },
+                "duplicate_detection_mode": {
                     "type": "string"
                 },
                 "exif_keep": {
@@ -10903,6 +10952,7 @@ const docTemplate = `{
                 "auto_tag_mode",
                 "created_at",
                 "download_log_retention_days",
+                "duplicate_detection_mode",
                 "event_log_retention_days",
                 "exif_keep",
                 "exif_keep_gps",
@@ -10924,6 +10974,9 @@ const docTemplate = `{
                 },
                 "download_log_retention_days": {
                     "type": "integer"
+                },
+                "duplicate_detection_mode": {
+                    "type": "string"
                 },
                 "event_log_retention_days": {
                     "type": "integer"

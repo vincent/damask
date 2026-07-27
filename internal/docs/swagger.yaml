@@ -154,6 +154,14 @@ definitions:
         type: string
       derived_from_asset_id:
         type: string
+      duplicate_of:
+        allOf:
+        - $ref: '#/definitions/api.DuplicateOfResponse'
+        description: |-
+          DuplicateOf is set only on the POST /assets response, when the
+          workspace's duplicate_detection_mode is "warn" and a content-hash match
+          was found elsewhere in the workspace. Omitted entirely (not null) when
+          there is no match, and never populated by GET/list responses.
       folder_id:
         type: string
       height:
@@ -641,6 +649,32 @@ definitions:
         type: string
     required:
     - draft_key
+    type: object
+  api.DuplicateOfResponse:
+    properties:
+      asset_id:
+        type: string
+      created_at:
+        type: string
+      is_deleted_version:
+        type: boolean
+      original_filename:
+        type: string
+      project_id:
+        type: string
+      storage_available:
+        type: boolean
+      thumbnail_url:
+        type: string
+      version_id:
+        type: string
+    required:
+    - asset_id
+    - created_at
+    - is_deleted_version
+    - original_filename
+    - storage_available
+    - version_id
     type: object
   api.DuplicateTagPairResponse:
     properties:
@@ -1577,6 +1611,8 @@ definitions:
         type: boolean
       auto_tag_mode:
         type: string
+      duplicate_detection_mode:
+        type: string
       exif_keep:
         type: boolean
       exif_keep_gps:
@@ -1588,6 +1624,7 @@ definitions:
     required:
     - auto_tag_enabled
     - auto_tag_mode
+    - duplicate_detection_mode
     - exif_keep
     - exif_keep_gps
     - locked_taxonomy
@@ -1992,6 +2029,8 @@ definitions:
         type: string
       download_log_retention_days:
         type: integer
+      duplicate_detection_mode:
+        type: string
       event_log_retention_days:
         type: integer
       exif_keep:
@@ -2017,6 +2056,7 @@ definitions:
     - auto_tag_mode
     - created_at
     - download_log_retention_days
+    - duplicate_detection_mode
     - event_log_retention_days
     - exif_keep
     - exif_keep_gps

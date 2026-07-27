@@ -108,6 +108,11 @@ func (r *VersionRepo) RunInTx(_ context.Context, fn func(repository.VersionRepos
 func (r *VersionRepo) ListWithVariantCount(_ context.Context, _ string) ([]repository.AssetVersionWithCount, error) {
 	panic("memory: VersionRepo.ListWithVariantCount not implemented")
 }
+func (r *VersionRepo) FindDuplicateVersions(
+	_ context.Context, _, _, _ string,
+) ([]repository.DuplicateVersionMatch, error) {
+	return nil, nil // sentinel: no duplicates in tests that don't seed hash matches
+}
 
 // WorkspaceRepo ------------------------------------------------------------
 // Stub: not exercised by service tests. Promote to mapStore when needed.
@@ -135,6 +140,13 @@ func (r *WorkspaceRepo) UpdateAutoTagSettings(
 	_ string,
 ) (repository.Workspace, error) {
 	panic("memory: WorkspaceRepo.UpdateAutoTagSettings not implemented")
+}
+func (r *WorkspaceRepo) UpdateDuplicateDetectionMode(
+	_ context.Context,
+	_ string,
+	_ string,
+) (repository.Workspace, error) {
+	panic("memory: WorkspaceRepo.UpdateDuplicateDetectionMode not implemented")
 }
 func (r *WorkspaceRepo) GetAIProviderKey(_ context.Context, _, _ string) (string, error) {
 	return "", nil

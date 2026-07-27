@@ -30,6 +30,7 @@ type WorkspaceDTO struct {
 	LockedTaxonomy           bool
 	AutoTagEnabled           bool
 	AutoTagMode              string
+	DuplicateDetectionMode   string
 	CreatedAt                time.Time
 	UpdatedAt                time.Time
 }
@@ -77,12 +78,13 @@ type InviteDTO struct {
 
 // UpdateWorkspaceParams is the input for WorkspaceService.Update.
 type UpdateWorkspaceParams struct {
-	VersionRetentionCount *int64
-	ExifKeep              *bool
-	ExifKeepGps           *bool
-	LockedTaxonomy        *bool
-	AutoTagEnabled        *bool
-	AutoTagMode           *string
+	VersionRetentionCount  *int64
+	ExifKeep               *bool
+	ExifKeepGps            *bool
+	LockedTaxonomy         *bool
+	AutoTagEnabled         *bool
+	AutoTagMode            *string
+	DuplicateDetectionMode *string
 }
 
 // CreateInviteParams is the input for WorkspaceService.CreateInvite.
@@ -178,6 +180,12 @@ func (s *workspaceService) Update(
 			mode = *p.AutoTagMode
 		}
 		updated, err = s.workspaces.UpdateAutoTagSettings(ctx, workspaceID, enabled, mode)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if p.DuplicateDetectionMode != nil {
+		updated, err = s.workspaces.UpdateDuplicateDetectionMode(ctx, workspaceID, *p.DuplicateDetectionMode)
 		if err != nil {
 			return nil, err
 		}
@@ -508,6 +516,7 @@ func toWorkspaceDTO(ws repository.Workspace) *WorkspaceDTO {
 		LockedTaxonomy:           ws.LockedTaxonomy,
 		AutoTagEnabled:           ws.AutoTagEnabled,
 		AutoTagMode:              ws.AutoTagMode,
+		DuplicateDetectionMode:   ws.DuplicateDetectionMode,
 		CreatedAt:                ws.CreatedAt,
 		UpdatedAt:                ws.UpdatedAt,
 	}

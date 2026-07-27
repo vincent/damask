@@ -27,7 +27,7 @@ INSERT INTO workspaces
   (id, name, created_at, updated_at)
 VALUES
   (?, ?, datetime('now'), datetime('now'))
-RETURNING id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, created_at, updated_at
+RETURNING id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, duplicate_detection_mode, created_at, updated_at
 `
 
 type CreateWorkspaceParams struct {
@@ -55,6 +55,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.StorageLimitBytes,
 		&i.AutoTagEnabled,
 		&i.AutoTagMode,
+		&i.DuplicateDetectionMode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -249,7 +250,7 @@ func (q *Queries) GetWorkspaceAIProviderKey(ctx context.Context, arg GetWorkspac
 }
 
 const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, created_at, updated_at
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, duplicate_detection_mode, created_at, updated_at
 FROM workspaces
 WHERE id = ? LIMIT 1
 `
@@ -274,6 +275,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 		&i.StorageLimitBytes,
 		&i.AutoTagEnabled,
 		&i.AutoTagMode,
+		&i.DuplicateDetectionMode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -281,7 +283,7 @@ func (q *Queries) GetWorkspaceByID(ctx context.Context, id string) (Workspace, e
 }
 
 const getWorkspaceByIconAsset = `-- name: GetWorkspaceByIconAsset :one
-SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, created_at, updated_at
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, duplicate_detection_mode, created_at, updated_at
 FROM workspaces
 WHERE icon_asset_id = ? AND id = ? LIMIT 1
 `
@@ -311,6 +313,7 @@ func (q *Queries) GetWorkspaceByIconAsset(ctx context.Context, arg GetWorkspaceB
 		&i.StorageLimitBytes,
 		&i.AutoTagEnabled,
 		&i.AutoTagMode,
+		&i.DuplicateDetectionMode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -357,7 +360,7 @@ func (q *Queries) GetWorkspaceStorageVersionsBytes(ctx context.Context, workspac
 }
 
 const listWorkspacesWithRetention = `-- name: ListWorkspacesWithRetention :many
-SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, created_at, updated_at
+SELECT id, name, ingest_token, imagerouter_api_key_enc, openrouter_api_key_enc, version_retention_count, event_log_retention_days, download_log_retention_days, icon_asset_id, icon_version_id, exif_keep, exif_keep_gps, locked_taxonomy, storage_limit_bytes, auto_tag_enabled, auto_tag_mode, duplicate_detection_mode, created_at, updated_at
 FROM workspaces
 WHERE version_retention_count > 0
 `
@@ -388,6 +391,7 @@ func (q *Queries) ListWorkspacesWithRetention(ctx context.Context) ([]Workspace,
 			&i.StorageLimitBytes,
 			&i.AutoTagEnabled,
 			&i.AutoTagMode,
+			&i.DuplicateDetectionMode,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -429,6 +433,20 @@ type SetWorkspaceOpenRouterKeyParams struct {
 
 func (q *Queries) SetWorkspaceOpenRouterKey(ctx context.Context, arg SetWorkspaceOpenRouterKeyParams) error {
 	_, err := q.db.ExecContext(ctx, setWorkspaceOpenRouterKey, arg.OpenrouterApiKeyEnc, arg.ID)
+	return err
+}
+
+const updateWorkspaceDuplicateDetectionMode = `-- name: UpdateWorkspaceDuplicateDetectionMode :exec
+UPDATE workspaces SET duplicate_detection_mode = ?, updated_at = datetime('now') WHERE id = ?
+`
+
+type UpdateWorkspaceDuplicateDetectionModeParams struct {
+	DuplicateDetectionMode string `json:"duplicate_detection_mode"`
+	ID                     string `json:"id"`
+}
+
+func (q *Queries) UpdateWorkspaceDuplicateDetectionMode(ctx context.Context, arg UpdateWorkspaceDuplicateDetectionModeParams) error {
+	_, err := q.db.ExecContext(ctx, updateWorkspaceDuplicateDetectionMode, arg.DuplicateDetectionMode, arg.ID)
 	return err
 }
 

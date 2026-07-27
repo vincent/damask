@@ -90,8 +90,12 @@ SELECT * FROM ingress_log WHERE id = ?;
 
 -- name: UpdateIngressLogEntry :exec
 UPDATE ingress_log
-SET status = ?, asset_id = ?, error = ?, imported_at = datetime('now')
-WHERE id = ?;
+SET status = sqlc.arg('status'),
+    asset_id = sqlc.arg('asset_id'),
+    error = sqlc.arg('error'),
+    duplicate_of_asset_id = sqlc.arg('duplicate_of_asset_id'),
+    imported_at = datetime('now')
+WHERE id = sqlc.arg('id');
 
 -- name: ListIngressSourceLog :many
 SELECT * FROM ingress_log

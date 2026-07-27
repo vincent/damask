@@ -262,12 +262,13 @@ func (r *ShareAccessRequest) Valid(_ context.Context) map[string]string {
 }
 
 type UpdateWorkspaceSettingsRequest struct {
-	VersionRetentionCount int64   `json:"version_retention_count"`
-	ExifKeep              bool    `json:"exif_keep"`
-	ExifKeepGPS           bool    `json:"exif_keep_gps"`
-	LockedTaxonomy        *bool   `json:"locked_taxonomy"`
-	AutoTagEnabled        *bool   `json:"auto_tag_enabled"`
-	AutoTagMode           *string `json:"auto_tag_mode"`
+	VersionRetentionCount  int64   `json:"version_retention_count"`
+	ExifKeep               bool    `json:"exif_keep"`
+	ExifKeepGPS            bool    `json:"exif_keep_gps"`
+	LockedTaxonomy         *bool   `json:"locked_taxonomy"`
+	AutoTagEnabled         *bool   `json:"auto_tag_enabled"`
+	AutoTagMode            *string `json:"auto_tag_mode"`
+	DuplicateDetectionMode *string `json:"duplicate_detection_mode"`
 }
 
 func (r *UpdateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]string {
@@ -277,6 +278,13 @@ func (r *UpdateWorkspaceSettingsRequest) Valid(_ context.Context) map[string]str
 	}
 	if r.AutoTagMode != nil && *r.AutoTagMode != "pending" && *r.AutoTagMode != "silent" {
 		p["auto_tag_mode"] = "must be 'pending' or 'silent'"
+	}
+	if r.DuplicateDetectionMode != nil {
+		switch *r.DuplicateDetectionMode {
+		case "off", "warn", "block":
+		default:
+			p["duplicate_detection_mode"] = "must be 'off', 'warn', or 'block'"
+		}
 	}
 	return p
 }

@@ -4167,6 +4167,13 @@ export interface definitions {
   readonly "api.AssetResponse": {
     readonly created_at: string;
     readonly derived_from_asset_id?: string;
+    /**
+     * @description DuplicateOf is set only on the POST /assets response, when the
+     * workspace's duplicate_detection_mode is "warn" and a content-hash match
+     * was found elsewhere in the workspace. Omitted entirely (not null) when
+     * there is no match, and never populated by GET/list responses.
+     */
+    readonly duplicate_of?: definitions["api.DuplicateOfResponse"];
     readonly folder_id?: string;
     readonly height?: number;
     readonly id: string;
@@ -4350,6 +4357,16 @@ export interface definitions {
   };
   readonly "api.DraftGenerateResponse": {
     readonly draft_key: string;
+  };
+  readonly "api.DuplicateOfResponse": {
+    readonly asset_id: string;
+    readonly created_at: string;
+    readonly is_deleted_version: boolean;
+    readonly original_filename: string;
+    readonly project_id?: string;
+    readonly storage_available: boolean;
+    readonly thumbnail_url?: string;
+    readonly version_id: string;
   };
   readonly "api.DuplicateTagPairResponse": {
     readonly a: string;
@@ -4710,6 +4727,7 @@ export interface definitions {
   readonly "api.UpdateWorkspaceSettingsRequest": {
     readonly auto_tag_enabled: boolean;
     readonly auto_tag_mode: string;
+    readonly duplicate_detection_mode: string;
     readonly exif_keep: boolean;
     readonly exif_keep_gps: boolean;
     readonly locked_taxonomy: boolean;
@@ -4865,6 +4883,7 @@ export interface definitions {
     readonly auto_tag_mode: string;
     readonly created_at: string;
     readonly download_log_retention_days: number;
+    readonly duplicate_detection_mode: string;
     readonly event_log_retention_days: number;
     readonly exif_keep: boolean;
     readonly exif_keep_gps: boolean;

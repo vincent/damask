@@ -179,6 +179,13 @@ type VersionRepository interface {
 	SetAssetThumbnail(ctx context.Context, assetID string, key *string) error
 	// ListWithVariantCount returns versions with per-version variant counts.
 	ListWithVariantCount(ctx context.Context, assetID string) ([]AssetVersionWithCount, error)
+	// FindDuplicateVersions returns every version in the workspace sharing
+	// contentHash, excluding excludeAssetID, INCLUDING soft-deleted versions,
+	// ranked most-actionable-first (live/non-deleted, then most recent).
+	FindDuplicateVersions(
+		ctx context.Context,
+		workspaceID, contentHash, excludeAssetID string,
+	) ([]DuplicateVersionMatch, error)
 }
 
 // FieldRepository handles persistence for FieldDefinition records.
@@ -262,6 +269,7 @@ type WorkspaceRepository interface {
 	Update(ctx context.Context, w Workspace) (Workspace, error)
 	UpdateLockedTaxonomy(ctx context.Context, workspaceID string, locked bool) (Workspace, error)
 	UpdateAutoTagSettings(ctx context.Context, workspaceID string, enabled bool, mode string) (Workspace, error)
+	UpdateDuplicateDetectionMode(ctx context.Context, workspaceID string, mode string) (Workspace, error)
 	GetAIProviderKey(ctx context.Context, workspaceID, providerName string) (string, error)
 	SetAIProviderKey(ctx context.Context, workspaceID, providerName, encKey string) error
 	ClearAIProviderKey(ctx context.Context, workspaceID string, providerName string) error

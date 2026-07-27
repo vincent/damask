@@ -5,6 +5,7 @@
   import Modal from '$lib/components/ui/Modal.svelte'
   import PageHeader from '$lib/components/ui/PageHeader.svelte'
   import Button from '$lib/components/ui/Button.svelte'
+  import DuplicateDetectionSetting from '$lib/components/settings/DuplicateDetectionSetting.svelte'
   import { m } from '$lib/paraglide/messages'
 
   type RetentionMode = 'unlimited' | 'capped'
@@ -264,6 +265,9 @@
           </div>
         {/if}
       </div>
+
+      <!-- Duplicate detection -->
+      <DuplicateDetectionSetting />
 
       <!-- EXIF privacy -->
       <div

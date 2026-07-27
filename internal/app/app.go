@@ -119,7 +119,8 @@ func Build(
 	})
 
 	autoTagSvc := service.NewAutoTagService(r.asset, r.workspace, r.autoTagSug, q, tagSvc, keyResolver)
-	ingester := service.NewAssetIngester(r.asset, r.version, stor, q, media, autoTagSvc)
+	duplicateSvc := service.NewDuplicateService(r.version, r.asset, r.workspace, stor)
+	ingester := service.NewAssetIngester(r.asset, r.version, stor, q, media, autoTagSvc, duplicateSvc)
 
 	// variantSvc always carries Workflows + Invalidate: previously main.go's
 	// job-server copy omitted them, so background-job variant operations
