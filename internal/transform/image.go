@@ -26,7 +26,7 @@ const (
 
 // ProcessAvatar decodes image data, fits it into a square canvas, and returns WebP-encoded bytes.
 func ProcessAvatar(data []byte) ([]byte, error) {
-	img, err := imaging.Decode(bytes.NewReader(data), imaging.AutoOrientation(true))
+	img, err := decodeOriented(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("decode avatar: %w", err)
 	}
@@ -70,7 +70,7 @@ func (p *WatermarkParams) Normalize() {
 }
 
 func renderWatermarkOverlay(wmReader io.Reader, bounds image.Rectangle, opacity float64) (*image.NRGBA, error) {
-	wmImg, err := imaging.Decode(wmReader, imaging.AutoOrientation(true))
+	wmImg, err := decodeOriented(wmReader)
 	if err != nil {
 		return nil, fmt.Errorf("decode watermark image: %w", err)
 	}
@@ -142,7 +142,7 @@ func ApplyWatermark(
 ) (*image.NRGBA, error) {
 	params.normalize()
 
-	srcImg, err := imaging.Decode(srcReader, imaging.AutoOrientation(true))
+	srcImg, err := decodeOriented(srcReader)
 	if err != nil {
 		return nil, fmt.Errorf("decode source image: %w", err)
 	}
@@ -195,7 +195,7 @@ func (t *transformer) ImageResize(src io.Reader, p ResizeParams) ([]byte, string
 		p.Quality = 85
 	}
 
-	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	img, err := decodeOriented(src)
 	if err != nil {
 		return nil, "", fmt.Errorf("decode image: %w", err)
 	}
@@ -220,7 +220,7 @@ func (t *transformer) ImageConvert(src io.Reader, p ConvertParams) ([]byte, stri
 	if p.Quality <= 0 || p.Quality > 100 {
 		p.Quality = 85
 	}
-	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	img, err := decodeOriented(src)
 	if err != nil {
 		return nil, "", fmt.Errorf("decode image: %w", err)
 	}
@@ -235,7 +235,7 @@ func (t *transformer) ImageCrop(src io.Reader, p CropParams) ([]byte, string, er
 	if p.Quality <= 0 || p.Quality > 100 {
 		p.Quality = 85
 	}
-	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	img, err := decodeOriented(src)
 	if err != nil {
 		return nil, "", fmt.Errorf("decode image: %w", err)
 	}
@@ -252,7 +252,7 @@ func (t *transformer) ImageSmartCrop(src io.Reader, p SmartCropParams) ([]byte, 
 		p.Quality = 85
 	}
 
-	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	img, err := decodeOriented(src)
 	if err != nil {
 		return nil, "", fmt.Errorf("decode image: %w", err)
 	}
@@ -292,7 +292,7 @@ func (t *transformer) ImagePreview(src io.Reader, p PreviewParams) ([]byte, stri
 		p.Width = maxPreviewSize
 	}
 
-	img, err := imaging.Decode(src, imaging.AutoOrientation(true))
+	img, err := decodeOriented(src)
 	if err != nil {
 		return nil, "", fmt.Errorf("decode image: %w", err)
 	}
