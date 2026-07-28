@@ -10,7 +10,7 @@
       "id": "mime",
       "type": "filter.mime",
       "config": { "prefix": "image/" },
-      "position": { "x": 360, "y": 120 }
+      "position": { "x": 520, "y": 120 }
     },
     {
       "id": "resize",
@@ -19,7 +19,7 @@
         "type": "image_resize",
         "params": { "width": 1600, "height": 1600, "mode": "fit" }
       },
-      "position": { "x": 620, "y": 120 }
+      "position": { "x": 920, "y": 120 }
     }
   ],
   "edges": [

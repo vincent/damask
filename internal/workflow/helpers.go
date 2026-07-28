@@ -44,6 +44,7 @@ type Deps struct {
 	AssetFields AssetFieldManager
 	Workspace   WorkspaceManager
 	TextTracks  TextTrackManager
+	AutoTag     AutoTagManager
 	Config      *config.Config
 }
 
@@ -223,6 +224,18 @@ type TextTrackManager interface {
 		workspaceID string,
 		p TextTrackCreateOCRParams,
 	) (trackID string, err error)
+}
+
+// AutoTagManager lets the action.auto_tag workflow node enqueue AI tagging
+// for an asset. Continuation, when set, is embedded in the job payload so
+// the job worker can resume the suspended workflow run once tagging
+// finishes.
+type AutoTagManager interface {
+	Enqueue(
+		ctx context.Context,
+		workspaceID, assetID, mode string,
+		continuation *NodeContinuation,
+	) error
 }
 
 type RunWorkflowPayload struct {

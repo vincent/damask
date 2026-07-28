@@ -2,17 +2,39 @@ package service_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"damask/server/internal/apperr"
+	dbgen "damask/server/internal/db/gen"
+	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/repository/memory"
 	"damask/server/internal/service"
 	"damask/server/internal/testutil/mockservice"
+	"damask/server/internal/workflow"
 
 	"github.com/google/uuid"
 )
+
+// fakeJobQueue is a minimal queue.JobQueue recording the last enqueued job,
+// used to assert EnqueueForWorkflow's payload without a real job runner.
+type fakeJobQueue struct {
+	lastWorkspaceID, lastJobType, lastPayload string
+}
+
+func (f *fakeJobQueue) Register(string, queue.HandlerFunc) {}
+
+func (f *fakeJobQueue) Enqueue(_ context.Context, workspaceID, jobType, payload string) (dbgen.Job, error) {
+	f.lastWorkspaceID = workspaceID
+	f.lastJobType = jobType
+	f.lastPayload = payload
+	return dbgen.Job{ID: "job_1"}, nil
+}
+
+func (f *fakeJobQueue) Start(context.Context) {}
+func (f *fakeJobQueue) Stop()                 {}
 
 const autoTagTestWorkspaceID = "ws_1"
 
@@ -68,6 +90,73 @@ func TestAutoTagService_DismissSuggestion_AssetMismatch_ReturnsNotFound(t *testi
 	err := svc.DismissSuggestion(context.Background(), autoTagTestWorkspaceID, "ast_2", sugID)
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound for mismatched asset id, got %v", err)
+	}
+}
+
+func TestAutoTagService_EnqueueForWorkflow_InvalidMode(t *testing.T) {
+	svc, assets, _ := newAutoTagEnv(t, mockservice.NewTagService())
+	seedAutoTagAsset(assets, "ast_1")
+
+	err := svc.EnqueueForWorkflow(context.Background(), autoTagTestWorkspaceID, "ast_1", "bogus", nil)
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for bogus mode, got %v", err)
+	}
+}
+
+func TestAutoTagService_EnqueueForWorkflow_NonTaggableMime(t *testing.T) {
+	svc, assets, _ := newAutoTagEnv(t, mockservice.NewTagService())
+	assets.Seed(repository.Asset{
+		ID: "ast_zip", WorkspaceID: autoTagTestWorkspaceID,
+		OriginalFilename: "archive.zip", StorageKey: "k/ast_zip", MimeType: "application/zip",
+	})
+
+	err := svc.EnqueueForWorkflow(context.Background(), autoTagTestWorkspaceID, "ast_zip", "pending", nil)
+	if !errors.Is(err, apperr.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for non-taggable mime, got %v", err)
+	}
+}
+
+func TestAutoTagService_EnqueueForWorkflow_EnqueuesWithContinuation(t *testing.T) {
+	assets := memory.NewAssetRepo()
+	workspaces := memory.NewRealWorkspaceRepo()
+	suggestions := memory.NewAutoTagSuggestionRepo()
+	workspaces.Seed(repository.Workspace{ID: autoTagTestWorkspaceID, Name: "ws"})
+	seedAutoTagAsset(assets, "ast_1")
+
+	q := &fakeJobQueue{}
+	svc := service.NewAutoTagService(assets, workspaces, suggestions, q, mockservice.NewTagService(), nil)
+
+	cont := &workflow.NodeContinuation{
+		RunID: "run_1", NodeID: "n1", WorkflowID: "wf_1", WorkspaceID: autoTagTestWorkspaceID,
+	}
+	if err := svc.EnqueueForWorkflow(
+		context.Background(), autoTagTestWorkspaceID, "ast_1", "silent", cont,
+	); err != nil {
+		t.Fatalf("EnqueueForWorkflow: %v", err)
+	}
+
+	if q.lastJobType != "auto_tag" {
+		t.Errorf("expected job type auto_tag, got %q", q.lastJobType)
+	}
+	if q.lastWorkspaceID != autoTagTestWorkspaceID {
+		t.Errorf("expected workspace %q, got %q", autoTagTestWorkspaceID, q.lastWorkspaceID)
+	}
+
+	var payload struct {
+		Mode         string `json:"mode"`
+		AssetID      string `json:"asset_id"`
+		Continuation struct {
+			RunID string `json:"run_id"`
+		} `json:"continuation"`
+	}
+	if err := json.Unmarshal([]byte(q.lastPayload), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if payload.Mode != "silent" || payload.AssetID != "ast_1" {
+		t.Errorf("unexpected payload: %+v", payload)
+	}
+	if payload.Continuation.RunID != "run_1" {
+		t.Errorf("expected continuation to be embedded in payload, got %+v", payload)
 	}
 }
 

@@ -4,11 +4,17 @@ import (
 	"context"
 
 	"damask/server/internal/service"
+	"damask/server/internal/workflow"
 )
 
 // MockAutoTagService is a no-op implementation of service.AutoTagService.
 type MockAutoTagService struct {
-	EnqueueFn             func(ctx context.Context, workspaceID, assetID string, manual bool) error
+	EnqueueFn            func(ctx context.Context, workspaceID, assetID string, manual bool) error
+	EnqueueForWorkflowFn func(
+		ctx context.Context,
+		workspaceID, assetID, mode string,
+		continuation *workflow.NodeContinuation,
+	) error
 	IsProviderAvailableFn func(ctx context.Context, workspaceID, mimeType string) bool
 	ListSuggestionsFn     func(ctx context.Context, workspaceID, assetID string) ([]service.AutoTagSuggestionDTO, error)
 	AcceptSuggestionFn    func(ctx context.Context, workspaceID, assetID, suggestionID string) (*service.TagDTO, error)
@@ -22,6 +28,17 @@ func NewAutoTagService() *MockAutoTagService { return &MockAutoTagService{} }
 func (m *MockAutoTagService) Enqueue(ctx context.Context, workspaceID, assetID string, manual bool) error {
 	if m.EnqueueFn != nil {
 		return m.EnqueueFn(ctx, workspaceID, assetID, manual)
+	}
+	return nil
+}
+
+func (m *MockAutoTagService) EnqueueForWorkflow(
+	ctx context.Context,
+	workspaceID, assetID, mode string,
+	continuation *workflow.NodeContinuation,
+) error {
+	if m.EnqueueForWorkflowFn != nil {
+		return m.EnqueueForWorkflowFn(ctx, workspaceID, assetID, mode, continuation)
 	}
 	return nil
 }

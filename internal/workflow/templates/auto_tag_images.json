@@ -2,20 +2,20 @@
   "nodes": [
     {
       "id": "trigger",
-      "type": "trigger.version_uploaded",
+      "type": "trigger.asset_created",
       "config": {},
       "position": { "x": 120, "y": 120 }
     },
     {
       "id": "mime",
       "type": "filter.mime",
-      "config": { "prefix": "video/" },
+      "config": { "prefix": "image/" },
       "position": { "x": 520, "y": 120 }
     },
     {
-      "id": "tag",
-      "type": "action.tag",
-      "config": { "name": "video-upload" },
+      "id": "auto_tag",
+      "type": "action.auto_tag",
+      "config": { "mode": "pending" },
       "position": { "x": 920, "y": 120 }
     }
   ],
@@ -29,7 +29,7 @@
     {
       "from_node": "mime",
       "from_port": "match",
-      "to_node": "tag",
+      "to_node": "auto_tag",
       "to_port": "in"
     }
   ]

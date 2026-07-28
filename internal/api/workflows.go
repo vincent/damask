@@ -100,6 +100,8 @@ type WorkflowTemplateResponse struct {
 	Description string `json:"description"`
 	TriggerType string `json:"trigger_type"`
 	Graph       string `json:"graph"`
+	Icon        string `json:"icon"`
+	Category    string `json:"category"`
 }
 
 // WorkflowListRunsResponse wraps a paginated list of workflow runs.
@@ -264,6 +266,8 @@ func (s *Server) handleGetWorkflowTemplates(c fiber.Ctx) error {
 			Description: t.Description,
 			TriggerType: t.TriggerType,
 			Graph:       t.Graph,
+			Icon:        t.Icon,
+			Category:    t.Category,
 		}
 	}
 	return c.JSON(out)

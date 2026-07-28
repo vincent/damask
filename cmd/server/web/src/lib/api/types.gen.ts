@@ -4859,8 +4859,10 @@ export interface definitions {
     readonly status: string;
   };
   readonly "api.WorkflowTemplateResponse": {
+    readonly category: string;
     readonly description: string;
     readonly graph: string;
+    readonly icon: string;
     readonly id: string;
     readonly name: string;
     readonly trigger_type: string;

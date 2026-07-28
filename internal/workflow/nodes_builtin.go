@@ -33,6 +33,9 @@ const (
 	nodeTypeSetNewVersion = "action.set_new_version"
 	nodeTypeAIImageDesc   = "action.ai_image_description"
 	nodeTypeOCR           = "action.ocr"
+	nodeTypeAutoTag       = "action.auto_tag"
+	autoTagModePending    = "pending"
+	autoTagModeSilent     = "silent"
 	rcKeyContinuation     = "__workflow_continuation"
 	portContinued         = "continued"
 	outputKeyTrackID      = "track_id"
@@ -152,6 +155,24 @@ func ocrSchemaFn() NodeSchema {
 		},
 		ConfigSchema: mustConfigSchema(
 			`{"type":"object","properties":{"lang":{"type":"string","title":"Language","format":"ocr_language","default":"eng"},"output_format":{"type":"string","title":"Output Format","enum":["txt","hocr"],"default":"txt"}},"additionalProperties":false}`,
+		),
+	}
+}
+
+func autoTagSchemaFn() NodeSchema {
+	return NodeSchema{
+		Type:        nodeTypeAutoTag,
+		Label:       "AI Auto-Tag",
+		Category:    nodeCategoryAction,
+		Description: "Suggests or applies AI-generated tags for an asset.",
+		Inputs:      []Port{{ID: "in", Label: "In"}},
+		Outputs: []Port{
+			{ID: portOut, Label: labelOut},
+			{ID: portContinued, Label: labelContinued},
+			{ID: portError, Label: labelError},
+		},
+		ConfigSchema: mustConfigSchema(
+			`{"type":"object","properties":{"mode":{"type":"string","title":"Mode","enum":["pending","silent"],"default":"pending","description":"Pending creates suggestions to review; silent applies tags immediately."}},"additionalProperties":false}`,
 		),
 	}
 }
@@ -480,6 +501,12 @@ func init() {
 		ocrSchemaFn(),
 		func(deps Deps) Node {
 			return ocrNode{deps: deps, schema: ocrSchemaFn()}
+		},
+	)
+	Register(
+		autoTagSchemaFn(),
+		func(deps Deps) Node {
+			return autoTagNode{deps: deps, schema: autoTagSchemaFn()}
 		},
 	)
 }
@@ -1318,4 +1345,82 @@ func (n ocrNode) Execute(
 		return portContinued, map[string]any{outputKeyTrackID: trackID}, nil
 	}
 	return portOut, map[string]any{outputKeyTrackID: trackID}, nil
+}
+
+type autoTagNode struct {
+	deps   Deps
+	schema NodeSchema
+}
+
+func (n autoTagNode) Schema() NodeSchema { return n.schema }
+
+// InjectContinuation seeds a continuation whenever anything is wired to the
+// "out" port, same as ocrNode — any downstream node can consume the
+// tags/count this node produces once tagging finishes.
+func (n autoTagNode) InjectContinuation(
+	rc *RunContext,
+	g *Graph,
+	nodeID, runID, workflowID, workspaceID string,
+) {
+	injectContinuationOnAnySuccessor(rc, g, nodeID, runID, workflowID, workspaceID, portOut)
+}
+
+func (n autoTagNode) Execute(
+	ctx context.Context,
+	rc *RunContext,
+	cfg json.RawMessage,
+) (string, map[string]any, error) {
+	assetID, err := rcRequireString(rc, "asset_id")
+	if err != nil {
+		return "", nil, err
+	}
+	workspaceID, err := rcRequireString(rc, "workspace_id")
+	if err != nil {
+		return "", nil, err
+	}
+	if n.deps.Assets == nil || n.deps.AutoTag == nil {
+		return "", nil, errors.New("workflow auto_tag dependencies not configured")
+	}
+
+	asset, err := n.deps.Assets.Get(ctx, workspaceID, assetID)
+	if err != nil {
+		return "", nil, err
+	}
+	if !transform.IsAutoTaggable(asset.MimeType) {
+		return "", nil, fmt.Errorf(
+			"asset mime type %q is not eligible for auto-tagging: %w",
+			asset.MimeType,
+			apperr.ErrInvalidInput,
+		)
+	}
+
+	var nodeCfg struct {
+		Mode string `json:"mode"`
+	}
+	if unmarshalErr := json.Unmarshal(cfg, &nodeCfg); unmarshalErr != nil {
+		return "", nil, fmt.Errorf("invalid node config: %w", apperr.ErrInvalidInput)
+	}
+
+	mode := strings.TrimSpace(nodeCfg.Mode)
+	switch mode {
+	case "":
+		mode = autoTagModePending
+	case autoTagModePending, autoTagModeSilent:
+	default:
+		return "", nil, fmt.Errorf("unsupported mode %q: %w", mode, apperr.ErrInvalidInput)
+	}
+
+	// If the executor pre-populated a continuation (meaning at least one node
+	// is wired to our "out" port), snapshot the current context so the job
+	// worker can resume the run once tagging is ready.
+	cont := snapshotContinuation(rc)
+
+	if err = n.deps.AutoTag.Enqueue(ctx, workspaceID, assetID, mode, cont); err != nil {
+		return "", nil, err
+	}
+
+	if cont != nil {
+		return portContinued, map[string]any{"mode": mode}, nil
+	}
+	return portOut, map[string]any{"mode": mode}, nil
 }

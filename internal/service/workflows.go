@@ -358,6 +358,8 @@ func (s *workflowService) Templates() []WorkflowTemplateDTO {
 			Description: tpl.Description,
 			TriggerType: tpl.TriggerType,
 			Graph:       tpl.Graph,
+			Icon:        tpl.Icon,
+			Category:    tpl.Category,
 		}
 	}
 	return out

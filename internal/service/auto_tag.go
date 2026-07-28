@@ -12,6 +12,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/repository"
 	"damask/server/internal/transform"
+	"damask/server/internal/workflow"
 )
 
 // autoTagPayload mirrors jobs.AutoTagPayload's JSON shape. Kept local to this
@@ -27,7 +28,16 @@ type autoTagPayload struct {
 	MimeType             string `json:"mime_type"`
 	Mode                 string `json:"mode"`
 	Size                 int64  `json:"size"`
+	// Continuation, when set, resumes a suspended workflow run once tagging
+	// finishes (see action.auto_tag workflow node). Mirrors
+	// jobs.AutoTagPayload.Continuation exactly — same JSON key.
+	Continuation *workflow.NodeContinuation `json:"continuation,omitempty"`
 }
+
+const (
+	autoTagModePending = "pending"
+	autoTagModeSilent  = "silent"
+)
 
 type autoTagService struct {
 	assets           repository.AssetRepository
@@ -93,6 +103,54 @@ func (s *autoTagService) Enqueue(ctx context.Context, workspaceID, assetID strin
 		MimeType:             asset.MimeType,
 		Mode:                 ws.AutoTagMode,
 		Size:                 asset.Size,
+	})
+	if err != nil {
+		return fmt.Errorf("auto_tag: marshal payload: %w", err)
+	}
+	_, err = s.queue.Enqueue(ctx, workspaceID, queue.JobTypeAutoTag, string(payload))
+	return err
+}
+
+func (s *autoTagService) EnqueueForWorkflow(
+	ctx context.Context,
+	workspaceID, assetID, mode string,
+	continuation *workflow.NodeContinuation,
+) error {
+	if mode != autoTagModePending && mode != autoTagModeSilent {
+		return fmt.Errorf("auto_tag: unsupported mode %q: %w", mode, apperr.ErrInvalidInput)
+	}
+
+	asset, err := s.assets.GetByID(ctx, workspaceID, assetID)
+	if err != nil {
+		return err
+	}
+	if !transform.IsAutoTaggable(asset.MimeType) {
+		return fmt.Errorf(
+			"auto_tag: asset mime type %q is not eligible for auto-tagging: %w",
+			asset.MimeType, apperr.ErrInvalidInput,
+		)
+	}
+
+	var versionID string
+	if asset.CurrentVersionID != nil {
+		versionID = *asset.CurrentVersionID
+	}
+	var thumbKey string
+	if asset.ThumbnailKey != nil {
+		thumbKey = *asset.ThumbnailKey
+	}
+
+	payload, err := json.Marshal(autoTagPayload{
+		WorkspaceID:          workspaceID,
+		AssetID:              assetID,
+		AssetVersionID:       versionID,
+		StorageKey:           asset.StorageKey,
+		ThumbnailKey:         thumbKey,
+		ThumbnailContentType: asset.ThumbnailContentType,
+		MimeType:             asset.MimeType,
+		Mode:                 mode,
+		Size:                 asset.Size,
+		Continuation:         continuation,
 	})
 	if err != nil {
 		return fmt.Errorf("auto_tag: marshal payload: %w", err)

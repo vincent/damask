@@ -245,6 +245,20 @@ func (a textTrackAdapter) CreateOCR(
 	return dto.ID, nil
 }
 
+type autoTagAdapter struct{ svc service.AutoTagService }
+
+func newAutoTagManager(svc service.AutoTagService) workflow.AutoTagManager {
+	return autoTagAdapter{svc: svc}
+}
+
+func (a autoTagAdapter) Enqueue(
+	ctx context.Context,
+	workspaceID, assetID, mode string,
+	continuation *workflow.NodeContinuation,
+) error {
+	return a.svc.EnqueueForWorkflow(ctx, workspaceID, assetID, mode, continuation)
+}
+
 type versionManagerAdapter struct {
 	versions repository.VersionRepository
 }

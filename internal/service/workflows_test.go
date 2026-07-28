@@ -491,6 +491,28 @@ func TestWorkflowServiceTemplates(t *testing.T) {
 	if templates[0].Graph == "" {
 		t.Fatal("expected template graph payload")
 	}
+	for _, tpl := range templates {
+		if tpl.Icon == "" {
+			t.Fatalf("expected non-empty Icon for template %q", tpl.ID)
+		}
+	}
+}
+
+func TestWorkflowServiceTemplatesIncludesBlankManual(t *testing.T) {
+	svc, _, _, _, _ := newWorkflowSvc(t)
+	templates := svc.Templates()
+	var blank *service.WorkflowTemplateDTO
+	for i := range templates {
+		if templates[i].ID == "blank-manual" {
+			blank = &templates[i]
+		}
+	}
+	if blank == nil {
+		t.Fatal("expected blank-manual template")
+	}
+	if blank.TriggerType != "trigger.manual" {
+		t.Fatalf("expected trigger.manual trigger type, got %q", blank.TriggerType)
+	}
 }
 
 func TestWorkflowServiceFindCoveringWorkflowScope(t *testing.T) {

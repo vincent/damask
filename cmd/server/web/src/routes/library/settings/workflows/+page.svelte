@@ -4,8 +4,6 @@
   import {
     ArrowLeft,
     Plus,
-    ChevronDown,
-    Sparkles,
     Save,
     Pause,
     Play,
@@ -26,39 +24,23 @@
     workflowsApi,
     type Workflow,
     type WorkflowGraph,
-    type WorkflowTemplate,
     type WorkflowNodeSchema,
   } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { workflowsStore } from '$lib/stores/workflows.svelte'
+  import { authStore } from '$lib/stores/auth.svelte'
   import { m } from '$lib/paraglide/messages'
 
   type View = 'list' | 'editor'
 
   let view = $state<View>('list')
   let loading = $state(true)
-  let creating = $state(false)
   let saving = $state(false)
   let toggling = $state(false)
   let deleting = $state(false)
-  let templates = $state<WorkflowTemplate[]>([])
   let nodeSchemas = $state<WorkflowNodeSchema[]>([])
-  let addMenuOpen = $state(false)
-  let addMenuEl = $state<HTMLDivElement | undefined>()
 
-  $effect(() => {
-    if (!addMenuOpen) return
-    function handleClickOutside(e: MouseEvent) {
-      if (addMenuEl && !addMenuEl.contains(e.target as Node)) {
-        addMenuOpen = false
-      }
-    }
-    document.addEventListener('click', handleClickOutside, { capture: true })
-    return () =>
-      document.removeEventListener('click', handleClickOutside, {
-        capture: true,
-      })
-  })
+  const isOwner = $derived(authStore.role === 'owner')
 
   let selectedWorkflow = $state<Workflow | null>(null)
   let panelWorkflow = $state<Workflow | null>(null)
@@ -93,12 +75,7 @@
   async function load() {
     loading = true
     try {
-      const [templateRows, schemaRows] = await Promise.all([
-        workflowsApi.getTemplates(),
-        workflowsApi.getNodeSchemas(),
-      ])
-      templates = templateRows
-      nodeSchemas = schemaRows
+      nodeSchemas = await workflowsApi.getNodeSchemas()
       await workflowsStore.load()
       const requestedWorkflowID = page.url.searchParams.get('workflow')
       if (requestedWorkflowID) {
@@ -163,27 +140,6 @@
       panelWorkflow = null
     } else {
       panelWorkflow = workflow
-    }
-  }
-
-  async function createFromTemplate(template: WorkflowTemplate) {
-    addMenuOpen = false
-    creating = true
-    try {
-      const workflow = await workflowsApi.create({
-        name: template.name,
-        description: template.description,
-        graph: template.graph,
-      })
-      workflowsStore.upsert(workflow)
-      panelWorkflow = workflow
-    } catch (e) {
-      toastStore.show(
-        e instanceof Error ? e.message : m.workflow_create_failed(),
-        'error'
-      )
-    } finally {
-      creating = false
     }
   }
 
@@ -291,66 +247,12 @@
         <Activity class="h-3.5 w-3.5" />
         {m.workflows_runs_all()}
       </a>
-      <div class="wf-add-group relative flex" bind:this={addMenuEl}>
-        <button
-          type="button"
-          disabled={creating}
-          class="wf-add-primary"
-          onclick={() => (addMenuOpen = !addMenuOpen)}
-          aria-haspopup="menu"
-          aria-expanded={addMenuOpen}
-        >
+      {#if isOwner}
+        <a href="/library/settings/workflows/new" class="wf-add-primary">
           <Plus class="h-4 w-4" />
           {m.add_workflow()}
-        </button>
-        <button
-          type="button"
-          disabled={creating}
-          class="wf-add-chevron"
-          onclick={() => (addMenuOpen = !addMenuOpen)}
-          aria-label={m.workflow_choose_template()}
-          aria-haspopup="menu"
-          aria-expanded={addMenuOpen}
-        >
-          <ChevronDown
-            class="h-4 w-4 transition-transform duration-150 {addMenuOpen
-              ? 'rotate-180'
-              : ''}"
-          />
-        </button>
-
-        {#if addMenuOpen}
-          <div
-            role="menu"
-            tabindex="-1"
-            class="wf-add-dropdown"
-            onkeydown={(e) => e.key === 'Escape' && (addMenuOpen = false)}
-          >
-            <div class="add-dropdown-divider"></div>
-
-            {#each templates as template (template.id)}
-              <button
-                type="button"
-                role="menuitem"
-                class="wf-add-item"
-                onclick={() => void createFromTemplate(template)}
-              >
-                <Sparkles class="wf-add-item-icon" />
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-[var(--text-primary)]">
-                    {template.name}
-                  </p>
-                  <p
-                    class="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]"
-                  >
-                    {template.description}
-                  </p>
-                </div>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
+        </a>
+      {/if}
     </PageHeader>
 
     <div class="flex grow overflow-y-auto">
@@ -490,17 +392,12 @@
 />
 
 <style>
-  .wf-add-group {
-    border-radius: 8px;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.08);
-  }
-
   .wf-add-primary {
     display: flex;
     cursor: pointer;
     align-items: center;
     gap: 6px;
-    border-radius: 8px 0 0 8px;
+    border-radius: 8px;
     background: var(--accent-cta);
     padding: 7px 13px;
     font-size: 0.875rem;
@@ -511,104 +408,11 @@
       transform 0.08s ease;
     user-select: none;
   }
-  .wf-add-primary:hover:not(:disabled) {
+  .wf-add-primary:hover {
     background: var(--accent-cta-hover);
   }
-  .wf-add-primary:active:not(:disabled) {
+  .wf-add-primary:active {
     transform: translateY(1px);
     background: var(--accent-cta-active);
-  }
-  .wf-add-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .wf-add-chevron {
-    display: flex;
-    align-items: center;
-    border-radius: 0 8px 8px 0;
-    border-left: 1px solid rgb(255 255 255 / 0.18);
-    background: var(--accent-cta);
-    padding: 7px 8px;
-    color: #fff;
-    cursor: pointer;
-    transition:
-      background 0.15s ease,
-      transform 0.08s ease;
-  }
-  .wf-add-chevron:hover:not(:disabled) {
-    background: var(--accent-cta-hover);
-  }
-  .wf-add-chevron:active:not(:disabled) {
-    transform: translateY(1px);
-  }
-  .wf-add-chevron:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .wf-add-dropdown {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 50;
-    min-width: 280px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--bg-surface);
-    padding: 4px 0;
-    box-shadow:
-      0 0 0 1px rgb(0 0 0 / 0.04),
-      0 4px 8px -2px rgb(0 0 0 / 0.12),
-      0 16px 32px -8px rgb(0 0 0 / 0.18);
-    animation: wf-dropdown-in 0.14s cubic-bezier(0.25, 1, 0.5, 1) both;
-    transform-origin: top right;
-  }
-
-  :global(.dark) .wf-add-dropdown {
-    box-shadow:
-      0 0 0 1px rgb(0 0 0 / 0.3),
-      0 4px 8px -2px rgb(0 0 0 / 0.4),
-      0 16px 32px -8px rgb(0 0 0 / 0.5);
-  }
-
-  @keyframes wf-dropdown-in {
-    from {
-      opacity: 0;
-      transform: scale(0.95) translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-
-  .wf-add-item {
-    display: flex;
-    width: 100%;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 8px 12px;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.08s ease;
-  }
-  .wf-add-item:hover {
-    background: var(--bg-hover);
-  }
-  :global(.dark) .wf-add-item:hover {
-    background: var(--bg-elevated);
-  }
-
-  :global(.wf-add-item-icon) {
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    margin-top: 3px;
-    color: var(--text-muted);
-    transition: color 0.08s ease;
-  }
-  .wf-add-item:hover :global(.wf-add-item-icon) {
-    color: var(--accent-cta);
   }
 </style>

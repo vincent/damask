@@ -2,10 +2,12 @@ package api_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 
+	"damask/server/internal/api"
 	"damask/server/internal/apperr"
 	"damask/server/internal/auth"
 	"damask/server/internal/service"
@@ -252,6 +254,84 @@ func TestGetWorkflowTemplatesOK(t *testing.T) {
 		t.Fatal(err)
 	}
 	testutil.AssertStatus(t, resp, http.StatusOK)
+}
+
+func TestListTemplatesAllFieldsPresent(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	env.Workflows.TemplatesFn = func() []service.WorkflowTemplateDTO {
+		return []service.WorkflowTemplateDTO{{
+			ID:          "blank-manual",
+			Name:        "Start Blank",
+			Description: "Manual trigger.",
+			TriggerType: "trigger.manual",
+			Graph:       `{"nodes":[{"type":"trigger.manual"}],"edges":[]}`,
+			Icon:        "plus",
+			Category:    "",
+		}}
+	}
+	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows/templates", nil, env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+	var out []api.WorkflowTemplateResponse
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&out); decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	if len(out) != 1 {
+		t.Fatalf("expected 1 template, got %d", len(out))
+	}
+	tpl := out[0]
+	if tpl.Name == "" || tpl.Description == "" || tpl.Icon == "" {
+		t.Fatalf("expected non-empty Name/Description/Icon, got %+v", tpl)
+	}
+}
+
+func TestListTemplatesIncludesBlankManual(t *testing.T) {
+	env := testutil.NewTestEnv(t)
+	env.Workflows.TemplatesFn = func() []service.WorkflowTemplateDTO {
+		return []service.WorkflowTemplateDTO{
+			{
+				ID:          "blank-manual",
+				Name:        "Start Blank",
+				Description: "Manual trigger.",
+				TriggerType: "trigger.manual",
+				Graph:       `{"nodes":[{"id":"trigger","type":"trigger.manual","config":{},"position":{"x":0,"y":0}}],"edges":[]}`,
+				Icon:        "plus",
+			},
+		}
+	}
+	req := testutil.BearerRequest(http.MethodGet, "/api/v1/workflows/templates", nil, env.MintToken(t, "usr_1", "ws_1"))
+	resp, err := env.App.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testutil.AssertStatus(t, resp, http.StatusOK)
+	var out []api.WorkflowTemplateResponse
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&out); decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	var blank *api.WorkflowTemplateResponse
+	for i := range out {
+		if out[i].ID == "blank-manual" {
+			blank = &out[i]
+		}
+	}
+	if blank == nil {
+		t.Fatal("expected blank-manual template in response")
+	}
+	var graph struct {
+		Nodes []struct {
+			Type string `json:"type"`
+		} `json:"nodes"`
+	}
+	if unmarshalErr := json.Unmarshal([]byte(blank.Graph), &graph); unmarshalErr != nil {
+		t.Fatal(unmarshalErr)
+	}
+	if len(graph.Nodes) != 1 || graph.Nodes[0].Type != "trigger.manual" {
+		t.Fatalf("expected single trigger.manual node, got %+v", graph.Nodes)
+	}
 }
 
 func TestGetWorkflowTemplatesDoesNotMaterializeWorkflowRows(t *testing.T) {

@@ -1969,9 +1969,13 @@ definitions:
     type: object
   api.WorkflowTemplateResponse:
     properties:
+      category:
+        type: string
       description:
         type: string
       graph:
+        type: string
+      icon:
         type: string
       id:
         type: string
@@ -1980,8 +1984,10 @@ definitions:
       trigger_type:
         type: string
     required:
+    - category
     - description
     - graph
+    - icon
     - id
     - name
     - trigger_type

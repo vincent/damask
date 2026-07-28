@@ -234,6 +234,17 @@ type AutoTagService interface {
 	// asset's MIME type isn't eligible, or when manual is false and the
 	// workspace has auto-tagging disabled.
 	Enqueue(ctx context.Context, workspaceID, assetID string, manual bool) error
+	// EnqueueForWorkflow enqueues an auto_tag job on behalf of a workflow's
+	// action.auto_tag node. Unlike Enqueue, it always runs (bypassing the
+	// workspace auto-tag-enabled toggle, since this is an explicit workflow
+	// step) and lets the node choose "pending" vs "silent" mode per run.
+	// When continuation is set, it is carried in the job payload so the job
+	// worker can resume the suspended workflow run once tagging finishes.
+	EnqueueForWorkflow(
+		ctx context.Context,
+		workspaceID, assetID, mode string,
+		continuation *workflow.NodeContinuation,
+	) error
 	// IsProviderAvailable reports whether a configured AI provider supports
 	// vision tagging for the given MIME type.
 	IsProviderAvailable(ctx context.Context, workspaceID, mimeType string) bool

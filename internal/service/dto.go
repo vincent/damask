@@ -279,6 +279,8 @@ type WorkflowTemplateDTO struct {
 	Description string `json:"description"`
 	TriggerType string `json:"trigger_type"`
 	Graph       string `json:"graph"`
+	Icon        string `json:"icon"`
+	Category    string `json:"category"`
 }
 
 func validateWorkflowFailureEmail(raw string) error {

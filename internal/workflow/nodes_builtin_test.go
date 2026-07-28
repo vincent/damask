@@ -647,6 +647,141 @@ func TestActionOCR_InjectContinuation_AnySuccessor(t *testing.T) {
 	}
 }
 
+// --- action.auto_tag node tests ---
+
+type stubAutoTagManager struct {
+	lastWorkspaceID, lastAssetID, lastMode string
+	lastContinuation                       *NodeContinuation
+	err                                    error
+}
+
+func (s *stubAutoTagManager) Enqueue(
+	_ context.Context,
+	workspaceID, assetID, mode string,
+	continuation *NodeContinuation,
+) error {
+	s.lastWorkspaceID = workspaceID
+	s.lastAssetID = assetID
+	s.lastMode = mode
+	s.lastContinuation = continuation
+	return s.err
+}
+
+func autoTagDeps(autoTag *stubAutoTagManager) Deps {
+	return Deps{
+		Assets:  &stubAssetManagerWithMime{mimeType: "image/jpeg"},
+		AutoTag: autoTag,
+	}
+}
+
+func TestActionAutoTag_Execute_OK(t *testing.T) {
+	t.Parallel()
+	autoTag := &stubAutoTagManager{}
+	node := autoTagNode{deps: autoTagDeps(autoTag), schema: autoTagSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	port, updates, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if port != portOut {
+		t.Errorf("expected portOut, got %q", port)
+	}
+	if updates["mode"] != autoTagModePending {
+		t.Errorf("expected default mode=pending, got %v", updates)
+	}
+	if autoTag.lastAssetID != "ast_1" || autoTag.lastWorkspaceID != "ws_1" {
+		t.Errorf("expected Enqueue called with ws_1/ast_1, got %s/%s", autoTag.lastWorkspaceID, autoTag.lastAssetID)
+	}
+}
+
+func TestActionAutoTag_Execute_SilentMode(t *testing.T) {
+	t.Parallel()
+	autoTag := &stubAutoTagManager{}
+	node := autoTagNode{deps: autoTagDeps(autoTag), schema: autoTagSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	_, updates, err := node.Execute(context.Background(), triggerRC, cfg(`{"mode":"silent"}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if updates["mode"] != autoTagModeSilent {
+		t.Errorf("expected mode=silent, got %v", updates)
+	}
+	if autoTag.lastMode != autoTagModeSilent {
+		t.Errorf("expected Enqueue called with silent mode, got %q", autoTag.lastMode)
+	}
+}
+
+func TestActionAutoTag_Execute_InvalidMode(t *testing.T) {
+	t.Parallel()
+	autoTag := &stubAutoTagManager{}
+	node := autoTagNode{deps: autoTagDeps(autoTag), schema: autoTagSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	_, _, err := node.Execute(context.Background(), triggerRC, cfg(`{"mode":"bogus"}`))
+	if err == nil {
+		t.Fatal("expected error for invalid mode")
+	}
+}
+
+func TestActionAutoTag_Execute_NonTaggableMime(t *testing.T) {
+	t.Parallel()
+	autoTag := &stubAutoTagManager{}
+	deps := autoTagDeps(autoTag)
+	deps.Assets = &stubAssetManagerWithMime{mimeType: "application/zip"}
+	node := autoTagNode{deps: deps, schema: autoTagSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	_, _, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err == nil {
+		t.Fatal("expected error for non-taggable mime type")
+	}
+	if autoTag.lastAssetID != "" {
+		t.Errorf("expected Enqueue to not be called, got %v", autoTag)
+	}
+}
+
+func TestActionAutoTag_Execute_WithContinuation(t *testing.T) {
+	t.Parallel()
+	autoTag := &stubAutoTagManager{}
+	node := autoTagNode{deps: autoTagDeps(autoTag), schema: autoTagSchemaFn()}
+	triggerRC := rc("workspace_id", "ws_1", "asset_id", "ast_1")
+	triggerRC.Set(rcKeyContinuation, NodeContinuation{
+		RunID: "run_1", NodeID: "n_next", WorkflowID: "wf_1", WorkspaceID: "ws_1",
+	})
+	port, _, err := node.Execute(context.Background(), triggerRC, cfg(`{}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if port != portContinued {
+		t.Errorf("expected portContinued, got %q", port)
+	}
+	if autoTag.lastContinuation == nil {
+		t.Fatal("expected continuation to be passed to AutoTag.Enqueue")
+	}
+}
+
+func TestActionAutoTag_InjectContinuation_AnySuccessor(t *testing.T) {
+	t.Parallel()
+	node := autoTagNode{schema: autoTagSchemaFn()}
+	g := &Graph{
+		Nodes: []GraphNode{
+			{ID: "n_auto_tag", Type: nodeTypeAutoTag},
+			{ID: "n_next", Type: "action.tag"},
+		},
+		Edges: []GraphEdge{
+			{FromNode: "n_auto_tag", FromPort: portOut, ToNode: "n_next", ToPort: "in"},
+		},
+	}
+	runRC := rc()
+	node.InjectContinuation(runRC, g, "n_auto_tag", "run_1", "wf_1", "ws_1")
+	val, ok := runRC.Get(rcKeyContinuation)
+	if !ok {
+		t.Fatal("expected continuation to be seeded")
+	}
+	cont, ok := val.(NodeContinuation)
+	if !ok || cont.NodeID != "n_next" {
+		t.Errorf("expected continuation targeting n_next, got %v", val)
+	}
+}
+
 func TestActionShare_Execute_OK(t *testing.T) {
 	t.Parallel()
 	shares := &stubShareManager{}

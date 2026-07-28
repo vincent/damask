@@ -180,6 +180,7 @@ func Build(
 		AssetFields: newAssetFieldManager(assetFieldSvc),
 		Workspace:   newWorkspaceManager(workspaceSvc),
 		TextTracks:  newTextTrackManager(textTrackSvc),
+		AutoTag:     newAutoTagManager(autoTagSvc),
 		Config:      cfg,
 	})
 

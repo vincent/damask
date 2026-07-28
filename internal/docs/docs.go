@@ -10872,17 +10872,25 @@ const docTemplate = `{
         "api.WorkflowTemplateResponse": {
             "type": "object",
             "required": [
+                "category",
                 "description",
                 "graph",
+                "icon",
                 "id",
                 "name",
                 "trigger_type"
             ],
             "properties": {
+                "category": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
                 "graph": {
+                    "type": "string"
+                },
+                "icon": {
                     "type": "string"
                 },
                 "id": {
