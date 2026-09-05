@@ -42,7 +42,7 @@ RUN sed -i \
     -e '/name="width"/d' \
     -e '/name="height"/d' \
     -e '/domain="path"/d' \
-    /etc/ImageMagick-6/policy.xml
+    /etc/ImageMagick-7/policy.xml
 
 # /data holds the database, uploaded files, and optionally a .env file.
 # Mount this directory as a persistent volume.
