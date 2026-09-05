@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/damask-ad
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM debian:trixie-slim
 
-ARG LO_VERSION=26.2.3
+ARG LO_VERSION=26.2.6
 ARG LO_URL=https://download.documentfoundation.org/libreoffice/stable/${LO_VERSION}/deb/x86_64/LibreOffice_${LO_VERSION}_Linux_x86-64_deb.tar.gz
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
