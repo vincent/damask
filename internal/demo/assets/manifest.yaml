@@ -1,0 +1,399 @@
+# Demo asset manifest (ROADMAP.79 RA-1).
+#
+# Each entry describes one seeded asset: where its bytes come from, which
+# project/folder it belongs to, and the tags/fields/alt text that must match
+# what's actually in the file. `file` entries are embedded verbatim from this
+# directory (photos/, videos/); `generator` entries are produced in Go at
+# seed time (wireframes, PDFs, SVG, ZIP — content that isn't photography).
+#
+# Valid `project` keys: brand, summer, website, archive
+# Valid `folder` keys (project-scoped, see seeder.go seedFolders): "" (project
+#   root), logos, colors, photo, video, social, wireframes, ui, exports, printready
+# Valid `tags` (fixed vocabulary, DM-1.6): approved, hero, social, print, web,
+#   draft, archive, photography, video, brand
+# Valid `fields` keys (asset scope, DM-1.4): client, status, usage_rights,
+#   photographer, licensed. `usage_rights` accepts a relative offset like
+#   "+180d" / "-365d" (from seed time) or literal will error.
+
+assets:
+  # --- Brand Identity ---
+  - name: logo-primary-light.png
+    file: photos/logo-primary-light.png
+    project: brand
+    folder: logos
+    mime: image/png
+    width: 512
+    height: 512
+    tags: [brand, approved]
+    fields:
+      client: "Sportswear Co"
+      status: "Approved"
+      licensed: "true"
+    alt: "Abstract chevron monogram brand mark in orange and indigo on a white background."
+    versions:
+      - comment: "Rounded corners per feedback"
+      - comment: "Final — approved by client"
+
+  - name: logo-primary-dark.png
+    file: photos/logo-primary-dark.png
+    project: brand
+    folder: logos
+    mime: image/png
+    width: 512
+    height: 512
+    tags: [brand, approved]
+    fields:
+      client: "Sportswear Co"
+      status: "Approved"
+      licensed: "true"
+    alt: "Abstract chevron monogram brand mark in orange and indigo on a dark charcoal background."
+
+  - name: logo-mark-only.svg
+    generator: svg
+    project: brand
+    folder: logos
+    mime: image/svg+xml
+    tags: [brand, approved]
+    fields:
+      client: "Sportswear Co"
+      status: "Approved"
+      licensed: "true"
+
+  - name: logo-wordmark.png
+    file: photos/logo-wordmark.png
+    project: brand
+    folder: logos
+    mime: image/png
+    width: 800
+    height: 200
+    tags: [brand, approved]
+    fields:
+      client: "Sportswear Co"
+      status: "Approved"
+      licensed: "true"
+    alt: "Chevron monogram mark beside an abstract wordmark bar."
+
+  - name: brand-guidelines-v3.pdf
+    generator: pdf
+    project: brand
+    folder: colors
+    mime: application/pdf
+    tags: [brand, approved]
+    fields:
+      client: "Sportswear Co"
+      status: "Approved"
+
+  - name: font-specimen.png
+    file: photos/font-specimen.png
+    project: brand
+    folder: colors
+    mime: image/png
+    width: 1066
+    height: 1400
+    tags: [brand, approved]
+    fields:
+      client: "Sportswear Co"
+      status: "Approved"
+    alt: "18th-century William Caslon type specimen sheet showing multiple type sizes and scripts."
+
+  - name: brand-overview-deck.pdf
+    generator: pdf
+    project: brand
+    mime: application/pdf
+    tags: [brand, approved]
+
+  - name: mood-board-final.jpg
+    file: photos/mood-board-final.jpg
+    project: brand
+    mime: image/jpeg
+    width: 871
+    height: 1600
+    tags: [brand, approved]
+    fields:
+      client: "Sportswear Co"
+      status: "Approved"
+    alt: "Vintage printed ribbon colour-swatch card with labelled hues, used as a palette reference."
+
+  # --- Summer Campaign: Photography ---
+  - name: hero-shot-beach.jpg
+    file: photos/hero-shot-beach.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1485
+    height: 1080
+    tags: [hero, photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Silhouetted shorebird walking along wet sand as backlit ocean waves break behind it."
+    versions:
+      - comment: "Colour graded final"
+
+  - name: hero-shot-studio.jpg
+    file: photos/hero-shot-studio.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 1080
+    tags: [hero, photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Studio portrait of a model in profile against a dark background, dramatic side lighting."
+
+  - name: lifestyle-01.jpg
+    file: photos/lifestyle-01.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1600
+    height: 1188
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Surfer crouched on a board carving through the barrel of a breaking green wave."
+
+  - name: lifestyle-02.jpg
+    file: photos/lifestyle-02.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1068
+    height: 1600
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Hiker seen from behind walking a forest trail, wearing a backpack and beanie."
+
+  - name: lifestyle-03.jpg
+    file: photos/lifestyle-03.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1074
+    height: 1600
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Yoga mat and water bottle laid out on a hardwood floor in a home living room."
+
+  # --- Summer Campaign: Video ---
+  - name: teaser-15s.mp4
+    file: videos/teaser-15s.mp4
+    project: summer
+    folder: video
+    mime: video/mp4
+    width: 1280
+    height: 720
+    tags: [video, approved]
+    fields:
+      status: "Approved"
+    alt: "Aerial drone footage descending along a black-sand Icelandic coastline with breaking waves."
+
+  - name: behind-the-scenes.mp4
+    file: videos/behind-the-scenes.mp4
+    project: summer
+    folder: video
+    mime: video/mp4
+    width: 1280
+    height: 720
+    tags: [video, approved]
+    fields:
+      status: "Approved"
+    alt: "Behind-the-scenes studio footage of a guitarist seated and tuning between takes."
+
+  # --- Summer Campaign: Social crops ---
+  - name: instagram-square.jpg
+    file: photos/instagram-square.jpg
+    project: summer
+    folder: social
+    mime: image/jpeg
+    width: 1080
+    height: 1080
+    tags: [social, approved]
+    fields:
+      status: "Approved"
+    alt: "Square crop of the beach hero shot, cropped for the Instagram feed."
+
+  - name: instagram-story.jpg
+    file: photos/instagram-story.jpg
+    project: summer
+    folder: social
+    mime: image/jpeg
+    width: 1080
+    height: 1920
+    tags: [social, approved]
+    fields:
+      status: "Approved"
+    alt: "Vertical crop of the surf lifestyle shot, cropped for Instagram Stories."
+
+  - name: twitter-banner.jpg
+    file: photos/twitter-banner.jpg
+    project: summer
+    folder: social
+    mime: image/jpeg
+    width: 1500
+    height: 500
+    tags: [social, approved]
+    fields:
+      status: "Approved"
+    alt: "Wide crop of the beach hero shot, cropped for a Twitter/X profile banner."
+
+  - name: facebook-cover.jpg
+    file: photos/facebook-cover.jpg
+    project: summer
+    folder: social
+    mime: image/jpeg
+    width: 820
+    height: 312
+    tags: [social, approved]
+    fields:
+      status: "Approved"
+    alt: "Wide crop of the aerial coastline teaser frame, cropped for a Facebook cover photo."
+
+  # --- Website Redesign: Wireframes ---
+  - name: homepage-v1.png
+    generator: wireframe
+    project: website
+    folder: wireframes
+    mime: image/png
+    width: 1440
+    height: 900
+    bg_color: "f0f0f0"
+    tags: [web, draft]
+    fields:
+      status: "In Review"
+
+  - name: homepage-v2.png
+    generator: wireframe
+    project: website
+    folder: wireframes
+    mime: image/png
+    width: 1440
+    height: 900
+    bg_color: "e6e6fa"
+    tags: [web, draft]
+    fields:
+      status: "In Review"
+    versions:
+      - comment: "Revised after client feedback — moved nav to top"
+
+  - name: product-page.png
+    generator: wireframe
+    project: website
+    folder: wireframes
+    mime: image/png
+    width: 1440
+    height: 900
+    bg_color: "f0f8ff"
+    tags: [web, draft]
+    fields:
+      status: "In Review"
+
+  # --- Website Redesign: UI Components ---
+  - name: button-states.png
+    generator: wireframe
+    project: website
+    folder: ui
+    mime: image/png
+    width: 800
+    height: 400
+    bg_color: "fafafa"
+    tags: [web, draft]
+
+  - name: form-elements.png
+    generator: wireframe
+    project: website
+    folder: ui
+    mime: image/png
+    width: 800
+    height: 600
+    bg_color: "f5f5f5"
+    tags: [web, draft]
+
+  - name: navigation-states.png
+    generator: wireframe
+    project: website
+    folder: ui
+    mime: image/png
+    width: 1200
+    height: 300
+    bg_color: "1e1e1e"
+    tags: [web, draft]
+
+  # --- Website Redesign: Exports ---
+  - name: hero-banner-2x.png
+    generator: wireframe
+    project: website
+    folder: exports
+    mime: image/png
+    width: 2880
+    height: 1200
+    bg_color: "6366f1"
+    tags: [web, draft]
+
+  - name: hero-banner-1x.png
+    generator: wireframe
+    project: website
+    folder: exports
+    mime: image/png
+    width: 1440
+    height: 600
+    bg_color: "6366f1"
+    tags: [web, draft]
+
+  - name: favicon-set.zip
+    generator: zip
+    project: website
+    folder: exports
+    mime: application/zip
+    tags: [web, draft]
+
+  # --- Q2 Campaign Archive ---
+  - name: final-assets.zip
+    generator: zip
+    project: archive
+    mime: application/zip
+    tags: [archive, approved]
+    fields:
+      status: "Approved"
+      usage_rights: "-365d"
+
+  - name: campaign-report.pdf
+    generator: pdf
+    project: archive
+    mime: application/pdf
+    tags: [archive, approved]
+    fields:
+      status: "Approved"
+      usage_rights: "-365d"
+
+  - name: poster-a1.pdf
+    generator: pdf
+    project: archive
+    folder: printready
+    mime: application/pdf
+    tags: [archive, approved, print]
+    fields:
+      status: "Approved"
+      usage_rights: "-365d"
+
+  - name: flyer-dl.pdf
+    generator: pdf
+    project: archive
+    folder: printready
+    mime: application/pdf
+    tags: [archive, approved, print]
+    fields:
+      status: "Approved"
+      usage_rights: "-365d"

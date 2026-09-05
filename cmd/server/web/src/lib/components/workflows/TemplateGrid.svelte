@@ -15,8 +15,8 @@
 
   const orderedTemplates = $derived(
     [...templates].sort((a, b) =>
-      a.id === 'blank-manual' ? -1 : b.id === 'blank-manual' ? 1 : 0,
-    ),
+      a.id === 'blank-manual' ? -1 : b.id === 'blank-manual' ? 1 : 0
+    )
   )
 
   onMount(() => void load())

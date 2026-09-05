@@ -79,9 +79,8 @@ func loadDemoConfig(demoMode bool) DemoConfig {
 		ResetIntervalHours: getEnvPositiveInt("DEMO_RESET_INTERVAL_HOURS", defaultDemoResetHours),
 		UserEmail:          getEnv("DEMO_USER_EMAIL", "demo@damask.studio"),
 		WorkspaceName:      getEnv("DEMO_WORKSPACE_NAME", "Demo Agency"),
-		ShowBanner: demoMode &&
-			getEnv("DEMO_BANNER", strconv.FormatBool(true)) != strconv.FormatBool(false),
-		SignupURL: getEnv("DEMO_SIGNUP_URL", "/signup"),
+		ShowBanner:         demoMode && getEnv("DEMO_BANNER", strconv.FormatBool(true)) != strconv.FormatBool(false),
+		SignupURL:          getEnv("DEMO_SIGNUP_URL", "/signup"),
 	}
 }
 
@@ -97,8 +96,7 @@ func loadOIDCConfig() OIDCConfig {
 func loadGoogleOIDCConfig() GoogleOIDCConfig {
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	return GoogleOIDCConfig{
-		Auth: clientID != "" &&
-			getEnv("GOOGLE_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		Auth:         clientID != "" && getEnv("GOOGLE_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
 		ClientID:     clientID,
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	}
@@ -107,8 +105,7 @@ func loadGoogleOIDCConfig() GoogleOIDCConfig {
 func loadCanvaConfig() CanvaConfig {
 	clientID := os.Getenv("CANVA_CLIENT_ID")
 	return CanvaConfig{
-		Auth: clientID != "" &&
-			getEnv("CANVA_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
+		Auth:         clientID != "" && getEnv("CANVA_SIGNIN", strconv.FormatBool(false)) == strconv.FormatBool(true),
 		ClientID:     clientID,
 		ClientSecret: os.Getenv("CANVA_CLIENT_SECRET"),
 	}

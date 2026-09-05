@@ -11,17 +11,24 @@ import (
 	"crypto/md5"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"log/slog"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
+	"damask/server/internal/audit"
 	"damask/server/internal/config"
+	"damask/server/internal/jobs"
+	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
 
@@ -39,13 +46,24 @@ type Seeder struct {
 	storage     storage.Storage
 	trf         transform.Transformer
 	tmb         transform.Thumbnailer
+	jobQueue    queue.JobQueue // optional (may be nil); see New
 	cfg         config.DemoConfig
 	lastResetAt time.Time // set after each successful reset; zero on first boot
 }
 
-// New returns a Seeder ready to use.
-func New(db *sql.DB, stor storage.Storage, cfg config.DemoConfig, trf transform.Transformer, tmb transform.Thumbnailer) *Seeder {
-	return &Seeder{db: db, storage: stor, cfg: cfg, trf: trf, tmb: tmb}
+// New returns a Seeder ready to use. q is used to enqueue extract_media_tags
+// jobs for video/audio assets during seeding (RA-6.2); pass nil if no queue
+// is available — seeding still succeeds, assets simply won't have media tags
+// until something else triggers extraction.
+func New(
+	db *sql.DB,
+	stor storage.Storage,
+	cfg config.DemoConfig,
+	trf transform.Transformer,
+	tmb transform.Thumbnailer,
+	q queue.JobQueue,
+) *Seeder {
+	return &Seeder{db: db, storage: stor, cfg: cfg, trf: trf, tmb: tmb, jobQueue: q}
 }
 
 // ids holds the stable IDs created during seeding so later steps can reference them.
@@ -101,6 +119,10 @@ type ids struct {
 
 	// all asset ids (for event seeding)
 	allAssets []assetMeta
+
+	// manifestByName indexes the loaded asset manifest by final filename,
+	// used by seedTags/seedFieldValues to look up tags/fields per asset.
+	manifestByName map[string]manifestEntry
 }
 
 type assetMeta struct {
@@ -215,7 +237,14 @@ func (s *Seeder) Seed(ctx context.Context) error {
 		slog.WarnContext(ctx, "demo: seed events (non-fatal)", "error", err)
 	}
 
-	slog.InfoContext(ctx, "demo: seed complete", "assets_created", len(d.allAssets), "duration_ms", time.Since(start).Milliseconds())
+	slog.InfoContext(
+		ctx,
+		"demo: seed complete",
+		"assets_created",
+		len(d.allAssets),
+		"duration_ms",
+		time.Since(start).Milliseconds(),
+	)
 	return nil
 }
 
@@ -228,7 +257,7 @@ func (s *Seeder) EnsureWorkspace(ctx context.Context) error {
 	if err == nil {
 		return nil // already exists
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("demo: check workspace: %w", err)
 	}
 
@@ -291,7 +320,7 @@ func (s *Seeder) GetDemoUser(ctx context.Context) (userID, workspaceID string, e
 		LIMIT 1
 	`, s.cfg.UserEmail)
 	err = row.Scan(&userID, &workspaceID)
-	return
+	return userID, workspaceID, err
 }
 
 // VerifyDemoPassword checks that the provided password matches the demo user.
@@ -329,7 +358,7 @@ func (s *Seeder) GetUsage(ctx context.Context, workspaceID string) (assetCount, 
 		LEFT JOIN asset_versions av ON av.id = a.current_version_id
 		WHERE a.workspace_id = ?
 	`, workspaceID).Scan(&assetCount, &storageUsed)
-	return
+	return assetCount, storageUsed, err
 }
 
 // --- field definitions ---
@@ -357,7 +386,15 @@ func (s *Seeder) seedFieldDefinitions(ctx context.Context, tx *sql.Tx, d *ids) e
 	projFields := []fieldDef{
 		{newID("fd"), "project", "Client", "client", "text", nil, 0},
 		{newID("fd"), "project", "Budget (€)", "budget", "number", nil, 1},
-		{newID("fd"), "project", "Phase", "phase", "select", opts(`["Discovery","Production","Delivery","Archived"]`), 2},
+		{
+			newID("fd"),
+			"project",
+			"Phase",
+			"phase",
+			"select",
+			opts(`["Discovery","Production","Delivery","Archived"]`),
+			2,
+		},
 	}
 
 	insertFD := func(f fieldDef) error {
@@ -483,38 +520,36 @@ func (s *Seeder) seedFolders(ctx context.Context, tx *sql.Tx, d *ids) error {
 
 // --- assets ---
 
+// assetSpec pairs a manifest entry with the workspace-specific project/folder
+// IDs it resolves to, and the total version count it needs (base + extras).
 type assetSpec struct {
-	name      string
-	projectID string
-	folderID  string
-	mime      string
-	w, h      int
-	// used as a unique label in generated images
-	label string
-	// bg colour hue for generated images (used to vary versions visually)
-	bgColor color.RGBA
-	// mark as needing version history
+	entry        manifestEntry
+	projectID    string
+	folderID     string
 	makeVersions int
 }
 
 func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 	rng := rand.New(rand.NewSource(42))
 
-	specs := s.buildAssetSpecs(d)
+	specs, err := s.buildAssetSpecs(d)
+	if err != nil {
+		return err
+	}
 
 	for i := range specs {
 		sp := &specs[i]
 		assetID := newID("ast")
-		ext := transform.MimeToExt(sp.mime)
+		ext := transform.MimeToExt(sp.entry.Mime)
 
 		data, width, height, err := s.generateFile(sp, 0, rng)
 		if err != nil {
-			return fmt.Errorf("demo: generate %s: %w", sp.name, err)
+			return fmt.Errorf("demo: generate %s: %w", sp.entry.Name, err)
 		}
 
 		storageKey := fmt.Sprintf("demo/%s/%s/%s%s", d.workspaceID, assetID, assetID, ext)
 		if err := s.storage.Put(ctx, storageKey, bytes.NewReader(data)); err != nil {
-			return fmt.Errorf("demo: store %s: %w", sp.name, err)
+			return fmt.Errorf("demo: store %s: %w", sp.entry.Name, err)
 		}
 
 		contentHash := md5hex(data)
@@ -538,12 +573,12 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 			   mime_type, size, width, height, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, assetID, d.workspaceID, sp.projectID, nullStr(sp.folderID),
-			sp.name, storageKey, sp.mime, len(data),
+			sp.entry.Name, storageKey, sp.entry.Mime, len(data),
 			widthPtr, heightPtr,
 			createdAt.Format("2006-01-02T15:04:05Z"),
 			createdAt.Format("2006-01-02T15:04:05Z"))
 		if err != nil {
-			return fmt.Errorf("demo: insert asset %s: %w", sp.name, err)
+			return fmt.Errorf("demo: insert asset %s: %w", sp.entry.Name, err)
 		}
 
 		// Create initial version row
@@ -555,36 +590,46 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 			VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 1)
 		`, versionID, assetID, d.workspaceID,
 			storageKey, contentHash,
-			sp.mime, len(data), widthPtr, heightPtr,
+			sp.entry.Mime, len(data), widthPtr, heightPtr,
 			d.userID, createdAt.Format("2006-01-02T15:04:05Z"))
 		if err != nil {
-			return fmt.Errorf("demo: insert version for %s: %w", sp.name, err)
+			return fmt.Errorf("demo: insert version for %s: %w", sp.entry.Name, err)
 		}
 
 		// Link current_version_id on the asset
 		_, err = s.db.ExecContext(ctx, `UPDATE assets SET current_version_id = ? WHERE id = ?`, versionID, assetID)
 		if err != nil {
-			return fmt.Errorf("demo: link version for %s: %w", sp.name, err)
+			return fmt.Errorf("demo: link version for %s: %w", sp.entry.Name, err)
 		}
 
 		// Generate thumbnail synchronously
-		thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
+		thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.entry.Mime, storageKey)
 		if tErr == nil && thumbData != nil {
 			thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
 			if putErr := s.storage.Put(ctx, thumbKey, bytes.NewReader(thumbData)); putErr == nil {
 				s.db.ExecContext(ctx, `UPDATE asset_versions SET thumbnail_key = ? WHERE id = ?`, thumbKey, versionID)
 				s.db.ExecContext(ctx, `UPDATE assets SET thumbnail_key = ? WHERE id = ?`, thumbKey, assetID)
 			} else {
-				slog.WarnContext(ctx, "demo: store thumbnail failed", "name", sp.name, "error", putErr)
+				slog.WarnContext(ctx, "demo: store thumbnail failed", "name", sp.entry.Name, "error", putErr)
 			}
 		} else {
-			slog.WarnContext(ctx, "demo: thumbnail generation failed", "name", sp.name, "error", tErr)
+			slog.WarnContext(ctx, "demo: thumbnail generation failed", "name", sp.entry.Name, "error", tErr)
 		}
 
-		d.allAssets = append(d.allAssets, assetMeta{id: assetID, name: sp.name, projectID: sp.projectID})
+		// Enqueue media-tag extraction for video/audio assets (RA-6.2), same
+		// as a real upload would. Best-effort: seeding still succeeds if no
+		// queue was wired up, or if enqueueing fails.
+		if s.jobQueue != nil &&
+			(strings.HasPrefix(sp.entry.Mime, "video/") || strings.HasPrefix(sp.entry.Mime, "audio/")) {
+			if err := jobs.EnqueueExtractMediaTagsJob(ctx, s.jobQueue, d.workspaceID, assetID); err != nil {
+				slog.WarnContext(ctx, "demo: enqueue extract_media_tags failed", "name", sp.entry.Name, "error", err)
+			}
+		}
+
+		d.allAssets = append(d.allAssets, assetMeta{id: assetID, name: sp.entry.Name, projectID: sp.projectID})
 
 		// Capture key asset IDs by name
-		switch sp.name {
+		switch sp.entry.Name {
 		case "homepage-v2.png":
 			d.assetHomepageV2 = assetID
 		case "logo-primary-light.png":
@@ -608,24 +653,31 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 	return nil
 }
 
-func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *assetSpec, versionNum int, rng *rand.Rand) error {
+func (s *Seeder) addVersion(
+	ctx context.Context,
+	d *ids,
+	assetID string,
+	sp *assetSpec,
+	versionNum int,
+	rng *rand.Rand,
+) error {
 	data, width, height, err := s.generateFile(sp, versionNum-1, rng)
 	if err != nil {
-		return fmt.Errorf("demo: generate version %d of %s: %w", versionNum, sp.name, err)
+		return fmt.Errorf("demo: generate version %d of %s: %w", versionNum, sp.entry.Name, err)
 	}
 
 	storageKey := fmt.Sprintf("demo/%s/%s_v%d", d.workspaceID, assetID, versionNum)
 	if err := s.storage.Put(ctx, storageKey, bytes.NewReader(data)); err != nil {
-		return fmt.Errorf("demo: store version %d of %s: %w", versionNum, sp.name, err)
+		return fmt.Errorf("demo: store version %d of %s: %w", versionNum, sp.entry.Name, err)
 	}
 
 	contentHash := md5hex(data)
 	versionID := newID("ver")
 
-	comments := versionComments(sp.name, versionNum)
+	comment := versionComment(sp.entry, versionNum)
 	var commentPtr *string
-	if comments != "" {
-		commentPtr = &comments
+	if comment != "" {
+		commentPtr = &comment
 	}
 
 	var widthPtr, heightPtr *int64
@@ -653,10 +705,10 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
 	`, versionID, assetID, d.workspaceID,
 		versionNum, storageKey, contentHash,
-		sp.mime, len(data), widthPtr, heightPtr,
+		sp.entry.Mime, len(data), widthPtr, heightPtr,
 		commentPtr, d.userID, createdAt.Format("2006-01-02T15:04:05Z"))
 	if err != nil {
-		return fmt.Errorf("demo: insert version %d of %s: %w", versionNum, sp.name, err)
+		return fmt.Errorf("demo: insert version %d of %s: %w", versionNum, sp.entry.Name, err)
 	}
 
 	// Update asset's current_version_id
@@ -666,7 +718,7 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 	}
 
 	// Generate thumbnail synchronously
-	thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.mime, storageKey)
+	thumbData, thumbExt, tErr := s.tmb.GenerateThumbnailData(ctx, s.storage, sp.entry.Mime, storageKey)
 	if tErr == nil && thumbData != nil {
 		thumbKey := fmt.Sprintf("demo/%s/%s/versions/%s/thumb%s", d.workspaceID, assetID, versionID, thumbExt)
 		if putErr := s.storage.Put(ctx, thumbKey, bytes.NewReader(thumbData)); putErr == nil {
@@ -678,36 +730,32 @@ func (s *Seeder) addVersion(ctx context.Context, d *ids, assetID string, sp *ass
 	return nil
 }
 
-
-func versionComments(filename string, versionNum int) string {
-	comments := map[string][]string{
-		"homepage-v2.png": {
-			"",
-			"Initial wireframe",
-			"Revised after client feedback — moved nav to top",
-		},
-		"logo-primary-light.png": {
-			"",
-			"First draft",
-			"Rounded corners per feedback",
-			"Final — approved by client",
-		},
-		"hero-shot-beach.jpg": {
-			"",
-			"Raw edit",
-			"Colour graded final",
-		},
+// versionComment returns the manifest-declared comment for versionNum (2..N),
+// where entry.Versions[0] describes version 2, entry.Versions[1] describes
+// version 3, and so on. Version 1 (the base file) never has a comment.
+func versionComment(e manifestEntry, versionNum int) string {
+	idx := versionNum - 2
+	if idx < 0 || idx >= len(e.Versions) {
+		return ""
 	}
-	if c, ok := comments[filename]; ok && versionNum < len(c) {
-		return c[versionNum]
-	}
-	return ""
+	return e.Versions[idx].Comment
 }
 
 // --- tags ---
 
 func (s *Seeder) seedTags(ctx context.Context, tx *sql.Tx, d *ids) error {
-	tagNames := []string{"approved", "hero", "social", "print", "web", "draft", "archive", "photography", "video", "brand"}
+	tagNames := []string{
+		"approved",
+		"hero",
+		"social",
+		"print",
+		"web",
+		"draft",
+		"archive",
+		"photography",
+		"video",
+		"brand",
+	}
 	tagIDs := map[string]string{}
 
 	for _, name := range tagNames {
@@ -733,48 +781,17 @@ func (s *Seeder) seedTags(ctx context.Context, tx *sql.Tx, d *ids) error {
 		return err
 	}
 
+	// Tag assignment is manifest-driven (RA-4): each entry declares the tags
+	// that genuinely apply to its content, validated against the fixed
+	// vocabulary above when the manifest loads.
 	for _, am := range d.allAssets {
-		switch am.projectID {
-		case d.brandProjectID:
-			if err := addTag(am.id, "brand"); err != nil {
-				return err
-			}
-			if err := addTag(am.id, "approved"); err != nil {
-				return err
-			}
-		case d.summerProjectID:
-			if strings.HasSuffix(am.name, ".mp4") {
-				if err := addTag(am.id, "video"); err != nil {
-					return err
-				}
-			}
-			if strings.HasPrefix(am.name, "instagram") || strings.HasPrefix(am.name, "twitter") || strings.HasPrefix(am.name, "facebook") {
-				if err := addTag(am.id, "social"); err != nil {
-					return err
-				}
-			}
-			if strings.HasPrefix(am.name, "hero") {
-				if err := addTag(am.id, "hero"); err != nil {
-					return err
-				}
-				if err := addTag(am.id, "approved"); err != nil {
-					return err
-				}
-			}
-			if strings.HasPrefix(am.name, "lifestyle") {
-				if err := addTag(am.id, "photography"); err != nil {
-					return err
-				}
-				if err := addTag(am.id, "approved"); err != nil {
-					return err
-				}
-			}
-		case d.archiveProjectID:
-			if err := addTag(am.id, "archive"); err != nil {
-				return err
-			}
-			if err := addTag(am.id, "approved"); err != nil {
-				return err
+		entry, ok := d.manifestByName[am.name]
+		if !ok {
+			continue
+		}
+		for _, tagName := range entry.Tags {
+			if err := addTag(am.id, tagName); err != nil {
+				return fmt.Errorf("demo: tag asset %s with %q: %w", am.name, tagName, err)
 			}
 		}
 	}
@@ -785,73 +802,83 @@ func (s *Seeder) seedTags(ctx context.Context, tx *sql.Tx, d *ids) error {
 // --- field values ---
 
 func (s *Seeder) seedFieldValues(ctx context.Context, tx *sql.Tx, d *ids) error {
-	strVal := func(v string) *string { return &v }
-	boolVal := func(v int64) *int64 { return &v }
+	fieldIDByKey := map[string]string{
+		"client":       d.fieldClient,
+		"status":       d.fieldStatus,
+		"usage_rights": d.fieldUsageRights,
+		"photographer": d.fieldPhotographer,
+		"licensed":     d.fieldLicensed,
+	}
 
-	upsert := func(assetID, fieldID string, text *string, num *float64, date *string, boolean *int64) error {
+	upsert := func(assetID, fieldID string, text *string, date *string, boolean *int64) error {
 		_, err := tx.ExecContext(ctx, `
 			INSERT INTO asset_field_values (id, asset_id, field_id, value_text, value_number, value_date, value_boolean, created_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
 			ON CONFLICT(asset_id, field_id) DO UPDATE SET
 			  value_text    = excluded.value_text,
-			  value_number  = excluded.value_number,
 			  value_date    = excluded.value_date,
 			  value_boolean = excluded.value_boolean,
 			  updated_at    = datetime('now')
-		`, newID("afv"), assetID, fieldID, text, num, date, boolean, d.userID)
+		`, newID("afv"), assetID, fieldID, text, date, boolean, d.userID)
 		return err
 	}
 
-	sixMonths := time.Now().AddDate(0, 6, 0).Format("2006-01-02")
-	pastDate := time.Now().AddDate(-1, 0, 0).Format("2006-01-02")
-
+	// Field values are manifest-driven (RA-1): each entry declares the
+	// key/value pairs that apply to it, resolved against the field
+	// definitions created in seedFieldDefinitions.
 	for _, am := range d.allAssets {
-		switch am.projectID {
-		case d.brandProjectID:
-			if err := upsert(am.id, d.fieldClient, strVal("Sportswear Co"), nil, nil, nil); err != nil {
-				return err
+		entry, ok := d.manifestByName[am.name]
+		if !ok {
+			continue
+		}
+		for key, val := range entry.Fields {
+			fieldID := fieldIDByKey[key]
+			if fieldID == "" {
+				continue
 			}
-			if err := upsert(am.id, d.fieldStatus, strVal("Approved"), nil, nil, nil); err != nil {
-				return err
-			}
-			if err := upsert(am.id, d.fieldLicensed, nil, nil, nil, boolVal(1)); err != nil {
-				return err
-			}
-		case d.summerProjectID:
-			if strings.HasPrefix(am.name, "hero") || strings.HasPrefix(am.name, "lifestyle") {
-				if err := upsert(am.id, d.fieldPhotographer, strVal("Sarah M."), nil, nil, nil); err != nil {
+			switch key {
+			case "usage_rights":
+				date, err := resolveFieldDate(val)
+				if err != nil {
+					return fmt.Errorf("demo: asset %s field %q: %w", am.name, key, err)
+				}
+				if err := upsert(am.id, fieldID, nil, &date, nil); err != nil {
 					return err
 				}
-				if err := upsert(am.id, d.fieldUsageRights, nil, nil, &sixMonths, nil); err != nil {
+			case "licensed":
+				b := int64(0)
+				if val == "true" {
+					b = 1
+				}
+				if err := upsert(am.id, fieldID, nil, nil, &b); err != nil {
 					return err
 				}
-				if err := upsert(am.id, d.fieldStatus, strVal("Approved"), nil, nil, nil); err != nil {
+			default:
+				v := val
+				if err := upsert(am.id, fieldID, &v, nil, nil); err != nil {
 					return err
 				}
-			}
-		case d.websiteProjectID:
-			if am.folderIDForLookup(d.wireframesFolder) {
-				if err := upsert(am.id, d.fieldStatus, strVal("In Review"), nil, nil, nil); err != nil {
-					return err
-				}
-			}
-		case d.archiveProjectID:
-			if err := upsert(am.id, d.fieldStatus, strVal("Approved"), nil, nil, nil); err != nil {
-				return err
-			}
-			if err := upsert(am.id, d.fieldUsageRights, nil, nil, &pastDate, nil); err != nil {
-				return err
 			}
 		}
 	}
 	return nil
 }
 
-// folderIDForLookup is a helper on assetMeta to check if an asset is in a given folder.
-// Since assetMeta doesn't store folderID directly, we check by name heuristic.
-func (am assetMeta) folderIDForLookup(folderID string) bool {
-	// Wireframes: homepage and product-page
-	return strings.HasPrefix(am.name, "homepage") || am.name == "product-page.png"
+// resolveFieldDate turns a manifest usage_rights value into an ISO date.
+// A "+180d" / "-365d" style value is relative to seed time; anything else is
+// taken as a literal date.
+func resolveFieldDate(val string) (string, error) {
+	if len(val) > 1 && (val[0] == '+' || val[0] == '-') && strings.HasSuffix(val, "d") {
+		days, err := strconv.Atoi(val[1 : len(val)-1])
+		if err != nil {
+			return "", fmt.Errorf("invalid relative offset %q: %w", val, err)
+		}
+		if val[0] == '-' {
+			days = -days
+		}
+		return time.Now().AddDate(0, 0, days).Format("2006-01-02"), nil
+	}
+	return val, nil
 }
 
 // --- share ---
@@ -950,7 +977,7 @@ func (s *Seeder) seedEvents(ctx context.Context, d *ids) error {
 	}
 
 	// asset_tagged events
-	for i := 0; i < 12; i++ {
+	for range 12 {
 		am := d.allAssets[rng.Intn(len(d.allAssets))]
 		actor := actors[rng.Intn(len(actors))]
 		t := businessTime(rng, 12)
@@ -963,12 +990,18 @@ func (s *Seeder) seedEvents(ctx context.Context, d *ids) error {
 	}
 
 	// asset_renamed events
-	for i := 0; i < 5; i++ {
+	oldNames := []string{"IMG_0042.jpg", "untitled-1.jpg", "scan_final.jpg", "DSC00123.jpg", "new_asset.png"}
+	for range 5 {
 		am := d.allAssets[rng.Intn(len(d.allAssets))]
 		actor := actors[rng.Intn(len(actors))]
 		t := businessTime(rng, 10)
-		payload := fmt.Sprintf(`{"old_name":%q,"new_name":%q}`, am.name, am.name)
-		if err := insert(d.workspaceID, am.id, actor.id, actor.kind, "asset_renamed", payload, t); err != nil {
+		payload, err := json.Marshal(audit.AssetRenamedPayload{
+			V: 1, Before: oldNames[rng.Intn(len(oldNames))], After: am.name,
+		})
+		if err != nil {
+			return err
+		}
+		if err := insert(d.workspaceID, am.id, actor.id, actor.kind, "asset_renamed", string(payload), t); err != nil {
 			return err
 		}
 	}
@@ -987,23 +1020,36 @@ func (s *Seeder) seedEvents(ctx context.Context, d *ids) error {
 	}
 
 	// asset_field_set events
-	for i := 0; i < 10; i++ {
+	statusBeforeValues := []string{"Draft", "In Review"}
+	for range 10 {
 		am := d.allAssets[rng.Intn(len(d.allAssets))]
 		actor := actors[rng.Intn(len(actors))]
 		t := businessTime(rng, 8)
-		if err := insert(d.workspaceID, am.id, actor.id, actor.kind, "asset_field_set",
-			`{"field":"status","value":"Approved"}`, t); err != nil {
+		payload, err := json.Marshal(audit.AssetFieldSetPayload{
+			V: 1, FieldKey: "status", FieldName: "Status",
+			Before: statusBeforeValues[rng.Intn(len(statusBeforeValues))], After: "Approved",
+		})
+		if err != nil {
+			return err
+		}
+		if err := insert(d.workspaceID, am.id, actor.id, actor.kind, "asset_field_set", string(payload), t); err != nil {
 			return err
 		}
 	}
 
 	// asset_moved events
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		am := d.allAssets[rng.Intn(len(d.allAssets))]
 		actor := actors[rng.Intn(len(actors))]
 		t := businessTime(rng, 9)
-		if err := insert(d.workspaceID, am.id, actor.id, actor.kind, "asset_moved",
-			`{"from_folder":null,"to_folder":"Logos"}`, t); err != nil {
+		fromFolderID, toFolderID := d.logosFolder, d.videoFolder
+		payload, err := json.Marshal(audit.AssetMovedPayload{
+			V: 1, BeforeFolderID: &fromFolderID, AfterFolderID: &toFolderID,
+		})
+		if err != nil {
+			return err
+		}
+		if err := insert(d.workspaceID, am.id, actor.id, actor.kind, "asset_moved", string(payload), t); err != nil {
 			return err
 		}
 	}
@@ -1019,7 +1065,7 @@ func (s *Seeder) seedEvents(ctx context.Context, d *ids) error {
 	}
 
 	// asset_deleted + asset_restored pairs
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		am := d.allAssets[rng.Intn(len(d.allAssets))]
 		actor := actors[rng.Intn(len(actors))]
 		t1 := businessTime(rng, 6)
@@ -1044,7 +1090,7 @@ func (s *Seeder) ensureGhostUser(ctx context.Context, email, name string) (strin
 	if err == nil {
 		return id, nil
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("demo: check ghost user %s: %w", email, err)
 	}
 
@@ -1063,7 +1109,7 @@ func newID(prefix string) string {
 	return prefix + "_" + uuid.NewString()
 }
 
-func nullStr(s string) interface{} {
+func nullStr(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -1095,171 +1141,220 @@ func businessTime(rng *rand.Rand, days int) time.Time {
 
 // --- file generation ---
 
-func (s *Seeder) buildAssetSpecs(d *ids) []assetSpec {
-	return []assetSpec{
-		// Brand — Logos
-		{name: "logo-primary-light.png", projectID: d.brandProjectID, folderID: d.logosFolder, mime: "image/png", w: 512, h: 512, bgColor: color.RGBA{R: 255, G: 255, B: 255, A: 255}, makeVersions: 3},
-		{name: "logo-primary-dark.png", projectID: d.brandProjectID, folderID: d.logosFolder, mime: "image/png", w: 512, h: 512, bgColor: color.RGBA{R: 30, G: 30, B: 30, A: 255}},
-		{name: "logo-mark-only.svg", projectID: d.brandProjectID, folderID: d.logosFolder, mime: "image/svg+xml"},
-		{name: "logo-wordmark.png", projectID: d.brandProjectID, folderID: d.logosFolder, mime: "image/png", w: 800, h: 200, bgColor: color.RGBA{R: 240, G: 240, B: 255, A: 255}},
-		// Brand — Colors & Typography
-		{name: "brand-guidelines-v3.pdf", projectID: d.brandProjectID, folderID: d.colorsFolder, mime: "application/pdf"},
-		{name: "font-specimen.png", projectID: d.brandProjectID, folderID: d.colorsFolder, mime: "image/png", w: 1200, h: 800, bgColor: color.RGBA{R: 250, G: 248, B: 240, A: 255}},
-		// Brand — root
-		{name: "brand-overview-deck.pdf", projectID: d.brandProjectID, mime: "application/pdf"},
-		{name: "mood-board-final.jpg", projectID: d.brandProjectID, mime: "image/jpeg", w: 1920, h: 1080, bgColor: color.RGBA{R: 200, G: 180, B: 160, A: 255}},
-
-		// Summer — Photography
-		{name: "hero-shot-beach.jpg", projectID: d.summerProjectID, folderID: d.photoFolder, mime: "image/jpeg", w: 1920, h: 1080, bgColor: color.RGBA{R: 135, G: 206, B: 235, A: 255}, makeVersions: 2},
-		{name: "hero-shot-studio.jpg", projectID: d.summerProjectID, folderID: d.photoFolder, mime: "image/jpeg", w: 1920, h: 1080, bgColor: color.RGBA{R: 240, G: 240, B: 240, A: 255}},
-		{name: "lifestyle-01.jpg", projectID: d.summerProjectID, folderID: d.photoFolder, mime: "image/jpeg", w: 1200, h: 800, bgColor: color.RGBA{R: 255, G: 220, B: 180, A: 255}},
-		{name: "lifestyle-02.jpg", projectID: d.summerProjectID, folderID: d.photoFolder, mime: "image/jpeg", w: 1200, h: 800, bgColor: color.RGBA{R: 180, G: 220, B: 200, A: 255}},
-		{name: "lifestyle-03.jpg", projectID: d.summerProjectID, folderID: d.photoFolder, mime: "image/jpeg", w: 1200, h: 800, bgColor: color.RGBA{R: 255, G: 200, B: 210, A: 255}},
-		// Summer — Video
-		{name: "teaser-15s.mp4", projectID: d.summerProjectID, folderID: d.videoFolder, mime: "video/mp4"},
-		{name: "behind-the-scenes.mp4", projectID: d.summerProjectID, folderID: d.videoFolder, mime: "video/mp4"},
-		// Summer — Social
-		{name: "instagram-square.jpg", projectID: d.summerProjectID, folderID: d.socialFolder, mime: "image/jpeg", w: 1080, h: 1080, bgColor: color.RGBA{R: 255, G: 180, B: 100, A: 255}},
-		{name: "instagram-story.jpg", projectID: d.summerProjectID, folderID: d.socialFolder, mime: "image/jpeg", w: 1080, h: 1920, bgColor: color.RGBA{R: 100, G: 180, B: 255, A: 255}},
-		{name: "twitter-banner.jpg", projectID: d.summerProjectID, folderID: d.socialFolder, mime: "image/jpeg", w: 1500, h: 500, bgColor: color.RGBA{R: 29, G: 161, B: 242, A: 255}},
-		{name: "facebook-cover.jpg", projectID: d.summerProjectID, folderID: d.socialFolder, mime: "image/jpeg", w: 820, h: 312, bgColor: color.RGBA{R: 66, G: 103, B: 178, A: 255}},
-
-		// Website — Wireframes
-		{name: "homepage-v1.png", projectID: d.websiteProjectID, folderID: d.wireframesFolder, mime: "image/png", w: 1440, h: 900, bgColor: color.RGBA{R: 240, G: 240, B: 240, A: 255}},
-		{name: "homepage-v2.png", projectID: d.websiteProjectID, folderID: d.wireframesFolder, mime: "image/png", w: 1440, h: 900, bgColor: color.RGBA{R: 230, G: 230, B: 250, A: 255}, makeVersions: 2},
-		{name: "product-page.png", projectID: d.websiteProjectID, folderID: d.wireframesFolder, mime: "image/png", w: 1440, h: 900, bgColor: color.RGBA{R: 240, G: 248, B: 255, A: 255}},
-		// Website — UI Components
-		{name: "button-states.png", projectID: d.websiteProjectID, folderID: d.uiCompFolder, mime: "image/png", w: 800, h: 400, bgColor: color.RGBA{R: 250, G: 250, B: 250, A: 255}},
-		{name: "form-elements.png", projectID: d.websiteProjectID, folderID: d.uiCompFolder, mime: "image/png", w: 800, h: 600, bgColor: color.RGBA{R: 245, G: 245, B: 245, A: 255}},
-		{name: "navigation-states.png", projectID: d.websiteProjectID, folderID: d.uiCompFolder, mime: "image/png", w: 1200, h: 300, bgColor: color.RGBA{R: 30, G: 30, B: 30, A: 255}},
-		// Website — Exports
-		{name: "hero-banner-2x.png", projectID: d.websiteProjectID, folderID: d.exportsFolder, mime: "image/png", w: 2880, h: 1200, bgColor: color.RGBA{R: 99, G: 102, B: 241, A: 255}},
-		{name: "hero-banner-1x.png", projectID: d.websiteProjectID, folderID: d.exportsFolder, mime: "image/png", w: 1440, h: 600, bgColor: color.RGBA{R: 99, G: 102, B: 241, A: 255}},
-		{name: "favicon-set.zip", projectID: d.websiteProjectID, folderID: d.exportsFolder, mime: "application/zip"},
-
-		// Archive
-		{name: "final-assets.zip", projectID: d.archiveProjectID, mime: "application/zip"},
-		{name: "campaign-report.pdf", projectID: d.archiveProjectID, mime: "application/pdf"},
-		{name: "poster-a1.pdf", projectID: d.archiveProjectID, folderID: d.printReadyFolder, mime: "application/pdf"},
-		{name: "flyer-dl.pdf", projectID: d.archiveProjectID, folderID: d.printReadyFolder, mime: "application/pdf"},
+// buildAssetSpecs loads the asset manifest and resolves each entry's
+// project/folder keys to the workspace-specific IDs created earlier in Seed.
+func (s *Seeder) buildAssetSpecs(d *ids) ([]assetSpec, error) {
+	mf, err := loadManifest()
+	if err != nil {
+		return nil, err
 	}
+
+	projectIDs := map[string]string{
+		"brand":   d.brandProjectID,
+		"summer":  d.summerProjectID,
+		"website": d.websiteProjectID,
+		"archive": d.archiveProjectID,
+	}
+	folderIDs := map[string]string{
+		"":           "",
+		"logos":      d.logosFolder,
+		"colors":     d.colorsFolder,
+		"photo":      d.photoFolder,
+		"video":      d.videoFolder,
+		"social":     d.socialFolder,
+		"wireframes": d.wireframesFolder,
+		"ui":         d.uiCompFolder,
+		"exports":    d.exportsFolder,
+		"printready": d.printReadyFolder,
+	}
+
+	d.manifestByName = make(map[string]manifestEntry, len(mf.Assets))
+	specs := make([]assetSpec, 0, len(mf.Assets))
+	for _, e := range mf.Assets {
+		d.manifestByName[e.Name] = e
+		specs = append(specs, assetSpec{
+			entry:        e,
+			projectID:    projectIDs[e.Project],
+			folderID:     folderIDs[e.Folder],
+			makeVersions: len(e.Versions) + 1,
+		})
+	}
+	return specs, nil
 }
 
-// generateFile produces a valid file for the given spec.
-// versionOffset shifts the background colour slightly so versions look different.
-func (s *Seeder) generateFile(sp *assetSpec, versionOffset int, rng *rand.Rand) (data []byte, width, height int, err error) {
-	switch sp.mime {
-	case "image/png":
-		bg := shiftColor(sp.bgColor, versionOffset)
-		data = generatePNG(sp.w, sp.h, bg, sp.name)
-		return data, sp.w, sp.h, nil
+// generateFile produces the bytes for one version of an asset.
+// versionOffset is 0 for the base (first) version and increases for each
+// later version added via addVersion. For file-backed real photos/videos
+// with more than one version, every version except the last (the "final")
+// renders as a desaturated, cropped "draft" derived from the same real file
+// (RA-3.4) — no extra curated file needed per version.
+func (s *Seeder) generateFile(
+	sp *assetSpec,
+	versionOffset int,
+	_ *rand.Rand,
+) (data []byte, width, height int, err error) {
+	e := sp.entry
+	isFinal := versionOffset >= sp.makeVersions-1
 
-	case "image/jpeg":
-		bg := shiftColor(sp.bgColor, versionOffset)
-		data, err = generateJPEG(sp.w, sp.h, bg, sp.name)
-		return data, sp.w, sp.h, err
+	if e.File != "" {
+		data, err = assetsFS.ReadFile("assets/" + e.File)
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("demo: read %s: %w", e.File, err)
+		}
+		if !isFinal && (e.Mime == "image/jpeg" || e.Mime == "image/png") {
+			var w, h int
+			data, w, h, err = draftVariant(data, e.Mime)
+			if err != nil {
+				return nil, 0, 0, fmt.Errorf("demo: draft variant of %s: %w", e.Name, err)
+			}
+			return data, w, h, nil
+		}
+		return data, e.Width, e.Height, nil
+	}
 
-	case "image/svg+xml":
-		data = generateSVG(sp.name)
+	switch e.Generator {
+	case "wireframe":
+		data = generateWireframePNG(e.Width, e.Height, hexColor(e.BGColor))
+		return data, e.Width, e.Height, nil
+
+	case "svg":
+		data = generateSVG(e.Name)
 		return data, 0, 0, nil
 
-	case "application/pdf":
-		data = generatePDF(sp.name)
+	case "pdf":
+		data = generatePDF(e.Name)
 		return data, 0, 0, nil
 
-	case "video/mp4":
-		data = minimalMP4()
-		return data, 0, 0, nil
-
-	case "application/zip":
-		data, err = generateZip(sp.name)
+	case "zip":
+		data, err = generateZip(e.Name)
 		return data, 0, 0, err
 
 	default:
-		data = []byte("placeholder: " + sp.name)
-		return data, 0, 0, nil
+		return nil, 0, 0, fmt.Errorf("demo: asset %s has neither file nor a known generator", e.Name)
 	}
 }
 
-func shiftColor(c color.RGBA, offset int) color.RGBA {
-	shift := uint8(offset * 30)
-	return color.RGBA{
-		R: c.R + shift,
-		G: c.G,
-		B: c.B + shift/2,
-		A: c.A,
+// draftVariant derives an "earlier draft" look from a real photo/PNG: a
+// slight inward crop plus grayscale conversion. Used for every
+// non-final version of a manifest entry that declares more than one version,
+// so DM-1.5's "visually distinct versions" goal holds without needing
+// separate curated files per version.
+func draftVariant(data []byte, mime string) (out []byte, width, height int, err error) {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, 0, 0, err
 	}
-}
 
-func generatePNG(w, h int, bg color.RGBA, label string) []byte {
-	if w == 0 {
-		w = 256
-	}
-	if h == 0 {
-		h = 256
-	}
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			img.SetRGBA(x, y, bg)
-		}
-	}
-	// Draw a simple label as a darker rectangle in the centre
-	drawLabel(img, label, bg)
+	b := img.Bounds()
+	insetX := b.Dx() * 6 / 100
+	insetY := b.Dy() * 6 / 100
+	cropRect := image.Rect(b.Min.X+insetX, b.Min.Y+insetY, b.Max.X-insetX, b.Max.Y-insetY)
+
+	gray := image.NewGray(image.Rect(0, 0, cropRect.Dx(), cropRect.Dy()))
+	draw.Draw(gray, gray.Bounds(), img, cropRect.Min, draw.Src)
 
 	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return nil
+	if mime == "image/png" {
+		err = png.Encode(&buf, gray)
+	} else {
+		err = jpeg.Encode(&buf, gray, &jpeg.Options{Quality: 80})
 	}
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	return buf.Bytes(), gray.Bounds().Dx(), gray.Bounds().Dy(), nil
+}
+
+// hexColor parses a "rrggbb" manifest bg_color into an opaque [color.RGBA],
+// falling back to light grey on any malformed value.
+func hexColor(s string) color.RGBA {
+	v, err := strconv.ParseUint(s, 16, 32)
+	if len(s) != 6 || err != nil {
+		return color.RGBA{R: 240, G: 240, B: 240, A: 255}
+	}
+	return color.RGBA{
+		R: uint8(v >> 16 & 0xff), //nolint:gosec // masked to a byte, cannot overflow
+		G: uint8(v >> 8 & 0xff),  //nolint:gosec // masked to a byte, cannot overflow
+		B: uint8(v & 0xff),       //nolint:gosec // masked to a byte, cannot overflow
+		A: 255,
+	}
+}
+
+// generateWireframePNG draws a generic low-fidelity wireframe (nav bar, hero
+// block, a row of content cards, footer bar) instead of a solid rectangle —
+// used for the Website Redesign project's mockup/UI-component slots, which
+// are synthetic by nature and aren't meant to look like photography (RA-3.3).
+func generateWireframePNG(w, h int, bg color.RGBA) []byte {
+	if w == 0 {
+		w = 800
+	}
+	if h == 0 {
+		h = 600
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
+
+	fillRect := func(x0, y0, x1, y1 int, c color.RGBA) {
+		if x1 <= x0 || y1 <= y0 {
+			return
+		}
+		draw.Draw(img, image.Rect(x0, y0, x1, y1), &image.Uniform{C: c}, image.Point{}, draw.Src)
+	}
+
+	line := shade(bg, -60)
+	box := shade(bg, -20)
+
+	// Top nav bar with a logo chip and a few nav-item chips.
+	navH := max(h/10, 20)
+	if navH > h {
+		navH = h
+	}
+	fillRect(0, 0, w, navH, line)
+	fillRect(w/40, navH/4, w/40+80, navH*3/4, box)
+	for i, x := 0, w-w/10-70; i < 3 && x > w/2; i, x = i+1, x-90 {
+		fillRect(x, navH/4, x+70, navH*3/4, box)
+	}
+
+	// Hero block.
+	heroY0 := navH + h/20
+	heroY1 := min(heroY0+h*3/10, h)
+	fillRect(w/10, heroY0, w-w/10, heroY1, box)
+
+	// A row of three content cards.
+	cardY0 := heroY1 + h/20
+	cardY1 := cardY0 + h/5
+	if cardY1 <= h {
+		margin := w / 10
+		gap := w / 40
+		cardW := (w - 2*margin - 2*gap) / 3
+		x := margin
+		for range 3 {
+			fillRect(x, cardY0, x+cardW, cardY1, box)
+			x += cardW + gap
+		}
+	}
+
+	// Footer bar.
+	footerH := h / 14
+	fillRect(0, h-footerH, w, h, line)
+
+	var buf bytes.Buffer
+	_ = png.Encode(&buf, img)
 	return buf.Bytes()
 }
 
-func generateJPEG(w, h int, bg color.RGBA, label string) ([]byte, error) {
-	if w == 0 {
-		w = 256
-	}
-	if h == 0 {
-		h = 256
-	}
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			img.SetRGBA(x, y, bg)
+// shade lightens (positive delta) or darkens (negative delta) a colour,
+// clamped to the valid byte range.
+func shade(c color.RGBA, delta int) color.RGBA {
+	adj := func(v uint8) uint8 {
+		n := max(int(v)+delta, 0)
+		if n > 255 {
+			n = 255
 		}
+		return uint8(n)
 	}
-	drawLabel(img, label, bg)
-
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 75}); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// drawLabel draws a contrasting rectangle in the centre of the image as a
-// visual label so thumbnails look distinct in the grid.
-func drawLabel(img *image.RGBA, label string, bg color.RGBA) {
-	bounds := img.Bounds()
-	w := bounds.Max.X
-	h := bounds.Max.Y
-
-	// Contrasting colour
-	fg := color.RGBA{R: 255 - bg.R, G: 255 - bg.G, B: 255 - bg.B, A: 255}
-
-	// Draw a centred horizontal bar (simulates a text label)
-	barH := h / 8
-	if barH < 4 {
-		barH = 4
-	}
-	barW := w * 3 / 4
-	startX := (w - barW) / 2
-	startY := (h - barH) / 2
-	for y := startY; y < startY+barH; y++ {
-		for x := startX; x < startX+barW; x++ {
-			img.SetRGBA(x, y, fg)
-		}
-	}
-	_ = label // label text rendering would need font package; the bar is enough
+	return color.RGBA{R: adj(c.R), G: adj(c.G), B: adj(c.B), A: 255}
 }
 
 func generateSVG(label string) []byte {
@@ -1271,53 +1366,65 @@ func generateSVG(label string) []byte {
 	return []byte(svg)
 }
 
-func generatePDF(label string) []byte {
-	// Minimal valid single-page PDF
-	body := fmt.Sprintf(`1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
-2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>>>>>>>endobj
-4 0 obj<</Length 44>>
-stream
-BT /F1 18 Tf 72 720 Td (%s) Tj ET
-endstream
-endobj`, label)
-
-	xrefOffset := 9 + len(`%PDF-1.4
-`)
-	pdf := fmt.Sprintf(`%%PDF-1.4
-%s
-xref
-0 5
-0000000000 65535 f
-0000000009 00000 n
-0000000058 00000 n
-0000000115 00000 n
-0000000274 00000 n
-trailer<</Size 5/Root 1 0 R>>
-startxref
-%d
-%%%%EOF`, body, xrefOffset)
-	return []byte(pdf)
+// pdfEscape escapes the characters PDF string literals treat specially.
+func pdfEscape(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `(`, `\(`, `)`, `\)`)
+	return r.Replace(s)
 }
 
-// minimalMP4 returns a valid minimal MP4 container (~200 bytes).
-// This is a ftyp + mdat with no video data — enough for MIME detection.
-func minimalMP4() []byte {
-	// ftyp box: size(4) + 'ftyp'(4) + 'mp42'(4) + version(4) + 'mp42'(4) + 'isom'(4) = 24 bytes
-	ftyp := []byte{
-		0, 0, 0, 24, // size = 24
-		'f', 't', 'y', 'p',
-		'm', 'p', '4', '2',
-		0, 0, 0, 0,
-		'm', 'p', '4', '2',
-		'i', 's', 'o', 'm',
+// generatePDF builds a single-page PDF that reads as "a document" even at
+// thumbnail size — a title, a rule, a few placeholder body lines, and a
+// footer — rather than one line of small text on an otherwise blank page.
+// Byte offsets in the xref table are computed from the actual object bytes
+// (not hand-counted), so the file is valid without needing viewer repair.
+func generatePDF(label string) []byte {
+	lines := []string{
+		"Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+		"Sed do eiusmod tempor incididunt ut labore et dolore magna.",
+		"Ut enim ad minim veniam, quis nostrud exercitation ullamco.",
+		"Duis aute irure dolor in reprehenderit in voluptate velit.",
 	}
-	// mdat box: size(4) + 'mdat'(4) = 8 bytes, empty
-	mdat := []byte{
-		0, 0, 0, 8,
-		'm', 'd', 'a', 't',
+
+	var content bytes.Buffer
+	fmt.Fprintf(&content, "0.85 0.85 0.85 rg 0 0 612 792 re f\n")
+	fmt.Fprintf(&content, "1 1 1 rg 36 36 540 720 re f\n")
+	fmt.Fprintf(&content, "0 0 0 rg BT /F2 20 Tf 72 700 Td (%s) Tj ET\n", pdfEscape(label))
+	fmt.Fprintf(&content, "0.6 0.6 0.6 RG 1 w 72 676 m 540 676 l S\n")
+	y := 640
+	for _, line := range lines {
+		fmt.Fprintf(&content, "0.2 0.2 0.2 rg BT /F1 11 Tf 72 %d Td (%s) Tj ET\n", y, pdfEscape(line))
+		y -= 22
 	}
-	return append(ftyp, mdat...)
+	fmt.Fprintf(&content, "0.6 0.6 0.6 RG 1 w 72 90 m 540 90 l S\n")
+	fmt.Fprintf(&content, "0.5 0.5 0.5 rg BT /F1 8 Tf 72 74 Td (Damask DAM - demo placeholder document) Tj ET\n")
+
+	objs := []string{
+		"<</Type/Catalog/Pages 2 0 R>>",
+		"<</Type/Pages/Kids[3 0 R]/Count 1>>",
+		"<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R" +
+			"/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>" +
+			"/F2<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold>>>>>>>>",
+		fmt.Sprintf("<</Length %d>>\nstream\n%sendstream", content.Len(), content.String()),
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("%PDF-1.4\n")
+
+	offsets := make([]int, len(objs)+1) // 1-indexed; offsets[0] unused (free object 0)
+	for i, o := range objs {
+		offsets[i+1] = buf.Len()
+		fmt.Fprintf(&buf, "%d 0 obj%s\nendobj\n", i+1, o)
+	}
+
+	xrefStart := buf.Len()
+	fmt.Fprintf(&buf, "xref\n0 %d\n", len(objs)+1)
+	buf.WriteString("0000000000 65535 f \n")
+	for _, off := range offsets[1:] {
+		fmt.Fprintf(&buf, "%010d 00000 n \n", off)
+	}
+	fmt.Fprintf(&buf, "trailer<</Size %d/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF", len(objs)+1, xrefStart)
+
+	return buf.Bytes()
 }
 
 func generateZip(label string) ([]byte, error) {

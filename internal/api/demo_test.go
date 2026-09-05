@@ -83,7 +83,7 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	tmb := transform.NewThumbnailer(trf)
 	noopMailer := mail.NewMailer(&mail.Config{})
 
-	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb)
+	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb, q)
 	if err := seeder.EnsureWorkspace(t.Context()); err != nil {
 		t.Fatalf("ensure demo workspace: %v", err)
 	}
