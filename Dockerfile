@@ -28,11 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra tesseract-ocr-spa tesseract-ocr-cat \
     libcairo2 libcups2 libdbus-1-3 libfontconfig1 libgl1 libglib2.0-0 \
     libice6 libsm6 libx11-6 libxext6 libxinerama1 libxrender1 \
-    wget && rm -rf /var/lib/apt/lists/*
-
-RUN wget -q "${LO_URL}" -O /tmp/lo.tar.gz \
+    wget \
+    && wget -q "${LO_URL}" -O /tmp/lo.tar.gz \
     && tar -xf /tmp/lo.tar.gz -C /tmp \
-    && dpkg -i /tmp/LibreOffice_*/DEBS/*.deb \
+    && (dpkg -i /tmp/LibreOffice_*/DEBS/*.deb || true) \
+    && apt-get install -f -y --no-install-recommends \
     && rm -rf /tmp/lo.tar.gz /tmp/LibreOffice_* \
     && apt-get purge -y wget && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
