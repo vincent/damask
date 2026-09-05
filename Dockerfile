@@ -1,5 +1,5 @@
 # ── Web build ─────────────────────────────────────────────────────────────────
-FROM node:24-bookworm-slim AS web-build
+FROM node:24-trixie-slim AS web-build
 WORKDIR /build
 COPY cmd/server/web/package.json cmd/server/web/package-lock.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY cmd/server/web/ .
 RUN VITE_API_URL="" npm run build
 
 # ── Go build ──────────────────────────────────────────────────────────────────
-FROM golang:1.26-bookworm AS go-build
+FROM golang:1.27.1-trixie AS go-build
 WORKDIR /build
 COPY go.mod go.sum ./
 COPY --from=web-build /build/build cmd/server/web/build
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 go build -tags=demo -mod=mod -trimpath -ldflags="-s -w" -o /ou
 RUN CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/damask-admin ./cmd/admin
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 ARG LO_VERSION=26.2.3
 ARG LO_URL=https://download.documentfoundation.org/libreoffice/stable/${LO_VERSION}/deb/x86_64/LibreOffice_${LO_VERSION}_Linux_x86-64_deb.tar.gz
