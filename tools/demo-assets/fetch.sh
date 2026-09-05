@@ -53,6 +53,12 @@ download "https://upload.wikimedia.org/wikipedia/commons/4/45/A_Specimen_by_Will
 download "https://upload.wikimedia.org/wikipedia/commons/2/25/Standard_Color_Card_of_America_-_DPLA_-_19cddb4f9f1a842113dc847b3bc1266f_%28page_1%29.jpg" moodboard.jpg
 download "https://upload.wikimedia.org/wikipedia/commons/9/9b/Ocean_waves_at_L%C3%A6kjavik_beach%2C_Iceland.webm" teaser.webm
 download "https://upload.wikimedia.org/wikipedia/commons/1/17/Stevie_Ray_Vaughan_soundcheck_in_the_studio_in_1989.webm" bts.webm
+download "https://upload.wikimedia.org/wikipedia/commons/c/cd/Baspa_River%2C_Chitkul%2C_Himachal_Pradesh.jpg" river.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/2/27/Mount_Shasta_as_seen_from_Bunny_Flat.jpg" mountain.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/1/14/Victoria_Falls_-_VicFalls3452.jpg" gorge.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/7/7b/Cenote_Dolomiti.jpg" cenote.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/a/a2/Teide_von_Nordosten_%28Zuschnitt_1%29.jpg" volcano.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/a/af/Grand_Canyon_view_from_Pima_Point_2010.jpg" canyon.jpg
 
 cd "$CACHE_DIR"
 
@@ -64,6 +70,12 @@ ffmpeg -y -v error -i hike.jpg   -vf "scale='min(1600,iw)':'min(1600,ih)':force_
 ffmpeg -y -v error -i yoga.jpg   -vf "scale='min(1600,iw)':'min(1600,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/lifestyle-03.jpg"
 ffmpeg -y -v error -i moodboard.jpg -vf "scale='min(1600,iw)':'min(1600,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/mood-board-final.jpg"
 ffmpeg -y -v error -i fontspecimen.jpg -vf "scale='min(1400,iw)':'min(1400,ih)':force_original_aspect_ratio=decrease" "$PHOTOS_DIR/font-specimen.png"
+ffmpeg -y -v error -i river.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-river.jpg"
+ffmpeg -y -v error -i mountain.jpg -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-mountain.jpg"
+ffmpeg -y -v error -i gorge.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-gorge.jpg"
+ffmpeg -y -v error -i cenote.jpg   -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-cenote.jpg"
+ffmpeg -y -v error -i volcano.jpg  -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-volcano.jpg"
+ffmpeg -y -v error -i canyon.jpg   -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-canyon.jpg"
 
 # --- Platform-format social crops -------------------------------------------
 ffmpeg -y -v error -i beach.jpg  -vf "crop=ih:ih,scale=1080:1080" -q:v 3 "$PHOTOS_DIR/instagram-square.jpg"

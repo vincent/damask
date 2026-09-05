@@ -224,7 +224,7 @@
             : 'left-0.5'}"
         ></span>
       </span>
-      {fv.value ? m.yes : m.no()}
+      {fv.value ? m.yes() : m.no()}
     </button>
   {:else if fv && fv.value !== null && fv.value !== undefined}
     <button

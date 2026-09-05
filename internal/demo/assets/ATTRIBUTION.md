@@ -20,6 +20,12 @@ EXIF written in — see `tools/demo-assets/`.
 | font-specimen.png        | A Specimen by William Caslon                                           | William Caslon                      | Public domain  |
 | teaser-15s.mp4           | Ocean waves at Lækjavik beach, Iceland                                 | Alexander Grebenkov                 | CC BY 3.0      |
 | behind-the-scenes.mp4    | Stevie Ray Vaughan soundcheck in the studio in 1989 (10s excerpt, muted)| Simone De Giacomo                   | CC BY 3.0      |
+| landscape-river.jpg      | Baspa River, Chitkul, Himachal Pradesh                                 | Anamdas                             | CC BY-SA 4.0   |
+| landscape-mountain.jpg   | Mount Shasta as seen from Bunny Flat                                   | Frank Schulenburg                   | CC BY-SA 4.0   |
+| landscape-gorge.jpg      | Victoria Falls - VicFalls3452                                          | lumoplank                           | CC0 1.0        |
+| landscape-cenote.jpg     | Cenote Dolomiti                                                        | Madmap3d                            | CC BY-SA 4.0   |
+| landscape-volcano.jpg    | Teide von Nordosten (Zuschnitt 1)                                      | Thomas Wolf                         | CC BY-SA 3.0 DE|
+| landscape-canyon.jpg     | Grand Canyon view from Pima Point 2010                                 | Chensiyuan                          | CC BY-SA 4.0   |
 
 Source pages (Wikimedia Commons, `File:<Title>`) carry the full license text
 and any additional conditions. `instagram-square.jpg`, `instagram-story.jpg`,

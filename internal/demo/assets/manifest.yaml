@@ -58,6 +58,7 @@ assets:
       client: "Sportswear Co"
       status: "Approved"
       licensed: "true"
+    description: "Standalone SVG export of the chevron monogram mark, isolated from the wordmark for use in favicons, app icons, and other small-format applications."
 
   - name: logo-wordmark.png
     file: photos/logo-wordmark.png
@@ -82,6 +83,7 @@ assets:
     fields:
       client: "Sportswear Co"
       status: "Approved"
+    description: "Sportswear Co brand guidelines, version 3: logo usage rules, clear-space and minimum-size requirements, color palette, and typography specifications for internal and partner use."
 
   - name: font-specimen.png
     file: photos/font-specimen.png
@@ -101,6 +103,7 @@ assets:
     project: brand
     mime: application/pdf
     tags: [brand, approved]
+    description: "Internal presentation deck introducing the Sportswear Co brand refresh: positioning, visual identity rationale, and rollout timeline."
 
   - name: mood-board-final.jpg
     file: photos/mood-board-final.jpg
@@ -186,6 +189,123 @@ assets:
       usage_rights: "+180d"
       status: "Approved"
     alt: "Yoga mat and water bottle laid out on a hardwood floor in a home living room."
+
+  # --- Summer Campaign: Photography (landscapes) ---
+  - name: landscape-river.jpg
+    file: photos/landscape-river.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1040
+    height: 780
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Braided mountain river winding through a Himalayan valley, flanked by forested slopes."
+    description: "Baspa River is a river flowing through the Indian Himalayas in the northern Indian state of Himachal Pradesh. It rises near the Indo-Tibetan border and forms the scenic Baspa Valley before flowing into the Sutlej River from the left bank near Karchham, where the Karcham Wangtoo Hydroelectric Plant is located on it."
+
+  - name: landscape-mountain.jpg
+    file: photos/landscape-mountain.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1512
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Snow-capped Mount Shasta rising above a forested foreground, seen from Bunny Flat trailhead."
+    description: "Mount Shasta is a potentially active stratovolcano at the southern end of the Cascade Range in Siskiyou County, California. At an elevation of 14,179 ft (4,322 m), it is the second-highest peak in the Cascades and the fifth-highest in the state. Mount Shasta has an estimated volume of 85 cubic miles, which makes it the most voluminous stratovolcano in the Cascade Volcanic Arc.\nThe mountain and surrounding area are part of the Shasta–Trinity National Forest."
+
+  - name: landscape-gorge.jpg
+    file: photos/landscape-gorge.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 810
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Aerial view of Victoria Falls cascading into the gorge below on the Zambezi River."
+    description: "Victoria Falls is a waterfall on the Zambezi River, located on the border between Zambia and Zimbabwe. It is one of the world's largest waterfalls, with a width of 1,708 m (5,604 ft). The region around it has a high degree of biodiversity in both plants and animals."
+
+  - name: landscape-cenote.jpg
+    file: photos/landscape-cenote.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Deep rocky sinkhole opening into a dark cave mouth on a high alpine plateau, with hikers standing at its rim for scale."
+    description: "A cenote is a natural pit, or sinkhole, resulting when a collapse of limestone bedrock exposes groundwater. The term originated on the Yucatán Peninsula of Mexico, where the ancient Maya commonly used cenotes for water supplies, and occasionally for sacrificial offerings. The name derives from a word used by the lowland Yucatec Maya—tsʼonoʼot—to refer to any location with accessible groundwater."
+
+  - name: landscape-volcano.jpg
+    file: photos/landscape-volcano.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 1070
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Mount Teide's volcanic peak and caldera seen from the northeast under clear skies."
+    description: "Teide or Mount Teide is an active stratovolcano on the Spanish island of Tenerife, part of the Canary Islands. Its summit is the highest point in Spain and the highest of any island in the Atlantic Ocean. Measured from its base on the ocean floor, Teide reaches a total height of 7,500 m (24,600 ft), making it the third-tallest volcano in the world; UNESCO and NASA also rank it as Earth's third-tallest volcanic structure. Its elevation above sea level makes Tenerife the tenth-highest island in the world."
+
+  - name: landscape-canyon.jpg
+    file: photos/landscape-canyon.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 717
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Sweeping view of the Grand Canyon's layered rock walls from Pima Point."
+    description: "The Grand Canyon is a steep-sided canyon carved by the Colorado River in Arizona, United States. The Grand Canyon is 277 miles (446 km) long, up to 18 miles (29 km) wide and attains a depth of over a mile."
+
+  - name: landscape-canyon-crop.jpg
+    crop_of: landscape-canyon.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Cropped detail of the Grand Canyon's layered rock walls from Pima Point."
+    description: "A tighter crop of the same canyon shot, likely a duplicate candidate."
+
+  - name: landscape-mountain-crop.jpg
+    crop_of: landscape-mountain.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Cropped detail of snow-capped Mount Shasta seen from Bunny Flat trailhead."
+    description: "A tighter crop of the same Mount Shasta shot, likely a duplicate candidate."
 
   # --- Summer Campaign: Video ---
   - name: teaser-15s.mp4
@@ -273,6 +393,7 @@ assets:
     tags: [web, draft]
     fields:
       status: "In Review"
+    description: "Low-fidelity wireframe for the redesigned homepage: hero banner, featured product grid, and primary navigation layout, first draft."
 
   - name: homepage-v2.png
     generator: wireframe
@@ -285,6 +406,7 @@ assets:
     tags: [web, draft]
     fields:
       status: "In Review"
+    description: "Revised homepage wireframe with navigation moved to the top per client feedback, refining the layout from v1."
     versions:
       - comment: "Revised after client feedback — moved nav to top"
 
@@ -299,6 +421,7 @@ assets:
     tags: [web, draft]
     fields:
       status: "In Review"
+    description: "Wireframe for the product detail page layout: image gallery, size and color selectors, and add-to-cart placement."
 
   # --- Website Redesign: UI Components ---
   - name: button-states.png
@@ -310,6 +433,7 @@ assets:
     height: 400
     bg_color: "fafafa"
     tags: [web, draft]
+    description: "UI component sheet showing button states — default, hover, active, and disabled — for the website redesign's design system."
 
   - name: form-elements.png
     generator: wireframe
@@ -320,6 +444,7 @@ assets:
     height: 600
     bg_color: "f5f5f5"
     tags: [web, draft]
+    description: "UI component sheet covering form input styles — text fields, dropdowns, checkboxes, and validation states — for the website redesign."
 
   - name: navigation-states.png
     generator: wireframe
@@ -330,6 +455,7 @@ assets:
     height: 300
     bg_color: "1e1e1e"
     tags: [web, draft]
+    description: "UI component sheet showing the primary navigation bar across default, scrolled, and mobile-collapsed states."
 
   # --- Website Redesign: Exports ---
   - name: hero-banner-2x.png
@@ -341,6 +467,7 @@ assets:
     height: 1200
     bg_color: "6366f1"
     tags: [web, draft]
+    description: "Retina (2x) export of the homepage hero banner graphic, sized for high-density displays."
 
   - name: hero-banner-1x.png
     generator: wireframe
@@ -351,6 +478,7 @@ assets:
     height: 600
     bg_color: "6366f1"
     tags: [web, draft]
+    description: "Standard-resolution (1x) export of the homepage hero banner graphic."
 
   - name: favicon-set.zip
     generator: zip
@@ -358,6 +486,7 @@ assets:
     folder: exports
     mime: application/zip
     tags: [web, draft]
+    description: "Packaged favicon set for the redesigned website: multiple icon sizes and formats for browsers, bookmarks, and home-screen shortcuts."
 
   # --- Q2 Campaign Archive ---
   - name: final-assets.zip
@@ -368,6 +497,7 @@ assets:
     fields:
       status: "Approved"
       usage_rights: "-365d"
+    description: "Archived bundle of final approved creative assets from the Q2 campaign, packaged for handoff and long-term storage."
 
   - name: campaign-report.pdf
     generator: pdf
@@ -377,6 +507,7 @@ assets:
     fields:
       status: "Approved"
       usage_rights: "-365d"
+    description: "Q2 campaign performance report summarizing reach, engagement, and results across channels."
 
   - name: poster-a1.pdf
     generator: pdf
@@ -387,6 +518,7 @@ assets:
     fields:
       status: "Approved"
       usage_rights: "-365d"
+    description: "Print-ready A1 poster artwork for the Q2 campaign, prepared for large-format output."
 
   - name: flyer-dl.pdf
     generator: pdf
@@ -397,3 +529,4 @@ assets:
     fields:
       status: "Approved"
       usage_rights: "-365d"
+    description: "Print-ready DL-size flyer artwork for the Q2 campaign, prepared for in-store distribution."

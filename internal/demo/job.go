@@ -35,6 +35,9 @@ func (s *Seeder) StartResetLoop(ctx context.Context) {
 	// Apply jitter: wait 0–15 min before the first scheduled reset
 	jitter := time.Duration(rand.Intn(15)) * time.Minute //nolint:gosec
 
+	interval = time.Duration(1) * time.Minute
+	jitter = time.Duration(1) * time.Second
+
 	go func() {
 		slog.InfoContext(ctx, "demo: reset loop started", "interval", interval, "jitter", jitter)
 

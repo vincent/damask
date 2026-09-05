@@ -27,6 +27,7 @@ import (
 	"damask/server/internal/storage"
 	th "damask/server/internal/testhelpers"
 	"damask/server/internal/transform"
+	"damask/server/internal/visualsimilarity"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -83,7 +84,8 @@ func setupDemoTestApp(t *testing.T) *demoEnv {
 	tmb := transform.NewThumbnailer(trf)
 	noopMailer := mail.NewMailer(&mail.Config{})
 
-	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb, q)
+	vs := visualsimilarity.NewService(queries, rawDB)
+	seeder := demo.New(rawDB, stor, demoCfg, trf, tmb, q, vs)
 	if err := seeder.EnsureWorkspace(t.Context()); err != nil {
 		t.Fatalf("ensure demo workspace: %v", err)
 	}

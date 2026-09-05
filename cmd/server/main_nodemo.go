@@ -9,6 +9,7 @@ import (
 
 	"damask/server/internal/api"
 	"damask/server/internal/config"
+	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
@@ -22,6 +23,7 @@ func initDemoSeeder(
 	_ transform.Transformer,
 	_ transform.Thumbnailer,
 	_ queue.JobQueue,
+	_ *dbgen.Queries,
 ) api.DemoSeeder {
 	return nil
 }

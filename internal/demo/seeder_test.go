@@ -13,6 +13,7 @@ import (
 	"damask/server/internal/demo"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
+	"damask/server/internal/visualsimilarity"
 )
 
 func newTestSeeder(t *testing.T) (*demo.Seeder, *sql.DB, storage.Storage) {
@@ -38,7 +39,8 @@ func newTestSeeder(t *testing.T) (*demo.Seeder, *sql.DB, storage.Storage) {
 		WorkspaceName: "Demo Agency",
 	}
 
-	seeder := demo.New(database.Writer, stor, cfg, trf, tmb, nil)
+	vs := visualsimilarity.NewService(database.WQ, database.Writer)
+	seeder := demo.New(database.Writer, stor, cfg, trf, tmb, nil, vs)
 	if err := seeder.EnsureWorkspace(context.Background()); err != nil {
 		t.Fatalf("ensure workspace: %v", err)
 	}

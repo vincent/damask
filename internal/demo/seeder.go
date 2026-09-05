@@ -31,6 +31,7 @@ import (
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
+	"damask/server/internal/visualsimilarity"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -47,6 +48,7 @@ type Seeder struct {
 	trf         transform.Transformer
 	tmb         transform.Thumbnailer
 	jobQueue    queue.JobQueue // optional (may be nil); see New
+	visualSim   *visualsimilarity.Service
 	cfg         config.DemoConfig
 	lastResetAt time.Time // set after each successful reset; zero on first boot
 }
@@ -54,7 +56,8 @@ type Seeder struct {
 // New returns a Seeder ready to use. q is used to enqueue extract_media_tags
 // jobs for video/audio assets during seeding (RA-6.2); pass nil if no queue
 // is available — seeding still succeeds, assets simply won't have media tags
-// until something else triggers extraction.
+// until something else triggers extraction. vs computes and stores perceptual
+// hashes for seeded images so visual similarity search has data to match on.
 func New(
 	db *sql.DB,
 	stor storage.Storage,
@@ -62,8 +65,9 @@ func New(
 	trf transform.Transformer,
 	tmb transform.Thumbnailer,
 	q queue.JobQueue,
+	vs *visualsimilarity.Service,
 ) *Seeder {
-	return &Seeder{db: db, storage: stor, cfg: cfg, trf: trf, tmb: tmb, jobQueue: q}
+	return &Seeder{db: db, storage: stor, cfg: cfg, trf: trf, tmb: tmb, jobQueue: q, visualSim: vs}
 }
 
 // ids holds the stable IDs created during seeding so later steps can reference them.
@@ -219,6 +223,9 @@ func (s *Seeder) Seed(ctx context.Context) error {
 		return err
 	}
 	if err := s.seedFieldValues(ctx, tx2, &d); err != nil {
+		return err
+	}
+	if err := s.seedTextTracks(ctx, tx2, &d); err != nil {
 		return err
 	}
 	if err := s.seedShare(ctx, tx2, &d); err != nil {
@@ -527,6 +534,9 @@ type assetSpec struct {
 	projectID    string
 	folderID     string
 	makeVersions int
+	// cropSourceFile is the resolved assets/-relative path of the source photo
+	// when entry.CropOf is set; populated by buildAssetSpecs.
+	cropSourceFile string
 }
 
 func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
@@ -615,6 +625,8 @@ func (s *Seeder) seedAssets(ctx context.Context, d *ids) error {
 		} else {
 			slog.WarnContext(ctx, "demo: thumbnail generation failed", "name", sp.entry.Name, "error", tErr)
 		}
+
+		s.computeAndStoreVisualSimilarity(ctx, d.workspaceID, versionID, sp.entry.Mime, data, sp.entry.Name)
 
 		// Enqueue media-tag extraction for video/audio assets (RA-6.2), same
 		// as a real upload would. Best-effort: seeding still succeeds if no
@@ -727,7 +739,40 @@ func (s *Seeder) addVersion(
 		}
 	}
 
+	s.computeAndStoreVisualSimilarity(ctx, d.workspaceID, versionID, sp.entry.Mime, data, sp.entry.Name)
+
 	return nil
+}
+
+// computeAndStoreVisualSimilarity decodes an already-generated image version
+// and stores its perceptual hash, mirroring what the real upload pipeline
+// does asynchronously in the version_thumbnail job (internal/jobs). Demo
+// seeding writes rows directly via SQL and bypasses that job entirely, so
+// without this call /api/v1/assets/:id/similar would never find matches for
+// any demo asset. Best-effort: non-image mimes are skipped, and any error is
+// logged rather than failing the seed.
+func (s *Seeder) computeAndStoreVisualSimilarity(
+	ctx context.Context,
+	workspaceID, assetVersionID, mimeType string,
+	data []byte,
+	name string,
+) {
+	if s.visualSim == nil || !transform.IsImageMime(mimeType) {
+		return
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		slog.WarnContext(ctx, "demo: visual similarity decode failed", "name", name, "error", err)
+		return
+	}
+	hashes, err := visualsimilarity.Compute(img)
+	if err != nil {
+		slog.WarnContext(ctx, "demo: visual similarity compute failed", "name", name, "error", err)
+		return
+	}
+	if err := s.visualSim.Store(ctx, workspaceID, assetVersionID, hashes); err != nil {
+		slog.WarnContext(ctx, "demo: visual similarity store failed", "name", name, "error", err)
+	}
 }
 
 // versionComment returns the manifest-declared comment for versionNum (2..N),
@@ -859,6 +904,40 @@ func (s *Seeder) seedFieldValues(ctx context.Context, tx *sql.Tx, d *ids) error 
 					return err
 				}
 			}
+		}
+	}
+	return nil
+}
+
+// --- text tracks ---
+
+// seedTextTracks creates a "manual" text track for each manifest entry that
+// declares a description (RA-1), so the text-tracks feature has real content
+// to show in the demo. Mirrors seedFieldValues: manifest-driven, one row per
+// asset, plus the matching assets_text_fts row the repository layer would
+// normally insert alongside it.
+func (s *Seeder) seedTextTracks(ctx context.Context, tx *sql.Tx, d *ids) error {
+	for _, am := range d.allAssets {
+		entry, ok := d.manifestByName[am.name]
+		if !ok || entry.Description == "" {
+			continue
+		}
+
+		trackID := newID("txt")
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO asset_text_tracks (id, workspace_id, asset_id, source, lang, content, status, created_by)
+			VALUES (?, ?, ?, 'manual', 'eng', ?, 'ready', ?)
+		`, trackID, d.workspaceID, am.id, entry.Description, d.userID)
+		if err != nil {
+			return fmt.Errorf("demo: text track for asset %s: %w", am.name, err)
+		}
+
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO assets_text_fts (track_id, asset_id, workspace_id, source, lang, content)
+			VALUES (?, ?, ?, 'manual', 'eng', ?)
+		`, trackID, am.id, d.workspaceID, entry.Description)
+		if err != nil {
+			return fmt.Errorf("demo: text track fts for asset %s: %w", am.name, err)
 		}
 	}
 	return nil
@@ -1169,15 +1248,22 @@ func (s *Seeder) buildAssetSpecs(d *ids) ([]assetSpec, error) {
 	}
 
 	d.manifestByName = make(map[string]manifestEntry, len(mf.Assets))
-	specs := make([]assetSpec, 0, len(mf.Assets))
 	for _, e := range mf.Assets {
 		d.manifestByName[e.Name] = e
-		specs = append(specs, assetSpec{
+	}
+
+	specs := make([]assetSpec, 0, len(mf.Assets))
+	for _, e := range mf.Assets {
+		sp := assetSpec{
 			entry:        e,
 			projectID:    projectIDs[e.Project],
 			folderID:     folderIDs[e.Folder],
 			makeVersions: len(e.Versions) + 1,
-		})
+		}
+		if e.CropOf != "" {
+			sp.cropSourceFile = d.manifestByName[e.CropOf].File
+		}
+		specs = append(specs, sp)
 	}
 	return specs, nil
 }
@@ -1210,6 +1296,18 @@ func (s *Seeder) generateFile(
 			return data, w, h, nil
 		}
 		return data, e.Width, e.Height, nil
+	}
+
+	if e.CropOf != "" {
+		data, err = assetsFS.ReadFile("assets/" + sp.cropSourceFile)
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("demo: read crop source %s: %w", sp.cropSourceFile, err)
+		}
+		data, w, h, err := cropVariant(data, e.Mime, cropInsetPct)
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("demo: crop variant of %s: %w", e.Name, err)
+		}
+		return data, w, h, nil
 	}
 
 	switch e.Generator {
@@ -1263,6 +1361,42 @@ func draftVariant(data []byte, mime string) (out []byte, width, height int, err 
 		return nil, 0, 0, err
 	}
 	return buf.Bytes(), gray.Bounds().Dx(), gray.Bounds().Dy(), nil
+}
+
+// cropInsetPct is the inward crop applied by cropVariant, expressed as a
+// percentage of width/height trimmed from each edge. Kept well below
+// draftVariant's 6% (which was never tuned for this) since the perceptual
+// hash used by visual similarity search only tolerates small crops.
+const cropInsetPct = 4
+
+// cropVariant derives a same-color, slightly-cropped duplicate of a real
+// photo, used to seed a visually-similar asset pair for the visual
+// similarity search feature (unlike draftVariant, no grayscale conversion —
+// this is meant to still look like a near-duplicate of the original).
+func cropVariant(data []byte, mime string, insetPct int) (out []byte, width, height int, err error) {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	b := img.Bounds()
+	insetX := b.Dx() * insetPct / 100
+	insetY := b.Dy() * insetPct / 100
+	cropRect := image.Rect(b.Min.X+insetX, b.Min.Y+insetY, b.Max.X-insetX, b.Max.Y-insetY)
+
+	cropped := image.NewRGBA(image.Rect(0, 0, cropRect.Dx(), cropRect.Dy()))
+	draw.Draw(cropped, cropped.Bounds(), img, cropRect.Min, draw.Src)
+
+	var buf bytes.Buffer
+	if mime == "image/png" {
+		err = png.Encode(&buf, cropped)
+	} else {
+		err = jpeg.Encode(&buf, cropped, &jpeg.Options{Quality: 90})
+	}
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	return buf.Bytes(), cropped.Bounds().Dx(), cropped.Bounds().Dy(), nil
 }
 
 // hexColor parses a "rrggbb" manifest bg_color into an opaque [color.RGBA],

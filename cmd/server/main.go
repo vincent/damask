@@ -176,7 +176,7 @@ func main() {
 	// --- http ---
 	// Demo mode: ensure workspace exists on startup, seed if missing, start reset loop.
 	// initDemoSeeder is a no-op stub in non-demo builds (main_nodemo.go).
-	demoSeeder := initDemoSeeder(ctx, cfg, database.Writer, stor, trf, tmb, q)
+	demoSeeder := initDemoSeeder(ctx, cfg, database.Writer, stor, trf, tmb, q, database.WQ)
 
 	app := api.NewRouter(deps, tokenMaker, demoSeeder, uiFS)
 

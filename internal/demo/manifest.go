@@ -20,19 +20,21 @@ type manifestVersion struct {
 
 // manifestEntry is one asset in manifest.yaml.
 type manifestEntry struct {
-	Name      string            `yaml:"name"`
-	File      string            `yaml:"file"`
-	Generator string            `yaml:"generator"`
-	Project   string            `yaml:"project"`
-	Folder    string            `yaml:"folder"`
-	Mime      string            `yaml:"mime"`
-	Width     int               `yaml:"width"`
-	Height    int               `yaml:"height"`
-	BGColor   string            `yaml:"bg_color"`
-	Tags      []string          `yaml:"tags"`
-	Fields    map[string]string `yaml:"fields"`
-	Alt       string            `yaml:"alt"`
-	Versions  []manifestVersion `yaml:"versions"`
+	Name        string            `yaml:"name"`
+	File        string            `yaml:"file"`
+	Generator   string            `yaml:"generator"`
+	CropOf      string            `yaml:"crop_of"`
+	Project     string            `yaml:"project"`
+	Folder      string            `yaml:"folder"`
+	Mime        string            `yaml:"mime"`
+	Width       int               `yaml:"width"`
+	Height      int               `yaml:"height"`
+	BGColor     string            `yaml:"bg_color"`
+	Tags        []string          `yaml:"tags"`
+	Fields      map[string]string `yaml:"fields"`
+	Alt         string            `yaml:"alt"`
+	Description string            `yaml:"description"`
+	Versions    []manifestVersion `yaml:"versions"`
 }
 
 type manifestFile struct {
@@ -99,6 +101,11 @@ func parseManifest(raw []byte) (*manifestFile, error) {
 // keys, a missing or ambiguous file/generator source, a file-backed entry
 // whose file doesn't exist under assets/, duplicate names, and empty tags.
 func validateManifest(mf *manifestFile) error {
+	byName := make(map[string]manifestEntry, len(mf.Assets))
+	for _, e := range mf.Assets {
+		byName[e.Name] = e
+	}
+
 	seen := map[string]bool{}
 	for i, e := range mf.Assets {
 		ref := fmt.Sprintf("manifest.yaml entry %d (%s)", i, e.Name)
@@ -120,15 +127,34 @@ func validateManifest(mf *manifestFile) error {
 		if !validGenerators[e.Generator] {
 			return fmt.Errorf("demo: %s: unknown generator %q", ref, e.Generator)
 		}
-		if e.Generator == "" && e.File == "" {
-			return fmt.Errorf("demo: %s: needs either file or generator", ref)
+		sources := 0
+		if e.File != "" {
+			sources++
 		}
-		if e.Generator != "" && e.File != "" {
-			return fmt.Errorf("demo: %s: cannot set both file and generator", ref)
+		if e.Generator != "" {
+			sources++
+		}
+		if e.CropOf != "" {
+			sources++
+		}
+		if sources == 0 {
+			return fmt.Errorf("demo: %s: needs one of file, generator, or crop_of", ref)
+		}
+		if sources > 1 {
+			return fmt.Errorf("demo: %s: file, generator, and crop_of are mutually exclusive", ref)
 		}
 		if e.File != "" {
 			if _, err := assetsFS.ReadFile("assets/" + e.File); err != nil {
 				return fmt.Errorf("demo: %s: file %q not found under assets/: %w", ref, e.File, err)
+			}
+		}
+		if e.CropOf != "" {
+			src, ok := byName[e.CropOf]
+			if !ok {
+				return fmt.Errorf("demo: %s: crop_of %q does not match any asset name", ref, e.CropOf)
+			}
+			if src.File == "" {
+				return fmt.Errorf("demo: %s: crop_of %q must reference a file-backed asset", ref, e.CropOf)
 			}
 		}
 		if len(e.Tags) == 0 {

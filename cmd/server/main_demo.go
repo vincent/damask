@@ -10,10 +10,12 @@ import (
 	"database/sql"
 
 	"damask/server/internal/config"
+	dbgen "damask/server/internal/db/gen"
 	"damask/server/internal/demo"
 	"damask/server/internal/queue"
 	"damask/server/internal/storage"
 	"damask/server/internal/transform"
+	"damask/server/internal/visualsimilarity"
 )
 
 func initDemoSeeder(
@@ -24,11 +26,13 @@ func initDemoSeeder(
 	trf transform.Transformer,
 	tmb transform.Thumbnailer,
 	q queue.JobQueue,
+	queries *dbgen.Queries,
 ) *demo.Seeder {
 	if !cfg.Demo.DemoMode {
 		return nil
 	}
-	seeder := demo.New(sqlDB, stor, cfg.Demo, trf, tmb, q)
+	vs := visualsimilarity.NewService(queries, sqlDB)
+	seeder := demo.New(sqlDB, stor, cfg.Demo, trf, tmb, q, vs)
 	if err := seeder.EnsureWorkspace(ctx); err != nil {
 		slog.ErrorContext(ctx, "demo: ensure workspace", "error", err)
 		os.Exit(1)
