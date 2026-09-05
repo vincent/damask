@@ -307,6 +307,306 @@ assets:
     alt: "Cropped detail of snow-capped Mount Shasta seen from Bunny Flat trailhead."
     description: "A tighter crop of the same Mount Shasta shot, likely a duplicate candidate."
 
+  - name: landscape-antelope-canyon.jpg
+    file: photos/landscape-antelope-canyon.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 800
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Slot canyon walls with crepuscular rays of light filtering through the narrow opening above."
+    description: "Antelope Canyon is a slot canyon in the American Southwest, on Navajo land east of Page, Arizona. It includes two separate, popular photography sites: Upper Antelope Canyon and Lower Antelope Canyon. Slot canyons form from the wind and water erosion of Navajo sandstone, and shafts of sunlight reach the canyon floor during certain times of day."
+
+  - name: landscape-bryce-canyon.jpg
+    file: photos/landscape-bryce-canyon.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 788
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Panoramic view of orange and white hoodoo rock spires in the Bryce Canyon amphitheater."
+    description: "Bryce Canyon National Park is a national park in southwestern Utah, known for its distinctive geology of red, orange, and white colored hoodoos, the largest concentration of which is found in the Bryce Amphitheater. Hoodoos there are formed by frost weathering and stream erosion of the river and lake bed sedimentary rocks."
+
+  - name: landscape-verdon-gorge.jpg
+    file: photos/landscape-verdon-gorge.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 723
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Turquoise river winding through the steep limestone walls of the Verdon Gorge, seen from a bridge."
+    description: "The Gorges du Verdon, also known as the Verdon Canyon, is a river canyon in southeastern France. It is considered by many to be one of the most beautiful and impressive canyons in Europe, with limestone cliffs up to 700 m (2,300 ft) high carved by the turquoise waters of the Verdon River."
+
+  - name: landscape-tara-canyon.jpg
+    file: photos/landscape-tara-canyon.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1866
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Forested peaks of the Durmitor massif rising above the deep Tara River canyon."
+    description: "The Tara River Canyon is a river canyon of the Tara River in Montenegro, and the deepest canyon in Europe at around 1,300 m (4,300 ft). It runs alongside Durmitor National Park, a UNESCO World Heritage Site, and is a popular whitewater rafting destination."
+
+  - name: landscape-arenal-volcano.jpg
+    file: photos/landscape-arenal-volcano.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 805
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Symmetrical cone of Arenal Volcano rising above the surrounding Costa Rican rainforest."
+    description: "Arenal Volcano is an andesitic stratovolcano in north-western Costa Rica, near the city of La Fortuna. It is one of Costa Rica's most-visited volcanoes and one of the most active in the world, with a near-perfect conical shape."
+
+  - name: landscape-bromo-volcano.jpg
+    file: photos/landscape-bromo-volcano.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 1018
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Smoking crater of Mount Bromo at sunrise, with Mount Semeru smoking in the background."
+    description: "Mount Bromo is an active somma volcano and part of the Tengger massif in East Java, Indonesia. At 2,329 metres (7,641 ft) it is not the highest peak of the massif, but is the most famous, sitting inside a vast caldera known as the Sea of Sand."
+
+  - name: landscape-taal-volcano.jpg
+    file: photos/landscape-taal-volcano.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 800
+    height: 600
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Aerial view of Taal Volcano's crater lake within Taal Lake in the Philippines."
+    description: "Taal Volcano is a large caldera filled by Taal Lake in Batangas, Philippines. It is one of the Philippines' most active volcanoes and is known for its distinctive 'lake within a lake' arrangement, having erupted at least 34 times since 1572."
+
+  - name: landscape-ikkil-cenote.jpg
+    file: photos/landscape-ikkil-cenote.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1440
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Circular cenote pool ringed by hanging vines and a rock ledge, near Chichen Itza."
+    description: "Ik Kil is a cenote near Chichen Itza in the Yucatan Peninsula of Mexico, part of the same karst network of sinkholes formed by the collapse of limestone bedrock over groundwater. It is open to the public for swimming and is one of the most visited cenotes in the region."
+
+  - name: landscape-chacmool-cenote.jpg
+    file: photos/landscape-chacmool-cenote.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1440
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Underwater view of a cenote showing a hazy halocline layer between fresh and salt water."
+    description: "Cenote Chac Mool, in the Riviera Maya region of Mexico, is known for its visible halocline: a sharp boundary layer where less dense fresh water sits above denser salt water, creating a blurred, mirage-like visual effect for divers."
+
+  - name: landscape-angelita-cenote.jpg
+    file: photos/landscape-angelita-cenote.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1613
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Deep, tree-lined sinkhole of Cenote Angelita opening onto a distant patch of sky."
+    description: "Cenote Angelita is a sinkhole in the state of Quintana Roo, on Mexico's Yucatan Peninsula. Like other cenotes in the region, it exposes the groundwater of the underlying karst aquifer, and is notable among divers for a cloud-like hydrogen sulfide layer roughly 30 metres down."
+
+  - name: landscape-geirangerfjord.jpg
+    file: photos/landscape-geirangerfjord.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 948
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "View down to the village of Geiranger and the fjord below from the Flydalsjuvet viewpoint."
+    description: "Geirangerfjord is a fjord in the Sunnmøre region of Møre og Romsdal county, Norway. A UNESCO World Heritage Site, it is known for its steep, forested walls and cascading waterfalls, and is often viewed from the Flydalsjuvet overlook above the village of Geiranger."
+
+  - name: landscape-austnesfjorden.jpg
+    file: photos/landscape-austnesfjorden.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 658
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Late-evening light over the calm waters of Austnesfjorden with mountains in the distance."
+    description: "Austnesfjorden is a fjord in the Lofoten archipelago of Nordland county, Norway, on the island of Austvågøya. Like much of Lofoten, it is framed by steep, jagged peaks that rise almost directly from the water."
+
+  - name: landscape-torresdelpaine.jpg
+    file: photos/landscape-torresdelpaine.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 682
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Granite peaks of the Cordillera del Paine rising above the Patagonian steppe."
+    description: "Torres del Paine is a mountain massif in the Chilean Patagonia's Cordillera del Paine, part of the Southern Patagonic Andes. Torres del Paine National Park, which surrounds it, is known for its granite towers, glaciers, and turquoise lakes."
+
+  - name: landscape-matterhorn.jpg
+    file: photos/landscape-matterhorn.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 600
+    height: 604
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Pyramidal peak of the Matterhorn towering over the Swiss town of Zermatt."
+    description: "The Matterhorn is a mountain in the Alps, straddling the border between Switzerland and Italy. At 4,478 metres (14,692 ft), it is one of the highest peaks in the Alps and one of the last major Alpine summits to be climbed, known for its near-symmetrical pyramidal shape."
+
+  - name: landscape-gavarnie.jpg
+    file: photos/landscape-gavarnie.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 960
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Sheer cliff walls of the Cirque de Gavarnie forming a natural amphitheater in the Pyrenees."
+    description: "The Cirque de Gavarnie is a glacial cirque in the Hautes-Pyrénées department of France, part of the Pyrenees National Park and a UNESCO World Heritage Site. Its sheer rock walls rise up to 1,500 m (4,900 ft) and enclose France's tallest waterfall, the Grande Cascade."
+
+  - name: landscape-zhangjiajie.jpg
+    file: photos/landscape-zhangjiajie.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 959
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Thousands of narrow sandstone pillars rising through mist in the Zhangjiajie mountains."
+    description: "Zhangjiajie National Forest Park, in Hunan Province, China, is known for its thousands of tall, narrow quartzite sandstone pillars, formed by physical erosion over 380 million years. It is part of the Wulingyuan Scenic Area, a UNESCO World Heritage Site, and inspired the floating 'Hallelujah Mountains' in the film Avatar."
+
+  - name: landscape-iguazu-falls.jpg
+    file: photos/landscape-iguazu-falls.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1631
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Wide curtain of waterfalls along the Iguazu River, straddling the border of Argentina and Brazil."
+    description: "Iguazu Falls is a waterfall system on the Iguazu River, on the border between the Argentine province of Misiones and the Brazilian state of Paraná. It consists of 275 individual falls and drops, and is significantly wider than either Niagara Falls or Victoria Falls."
+
+  - name: landscape-kuangsi-falls.jpg
+    file: photos/landscape-kuangsi-falls.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1728
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Turquoise tiered pools cascading through the forest at Kuang Si Falls."
+    description: "Kuang Si Falls is a three-tiered waterfall on the Nam Si River near Luang Prabang, Laos. Water flowing over limestone deposits gives the falls' pools their distinctive turquoise color, and the lower tiers form a series of shallow swimming pools."
+
+  - name: landscape-deadvlei.jpg
+    file: photos/landscape-deadvlei.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1620
+    height: 1080
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Dead, blackened acacia trees standing on a white salt pan against towering orange sand dunes."
+    description: "Deadvlei is a white clay pan in Namib-Naukluft Park, Namibia, surrounded by some of the world's tallest sand dunes. It is known for its skeletons of camel thorn trees, believed to be around 900 years old, preserved by the extremely dry climate."
+
+  - name: landscape-halongbay.jpg
+    file: photos/landscape-halongbay.jpg
+    project: summer
+    folder: photo
+    mime: image/jpeg
+    width: 1920
+    height: 502
+    tags: [photography, approved]
+    fields:
+      photographer: "Sarah M."
+      usage_rights: "+180d"
+      status: "Approved"
+    alt: "Thousands of limestone karst islands rising from the emerald waters of Ha Long Bay."
+    description: "Ha Long Bay, in the Gulf of Tonkin, Vietnam, is known for its thousands of limestone karsts and isles in various shapes and sizes, many topped with rainforest vegetation. It is a UNESCO World Heritage Site and one of Vietnam's most visited natural attractions."
+
   # --- Summer Campaign: Video ---
   - name: teaser-15s.mp4
     file: videos/teaser-15s.mp4

@@ -59,6 +59,26 @@ download "https://upload.wikimedia.org/wikipedia/commons/1/14/Victoria_Falls_-_V
 download "https://upload.wikimedia.org/wikipedia/commons/7/7b/Cenote_Dolomiti.jpg" cenote.jpg
 download "https://upload.wikimedia.org/wikipedia/commons/a/a2/Teide_von_Nordosten_%28Zuschnitt_1%29.jpg" volcano.jpg
 download "https://upload.wikimedia.org/wikipedia/commons/a/af/Grand_Canyon_view_from_Pima_Point_2010.jpg" canyon.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/0/00/Antelope_Canyon_Mittags.jpg" antelope-canyon.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/f/f7/Bryce_Canyon_Amphitheater_Hoodoos_Panorama.jpg" bryce-canyon.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/e/e9/Gorges_du_Verdon_from_bridge_over_Lac_de_Sainte-Croix%2C_Provence.jpg" verdon-gorge.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/b/ba/Durmitor%2C_canyon_Tara_-_Montenegro.JPG" tara-canyon.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/6/69/Arenal_volcano_%2870785p%29.jpg" arenal-volcano.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/7/7d/Mount_Bromo_at_sunrise%2C_showing_its_volcanoes_and_Mount_Semeru_%28background%29.jpg" bromo-volcano.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/c/c3/Taal_volcano_aerial.jpg" taal-volcano.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/f/fb/Cenote_Ik-Kil.jpg" ikkil-cenote.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/6/64/Halocline_cenote_Chac_Mool.jpg" chacmool-cenote.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/8/8c/Cenote_Angelita.jpg" angelita-cenote.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/f/f3/View_to_Geiranger_from_Flydalsjuvet%2C_2013_June.jpg" geirangerfjord.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/8/8c/A_Late_evening_view_to_Austnesfjorden_at_Sildpollnes_Church%2C_Austv%C3%A5g%C3%B8ya%2C_Lofoten%2C_Norway%2C_2015_April.jpg" austnesfjorden.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/8/82/Torres_del_Paine_-_Janvier_2010.jpg" torresdelpaine.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/1/17/Zermatt_and_Matterhorn.jpg" matterhorn.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/7/7a/Cirque_de_Gavarnie%2C_Haute-Pyr%C3%A9n%C3%A9es%2C_France.jpg" gavarnie.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/7/77/1_tianzishan_wulingyuan_zhangjiajie_2012.jpg" zhangjiajie.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/5/5a/Cataratas_Iguacu_Iguazu_Falls.jpg" iguazu-falls.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/6/61/Kuang_Si_Falls_and_its_turquoise_tiered_water_pools_in_Luang_Prabang_province_Laos.jpg" kuangsi-falls.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/0/0b/Dead_Vlei_-_Sossusvlei_-_Namib-Desert_-_Namibia_%2823394319372%29.jpg" deadvlei.jpg
+download "https://upload.wikimedia.org/wikipedia/commons/3/32/Ha_Long_Bay_panorama.jpg" halongbay.jpg
 
 cd "$CACHE_DIR"
 
@@ -76,6 +96,26 @@ ffmpeg -y -v error -i gorge.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':forc
 ffmpeg -y -v error -i cenote.jpg   -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-cenote.jpg"
 ffmpeg -y -v error -i volcano.jpg  -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-volcano.jpg"
 ffmpeg -y -v error -i canyon.jpg   -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-canyon.jpg"
+ffmpeg -y -v error -i antelope-canyon.jpg -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-antelope-canyon.jpg"
+ffmpeg -y -v error -i bryce-canyon.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-bryce-canyon.jpg"
+ffmpeg -y -v error -i verdon-gorge.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-verdon-gorge.jpg"
+ffmpeg -y -v error -i tara-canyon.jpg     -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-tara-canyon.jpg"
+ffmpeg -y -v error -i arenal-volcano.jpg  -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-arenal-volcano.jpg"
+ffmpeg -y -v error -i bromo-volcano.jpg   -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-bromo-volcano.jpg"
+ffmpeg -y -v error -i taal-volcano.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-taal-volcano.jpg"
+ffmpeg -y -v error -i ikkil-cenote.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-ikkil-cenote.jpg"
+ffmpeg -y -v error -i chacmool-cenote.jpg -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-chacmool-cenote.jpg"
+ffmpeg -y -v error -i angelita-cenote.jpg -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-angelita-cenote.jpg"
+ffmpeg -y -v error -i geirangerfjord.jpg  -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-geirangerfjord.jpg"
+ffmpeg -y -v error -i austnesfjorden.jpg  -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-austnesfjorden.jpg"
+ffmpeg -y -v error -i torresdelpaine.jpg  -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-torresdelpaine.jpg"
+ffmpeg -y -v error -i matterhorn.jpg      -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-matterhorn.jpg"
+ffmpeg -y -v error -i gavarnie.jpg        -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-gavarnie.jpg"
+ffmpeg -y -v error -i zhangjiajie.jpg     -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-zhangjiajie.jpg"
+ffmpeg -y -v error -i iguazu-falls.jpg    -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-iguazu-falls.jpg"
+ffmpeg -y -v error -i kuangsi-falls.jpg   -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-kuangsi-falls.jpg"
+ffmpeg -y -v error -i deadvlei.jpg        -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-deadvlei.jpg"
+ffmpeg -y -v error -i halongbay.jpg       -vf "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease" -q:v 3 "$PHOTOS_DIR/landscape-halongbay.jpg"
 
 # --- Platform-format social crops -------------------------------------------
 ffmpeg -y -v error -i beach.jpg  -vf "crop=ih:ih,scale=1080:1080" -q:v 3 "$PHOTOS_DIR/instagram-square.jpg"
